@@ -6,6 +6,7 @@ namespace Buggregator\Client;
 
 use Buggregator\Client\Proto\Buffer;
 use Buggregator\Client\Proto\Frame;
+use Buggregator\Client\Proto\Timer;
 use Buggregator\Client\Socket\Client;
 use Buggregator\Client\Socket\Server;
 use DateTimeImmutable;
@@ -14,6 +15,7 @@ class Bootstrap
 {
     private array $servers = [];
     private readonly Buffer $buffer;
+    private Timer $bufferTimer;
 
     public function __construct(
         object $options,
@@ -22,6 +24,8 @@ class Bootstrap
         ],
     ) {
         $this->buffer = new Buffer(bufferSize: 10485760);
+        $this->bufferTimer = new Timer(beep: 0.05);
+
         foreach ($map as $type => $port) {
             $protoType = ProtoType::tryFrom($type);
             $this->servers[$type] = $this->createServer($protoType, $port);
@@ -33,6 +37,17 @@ class Bootstrap
         foreach ($this->servers as $server) {
             $server->process();
         }
+        // Process buffer
+        if ($this->buffer->isOverflow() || ($this->bufferTimer->isReady() && $this->buffer->getSize() > 0)) {
+            $this->bufferTimer->reset();
+            $this->sendBuffer();
+        }
+    }
+
+    private function sendBuffer(): void
+    {
+        $data = $this->buffer->getAndClean();
+        // todo send
     }
 
     private function createServer(?ProtoType $type, int $port): Server

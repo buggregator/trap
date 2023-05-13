@@ -22,6 +22,16 @@ class Buffer
         $this->currentSize += \strlen($str);
     }
 
+    public function getSize(): int
+    {
+        return $this->currentSize;
+    }
+
+    public function isOverflow(): bool
+    {
+        return $this->currentSize > $this->bufferSize;
+    }
+
     public function getAndClean(): string
     {
         $result = '[' . \implode(",\n", $this->frames) . ']';
