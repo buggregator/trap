@@ -25,7 +25,7 @@ class Bootstrap
         ],
         Sender $sender = null,
     ) {
-        $this->buffer = new Buffer(bufferSize: 10485760, timer: 1.0);
+        $this->buffer = new Buffer(bufferSize: 10485760, timer: 0.1);
 
         foreach ($map as $type => $port) {
             $protoType = ProtoType::tryFrom($type);
