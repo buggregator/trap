@@ -7,6 +7,7 @@ namespace Buggregator\Client;
 use Buggregator\Client\Proto\Buffer;
 use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Proto\Timer;
+use Buggregator\Client\Sender\FileSender;
 use Buggregator\Client\Socket\Client;
 use Buggregator\Client\Socket\Server;
 use DateTimeImmutable;
@@ -15,21 +16,22 @@ class Bootstrap
 {
     private array $servers = [];
     private readonly Buffer $buffer;
-    private Timer $bufferTimer;
+    private Sender $sender;
 
     public function __construct(
         object $options,
         array $map = [
             'vardump' => 9912,
         ],
+        Sender $sender = null,
     ) {
-        $this->buffer = new Buffer(bufferSize: 10485760);
-        $this->bufferTimer = new Timer(beep: 0.05);
+        $this->buffer = new Buffer(bufferSize: 10485760, timer: 1.0);
 
         foreach ($map as $type => $port) {
             $protoType = ProtoType::tryFrom($type);
             $this->servers[$type] = $this->createServer($protoType, $port);
         }
+        $this->sender = new FileSender();
     }
 
     public function process(): void
@@ -38,16 +40,16 @@ class Bootstrap
             $server->process();
         }
         // Process buffer
-        if ($this->buffer->isOverflow() || ($this->bufferTimer->isReady() && $this->buffer->getSize() > 0)) {
-            $this->bufferTimer->reset();
+        if ($this->buffer->isReady()) {
             $this->sendBuffer();
         }
     }
 
     private function sendBuffer(): void
     {
-        $data = $this->buffer->getAndClean();
-        // todo send
+        $this->sender->send(
+            $this->buffer->getAndClean(),
+        );
     }
 
     private function createServer(?ProtoType $type, int $port): Server
