@@ -16,6 +16,7 @@ class Buffer
         ?float $timer = null,
     ) {
         $this->timer = $timer === null ? null : new Timer(beep: 1.5);
+        $this->timer?->stop();
     }
 
     public function addFrame(Frame $frame): void
@@ -24,7 +25,7 @@ class Buffer
         $this->frames[] = $str;
         $this->currentSize += \strlen($str);
 
-        $this->timer->continue();
+        $this->timer?->continue();
     }
 
     public function getAndClean(): string
@@ -32,14 +33,14 @@ class Buffer
         $result = '[' . \implode(",\n", $this->frames) . ']';
         $this->frames = [];
         $this->currentSize = 0;
-        $this->timer->stop();
+        $this->timer?->stop();
 
         return $result;
     }
 
     public function isReady(): bool
     {
-        return $this->isOverflow() || $this->timer?->isReady();
+        return $this->isOverflow() || $this->timer?->isReady() === true;
     }
 
     public function getSize(): int

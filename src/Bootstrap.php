@@ -31,7 +31,7 @@ class Bootstrap
             $protoType = ProtoType::tryFrom($type);
             $this->servers[$type] = $this->createServer($protoType, $port);
         }
-        $this->sender = new FileSender();
+        $this->sender = $sender ?? new FileSender();
     }
 
     public function process(): void
