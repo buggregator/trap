@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Buggregator\Client;
 
 use Buggregator\Client\Proto\Buffer;
-use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Sender\FileSender;
 use Buggregator\Client\Socket\Client;
 use Buggregator\Client\Socket\Server;
-use DateTimeImmutable;
+use Buggregator\Client\Socket\StreamClient;
+use Buggregator\Client\Traffic\Inspector;
 use Fiber;
 use RuntimeException;
 
@@ -21,6 +21,7 @@ class Bootstrap
     private array $fibers = [];
     private readonly Buffer $buffer;
     private Sender $sender;
+    private Inspector $inspector;
 
     public function __construct(
         object $options,
@@ -30,12 +31,17 @@ class Bootstrap
         Sender $sender = null,
     ) {
         $this->buffer = new Buffer(bufferSize: 10485760, timer: 0.1);
+        $this->inspector = new Inspector(
+            $this->buffer,
+            new Traffic\Dispatcher\VarDumper(),
+        );
 
         foreach ($map as $type => $port) {
             $protoType = ProtoType::tryFrom($type);
             $this->servers[$type] = $this->createServer($protoType, $port);
         }
         $this->sender = $sender ?? new FileSender();
+
     }
 
     public function process(): void
@@ -60,6 +66,7 @@ class Bootstrap
                 unset($this->fibers[$key]);
             }
         }
+        $this->inspector->process();
     }
 
     private function sendBuffer(): void
@@ -69,18 +76,9 @@ class Bootstrap
 
     private function createServer(?ProtoType $type, int $port): Server
     {
-        $buffer = $this->buffer;
-        $clientInflector = $type === null ? null : function (Client $client, int $id) use ($buffer, $type): Client {
-            $client->setOnPayload(function (string $payload) use ($id, $buffer, $type): void {
-                Logger::info('Client #%s sent %d bytes', $id, \strlen($payload));
-
-                $buffer->addFrame(new Frame(
-                    new DateTimeImmutable(),
-                    $type,
-                    \rtrim($payload),
-                ));
-            });
-
+        $inspector = $this->inspector;
+        $clientInflector = $type === null ? null : function (Client $client, int $id) use ($inspector): Client {
+            $inspector->addStream(StreamClient::create($client, $id));
             return $client;
         };
 

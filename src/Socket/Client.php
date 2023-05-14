@@ -18,6 +18,7 @@ class Client
     private string $readBuffer = '';
 
     private \Closure $onPayload;
+    private \Closure $onClose;
 
     private function __construct(
         private readonly \Socket $socket,
@@ -26,11 +27,17 @@ class Client
     ) {
         \socket_set_nonblock($this->socket);
         $this->setOnPayload(fn(string $payload) => null);
+        $this->setOnClose(fn() => null);
     }
 
     public function __destruct()
     {
-        \socket_close($this->socket);
+        try {
+            \socket_close($this->socket);
+        } catch (\Throwable) {
+        } finally {
+            ($this->onClose)();
+        }
     }
 
     /**
@@ -69,16 +76,31 @@ class Client
         } while (true);
     }
 
+    public function isBinary(): bool
+    {
+        return $this->binary;
+    }
+
     protected function onInit(): void
     {
     }
 
     /**
      * @param callable(string): void $callable Non-static callable.
+     * @psalm-assert callable(string): void $callable
      */
     public function setOnPayload(callable $callable): void
     {
         $this->onPayload = \Closure::bind($callable(...), $this);
+    }
+
+    /**
+     * @param callable(): void $callable Non-static callable.
+     * @psalm-assert callable(): void $callable
+     */
+    public function setOnClose(callable $callable): void
+    {
+        $this->onClose = \Closure::bind($callable(...), $this);
     }
 
     /**
