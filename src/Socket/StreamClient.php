@@ -18,9 +18,9 @@ class StreamClient implements IteratorAggregate
     /** @var \SplQueue<string> */
     private \SplQueue $queue;
     private bool $disconnected = false;
-    private \Closure $dataWriter;
 
     private function __construct(
+        private readonly Client $client,
         private readonly int $clientId,
     ) {
         $this->queue = new \SplQueue();
@@ -28,19 +28,13 @@ class StreamClient implements IteratorAggregate
 
     public static function create(Client $client, int $id): self
     {
-        $self = new self($id);
+        $self = new self($client, $id);
         $client->setOnPayload(function (string $payload) use ($self): void {
             $self->queue->enqueue($payload);
         });
         $client->setOnClose(function () use ($self): void {
             $self->disconnected = true;
         });
-        $self->dataWriter = static function (string $data) use ($client): void {
-            if ($data === '') {
-                return;
-            }
-            $client->send($data);
-        };
 
         return $self;
     }
@@ -60,11 +54,19 @@ class StreamClient implements IteratorAggregate
 
     public function sendData(string $data): bool
     {
-        if ($this->isDisconnected()) {
+        if ($data === '' || $this->isDisconnected()) {
             return false;
         }
-        ($this->dataWriter)($data);
+        $this->client->send($data);
         return true;
+    }
+
+    public function disconnect(): void
+    {
+        if ($this->isDisconnected()) {
+            return;
+        }
+        $this->client->disconnect();
     }
 
     /**
@@ -74,6 +76,7 @@ class StreamClient implements IteratorAggregate
     {
         return $this->disconnected;
     }
+
     /**
      * @return bool Return {@see true} if there will be no more data.
      */
