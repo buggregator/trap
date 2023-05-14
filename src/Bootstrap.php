@@ -38,6 +38,7 @@ class Bootstrap
             $this->buffer,
             new Traffic\Dispatcher\VarDumper(),
             new Traffic\Dispatcher\Http(),
+            new Traffic\Dispatcher\Smtp(),
         );
 
         foreach ($map as $port => $_) {
