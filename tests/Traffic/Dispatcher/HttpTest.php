@@ -11,7 +11,6 @@ class HttpTest extends TestCase
     public static function detectProvider()
     {
         yield ["GET /foo HTTP/1.1\r\n", true];
-        yield [\base64_decode('R0VUIC9mb28gSFRUUC8xLjENCkhvc3Q6IDEyNy4wLjAuMTo5OTEyDQpVc2VyLUFnZW50OiBNb3ppbGxhLzUuMCAoV2luZG93cyBOVCAxMC4='), true];
         yield ["GET /foo HTTP/1.1\r\nHost: 127.0.0.1:9912\r\nUser-Agent: Mozilla/5.0 (Windows NT 10", true];
         yield ["GET /foo HTTP/1.1\r\nHost: 127.0.0.1:9912\r\n", true,];
         yield ['POST /foo HT', null];

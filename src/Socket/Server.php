@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Client\Socket;
 
 use Buggregator\Client\Logger;
+use Buggregator\Client\Socket\Exception\DisconnectClient;
 use Closure;
 use Fiber;
 use RuntimeException;
@@ -89,6 +90,9 @@ class Server
                     throw new RuntimeException('Client terminated.');
                 }
             } catch (\Throwable $e) {
+                if ($e instanceof DisconnectClient) {
+                    Logger::info('Custom disconnect.');
+                }
                 $this->clients[$key]->__destruct();
                 // Logger::exception($e, 'Client fiber.');
                 unset($this->clients[$key], $this->fibers[$key]);

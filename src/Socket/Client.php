@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Client\Socket;
 
 use Buggregator\Client\Logger;
+use Buggregator\Client\Socket\Exception\DisconnectClient;
 use Fiber;
 
 /**
@@ -18,6 +19,7 @@ class Client
     /** @var string */
     private string $readBuffer = '';
 
+    private bool $connected = true;
     private \Closure $onPayload;
     private \Closure $onClose;
 
@@ -38,6 +40,11 @@ class Client
             Logger::debug('Client destroyed.');
             ($this->onClose)();
         }
+    }
+
+    public function disconnect(): void
+    {
+        \socket_close($this->socket);
     }
 
     /**
@@ -74,6 +81,7 @@ class Client
                 throw new \RuntimeException('Socket exception.');
             }
 
+            $this->connected or throw new DisconnectClient();
             Fiber::suspend();
         } while (true);
     }
@@ -121,6 +129,8 @@ class Client
         socket_set_nonblock($this->socket);
 
         $this->writeQueue = [];
+
+        $this->connected or throw new DisconnectClient();
     }
 
     private function readMessage(): void
