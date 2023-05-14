@@ -60,6 +60,7 @@ final class Inspector
                     break 2;
                 }
                 if ($result === false) {
+                    Logger::info("Dispatcher $key has declined the data.");
                     unset($dispatchers[$key]);
                 }
             }

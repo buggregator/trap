@@ -18,6 +18,7 @@ class StreamClient implements IteratorAggregate
     /** @var \SplQueue<string> */
     private \SplQueue $queue;
     private bool $disconnected = false;
+    private \Closure $dataWriter;
 
     private function __construct(
         private readonly int $clientId,
@@ -34,6 +35,12 @@ class StreamClient implements IteratorAggregate
         $client->setOnClose(function () use ($self): void {
             $self->disconnected = true;
         });
+        $self->dataWriter = static function (string $data) use ($client): void {
+            if ($data === '') {
+                return;
+            }
+            $client->send($data);
+        };
 
         return $self;
     }
@@ -49,6 +56,15 @@ class StreamClient implements IteratorAggregate
         do {
             Fiber::suspend();
         } while (!$this->disconnected && $this->queue->count() === $before);
+    }
+
+    public function sendData(string $data): bool
+    {
+        if ($this->isDisconnected()) {
+            return false;
+        }
+        ($this->dataWriter)($data);
+        return true;
     }
 
     /**

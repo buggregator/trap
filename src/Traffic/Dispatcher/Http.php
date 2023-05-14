@@ -25,7 +25,7 @@ final class Http implements Dispatcher
 
     public function detect(string $data): ?bool
     {
-        if (\preg_match('/^(GET|POST|PUT|HEAD|OPTIONS) \\W HTTP\\/1\\.\\d$/', $data) === 1) {
+        if (\preg_match('/^(GET|POST|PUT|HEAD|OPTIONS) \\S HTTP\\/1\\.\\d$/', $data) === 1) {
             Logger::info('THIS IS HTTP!');
             return true;
         }

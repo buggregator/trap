@@ -100,6 +100,11 @@ class Client
         $this->onClose = \Closure::bind($callable(...), $this);
     }
 
+    public function send(string $payload): void
+    {
+        $this->writeQueue[] = $payload;
+    }
+
     /**
      * @param non-empty-string $payload
      */
