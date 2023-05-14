@@ -16,21 +16,36 @@ class HttpParser
         $firstLine = $generator->current();
         $generator->next();
 
-        $headers = self::getBlock($generator);
+        $headersBlock = self::getBlock($generator);
 
-        Logger::debug($firstLine);
-        Logger::debug($headers);
+        [$method, $uri, $protocol] = self::parseFirstLine($firstLine);
+        $headers = self::parseHeaders($headersBlock);
 
         $requset = new Request(
-            method: $headers,
-            uri: $headers,
-            protocol: '',
-            headers: [],
+            method: $method,
+            uri: $uri,
+            protocol: $protocol,
+            headers: $headers,
             body: '',
         );
 
 
         return $requset;
+    }
+
+    /**
+     * @param string $line
+     *
+     * @return array{0: non-empty-string, 1: non-empty-string, 2: non-empty-string}
+     */
+    private static function parseFirstLine(string $line): array
+    {
+        $parts = \explode(' ', \trim($line));
+        if (\count($parts) !== 3) {
+            throw new \InvalidArgumentException('Invalid first line.');
+        }
+
+        return $parts;
     }
 
     /**
@@ -50,5 +65,26 @@ class HttpParser
         }
 
         return $block;
+    }
+
+    /**
+     * @param non-empty-string $headersBlock
+     *
+     * @return array<non-empty-string, list<non-empty-string>>
+     */
+    private static function parseHeaders(string $headersBlock): array
+    {
+        $result = [];
+        foreach (\explode("\r\n", $headersBlock) as $line) {
+            if (!\str_contains($line, ':')) {
+                continue;
+            }
+
+            [$name, $value] = \explode(':', $line, 2);
+
+            $result[\strtolower(\trim($name))][] = \trim($value);
+        }
+
+        return $result;
     }
 }
