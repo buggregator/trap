@@ -44,12 +44,6 @@ final class Smtp implements Dispatcher
 
                 $stream->sendData($this->createResponse(self::CLOSING));
 
-                $messages = \array_filter(\explode("\r\n.\r\n", $content));
-
-                if (!empty($messages[1])) {
-                    $content = $messages[0];
-                }
-
                 $message['content'] = $content;
                 break;
             }
@@ -76,6 +70,6 @@ final class Smtp implements Dispatcher
 
     private function endOfContentDetected(string $data): bool
     {
-        return $data === "\r\n.\r\n";
+        return $data === ".\r\n";
     }
 }
