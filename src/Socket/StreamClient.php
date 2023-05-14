@@ -97,10 +97,16 @@ class StreamClient implements IteratorAggregate
                 $line .= $this->queue->dequeue();
             }
 
+            // Split chunk by EOL
             if (!$this->queue->isEmpty()) {
                 $split = \explode("\n", $this->queue[0], 2);
                 $line .= $split[0] . "\n";
-                $this->queue[0] = $split[1] ?? '';
+
+                if (!isset($split[1]) || $split[1] === '') {
+                    $this->queue->dequeue();
+                } else {
+                    $this->queue[0] = $split[1];
+                }
                 break;
             }
 
