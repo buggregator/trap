@@ -75,7 +75,7 @@ final class Inspector
         } while (count($dispatchers) > 0);
 
         if ($dispatchers === []) {
-            Logger::debug($stream->getData());
+            Logger::debug(\base64_encode($stream->getData()));
             throw new RuntimeException('Stream data detection failed.');
         }
         $dispatcher = \reset($dispatchers);

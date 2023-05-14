@@ -25,11 +25,17 @@ final class Http implements Dispatcher
 
     public function detect(string $data): ?bool
     {
-        if (\preg_match('/^(GET|POST|PUT|HEAD|OPTIONS) \\S HTTP\\/1\\.\\d$/', $data) === 1) {
+        if (!\str_contains($data, "\r\n")) {
+            return null;
+        }
+
+        if (\preg_match('/^(GET|POST|PUT|HEAD|OPTIONS) \\S++ HTTP\\/1\\.\\d\\r$/m', $data) === 1) {
             Logger::info('THIS IS HTTP!');
             return true;
         }
 
-        return \str_contains($data, "\n") ? false : null;
+        Logger::info($data);
+
+        return false;
     }
 }
