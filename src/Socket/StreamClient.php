@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Socket;
 
+use Buggregator\Client\Logger;
 use Fiber;
 use Generator;
 use IteratorAggregate;
@@ -16,7 +17,7 @@ class StreamClient implements IteratorAggregate
 {
     /** @var \SplQueue<string> */
     private \SplQueue $queue;
-    private bool $finished = false;
+    private bool $disconnected = false;
 
     private function __construct(
         private readonly int $clientId,
@@ -31,7 +32,7 @@ class StreamClient implements IteratorAggregate
             $self->queue->enqueue($payload);
         });
         $client->setOnClose(function () use ($self): void {
-            $self->finished = true;
+            $self->disconnected = true;
         });
 
         return $self;
@@ -42,24 +43,55 @@ class StreamClient implements IteratorAggregate
         return !$this->queue->isEmpty();
     }
 
+    public function waitData(): void
+    {
+        $before = $this->queue->count();
+        do {
+            Fiber::suspend();
+        } while (!$this->disconnected && $this->queue->count() === $before);
+    }
+
+    /**
+     * @return bool Return {@see true} if stream was closed.
+     */
+    public function isDisconnected(): bool
+    {
+        return $this->disconnected;
+    }
+    /**
+     * @return bool Return {@see true} if there will be no more data.
+     */
     public function isFinished(): bool
     {
-        return $this->finished;
+        return $this->disconnected && $this->queue->isEmpty();
     }
 
     /**
      * Returns {@see string} with trailing EOL or without it if stream was closed.
      * Uses {@see Fiber} to wait for EOL|EOF.
      *
-     * todo: collect buffer until EOL|EOF when Client has {@see Client::isBinary()} === {@see true}.
+     * todo: collect buffer until EOL|EOF and slice by EOL
      */
     public function fetchLine(): string
     {
-        while (!$this->finished && $this->queue->isEmpty()) {
-            Fiber::suspend();
+        $line = '';
+
+        while (!$this->isFinished()) {
+            while (!$this->queue->isEmpty() && !\str_contains($this->queue[0], "\n")) {
+                $line .= $this->queue->dequeue();
+            }
+
+            if (!$this->queue->isEmpty()) {
+                $split = \explode("\n", $this->queue[0], 2);
+                $line .= $split[0];
+                $this->queue[0] = $split[1] ?? '';
+                break;
+            }
+
+            $this->waitData();
         }
 
-        return $this->queue->dequeue();
+        return $line;
     }
 
     /**
@@ -79,7 +111,7 @@ class StreamClient implements IteratorAggregate
     }
 
     /**
-     * Iterate all data using {@see Generator} until {@see self::isFinished()}.
+     * Iterate all data by read chunks using {@see Generator} until {@see self::isDisconnected()}.
      * Cleans cache.
      * Uses {@see Fiber} to wait for all data.
      *
@@ -87,12 +119,11 @@ class StreamClient implements IteratorAggregate
      */
     public function getIterator(): Generator
     {
-        while (!$this->finished || !$this->queue->isEmpty()) {
+        while (!$this->disconnected || !$this->queue->isEmpty()) {
             if ($this->queue->isEmpty()) {
                 Fiber::suspend();
                 continue;
             }
-
             yield $this->queue->dequeue();
         }
     }

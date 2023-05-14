@@ -12,7 +12,7 @@ include __DIR__ . '/vendor/autoload.php';
 $bootstrap = new Bootstrap(
     new stdClass(),
     [
-        ProtoType::VarDumper->value => ProtoType::VarDumper->getDefaultPort(),
+        9912 => [],
     ],
     new SocketSender('127.0.0.1', 9099),
 );

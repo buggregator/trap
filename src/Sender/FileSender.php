@@ -12,7 +12,7 @@ class FileSender implements Sender
     public function send(string $data): void
     {
         \file_put_contents(
-            'dump-' . (new DateTimeImmutable())->format('Y-m-d-H-i-s-v') . '.txt',
+            'dump-' . (new DateTimeImmutable())->format('Y-m-d-H-i-s-v') . '.log',
             $data . "\n",
             \FILE_APPEND,
         );

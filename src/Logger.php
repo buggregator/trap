@@ -16,6 +16,11 @@ class Logger
         echo "\033[32m" . \sprintf($message, ...$values) . "\033[0m\n";
     }
 
+    public static function debug(string $message, string|int|float|bool ...$values): void
+    {
+        echo "\033[34m" . \sprintf($message, ...$values) . "\033[0m\n";
+    }
+
     public static function error(string $message, string|int|float|bool ...$values): void
     {
         echo "\033[31m" . \sprintf($message, ...$values) . "\033[0m\n";

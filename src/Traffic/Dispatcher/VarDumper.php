@@ -15,20 +15,27 @@ final class VarDumper implements Dispatcher
 {
     public function dispatch(StreamClient $stream): iterable
     {
-        foreach ($stream->getIterator() as $payload) {
+        while (!$stream->isFinished()) {
+            $line = \trim($stream->fetchLine());
+            if ($line === '') {
+                continue;
+            }
+
+            Logger::debug('Got var-dump');
+
             yield new Frame(
                 new DateTimeImmutable(),
                 ProtoType::VarDumper,
-                \rtrim($payload),
+                $line,
             );
         }
+
     }
 
     public function detect(string $data): ?bool
     {
         // Detect non-base64 symbols
-        if (\preg_match('/[^a-zA-Z0-9\\/+=\\n]/', $data) !== 0) {
-            Logger::info($data);
+        if (\preg_match_all('/[^a-zA-Z0-9\\/+=\\n]/', $data) !== 0) {
             return false;
         }
 

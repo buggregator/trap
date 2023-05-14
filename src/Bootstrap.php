@@ -23,10 +23,13 @@ class Bootstrap
     private Sender $sender;
     private Inspector $inspector;
 
+    /**
+     * @param array<positive-int, mixed> $map Port mapping
+     */
     public function __construct(
         object $options,
         array $map = [
-            'vardump' => 9912,
+            9912 => [],
         ],
         Sender $sender = null,
     ) {
@@ -34,11 +37,11 @@ class Bootstrap
         $this->inspector = new Inspector(
             $this->buffer,
             new Traffic\Dispatcher\VarDumper(),
+            new Traffic\Dispatcher\Http(),
         );
 
-        foreach ($map as $type => $port) {
-            $protoType = ProtoType::tryFrom($type);
-            $this->servers[$type] = $this->createServer($protoType, $port);
+        foreach ($map as $port => $_) {
+            $this->servers[$port] = $this->createServer($port);
         }
         $this->sender = $sender ?? new FileSender();
 
@@ -74,17 +77,15 @@ class Bootstrap
         $this->fibers[] = new Fiber(fn() => $this->sender->send($this->buffer->getAndClean()));
     }
 
-    private function createServer(?ProtoType $type, int $port): Server
+    private function createServer(int $port): Server
     {
         $inspector = $this->inspector;
-        $clientInflector = $type === null ? null : function (Client $client, int $id) use ($inspector): Client {
+        $clientInflector = function (Client $client, int $id) use ($inspector): Client {
+            Logger::debug('New client connected %d', $id);
             $inspector->addStream(StreamClient::create($client, $id));
             return $client;
         };
 
-        return match($type) {
-            ProtoType::VarDumper => Server::init($port, binary: false, clientInflector: $clientInflector),
-            default => Server::init($port),
-        };
+        return Server::init($port, payloadSize: 40, clientInflector: $clientInflector);
     }
 }

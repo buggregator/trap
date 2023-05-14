@@ -39,7 +39,10 @@ final class Inspector
                     throw new \RuntimeException('Stream terminated.');
                 }
             } catch (\Throwable $e) {
-                Logger::exception($e, 'Fiber failed in the Traffic inspector');
+                // todo replace with better exception handling
+                if ($e->getMessage() !== 'Stream terminated.') {
+                    Logger::exception($e, 'Fiber failed in the Traffic inspector');
+                }
                 unset($this->fibers[$key]);
             }
         }
@@ -61,15 +64,17 @@ final class Inspector
                 }
             }
 
-            if (!$stream->isFinished()) {
+            if ($stream->isDisconnected()) {
+                // todo set not found format dispatcher?
                 $dispatchers = [];
                 break;
             }
 
-            Fiber::suspend();
+            $stream->waitData();
         } while (count($dispatchers) > 0);
 
         if ($dispatchers === []) {
+            Logger::debug($stream->getData());
             throw new RuntimeException('Stream data detection failed.');
         }
         $dispatcher = \reset($dispatchers);

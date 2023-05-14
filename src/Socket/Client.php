@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Socket;
 
+use Buggregator\Client\Logger;
 use Fiber;
 
 /**
@@ -23,7 +24,6 @@ class Client
     private function __construct(
         private readonly \Socket $socket,
         private readonly int $payloadSize,
-        private readonly bool $binary,
     ) {
         \socket_set_nonblock($this->socket);
         $this->setOnPayload(fn(string $payload) => null);
@@ -34,22 +34,20 @@ class Client
     {
         try {
             \socket_close($this->socket);
-        } catch (\Throwable) {
         } finally {
+            Logger::debug('Client destroyed.');
             ($this->onClose)();
         }
     }
 
     /**
-     * @param bool $binary If {@see false}, \r \n \0 boundaries will be respected.
      * @param positive-int $payloadSize Max payload size.
      */
     public static function init(
         \Socket $socket,
         int $payloadSize = 10485760,
-        bool $binary = true,
     ): self {
-        return new self($socket, $payloadSize, $binary);
+        return new self($socket, $payloadSize);
     }
 
     public function process(): void
@@ -72,13 +70,12 @@ class Client
                 $this->writeQueue();
             }
 
+            if ($except !== [] || \socket_last_error($this->socket) !== 0) {
+                throw new \RuntimeException('Socket exception.');
+            }
+
             Fiber::suspend();
         } while (true);
-    }
-
-    public function isBinary(): bool
-    {
-        return $this->binary;
     }
 
     protected function onInit(): void
@@ -123,8 +120,11 @@ class Client
 
     private function readMessage(): void
     {
-        $payload = $this->readBytes($this->payloadSize, true, $this->binary);
+        $payload = $this->readBytes($this->payloadSize, true);
 
+        if ($payload === '') {
+            return;
+        }
         $this->processPayload($payload);
     }
 
@@ -134,22 +134,28 @@ class Client
      *
      * @return non-empty-string
      */
-    private function readBytes(int $length, bool $canBeLess = false, bool $binary = true): string
+    private function readBytes(int $length, bool $canBeLess = false): string
     {
         while (($left = $length - \strlen($this->readBuffer)) > 0) {
-            $data = @\socket_read($this->socket, $left, $binary ? \PHP_BINARY_READ : \PHP_NORMAL_READ);
-            if ($data === false) {
+            $data = '';
+            $read = \socket_recv($this->socket, $data, $left, 0);
+            if ($read === false || $data === null) {
+                if ($this->readBuffer !== '') {
+                    $result = $this->readBuffer;
+                    $this->readBuffer = '';
+                    return $result;
+                }
                 $errNo = \socket_last_error($this->socket);
                 throw new \RuntimeException('Socket read failed [' . $errNo . ']: ' . \socket_strerror($errNo));
+            }
+
+            if ($canBeLess) {
+                return $data;
             }
 
             if ($data === '') {
                 Fiber::suspend();
                 continue;
-            }
-
-            if ($canBeLess) {
-                return $data;
             }
 
             $this->readBuffer .= $data;
