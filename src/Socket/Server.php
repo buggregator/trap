@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Socket;
 
+use Buggregator\Client\Logger;
 use Closure;
 use Fiber;
 use RuntimeException;
@@ -35,7 +36,7 @@ class Server
         }
         \socket_set_nonblock($this->socket);
 
-        echo "Server started on 127.0.0.1:$port\n";
+        Logger::info('Server started on 127.0.0.1:%s', $port);
     }
 
     public function __destruct()
