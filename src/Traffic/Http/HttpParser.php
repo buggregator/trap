@@ -18,8 +18,12 @@ class HttpParser
 
         $headersBlock = self::getBlock($generator);
 
+        Logger::debug($headersBlock);
+
         [$method, $uri, $protocol] = self::parseFirstLine($firstLine);
         $headers = self::parseHeaders($headersBlock);
+
+        // todo parse body
 
         $requset = new Request(
             method: $method,
@@ -28,7 +32,6 @@ class HttpParser
             headers: $headers,
             body: '',
         );
-
 
         return $requset;
     }
@@ -50,16 +53,20 @@ class HttpParser
 
     /**
      * Get text block before empty line
+     *
+     * @param \Generator<int, string, mixed, void> $generator
+     *
+     * @return string
      */
     private static function getBlock(\Generator $generator): string
     {
         $block = '';
         while ($generator->valid()) {
             $line = $generator->current();
-            $generator->next();
             if ($line === "\r\n") {
                 break;
             }
+            $generator->next();
 
             $block .= $line;
         }

@@ -16,7 +16,6 @@ final class Http implements Dispatcher
 {
     public function dispatch(StreamClient $stream): iterable
     {
-        $stream->disconnect();
         Logger::debug('Got http');
 
         $request = HttpParser::parseStream((static function (StreamClient $stream) {
@@ -30,9 +29,8 @@ final class Http implements Dispatcher
         yield new Frame(
             new DateTimeImmutable(),
             ProtoType::HTTP,
-            $str = $stream->fetchAll(),
+            \json_encode($request, JSON_THROW_ON_ERROR),
         );
-        Logger::debug($str);
     }
 
     public function detect(string $data): ?bool
