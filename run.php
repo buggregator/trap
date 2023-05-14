@@ -19,5 +19,5 @@ $bootstrap = new Bootstrap(
 
 while (true) {
     $bootstrap->process();
-    \usleep(5_000);
+    \usleep(500);
 }
