@@ -99,7 +99,7 @@ class StreamClient implements IteratorAggregate
 
             if (!$this->queue->isEmpty()) {
                 $split = \explode("\n", $this->queue[0], 2);
-                $line .= $split[0];
+                $line .= $split[0] . "\n";
                 $this->queue[0] = $split[1] ?? '';
                 break;
             }
