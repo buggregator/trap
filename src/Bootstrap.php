@@ -39,13 +39,13 @@ class Bootstrap
             new Traffic\Dispatcher\VarDumper(),
             new Traffic\Dispatcher\Http(),
             new Traffic\Dispatcher\Smtp(),
+            new Traffic\Dispatcher\Monolog(),
         );
 
         foreach ($map as $port => $_) {
             $this->servers[$port] = $this->createServer($port);
         }
         $this->sender = $sender ?? new FileSender();
-
     }
 
     public function process(): void
