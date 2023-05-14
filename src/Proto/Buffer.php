@@ -30,7 +30,7 @@ class Buffer
 
     public function getAndClean(): string
     {
-        $result = '[' . \implode(",\n", $this->frames) . ']';
+        $result = '[' . \implode(",", $this->frames) . ']';
         $this->frames = [];
         $this->currentSize = 0;
         $this->timer?->stop();

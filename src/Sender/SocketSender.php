@@ -19,7 +19,7 @@ class SocketSender implements Sender
     public function __construct(
         private string $host,
         private int $port,
-        float $reconnectTimeout = 2.0,
+        float $reconnectTimeout = 1.0,
     ) {
         $this->timer = (new Timer(
             beep: $reconnectTimeout,
@@ -38,6 +38,7 @@ class SocketSender implements Sender
 
     public function send(string $data): void
     {
+        $data .= "\n";
         $lastBytes = \strlen($data);
 
         while ($lastBytes > 0) {
@@ -53,7 +54,8 @@ class SocketSender implements Sender
 
                 $lastBytes -= $this->checkError(\socket_write($this->socket, \substr($data, -$lastBytes), $lastBytes));
             } catch (\Throwable $e) {
-                Logger::error('Sender error: %s', $e->getMessage());
+                Logger::error('SocketSender error: %s', $e->getLine(), $e->getMessage());
+                $this->disconnect();
             }
         }
     }
@@ -73,11 +75,11 @@ class SocketSender implements Sender
 
                 Logger::info('Connecting to %s:%d', $this->host, $this->port);
                 $this->socket = $this->checkError(\socket_create(\AF_INET, \SOCK_STREAM, \SOL_TCP));
-                $this->checkError(\socket_set_nonblock($this->socket));
                 $this->checkError(\socket_connect($this->socket, $this->host, $this->port));
+                $this->checkError(\socket_set_nonblock($this->socket));
                 return;
             } catch (\Throwable $e) {
-                Logger::error('Connection error: %s', $e->getMessage());
+                Logger::error('SocketSender Connection error: %s', $e->getLine(), $e->getMessage());
 
                 $this->socket = null;
                 $this->timer->continue()->wait()->stop();
@@ -87,8 +89,14 @@ class SocketSender implements Sender
 
     public function disconnect(): void
     {
-        if ($this->socket !== null) {
-            \socket_close($this->socket);
+        try {
+            if ($this->socket !== null) {
+                \socket_close($this->socket);
+            }
+        } catch (\Throwable) {
+            // Do nothing.
+        } finally {
+            $this->socket = null;
         }
     }
 

@@ -77,7 +77,7 @@ class Bootstrap
                 $buffer->addFrame(new Frame(
                     new DateTimeImmutable(),
                     $type,
-                    $payload,
+                    \rtrim($payload),
                 ));
             });
 
