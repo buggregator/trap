@@ -9,18 +9,30 @@ use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\ProtoType;
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher;
+use Buggregator\Client\Traffic\Http\HttpParser;
 use DateTimeImmutable;
 
 final class Http implements Dispatcher
 {
     public function dispatch(StreamClient $stream): iterable
     {
+        $stream->disconnect();
         Logger::debug('Got http');
+
+        $request = HttpParser::parseStream((static function (StreamClient $stream) {
+            while (!$stream->isFinished()) {
+                yield $stream->fetchLine();
+            }
+        })($stream));
+
+        // todo process request
+
         yield new Frame(
             new DateTimeImmutable(),
             ProtoType::HTTP,
-            $stream->fetchAll(),
+            $str = $stream->fetchAll(),
         );
+        Logger::debug($str);
     }
 
     public function detect(string $data): ?bool

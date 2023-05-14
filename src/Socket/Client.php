@@ -37,6 +37,7 @@ class Client
         try {
             \socket_close($this->socket);
         } catch (\Throwable) {
+            // Do nothing.
         } finally {
             Logger::debug('Client destroyed.');
             ($this->onClose)();
