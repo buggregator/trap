@@ -19,7 +19,7 @@ class Client
     /** @var string */
     private string $readBuffer = '';
 
-    private bool $connected = true;
+    private bool $toDisconnect = true;
     private \Closure $onPayload;
     private \Closure $onClose;
 
@@ -46,7 +46,7 @@ class Client
 
     public function disconnect(): void
     {
-        \socket_close($this->socket);
+        $this->toDisconnect = true;
     }
 
     /**
@@ -83,7 +83,9 @@ class Client
                 throw new \RuntimeException('Socket exception.');
             }
 
-            $this->connected or throw new DisconnectClient();
+            if ($this->toDisconnect && $this->writeQueue !== []) {
+                throw new DisconnectClient();
+            }
             Fiber::suspend();
         } while (true);
     }
@@ -126,13 +128,14 @@ class Client
     private function writeQueue(): void
     {
         foreach ($this->writeQueue as $data) {
-            \socket_write($this->socket, $data);
+            $x = \socket_write($this->socket, $data);
+            Logger::debug('Respond %d bytes', $x);
         }
         socket_set_nonblock($this->socket);
 
         $this->writeQueue = [];
 
-        $this->connected or throw new DisconnectClient();
+        $this->toDisconnect and throw new DisconnectClient();
     }
 
     private function readMessage(): void
