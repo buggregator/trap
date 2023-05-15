@@ -16,6 +16,15 @@ class Logger
         echo "\033[32m" . \sprintf($message, ...$values) . "\033[0m\n";
     }
 
+    public static function dump(mixed ...$values): void
+    {
+        echo "\033[33m";
+        foreach ($values as $value) {
+            \var_dump($value);
+        }
+        echo "\033[0m\n";
+    }
+
     public static function debug(string $message, string|int|float|bool ...$values): void
     {
         echo "\033[34m" . \sprintf($message, ...$values) . "\033[0m\n";
