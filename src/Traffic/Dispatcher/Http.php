@@ -14,15 +14,35 @@ use DateTimeImmutable;
 
 final class Http implements Dispatcher
 {
+    private HttpParser $parser;
+
+    public function __construct() {
+        $this->parser = new HttpParser();
+    }
+
     public function dispatch(StreamClient $stream): iterable
     {
         Logger::debug('Got http');
 
-        $request = HttpParser::parseStream((static function (StreamClient $stream) {
+        $request = $this->parser->parseStream((static function (StreamClient $stream) {
             while (!$stream->isFinished()) {
                 yield $stream->fetchLine();
             }
         })($stream));
+
+        $stream->sendData(
+            <<<Response
+                HTTP/1.1 200 Bad Request\r
+                Date: Sun, 18 Oct 2012 10:36:20 GMT\r
+                Server: Apache/2.2.14 (Win32)\r
+                Content-Type: text/html; charset=iso-8859-1\r
+                Connection: Closed\r
+                \r
+                Foo bar\r\n
+                Response
+        );
+
+        $stream->disconnect();
 
         // todo process request
 
@@ -40,7 +60,6 @@ final class Http implements Dispatcher
         }
 
         if (\preg_match('/^(GET|POST|PUT|HEAD|OPTIONS) \\S++ HTTP\\/1\\.\\d\\r$/m', $data) === 1) {
-            Logger::info('THIS IS HTTP!');
             return true;
         }
 
