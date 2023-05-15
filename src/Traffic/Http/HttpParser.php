@@ -25,15 +25,13 @@ class HttpParser
 
         // todo parse body
 
-        $requset = new Request(
+        return new Request(
             method: $method,
             uri: $uri,
             protocol: $protocol,
             headers: $headers,
             body: '',
         );
-
-        return $requset;
     }
 
     /**

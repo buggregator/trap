@@ -9,6 +9,8 @@ use Buggregator\Client\Sender\FileSender;
 use Buggregator\Client\Socket\Client;
 use Buggregator\Client\Socket\Server;
 use Buggregator\Client\Socket\StreamClient;
+use Buggregator\Client\Traffic\Http\RayRequestDump;
+use Buggregator\Client\Traffic\Http\HandlerPipeline;
 use Buggregator\Client\Traffic\Inspector;
 use Fiber;
 use RuntimeException;
@@ -34,10 +36,14 @@ class Bootstrap
         Sender $sender = null,
     ) {
         $this->buffer = new Buffer(bufferSize: 10485760, timer: 0.1);
+
+        $httpHandler = new HandlerPipeline();
+        $httpHandler->register(new RayRequestDump());
+
         $this->inspector = new Inspector(
             $this->buffer,
+            new Traffic\Dispatcher\Http($httpHandler),
             new Traffic\Dispatcher\VarDumper(),
-            new Traffic\Dispatcher\Http(),
             new Traffic\Dispatcher\Smtp(),
             new Traffic\Dispatcher\Monolog(),
         );
@@ -45,6 +51,7 @@ class Bootstrap
         foreach ($map as $port => $_) {
             $this->servers[$port] = $this->createServer($port);
         }
+
         $this->sender = $sender ?? new FileSender();
     }
 

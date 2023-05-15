@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Http;
 
-class Request
+final class Request
 {
     /**
      * @param 'GET'|'POST'|'PUT'|'HEAD'|'OPTIONS' $method
@@ -14,11 +14,11 @@ class Request
      * @param string $body
      */
     public function __construct(
-        public string $method,
-        public string $uri,
-        public string $protocol,
-        public array $headers,
-        public string $body
+        public readonly string $method,
+        public readonly string $uri,
+        public readonly string $protocol,
+        public readonly array $headers,
+        public readonly string $body
     ) {
     }
 }

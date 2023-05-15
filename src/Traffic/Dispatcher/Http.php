@@ -9,11 +9,17 @@ use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\ProtoType;
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher;
+use Buggregator\Client\Traffic\Http\HandlerPipeline;
 use Buggregator\Client\Traffic\Http\HttpParser;
 use DateTimeImmutable;
 
 final class Http implements Dispatcher
 {
+    public function __construct(
+        private readonly HandlerPipeline $handler,
+    ) {
+    }
+
     public function dispatch(StreamClient $stream): iterable
     {
         Logger::debug('Got http');
@@ -24,13 +30,16 @@ final class Http implements Dispatcher
             }
         })($stream));
 
-        // todo process request
+        $response = $this->handler->handle($request);
+
+        $stream->sendData((string)$response);
 
         yield new Frame(
             new DateTimeImmutable(),
             ProtoType::HTTP,
-            \json_encode($request, JSON_THROW_ON_ERROR),
+            $str = $stream->fetchAll(),
         );
+        Logger::debug($str);
     }
 
     public function detect(string $data): ?bool
