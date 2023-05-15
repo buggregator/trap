@@ -26,7 +26,10 @@
     "require": {
         "php": ">=8.1",
         "ext-sockets": "*",
+        "ext-zlib": "*",
         "psr/http-message": "^1",
+        "clue/stream-filter": "^1.6",
+        "php-http/message": "^1.15",
         "nyholm/psr7": "^1.8"
     },
     "prefer-stable": true,

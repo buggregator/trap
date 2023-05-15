@@ -69,6 +69,69 @@ class HttpParserTest extends TestCase
         $this->assertSame('foo=bar&baz=qux&quux=corge+grault', $request->getBody()->__toString());
     }
 
+    public function testPostMultipartFormData(): void
+    {
+        $file1 = \file_get_contents(__DIR__ . '/../../Stub/deburger.png');
+        $file2 = \file_get_contents(__DIR__ . '/../../Stub/buggregator.png');
+        $body = <<<BODY
+                --Asrf456BGe4h
+                Content-Disposition: form-data; name="Authors"
+
+                @roxblnfk and @butschster
+                --Asrf456BGe4h
+                Content-Disposition: form-data; name="MessageTitle"
+
+                Hello guys! The Buggregator is a great tool!
+                --Asrf456BGe4h
+                Content-Disposition: form-data; name="MessageText"
+
+                Do you know that Buggregator could be called Deburger? But we decided to name it Buggregator.
+                --Asrf456BGe4h
+                Content-Disposition: form-data; name="AttachedFile1"; filename="deburger.png"
+                Content-Type: image/png
+
+                $file1
+                --Asrf456BGe4h
+                Content-Disposition: form-data; name="AttachedFile2"; filename="buggregator.png"
+                Content-Type: image/png
+
+                $file2
+                --Asrf456BGe4h--
+
+                BODY;
+        $length = \strlen($body);
+        $headers = <<<HTTP
+                POST /send-message.html HTTP/1.1
+                Host: webmail.example.com
+                User-Agent: BrowserForDummies/4.67b
+                Content-Type: multipart/form-data; boundary=Asrf456BGe4h
+                Content-Length: $length
+                Connection: keep-alive
+                Keep-Alive: 300\r\n\r\n
+                HTTP;
+
+        $generator = $this->makeBodyGenerator($headers . $body);
+
+        $request = (new HttpParser)->parseStream($generator);
+
+        $this->assertSame('POST', $request->getMethod());
+        $this->assertSame('/send-message.html', $request->getUri()->getPath());
+        $this->assertSame('1.1', $request->getProtocolVersion());
+        $this->assertSame(['webmail.example.com'], $request->getHeader('host'));
+        $this->assertNull($request->getParsedBody());
+        $this->assertSame('foo=bar&baz=qux&quux=corge+grault', $request->getBody()->__toString());
+    }
+
+    public function testGzippedBody(): void
+    {
+        $http = \file_get_contents(__DIR__ . '/../../Stub/sentry.http');
+        $generator = $this->makeBodyGenerator($http);
+
+        $request = (new HttpParser)->parseStream($generator);
+
+        // todo: test body
+    }
+
     /**
      * @return Generator<int, string, mixed, void>
      */
