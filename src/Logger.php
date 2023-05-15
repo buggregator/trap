@@ -35,7 +35,7 @@ class Logger
         echo "\033[31m" . \sprintf($message, ...$values) . "\033[0m\n";
     }
 
-    public static function exception(Throwable $e, ?string $header): void
+    public static function exception(Throwable $e, ?string $header = null): void
     {
         echo "----------------------\n";
         // Print bold yellow header if exists

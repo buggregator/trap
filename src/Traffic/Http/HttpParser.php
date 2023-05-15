@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Http;
 
-use App\Application\HTTP\GzippedStream;
-use Buggregator\Client\Logger;
-use GuzzleHttp\Psr7\Stream;
+use Generator;
 use Http\Message\Encoding\GzipDecodeStream;
 use Nyholm\Psr7\Factory\Psr17Factory;
+use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\ServerRequestInterface;
+use RuntimeException;
 
+/**
+ * @psalm-type LinesGenerator = Generator<int, string, mixed, void>
+ */
 class HttpParser
 {
     private Psr17Factory $factory;
@@ -21,9 +24,9 @@ class HttpParser
     }
 
     /**
-     * @param \Generator<int, string, mixed, void> $generator Generator that yields lines only with trailing \r\n
+     * @param LinesGenerator $generator Generator that yields lines only with trailing \r\n
      */
-    public function parseStream(\Generator $generator): ServerRequestInterface
+    public function parseStream(Generator $generator): ServerRequestInterface
     {
         $firstLine = $generator->current();
         $generator->next();
@@ -31,7 +34,7 @@ class HttpParser
         $headersBlock = $this->getBlock($generator);
 
         [$method, $uri, $protocol] = self::parseFirstLine($firstLine);
-        $headers = self::parseHeaders($headersBlock);
+        $headers = $this->parseHeaders($headersBlock);
 
         $requset = $this->factory->createServerRequest($method, $uri, [])
             ->withProtocolVersion($protocol);
@@ -64,11 +67,11 @@ class HttpParser
     /**
      * Get text block before empty line
      *
-     * @param \Generator<int, string, mixed, void> $generator
+     * @param LinesGenerator $generator
      *
      * @return string
      */
-    private function getBlock(\Generator $generator): string
+    private function getBlock(Generator $generator): string
     {
         $previous = $block = '';
         while ($generator->valid()) {
@@ -88,9 +91,9 @@ class HttpParser
     /**
      * Read around {@see $bytes} bytes.
      *
-     * @param \Generator<int, string, mixed, void> $generator
+     * @param LinesGenerator $generator
      */
-    private function getBytes(\Generator $generator, int $bytes): string
+    private function getBytes(Generator $generator, int $bytes): string
     {
         if ($bytes <= 0) {
             return '';
@@ -114,7 +117,7 @@ class HttpParser
      *
      * @return array<non-empty-string, list<non-empty-string>>
      */
-    private static function parseHeaders(string $headersBlock): array
+    private function parseHeaders(string $headersBlock): array
     {
         $result = [];
         foreach (\explode("\r\n", $headersBlock) as $line) {
@@ -131,9 +134,9 @@ class HttpParser
     }
 
     /**
-     * @param \Generator<int, string, mixed, void> $stream
+     * @param LinesGenerator $stream
      */
-    private function parseBody(\Generator $stream, ServerRequestInterface $request): ServerRequestInterface
+    private function parseBody(Generator $stream, ServerRequestInterface $request): ServerRequestInterface
     {
         // Methods have body
         if (!\in_array($request->getMethod(), ['POST', 'PUT', 'PATCH'], true)) {
@@ -164,7 +167,7 @@ class HttpParser
         $contentType = $request->getHeaderLine('Content-Type');
         return match (true) {
             $contentType === 'application/x-www-form-urlencoded' => $this->parseUrlEncodedBody($request),
-            \str_contains($contentType, 'multipart/form-data') => $this->parseMultipartBody($stream, $request),
+            \str_contains($contentType, 'multipart/form-data') => $this->parseMultipartBody($request),
             default => $request,
         };
     }
@@ -181,18 +184,64 @@ class HttpParser
         }
     }
 
-    private function parseMultipartBody(\Generator $stream, ServerRequestInterface $requset): ServerRequestInterface
+    private function parseMultipartBody(ServerRequestInterface $requset): ServerRequestInterface
     {
         if (\preg_match('/boundary=([^\\s;]++)/', $requset->getHeaderLine('Content-Type'), $matches) !== 1) {
             return $requset;
         }
         $boundary = $matches[1];
+        $stream = $requset->getBody();
 
-        // todo
-        // Logger::dump(substr($requset->getBody()->__toString(), 0, 100)); die;
-        // Logger::dump($boundary); die;
+        $uploadedFiles = [];
+        $parsedBody = [];
+        $findBoundary = "--{$boundary}";
+        try {
+            while (false !== ($pos = StreamHelper::strpos($stream, $findBoundary))) {
+                $stream->seek($pos + \strlen($findBoundary), \SEEK_CUR);
+                $blockEnd = StreamHelper::strpos($stream, "\r\n\r\n");
+                // End of valid content
+                if ($blockEnd === false || $blockEnd - $pos <= 2) {
+                    break;
+                }
+                // Parse part headers
+                $headers = $this->parseHeaders($stream->read($blockEnd - $pos + 2));
 
-        return $requset;
+                // Check Content-Disposition header
+                $contentDisposition = $headers['Content-Disposition'][0]
+                    ?? throw new RuntimeException('Missing Content-Disposition header');
+                // Get field name and file name
+                $name = \preg_match('/\bname="([^"]++)"/', $contentDisposition, $matches) === 1
+                    ? $matches[1]
+                    : throw new RuntimeException('Missing name in Content-Disposition header');
+                $fileName = \preg_match('/\bfilename="([^"]++)"/', $contentDisposition, $matches) === 1 ? $matches[1]
+                    : null;
+                $isFile = $fileName || isset($headers['Content-Type']);
+
+                $stream->seek(2, \SEEK_CUR); // Skip \r\n
+                $findBoundary = "\r\n--{$boundary}";
+                $endOfContent = StreamHelper::strpos($stream, $findBoundary);
+                $endOfContent !== false or throw new RuntimeException('Missing end of content');
+
+                if ($isFile) {
+                    $fileStream = $this->factory->createStream();
+                    if ($endOfContent > 0) {
+                        StreamHelper::writeStream($stream, $fileStream, $endOfContent);
+                    }
+                    $uploadedFiles[$name] = new UploadedFile(
+                        $fileStream,
+                        $endOfContent,
+                        \UPLOAD_ERR_OK,
+                        $fileName,
+                        $headers['Content-Type'][0] ?? null,
+                    );
+                } else {
+                    $parsedBody[$name] = $endOfContent > 0 ? $stream->read($endOfContent) : '';
+                }
+            }
+        } catch (\Throwable) {
+        }
+
+        return $requset->withUploadedFiles($uploadedFiles)->withParsedBody($parsedBody);
     }
 
     private function unzipBody(ServerRequestInterface $request): ServerRequestInterface

@@ -1,18 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Buggregator\Client\Tests\Traffic\Http;
 
 use Buggregator\Client\Traffic\Http\HttpParser;
 use Generator;
 use PHPUnit\Framework\TestCase;
-
-use function PHPUnit\Framework\assertSame;
+use Psr\Http\Message\UploadedFileInterface;
 
 class HttpParserTest extends TestCase
 {
     public function testSimpleGet(): void
     {
-        $generator = $this->makeBodyGenerator(<<<HTTP
+        $generator = $this->makeBodyGenerator(
+            <<<HTTP
                 GET /foo/bar?get=jet&foo=%20bar+ugar HTTP/1.1\r
                 Host: 127.0.0.1:9912\r
                 User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/113.0\r
@@ -27,9 +29,10 @@ class HttpParserTest extends TestCase
                 Sec-Fetch-Mode: navigate\r
                 Sec-Fetch-Site: none\r
                 Sec-Fetch-User: ?1\r\n\r\n
-                HTTP);
+                HTTP,
+        );
 
-        $request = (new HttpParser)->parseStream($generator);
+        $request = (new HttpParser())->parseStream($generator);
 
         $this->assertSame('GET', $request->getMethod());
         $this->assertSame('/foo/bar', $request->getUri()->getPath());
@@ -40,7 +43,8 @@ class HttpParserTest extends TestCase
 
     public function testPostUrlEncoded(): void
     {
-        $generator = $this->makeBodyGenerator(<<<HTTP
+        $generator = $this->makeBodyGenerator(
+            <<<HTTP
                 POST /foo/bar?get=jet&foo=%20bar+ugar HTTP/1.1\r
                 Host: foo.bar.com\r
                 User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/113.0\r
@@ -57,9 +61,10 @@ class HttpParserTest extends TestCase
                 Sec-Fetch-Site: none\r
                 Sec-Fetch-User: ?1\r\n\r
                 foo=bar&baz=qux&quux=corge+grault\r\n\r\n
-                HTTP);
+                HTTP,
+        );
 
-        $request = (new HttpParser)->parseStream($generator);
+        $request = (new HttpParser())->parseStream($generator);
 
         $this->assertSame('POST', $request->getMethod());
         $this->assertSame('/foo/bar', $request->getUri()->getPath());
@@ -100,25 +105,39 @@ class HttpParserTest extends TestCase
                 BODY;
         $length = \strlen($body);
         $headers = <<<HTTP
-                POST /send-message.html HTTP/1.1
-                Host: webmail.example.com
-                User-Agent: BrowserForDummies/4.67b
-                Content-Type: multipart/form-data; boundary=Asrf456BGe4h
-                Content-Length: $length
-                Connection: keep-alive
+                POST /send-message.html HTTP/1.1\r
+                Host: webmail.example.com\r
+                User-Agent: BrowserForDummies/4.67b\r
+                Content-Type: multipart/form-data; boundary=Asrf456BGe4h\r
+                Content-Length: $length\r
+                Connection: keep-alive\r
                 Keep-Alive: 300\r\n\r\n
                 HTTP;
 
         $generator = $this->makeBodyGenerator($headers . $body);
 
-        $request = (new HttpParser)->parseStream($generator);
+        $request = (new HttpParser())->parseStream($generator);
 
         $this->assertSame('POST', $request->getMethod());
         $this->assertSame('/send-message.html', $request->getUri()->getPath());
         $this->assertSame('1.1', $request->getProtocolVersion());
         $this->assertSame(['webmail.example.com'], $request->getHeader('host'));
-        $this->assertNull($request->getParsedBody());
-        $this->assertSame('foo=bar&baz=qux&quux=corge+grault', $request->getBody()->__toString());
+        // POST data
+        $this->assertEquals([
+            'Authors' => '@roxblnfk and @butschster',
+            'MessageTitle' => 'Hello guys! The Buggregator is a great tool!',
+            'MessageText' => 'Do you know that Buggregator could be called Deburger? But we decided to name it Buggregator.',
+        ], $request->getParsedBody());
+        // Uploaded files
+        $this->assertCount(2, $files = $request->getUploadedFiles());
+        /** @var UploadedFileInterface[] $files */
+        $this->assertSame('deburger.png', $files['AttachedFile1']->getClientFilename());
+        $this->assertSame('image/png', $files['AttachedFile1']->getClientMediaType());
+        $this->assertSame($file1, $files['AttachedFile1']->getStream()->__toString());
+
+        $this->assertSame('buggregator.png', $files['AttachedFile2']->getClientFilename());
+        $this->assertSame('image/png', $files['AttachedFile2']->getClientMediaType());
+        $this->assertSame($file2, $files['AttachedFile2']->getStream()->__toString());
     }
 
     public function testGzippedBody(): void
@@ -126,10 +145,10 @@ class HttpParserTest extends TestCase
         $http = \file_get_contents(__DIR__ . '/../../Stub/sentry.bin');
         $generator = $this->makeBodyGenerator($http);
 
-        $request = (new HttpParser)->parseStream($generator);
+        $request = (new HttpParser())->parseStream($generator);
 
         $file = \file_get_contents(__DIR__ . '/../../Stub/sentry-body.bin');
-        assertSame($file, $request->getBody()->__toString());
+        self::assertSame($file, $request->getBody()->__toString());
     }
 
     /**
