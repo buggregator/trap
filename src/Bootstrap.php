@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Client;
 
 use Buggregator\Client\Proto\Buffer;
+use Buggregator\Client\Proto\Timer;
 use Buggregator\Client\Sender\FileSender;
 use Buggregator\Client\Socket\Client;
 use Buggregator\Client\Socket\Server;
@@ -49,7 +50,17 @@ class Bootstrap
         );
 
         foreach ($map as $port => $_) {
-            $this->servers[$port] = $this->createServer($port);
+            $this->fibers[] = new Fiber(function () use ($port) {
+                do {
+                    try {
+                        $this->servers[$port] = $this->createServer($port);
+                        return;
+                    } catch (\Throwable $e) {
+                        Logger::error("Can't create TCP socket on port $port.");
+                        (new Timer(1.0))->wait();
+                    }
+                } while (true);
+            });
         }
 
         $this->sender = $sender ?? new FileSender();

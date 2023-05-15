@@ -150,7 +150,6 @@ class Client
 
     /**
      * @param positive-int $length
-     * @param bool $binary If {@see false} then \r, \n and \0 will be bounders.
      *
      * @return non-empty-string
      */
