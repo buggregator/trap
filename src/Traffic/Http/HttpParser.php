@@ -70,13 +70,14 @@ class HttpParser
      */
     private function getBlock(\Generator $generator): string
     {
-        $block = '';
+        $previous = $block = '';
         while ($generator->valid()) {
             $line = $generator->current();
-            if ($line === "\r\n") {
-                break;
+            if ($line === "\r\n" && \str_ends_with($previous, "\r\n")) {
+                return \substr($block, 0, -2);
             }
             $generator->next();
+            $previous = $line;
 
             $block .= $line;
         }
@@ -144,7 +145,7 @@ class HttpParser
         $length = $request->hasHeader('Content-Length') ? $request->getHeaderLine('Content-Length') : null;
         $length = \is_numeric($length) ? (int) $length : null;
 
-        // todo resolve very large body in a stream
+        // todo resolve very large body using a stream
         $request = $request->withBody($this->factory->createStream(
             $length !== null
                 ? $this->getBytes($stream, $length)
@@ -152,7 +153,7 @@ class HttpParser
                 : $this->getBlock($stream)
         ));
 
-        // Encoded content
+        // Decode encoded content
         if ($request->hasHeader('Content-Encoding')) {
             $encoding = $request->getHeaderLine('Content-Encoding');
             if ($encoding === 'gzip') {
@@ -168,14 +169,15 @@ class HttpParser
         };
     }
 
-    private function parseUrlEncodedBody(ServerRequestInterface $requset): ServerRequestInterface
+    private function parseUrlEncodedBody(ServerRequestInterface $request): ServerRequestInterface
     {
-        $str = $requset->getBody()->__toString();
+        $str = $request->getBody()->__toString();
+
         try {
             \parse_str($str, $parsed);
-            return $requset->withParsedBody($parsed);
+            return $request->withParsedBody($parsed);
         } catch (\Throwable) {
-            return $requset;
+            return $request;
         }
     }
 
@@ -193,22 +195,9 @@ class HttpParser
         return $requset;
     }
 
-    // todo
     private function unzipBody(ServerRequestInterface $request): ServerRequestInterface
     {
-        // $content = (string)$request->getBody();
-        //
-        // $resource = fopen('php://temp', 'r+b');
-        // \fwrite($resource, $content);
-        // \rewind($resource);
-        // $stream = \Nyholm\Psr7\Stream::create($resource);
-        //
-        // $stream =new GzipDecodeStream($stream);
-
-        // Logger::dump($stream->__toString()); die;
-
         $stream =new GzipDecodeStream($request->getBody());
-        Logger::dump(substr($stream->__toString(), 0, 100)); die;
         return $request->withBody($stream);
     }
 }
