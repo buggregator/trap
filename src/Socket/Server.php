@@ -31,7 +31,7 @@ class Server
         private readonly int $payloadSize,
         private readonly ?Closure $clientInflector,
     ) {
-        $this->socket = \socket_create_listen($port);
+        $this->socket = @\socket_create_listen($port);
         if ($this->socket === false) {
             throw new \RuntimeException('Socket create failed.');
         }
