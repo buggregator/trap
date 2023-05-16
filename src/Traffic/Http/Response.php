@@ -6,6 +6,7 @@ namespace Buggregator\Client\Traffic\Http;
 
 final class Response
 {
+    /** @var array<positive-int, non-empty-string> */
     private static array $statusTexts = [
         100 => 'Continue',
         101 => 'Switching Protocols',
@@ -71,9 +72,12 @@ final class Response
         511 => 'Network Authentication Required',                             // RFC6585
     ];
 
+    /**
+     * @param array<non-empty-string, non-empty-string> $headers
+     */
     public function __construct(
         public readonly int $statusCode,
-        public readonly string $body = 'Hello World!',
+        public readonly string $body = '',
         public readonly array $headers = [],
     ) {
     }
@@ -90,7 +94,7 @@ final class Response
             . \implode(
                 "\r\n",
                 \array_map(
-                    static fn(string $key, string $value) => "$key: $value",
+                    static fn(string $key, string $value): string => "$key: $value",
                     \array_keys($this->headers),
                     \array_values($this->headers)
                 )

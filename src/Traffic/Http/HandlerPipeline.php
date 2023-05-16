@@ -6,7 +6,7 @@ namespace Buggregator\Client\Traffic\Http;
 
 final class HandlerPipeline
 {
-    /** @var HandlerInterface[] */
+    /** @var array<int, HandlerInterface[]> */
     private array $handlers = [];
     private int $position = 0;
     private bool $isHandled = false;
@@ -24,25 +24,29 @@ final class HandlerPipeline
     {
         $this->position = 0;
 
+        /** @var HandlerInterface[] $newHandlers */
+        $newHandlers = [];
+
         if (!$this->isHandled) {
             \ksort($this->handlers);
-            $newHandlers = [];
             foreach ($this->handlers as $handlers) {
                 foreach ($handlers as $handler) {
                     $newHandlers[] = $handler;
                 }
             }
 
-            $this->handlers = $newHandlers;
             $this->isHandled = true;
         }
 
-        return $this->handlePipeline($request);
+        return $this->handlePipeline($request, $newHandlers);
     }
 
-    private function handlePipeline(Request $request): Response
+    /**
+     * @param HandlerInterface[] $handlers
+     */
+    private function handlePipeline(Request $request, array $handlers): Response
     {
-        $handler = $this->handlers[$this->position] ?? null;
+        $handler = $handlers[$this->position] ?? null;
         $this->position++;
 
         if ($handler === null) {
@@ -51,7 +55,7 @@ final class HandlerPipeline
 
         return $handler->handle(
             $request,
-            fn(Request $request) => $this->handlePipeline($request)
+            fn(Request $request): Response => $this->handlePipeline($request, $handlers)
         );
     }
 }
