@@ -6,7 +6,6 @@ namespace Buggregator\Client;
 
 use Buggregator\Client\Proto\Buffer;
 use Buggregator\Client\Proto\Timer;
-use Buggregator\Client\Sender\ConsoleSender;
 use Buggregator\Client\Sender\FileSender;
 use Buggregator\Client\Socket\Client;
 use Buggregator\Client\Socket\Server;
