@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Dispatcher;
 
-use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\ProtoType;
+use Buggregator\Client\Proto\SmtpFrame;
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher;
-use DateTimeImmutable;
 
 final class Smtp implements Dispatcher
 {
@@ -43,11 +41,7 @@ final class Smtp implements Dispatcher
             }
         }
 
-        yield new Frame(
-            new DateTimeImmutable(),
-            ProtoType::SMTP,
-            $content,
-        );
+        yield new SmtpFrame($content);
     }
 
     public function detect(string $data): ?bool

@@ -80,6 +80,8 @@ final class Inspector
         }
         $dispatcher = \reset($dispatchers);
 
+        Logger::debug('Got %s', $dispatcher::class);
+
         foreach ($dispatcher->dispatch($stream) as $frame) {
             // Queue frame to send
             $this->buffer->addFrame($frame);

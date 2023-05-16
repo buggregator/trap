@@ -36,16 +36,13 @@ class HttpParser
         [$method, $uri, $protocol] = self::parseFirstLine($firstLine);
         $headers = $this->parseHeaders($headersBlock);
 
-        $requset = $this->factory->createServerRequest($method, $uri, [])
+        $request = $this->factory->createServerRequest($method, $uri, [])
             ->withProtocolVersion($protocol);
         foreach ($headers as $name => $value) {
-            $requset = $requset->withHeader($name, $value);
+            $request = $request->withHeader($name, $value);
         }
 
-        // Parse body
-        $requset = $this->parseBody($generator, $requset);
-
-        return $requset;
+        return $this->parseBody($generator, $request);
     }
 
     /**

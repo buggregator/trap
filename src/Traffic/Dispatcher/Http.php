@@ -5,12 +5,10 @@ declare(strict_types=1);
 namespace Buggregator\Client\Traffic\Dispatcher;
 
 use Buggregator\Client\Logger;
-use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\ProtoType;
+use Buggregator\Client\Proto\HttpFrame;
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher;
 use Buggregator\Client\Traffic\Http\HttpParser;
-use DateTimeImmutable;
 
 final class Http implements Dispatcher
 {
@@ -22,8 +20,6 @@ final class Http implements Dispatcher
 
     public function dispatch(StreamClient $stream): iterable
     {
-        Logger::debug('Got http');
-
         $request = $this->parser->parseStream((static function (StreamClient $stream) {
             while (!$stream->isFinished()) {
                 yield $stream->fetchLine();
@@ -46,10 +42,8 @@ final class Http implements Dispatcher
 
         // todo process request
 
-        yield new Frame(
-            new DateTimeImmutable(),
-            ProtoType::HTTP,
-            \json_encode($request, JSON_THROW_ON_ERROR),
+        yield new HttpFrame(
+            $request
         );
     }
 
