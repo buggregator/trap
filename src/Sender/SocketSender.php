@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Client\Sender;
 
 use Buggregator\Client\Logger;
+use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Proto\Timer;
 use Buggregator\Client\Sender;
 use Fiber;
@@ -36,9 +37,13 @@ class SocketSender implements Sender
     {
     }
 
-    public function send(string $data): void
+    public function send(iterable $frames): void
     {
-        $data .= "\n";
+        $data = '[' . \implode(',', \array_map(
+            static fn (Frame $frame): string => $frame->__toString(),
+            \is_array($frames) ? $frames : \iterator_to_array($frames),
+        )) . ']';
+
         $lastBytes = \strlen($data);
 
         while ($lastBytes > 0) {

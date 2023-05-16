@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Http;
 
+use Fiber;
 use Psr\Http\Message\StreamInterface;
 
 final class StreamHelper
@@ -40,6 +41,9 @@ final class StreamHelper
 
             $prefix = \substr($read, -$ssLen);
             $delta += \strlen($read) - $ssLen;
+
+            unset($read);
+            Fiber::suspend();
         }
 
         $stream->seek($caret, \SEEK_SET);
@@ -62,6 +66,9 @@ final class StreamHelper
             $read = $from->read($toRead);
             $to->write($read);
             $written += \strlen($read);
+
+            unset($read);
+            Fiber::suspend();
         }
     }
 }

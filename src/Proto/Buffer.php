@@ -6,11 +6,15 @@ namespace Buggregator\Client\Proto;
 
 class Buffer
 {
-    /** @var string[] */
+    /** @var Frame[] */
     private array $frames = [];
+    /** @var int<0, max> Current payload size */
     private int $currentSize = 0;
     private ?Timer $timer;
 
+    /**
+     * @param int $bufferSize Payload limit size in bytes
+     */
     public function __construct(
         public int $bufferSize,
         ?float $timer = null,
@@ -21,16 +25,19 @@ class Buffer
 
     public function addFrame(Frame $frame): void
     {
-        $str = (string)$frame;
-        $this->frames[] = $str;
-        $this->currentSize += \strlen($str);
+        $this->frames[] = $frame;
+        $this->currentSize += \strlen($frame->data);
 
         $this->timer?->continue();
     }
 
-    public function getAndClean(): string
+    /**
+     * @return Frame[]
+     */
+    public function getAndClean(): array
     {
-        $result = '[' . \implode(',', $this->frames) . ']';
+        $result = $this->frames;
+        // Clear buffer
         $this->frames = [];
         $this->currentSize = 0;
         $this->timer?->stop();

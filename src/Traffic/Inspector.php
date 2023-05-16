@@ -81,6 +81,7 @@ final class Inspector
         $dispatcher = \reset($dispatchers);
 
         foreach ($dispatcher->dispatch($stream) as $frame) {
+            // Queue frame to send
             $this->buffer->addFrame($frame);
         }
     }
