@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Tests\Traffic\Http;
 
+use Buggregator\Client\Logger;
 use Buggregator\Client\Traffic\Http\HttpParser;
+use Fiber;
 use Generator;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
 
 class HttpParserTest extends TestCase
@@ -32,7 +35,7 @@ class HttpParserTest extends TestCase
                 HTTP,
         );
 
-        $request = (new HttpParser())->parseStream($generator);
+        $request = $this->parseStream($generator);
 
         $this->assertSame('GET', $request->getMethod());
         $this->assertSame('/foo/bar', $request->getUri()->getPath());
@@ -64,7 +67,7 @@ class HttpParserTest extends TestCase
                 HTTP,
         );
 
-        $request = (new HttpParser())->parseStream($generator);
+        $request = $this->parseStream($generator);
 
         $this->assertSame('POST', $request->getMethod());
         $this->assertSame('/foo/bar', $request->getUri()->getPath());
@@ -116,7 +119,7 @@ class HttpParserTest extends TestCase
 
         $generator = $this->makeBodyGenerator($headers . $body);
 
-        $request = (new HttpParser())->parseStream($generator);
+        $request = $this->parseStream($generator);
 
         $this->assertSame('POST', $request->getMethod());
         $this->assertSame('/send-message.html', $request->getUri()->getPath());
@@ -145,10 +148,20 @@ class HttpParserTest extends TestCase
         $http = \file_get_contents(__DIR__ . '/../../Stub/sentry.bin');
         $generator = $this->makeBodyGenerator($http);
 
-        $request = (new HttpParser())->parseStream($generator);
+        $request = $this->parseStream($generator);
 
         $file = \file_get_contents(__DIR__ . '/../../Stub/sentry-body.bin');
         self::assertSame($file, $request->getBody()->__toString());
+    }
+
+    private function parseStream(Generator $stream): ServerRequestInterface
+    {
+        $fiber = new Fiber(static fn(Generator $stream): ServerRequestInterface => (new HttpParser())->parseStream($stream));
+        $fiber->start($stream);
+        while (!$fiber->isTerminated()) {
+            $fiber->resume();
+        }
+        return $fiber->getReturn();
     }
 
     /**
