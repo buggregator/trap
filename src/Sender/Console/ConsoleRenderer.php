@@ -24,6 +24,7 @@ final class ConsoleRenderer implements HandlerInterface
         foreach ($this->renderers as $renderer) {
             if ($renderer->isSupport($frame)) {
                 $renderer->render($this->output, $frame);
+                break;
             }
         }
     }
