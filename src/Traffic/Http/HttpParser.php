@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Http;
 
+use Buggregator\Client\Support\StreamHelper;
 use Generator;
 use Http\Message\Encoding\GzipDecodeStream;
 use Nyholm\Psr7\Factory\Psr17Factory;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Console;
+namespace Buggregator\Client\Sender\Console;
 
 use Buggregator\Client\Proto\Frame;
 use Symfony\Component\Console\Output\OutputInterface;

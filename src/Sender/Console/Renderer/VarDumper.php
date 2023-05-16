@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Console\Renderer;
+namespace Buggregator\Client\Sender\Console\Renderer;
 
 use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\Proto\VarDumperFrame;
 use Buggregator\Client\ProtoType;
-use Buggregator\Client\Traffic\Console\RendererInterface;
+use Buggregator\Client\Sender\Console\RendererInterface;
 use RuntimeException;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -17,7 +16,7 @@ use Symfony\Component\VarDumper\Cloner\Stub;
 use Symfony\Component\VarDumper\Command\Descriptor\CliDescriptor;
 use Symfony\Component\VarDumper\Dumper\CliDumper;
 
-final class VarDumperRenderer implements RendererInterface
+final class VarDumper implements RendererInterface
 {
     public function isSupport(Frame $frame): bool
     {
@@ -25,7 +24,7 @@ final class VarDumperRenderer implements RendererInterface
     }
 
     /**
-     * @param VarDumperFrame $frame
+     * @param Frame\VarDumper $frame
      */
     public function render(OutputInterface $output, Frame $frame): void
     {

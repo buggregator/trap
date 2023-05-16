@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Dispatcher;
 
-use Buggregator\Client\Proto\MonologFrame;
+use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher;
 
@@ -21,7 +21,7 @@ final class Monolog implements Dispatcher
                 continue;
             }
 
-            yield new MonologFrame(
+            yield new Frame\Monolog(
                 (array)\json_decode($line, true, 512, JSON_THROW_ON_ERROR)
             );
         }

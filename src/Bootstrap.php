@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Buggregator\Client;
 
 use Buggregator\Client\Proto\Buffer;
-use Buggregator\Client\Proto\Timer;
 use Buggregator\Client\Sender\FileSender;
 use Buggregator\Client\Socket\Client;
 use Buggregator\Client\Socket\Server;
 use Buggregator\Client\Socket\StreamClient;
+use Buggregator\Client\Support\Timer;
 use Buggregator\Client\Traffic\Inspector;
 use Fiber;
 use RuntimeException;

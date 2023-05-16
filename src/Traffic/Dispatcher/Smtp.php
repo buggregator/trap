@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Dispatcher;
 
-use Buggregator\Client\Proto\SmtpFrame;
+use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher;
 
@@ -41,7 +41,7 @@ final class Smtp implements Dispatcher
             }
         }
 
-        yield new SmtpFrame($content);
+        yield new Frame\Smtp($content);
     }
 
     public function detect(string $data): ?bool

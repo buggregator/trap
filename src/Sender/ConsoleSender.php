@@ -6,12 +6,12 @@ namespace Buggregator\Client\Sender;
 
 use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Sender;
-use Buggregator\Client\Traffic\Console\HandlerInterface;
+use Buggregator\Client\Sender\Console\HandlerInterface;
 
 final class ConsoleSender implements Sender
 {
     public function __construct(
-        private readonly HandlerInterface $handler
+        private readonly HandlerInterface $handler,
     ) {
     }
 

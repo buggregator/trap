@@ -2,18 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Proto;
+namespace Buggregator\Client\Proto\Frame;
 
+use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\ProtoType;
 use DateTimeImmutable;
 
-final class VarDumperFrame extends Frame
+final class Monolog extends Frame
 {
     public function __construct(
-        public readonly string $dump,
+        public readonly array $message,
         DateTimeImmutable $time = new DateTimeImmutable()
     ) {
-        parent::__construct(ProtoType::VarDumper, $time);
+        parent::__construct(ProtoType::Monolog, $time);
     }
 
     /**
@@ -21,6 +22,6 @@ final class VarDumperFrame extends Frame
      */
     public function __toString(): string
     {
-        return $this->dump;
+        return \json_encode($this->message, JSON_THROW_ON_ERROR);
     }
 }

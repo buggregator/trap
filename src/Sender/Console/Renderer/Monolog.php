@@ -2,16 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Console\Renderer;
+namespace Buggregator\Client\Sender\Console\Renderer;
 
 use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\Proto\MonologFrame;
 use Buggregator\Client\ProtoType;
-use Buggregator\Client\Traffic\Console\RendererInterface;
+use Buggregator\Client\Sender\Console\RendererInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Termwind\HtmlRenderer;
 
-final class MonologRenderer implements RendererInterface
+final class Monolog implements RendererInterface
 {
     public function __construct(
         private readonly HtmlRenderer $renderer,
@@ -24,7 +23,7 @@ final class MonologRenderer implements RendererInterface
     }
 
     /**
-     * @param MonologFrame $frame
+     * @param Frame\Monolog $frame
      */
     public function render(OutputInterface $output, Frame $frame): void
     {

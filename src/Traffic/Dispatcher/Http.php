@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Client\Traffic\Dispatcher;
 
 use Buggregator\Client\Logger;
-use Buggregator\Client\Proto\HttpFrame;
+use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher;
 use Buggregator\Client\Traffic\Http\HttpParser;
@@ -42,7 +42,7 @@ final class Http implements Dispatcher
 
         // todo process request
 
-        yield new HttpFrame(
+        yield new Frame\Http(
             $request
         );
     }

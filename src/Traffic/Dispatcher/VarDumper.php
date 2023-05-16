@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Dispatcher;
 
-use Buggregator\Client\Proto\VarDumperFrame;
+use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher;
 
@@ -18,7 +18,7 @@ final class VarDumper implements Dispatcher
                 continue;
             }
 
-            yield new VarDumperFrame(
+            yield new Frame\VarDumper(
                 $line
             );
         }

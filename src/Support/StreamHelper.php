@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Http;
+namespace Buggregator\Client\Support;
 
 use Fiber;
 use Psr\Http\Message\StreamInterface;

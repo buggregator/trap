@@ -2,13 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Proto;
+namespace Buggregator\Client\Proto\Frame;
 
+use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\ProtoType;
 use DateTimeImmutable;
 use Psr\Http\Message\ServerRequestInterface;
 
-final class HttpFrame extends Frame
+final class Http extends Frame
 {
     public function __construct(
         public readonly ServerRequestInterface $request,

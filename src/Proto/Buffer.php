@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Proto;
 
+use Buggregator\Client\Support\Timer;
+
 class Buffer
 {
     /** @var Frame[] */

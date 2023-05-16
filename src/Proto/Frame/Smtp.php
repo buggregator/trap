@@ -2,18 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Proto;
+namespace Buggregator\Client\Proto\Frame;
 
+use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\ProtoType;
 use DateTimeImmutable;
 
-final class MonologFrame extends Frame
+final class Smtp extends Frame
 {
     public function __construct(
-        public readonly array $message,
+        public readonly string $message,
         DateTimeImmutable $time = new DateTimeImmutable()
     ) {
-        parent::__construct(ProtoType::Monolog, $time);
+        parent::__construct(ProtoType::SMTP, $time);
     }
 
     /**
@@ -21,6 +22,6 @@ final class MonologFrame extends Frame
      */
     public function __toString(): string
     {
-        return \json_encode($this->message, JSON_THROW_ON_ERROR);
+        return $this->message;
     }
 }

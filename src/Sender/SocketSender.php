@@ -6,8 +6,8 @@ namespace Buggregator\Client\Sender;
 
 use Buggregator\Client\Logger;
 use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\Proto\Timer;
 use Buggregator\Client\Sender;
+use Buggregator\Client\Support\Timer;
 use Fiber;
 use RuntimeException;
 use Socket;

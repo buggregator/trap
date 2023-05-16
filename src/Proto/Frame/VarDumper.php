@@ -2,18 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Proto;
+namespace Buggregator\Client\Proto\Frame;
 
+use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\ProtoType;
 use DateTimeImmutable;
 
-final class SmtpFrame extends Frame
+final class VarDumper extends Frame
 {
     public function __construct(
-        public readonly string $message,
+        public readonly string $dump,
         DateTimeImmutable $time = new DateTimeImmutable()
     ) {
-        parent::__construct(ProtoType::SMTP, $time);
+        parent::__construct(ProtoType::VarDumper, $time);
     }
 
     /**
@@ -21,6 +22,6 @@ final class SmtpFrame extends Frame
      */
     public function __toString(): string
     {
-        return $this->message;
+        return $this->dump;
     }
 }
