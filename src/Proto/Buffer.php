@@ -6,7 +6,7 @@ namespace Buggregator\Client\Proto;
 
 use Buggregator\Client\Support\Timer;
 
-class Buffer
+final class Buffer
 {
     /** @var Frame[] */
     private array $frames = [];

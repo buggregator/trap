@@ -9,7 +9,7 @@ use Throwable;
 /**
  * Console color logger
  */
-class Logger
+final class Logger
 {
     public static function info(string $message, string|int|float|bool ...$values): void
     {

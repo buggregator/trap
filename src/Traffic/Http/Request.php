@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Http;
 
-class Request
+final class Request
 {
     /**
      * @param 'GET'|'POST'|'PUT'|'HEAD'|'OPTIONS' $method

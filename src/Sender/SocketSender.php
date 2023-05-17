@@ -12,14 +12,14 @@ use Fiber;
 use RuntimeException;
 use Socket;
 
-class SocketSender implements Sender
+final class SocketSender implements Sender
 {
     private ?Socket $socket = null;
     private Timer $timer;
 
     public function __construct(
-        private string $host,
-        private int $port,
+        private readonly string $host,
+        private readonly int $port,
         float $reconnectTimeout = 1.0,
     ) {
         $this->timer = (new Timer(

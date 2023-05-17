@@ -13,7 +13,7 @@ use IteratorAggregate;
  * Simple abstraction over {@see Client} to make it easier to work with.
  * Use {@see Server::$clientInflector} to wrap {@see Client} into {@see self}.
  */
-class StreamClient implements IteratorAggregate
+final class StreamClient implements IteratorAggregate
 {
     /** @var \SplQueue<string> */
     private \SplQueue $queue;
@@ -21,7 +21,7 @@ class StreamClient implements IteratorAggregate
 
     private function __construct(
         private readonly Client $client,
-        private readonly int $clientId,
+        public readonly int $clientId,
     ) {
         $this->queue = new \SplQueue();
     }

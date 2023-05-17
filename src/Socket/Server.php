@@ -11,7 +11,7 @@ use Fiber;
 use RuntimeException;
 use Socket;
 
-class Server
+final class Server
 {
     /** @var false|resource|Socket */
     private $socket;

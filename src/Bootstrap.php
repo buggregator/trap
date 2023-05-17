@@ -14,7 +14,7 @@ use Buggregator\Client\Traffic\Inspector;
 use Fiber;
 use RuntimeException;
 
-class Bootstrap
+final class Bootstrap
 {
     /** @var Server[] */
     private array $servers = [];

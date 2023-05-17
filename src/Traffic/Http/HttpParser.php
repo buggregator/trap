@@ -15,7 +15,7 @@ use RuntimeException;
 /**
  * @psalm-type LinesGenerator = Generator<int, string, mixed, void>
  */
-class HttpParser
+final class HttpParser
 {
     private Psr17Factory $factory;
 

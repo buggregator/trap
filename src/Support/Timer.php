@@ -8,7 +8,7 @@ use Closure;
 use Fiber;
 use RuntimeException;
 
-class Timer
+final class Timer
 {
     private float $start;
     private bool $stop = false;

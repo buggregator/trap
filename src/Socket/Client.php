@@ -11,7 +11,7 @@ use Fiber;
 /**
  * Client state on the server side.
  */
-class Client
+final class Client
 {
     /** @var string[] */
     private array $writeQueue = [];
