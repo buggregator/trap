@@ -1,5 +1,5 @@
 {
-    "name": "buggregator/client",
+    "name": "buggregator/trap",
     "type": "library",
     "license": "MIT",
     "authors": [
@@ -23,7 +23,7 @@
         }
     },
     "bin": [
-        "bin/buggregator"
+        "bin/trap"
     ],
     "config": {
         "sort-packages": true
