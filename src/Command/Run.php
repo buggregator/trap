@@ -11,6 +11,7 @@ use Buggregator\Client\Sender\Console\Renderer;
 use stdClass;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Termwind\HtmlRenderer;
 use Termwind\Termwind;
@@ -22,12 +23,10 @@ final class Run extends Command
 {
     protected static $defaultName = 'run';
 
-    public function __construct(string $name = null)
+    public function configure(): void
     {
-        parent::__construct($name);
-
         $this->addArgument('sender', null, 'Sender type', 'console');
-        $this->addOption('port', null, null, 'Port to listen', 9912);
+        $this->addOption('port', 'p', InputOption::VALUE_OPTIONAL, 'Port to listen', 9912);
     }
 
     protected function execute(
@@ -72,13 +71,13 @@ final class Run extends Command
     {
         Termwind::renderUsing($output);
 
-        $renderer = new HtmlRenderer();
+        $htmlRenderer = new HtmlRenderer();
 
         // Configure renderer
         $renderer = new ConsoleRenderer($output);
         $renderer->register(new Renderer\VarDumper());
-        $renderer->register(new Renderer\Monolog($renderer));
-        $renderer->register(new Renderer\Plain($renderer));
+        $renderer->register(new Renderer\Monolog($htmlRenderer));
+        $renderer->register(new Renderer\Plain($htmlRenderer));
 
         return new Sender\ConsoleSender($renderer);
     }

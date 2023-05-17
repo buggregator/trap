@@ -1,7 +1,7 @@
 {
     "name": "buggregator/trap",
     "type": "library",
-    "license": "MIT",
+    "license": "BSD-4-Clause",
     "authors": [
         {
             "name": "Aleksei Gagarin (roxblnfk)",
