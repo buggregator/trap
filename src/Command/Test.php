@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Command;
 
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\SMTP;
-use PHPMailer\PHPMailer\Exception;
+use Buggregator\Client\Logger;
+use DateTimeImmutable;
+use RuntimeException;
+use Socket;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -18,18 +19,13 @@ final class Test extends Command
 {
     protected static $defaultName = 'test';
 
-    public function configure()
-    {
-        // $this->addArgument('type', null, 'Type of message', null);
-    }
-
     protected function execute(
         InputInterface $input,
         OutputInterface $output,
     ): int {
-        $this->dump();
+        // $this->dump();
         // \usleep(100_000);
-        // $this->mail();
+        $this->mail();
 
         return Command::SUCCESS;
     }
@@ -40,47 +36,54 @@ final class Test extends Command
         $_SERVER['VAR_DUMPER_SERVER'] = '127.0.0.1:9912';
 
         \dump(['foo' => 'bar']);
+        \dump(123);
+        \dump(new DateTimeImmutable());
     }
 
     private function mail(): void
     {
-        //Create an instance; passing `true` enables exceptions
-        $mail = new PHPMailer(true);
-
         try {
-            //Server settings
-            $mail->SMTPDebug = SMTP::DEBUG_LOWLEVEL;                      //Enable verbose debug output
-            $mail->isSMTP();                                            //Send using SMTP
-            $mail->Host       = '127.0.0.1:9912';                       //Set the SMTP server to send through
-            $mail->SMTPAuth   = false;                                   //Enable SMTP authentication
-            // $mail->Username   = 'user@example.com';                     //SMTP username
-            // $mail->Password   = 'secret';                               //SMTP password
-            // $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;            //Enable implicit TLS encryption
-            // $mail->Port       = 9912;                                    //TCP port to connect to; use 587 if you have set `SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS`
+            $socket = \socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+            \socket_connect($socket, '127.0.0.1', 9912);
 
-            //Recipients
-            $mail->setFrom('from@example.com', 'Mailer');
-            $mail->addAddress('joe@example.net', 'Joe User');     //Add a recipient
-            $mail->addAddress('ellen@example.com');               //Name is optional
-            $mail->addReplyTo('info@example.com', 'Information');
-            $mail->addCC('cc@example.com');
-            $mail->addBCC('bcc@example.com');
+            $this->sendMailPackage($socket, '', '220 ');
+            $this->sendMailPackage($socket, "HELO\r\n", '250 ');
+            $this->sendMailPackage($socket, "MAIL FROM: <someusername@foo.bar>\r\n", '250 ');
+            // $this->sendMailPackage($socket, "RCPT TO: <user1@company.tld>\r\n", '250 ');
+            // $this->sendMailPackage($socket, "RCPT TO: <user2@company.tld>\r\n", '250 ');
+            $this->sendMailPackage($socket, "DATA\r\n", '354 ');
+            // Data
+            $this->sendMailPackage($socket, "From: Some User <someusername@somecompany.ru>\r\n", '');
+            $this->sendMailPackage($socket, "To: User1 <user1@company.tld>", '');
+            $this->sendMailPackage($socket, "\r\nSubject: tema\r\nContent-Type: text/plain\r\n\r\nHi!\r\n", '');
+            $this->sendMailPackage($socket, ".\r\n", '250 ');
+            // End of data
+            $this->sendMailPackage($socket, "QUIT\r\n", '221 ');
 
-            //Attachments
-            // $mail->addAttachment('/var/tmp/file.tar.gz');         //Add attachments
-            // $mail->addAttachment('/tmp/image.jpg', 'new.jpg');    //Optional name
+            \socket_close($socket);
 
-            //Content
-            $mail->isHTML(false);                                  //Set email format to HTML
-            $mail->Subject = 'Here is the subject';
-            $mail->Body    = 'This is the HTML message body <b>in bold!</b>';
-            $mail->AltBody = 'This is the body in plain text for non-HTML mail clients';
+        } catch (\Throwable $e) {
+            Logger::exception($e, 'Mail protocol error');
+        }
+    }
 
-            $mail->send();
-            // Write  line about success
+    private function sendMailPackage(Socket $socket, string $content, string $expectedResponsePrefix): void
+    {
+        if ($content !== '') {
+            \socket_write($socket, $content);
+            Logger::print('> "%s"', \str_replace(["\r", "\n"], ['\\r', '\\n'], $content));
+        }
 
-        } catch (Exception $e) {
-            echo "Message could not be sent. Mailer Error: {$mail->ErrorInfo}";
+        if ($expectedResponsePrefix === '') {
+            return;
+        }
+        \socket_recv($socket, $buf, 65536, 0);
+
+        Logger::info('< "%s"', \str_replace(["\r", "\n"], ['\\r', '\\n'], $buf));
+
+        $prefix = \substr($buf, 0, \strlen($expectedResponsePrefix));
+        if ($prefix !== $expectedResponsePrefix) {
+            throw new RuntimeException("Invalid response `$buf`. Prefix `$expectedResponsePrefix` expected.");
         }
     }
 }

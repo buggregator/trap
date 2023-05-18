@@ -42,7 +42,6 @@
         "zbateson/mail-mime-parser": "^2.0"
     },
     "require-dev": {
-        "phpmailer/phpmailer": "^6.8",
         "phpunit/phpunit": "^10.1",
         "symfony/process": "^6",
         "symfony/var-dumper": "^6",
