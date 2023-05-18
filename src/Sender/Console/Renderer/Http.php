@@ -67,9 +67,8 @@ final class Http implements RendererInterface
                     $body
                 </div>
             </div>
-            HTML
-            ,
-            0
+            HTML,
+            0,
         );
     }
 

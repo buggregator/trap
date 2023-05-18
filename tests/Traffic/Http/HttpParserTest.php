@@ -41,6 +41,12 @@ class HttpParserTest extends TestCase
         $this->assertSame('1.1', $request->getProtocolVersion());
         $this->assertSame(['127.0.0.1:9912'], $request->getHeader('host'));
         $this->assertSame(['ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3'], $request->getHeader('accept-language'));
+        $this->assertSame([
+            'koa.sess' => 'Ijo4NjQwMDAwMH0=',
+            'koa.sess.sig' => 'liV7oStLo',
+            'csrf-token' => 'Gmch9',
+            'csrf-token.sig' => 'X0fR',
+        ], $request->getCookieParams());
     }
 
     public function testPostUrlEncoded(): void
@@ -153,6 +159,9 @@ class HttpParserTest extends TestCase
         self::assertSame($file, $request->getBody()->__toString());
     }
 
+    /**
+     * @param Generator<int, string, mixed, void> $stream
+     */
     private function parseStream(Generator $stream): ServerRequestInterface
     {
         $fiber = new Fiber(

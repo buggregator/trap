@@ -43,6 +43,22 @@ final class HttpParser
             $request = $request->withHeader($name, $value);
         }
 
+        // Todo refactor:
+        //  - move to separated method
+        //  - add tests
+        //  - special chars like `;` can be in double quotes that why we can't use just explode
+        //
+        // See https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
+        //
+        // Format (https://datatracker.ietf.org/doc/html/rfc6265#section-4.2.1):
+        // cookie-header = "Cookie:" OWS cookie-string OWS
+        // cookie-string = cookie-pair *( ";" SP cookie-pair )
+        // cookie-pair       = cookie-name "=" cookie-value
+        // cookie-value      = *cookie-octet / ( DQUOTE *cookie-octet DQUOTE )
+        // cookie-octet      = %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E
+        //                ; US-ASCII characters excluding CTLs,
+        //                ; whitespace DQUOTE, comma, semicolon,
+        //                ; and backslash
         if ($request->hasHeader('Cookie')) {
             $rawCookies = \explode(';', $request->getHeaderLine('Cookie'));
             $cookies = [];
