@@ -43,4 +43,4 @@ contribute in any other way, please open an issue or submit a pull request on th
 
 ## License
 
-Buggregator Trap is open-sourced software licensed under the MIT license.
+Buggregator Trap is open-sourced software licensed under the BSD-4 license.
