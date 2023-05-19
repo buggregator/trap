@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Http;
 
+use Buggregator\Client\Logger;
 use Buggregator\Client\Support\StreamHelper;
 use Generator;
 use Http\Message\Encoding\GzipDecodeStream;
@@ -34,7 +35,7 @@ final class HttpParser
 
         $headersBlock = $this->getBlock($generator);
 
-        [$method, $uri, $protocol] = self::parseFirstLine($firstLine);
+        [$method, $uri, $protocol] = $this->parseFirstLine($firstLine);
         $headers = $this->parseHeaders($headersBlock);
 
         $request = $this->factory->createServerRequest($method, $uri, [])

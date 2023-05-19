@@ -9,7 +9,7 @@ use Buggregator\Client\Proto\Frame;
 interface Sender
 {
     /**
-     * @param iterable<int, Frame> $frames
+     * @param iterable<array-key, Frame> $frames
      */
     public function send(iterable $frames): void;
 }

@@ -21,6 +21,11 @@ final class Http implements Dispatcher
     public function dispatch(StreamClient $stream): iterable
     {
         $request = $this->parser->parseStream((static function (StreamClient $stream) {
+            // Submit cached data first
+            foreach (\explode("\n", $stream->getData()) as $line) {
+                yield $line . "\n";
+            }
+            // Then read from the stream
             while (!$stream->isFinished()) {
                 yield $stream->fetchLine();
             }
@@ -28,13 +33,21 @@ final class Http implements Dispatcher
 
         $stream->sendData(
             <<<Response
-                HTTP/1.1 200 Bad Request\r
+                HTTP/1.1 200 OK\r
                 Date: Sun, 18 Oct 2012 10:36:20 GMT\r
                 Server: Apache/2.2.14 (Win32)\r
                 Content-Type: text/html; charset=iso-8859-1\r
                 Connection: Closed\r
                 \r
-                Foo bar\r\n
+                <html lang="en"><body>
+                    <form method="post" action="/foo/bar?get=test&hello=world" enctype='multipart/form-data'>
+                        <span>Test form</span>
+                        <br /><input type="text" name="name" value="Actor"/>
+                        <br /><textarea name="message">Hello World!</textarea>
+                        <br /><input type="file" name="files" multiple />
+                        <br /><input type="submit" />
+                    </form>
+                </body></html>\r\n\r\n
                 Response
         );
 

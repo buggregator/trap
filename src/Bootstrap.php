@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client;
 
+use Buggregator\Client\Exception\ClientTerminated;
 use Buggregator\Client\Proto\Buffer;
 use Buggregator\Client\Sender\FileSender;
 use Buggregator\Client\Socket\Client;
@@ -75,9 +76,10 @@ final class Bootstrap
                 $fiber->isStarted() ? $fiber->resume() : $fiber->start();
 
                 if ($fiber->isTerminated()) {
-                    throw new RuntimeException('Client terminated.');
+                    unset($this->fibers[$key]);
                 }
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                Logger::exception($e);
                 unset($this->fibers[$key]);
             }
         }
@@ -89,6 +91,9 @@ final class Bootstrap
         $this->fibers[] = new Fiber(fn() => $this->sender->send($this->buffer->getAndClean()));
     }
 
+    /**
+     * @param positive-int $port
+     */
     private function createServer(int $port): Server
     {
         $inspector = $this->inspector;

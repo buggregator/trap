@@ -42,19 +42,19 @@ final class Parser
         );
 
         return new Message(
-            $message->getHeader('Message - Id')->getValue(),
+            $message->getHeader('Message - Id')?->getValue(),
             $body, $from, $recipients, $ccs, $subject,
             $html, $text, $replyTo, $allRecipients, $attachments
         );
     }
 
     /**
-     * @param MessagePart[] $attachments
+     * @param ParseMessage\MessagePart[] $attachments
      * @return Attachment[]
      */
     private function buildAttachmentFrom(array $attachments): array
     {
-        return \array_map(function (MessagePart|ParseMessage\MimePart $part) {
+        return \array_map(function (ParseMessage\MessagePart|ParseMessage\MimePart $part) {
             return new Attachment(
                 $part->getFilename(),
                 $part->getContent(),
