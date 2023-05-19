@@ -98,6 +98,7 @@ final class StreamClient implements IteratorAggregate
         while (!$this->isFinished()) {
             while (!$this->queue->isEmpty() && !\str_contains($this->queue[0], "\n")) {
                 $line .= $this->queue->dequeue();
+                $this->waitData();
             }
 
             // Split chunk by EOL

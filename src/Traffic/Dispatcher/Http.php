@@ -21,10 +21,6 @@ final class Http implements Dispatcher
     public function dispatch(StreamClient $stream): iterable
     {
         $request = $this->parser->parseStream((static function (StreamClient $stream) {
-            // Submit cached data first
-            foreach (\explode("\n", $stream->getData()) as $line) {
-                yield $line . "\n";
-            }
             // Then read from the stream
             while (!$stream->isFinished()) {
                 yield $stream->fetchLine();

@@ -71,7 +71,7 @@ final class Test extends Command
     {
         if ($content !== '') {
             \socket_write($socket, $content);
-            Logger::print('> "%s"', \str_replace(["\r", "\n"], ['\\r', '\\n'], $content));
+            Logger::print('> ' . \str_replace(["\r", "\n"], ['\\r', '\\n'], $content));
         }
 
         if ($expectedResponsePrefix === '') {
