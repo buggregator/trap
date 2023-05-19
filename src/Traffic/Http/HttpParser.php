@@ -4,20 +4,18 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Http;
 
-use Buggregator\Client\Logger;
+use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Support\StreamHelper;
-use Generator;
 use Http\Message\Encoding\GzipDecodeStream;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\ServerRequestInterface;
 use RuntimeException;
 
-/**
- * @psalm-type LinesGenerator = Generator<int, string, mixed, void>
- */
 final class HttpParser
 {
+    private const MAX_URL_ENCODED_BODY_SIZE = 4194304; // 4MB
+
     private Psr17Factory $factory;
 
     public function __construct()
@@ -25,15 +23,10 @@ final class HttpParser
         $this->factory = new Psr17Factory();
     }
 
-    /**
-     * @param LinesGenerator $generator Generator that yields lines only with trailing \r\n
-     */
-    public function parseStream(Generator $generator): ServerRequestInterface
+    public function parseStream(StreamClient $stream): ServerRequestInterface
     {
-        $firstLine = $generator->current();
-        $generator->next();
-
-        $headersBlock = $this->getBlock($generator);
+        $firstLine = $stream->fetchLine();
+        $headersBlock = $this->getBlock($stream);
 
         [$method, $uri, $protocol] = $this->parseFirstLine($firstLine);
         $headers = $this->parseHeaders($headersBlock);
@@ -71,7 +64,7 @@ final class HttpParser
             $request = $request->withCookieParams($cookies);
         }
 
-        return $this->parseBody($generator, $request);
+        return $this->parseBody($stream, $request);
     }
 
     /**
@@ -92,22 +85,16 @@ final class HttpParser
 
     /**
      * Get text block before empty line
-     *
-     * @param LinesGenerator $generator
-     *
-     * @return string
      */
-    private function getBlock(Generator $generator): string
+    private function getBlock(StreamClient $stream): string
     {
         $previous = $block = '';
-        while ($generator->valid()) {
-            $line = $generator->current();
+        while (!$stream->isFinished()) {
+            $line = $stream->fetchLine();
             if ($line === "\r\n" && \str_ends_with($previous, "\r\n")) {
                 return \substr($block, 0, -2);
             }
-            $generator->next();
             $previous = $line;
-
             $block .= $line;
         }
 
@@ -116,23 +103,18 @@ final class HttpParser
 
     /**
      * Read around {@see $bytes} bytes.
-     *
-     * @param LinesGenerator $generator
      */
-    private function getBytes(Generator $generator, int $bytes): string
+    private function getBytes(StreamClient $stream, int $bytes): string
     {
         if ($bytes <= 0) {
             return '';
         }
         $block = '';
-        while ($generator->valid()) {
-            $line = $generator->current();
-            $block .= $line;
+        foreach ($stream->getIterator() as $chunk) {
+            $block .= $chunk;
             if (\strlen($block) >= $bytes) {
                 break;
             }
-
-            $generator->next();
         }
 
         return $block;
@@ -159,16 +141,12 @@ final class HttpParser
         return $result;
     }
 
-    /**
-     * @param LinesGenerator $stream
-     */
-    private function parseBody(Generator $stream, ServerRequestInterface $request): ServerRequestInterface
+    private function parseBody(StreamClient $stream, ServerRequestInterface $request): ServerRequestInterface
     {
         // Methods have body
         if (!\in_array($request->getMethod(), ['POST', 'PUT', 'PATCH'], true)) {
             return $request;
         }
-        $stream->next(); // Skip previous empty line
 
         // Guess length
         $length = $request->hasHeader('Content-Length') ? $request->getHeaderLine('Content-Length') : null;
@@ -202,6 +180,10 @@ final class HttpParser
 
     private function parseUrlEncodedBody(ServerRequestInterface $request): ServerRequestInterface
     {
+        if ($request->getBody()->getSize() > self::MAX_URL_ENCODED_BODY_SIZE) {
+            return $request;
+        }
+
         $str = $request->getBody()->__toString();
 
         try {
@@ -247,22 +229,21 @@ final class HttpParser
 
                 $stream->seek(2, \SEEK_CUR); // Skip \r\n
                 $findBoundary = "\r\n--{$boundary}";
-                $endOfContent = StreamHelper::strpos($stream, $findBoundary);
-                $endOfContent !== false or throw new RuntimeException('Missing end of content');
 
                 if ($isFile) {
                     $fileStream = $this->factory->createStream();
-                    if ($endOfContent > 0) {
-                        StreamHelper::writeStream($stream, $fileStream, $endOfContent);
-                    }
+                    $fileSize = StreamHelper::writeStreamUntil($stream, $fileStream, $findBoundary);
+
                     $uploadedFiles[$name] = new UploadedFile(
                         $fileStream,
-                        $endOfContent,
+                        $fileSize,
                         \UPLOAD_ERR_OK,
                         $fileName,
                         $headers['Content-Type'][0] ?? null,
                     );
                 } else {
+                    $endOfContent = StreamHelper::strpos($stream, $findBoundary);
+                    $endOfContent !== false or throw new RuntimeException('Missing end of content');
                     $parsedBody[$name] = $endOfContent > 0 ? $stream->read($endOfContent) : '';
                 }
             }

@@ -46,7 +46,7 @@ final class Run extends Command
 
             while (true) {
                 $bootstrap->process();
-                \usleep(500);
+                \usleep(50);
             }
         } catch (\Throwable $e) {
             // Write colorful exception (title, message, stacktrace)

@@ -9,7 +9,8 @@ use Psr\Http\Message\StreamInterface;
 
 final class StreamHelper
 {
-    private const CHUNK_SIZE = 4096;
+    private const CHUNK_SIZE = 1048576; // 1 Mb
+    private const WRITE_STREAM_CHUNK_SIZE = 8388608; // 8 Mb
 
     /**
      * @param non-empty-string $substr
@@ -39,7 +40,7 @@ final class StreamHelper
                 break;
             }
 
-            $prefix = \substr($read, -$ssLen);
+            $prefix = \substr($read, - $ssLen);
             $delta += \strlen($read) - $ssLen;
 
             unset($read);
@@ -47,6 +48,40 @@ final class StreamHelper
         }
 
         $stream->seek($caret, \SEEK_SET);
+        return $result;
+    }
+
+    /**
+     *
+     * Write bytes from $from (current position) to $to (current position) until $boundary by chunks
+     *
+     * @param non-empty-string $boundary
+     *
+     * @return int Bytes written
+     */
+    public static function writeStreamUntil(StreamInterface $from, StreamInterface $to, string $boundary): int
+    {
+        $result = 0;
+        while (!$from->eof()) {
+            $read = $from->read(self::WRITE_STREAM_CHUNK_SIZE);
+            if (false !== ($pos = \strpos($read, $boundary))) {
+                $from->seek($pos - \strlen($read), \SEEK_CUR);
+                $read = \substr($read, 0, $pos);
+
+                $result += \strlen($read);
+                $to->write($read);
+                unset($read);
+                Fiber::suspend();
+                break;
+            }
+
+            $result += \strlen($read);
+            $to->write($read);
+
+            unset($read);
+            Fiber::suspend();
+        }
+
         return $result;
     }
 
@@ -60,9 +95,9 @@ final class StreamHelper
         $written = 0;
         while (!$from->eof() && $written < $bytes) {
             $diff = $bytes - $written;
-            $toRead = $diff > self::CHUNK_SIZE && (self::CHUNK_SIZE * 1.2 > $diff)
+            $toRead = $diff > self::WRITE_STREAM_CHUNK_SIZE && (self::WRITE_STREAM_CHUNK_SIZE * 1.2 > $diff)
                 ? $diff
-                : \min($diff, self::CHUNK_SIZE);
+                : \min($diff, self::WRITE_STREAM_CHUNK_SIZE);
             $read = $from->read($toRead);
             $to->write($read);
             $written += \strlen($read);

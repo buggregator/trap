@@ -103,6 +103,6 @@ final class Bootstrap
             return $client;
         };
 
-        return Server::init($port, payloadSize: 4096, clientInflector: $clientInflector);
+        return Server::init($port, payloadSize: 524_288, clientInflector: $clientInflector);
     }
 }

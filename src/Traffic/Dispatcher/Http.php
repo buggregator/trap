@@ -20,12 +20,8 @@ final class Http implements Dispatcher
 
     public function dispatch(StreamClient $stream): iterable
     {
-        $request = $this->parser->parseStream((static function (StreamClient $stream) {
-            // Then read from the stream
-            while (!$stream->isFinished()) {
-                yield $stream->fetchLine();
-            }
-        })($stream));
+        $time = new \DateTimeImmutable();
+        $request = $this->parser->parseStream($stream);
 
         $stream->sendData(
             <<<Response
@@ -52,7 +48,8 @@ final class Http implements Dispatcher
         // todo process request
 
         yield new Frame\Http(
-            $request
+            $request,
+            $time,
         );
     }
 

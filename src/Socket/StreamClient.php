@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Socket;
 
-use Buggregator\Client\Logger;
 use Fiber;
 use Generator;
 use IteratorAggregate;
