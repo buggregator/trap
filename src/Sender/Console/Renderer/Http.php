@@ -119,13 +119,16 @@ final class Http implements RendererInterface
 
     private function renderKeyValueTable(OutputInterface $output, string $title, array $data, array $exclude = []): void
     {
+        $table = (new Table($output))->setHeaderTitle($title);
+        if ($data === []) {
+            $table->setRows([['<fg=green> There is no data </>']])->render();
+            return;
+        }
+
         $keyLength = \max(\array_map(static fn($key) => \strlen($key), \array_keys($data)));
         $valueLength = \max(1, (new Terminal())->getWidth() - 7 - $keyLength);
 
-        $table = new Table($output);
-        $table
-            ->setHeaderTitle($title)
-            ->setRows([...(static function (array $data, array $exclude) use ($valueLength): iterable {
+        $table->setRows([...(static function (array $data, array $exclude) use ($valueLength): iterable {
                 foreach ($data as $key => $value) {
                     if (\in_array($key, $exclude, true)) {
                         continue;
@@ -142,7 +145,6 @@ final class Http implements RendererInterface
                         yield ['', $str];
                     }
                 }
-            })($data, $exclude)]);
-        $table->render();
+            })($data, $exclude)])->render();
     }
 }

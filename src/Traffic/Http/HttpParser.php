@@ -6,15 +6,19 @@ namespace Buggregator\Client\Traffic\Http;
 
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Support\StreamHelper;
+use Fiber;
 use Http\Message\Encoding\GzipDecodeStream;
 use Nyholm\Psr7\Factory\Psr17Factory;
+use Nyholm\Psr7\Stream;
 use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\StreamInterface;
 use RuntimeException;
 
 final class HttpParser
 {
     private const MAX_URL_ENCODED_BODY_SIZE = 4194304; // 4MB
+    private const MAX_BODY_MEMORY_SIZE = 4194304; // 4MB
 
     private Psr17Factory $factory;
 
@@ -152,15 +156,8 @@ final class HttpParser
         $length = $request->hasHeader('Content-Length') ? $request->getHeaderLine('Content-Length') : null;
         $length = \is_numeric($length) ? (int)$length : null;
 
-        // todo resolve very large body using a stream
-        $request = $request->withBody(
-            $this->factory->createStream(
-                $length !== null
-                    ? $this->getBytes($stream, $length)
-                    // Try to read body block without Content-Length
-                    : $this->getBlock($stream)
-            )
-        );
+        $request = $request->withBody($this->createBody($stream, $length));
+        $request->getBody()->rewind();
 
         // Decode encoded content
         if ($request->hasHeader('Content-Encoding')) {
@@ -176,6 +173,36 @@ final class HttpParser
             \str_contains($contentType, 'multipart/form-data') => $this->parseMultipartBody($request),
             default => $request,
         };
+    }
+
+    /**
+     * Flush stream data PSR stream.
+     * Note: there can be read more data than {@see $limit} bytes but write only {@see $limit} bytes.
+     */
+    private function createBody(StreamClient $stream, ?int $limit): StreamInterface
+    {
+        $fileStream = $this->createFileStream();
+        $written = 0;
+
+        foreach ($stream->getIterator() as $chunk) {
+            if ($limit !== null && \strlen($chunk) + $written >= $limit) {
+                $fileStream->write(\substr($chunk, 0, $limit - $written));
+                return $fileStream;
+            }
+
+            // Check trailed double \r\n
+            if ($limit === null && !$stream->hasData() && \str_ends_with($chunk, "\r\n\r\n")) {
+                $fileStream->write(\substr($chunk, 0, -4));
+                return $fileStream;
+            }
+
+            $fileStream->write($chunk);
+            $written += \strlen($chunk);
+            unset($chunk);
+            Fiber::suspend();
+        }
+
+        return $fileStream;
     }
 
     private function parseUrlEncodedBody(ServerRequestInterface $request): ServerRequestInterface
@@ -232,7 +259,7 @@ final class HttpParser
                 $findBoundary = "\r\n--{$boundary}";
 
                 if ($isFile) {
-                    $fileStream = $this->factory->createStream();
+                    $fileStream = $this->createFileStream();
                     $fileSize = StreamHelper::writeStreamUntil($stream, $fileStream, $findBoundary);
 
                     $uploadedFiles[$name][] = new UploadedFile(
@@ -258,5 +285,10 @@ final class HttpParser
     {
         $stream = new GzipDecodeStream($request->getBody());
         return $request->withBody($stream);
+    }
+
+    private function createFileStream(): StreamInterface
+    {
+        return Stream::create(\fopen('php://temp/maxmemory:' . self::MAX_BODY_MEMORY_SIZE, 'w+b'));
     }
 }
