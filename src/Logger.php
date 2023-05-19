@@ -11,9 +11,9 @@ use Throwable;
  */
 final class Logger
 {
-    public static function print(string $message, string|int|float|bool ...$values): void
+    public static function print(string $message): void
     {
-        echo \sprintf($message, ...$values) . "\n";
+        echo $message . "\n";
     }
 
     public static function info(string $message, string|int|float|bool ...$values): void

@@ -11,6 +11,9 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
 
+/**
+ * Todo: repair tests. It need to mock StreamClient.
+ */
 class HttpParserTest extends TestCase
 {
     public function testSimpleGet(): void

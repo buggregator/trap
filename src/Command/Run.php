@@ -46,7 +46,7 @@ final class Run extends Command
 
             while (true) {
                 $bootstrap->process();
-                \usleep(500);
+                \usleep(50);
             }
         } catch (\Throwable $e) {
             // Write colorful exception (title, message, stacktrace)
@@ -77,7 +77,7 @@ final class Run extends Command
         $renderer = new ConsoleRenderer($output);
         $renderer->register(new Renderer\VarDumper());
         $renderer->register(new Renderer\Monolog($htmlRenderer));
-        $renderer->register(new Renderer\Http($htmlRenderer));
+        $renderer->register(new Renderer\Http());
         $renderer->register(new Renderer\Smtp($htmlRenderer));
         $renderer->register(new Renderer\Plain($htmlRenderer));
 
