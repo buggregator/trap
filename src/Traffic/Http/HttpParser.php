@@ -43,6 +43,33 @@ final class HttpParser
             $request = $request->withHeader($name, $value);
         }
 
+        // Todo refactor:
+        //  - move to separated method
+        //  - add tests
+        //  - special chars like `;` can be in double quotes that why we can't use just explode
+        //
+        // See https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
+        //
+        // Format (https://datatracker.ietf.org/doc/html/rfc6265#section-4.2.1):
+        // cookie-header = "Cookie:" OWS cookie-string OWS
+        // cookie-string = cookie-pair *( ";" SP cookie-pair )
+        // cookie-pair       = cookie-name "=" cookie-value
+        // cookie-value      = *cookie-octet / ( DQUOTE *cookie-octet DQUOTE )
+        // cookie-octet      = %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E
+        //                ; US-ASCII characters excluding CTLs,
+        //                ; whitespace DQUOTE, comma, semicolon,
+        //                ; and backslash
+        if ($request->hasHeader('Cookie')) {
+            $rawCookies = \explode(';', $request->getHeaderLine('Cookie'));
+            $cookies = [];
+            foreach ($rawCookies as $cookie) {
+                [$name, $value] = \explode('=', \trim($cookie), 2);
+                $cookies[$name] = $value;
+            }
+
+            $request = $request->withCookieParams($cookies);
+        }
+
         return $this->parseBody($generator, $request);
     }
 
@@ -144,15 +171,17 @@ final class HttpParser
 
         // Guess length
         $length = $request->hasHeader('Content-Length') ? $request->getHeaderLine('Content-Length') : null;
-        $length = \is_numeric($length) ? (int) $length : null;
+        $length = \is_numeric($length) ? (int)$length : null;
 
         // todo resolve very large body using a stream
-        $request = $request->withBody($this->factory->createStream(
-            $length !== null
-                ? $this->getBytes($stream, $length)
-                // Try to read body block without Content-Length
-                : $this->getBlock($stream)
-        ));
+        $request = $request->withBody(
+            $this->factory->createStream(
+                $length !== null
+                    ? $this->getBytes($stream, $length)
+                    // Try to read body block without Content-Length
+                    : $this->getBlock($stream)
+            )
+        );
 
         // Decode encoded content
         if ($request->hasHeader('Content-Encoding')) {
@@ -244,7 +273,7 @@ final class HttpParser
 
     private function unzipBody(ServerRequestInterface $request): ServerRequestInterface
     {
-        $stream =new GzipDecodeStream($request->getBody());
+        $stream = new GzipDecodeStream($request->getBody());
         return $request->withBody($stream);
     }
 }

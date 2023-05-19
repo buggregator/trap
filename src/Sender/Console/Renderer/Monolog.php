@@ -59,7 +59,7 @@ final class Monolog implements RendererInterface
                 </table>
 
                 <h1 class="font-bold text-white my-1">
-                    <span class="bg-blue px-1">MONOLOG</span>
+                    <span class="bg-blue px-1"><strong>MONOLOG</strong></span>
                     <span class="px-1 bg-$levelColor">$level</span>
                 </h1>
 
