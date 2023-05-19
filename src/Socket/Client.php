@@ -13,13 +13,13 @@ use Fiber;
  */
 final class Client
 {
-    /** @var string[] */
+     /** @var string[] */
     private array $writeQueue = [];
 
     /** @var string */
     private string $readBuffer = '';
 
-    private bool $toDisconnect = true;
+    private bool $toDisconnect = false;
     private \Closure $onPayload;
     private \Closure $onClose;
 

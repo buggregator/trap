@@ -24,7 +24,9 @@ final class Plain implements RendererInterface
     public function render(OutputInterface $output, Frame $frame): void
     {
         $date = $frame->time->format('Y-m-d H:i:s.u');
-        $channel = $frame->type->value;
+        $channel = \strtoupper($frame->type->value);
+
+        $body = \htmlspecialchars((string) $frame);
 
         $this->renderer->render(
             <<<HTML
@@ -41,7 +43,7 @@ final class Plain implements RendererInterface
                 </h1>
 
                 <div class="mb-1">
-                    $frame
+                    $body
                 </div>
             </div>
             HTML
