@@ -1,7 +1,10 @@
-# Buggregator client
+# Buggregator Trap
 
-[![Support me on Patreon](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Dbutschster%26type%3Dpatrons&style=flat)](https://patreon.com/butschster)
-[![Downloads](https://img.shields.io/docker/pulls/butschster/buggregator.svg)](https://hub.docker.com/repository/docker/butschster/buggregator)
+**Support us on Patreon**  
+[![roxblnfk](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Droxblnfk%26type%3Dpatrons&style=flat)](https://patreon.com/roxblnfk)
+[![butschster](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Dbutschster%26type%3Dpatrons&style=flat)](https://patreon.com/butschster)
+
+**Follow us on Twitter**  
 [![Twitter](https://img.shields.io/badge/twitter-Follow-blue)](https://twitter.com/buggregator)
 
 Buggregator Trap is a lightweight CLI version of Buggregator, a powerful debugging tool for PHP applications.
