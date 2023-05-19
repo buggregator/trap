@@ -225,6 +225,7 @@ final class HttpParser
                     : throw new RuntimeException('Missing name in Content-Disposition header');
                 $fileName = \preg_match('/\bfilename="([^"]++)"/', $contentDisposition, $matches) === 1 ? $matches[1]
                     : null;
+                $fileName = $fileName !== null ? \html_entity_decode($fileName) : null;
                 $isFile = $fileName || isset($headers['Content-Type']);
 
                 $stream->seek(2, \SEEK_CUR); // Skip \r\n
@@ -234,7 +235,7 @@ final class HttpParser
                     $fileStream = $this->factory->createStream();
                     $fileSize = StreamHelper::writeStreamUntil($stream, $fileStream, $findBoundary);
 
-                    $uploadedFiles[$name] = new UploadedFile(
+                    $uploadedFiles[$name][] = new UploadedFile(
                         $fileStream,
                         $fileSize,
                         \UPLOAD_ERR_OK,

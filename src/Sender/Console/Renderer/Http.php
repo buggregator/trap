@@ -88,9 +88,14 @@ final class Http implements RendererInterface
                 ->setHeaderTitle('Uploaded files')
                 ->setHeaders(['Field Name', 'Client Name', 'MIME Type', 'Size'])
                 ->setRows([...(static function (array $files): iterable {
-                    /** @var UploadedFileInterface[] $files*/
-                    foreach ($files as $key => $file) {
-                        yield [$key, $file->getClientFilename(), $file->getClientMediaType(), $file->getSize()];
+                    /** @var UploadedFileInterface[]|UploadedFileInterface[][] $files*/
+                    foreach ($files as $key => $group) {
+                        if (!\is_array($group)) {
+                            $group = [$group];
+                        }
+                        foreach ($group as $file) {
+                            yield [$key, $file->getClientFilename(), $file->getClientMediaType(), $file->getSize()];
+                        }
                     }
                 })($request->getUploadedFiles())])
                 ->render();
