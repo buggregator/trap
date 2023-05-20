@@ -78,7 +78,7 @@ final class Run extends Command
         $renderer->register(new Renderer\VarDumper());
         $renderer->register(new Renderer\Monolog($htmlRenderer));
         $renderer->register(new Renderer\Http());
-        $renderer->register(new Renderer\Smtp($htmlRenderer));
+        $renderer->register(new Renderer\Smtp());
         $renderer->register(new Renderer\Plain($htmlRenderer));
 
         return new Sender\ConsoleSender($renderer);

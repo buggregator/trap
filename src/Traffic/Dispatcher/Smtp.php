@@ -32,10 +32,13 @@ final class Smtp implements Dispatcher
             } elseif (\str_starts_with($response, 'DATA')) {
                 $stream->sendData($this->createResponse(self::START_MAIL_INPUT));
 
-                do {
+                while (!$stream->isFinished()) {
                     $response = $stream->fetchLine();
-                    $content .= \preg_replace("/^(\.\.)/m", '.', $response);
-                } while (!$this->endOfContentDetected($response));
+                    if ($this->endOfContentDetected($response)) {
+                        break;
+                    }
+                    $content .= \preg_replace("/^\.([^\r])/m", '$1', $response);
+                }
 
                 $stream->sendData($this->createResponse(self::OK));
             }

@@ -7,16 +7,18 @@ namespace Buggregator\Client\Sender\Console\Renderer;
 use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\ProtoType;
 use Buggregator\Client\Sender\Console\RendererInterface;
+use Buggregator\Client\Sender\Console\Support\RenderTable;
 use Psr\Http\Message\UploadedFileInterface;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Terminal;
 
 /**
  * @implements RendererInterface<Frame\Http>
  */
 final class Http implements RendererInterface
 {
+    use RenderTable;
+
     public function isSupport(Frame $frame): bool
     {
         return $frame->type === ProtoType::HTTP;
@@ -61,11 +63,12 @@ final class Http implements RendererInterface
 
         if ($request->getHeaders() !== []) {
             $output->writeln('');
+            // Exclude Cookies from Headers rendering
+            $headers = $request->withoutHeader('Cookie')->getHeaders();
             $this->renderKeyValueTable(
                 $output,
                 'Headers',
-                \array_map(static fn(array $lines) => \implode("\n", $lines), $request->getHeaders()),
-                ['Cookie'],
+                \array_map(static fn(array $lines): string => \implode("\n", $lines), $headers),
             );
         }
 
@@ -109,36 +112,5 @@ final class Http implements RendererInterface
             $read = \preg_replace('/[\x00-\x09\x0F-\x1F]/', '.', $read);
             $output->write($read, true, OutputInterface::OUTPUT_RAW);
         }
-    }
-
-    private function renderKeyValueTable(OutputInterface $output, string $title, array $data, array $exclude = []): void
-    {
-        $table = (new Table($output))->setHeaderTitle($title);
-        if ($data === []) {
-            $table->setRows([['<fg=green> There is no data </>']])->render();
-            return;
-        }
-
-        $keyLength = \max(\array_map(static fn($key) => \strlen($key), \array_keys($data)));
-        $valueLength = \max(1, (new Terminal())->getWidth() - 7 - $keyLength);
-
-        $table->setRows([...(static function (array $data, array $exclude) use ($valueLength): iterable {
-                foreach ($data as $key => $value) {
-                    if (\in_array($key, $exclude, true)) {
-                        continue;
-                    }
-                    if (!\is_string($value)) {
-                        $value = \json_encode($value, JSON_THROW_ON_ERROR);
-                    }
-                    $values = \strlen($value) > $valueLength
-                        ? \str_split($value, $valueLength)
-                        : [$value];
-
-                    yield [$key, \array_shift($values)];
-                    foreach ($values as $str) {
-                        yield ['', $str];
-                    }
-                }
-            })($data, $exclude)])->render();
     }
 }

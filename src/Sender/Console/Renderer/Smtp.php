@@ -7,21 +7,22 @@ namespace Buggregator\Client\Sender\Console\Renderer;
 use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\ProtoType;
 use Buggregator\Client\Sender\Console\RendererInterface;
+use Buggregator\Client\Sender\Console\Support\RenderTable;
 use Buggregator\Client\Traffic\Smtp\Message;
 use Buggregator\Client\Traffic\Smtp\Parser;
 use Symfony\Component\Console\Output\OutputInterface;
-use Termwind\HtmlRenderer;
 
 /**
  * @implements RendererInterface<Frame\Smtp>
  */
 final class Smtp implements RendererInterface
 {
+    use RenderTable;
+
     private readonly Parser $parser;
 
-    public function __construct(
-        private readonly HtmlRenderer $renderer,
-    ) {
+    public function __construct()
+    {
         $this->parser = new Parser();
     }
 
@@ -35,76 +36,36 @@ final class Smtp implements RendererInterface
         $message = $this->parser->parse($frame->message);
         $date = $frame->time->format('Y-m-d H:i:s.u');
         $subject = $message->subject;
-
         $addresses = $this->generateAddresses($message);
 
-        $body = \htmlspecialchars(\trim($message->textBody));
+        $output->writeln(['', '<fg=white;bg=blue> SMTP </>', '']);
+        $this->renderKeyValueTable($output, '', [
+            'Time' => $date,
+        ]);
 
-
-        $this->renderer->render(
-            <<<HTML
-            <div class="mt-2">
-                <table>
-                    <tr>
-                        <th>date</th>
-                        <td>$date</td>
-                    </tr>
-                </table>
-
-                <h1 class="font-bold bg-blue text-white my-1 px-1">SMTP</h1>
-                <h2 class="font-bold mb-1">$subject</h2>
-
-                <div class="mb-1">$addresses</div>
-                <code>$body</code>
-            </div>
-            HTML
-            ,
-            0
+        $output->writeln('');
+        $this->renderKeyValueTable(
+            $output,
+            'Addresses',
+            \array_map(static fn (array $items): string => \implode(', ', $items), $addresses),
         );
+
+        $output->writeln(['', "<fg=white;options=bold>$subject</>", '<fg=gray>---</>', '']);
+        $output->write($message->textBody, true, OutputInterface::OUTPUT_RAW);
     }
 
-    private function generateAddresses(Message $message): string
+    private function generateAddresses(Message $message): array
     {
         $addresses = [];
         foreach (['from', 'to', 'cc', 'bcc', 'reply_to'] as $type) {
             if (($users = $this->prepareUsers($message->jsonSerialize(), $type)) !== []) {
-                $addresses[$type] = $users;
+                $addresses[$type] = \array_map(static fn (array $items): string => empty($items['name'])
+                    ? $items['email']
+                    : $items['name'] . ' [' . $items['email'] . ']', $users);
             }
         }
 
-        if ($addresses === []) {
-            return '';
-        }
-
-        $html = '<table>';
-        $html .= '<thead title="Addresses"></thead>';
-
-        $m = 1;
-        foreach ($addresses as $type => $users) {
-            $lastRow = ($m === count($addresses));
-            $html .= '<tbody><tr><th colspan="2">' . $type . '</th></tr>';
-
-            $i = 1;
-            foreach ($users as $user) {
-                $last = ($i === count($users));
-                $html .= '<tr ' . ($last && !$lastRow ? 'border="1"' : '') . '><th>' . $i++ . '.</th><td>';
-
-                if (!empty($user['name'])) {
-                    $html .= $user['name'] . ' [' . $user['email'] . ']';
-                } else {
-                    $html .= $user['email'];
-                }
-
-                $html .= '</td></tr>';
-            }
-
-            $m++;
-            $html .= '</tbody>';
-        }
-
-        $html .= '</table>';
-
-        return $html;
+        return $addresses;
     }
 
     protected function prepareUsers(array $payload, string $key): array
