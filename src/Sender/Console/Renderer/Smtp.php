@@ -12,6 +12,9 @@ use Buggregator\Client\Traffic\Smtp\Parser;
 use Symfony\Component\Console\Output\OutputInterface;
 use Termwind\HtmlRenderer;
 
+/**
+ * @implements RendererInterface<Frame\Smtp>
+ */
 final class Smtp implements RendererInterface
 {
     private readonly Parser $parser;
@@ -27,9 +30,6 @@ final class Smtp implements RendererInterface
         return $frame->type === ProtoType::SMTP;
     }
 
-    /**
-     * @param Frame\Smtp $frame
-     */
     public function render(OutputInterface $output, Frame $frame): void
     {
         $message = $this->parser->parse($frame->message);

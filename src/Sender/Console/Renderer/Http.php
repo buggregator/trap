@@ -9,10 +9,12 @@ use Buggregator\Client\ProtoType;
 use Buggregator\Client\Sender\Console\RendererInterface;
 use Psr\Http\Message\UploadedFileInterface;
 use Symfony\Component\Console\Helper\Table;
-use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Terminal;
 
+/**
+ * @implements RendererInterface<Frame\Http>
+ */
 final class Http implements RendererInterface
 {
     public function isSupport(Frame $frame): bool
@@ -20,17 +22,9 @@ final class Http implements RendererInterface
         return $frame->type === ProtoType::HTTP;
     }
 
-    /**
-     * @param Frame\Http $frame
-     */
     public function render(OutputInterface $output, Frame $frame): void
     {
-        $buffer = new BufferedOutput($output->getVerbosity(), $output->isDecorated(), $output->getFormatter());
-
-        $this->renderData($buffer, $frame);
-
-
-        $output->write($buffer->fetch(), false, OutputInterface::OUTPUT_RAW);
+        $this->renderData($output, $frame);
     }
 
     private function renderData(OutputInterface $output, Frame\Http $frame): void

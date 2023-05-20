@@ -10,6 +10,9 @@ use Buggregator\Client\Sender\Console\RendererInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Termwind\HtmlRenderer;
 
+/**
+ * @implements RendererInterface<Frame\Monolog>
+ */
 final class Monolog implements RendererInterface
 {
     public function __construct(
@@ -22,9 +25,6 @@ final class Monolog implements RendererInterface
         return $frame->type === ProtoType::Monolog;
     }
 
-    /**
-     * @param Frame\Monolog $frame
-     */
     public function render(OutputInterface $output, Frame $frame): void
     {
         $payload = $frame->message;

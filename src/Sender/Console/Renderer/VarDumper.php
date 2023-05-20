@@ -16,6 +16,9 @@ use Symfony\Component\VarDumper\Cloner\Stub;
 use Symfony\Component\VarDumper\Command\Descriptor\CliDescriptor;
 use Symfony\Component\VarDumper\Dumper\CliDumper;
 
+/**
+ * @implements RendererInterface<Frame\VarDumper>
+ */
 final class VarDumper implements RendererInterface
 {
     public function isSupport(Frame $frame): bool
@@ -23,9 +26,6 @@ final class VarDumper implements RendererInterface
         return $frame->type === ProtoType::VarDumper;
     }
 
-    /**
-     * @param Frame\VarDumper $frame
-     */
     public function render(OutputInterface $output, Frame $frame): void
     {
         $payload = @\unserialize(\base64_decode($frame->dump), ['allowed_classes' => [Data::class, Stub::class]]);

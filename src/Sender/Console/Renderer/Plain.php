@@ -9,6 +9,9 @@ use Buggregator\Client\Sender\Console\RendererInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Termwind\HtmlRenderer;
 
+/**
+ * @implements RendererInterface<Frame>
+ */
 final class Plain implements RendererInterface
 {
     public function __construct(
