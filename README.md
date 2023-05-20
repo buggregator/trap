@@ -25,7 +25,7 @@ for debugging.
 To install Buggregator Trap in your PHP application, add the package as a dependency to your project using Composer:
 
 ```bash
-composer require buggregator/trap --dev
+composer require --dev buggregator/trap *
 ```
 
 ## Usage

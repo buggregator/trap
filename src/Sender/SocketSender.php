@@ -12,6 +12,7 @@ use Buggregator\Client\Support\Timer;
 use Fiber;
 use RuntimeException;
 use Socket;
+use SplQueue;
 
 abstract class SocketSender implements Sender, Processable
 {
@@ -19,11 +20,18 @@ abstract class SocketSender implements Sender, Processable
     /** @var Timer Reconnect timer */
     private Timer $timer;
 
+    /** Current data transaction Fiber */
+    private ?Fiber $handler = null;
+
+    /** @var SplQueue<iterable<array-key, Frame>> */
+    private SplQueue $queue;
+
     public function __construct(
         private readonly string $host,
         private readonly int $port,
         float $reconnectTimeout = 1.0,
     ) {
+        $this->queue = new SplQueue();
         $this->timer = (new Timer(
             beep: $reconnectTimeout,
             condition: fn(): bool => $this->socket !== null,
@@ -37,20 +45,35 @@ abstract class SocketSender implements Sender, Processable
 
     public function process(): void
     {
+        if ($this->handler !== null) {
+            try {
+                if ($this->handler->isTerminated()) {
+                    $this->handler = null;
+                } else {
+                    $this->handler->resume();
+                }
+            } catch (\Throwable $e) {
+                Logger::exception($e, 'SocketSender error');
+                $this->disconnect();
+            }
+        }
+        if ($this->handler === null && !$this->queue->isEmpty()) {
+            $this->handler = new Fiber([$this, 'sendNext']);
+        }
     }
 
     public function send(iterable $frames): void
     {
-        $data = '[' . \implode(',', \array_map(
-            static fn (Frame $frame): string => $frame->__toString(),
-            \is_array($frames) ? $frames : \iterator_to_array($frames),
-        )) . ']';
+        $this->queue->enqueue($frames);
+    }
 
+    public function sendNext(): void
+    {
+        $data = $this->makePackage($this->preparePayload($this->queue[0]));
         $lastBytes = \strlen($data);
-
-        while ($lastBytes > 0) {
-            try {
-                $this->connect();
+        try {
+            $this->connect();
+            while ($lastBytes > 0) {
                 $write = [$this->socket];
                 $read = $except = null;
                 $result = $this->checkError(\socket_select($read, $write, $except, 0, 0));
@@ -60,11 +83,25 @@ abstract class SocketSender implements Sender, Processable
                 }
 
                 $lastBytes -= $this->checkError(\socket_write($this->socket, \substr($data, -$lastBytes), $lastBytes));
-            } catch (\Throwable $e) {
-                Logger::error('SocketSender error: %s', $e->getLine(), $e->getMessage());
-                $this->disconnect();
             }
+            $this->queue->dequeue();
+        } catch (\Throwable $e) {
+            Logger::error('SocketSender error: %s', $e->getLine(), $e->getMessage());
+            $this->disconnect();
         }
+    }
+
+    abstract protected function makePackage(string $payload): string;
+
+    /**
+     * @param iterable<array-key, Frame> $frames
+     */
+    protected function preparePayload(iterable $frames): string
+    {
+        return '[' . \implode(',', \array_map(
+                static fn (Frame $frame): string => $frame->__toString(),
+                \is_array($frames) ? $frames : \iterator_to_array($frames),
+            )) . ']';
     }
 
     /**

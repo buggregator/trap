@@ -13,8 +13,13 @@ use Buggregator\Client\Support\Timer;
 use Buggregator\Client\Traffic\Inspector;
 use Fiber;
 
+/**
+ * @internal
+ */
 final class Bootstrap implements Processable
 {
+    public const VERSION = '0.1.2';
+
     /** @var Processable[] */
     private array $processors = [];
 
