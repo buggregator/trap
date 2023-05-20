@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Client\Sender;
 
 use Buggregator\Client\Logger;
+use Buggregator\Client\Processable;
 use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Sender;
 use Buggregator\Client\Support\Timer;
@@ -12,9 +13,10 @@ use Fiber;
 use RuntimeException;
 use Socket;
 
-final class SocketSender implements Sender
+abstract class SocketSender implements Sender, Processable
 {
     private ?Socket $socket = null;
+    /** @var Timer Reconnect timer */
     private Timer $timer;
 
     public function __construct(
@@ -68,7 +70,7 @@ final class SocketSender implements Sender
     /**
      * @psalm-assert !null $this->socket
      */
-    public function connect(): void
+    protected function connect(): void
     {
         do {
             if ($this->socket !== null) {
@@ -92,7 +94,7 @@ final class SocketSender implements Sender
         } while (true);
     }
 
-    public function disconnect(): void
+    protected function disconnect(): void
     {
         try {
             if ($this->socket !== null) {
@@ -113,7 +115,7 @@ final class SocketSender implements Sender
      * @psalm-assert !false $value
      * @return T
      */
-    private function checkError(mixed $value): mixed
+    protected function checkError(mixed $value): mixed
     {
         if ($value === false) {
             throw new \RuntimeException('Socket error: reason: ' . \socket_strerror(\socket_last_error()));

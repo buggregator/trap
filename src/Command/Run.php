@@ -61,7 +61,7 @@ final class Run extends Command
     private function getSender(OutputInterface $output, string $type): Sender
     {
         return match ($type) {
-            'socket' => new Sender\SocketSender('127.0.0.1', 9099),
+            // 'socket' => new Sender\SocketSender('127.0.0.1', 9099),
             'file' => new Sender\FileSender(),
             default => $this->createConsoleSender($output),
         };

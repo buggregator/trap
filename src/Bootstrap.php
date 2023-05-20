@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Client;
 
-use Buggregator\Client\Exception\ClientTerminated;
 use Buggregator\Client\Proto\Buffer;
 use Buggregator\Client\Sender\FileSender;
 use Buggregator\Client\Socket\Client;
@@ -13,14 +12,18 @@ use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Support\Timer;
 use Buggregator\Client\Traffic\Inspector;
 use Fiber;
-use RuntimeException;
 
-final class Bootstrap
+final class Bootstrap implements Processable
 {
+    /** @var Processable[] */
+    private array $processors = [];
+
     /** @var Server[] */
     private array $servers = [];
+
     /** @var Fiber[] Any tasks in fibers */
     private array $fibers = [];
+
     private readonly Buffer $buffer;
     private Sender $sender;
     private Inspector $inspector;
@@ -43,12 +46,13 @@ final class Bootstrap
             new Traffic\Dispatcher\Smtp(),
             new Traffic\Dispatcher\Monolog(),
         );
+        $this->processors[] = $this->inspector;
 
         foreach ($map as $port => $_) {
             $this->fibers[] = new Fiber(function () use ($port) {
                 do {
                     try {
-                        $this->servers[$port] = $this->createServer($port);
+                        $this->processors[] = $this->servers[$port] = $this->createServer($port);
                         return;
                     } catch (\Throwable $e) {
                         Logger::error("Can't create TCP socket on port $port.");
@@ -58,11 +62,14 @@ final class Bootstrap
             });
         }
         $this->sender = $sender ?? new FileSender();
+        if ($sender instanceof Processable) {
+            $this->processors[] = $sender;
+        }
     }
 
     public function process(): void
     {
-        foreach ($this->servers as $server) {
+        foreach ($this->processors as $server) {
             $server->process();
         }
 
@@ -83,7 +90,6 @@ final class Bootstrap
                 unset($this->fibers[$key]);
             }
         }
-        $this->inspector->process();
     }
 
     private function sendBuffer(): void
