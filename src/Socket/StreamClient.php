@@ -56,6 +56,7 @@ final class StreamClient implements IteratorAggregate
         if ($data === '' || $this->isDisconnected()) {
             return false;
         }
+
         $this->client->send($data);
         return true;
     }

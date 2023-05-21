@@ -9,6 +9,9 @@ use Buggregator\Client\Socket\Client;
 use Buggregator\Client\Socket\Server;
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Support\Timer;
+use Buggregator\Client\Traffic\Http\DebugPage;
+use Buggregator\Client\Traffic\Http\RayRequestDump;
+use Buggregator\Client\Traffic\Http\HandlerPipeline;
 use Buggregator\Client\Traffic\Inspector;
 use Fiber;
 
@@ -43,10 +46,15 @@ final class Bootstrap implements Processable
         private readonly array $senders = [],
     ) {
         $this->buffer = new Buffer(bufferSize: 10485760, timer: 0.1);
+
+        $httpHandler = new HandlerPipeline();
+        $httpHandler->register(new DebugPage());
+        $httpHandler->register(new RayRequestDump());
+
         $this->inspector = new Inspector(
             $this->buffer,
             new Traffic\Dispatcher\VarDumper(),
-            new Traffic\Dispatcher\Http(),
+            new Traffic\Dispatcher\Http($httpHandler),
             new Traffic\Dispatcher\Smtp(),
             new Traffic\Dispatcher\Monolog(),
         );

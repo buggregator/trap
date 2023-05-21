@@ -4,17 +4,21 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Dispatcher;
 
-use Buggregator\Client\Logger;
 use Buggregator\Client\Proto\Frame;
+use Buggregator\Client\Logger;
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher;
+use Buggregator\Client\Traffic\Http\HandlerPipeline;
 use Buggregator\Client\Traffic\Http\HttpParser;
+use Buggregator\Client\Traffic\Http\Response;
 
 final class Http implements Dispatcher
 {
-    private HttpParser $parser;
+    private readonly HttpParser $parser;
 
-    public function __construct() {
+    public function __construct(
+        private readonly HandlerPipeline $handler,
+    ) {
         $this->parser = new HttpParser();
     }
 
@@ -23,29 +27,13 @@ final class Http implements Dispatcher
         $time = new \DateTimeImmutable();
         $request = $this->parser->parseStream($stream);
 
-        $stream->sendData(
-            <<<Response
-                HTTP/1.1 200 OK\r
-                Date: Sun, 18 Oct 2012 10:36:20 GMT\r
-                Server: Apache/2.2.14 (Win32)\r
-                Content-Type: text/html; charset=iso-8859-1\r
-                Connection: Closed\r
-                \r
-                <html lang="en"><body>
-                    <form method="post" action="/foo/bar?get=test&hello=world" enctype='multipart/form-data'>
-                        <span>Test form</span>
-                        <br /><input type="text" name="name" value="Actor"/>
-                        <br /><textarea name="message">Hello World!</textarea>
-                        <br /><input type="file" name="files" multiple />
-                        <br /><input type="submit" />
-                    </form>
-                </body></html>\r\n\r\n
-                Response
+        $response = Response::fromPsr7(
+            $this->handler->handle($request)
         );
 
-        $stream->disconnect();
+        $stream->sendData((string)$response);
 
-        // todo process request
+        $stream->disconnect();
 
         yield new Frame\Http(
             $request,
