@@ -283,7 +283,11 @@ final class HttpParser
 
     private function unzipBody(ServerRequestInterface $request): ServerRequestInterface
     {
-        $stream = new GzipDecodeStream($request->getBody());
+        $gzippedStream = new GzipDecodeStream($request->getBody());
+
+        $stream = self::createFileStream();
+        StreamHelper::writeStream($gzippedStream, $stream, \PHP_INT_MAX);
+
         return $request->withBody($stream);
     }
 
