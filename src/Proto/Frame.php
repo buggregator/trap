@@ -20,7 +20,7 @@ abstract class Frame implements \Stringable, \JsonSerializable
         return [
             'time' => $this->time->format('Y-m-d H:i:s.u'),
             'type' => $this->type,
-            'data' => \base64_decode($this->__toString()),
+            'data' => \base64_encode($this->__toString()),
         ];
     }
 }
