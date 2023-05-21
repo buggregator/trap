@@ -10,7 +10,6 @@ use DateTimeImmutable;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\ServerRequestInterface;
-use Psr\Http\Message\UploadedFileInterface;
 
 final class Http extends Frame
 {
@@ -35,16 +34,7 @@ final class Http extends Frame
             'cookies' => $this->request->getCookieParams(),
             'queryParams' => $this->request->getQueryParams(),
             'protocolVersion' => $this->request->getProtocolVersion(),
-            'uploadedFiles' => \array_map(
-                static fn(UploadedFileInterface $file) => [
-                    'clientFilename' => $file->getClientFilename(),
-                    'clientMediaType' => $file->getClientMediaType(),
-                    'error' => $file->getError(),
-                    'size' => $file->getSize(),
-                    'content' => (string)$file->getStream(),
-                ],
-                $this->request->getUploadedFiles()
-            ),
+            'uploadedFiles' => $this->request->getUploadedFiles(),
         ], JSON_THROW_ON_ERROR);
     }
 
@@ -78,5 +68,14 @@ final class Http extends Frame
                 ),
             $time
         );
+    }
+
+    public function getSize(): int
+    {
+        return $this->request->getBody()->getSize() + \array_reduce(
+                $this->request->getUploadedFiles(),
+                static fn(int $carry, array $file): int => $carry + $file['size'],
+                0
+            );
     }
 }

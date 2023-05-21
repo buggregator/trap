@@ -28,7 +28,7 @@ final class Buffer
     public function addFrame(Frame $frame): void
     {
         $this->frames[] = $frame;
-        $this->currentSize += \strlen($frame->__toString());
+        $this->currentSize += $frame->getSize();
 
         $this->timer?->continue();
     }
