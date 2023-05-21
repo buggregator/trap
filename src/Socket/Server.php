@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace Buggregator\Client\Socket;
 
 use Buggregator\Client\Logger;
+use Buggregator\Client\Processable;
 use Buggregator\Client\Socket\Exception\DisconnectClient;
 use Closure;
 use Fiber;
 use RuntimeException;
 use Socket;
 
-class Server
+final class Server implements Processable
 {
     /** @var false|resource|Socket */
     private $socket;

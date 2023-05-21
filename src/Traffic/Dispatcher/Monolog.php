@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Dispatcher;
 
-use Buggregator\Client\Logger;
 use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\ProtoType;
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher;
-use DateTimeImmutable;
 
 final class Monolog implements Dispatcher
 {
+    /**
+     * @throws \JsonException
+     */
     public function dispatch(StreamClient $stream): iterable
     {
         while (!$stream->isFinished()) {
@@ -21,15 +21,10 @@ final class Monolog implements Dispatcher
                 continue;
             }
 
-            Logger::debug('Got monolog');
-
-            yield new Frame(
-                new DateTimeImmutable(),
-                ProtoType::Monolog,
-                $line,
+            yield new Frame\Monolog(
+                (array)\json_decode($line, true, 512, JSON_THROW_ON_ERROR)
             );
         }
-
     }
 
     public function detect(string $data): ?bool

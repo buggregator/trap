@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Socket;
 
-use Buggregator\Client\Logger;
 use Fiber;
 use Generator;
 use IteratorAggregate;
@@ -13,7 +12,7 @@ use IteratorAggregate;
  * Simple abstraction over {@see Client} to make it easier to work with.
  * Use {@see Server::$clientInflector} to wrap {@see Client} into {@see self}.
  */
-class StreamClient implements IteratorAggregate
+final class StreamClient implements IteratorAggregate
 {
     /** @var \SplQueue<string> */
     private \SplQueue $queue;
@@ -21,7 +20,7 @@ class StreamClient implements IteratorAggregate
 
     private function __construct(
         private readonly Client $client,
-        private readonly int $clientId,
+        public readonly int $clientId,
     ) {
         $this->queue = new \SplQueue();
     }
@@ -98,6 +97,7 @@ class StreamClient implements IteratorAggregate
         while (!$this->isFinished()) {
             while (!$this->queue->isEmpty() && !\str_contains($this->queue[0], "\n")) {
                 $line .= $this->queue->dequeue();
+                $this->waitData();
             }
 
             // Split chunk by EOL

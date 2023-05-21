@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Buggregator\Client\Traffic\Dispatcher;
 
 use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\ProtoType;
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher;
-use DateTimeImmutable;
 
 final class Smtp implements Dispatcher
 {
@@ -34,20 +32,19 @@ final class Smtp implements Dispatcher
             } elseif (\str_starts_with($response, 'DATA')) {
                 $stream->sendData($this->createResponse(self::START_MAIL_INPUT));
 
-                do {
+                while (!$stream->isFinished()) {
                     $response = $stream->fetchLine();
-                    $content .= \preg_replace("/^(\.\.)/m", '.', $response);
-                } while (!$this->endOfContentDetected($response));
+                    if ($this->endOfContentDetected($response)) {
+                        break;
+                    }
+                    $content .= \preg_replace("/^\.([^\r])/m", '$1', $response);
+                }
 
                 $stream->sendData($this->createResponse(self::OK));
             }
         }
 
-        yield new Frame(
-            new DateTimeImmutable(),
-            ProtoType::SMTP,
-            $content,
-        );
+        yield new Frame\Smtp($content);
     }
 
     public function detect(string $data): ?bool

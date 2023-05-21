@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Proto;
+namespace Buggregator\Client\Support;
 
 use Closure;
 use Fiber;
 use RuntimeException;
 
-class Timer
+final class Timer
 {
     private float $start;
     private bool $stop = false;

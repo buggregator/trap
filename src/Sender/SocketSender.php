@@ -5,22 +5,33 @@ declare(strict_types=1);
 namespace Buggregator\Client\Sender;
 
 use Buggregator\Client\Logger;
-use Buggregator\Client\Proto\Timer;
+use Buggregator\Client\Processable;
+use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Sender;
+use Buggregator\Client\Support\Timer;
 use Fiber;
 use RuntimeException;
 use Socket;
+use SplQueue;
 
-class SocketSender implements Sender
+abstract class SocketSender implements Sender, Processable
 {
     private ?Socket $socket = null;
+    /** @var Timer Reconnect timer */
     private Timer $timer;
 
+    /** Current data transaction Fiber */
+    private ?Fiber $handler = null;
+
+    /** @var SplQueue<iterable<array-key, Frame>> */
+    private SplQueue $queue;
+
     public function __construct(
-        private string $host,
-        private int $port,
+        private readonly string $host,
+        private readonly int $port,
         float $reconnectTimeout = 1.0,
     ) {
+        $this->queue = new SplQueue();
         $this->timer = (new Timer(
             beep: $reconnectTimeout,
             condition: fn(): bool => $this->socket !== null,
@@ -34,16 +45,36 @@ class SocketSender implements Sender
 
     public function process(): void
     {
+        if ($this->handler !== null) {
+            try {
+                if ($this->handler->isTerminated()) {
+                    $this->handler = null;
+                } else {
+                    $this->handler->resume();
+                }
+            } catch (\Throwable $e) {
+                Logger::exception($e, 'SocketSender error');
+                $this->disconnect();
+            }
+        }
+        if ($this->handler === null && !$this->queue->isEmpty()) {
+            $this->handler = new Fiber([$this, 'sendNext']);
+            $this->handler->start();
+        }
     }
 
-    public function send(string $data): void
+    public function send(iterable $frames): void
     {
-        $data .= "\n";
-        $lastBytes = \strlen($data);
+        $this->queue->enqueue($frames);
+    }
 
-        while ($lastBytes > 0) {
-            try {
-                $this->connect();
+    public function sendNext(): void
+    {
+        $data = $this->makePackage($this->preparePayload($this->queue[0]));
+        $lastBytes = \strlen($data);
+        try {
+            $this->connect();
+            while ($lastBytes > 0) {
                 $write = [$this->socket];
                 $read = $except = null;
                 $result = $this->checkError(\socket_select($read, $write, $except, 0, 0));
@@ -53,17 +84,31 @@ class SocketSender implements Sender
                 }
 
                 $lastBytes -= $this->checkError(\socket_write($this->socket, \substr($data, -$lastBytes), $lastBytes));
-            } catch (\Throwable $e) {
-                Logger::error('SocketSender error: %s', $e->getLine(), $e->getMessage());
-                $this->disconnect();
             }
+            $this->queue->dequeue();
+        } catch (\Throwable $e) {
+            Logger::error('SocketSender error: %s', $e->getLine(), $e->getMessage());
+            $this->disconnect();
         }
+    }
+
+    abstract protected function makePackage(string $payload): string;
+
+    /**
+     * @param iterable<array-key, Frame> $frames
+     */
+    protected function preparePayload(iterable $frames): string
+    {
+        return '[' . \implode(',', \array_map(
+                static fn (Frame $frame): string => \json_encode($frame),
+                \is_array($frames) ? $frames : \iterator_to_array($frames),
+            )) . ']';
     }
 
     /**
      * @psalm-assert !null $this->socket
      */
-    public function connect(): void
+    protected function connect(): void
     {
         do {
             if ($this->socket !== null) {
@@ -87,7 +132,7 @@ class SocketSender implements Sender
         } while (true);
     }
 
-    public function disconnect(): void
+    protected function disconnect(): void
     {
         try {
             if ($this->socket !== null) {
@@ -108,7 +153,7 @@ class SocketSender implements Sender
      * @psalm-assert !false $value
      * @return T
      */
-    private function checkError(mixed $value): mixed
+    protected function checkError(mixed $value): mixed
     {
         if ($value === false) {
             throw new \RuntimeException('Socket error: reason: ' . \socket_strerror(\socket_last_error()));

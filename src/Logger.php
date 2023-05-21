@@ -9,8 +9,13 @@ use Throwable;
 /**
  * Console color logger
  */
-class Logger
+final class Logger
 {
+    public static function print(string $message): void
+    {
+        echo $message . "\n";
+    }
+
     public static function info(string $message, string|int|float|bool ...$values): void
     {
         echo "\033[32m" . \sprintf($message, ...$values) . "\033[0m\n";
@@ -35,7 +40,7 @@ class Logger
         echo "\033[31m" . \sprintf($message, ...$values) . "\033[0m\n";
     }
 
-    public static function exception(Throwable $e, ?string $header): void
+    public static function exception(Throwable $e, ?string $header = null): void
     {
         echo "----------------------\n";
         // Print bold yellow header if exists

@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace Buggregator\Client\Traffic;
 
 use Buggregator\Client\Logger;
+use Buggregator\Client\Processable;
 use Buggregator\Client\Proto\Buffer;
 use Buggregator\Client\Socket\StreamClient;
 use Fiber;
 use RuntimeException;
 
-final class Inspector
+final class Inspector implements Processable
 {
     /** @var Fiber[] */
     private array $fibers = [];
@@ -80,7 +81,10 @@ final class Inspector
         }
         $dispatcher = \reset($dispatchers);
 
+        Logger::debug('Got %s', $dispatcher::class);
+
         foreach ($dispatcher->dispatch($stream) as $frame) {
+            // Queue frame to send
             $this->buffer->addFrame($frame);
         }
     }
