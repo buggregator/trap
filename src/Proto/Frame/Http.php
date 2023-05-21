@@ -7,6 +7,8 @@ namespace Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\ProtoType;
 use DateTimeImmutable;
+use Nyholm\Psr7\ServerRequest;
+use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
 
@@ -32,8 +34,6 @@ final class Http extends Frame
             'serverParams' => $this->request->getServerParams(),
             'cookies' => $this->request->getCookieParams(),
             'queryParams' => $this->request->getQueryParams(),
-            'parsedBody' => $this->request->getParsedBody(),
-            'attributes' => $this->request->getAttributes(),
             'protocolVersion' => $this->request->getProtocolVersion(),
             'uploadedFiles' => \array_map(
                 static fn(UploadedFileInterface $file) => [
@@ -46,5 +46,37 @@ final class Http extends Frame
                 $this->request->getUploadedFiles()
             ),
         ], JSON_THROW_ON_ERROR);
+    }
+
+    static public function fromString(string $payload, DateTimeImmutable $time): Frame
+    {
+        $payload = \json_decode($payload, true, \JSON_THROW_ON_ERROR);
+
+        $request = new ServerRequest(
+            $payload['method'] ?? 'GET',
+            $payload['uri'] ?? '/',
+            (array)$payload['headers'] ?? [],
+            $payload['body'] ?? '',
+            $payload['protocolVersion'] ?? '1.1',
+            $payload['serverParams'] ?? [],
+        );
+
+        return new self(
+            $request->withQueryParams($payload['queryParams'] ?? [])
+                ->withCookieParams($payload['cookies'] ?? [])
+                ->withUploadedFiles(
+                    \array_map(
+                        static fn(array $file) => new UploadedFile(
+                            $file['content'],
+                            $file['size'],
+                            \UPLOAD_ERR_OK,
+                            $file['clientFilename'],
+                            $file['clientMediaType'],
+                        ),
+                        $payload['uploadedFiles'] ?? []
+                    )
+                ),
+            $time
+        );
     }
 }

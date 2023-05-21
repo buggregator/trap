@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Proto\Server\Version;
 
+use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Proto\Server\Request;
+use Buggregator\Client\ProtoType;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -40,7 +42,7 @@ final class V1 implements PayloadDecoder
          */
         [$protocol, $client, $uuid] = $header;
 
-        $payload = \substr($payload, $startJson+1);
+        $payload = \substr($payload, $startJson + 1);
         // Validation
 
         // Protocol version
@@ -65,7 +67,29 @@ final class V1 implements PayloadDecoder
                 if (!\is_array($data)) {
                     throw new RuntimeException('Decoded data must be array.');
                 }
-                return $data;
+
+                return \array_map(
+                    function (array $item): Frame {
+                        \assert(isset($item['type']) && \is_string($item['data']), 'Missing type.');
+                        \assert(isset($item['data']) && \is_string($item['data']), 'Missing data.');
+                        \assert(isset($item['time']) && \is_string($item['time']), 'Missing time.');
+
+                        $payload = \base64_decode($item['data'], true);
+                        \assert($payload !== false, 'Invalid data.');
+
+                        $date = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s.u', $item['time']);
+                        \assert($date !== false, 'Invalid date.');
+
+                        return match ($item['type']) {
+                            ProtoType::SMTP->value => Frame\Smtp::fromString($payload, $date),
+                            ProtoType::Monolog->value => Frame\Monolog::fromString($payload, $date),
+                            ProtoType::VarDumper->value => Frame\VarDumper::fromString($payload, $date),
+                            ProtoType::HTTP->value => Frame\Http::fromString($payload, $date),
+                            default => throw new RuntimeException('Invalid type.'),
+                        };
+                    },
+                    $data
+                );
             },
         );
     }

@@ -24,4 +24,9 @@ final class Smtp extends Frame
     {
         return $this->message;
     }
+
+    public static function fromString(string $payload, DateTimeImmutable $time): self
+    {
+        return new self($payload, $time);
+    }
 }
