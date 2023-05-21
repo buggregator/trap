@@ -44,6 +44,10 @@ final class Smtp implements Dispatcher
             }
         }
 
+        if (\trim($content) === '') {
+            return;
+        }
+
         yield new Frame\Smtp($content);
     }
 
