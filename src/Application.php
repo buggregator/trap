@@ -4,21 +4,22 @@ declare(strict_types=1);
 
 namespace Buggregator\Client;
 
+use Buggregator\Client\Config\SocketServer;
 use Buggregator\Client\Proto\Buffer;
 use Buggregator\Client\Socket\Client;
 use Buggregator\Client\Socket\Server;
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Support\Timer;
 use Buggregator\Client\Traffic\Http\DebugPage;
-use Buggregator\Client\Traffic\Http\RayRequestDump;
 use Buggregator\Client\Traffic\Http\HandlerPipeline;
+use Buggregator\Client\Traffic\Http\RayRequestDump;
 use Buggregator\Client\Traffic\Inspector;
 use Fiber;
 
 /**
  * @internal
  */
-final class Bootstrap implements Processable
+final class Application implements Processable
 {
     public const VERSION = '0.1.2';
 
@@ -35,14 +36,11 @@ final class Bootstrap implements Processable
     private Inspector $inspector;
 
     /**
-     * @param array<positive-int, mixed> $map Port mapping
+     * @param SocketServer[] $map
      * @param Sender[] $senders
      */
     public function __construct(
-        object $options,
-        array $map = [
-            9912 => [],
-        ],
+        array $map = [],
         private readonly array $senders = [],
     ) {
         $this->buffer = new Buffer(bufferSize: 10485760, timer: 0.1);
@@ -60,14 +58,14 @@ final class Bootstrap implements Processable
         );
         $this->processors[] = $this->inspector;
 
-        foreach ($map as $port => $_) {
-            $this->fibers[] = new Fiber(function () use ($port) {
+        foreach ($map as $config) {
+            $this->fibers[] = new Fiber(function () use ($config) {
                 do {
                     try {
-                        $this->processors[] = $this->servers[$port] = $this->createServer($port);
+                        $this->processors[] = $this->servers[$config->port] = $this->createServer($config);
                         return;
                     } catch (\Throwable $e) {
-                        Logger::error("Can't create TCP socket on port $port.");
+                        Logger::error("Can't create TCP socket on port $config->port.");
                         (new Timer(1.0))->wait();
                     }
                 } while (true);
@@ -79,6 +77,17 @@ final class Bootstrap implements Processable
             if ($sender instanceof Processable) {
                 $this->processors[] = $sender;
             }
+        }
+    }
+
+    /**
+     * @param int $sleep Sleep time in microseconds
+     */
+    public function run(int $sleep = 50): void
+    {
+        while (true) {
+            $this->process();
+            \usleep($sleep);
         }
     }
 
@@ -122,9 +131,9 @@ final class Bootstrap implements Processable
     }
 
     /**
-     * @param positive-int $port
+     * @param int<1, 65535> $port
      */
-    private function createServer(int $port): Server
+    private function createServer(SocketServer $config): Server
     {
         $inspector = $this->inspector;
         $clientInflector = function (Client $client, int $id) use ($inspector): Client {
@@ -133,6 +142,6 @@ final class Bootstrap implements Processable
             return $client;
         };
 
-        return Server::init($port, payloadSize: 524_288, clientInflector: $clientInflector);
+        return Server::init($config->port, payloadSize: 524_288, clientInflector: $clientInflector);
     }
 }

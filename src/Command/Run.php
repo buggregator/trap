@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Command;
 
-use Buggregator\Client\Bootstrap;
+use Buggregator\Client\Application;
+use Buggregator\Client\Config\SocketServer;
 use Buggregator\Client\Sender;
-use Buggregator\Client\SocketServer;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -36,21 +36,18 @@ final class Run extends Command
         OutputInterface $output,
     ): int {
         try {
-            $registry = new Sender\SenderRegistry();
-            $registry->register('console', Sender\ConsoleSender::create($output));
-            $registry->register('file', new Sender\FileSender());
-            $registry->register('server', new Sender\SaasSender(
-                host: '127.0.0.1',
-                port: 9099,
-                clientVersion: Bootstrap::VERSION)
-            );
-
-            $server = new SocketServer($registry);
-
             $port = (int)$input->getOption('port') ?: 9912;
+            /** @var non-empty-string[] $senders */
             $senders = (array)$input->getOption('sender');
 
-            $server->run($senders, $port);
+            $registry = $this->createRegistry($output);
+
+            $app = new Application(
+                [new SocketServer($port),],
+                $registry->getSenders($senders)
+            );
+
+            $app->run();
         } catch (\Throwable $e) {
             // Write colorful exception (title, message, stacktrace)
             $output->writeln(\sprintf("<fg=red;options=bold>%s</>", $e::class));
@@ -59,5 +56,22 @@ final class Run extends Command
         }
 
         return Command::SUCCESS;
+    }
+
+    public function createRegistry(OutputInterface $output): Sender\SenderRegistry
+    {
+        $registry = new Sender\SenderRegistry();
+        $registry->register('console', Sender\ConsoleSender::create($output));
+        $registry->register('file', new Sender\FileSender());
+        $registry->register(
+            'server',
+            new Sender\SaasSender(
+                host: '127.0.0.1',
+                port: 9099,
+                clientVersion: Application::VERSION
+            )
+        );
+
+        return $registry;
     }
 }
