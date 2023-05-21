@@ -54,7 +54,7 @@ final class Server implements Processable
     }
 
     /**
-     * @param positive-int $port
+     * @param int<1, 65535> $port
      * @param positive-int $payloadSize Max payload size.
      * @param null|\Closure(Client, int $id): void $clientInflector
      */
