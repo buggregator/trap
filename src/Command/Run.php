@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Command;
 
+use Buggregator\Client\Bootstrap;
 use Buggregator\Client\Sender;
 use Buggregator\Client\SocketServer;
 use Symfony\Component\Console\Command\Command;
@@ -35,8 +36,16 @@ final class Run extends Command
         OutputInterface $output,
     ): int {
         try {
-            $senders = new Sender\SenderRegistry($output);
-            $server = new SocketServer($senders);
+            $registry = new Sender\SenderRegistry();
+            $registry->register('console', Sender\ConsoleSender::create($output));
+            $registry->register('file', new Sender\FileSender());
+            $registry->register('server', new Sender\SaasSender(
+                host: '127.0.0.1',
+                port: 9099,
+                clientVersion: Bootstrap::VERSION)
+            );
+
+            $server = new SocketServer($registry);
 
             $port = (int)$input->getOption('port') ?: 9912;
             $senders = (array)$input->getOption('sender');
