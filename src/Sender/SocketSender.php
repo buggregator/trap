@@ -59,6 +59,7 @@ abstract class SocketSender implements Sender, Processable
         }
         if ($this->handler === null && !$this->queue->isEmpty()) {
             $this->handler = new Fiber([$this, 'sendNext']);
+            $this->handler->start();
         }
     }
 
