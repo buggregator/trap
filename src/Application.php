@@ -123,16 +123,13 @@ final class Application implements Processable
      */
     private function sendBuffer(array $senders = []): void
     {
-        $this->fibers[] = new Fiber(
-            function () use ($senders): void {
-                $data = $this->buffer->getAndClean();
+        $data = $this->buffer->getAndClean();
 
-                foreach ($senders as $sender) {
-                    // TODO: fix error handling for socket sender, then remote server does not respond
-                    $sender->send($data);
-                }
-            }
-        );
+        foreach ($senders as $sender) {
+            $this->fibers[] = new Fiber(
+                static fn() => $sender->send($data)
+            );
+        }
     }
 
     /**

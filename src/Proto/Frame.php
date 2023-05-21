@@ -17,6 +17,9 @@ abstract class Frame implements \Stringable, \JsonSerializable
 
     abstract static public function fromString(string $payload, DateTimeImmutable $time): self;
 
+    /**
+     * @return int<0, max>
+     */
     public function getSize(): int
     {
         return \strlen((string)$this);
