@@ -27,8 +27,6 @@ final class Http implements Dispatcher
         $time = new \DateTimeImmutable();
         $request = $this->parser->parseStream($stream);
 
-        dump((string) $request->getBody());
-
         $response = Response::fromPsr7(
             $this->handler->handle($request)
         );
