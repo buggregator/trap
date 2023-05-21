@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Dispatcher;
 
+use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Logger;
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher;
 use Buggregator\Client\Traffic\Http\HandlerPipeline;
 use Buggregator\Client\Traffic\Http\HttpParser;
+use Buggregator\Client\Traffic\Http\Response;
 
 final class Http implements Dispatcher
 {
@@ -25,7 +27,9 @@ final class Http implements Dispatcher
         $time = new \DateTimeImmutable();
         $request = $this->parser->parseStream($stream);
 
-        $response = $this->handler->handle($request);
+        $response = Response::fromPsr7(
+            $this->handler->handle($request)
+        );
 
         $stream->sendData((string)$response);
 

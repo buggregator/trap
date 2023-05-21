@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Http;
 
+use Nyholm\Psr7\Response;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+
 final class HandlerPipeline
 {
     /** @var array<int, HandlerInterface[]> */
@@ -20,7 +24,7 @@ final class HandlerPipeline
         $this->handlers[$handler->priority()][] = $handler;
     }
 
-    public function handle(Request $request): Response
+    public function handle(ServerRequestInterface $request): ResponseInterface
     {
         $this->position = 0;
 
@@ -44,7 +48,7 @@ final class HandlerPipeline
     /**
      * @param HandlerInterface[] $handlers
      */
-    private function handlePipeline(Request $request, array $handlers): Response
+    private function handlePipeline(ServerRequestInterface $request, array $handlers): ResponseInterface
     {
         $handler = $handlers[$this->position] ?? null;
         $this->position++;
@@ -55,7 +59,7 @@ final class HandlerPipeline
 
         return $handler->handle(
             $request,
-            fn(Request $request): Response => $this->handlePipeline($request, $handlers)
+            fn(ServerRequestInterface $request): ResponseInterface => $this->handlePipeline($request, $handlers)
         );
     }
 }
