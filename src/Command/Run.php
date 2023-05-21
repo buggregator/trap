@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Client\Command;
 
 use Buggregator\Client\Bootstrap;
+use Buggregator\Client\Logger;
 use Buggregator\Client\Sender;
 use Buggregator\Client\Sender\Console\ConsoleRenderer;
 use Buggregator\Client\Sender\Console\Renderer;
@@ -25,8 +26,8 @@ final class Run extends Command
 
     public function configure(): void
     {
-        $this->addArgument('sender', null, 'Sender type', 'console');
         $this->addOption('port', 'p', InputOption::VALUE_OPTIONAL, 'Port to listen', 9912);
+        $this->addOption('sender', 's', InputOption::VALUE_OPTIONAL|InputOption::VALUE_IS_ARRAY, 'Senders', ['console']);
     }
 
     protected function execute(
@@ -34,6 +35,10 @@ final class Run extends Command
         OutputInterface $output,
     ): int {
         try {
+            $senders = $this->getSenders($output, (array)$input->getOption('sender'));
+
+            Logger::debug('Selected senders: ' . \implode(', ', \array_map(fn(Sender $sender) => $sender::class, $senders)));
+
             /** @var int<1, max> $port */
             $port = (int)$input->getOption('port') ?: 9912;
             $bootstrap = new Bootstrap(
@@ -41,7 +46,7 @@ final class Run extends Command
                 [
                     $port => [],
                 ],
-                $this->getSender($output, $input->getArgument('sender'))
+                $this->getSenders($output, (array)$input->getOption('sender'))
             );
 
             while (true) {
@@ -58,13 +63,23 @@ final class Run extends Command
         return Command::SUCCESS;
     }
 
-    private function getSender(OutputInterface $output, string $type): Sender
+    /**
+     * @param array<non-empty-string> $types
+     * @return Sender[]
+     */
+    private function getSenders(OutputInterface $output, array $types): array
     {
-        return match ($type) {
-            // 'socket' => new Sender\SocketSender('127.0.0.1', 9099),
-            'file' => new Sender\FileSender(),
-            default => $this->createConsoleSender($output),
-        };
+        $senders = [];
+        foreach ($types as $type) {
+            $senders[] = match ($type) {
+                'server' => new Sender\SaasSender(host: '127.0.0.1', port: 9099),
+                'file' => new Sender\FileSender(),
+                'console' => $this->createConsoleSender($output),
+                default => throw new \InvalidArgumentException(\sprintf('Unknown sender type "%s"', $type)),
+            };
+        }
+
+        return $senders;
     }
 
     private function createConsoleSender(OutputInterface $output): Sender
