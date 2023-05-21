@@ -37,11 +37,9 @@ final class Application implements Processable
 
     /**
      * @param SocketServer[] $map
-     * @param Sender[] $senders
      */
     public function __construct(
         array $map = [],
-        private readonly array $senders = [],
     ) {
         $this->buffer = new Buffer(bufferSize: 10485760, timer: 0.1);
 
@@ -71,27 +69,31 @@ final class Application implements Processable
                 } while (true);
             });
         }
+    }
 
-        foreach ($this->senders as $sender) {
+    /**
+     * @param Sender[] $senders
+     * @param positive-int $sleep Sleep time in microseconds
+     */
+    public function run(array $senders = [], int $sleep = 50): void
+    {
+        foreach ($senders as $sender) {
             \assert($sender instanceof Sender);
             if ($sender instanceof Processable) {
                 $this->processors[] = $sender;
             }
         }
-    }
 
-    /**
-     * @param int $sleep Sleep time in microseconds
-     */
-    public function run(int $sleep = 50): void
-    {
         while (true) {
-            $this->process();
+            $this->process($senders);
             \usleep($sleep);
         }
     }
 
-    public function process(): void
+    /**
+     * @param Sender[] $senders
+     */
+    public function process(array $senders = []): void
     {
         foreach ($this->processors as $server) {
             $server->process();
@@ -99,7 +101,7 @@ final class Application implements Processable
 
         // Process buffer
         if ($this->buffer->isReady()) {
-            $this->sendBuffer();
+            $this->sendBuffer($senders);
         }
 
         foreach ($this->fibers as $key => $fiber) {
@@ -116,13 +118,16 @@ final class Application implements Processable
         }
     }
 
-    private function sendBuffer(): void
+    /**
+     * @param Sender[] $senders
+     */
+    private function sendBuffer(array $senders = []): void
     {
         $this->fibers[] = new Fiber(
-            function (): void {
+            function () use ($senders): void {
                 $data = $this->buffer->getAndClean();
 
-                foreach ($this->senders as $sender) {
+                foreach ($senders as $sender) {
                     // TODO: fix error handling for socket sender, then remote server does not respond
                     $sender->send($data);
                 }
