@@ -27,7 +27,13 @@ final class Run extends Command
     public function configure(): void
     {
         $this->addOption('port', 'p', InputOption::VALUE_OPTIONAL, 'Port to listen', 9912);
-        $this->addOption('sender', 's', InputOption::VALUE_OPTIONAL|InputOption::VALUE_IS_ARRAY, 'Senders', ['console']);
+        $this->addOption(
+            'sender',
+            's',
+            InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY,
+            'Senders',
+            ['console']
+        );
     }
 
     protected function execute(
@@ -37,7 +43,9 @@ final class Run extends Command
         try {
             $senders = $this->getSenders($output, (array)$input->getOption('sender'));
 
-            Logger::debug('Selected senders: ' . \implode(', ', \array_map(fn(Sender $sender) => $sender::class, $senders)));
+            Logger::debug(
+                'Selected senders: ' . \implode(', ', \array_map(fn(Sender $sender) => $sender::class, $senders))
+            );
 
             /** @var int<1, max> $port */
             $port = (int)$input->getOption('port') ?: 9912;
@@ -72,7 +80,7 @@ final class Run extends Command
         $senders = [];
         foreach ($types as $type) {
             $senders[] = match ($type) {
-                'server' => new Sender\SaasSender(host: '127.0.0.1', port: 9099),
+                'server' => new Sender\SaasSender(host: '127.0.0.1', port: 9099, clientVersion: Bootstrap::VERSION),
                 'file' => new Sender\FileSender(),
                 'console' => $this->createConsoleSender($output),
                 default => throw new \InvalidArgumentException(\sprintf('Unknown sender type "%s"', $type)),
