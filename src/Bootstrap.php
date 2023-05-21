@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Client;
 
 use Buggregator\Client\Proto\Buffer;
-use Buggregator\Client\Sender\FileSender;
 use Buggregator\Client\Socket\Client;
 use Buggregator\Client\Socket\Server;
 use Buggregator\Client\Socket\StreamClient;
@@ -30,18 +29,18 @@ final class Bootstrap implements Processable
     private array $fibers = [];
 
     private readonly Buffer $buffer;
-    private Sender $sender;
     private Inspector $inspector;
 
     /**
      * @param array<positive-int, mixed> $map Port mapping
+     * @param Sender[] $senders
      */
     public function __construct(
         object $options,
         array $map = [
             9912 => [],
         ],
-        Sender $sender = null,
+        private readonly array $senders = [],
     ) {
         $this->buffer = new Buffer(bufferSize: 10485760, timer: 0.1);
         $this->inspector = new Inspector(
@@ -66,9 +65,12 @@ final class Bootstrap implements Processable
                 } while (true);
             });
         }
-        $this->sender = $sender ?? new FileSender();
-        if ($sender instanceof Processable) {
-            $this->processors[] = $sender;
+
+        foreach ($this->senders as $sender) {
+            \assert($sender instanceof Sender);
+            if ($sender instanceof Processable) {
+                $this->processors[] = $sender;
+            }
         }
     }
 
@@ -99,7 +101,16 @@ final class Bootstrap implements Processable
 
     private function sendBuffer(): void
     {
-        $this->fibers[] = new Fiber(fn() => $this->sender->send($this->buffer->getAndClean()));
+        $this->fibers[] = new Fiber(
+            function (): void {
+                $data = $this->buffer->getAndClean();
+
+                foreach ($this->senders as $sender) {
+                    // TODO: fix error handling for socket sender, then remote server does not respond
+                    $sender->send($data);
+                }
+            }
+        );
     }
 
     /**
