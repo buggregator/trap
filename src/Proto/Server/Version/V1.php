@@ -12,13 +12,23 @@ final class V1 implements PayloadDecoder
 {
     public function isSupport(string $payload): bool
     {
-        return \strlen($payload) > 48;
+        $startJson = \strpos($payload, '[');
+
+        if ($startJson === false) {
+            return false;
+        }
+
+        $totalSegments = \count(\explode('|', \substr($payload, 0, $startJson - 1)));
+
+        return $totalSegments === 3;
     }
 
     public function decode(string $payload): Request
     {
-        $header = \explode('|', \substr($payload, 0, 48), 4);
-        if (\count($header) !== 4) {
+        $startJson = \strpos($payload, '[') - 1;
+
+        $header = \explode('|', \substr($payload, 0, $startJson), 3);
+        if (\count($header) !== 3) {
             throw new InvalidArgumentException('Invalid data.');
         }
 
@@ -28,8 +38,9 @@ final class V1 implements PayloadDecoder
          * @var non-empty-string $uuid
          * @var non-empty-string $payload
          */
-        [$protocol, $client, $uuid, $payload] = $header;
+        [$protocol, $client, $uuid] = $header;
 
+        $payload = \substr($payload, $startJson+1);
         // Validation
 
         // Protocol version
@@ -43,8 +54,6 @@ final class V1 implements PayloadDecoder
 
         // UUID
         $this->validateUuid($uuid);
-
-        $payload .= \substr($payload, 48);
 
         return new Request(
             protocol: $protocol,

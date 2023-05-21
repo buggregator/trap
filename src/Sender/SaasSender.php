@@ -8,8 +8,12 @@ final class SaasSender extends SocketSender
 {
     private string $uuid;
 
-    public function __construct(string $uuid = null, string $host = '127.0.0.1', int $port = 9912)
-    {
+    public function __construct(
+        string $uuid = null,
+        string $host = '127.0.0.1',
+        int $port = 9912,
+        private readonly string $clientVersion = '0.1',
+    ) {
         $this->uuid = $uuid ?? $this->createUuid();
 
         parent::__construct($host, $port);
@@ -17,7 +21,7 @@ final class SaasSender extends SocketSender
 
     protected function makePackage(string $payload): string
     {
-        return "1|$this->uuid|$payload\n";
+        return "1|$this->clientVersion|$this->uuid|$payload\n";
     }
 
     /**
