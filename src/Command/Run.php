@@ -43,11 +43,12 @@ final class Run extends Command
             $registry = $this->createRegistry($output);
 
             $app = new Application(
-                [new SocketServer($port),],
-                $registry->getSenders($senders)
+                [new SocketServer($port)]
             );
 
-            $app->run();
+            $app->run(
+                senders: $registry->getSenders($senders)
+            );
         } catch (\Throwable $e) {
             // Write colorful exception (title, message, stacktrace)
             $output->writeln(\sprintf("<fg=red;options=bold>%s</>", $e::class));
