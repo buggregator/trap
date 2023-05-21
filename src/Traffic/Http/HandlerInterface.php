@@ -9,8 +9,6 @@ use Psr\Http\Message\ServerRequestInterface;
 
 interface HandlerInterface
 {
-    public function priority(): int;
-
     /**
      * @param \Closure(ServerRequestInterface): ResponseInterface $next
      */

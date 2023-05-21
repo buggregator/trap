@@ -10,10 +10,6 @@ use Psr\Http\Message\ServerRequestInterface;
 
 final class RayRequestDump implements HandlerInterface
 {
-    public function priority(): int
-    {
-        return 0;
-    }
 
     public function handle(ServerRequestInterface $request, \Closure $next): ResponseInterface
     {

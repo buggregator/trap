@@ -23,7 +23,7 @@ final class Response
      */
     public function __construct(
         public readonly int $statusCode,
-        public readonly string $statusTexts,
+        public readonly string $statusText,
         public readonly string $body = '',
         public readonly array $headers = [],
     ) {
@@ -35,7 +35,7 @@ final class Response
                 'HTTP/%s %d %s',
                 '1.1',
                 $this->statusCode,
-                self::$statusTexts[$this->statusCode] ?? 'Unknown Status',
+                $this->statusText,
             )
             . "\r\n"
             . \implode(
@@ -46,7 +46,7 @@ final class Response
                     \array_values($this->headers)
                 )
             )
-            . "\r\n"
+            . "\r\n\r\n"
             . $this->body;
     }
 }

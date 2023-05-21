@@ -10,7 +10,7 @@ use Psr\Http\Message\ServerRequestInterface;
 
 final class HandlerPipeline
 {
-    /** @var array<int, HandlerInterface[]> */
+    /** @var HandlerInterface[] */
     private array $handlers = [];
     private int $position = 0;
     private bool $isHandled = false;
@@ -21,28 +21,14 @@ final class HandlerPipeline
             throw new \RuntimeException('Cannot register new handler after pipeline is handled.');
         }
 
-        $this->handlers[$handler->priority()][] = $handler;
+        $this->handlers[] = $handler;
     }
 
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
         $this->position = 0;
 
-        /** @var HandlerInterface[] $newHandlers */
-        $newHandlers = [];
-
-        if (!$this->isHandled) {
-            \ksort($this->handlers);
-            foreach ($this->handlers as $handlers) {
-                foreach ($handlers as $handler) {
-                    $newHandlers[] = $handler;
-                }
-            }
-
-            $this->isHandled = true;
-        }
-
-        return $this->handlePipeline($request, $newHandlers);
+        return $this->handlePipeline($request, $this->handlers);
     }
 
     /**
