@@ -27,11 +27,16 @@ final class ConsoleRenderer implements HandlerInterface
             $this->output->isDecorated(),
             $this->output->getFormatter()
         );
+
         foreach ($this->renderers as $renderer) {
             if ($renderer->isSupport($frame)) {
                 $renderer->render($buffer, $frame);
-                $this->output->write($buffer->fetch(), false, OutputInterface::OUTPUT_RAW);
-                break;
+
+                if ($this->output->isDebug()) {
+                    $this->output->write($buffer->fetch(), false, OutputInterface::OUTPUT_RAW);
+                }
+
+                return;
             }
         }
     }
