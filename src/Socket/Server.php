@@ -33,6 +33,9 @@ final class Server implements Processable
         private readonly ?Closure $clientInflector,
     ) {
         $this->socket = @\socket_create_listen($port);
+        /** @link https://github.com/buggregator/trap/pull/14 */
+        \socket_set_option($this->socket, \SOL_SOCKET, \SO_LINGER, ['l_linger' => 0, 'l_onoff' => 1]);
+
         if ($this->socket === false) {
             throw new \RuntimeException('Socket create failed.');
         }
