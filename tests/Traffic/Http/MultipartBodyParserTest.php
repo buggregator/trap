@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Tests\Traffic\Http;
 
-use Buggregator\Client\Traffic\Http\HttpParser;
+use Buggregator\Client\Traffic\Http\Parser;
 use Buggregator\Client\Traffic\Multipart\Field;
+use Buggregator\Client\Traffic\Multipart\File;
 use Buggregator\Client\Traffic\Multipart\Part;
 use Fiber;
 use Nyholm\Psr7\Stream;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\StreamInterface;
 
-class MultipartBodyParserTest extends TestCase
+final class MultipartBodyParserTest extends TestCase
 {
     public function testParse(): void
     {
@@ -45,6 +46,70 @@ class MultipartBodyParserTest extends TestCase
         $this->assertInstanceOf(Field::class, $result[1]);
     }
 
+    public function testWithFileAttach(): void
+    {
+        $file1 = \file_get_contents(__DIR__ . '/../../Stub/deburger.png');
+        $file2 = \file_get_contents(__DIR__ . '/../../Stub/buggregator.png');
+        $body = $this->makeStream(<<<BODY
+                --Asrf456BGe4h\r
+                Content-Disposition: form-data; name="Authors"\r
+                \r
+                @roxblnfk and @butschster\r
+                --Asrf456BGe4h\r
+                Content-Disposition: form-data; name="MessageTitle"\r
+                \r
+                Hello guys! The Buggregator is a great tool!\r
+                --Asrf456BGe4h\r
+                Content-Disposition: form-data; name="MessageText"\r
+                \r
+                Do you know that Buggregator could be called Deburger? But we decided to name it Buggregator.\r
+                --Asrf456BGe4h\r
+                Content-Disposition: form-data; name="AttachedFile1"; filename="deburger.png"\r
+                Content-Type: image/png\r
+                \r
+                $file1\r
+                --Asrf456BGe4h\r
+                Content-Disposition: form-data; name="AttachedFile2"; filename="buggregator.png"\r
+                Content-Type: image/png\r
+                \r
+                $file2\r
+                --Asrf456BGe4h--\r\n\r\n
+                BODY,
+        );
+
+        $result = $this->parse($body, 'Asrf456BGe4h');
+
+        $this->assertCount(5, $result);
+        $this->assertInstanceOf(Field::class, $result[0]);
+        $this->assertInstanceOf(Field::class, $result[1]);
+
+        // POST data
+        $this->assertSame('Authors', $result[0]->getName());
+        $this->assertSame('@roxblnfk and @butschster', $result[0]->getValue());
+        $this->assertSame('MessageTitle', $result[1]->getName());
+        $this->assertSame('Hello guys! The Buggregator is a great tool!', $result[1]->getValue());
+        $this->assertSame('MessageText', $result[2]->getName());
+        $this->assertSame(
+            'Do you know that Buggregator could be called Deburger? But we decided to name it Buggregator.',
+            $result[2]->getValue(),
+        );
+
+        $file = $result[3];
+        // Uploaded files
+        $this->assertInstanceOf(File::class, $file);
+        $this->assertSame('AttachedFile1', $file->getName());
+        $this->assertSame('deburger.png', $file->getClientFilename());
+        $this->assertSame('image/png', $file->getClientMediaType());
+        $this->assertSame($file1, $file->getStream()->__toString());
+
+        $file = $result[4];
+        $this->assertInstanceOf(File::class, $file);
+        $this->assertSame('AttachedFile2', $file->getName());
+        $this->assertSame('buggregator.png', $file->getClientFilename());
+        $this->assertSame('image/png', $file->getClientMediaType());
+        $this->assertSame($file2, $file->getStream()->__toString());
+    }
+
     private function makeStream(string $body): StreamInterface
     {
         $stream = Stream::create($body);
@@ -59,15 +124,13 @@ class MultipartBodyParserTest extends TestCase
      */
     private function parse(StreamInterface $body, string $boundary): iterable
     {
-        $fiber = new Fiber(fn() => HttpParser::parseMultipartBody($body, $boundary));
+        $fiber = new Fiber(fn() => Parser::parseMultipartBody($body, $boundary));
         $fiber->start();
         do {
             if ($fiber->isTerminated()) {
                 return $fiber->getReturn();
             }
             $fiber->resume();
-        } while ($fiber->isSuspended());
-
-        throw new \RuntimeException('Fiber failed');
+        } while (true);
     }
 }

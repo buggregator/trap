@@ -9,17 +9,17 @@ use Buggregator\Client\Logger;
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher;
 use Buggregator\Client\Traffic\Http\HandlerPipeline;
-use Buggregator\Client\Traffic\Http\HttpParser;
+use Buggregator\Client\Traffic\Http\Parser;
 use Buggregator\Client\Traffic\Http\Response;
 
 final class Http implements Dispatcher
 {
-    private readonly HttpParser $parser;
+    private readonly Parser $parser;
 
     public function __construct(
         private readonly HandlerPipeline $handler,
     ) {
-        $this->parser = new HttpParser();
+        $this->parser = new Parser();
     }
 
     public function dispatch(StreamClient $stream): iterable

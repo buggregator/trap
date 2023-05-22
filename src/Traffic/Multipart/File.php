@@ -22,11 +22,6 @@ class File extends Part implements UploadedFileInterface
         return true;
     }
 
-    public function getFileName(): ?string
-    {
-        return $this->fileName;
-    }
-
     public function setStream(StreamInterface $stream, ?int $size = null, int $code = \UPLOAD_ERR_OK): void
     {
         $this->uploadedFile = new UploadedFile(

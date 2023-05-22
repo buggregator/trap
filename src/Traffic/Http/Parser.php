@@ -10,18 +10,15 @@ use Buggregator\Client\Traffic\Multipart\Field;
 use Buggregator\Client\Traffic\Multipart\File;
 use Buggregator\Client\Traffic\Multipart\Part;
 use Fiber;
-use Http\Message\Encoding\GzipDecodeStream;
 use Nyholm\Psr7\Factory\Psr17Factory;
-use Nyholm\Psr7\Stream;
 use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
 use RuntimeException;
 
-final class HttpParser
+final class Parser
 {
     private const MAX_URL_ENCODED_BODY_SIZE = 4194304; // 4MB
-    private const MAX_BODY_MEMORY_SIZE = 4194304; // 4MB
 
     private Psr17Factory $factory;
 
@@ -145,7 +142,7 @@ final class HttpParser
         if ($request->hasHeader('Content-Encoding')) {
             $encoding = $request->getHeaderLine('Content-Encoding');
             if ($encoding === 'gzip') {
-                $request = self::unzipBody($request);
+                $request = StreamHelper::unzipBody($request);
             }
         }
 
@@ -195,7 +192,7 @@ final class HttpParser
      */
     private function createBody(StreamClient $stream, ?int $limit): StreamInterface
     {
-        $fileStream = self::createFileStream();
+        $fileStream = StreamHelper::createFileStream();
         $written = 0;
 
         foreach ($stream->getIterator() as $chunk) {
@@ -282,7 +279,7 @@ final class HttpParser
                 $findBoundary = "\r\n--{$boundary}";
 
                 if ($part instanceof File) {
-                    $fileStream = self::createFileStream();
+                    $fileStream = StreamHelper::createFileStream();
                     $fileSize = StreamHelper::writeStreamUntil($stream, $fileStream, $findBoundary);
                     $part->setStream($fileStream, $fileSize);
                 } elseif ($part instanceof Field) {
@@ -298,20 +295,5 @@ final class HttpParser
         }
 
         return $result;
-    }
-
-    public static function unzipBody(ServerRequestInterface $request): ServerRequestInterface
-    {
-        $gzippedStream = new GzipDecodeStream($request->getBody());
-
-        $stream = self::createFileStream();
-        StreamHelper::writeStream($gzippedStream, $stream, \PHP_INT_MAX);
-
-        return $request->withBody($stream);
-    }
-
-    public static function createFileStream(): StreamInterface
-    {
-        return Stream::create(\fopen('php://temp/maxmemory:' . self::MAX_BODY_MEMORY_SIZE, 'w+b'));
     }
 }
