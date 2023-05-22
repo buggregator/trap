@@ -9,6 +9,8 @@ use Buggregator\Client\Sender;
 use Buggregator\Client\Sender\Console\ConsoleRenderer;
 use Buggregator\Client\Sender\Console\HandlerInterface;
 use Buggregator\Client\Sender\Console\Renderer;
+use Buggregator\Client\Sender\Console\Renderer\TemplateRenderer;
+use Buggregator\Client\Support\TemplateEngine;
 use Symfony\Component\Console\Output\OutputInterface;
 use Termwind\HtmlRenderer;
 use Termwind\Termwind;
@@ -19,15 +21,18 @@ final class ConsoleSender implements Sender
     {
         Termwind::renderUsing($output);
 
-        $htmlRenderer = new HtmlRenderer();
-
+        $templateRenderer = new TemplateRenderer(
+            new HtmlRenderer(),
+            new TemplateEngine(__DIR__ . '/Console/Renderer/templates')
+        );
         // Configure renderer
         $renderer = new ConsoleRenderer($output);
         $renderer->register(new Renderer\VarDumper());
-        $renderer->register(new Renderer\Monolog($htmlRenderer));
+        $renderer->register(new Renderer\SentryStore($templateRenderer));
+        $renderer->register(new Renderer\Monolog($templateRenderer));
+        $renderer->register(new Renderer\Smtp($templateRenderer));
         $renderer->register(new Renderer\Http());
-        $renderer->register(new Renderer\Smtp());
-        $renderer->register(new Renderer\Plain($htmlRenderer));
+        $renderer->register(new Renderer\Plain($templateRenderer));
 
         return new self($renderer);
     }
