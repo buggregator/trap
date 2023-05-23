@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Command;
 
+use Buggregator\Client\Info;
 use Buggregator\Client\Logger;
 use DateTimeImmutable;
 use RuntimeException;
@@ -23,8 +24,8 @@ final class Test extends Command
         InputInterface $input,
         OutputInterface $output,
     ): int {
-        // $this->dump();
-        // \usleep(100_000);
+        $this->dump();
+        \usleep(100_000);
         $this->mail();
 
         return Command::SUCCESS;

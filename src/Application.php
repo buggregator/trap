@@ -21,8 +21,6 @@ use Fiber;
  */
 final class Application implements Processable
 {
-    public const VERSION = '0.1.2';
-
     /** @var Processable[] */
     private array $processors = [];
 
