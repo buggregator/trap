@@ -33,9 +33,11 @@ final class Smtp implements RendererInterface
 
     public function render(OutputInterface $output, Frame $frame): void
     {
-        // $message = $this->parser->parse($frame->message);
+        $message = $frame->message;
+
         $date = $frame->time->format('Y-m-d H:i:s.u');
-        // $subject = $message->subject;
+        $subject = $message->getHeaderLine('Subject');
+        // $message = $this->parser->parse($frame->message);
         // $addresses = $this->generateAddresses($message);
 
         $output->writeln(['', '<fg=white;bg=blue> SMTP </>', '']);
@@ -43,17 +45,28 @@ final class Smtp implements RendererInterface
             'Time' => $date,
         ]);
 
-        $output->write((string) $frame->message->getBody(), true, OutputInterface::OUTPUT_RAW);
+        // Headers table
+        $this->renderKeyValueTable(
+            $output,
+            'Headers',
+            \array_map(static fn (array $value): string => \implode(', ', $value), $message->getHeaders()),
+        );
 
-        // $output->writeln('');
-        // $this->renderKeyValueTable(
-        //     $output,
-        //     'Addresses',
-        //     \array_map(static fn (array $items): string => \implode(', ', $items), $addresses),
-        // );
-        //
-        // $output->writeln(['', "<fg=white;options=bold>$subject</>", '<fg=gray>---</>', '']);
-        // $output->write($message->textBody, true, OutputInterface::OUTPUT_RAW);
+        // Theme
+        $output->writeln('<fg=white;options=bold>');
+        $output->write($subject, true, OutputInterface::OUTPUT_NORMAL);
+        $output->writeln('</><fg=gray>---</>');
+
+        foreach ($message->getTexts() as $text) {
+            $format = $text->getHeaderLine('Content-Type') ?: 'text/plain';
+            $output->writeln(['', "<fg=white;bg=green> FORMAT </><fg=yellow;bg=black> $format </>", '']);
+            $output->write($text->getValue(), true, OutputInterface::OUTPUT_NORMAL);
+        }
+
+        // todo render files
+
+        // Raw body
+        // $output->write((string) $frame->message->getBody(), true, OutputInterface::OUTPUT_RAW);
     }
 
     private function generateAddresses(Message $message): array

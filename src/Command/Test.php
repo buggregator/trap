@@ -55,7 +55,7 @@ final class Test extends Command
 
             // Send Data
             if ($multipart) {
-                $this->sendMailPackage($output, $socket, "From: sender@example.com", '');
+                $this->sendMailPackage($output, $socket, "From: sender@example.com\r\n", '');
                 $this->sendMailPackage($output, $socket, "To: recipient@example.com\r\n", '');
                 $this->sendMailPackage($output, $socket, "Subject: Multipart Email Example\r\n", '');
                 $this->sendMailPackage(
