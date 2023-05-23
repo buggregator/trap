@@ -4,17 +4,11 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Multipart;
 
-use Nyholm\Psr7\MessageTrait;
 use RuntimeException;
 
 abstract class Part
 {
-    use MessageTrait {
-        getProtocolVersion as private;
-        getBody as private;
-        withBody as private;
-        withProtocolVersion as private;
-    }
+    use Headers;
 
     protected function __construct(
         array $headers,
@@ -27,6 +21,7 @@ abstract class Part
     {
         /**
          * Check Content-Disposition header
+         *
          * @var string $contentDisposition
          */
         $contentDisposition = $headers['content-disposition'][0]
@@ -40,10 +35,10 @@ abstract class Part
             ? $matches[1]
             : null;
         $fileName = $fileName !== null ? \html_entity_decode($fileName) : null;
-        $isFile = (string) $fileName !== ''
+        $isFile = (string)$fileName !== ''
             || \preg_match('/text\\/.++/', $headers['content-type'][0] ?? 'text/plain') !== 1;
 
-        return match($isFile) {
+        return match ($isFile) {
             true => new File($headers, $name, $fileName),
             false => new Field($headers, $name),
         };

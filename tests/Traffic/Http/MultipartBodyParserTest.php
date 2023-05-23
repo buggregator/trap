@@ -4,17 +4,19 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Tests\Traffic\Http;
 
+use Buggregator\Client\Tests\FiberTrait;
 use Buggregator\Client\Traffic\Http\Parser;
 use Buggregator\Client\Traffic\Multipart\Field;
 use Buggregator\Client\Traffic\Multipart\File;
 use Buggregator\Client\Traffic\Multipart\Part;
-use Fiber;
 use Nyholm\Psr7\Stream;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\StreamInterface;
 
 final class MultipartBodyParserTest extends TestCase
 {
+    use FiberTrait;
+
     public function testParse(): void
     {
         $body = $this->makeStream(
@@ -124,13 +126,6 @@ final class MultipartBodyParserTest extends TestCase
      */
     private function parse(StreamInterface $body, string $boundary): iterable
     {
-        $fiber = new Fiber(fn() => Parser::parseMultipartBody($body, $boundary));
-        $fiber->start();
-        do {
-            if ($fiber->isTerminated()) {
-                return $fiber->getReturn();
-            }
-            $fiber->resume();
-        } while (true);
+        return $this->runInFiber(static fn() => Parser::parseMultipartBody($body, $boundary));
     }
 }

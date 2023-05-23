@@ -30,7 +30,7 @@ final class Parser
     public function parseStream(StreamClient $stream): ServerRequestInterface
     {
         $firstLine = $stream->fetchLine();
-        $headersBlock = $this->getBlock($stream);
+        $headersBlock = self::getBlock($stream);
 
         [$method, $uri, $protocol] = $this->parseFirstLine($firstLine);
         $headers = self::parseHeaders($headersBlock);
@@ -90,7 +90,7 @@ final class Parser
     /**
      * Get text block before empty line
      */
-    private function getBlock(StreamClient $stream): string
+    public static function getBlock(StreamClient $stream): string
     {
         $previous = $block = '';
         while (!$stream->isFinished()) {
@@ -100,25 +100,6 @@ final class Parser
             }
             $previous = $line;
             $block .= $line;
-        }
-
-        return $block;
-    }
-
-    /**
-     * Read around {@see $bytes} bytes.
-     */
-    private function getBytes(StreamClient $stream, int $bytes): string
-    {
-        if ($bytes <= 0) {
-            return '';
-        }
-        $block = '';
-        foreach ($stream->getIterator() as $chunk) {
-            $block .= $chunk;
-            if (\strlen($block) >= $bytes) {
-                break;
-            }
         }
 
         return $block;
@@ -156,7 +137,7 @@ final class Parser
 
     private function processMultipartForm(ServerRequestInterface $request): ServerRequestInterface
     {
-        if (\preg_match('/boundary=([^\\s;]++)/', $request->getHeaderLine('Content-Type'), $matches) !== 1) {
+        if (\preg_match('/boundary="?([^"\\s;]++)"?/', $request->getHeaderLine('Content-Type'), $matches) !== 1) {
             return $request;
         }
 

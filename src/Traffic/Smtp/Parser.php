@@ -4,76 +4,113 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Smtp;
 
-use ZBateson\MailMimeParser\Header\AbstractHeader;
-use ZBateson\MailMimeParser\Header\AddressHeader;
-use ZBateson\MailMimeParser\Header\Part\AddressPart;
-use ZBateson\MailMimeParser\Message as ParseMessage;
+use Buggregator\Client\Socket\StreamClient;
+use Buggregator\Client\Support\StreamHelper;
+use Buggregator\Client\Traffic\Http;
+use Buggregator\Client\Traffic\Multipart\Field;
+use Buggregator\Client\Traffic\Multipart\File;
+use Psr\Http\Message\StreamInterface;
 
 final class Parser
 {
-    public function parse(string $body, array $allRecipients = []): Message
+    public function parseStream(StreamClient $stream): Message
     {
-        $message = ParseMessage::from($body, true);
+        $headerBlock = Http\Parser::getBlock($stream);
+        $headers = Http\Parser::parseHeaders($headerBlock);
+        $fileStream = StreamHelper::createFileStream();
+        // Store read headers to the file stream.
+        $fileStream->write($headerBlock . "\r\n\r\n");
 
-        /** @var AddressPart $fromData */
-        $fromData = $message->getHeader('from')?->getParts()[0] ?? null;
-        $from = [['email' => $fromData?->getValue(), 'name' => $fromData?->getName()]];
+        // Create message with headers only.
+        $message = Message::create(headers: $headers);
 
-        /** @var AddressHeader|null $toHeader */
-        $toHeader = $message->getHeader('to');
-        $recipients = $this->joinNameAndEmail($toHeader ? $toHeader->getAddresses() : []);
-        /** @var AddressHeader|null $ccHeader */
-        $ccHeader = $message->getHeader('cc');
-        $ccs = $this->joinNameAndEmail($ccHeader ? $ccHeader->getAddresses() : []);
-        $subject = (string)$message->getHeaderValue('subject');
-        $html = (string)$message->getHtmlContent();
-        $text = (string)$message->getTextContent();
-        /** @var AbstractHeader|null $replyToHeader */
-        $replyToHeader = $message->getHeader('reply-to')?->getParts()[0] ?? null;
-        $replyTo = $replyToHeader ? [
-            [
-                'email' => $replyToHeader?->getValue(),
-                'name' => $replyToHeader?->getName(),
-            ],
-        ] : [];
+        // Defaults
+        $boundary = "\r\n.\r\n";
+        $isMultipart = false;
 
-        $attachments = $this->buildAttachmentFrom(
-            $message->getAllAttachmentParts(),
-        );
+        // Check the message is multipart.
+        $contentType = $message->getHeaderLine('Content-Type');
+        if (\str_contains($contentType, 'multipart/alternative')
+            && \preg_match('/boundary="?([^"\\s;]++)"?/', $contentType, $matches) === 1
+        ) {
+            $isMultipart = true;
+            $boundary = "\r\n--{$matches[1]}--\r\n\r\n";
+        }
 
-        return new Message(
-            $message->getHeader('Message - Id')?->getValue(),
-            $body, $from, $recipients, $ccs, $subject,
-            $html, $text, $replyTo, $allRecipients, $attachments
-        );
+        $stored = $this->storeBody($fileStream, $stream, $boundary);
+        $message = $message->withBody($fileStream);
+        // Message's body must be seeked to the beginning of the body.
+        $fileStream->seek(-$stored, \SEEK_CUR);
+
+        $message = $isMultipart
+            ? $this->processMultipartForm($message, $fileStream)
+            : $this->processSingleBody($message, $fileStream);
+
+
+
+        return $message;
     }
 
     /**
-     * @param ParseMessage\MessagePart[] $attachments
-     * @return Attachment[]
+     * Flush stream data into PSR stream.
+     * Note: there can be read more data than {@see $limit} bytes but write only {@see $limit} bytes.
+     *
+     * @return int Number of bytes written to the stream.
      */
-    private function buildAttachmentFrom(array $attachments): array
-    {
-        return \array_map(function (ParseMessage\MessagePart|ParseMessage\MimePart $part) {
-            return new Attachment(
-                $part->getFilename(),
-                $part->getContent(),
-                $part->getContentType()
-            );
-        }, $attachments);
+    private function storeBody(
+        StreamInterface $fileStream,
+        StreamClient $stream,
+        string $end = "\r\n.\r\n",
+    ): int {
+        $written = 0;
+
+        foreach ($stream->getIterator() as $chunk) {
+            // Check trailed double \r\n
+            if (!$stream->hasData() && \str_ends_with($chunk, $end)) {
+                // Remove transparent dot and write to stream
+                $fileStream->write(\substr($chunk, 0, -5));
+                return $written + \strlen($chunk) - 5;
+            }
+
+            // Remove transparent dot
+            $fileStream->write($chunk);
+            $written += \strlen($chunk);
+            unset($chunk);
+            \Fiber::suspend();
+        }
+
+        return $written;
     }
 
-    /**
-     * @param AddressPart[] $addresses
-     * @return string[]
-     */
-    private function joinNameAndEmail(array $addresses): array
+    private function processSingleBody(Message $message, StreamInterface $stream): Message
     {
-        return \array_map(function (AddressPart $addressPart) {
-            $name = $addressPart->getName();
-            $email = $addressPart->getValue();
+        $content = \preg_replace("/^\.([^\r])/m", '$1', $stream->getContents());
 
-            return ['name' => $name, 'email' => $email];
-        }, $addresses);
+        $body = new Field(
+            headers: \array_intersect_key($message->getHeaders(), ['Content-Type' => true]),
+            value: $content,
+        );
+
+        return $message->withTexts([$body]);
+    }
+
+    private function processMultipartForm(Message $message, StreamInterface $stream): Message
+    {
+        if (\preg_match('/boundary="?([^"\\s;]++)"?/', $message->getHeaderLine('Content-Type'), $matches) !== 1) {
+            return $message;
+        }
+
+        $boundary = $matches[1];
+        $parts = Http\Parser::parseMultipartBody($stream, $boundary);
+        $attaches = $texts = [];
+        foreach ($parts as $part) {
+            if ($part instanceof Field) {
+                $texts[] = $part;
+            } elseif ($part instanceof File) {
+                $attaches[] = $part;
+            }
+        }
+
+        return $message->withTexts($texts)->withAttaches($attaches);
     }
 }

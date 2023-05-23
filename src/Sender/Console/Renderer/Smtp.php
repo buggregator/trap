@@ -33,25 +33,27 @@ final class Smtp implements RendererInterface
 
     public function render(OutputInterface $output, Frame $frame): void
     {
-        $message = $this->parser->parse($frame->message);
+        // $message = $this->parser->parse($frame->message);
         $date = $frame->time->format('Y-m-d H:i:s.u');
-        $subject = $message->subject;
-        $addresses = $this->generateAddresses($message);
+        // $subject = $message->subject;
+        // $addresses = $this->generateAddresses($message);
 
         $output->writeln(['', '<fg=white;bg=blue> SMTP </>', '']);
         $this->renderKeyValueTable($output, '', [
             'Time' => $date,
         ]);
 
-        $output->writeln('');
-        $this->renderKeyValueTable(
-            $output,
-            'Addresses',
-            \array_map(static fn (array $items): string => \implode(', ', $items), $addresses),
-        );
+        $output->write((string) $frame->message->getBody(), true, OutputInterface::OUTPUT_RAW);
 
-        $output->writeln(['', "<fg=white;options=bold>$subject</>", '<fg=gray>---</>', '']);
-        $output->write($message->textBody, true, OutputInterface::OUTPUT_RAW);
+        // $output->writeln('');
+        // $this->renderKeyValueTable(
+        //     $output,
+        //     'Addresses',
+        //     \array_map(static fn (array $items): string => \implode(', ', $items), $addresses),
+        // );
+        //
+        // $output->writeln(['', "<fg=white;options=bold>$subject</>", '<fg=gray>---</>', '']);
+        // $output->write($message->textBody, true, OutputInterface::OUTPUT_RAW);
     }
 
     private function generateAddresses(Message $message): array
