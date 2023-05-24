@@ -153,8 +153,6 @@ array:1 [
 Welcome Mail
 ---
 
-[Laravel](http://localhost)
-
 Debug with Buggregator to fix problems faster
 
 * Use in WordPress or any PHP project
@@ -164,11 +162,6 @@ Debug with Buggregator to fix problems faster
 * Measure performance & set breakpoints
 
 Download: https://github.com/buggregator/app
-
-Thanks,
-Laravel
-
-© 2023 Laravel. All rights reserved.
 ```
 
 In addition to the local debugging features, Buggregator Trap provides an innovative functionality as a proxy client. It can transmit data to a remote Buggregator server, thereby facilitating a centralized debugging process for your team or organization.
