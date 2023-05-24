@@ -55,10 +55,16 @@ final class Run extends Command
                 senders: $registry->getSenders($senders)
             );
         } catch (\Throwable $e) {
-            // Write colorful exception (title, message, stacktrace)
-            $output->writeln(\sprintf("<fg=red;options=bold>%s</>", $e::class));
+            if ($output->isVerbose()) {
+                // Write colorful exception (title, message, stacktrace)
+                $output->writeln(\sprintf("<fg=red;options=bold>%s</>", $e::class));
+            }
+
             $output->writeln(\sprintf("<fg=red>%s</>", $e->getMessage()));
-            $output->writeln(\sprintf("<fg=gray>%s</>", $e->getTraceAsString()));
+
+            if ($output->isDebug()) {
+                $output->writeln(\sprintf("<fg=gray>%s</>", $e->getTraceAsString()));
+            }
         }
 
         return Command::SUCCESS;

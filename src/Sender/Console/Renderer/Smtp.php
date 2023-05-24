@@ -21,8 +21,9 @@ final class Smtp implements RendererInterface
 
     private readonly Parser $parser;
 
-    public function __construct()
-    {
+    public function __construct(
+        private readonly TemplateRenderer $renderer,
+    ) {
         $this->parser = new Parser();
     }
 
@@ -33,6 +34,23 @@ final class Smtp implements RendererInterface
 
     public function render(OutputInterface $output, Frame $frame): void
     {
+        // $message = $this->parser->parse($frame->message);
+        //
+        // TODO implement attachments
+        //        $attachments = [];
+        //        foreach ($message->attachments ?? [] as $attachment) {
+        //            $attachments[] = $attachment->;
+        //        }
+        //
+        // $this->renderer->render('smtp', [
+        //     'date' => $frame->time->format('Y-m-d H:i:s.u'),
+        //     'subject' => $message->subject,
+        //     'addresses' => $this->generateAddresses($message),
+        //     'body' => $message->textBody,
+        //     // 'attachments' => $attachments,
+        // ]);
+
+
         $message = $frame->message;
 
         $date = $frame->time->format('Y-m-d H:i:s.u');
@@ -72,14 +90,17 @@ final class Smtp implements RendererInterface
 
         // Raw body
         // $output->write((string) $frame->message->getBody(), true, OutputInterface::OUTPUT_RAW);
+
     }
 
     private function generateAddresses(Message $message): array
     {
         $addresses = [];
+        $data = $message->jsonSerialize();
+
         foreach (['from', 'to', 'cc', 'bcc', 'reply_to'] as $type) {
-            if (($users = $this->prepareUsers($message->jsonSerialize(), $type)) !== []) {
-                $addresses[$type] = \array_map(static fn (array $items): string => empty($items['name'])
+            if (($users = $this->prepareUsers($data, $type)) !== []) {
+                $addresses[$type] = \array_map(static fn(array $items): string => empty($items['name'])
                     ? $items['email']
                     : $items['name'] . ' [' . $items['email'] . ']', $users);
             }

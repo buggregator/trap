@@ -8,7 +8,6 @@ use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\ProtoType;
 use Buggregator\Client\Sender\Console\RendererInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Termwind\HtmlRenderer;
 
 /**
  * @implements RendererInterface<Frame\Monolog>
@@ -16,7 +15,7 @@ use Termwind\HtmlRenderer;
 final class Monolog implements RendererInterface
 {
     public function __construct(
-        private readonly HtmlRenderer $renderer,
+        private readonly TemplateRenderer $renderer,
     ) {
     }
 
@@ -35,41 +34,15 @@ final class Monolog implements RendererInterface
             default => 'gray'
         };
 
-        $date = $payload['datetime'];
-        $channel = $payload['channel'] ?? '';
-        $level = $payload['level_name'] . '' ?? 'DEBUG';
-        $messages = \array_map(
-            static fn(string $message): string => \sprintf("<div class=\"font-bold text-%s-500\">%s</div>", $levelColor, $message),
-            \explode("\n", $payload['message'])
-        );
-        $messages = \implode("", $messages);
-
         $this->renderer->render(
-            <<<HTML
-            <div class="mt-2">
-                <table>
-                    <tr>
-                        <th>date</th>
-                        <td>$date</td>
-                    </tr>
-                    <tr>
-                        <th>channel</th>
-                        <td>$channel</td>
-                    </tr>
-                </table>
-
-                <h1 class="font-bold text-white my-1">
-                    <span class="bg-blue px-1"><strong>MONOLOG</strong></span>
-                    <span class="px-1 bg-$levelColor">$level</span>
-                </h1>
-
-                <div class="mb-1">
-                    $messages
-                </div>
-            </div>
-            HTML
-            ,
-            0
+            'monolog',
+            [
+                'date' => $payload['datetime'],
+                'channel' => $payload['channel'] ?? '',
+                'level' => $payload['level_name'] . '' ?? 'DEBUG',
+                'levelColor' => $levelColor,
+                'messages' => \explode("\n", $payload['message']),
+            ]
         );
 
         // It can't be sent to HTML
