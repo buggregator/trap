@@ -165,4 +165,24 @@ trait Headers
 
         return $returnValues;
     }
+
+    /**
+     * List of header values.
+     *
+     * @param array<string, list<non-empty-string>> $headers
+     * @param non-empty-string $header
+     *
+     * @return list<non-empty-string>
+     */
+    private static function findHeader(array $headers, string $header): array
+    {
+        $header = \strtr($header, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz');
+        $result = [];
+        foreach ($headers as $name => $values) {
+            if (\strtr($name, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') === $header) {
+                $result = [...$result, ...$values];
+            }
+        }
+        return $result;
+    }
 }

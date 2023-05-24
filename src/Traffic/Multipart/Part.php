@@ -24,20 +24,21 @@ abstract class Part
          *
          * @var string $contentDisposition
          */
-        $contentDisposition = $headers['content-disposition'][0]
+        $contentDisposition = self::findHeader($headers, 'Content-Disposition')[0]
             ?? throw new RuntimeException('Missing Content-Disposition header.');
 
         // Get field name and file name
         $name = \preg_match('/\bname=(?:(?<a>[^" ;,]++)|"(?<b>[^"]++)")/', $contentDisposition, $matches) === 1
             ? ($matches['a'] ?: $matches['b'])
             : null;
+
         // Decode file name
         $fileName = \preg_match('/\bfilename=(?:(?<a>[^" ;,]++)|"(?<b>[^"]++)")/', $contentDisposition, $matches) === 1
             ? ($matches['a'] ?: $matches['b'])
             : null;
         $fileName = $fileName !== null ? \html_entity_decode($fileName) : null;
         $isFile = (string)$fileName !== ''
-            || \preg_match('/text\\/.++/', $headers['content-type'][0] ?? 'text/plain') !== 1;
+            || \preg_match('/text\\/.++/', self::findHeader($headers, 'Content-Type')[0] ?? 'text/plain') !== 1;
 
         return match ($isFile) {
             true => new File($headers, $name, $fileName),

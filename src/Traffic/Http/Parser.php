@@ -212,7 +212,7 @@ final class Parser
 
             [$name, $value] = \explode(':', $line, 2);
 
-            $result[\strtolower(\trim($name))][] = \trim($value);
+            $result[\trim($name)][] = \trim($value);
         }
 
         return $result;
