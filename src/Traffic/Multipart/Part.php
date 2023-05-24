@@ -28,11 +28,12 @@ abstract class Part
             ?? throw new RuntimeException('Missing Content-Disposition header.');
 
         // Get field name and file name
-        $name = \preg_match('/\bname="([^"]++)"/', $contentDisposition, $matches) === 1
-            ? $matches[1]
+        $name = \preg_match('/\bname=(?:(?<a>[^" ;,]++)|"(?<b>[^"]++)")/', $contentDisposition, $matches) === 1
+            ? ($matches['a'] ?: $matches['b'])
             : null;
-        $fileName = \preg_match('/\bfilename="([^"]++)"/', $contentDisposition, $matches) === 1
-            ? $matches[1]
+        // Decode file name
+        $fileName = \preg_match('/\bfilename=(?:(?<a>[^" ;,]++)|"(?<b>[^"]++)")/', $contentDisposition, $matches) === 1
+            ? ($matches['a'] ?: $matches['b'])
             : null;
         $fileName = $fileName !== null ? \html_entity_decode($fileName) : null;
         $isFile = (string)$fileName !== ''

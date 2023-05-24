@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Http;
 
+use Buggregator\Client\Info;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -18,8 +19,9 @@ final class Resources implements HandlerInterface
             $path = '/resources/favicon.ico';
         }
 
-        if (\preg_match('#^/resources/([a-zA-Z0-9.\\-\\[\\]() _]+?\\.([a-zA-Z0-4])++)$#', $path, $matches)) {
-            $file = __DIR__ . '/../../../resources/' . $matches[1];
+        if (\preg_match('#^/resources/([a-zA-Z0-9.\\-\\[\\]() _]+?\\.([a-zA-Z0-4]++))$#', $path, $matches)) {
+            $file = \sprintf("%s/resources/%s", Info::TRAP_ROOT, $matches[1]);
+
             if (!\is_file($file)) {
                 return new Response(404);
             }

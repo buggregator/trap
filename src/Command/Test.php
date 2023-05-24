@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Command;
 
+use Buggregator\Client\Info;
 use Buggregator\Client\Logger;
 use DateTimeImmutable;
 use RuntimeException;
@@ -90,6 +91,27 @@ final class Test extends Command
                     "<p>This is what displays in most modern email clients</p>\r\n",
                     '',
                 );
+                $this->sendMailPackage($output, $socket, "\r\n", '');
+                $this->sendMailPackage($output, $socket, "--boundary-string--\r\n", '');
+                // Attachment
+                $this->sendMailPackage($output, $socket, "Content-Type: image/x-icon\r\n", '');
+                $this->sendMailPackage($output, $socket, "Content-Transfer-Encoding: base64\r\n", '');
+                $this->sendMailPackage($output, $socket, "Content-Disposition: attachment;filename=logo.ico\r\n", '');
+                $this->sendMailPackage($output, $socket, "\r\n", '');
+                $this->sendMailPackage(
+                    $output,
+                    $socket,
+                    \base64_encode(\file_get_contents(Info::TRAP_ROOT . '/resources/favicon.ico')) . "\r\n",
+                    '',
+                );
+                $this->sendMailPackage($output, $socket, "\r\n", '');
+                $this->sendMailPackage($output, $socket, "--boundary-string--\r\n", '');
+
+                $this->sendMailPackage($output, $socket, "Content-Type: text/watch-html; charset=\"utf-8\"\r\n", '');
+                $this->sendMailPackage($output, $socket, "Content-Transfer-Encoding: quoted-printable\r\n", '');
+                $this->sendMailPackage($output, $socket, "Content-Disposition: inline\r\n", '');
+                $this->sendMailPackage($output, $socket, "\r\n", '');
+                $this->sendMailPackage($output, $socket, "<b>Apple Watch formatted content</b>\r\n", '');
                 $this->sendMailPackage($output, $socket, "\r\n", '');
                 $this->sendMailPackage($output, $socket, "--boundary-string--\r\n", '');
                 $this->sendMailPackage($output, $socket, "\r\n", '250 ');

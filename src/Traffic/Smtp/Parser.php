@@ -11,6 +11,9 @@ use Buggregator\Client\Traffic\Multipart\Field;
 use Buggregator\Client\Traffic\Multipart\File;
 use Psr\Http\Message\StreamInterface;
 
+/**
+ * Todo: parse and decrypt `Content-Transfer-Encoding: base64`, `Content-Transfer-Encoding: 7bit`
+ */
 final class Parser
 {
     public function parseStream(StreamClient $stream): Message
@@ -30,7 +33,7 @@ final class Parser
 
         // Check the message is multipart.
         $contentType = $message->getHeaderLine('Content-Type');
-        if (\str_contains($contentType, 'multipart/alternative')
+        if (\str_contains($contentType, 'multipart/')
             && \preg_match('/boundary="?([^"\\s;]++)"?/', $contentType, $matches) === 1
         ) {
             $isMultipart = true;

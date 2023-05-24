@@ -37,8 +37,6 @@ final class Smtp implements RendererInterface
 
         $date = $frame->time->format('Y-m-d H:i:s.u');
         $subject = $message->getHeaderLine('Subject');
-        // $message = $this->parser->parse($frame->message);
-        // $addresses = $this->generateAddresses($message);
 
         $output->writeln(['', '<fg=white;bg=blue> SMTP </>', '']);
         $this->renderKeyValueTable($output, '', [
@@ -52,18 +50,25 @@ final class Smtp implements RendererInterface
             \array_map(static fn (array $value): string => \implode(', ', $value), $message->getHeaders()),
         );
 
-        // Theme
+        // Subject
         $output->writeln('<fg=white;options=bold>');
         $output->write($subject, true, OutputInterface::OUTPUT_NORMAL);
         $output->writeln('</><fg=gray>---</>');
 
+        // Text body
         foreach ($message->getTexts() as $text) {
-            $format = $text->getHeaderLine('Content-Type') ?: 'text/plain';
-            $output->writeln(['', "<fg=white;bg=green> FORMAT </><fg=yellow;bg=black> $format </>", '']);
+            $type = $text->getHeaderLine('Content-Type') ?: 'text/plain';
+            $output->writeln(['', "<fg=green>Body </><fg=yellow> $type </>", '']);
             $output->write($text->getValue(), true, OutputInterface::OUTPUT_NORMAL);
         }
 
-        // todo render files
+        // Attaches
+        foreach ($message->getAttaches() as $attach) {
+            $type = $attach->getHeaderLine('Content-Type');
+            $output->writeln(['', "<fg=green>Attached file </><fg=yellow> $type </>"]);
+            $output->writeln('Name: ' . $attach->getClientFilename());
+            $output->writeln('Size: ' . $attach->getSize());
+        }
 
         // Raw body
         // $output->write((string) $frame->message->getBody(), true, OutputInterface::OUTPUT_RAW);
