@@ -32,9 +32,7 @@ final class ConsoleRenderer implements HandlerInterface
             if ($renderer->isSupport($frame)) {
                 $renderer->render($buffer, $frame);
 
-                if ($this->output->isDebug()) {
-                    $this->output->write($buffer->fetch(), false, OutputInterface::OUTPUT_RAW);
-                }
+                $this->output->write($buffer->fetch(), false, OutputInterface::OUTPUT_RAW);
 
                 return;
             }
