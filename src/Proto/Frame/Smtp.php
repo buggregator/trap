@@ -6,13 +6,13 @@ namespace Buggregator\Client\Proto\Frame;
 
 use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\ProtoType;
-use Buggregator\Client\Traffic\Smtp\Message;
+use Buggregator\Client\Traffic\Message;
 use DateTimeImmutable;
 
 final class Smtp extends Frame
 {
     public function __construct(
-        public readonly Message $message,
+        public readonly Message\Smtp $message,
         DateTimeImmutable $time = new DateTimeImmutable(),
     ) {
         parent::__construct(ProtoType::SMTP, $time);

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Multipart;
+namespace Buggregator\Client\Traffic\Message\Multipart;
 
 use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\StreamInterface;

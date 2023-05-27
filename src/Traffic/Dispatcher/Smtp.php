@@ -7,7 +7,7 @@ namespace Buggregator\Client\Traffic\Dispatcher;
 use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher;
-use Buggregator\Client\Traffic\Smtp\Parser;
+use Buggregator\Client\Traffic\Parser;
 
 final class Smtp implements Dispatcher
 {
@@ -16,11 +16,11 @@ final class Smtp implements Dispatcher
     public const CLOSING = 221;
     public const START_MAIL_INPUT = 354;
 
-    private Parser $parser;
+    private Parser\Smtp $parser;
 
     public function __construct(
     ) {
-        $this->parser = new Parser();
+        $this->parser = new Parser\Smtp();
     }
 
     public function dispatch(StreamClient $stream): iterable

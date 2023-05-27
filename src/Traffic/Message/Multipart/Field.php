@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Multipart;
+namespace Buggregator\Client\Traffic\Message\Multipart;
 
 final class Field extends Part
 {

@@ -2,17 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Smtp;
+namespace Buggregator\Client\Traffic\Message;
 
-use Buggregator\Client\Traffic\Multipart\Field;
-use Buggregator\Client\Traffic\Multipart\File;
-use Buggregator\Client\Traffic\Multipart\Headers;
-use Buggregator\Client\Traffic\Multipart\StreamBody;
+use Buggregator\Client\Traffic\Message\Multipart\Field;
+use Buggregator\Client\Traffic\Message\Multipart\File;
 use JsonSerializable;
 use Nyholm\Psr7\Stream;
 use Psr\Http\Message\StreamInterface;
 
-final class Message implements JsonSerializable
+final class Smtp implements JsonSerializable
 {
     private ?StreamInterface $stream = null;
 

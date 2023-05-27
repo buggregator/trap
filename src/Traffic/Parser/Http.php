@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Http;
+namespace Buggregator\Client\Traffic\Parser;
 
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Support\StreamHelper;
-use Buggregator\Client\Traffic\Multipart\Field;
-use Buggregator\Client\Traffic\Multipart\File;
-use Buggregator\Client\Traffic\Multipart\Part;
+use Buggregator\Client\Traffic\Message\Multipart\Field;
+use Buggregator\Client\Traffic\Message\Multipart\File;
+use Buggregator\Client\Traffic\Message\Multipart\Part;
 use Fiber;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\UploadedFile;
@@ -16,7 +16,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
 use RuntimeException;
 
-final class Parser
+final class Http
 {
     private const MAX_URL_ENCODED_BODY_SIZE = 4194304; // 4MB
 

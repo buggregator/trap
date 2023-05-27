@@ -8,8 +8,8 @@ use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\ProtoType;
 use Buggregator\Client\Sender\Console\RendererInterface;
 use Buggregator\Client\Sender\Console\Support\RenderTable;
-use Buggregator\Client\Traffic\Smtp\Message;
-use Buggregator\Client\Traffic\Smtp\Parser;
+use Buggregator\Client\Traffic\Message;
+use Buggregator\Client\Traffic\Parser;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -19,12 +19,9 @@ final class Smtp implements RendererInterface
 {
     use RenderTable;
 
-    private readonly Parser $parser;
-
     public function __construct(
         private readonly TemplateRenderer $renderer,
     ) {
-        $this->parser = new Parser();
     }
 
     public function isSupport(Frame $frame): bool
@@ -93,7 +90,7 @@ final class Smtp implements RendererInterface
 
     }
 
-    private function generateAddresses(Message $message): array
+    private function generateAddresses(Message\Smtp $message): array
     {
         $addresses = [];
         $data = $message->jsonSerialize();

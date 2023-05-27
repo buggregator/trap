@@ -2,30 +2,30 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Smtp;
+namespace Buggregator\Client\Traffic\Parser;
 
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Support\StreamHelper;
-use Buggregator\Client\Traffic\Http;
-use Buggregator\Client\Traffic\Multipart\Field;
-use Buggregator\Client\Traffic\Multipart\File;
+use Buggregator\Client\Traffic\Message;
+use Buggregator\Client\Traffic\Message\Multipart\Field;
+use Buggregator\Client\Traffic\Message\Multipart\File;
 use Psr\Http\Message\StreamInterface;
 
 /**
  * Todo: parse and decrypt `Content-Transfer-Encoding: base64`, `Content-Transfer-Encoding: 7bit`
  */
-final class Parser
+final class Smtp
 {
-    public function parseStream(StreamClient $stream): Message
+    public function parseStream(StreamClient $stream): Message\Smtp
     {
-        $headerBlock = Http\Parser::getBlock($stream);
-        $headers = Http\Parser::parseHeaders($headerBlock);
+        $headerBlock = Http::getBlock($stream);
+        $headers = Http::parseHeaders($headerBlock);
         $fileStream = StreamHelper::createFileStream();
         // Store read headers to the file stream.
         $fileStream->write($headerBlock . "\r\n\r\n");
 
         // Create message with headers only.
-        $message = Message::create(headers: $headers);
+        $message = Message\Smtp::create(headers: $headers);
 
         // Defaults
         $boundary = "\r\n.\r\n";
@@ -85,7 +85,7 @@ final class Parser
         return $written;
     }
 
-    private function processSingleBody(Message $message, StreamInterface $stream): Message
+    private function processSingleBody(Message\Smtp $message, StreamInterface $stream): Message\Smtp
     {
         $content = \preg_replace("/^\.([^\r])/m", '$1', $stream->getContents());
 
@@ -97,14 +97,14 @@ final class Parser
         return $message->withTexts([$body]);
     }
 
-    private function processMultipartForm(Message $message, StreamInterface $stream): Message
+    private function processMultipartForm(Message\Smtp $message, StreamInterface $stream): Message\Smtp
     {
         if (\preg_match('/boundary="?([^"\\s;]++)"?/', $message->getHeaderLine('Content-Type'), $matches) !== 1) {
             return $message;
         }
 
         $boundary = $matches[1];
-        $parts = Http\Parser::parseMultipartBody($stream, $boundary);
+        $parts = Http::parseMultipartBody($stream, $boundary);
         $attaches = $texts = [];
         foreach ($parts as $part) {
             if ($part instanceof Field) {

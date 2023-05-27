@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Buggregator\Client\Tests\Traffic\Http;
 
 use Buggregator\Client\Tests\FiberTrait;
-use Buggregator\Client\Traffic\Http\Parser;
-use Buggregator\Client\Traffic\Multipart\Field;
-use Buggregator\Client\Traffic\Multipart\File;
-use Buggregator\Client\Traffic\Multipart\Part;
+use Buggregator\Client\Traffic\Message\Multipart\Field;
+use Buggregator\Client\Traffic\Message\Multipart\File;
+use Buggregator\Client\Traffic\Message\Multipart\Part;
+use Buggregator\Client\Traffic\Parser;
 use Nyholm\Psr7\Stream;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\StreamInterface;
@@ -126,6 +126,6 @@ final class MultipartBodyParserTest extends TestCase
      */
     private function parse(StreamInterface $body, string $boundary): iterable
     {
-        return $this->runInFiber(static fn() => Parser::parseMultipartBody($body, $boundary));
+        return $this->runInFiber(static fn() => Parser\Http::parseMultipartBody($body, $boundary));
     }
 }

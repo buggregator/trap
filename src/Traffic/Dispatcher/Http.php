@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Dispatcher;
 
-use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Logger;
+use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher;
 use Buggregator\Client\Traffic\Http\HandlerPipeline;
-use Buggregator\Client\Traffic\Http\Parser;
 use Buggregator\Client\Traffic\Http\Response;
+use Buggregator\Client\Traffic\Parser;
 
 final class Http implements Dispatcher
 {
-    private readonly Parser $parser;
+    private readonly Parser\Http $parser;
 
     public function __construct(
         private readonly HandlerPipeline $handler,
     ) {
-        $this->parser = new Parser();
+        $this->parser = new Parser\Http();
     }
 
     public function dispatch(StreamClient $stream): iterable
