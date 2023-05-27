@@ -9,6 +9,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * @template TFrame of Frame
+ * @template-covariant
  */
 interface RendererInterface
 {

@@ -44,7 +44,7 @@ final class Http implements RendererInterface
             default => 'gray'
         };
 
-        $output->writeln(['', \sprintf('<fg=white;bg=%s> HTTP %s </>', $color, $method), '']);
+        $output->writeln(['', \sprintf('<fg=white;bg=blue> HTTP </><fg=white;bg=%s> %s </>', $color, $method), '']);
 
         $this->renderKeyValueTable($output, '', [
             'Time' => $date,

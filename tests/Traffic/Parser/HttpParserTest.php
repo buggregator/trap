@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Tests\Traffic\Http;
+namespace Buggregator\Client\Tests\Traffic\Parser;
 
-use Buggregator\Client\Traffic\Http\HttpParser;
+use Buggregator\Client\Traffic\Parser;
 use Fiber;
 use Generator;
 use PHPUnit\Framework\TestCase;
@@ -168,7 +168,7 @@ class HttpParserTest extends TestCase
     private function parseStream(Generator $stream): ServerRequestInterface
     {
         $fiber = new Fiber(
-            static fn(Generator $stream): ServerRequestInterface => (new HttpParser())->parseStream($stream)
+            static fn(Generator $stream): ServerRequestInterface => (new Parser\Http())->parseStream($stream)
         );
         $fiber->start($stream);
         while (!$fiber->isTerminated()) {

@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace Buggregator\Client\Support;
 
 use Fiber;
+use Http\Message\Encoding\GzipDecodeStream;
+use Nyholm\Psr7\Stream;
+use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
 
 final class StreamHelper
 {
     private const CHUNK_SIZE = 1048576; // 1 Mb
     private const WRITE_STREAM_CHUNK_SIZE = 8388608; // 8 Mb
+    private const MAX_FILE_MEMORY_SIZE = 4194304; // 4MB
 
     /**
      * @param non-empty-string $substr
@@ -105,5 +109,20 @@ final class StreamHelper
             unset($read);
             Fiber::suspend();
         }
+    }
+
+    public static function unzipBody(ServerRequestInterface $request): ServerRequestInterface
+    {
+        $gzippedStream = new GzipDecodeStream($request->getBody());
+
+        $stream = self::createFileStream();
+        StreamHelper::writeStream($gzippedStream, $stream, \PHP_INT_MAX);
+
+        return $request->withBody($stream);
+    }
+
+    public static function createFileStream(): StreamInterface
+    {
+        return Stream::create(\fopen('php://temp/maxmemory:' . self::MAX_FILE_MEMORY_SIZE, 'w+b'));
     }
 }

@@ -2,23 +2,23 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Http;
+namespace Buggregator\Client\Traffic\Parser;
 
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Support\StreamHelper;
+use Buggregator\Client\Traffic\Message\Multipart\Field;
+use Buggregator\Client\Traffic\Message\Multipart\File;
+use Buggregator\Client\Traffic\Message\Multipart\Part;
 use Fiber;
-use Http\Message\Encoding\GzipDecodeStream;
 use Nyholm\Psr7\Factory\Psr17Factory;
-use Nyholm\Psr7\Stream;
 use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
 use RuntimeException;
 
-final class HttpParser
+final class Http
 {
     private const MAX_URL_ENCODED_BODY_SIZE = 4194304; // 4MB
-    private const MAX_BODY_MEMORY_SIZE = 4194304; // 4MB
 
     private Psr17Factory $factory;
 
@@ -30,10 +30,10 @@ final class HttpParser
     public function parseStream(StreamClient $stream): ServerRequestInterface
     {
         $firstLine = $stream->fetchLine();
-        $headersBlock = $this->getBlock($stream);
+        $headersBlock = self::getBlock($stream);
 
         [$method, $uri, $protocol] = $this->parseFirstLine($firstLine);
-        $headers = $this->parseHeaders($headersBlock);
+        $headers = self::parseHeaders($headersBlock);
 
         $request = $this->factory->createServerRequest($method, $uri, [])
             ->withProtocolVersion($protocol);
@@ -90,7 +90,7 @@ final class HttpParser
     /**
      * Get text block before empty line
      */
-    private function getBlock(StreamClient $stream): string
+    public static function getBlock(StreamClient $stream): string
     {
         $previous = $block = '';
         while (!$stream->isFinished()) {
@@ -103,46 +103,6 @@ final class HttpParser
         }
 
         return $block;
-    }
-
-    /**
-     * Read around {@see $bytes} bytes.
-     */
-    private function getBytes(StreamClient $stream, int $bytes): string
-    {
-        if ($bytes <= 0) {
-            return '';
-        }
-        $block = '';
-        foreach ($stream->getIterator() as $chunk) {
-            $block .= $chunk;
-            if (\strlen($block) >= $bytes) {
-                break;
-            }
-        }
-
-        return $block;
-    }
-
-    /**
-     * @param non-empty-string $headersBlock
-     *
-     * @return array<non-empty-string, list<non-empty-string>>
-     */
-    private function parseHeaders(string $headersBlock): array
-    {
-        $result = [];
-        foreach (\explode("\r\n", $headersBlock) as $line) {
-            if (!\str_contains($line, ':')) {
-                continue;
-            }
-
-            [$name, $value] = \explode(':', $line, 2);
-
-            $result[\trim($name)][] = \trim($value);
-        }
-
-        return $result;
     }
 
     private function parseBody(StreamClient $stream, ServerRequestInterface $request): ServerRequestInterface
@@ -163,16 +123,48 @@ final class HttpParser
         if ($request->hasHeader('Content-Encoding')) {
             $encoding = $request->getHeaderLine('Content-Encoding');
             if ($encoding === 'gzip') {
-                $request = $this->unzipBody($request);
+                $request = StreamHelper::unzipBody($request);
             }
         }
 
         $contentType = $request->getHeaderLine('Content-Type');
         return match (true) {
-            $contentType === 'application/x-www-form-urlencoded' => $this->parseUrlEncodedBody($request),
-            \str_contains($contentType, 'multipart/form-data') => $this->parseMultipartBody($request),
+            $contentType === 'application/x-www-form-urlencoded' => self::parseUrlEncodedBody($request),
+            \str_contains($contentType, 'multipart/form-data') => $this->processMultipartForm($request),
             default => $request,
         };
+    }
+
+    private function processMultipartForm(ServerRequestInterface $request): ServerRequestInterface
+    {
+        if (\preg_match('/boundary="?([^"\\s;]++)"?/', $request->getHeaderLine('Content-Type'), $matches) !== 1) {
+            return $request;
+        }
+
+        $boundary = $matches[1];
+        $parts = self::parseMultipartBody($request->getBody(), $boundary);
+        $uploadedFiles = $parsedBody = [];
+        foreach ($parts as $part) {
+            $name = $part->getName();
+            if ($name === null) {
+                continue;
+            }
+            if ($part instanceof Field) {
+                $parsedBody[$name] = $part->getValue();
+                continue;
+            }
+            if ($part instanceof File) {
+                $uploadedFiles[$name][] = new UploadedFile(
+                    $part->getStream(),
+                    $part->getSize(),
+                    $part->getError(),
+                    $part->getClientFilename(),
+                    $part->getClientMediaType(),
+                );
+            }
+        }
+
+        return $request->withUploadedFiles($uploadedFiles)->withParsedBody($parsedBody);
     }
 
     /**
@@ -181,7 +173,7 @@ final class HttpParser
      */
     private function createBody(StreamClient $stream, ?int $limit): StreamInterface
     {
-        $fileStream = $this->createFileStream();
+        $fileStream = StreamHelper::createFileStream();
         $written = 0;
 
         foreach ($stream->getIterator() as $chunk) {
@@ -205,7 +197,28 @@ final class HttpParser
         return $fileStream;
     }
 
-    private function parseUrlEncodedBody(ServerRequestInterface $request): ServerRequestInterface
+    /**
+     * @param non-empty-string $headersBlock
+     *
+     * @return array<non-empty-string, list<non-empty-string>>
+     */
+    public static function parseHeaders(string $headersBlock): array
+    {
+        $result = [];
+        foreach (\explode("\r\n", $headersBlock) as $line) {
+            if (!\str_contains($line, ':')) {
+                continue;
+            }
+
+            [$name, $value] = \explode(':', $line, 2);
+
+            $result[\trim($name)][] = \trim($value);
+        }
+
+        return $result;
+    }
+
+    public static function parseUrlEncodedBody(ServerRequestInterface $request): ServerRequestInterface
     {
         if ($request->getBody()->getSize() > self::MAX_URL_ENCODED_BODY_SIZE) {
             return $request;
@@ -221,16 +234,14 @@ final class HttpParser
         }
     }
 
-    private function parseMultipartBody(ServerRequestInterface $requset): ServerRequestInterface
+    /**
+     * @param non-empty-string $boundary
+     *
+     * @return iterable<Part>
+     */
+    public static function parseMultipartBody(StreamInterface $stream, string $boundary): iterable
     {
-        if (\preg_match('/boundary=([^\\s;]++)/', $requset->getHeaderLine('Content-Type'), $matches) !== 1) {
-            return $requset;
-        }
-        $boundary = $matches[1];
-        $stream = $requset->getBody();
-
-        $uploadedFiles = [];
-        $parsedBody = [];
+        $result = [];
         $findBoundary = "--{$boundary}";
         try {
             while (false !== ($pos = StreamHelper::strpos($stream, $findBoundary))) {
@@ -241,58 +252,29 @@ final class HttpParser
                     break;
                 }
                 // Parse part headers
-                $headers = $this->parseHeaders($stream->read($blockEnd - $pos + 2));
+                $headers = self::parseHeaders($stream->read($blockEnd - $pos + 2));
 
-                // Check Content-Disposition header
-                $contentDisposition = $headers['Content-Disposition'][0]
-                    ?? throw new RuntimeException('Missing Content-Disposition header');
-                // Get field name and file name
-                $name = \preg_match('/\bname="([^"]++)"/', $contentDisposition, $matches) === 1
-                    ? $matches[1]
-                    : throw new RuntimeException('Missing name in Content-Disposition header');
-                $fileName = \preg_match('/\bfilename="([^"]++)"/', $contentDisposition, $matches) === 1 ? $matches[1]
-                    : null;
-                $fileName = $fileName !== null ? \html_entity_decode($fileName) : null;
-                $isFile = $fileName || isset($headers['Content-Type']);
+                $part = Part::create($headers);
 
                 $stream->seek(2, \SEEK_CUR); // Skip \r\n
                 $findBoundary = "\r\n--{$boundary}";
 
-                if ($isFile) {
-                    $fileStream = $this->createFileStream();
+                if ($part instanceof File) {
+                    $fileStream = StreamHelper::createFileStream();
                     $fileSize = StreamHelper::writeStreamUntil($stream, $fileStream, $findBoundary);
-
-                    $uploadedFiles[$name][] = new UploadedFile(
-                        $fileStream,
-                        $fileSize,
-                        \UPLOAD_ERR_OK,
-                        $fileName,
-                        $headers['Content-Type'][0] ?? null,
-                    );
-                } else {
+                    $part->setStream($fileStream, $fileSize);
+                } elseif ($part instanceof Field) {
                     $endOfContent = StreamHelper::strpos($stream, $findBoundary);
                     $endOfContent !== false or throw new RuntimeException('Missing end of content');
-                    $parsedBody[$name] = $endOfContent > 0 ? $stream->read($endOfContent) : '';
+
+                    $part = $part->withValue($endOfContent > 0 ? $stream->read($endOfContent) : '');
                 }
+                $result[] = $part;
             }
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            // throw $e;
         }
 
-        return $requset->withUploadedFiles($uploadedFiles)->withParsedBody($parsedBody);
-    }
-
-    private function unzipBody(ServerRequestInterface $request): ServerRequestInterface
-    {
-        $gzippedStream = new GzipDecodeStream($request->getBody());
-
-        $stream = self::createFileStream();
-        StreamHelper::writeStream($gzippedStream, $stream, \PHP_INT_MAX);
-
-        return $request->withBody($stream);
-    }
-
-    private function createFileStream(): StreamInterface
-    {
-        return Stream::create(\fopen('php://temp/maxmemory:' . self::MAX_BODY_MEMORY_SIZE, 'w+b'));
+        return $result;
     }
 }

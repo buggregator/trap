@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Socket;
 
-use Buggregator\Client\Logger;
 use Buggregator\Client\Socket\Exception\DisconnectClient;
 use Fiber;
 
@@ -39,7 +38,6 @@ final class Client
         } catch (\Throwable) {
             // Do nothing.
         } finally {
-            Logger::debug('Client destroyed.');
             ($this->onClose)();
         }
     }
@@ -128,8 +126,8 @@ final class Client
     private function writeQueue(): void
     {
         foreach ($this->writeQueue as $data) {
-            $x = \socket_write($this->socket, $data);
-            Logger::debug('Respond %d bytes', $x);
+            \socket_write($this->socket, $data);
+            // Logger::debug('Respond %d bytes', $x);
         }
         socket_set_nonblock($this->socket);
 

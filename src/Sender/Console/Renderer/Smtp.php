@@ -7,9 +7,8 @@ namespace Buggregator\Client\Sender\Console\Renderer;
 use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\ProtoType;
 use Buggregator\Client\Sender\Console\RendererInterface;
+use Buggregator\Client\Sender\Console\Support\RenderFile;
 use Buggregator\Client\Sender\Console\Support\RenderTable;
-use Buggregator\Client\Traffic\Smtp\Message;
-use Buggregator\Client\Traffic\Smtp\Parser;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -18,13 +17,11 @@ use Symfony\Component\Console\Output\OutputInterface;
 final class Smtp implements RendererInterface
 {
     use RenderTable;
-
-    private readonly Parser $parser;
+    use RenderFile;
 
     public function __construct(
         private readonly TemplateRenderer $renderer,
     ) {
-        $this->parser = new Parser();
     }
 
     public function isSupport(Frame $frame): bool
@@ -34,69 +31,79 @@ final class Smtp implements RendererInterface
 
     public function render(OutputInterface $output, Frame $frame): void
     {
-        $message = $this->parser->parse($frame->message);
-
+        // $message = $this->parser->parse($frame->message);
+        //
         // TODO implement attachments
-//        $attachments = [];
-//        foreach ($message->attachments ?? [] as $attachment) {
-//            $attachments[] = $attachment->;
-//        }
+        //        $attachments = [];
+        //        foreach ($message->attachments ?? [] as $attachment) {
+        //            $attachments[] = $attachment->;
+        //        }
+        //
+        // $this->renderer->render('smtp', [
+        //     'date' => $frame->time->format('Y-m-d H:i:s.u'),
+        //     'subject' => $message->subject,
+        //     'addresses' => $this->generateAddresses($message),
+        //     'body' => $message->textBody,
+        //     // 'attachments' => $attachments,
+        // ]);
 
-        $this->renderer->render('smtp', [
-            'date' => $frame->time->format('Y-m-d H:i:s.u'),
-            'subject' => $message->subject,
-            'addresses' => $this->generateAddresses($message),
-            'body' => $message->textBody,
-            // 'attachments' => $attachments,
+
+        $message = $frame->message;
+
+        $date = $frame->time->format('Y-m-d H:i:s.u');
+        $subject = $message->getHeaderLine('Subject');
+
+        $output->writeln(['', '<fg=white;bg=blue> SMTP </>', '']);
+        $this->renderKeyValueTable($output, '', [
+            'Time' => $date,
         ]);
 
-//        $date = $frame->time->format('Y-m-d H:i:s.u');
-//        $subject = $message->subject;
-//        $addresses = $this->generateAddresses($message);
-//
-//        $output->writeln(['', '<fg=white;bg=blue> SMTP </>', '']);
-//        $this->renderKeyValueTable($output, '', [
-//            'Time' => $date,
-//        ]);
+        // Protocol fields table
+        $output->writeln('');
+        $this->renderKeyValueTable(
+            $output,
+            'Protocol',
+            \array_map(static fn (array|string $value): string => \implode(', ', (array) $value), $message->getProtocol()),
+        );
 
-//        $output->writeln(['', '<fg=white;bg=blue> SMTP </>', '']);
-//        $this->renderKeyValueTable($output, '', [
-//            'Time' => $date,
-//        ]);
-//        $output->writeln('');
-//        $this->renderKeyValueTable(
-//            $output,
-//            'Addresses',
-//            \array_map(static fn(array $items): string => \implode(', ', $items), $addresses),
-//        );
-//
-//        $output->writeln(['', "<fg=white;options=bold>$subject</>", '<fg=gray>---</>', '']);
-//        $output->write($message->textBody, true, OutputInterface::OUTPUT_RAW);
-    }
+        // Headers table
+        $output->writeln('');
+        $this->renderKeyValueTable(
+            $output,
+            'Headers',
+            \array_map(static fn (array $value): string => \implode(', ', $value), $message->getHeaders()),
+        );
 
-    private function generateAddresses(Message $message): array
-    {
-        $addresses = [];
-        $data = $message->jsonSerialize();
+        // Subject
+        $output->writeln('<fg=white;options=bold>');
+        $output->write($subject, true, OutputInterface::OUTPUT_NORMAL);
+        $output->writeln('</><fg=gray>---</>');
 
-        foreach (['from', 'to', 'cc', 'bcc', 'reply_to'] as $type) {
-            if (($users = $this->prepareUsers($data, $type)) !== []) {
-                $addresses[$type] = \array_map(static fn(array $items): string => empty($items['name'])
-                    ? $items['email']
-                    : $items['name'] . ' [' . $items['email'] . ']', $users);
+        // Text body
+        foreach ($message->getMessages() as $text) {
+            $type = $text->getHeaderLine('Content-Type') ?: 'text/plain';
+            $output->writeln(['', "<fg=green>Body </><fg=yellow> $type </>", '']);
+            $output->write($text->getValue(), true, OutputInterface::OUTPUT_NORMAL);
+        }
+
+        // Attaches
+        if (\count($message->getAttaches()) > 0) {
+            // Attachments label
+            $output->writeln(['', "<bg=white;fg=gray;options=bold> Attached files </>"]);
+
+            foreach ($message->getAttaches() as $attach) {
+                $this->renderFile(
+                    $output,
+                    $attach->getClientFilename(),
+                    $attach->getSize(),
+                    $attach->getClientMediaType(),
+                );
             }
+            $output->writeln('');
         }
 
-        return $addresses;
-    }
+        // Raw body
+        // $output->write((string) $frame->message->getBody(), true, OutputInterface::OUTPUT_RAW);
 
-    protected function prepareUsers(array $payload, string $key): array
-    {
-        $users = [];
-        foreach ($payload[$key] as $user) {
-            $users[] = $user;
-        }
-
-        return $users;
     }
 }

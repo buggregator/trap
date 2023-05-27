@@ -45,8 +45,11 @@ final class DebugPage implements HandlerInterface
             );
         }
 
+        // if (\str_ends_with($request->getUri()->getPath(), '_debug/bar')) {
+        //     return new Response(301, ['Location' => '/_debug?success=1']);
+        // }
         if (\str_ends_with($request->getUri()->getPath(), '_debug/bar')) {
-            return new Response(301, ['Location' => '/_debug?success=1']);
+            return new Response(200, body: 'Hello World!');
         }
 
         return $next($request);
