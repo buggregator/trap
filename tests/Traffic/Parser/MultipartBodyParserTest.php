@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Tests\Traffic\Http;
+namespace Buggregator\Client\Tests\Traffic\Parser;
 
 use Buggregator\Client\Tests\FiberTrait;
 use Buggregator\Client\Traffic\Message\Multipart\Field;

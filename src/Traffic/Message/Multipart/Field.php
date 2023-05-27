@@ -23,7 +23,7 @@ final class Field extends Part
      */
     public static function fromArray(array $data): self
     {
-        return new self($data, $data['name'] ?? null, $data['value']);
+        return new self($data['headers'], $data['name'] ?? null, $data['value']);
     }
 
     /**

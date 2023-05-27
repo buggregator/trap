@@ -31,7 +31,7 @@ final class File extends Part implements UploadedFileInterface
      */
     public static function fromArray(array $data): self
     {
-        $self = new self($data, $data['name'] ?? null, $data['fileName']);
+        $self = new self($data['headers'], $data['name'] ?? null, $data['fileName']);
         $self->fileSize = $data['size'] ?? null;
         return $self;
     }
