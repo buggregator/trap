@@ -101,7 +101,7 @@ final class Test extends Command
                 $this->sendMailPackage(
                     $output,
                     $socket,
-                    \base64_encode(\file_get_contents(Info::TRAP_ROOT . '/resources/favicon.ico')) . "\r\n",
+                    \base64_encode(\file_get_contents(Info::TRAP_ROOT . '/resources/public/favicon.ico')) . "\r\n",
                     '',
                 );
                 $this->sendMailPackage($output, $socket, "\r\n", '');

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Sender;
 
-use Buggregator\Client\Proto\Frame;
+use Buggregator\Client\Info;
 use Buggregator\Client\Sender;
 use Buggregator\Client\Sender\Console\ConsoleRenderer;
 use Buggregator\Client\Sender\Console\HandlerInterface;
@@ -23,7 +23,7 @@ final class ConsoleSender implements Sender
 
         $templateRenderer = new TemplateRenderer(
             new HtmlRenderer(),
-            new TemplateEngine(__DIR__ . '/Console/Renderer/templates')
+            new TemplateEngine(Info::TRAP_ROOT . '/resources/templates')
         );
         // Configure renderer
         $renderer = new ConsoleRenderer($output);
@@ -42,9 +42,6 @@ final class ConsoleSender implements Sender
     ) {
     }
 
-    /**
-     * @param iterable<int, Frame> $frames
-     */
     public function send(iterable $frames): void
     {
         foreach ($frames as $frame) {

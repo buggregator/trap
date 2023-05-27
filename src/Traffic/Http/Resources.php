@@ -20,7 +20,7 @@ final class Resources implements HandlerInterface
         }
 
         if (\preg_match('#^/resources/([a-zA-Z0-9.\\-\\[\\]() _]+?\\.([a-zA-Z0-4]++))$#', $path, $matches)) {
-            $file = \sprintf("%s/resources/%s", Info::TRAP_ROOT, $matches[1]);
+            $file = \sprintf("%s/resources/public/%s", Info::TRAP_ROOT, $matches[1]);
 
             if (!\is_file($file)) {
                 return new Response(404);
