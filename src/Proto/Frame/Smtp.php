@@ -23,11 +23,14 @@ final class Smtp extends Frame
      */
     public function __toString(): string
     {
-        return (string)$this->message->getBody();
+        return \json_encode($this->message, \JSON_THROW_ON_ERROR);
     }
 
     public static function fromString(string $payload, DateTimeImmutable $time): self
     {
-        return new self($payload, $time);
+        $payload = \json_decode($payload, true, \JSON_THROW_ON_ERROR);
+        $message = Message\Smtp::fromArray($payload);
+
+        return new self($message, $time);
     }
 }

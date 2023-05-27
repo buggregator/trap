@@ -19,7 +19,7 @@ abstract class Part implements JsonSerializable
         $this->setHeaders($headers);
     }
 
-    public static function create(array $headers): self
+    public static function create(array $headers): static
     {
         /**
          * Check Content-Disposition header

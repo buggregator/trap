@@ -11,6 +11,11 @@ trait StreamBody
 {
     private ?StreamInterface $stream = null;
 
+    public function hasBody(): bool
+    {
+        return $this->stream !== null;
+    }
+
     public function getBody(): StreamInterface
     {
         if (null === $this->stream) {

@@ -11,6 +11,16 @@ use Psr\Http\Message\StreamInterface;
 
 /**
  * @method StreamInterface getBody() Get full raw message body
+ *
+ * @psalm-import-type FieldDataArray from Field
+ * @psalm-import-type FileDataArray from File
+ *
+ * @psalm-type SmtpDataArray = array{
+ *     protocol: array<string, string|list<string>>,
+ *     headers: array<string, list<string>>,
+ *     messages: array<int, FieldDataArray>,
+ *     attaches: array<int, FileDataArray>
+ * }
  */
 final class Smtp implements JsonSerializable
 {
@@ -33,6 +43,35 @@ final class Smtp implements JsonSerializable
     public static function create(array $protocol, array $headers): self
     {
         return new self($protocol, $headers);
+    }
+
+    /**
+     * @param SmtpDataArray $data
+     */
+    public static function fromArray(array $data): self
+    {
+        $self = new self($data['protocol'], $data['headers']);
+        foreach ($data['messages'] as $message) {
+            $self->messages[] = Field::fromArray($message);
+        }
+        foreach ($data['attaches'] as $attach) {
+            $self->attaches[] = File::fromArray($attach);
+        }
+
+        return $self;
+    }
+
+    /**
+     * @return SmtpDataArray
+     */
+    public function jsonSerialize(): array
+    {
+        return [
+            'protocol' => $this->protocol,
+            'headers' => $this->headers,
+            'messages' => $this->messages,
+            'attaches' => $this->attaches,
+        ];
     }
 
     /**
@@ -85,15 +124,5 @@ final class Smtp implements JsonSerializable
     private function getBcc(): array
     {
         return $this->protocol['BCC'] ?? [];
-    }
-
-    public function jsonSerialize(): array
-    {
-        return [
-            'protocol' => $this->protocol,
-            'headers' => $this->headers,
-            'messages' => $this->messages,
-            'attaches' => $this->attaches,
-        ];
     }
 }
