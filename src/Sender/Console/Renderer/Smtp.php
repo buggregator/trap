@@ -7,9 +7,8 @@ namespace Buggregator\Client\Sender\Console\Renderer;
 use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\ProtoType;
 use Buggregator\Client\Sender\Console\RendererInterface;
+use Buggregator\Client\Sender\Console\Support\RenderFile;
 use Buggregator\Client\Sender\Console\Support\RenderTable;
-use Buggregator\Client\Traffic\Message;
-use Buggregator\Client\Traffic\Parser;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -18,6 +17,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 final class Smtp implements RendererInterface
 {
     use RenderTable;
+    use RenderFile;
 
     public function __construct(
         private readonly TemplateRenderer $renderer,
@@ -87,11 +87,19 @@ final class Smtp implements RendererInterface
         }
 
         // Attaches
-        foreach ($message->getAttaches() as $attach) {
-            $type = $attach->getHeaderLine('Content-Type');
-            $output->writeln(['', "<fg=green>Attached file </><fg=yellow> $type </>"]);
-            $output->writeln('Name: ' . $attach->getClientFilename());
-            $output->writeln('Size: ' . $attach->getSize());
+        if (\count($message->getAttaches()) > 0) {
+            // Attachments label
+            $output->writeln(['', "<bg=white;fg=gray;options=bold> Attached files </>"]);
+
+            foreach ($message->getAttaches() as $attach) {
+                $this->renderFile(
+                    $output,
+                    $attach->getClientFilename(),
+                    $attach->getSize(),
+                    $attach->getClientMediaType(),
+                );
+            }
+            $output->writeln('');
         }
 
         // Raw body
