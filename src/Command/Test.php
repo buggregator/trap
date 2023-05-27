@@ -20,13 +20,20 @@ final class Test extends Command
 {
     protected static $defaultName = 'test';
 
+    private string $addr = '127.0.0.1';
+    private int $port = 9912;
+
     protected function execute(
         InputInterface $input,
         OutputInterface $output,
     ): int {
-        // $this->dump();
-        // \usleep(100_000);
+        $this->dump();
+        \usleep(100_000);
         $this->mail($output, true);
+        \usleep(100_000);
+        $this->mail($output, false);
+        \usleep(100_000);
+        $this->sendContent('sentry.http');
 
         return Command::SUCCESS;
     }
@@ -34,7 +41,7 @@ final class Test extends Command
     private function dump(): void
     {
         $_SERVER['VAR_DUMPER_FORMAT'] = 'server';
-        $_SERVER['VAR_DUMPER_SERVER'] = '127.0.0.1:9912';
+        $_SERVER['VAR_DUMPER_SERVER'] = "$this->addr:$this->port";
 
         \dump(['foo' => 'bar']);
         \dump(123);
@@ -45,7 +52,7 @@ final class Test extends Command
     {
         try {
             $socket = \socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-            \socket_connect($socket, '127.0.0.1', 9912);
+            \socket_connect($socket, $this->addr, $this->port);
 
             $this->sendMailPackage($output, $socket, '', '220 ');
             $this->sendMailPackage($output, $socket, "HELO\r\n", '250 ');
@@ -169,6 +176,38 @@ final class Test extends Command
         $prefix = \substr($buf, 0, \strlen($expectedResponsePrefix));
         if ($prefix !== $expectedResponsePrefix) {
             throw new RuntimeException("Invalid response `$buf`. Prefix `$expectedResponsePrefix` expected.");
+        }
+    }
+
+    /**
+     * @param non-empty-string $file File from the {@link resources/payloads} directory
+     */
+    private function sendContent(string $file): void
+    {
+        try {
+            $socket = @\socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+            @\socket_connect($socket, $this->addr, $this->port);
+
+            $fp = @\fopen(Info::TRAP_ROOT . '/resources/payloads/' . $file, 'rb');
+            if ($fp === false) {
+                throw new RuntimeException('Cannot open file.');
+            }
+            @\flock($fp, LOCK_SH);
+            while (!\feof($fp)) {
+                $read = \fread($fp, 4096);
+                @\socket_write($socket, $read);
+            }
+
+        } catch (\Throwable $e) {
+            Logger::exception($e, "$file sending error");
+        } finally {
+            if (isset($fp) && \is_resource($fp)) {
+                @\flock($fp, LOCK_UN);
+                @\fclose($fp);
+            }
+            if (isset($socket)) {
+                @\socket_close($socket);
+            }
         }
     }
 }

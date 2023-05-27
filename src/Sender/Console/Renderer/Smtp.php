@@ -58,7 +58,16 @@ final class Smtp implements RendererInterface
             'Time' => $date,
         ]);
 
+        // Protocol fields table
+        $output->writeln('');
+        $this->renderKeyValueTable(
+            $output,
+            'Protocol',
+            \array_map(static fn (array|string $value): string => \implode(', ', (array) $value), $message->getProtocol()),
+        );
+
         // Headers table
+        $output->writeln('');
         $this->renderKeyValueTable(
             $output,
             'Headers',
@@ -88,31 +97,5 @@ final class Smtp implements RendererInterface
         // Raw body
         // $output->write((string) $frame->message->getBody(), true, OutputInterface::OUTPUT_RAW);
 
-    }
-
-    private function generateAddresses(Message\Smtp $message): array
-    {
-        $addresses = [];
-        $data = $message->jsonSerialize();
-
-        foreach (['from', 'to', 'cc', 'bcc', 'reply_to'] as $type) {
-            if (($users = $this->prepareUsers($data, $type)) !== []) {
-                $addresses[$type] = \array_map(static fn(array $items): string => empty($items['name'])
-                    ? $items['email']
-                    : $items['name'] . ' [' . $items['email'] . ']', $users);
-            }
-        }
-
-        return $addresses;
-    }
-
-    protected function prepareUsers(array $payload, string $key): array
-    {
-        $users = [];
-        foreach ($payload[$key] as $user) {
-            $users[] = $user;
-        }
-
-        return $users;
     }
 }

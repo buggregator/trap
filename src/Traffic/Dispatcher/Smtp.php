@@ -33,9 +33,9 @@ final class Smtp implements Dispatcher
         $message = null;
         while (!$stream->isFinished()) {
             $response = $stream->fetchLine();
-            if (\preg_match('/^(EHLO|HELO)/', $response)) {
+            if (\preg_match('/^(?:EHLO|HELO)/', $response)) {
                 $stream->sendData($this->createResponse(self::OK));
-            } elseif (\preg_match('/^(MAIL FROM:\s*<(.*)>)/', $response, $matches)) {
+            } elseif (\preg_match('/^MAIL FROM:\s*<(.*)>/', $response, $matches)) {
                 $protocol['FROM'] = $matches[1];
                 $stream->sendData($this->createResponse(self::OK));
             } elseif (\preg_match('/^RCPT TO:\s*<(.*)>/', $response, $matches)) {

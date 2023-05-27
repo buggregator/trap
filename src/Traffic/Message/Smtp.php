@@ -116,6 +116,14 @@ final class Smtp implements JsonSerializable
     }
 
     /**
+     * @return array<string, string|list<string>>
+     */
+    public function getProtocol(): array
+    {
+        return $this->protocol;
+    }
+
+    /**
      * BCCs are recipients passed as RCPTs but not
      * in the body of the mail.
      *
