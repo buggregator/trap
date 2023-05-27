@@ -7,38 +7,40 @@ namespace Buggregator\Client\Traffic\Message;
 use Buggregator\Client\Traffic\Message\Multipart\Field;
 use Buggregator\Client\Traffic\Message\Multipart\File;
 use JsonSerializable;
-use Nyholm\Psr7\Stream;
 use Psr\Http\Message\StreamInterface;
 
+/**
+ * @method StreamInterface getBody() Get full raw message body
+ */
 final class Smtp implements JsonSerializable
 {
-    private ?StreamInterface $stream = null;
-
     use Headers;
     use StreamBody;
 
     /** @var Field[] */
-    private array $texts = [];
+    private array $messages = [];
 
     /** @var File[] */
     private array $attaches = [];
 
-    private function __construct(array $headers)
-    {
+    private function __construct(
+        private array $protocol,
+        array $headers,
+    ) {
         $this->setHeaders($headers);
     }
 
-    public static function create(array $headers): self
+    public static function create(array $protocol, array $headers): self
     {
-        return new self($headers);
+        return new self($protocol, $headers);
     }
 
     /**
      * @return Field[]
      */
-    public function getTexts(): array
+    public function getMessages(): array
     {
-        return $this->texts;
+        return $this->messages;
     }
 
     /**
@@ -55,7 +57,7 @@ final class Smtp implements JsonSerializable
     public function withTexts(array $texts): self
     {
         $clone = clone $this;
-        $clone->texts = $texts;
+        $clone->messages = $texts;
         return $clone;
     }
 
@@ -69,30 +71,10 @@ final class Smtp implements JsonSerializable
         return $clone;
     }
 
-    /**
-     * Get full raw message body
-     */
-    public function getBody(): StreamInterface
+    public function getSender(): string
     {
-        if (null === $this->stream) {
-            $this->stream = Stream::create('');
-        }
-
-        return $this->stream;
+        return $this->protocol['FROM'] ?? $this->getHeaderLine('From');
     }
-
-    public function withBody(StreamInterface $body): self
-    {
-        if ($body === $this->stream) {
-            return $this;
-        }
-
-        $new = clone $this;
-        $new->stream = $body;
-
-        return $new;
-    }
-
 
     /**
      * BCCs are recipients passed as RCPTs but not
@@ -100,35 +82,18 @@ final class Smtp implements JsonSerializable
      *
      * @return non-empty-string[]
      */
-    private function getBccs(): array
+    private function getBcc(): array
     {
-        return \array_values(
-            \array_filter($this->allRecipients, function (string $recipient) {
-                foreach (\array_merge($this->recipients, $this->ccs) as $publicRecipient) {
-                    if (\str_contains($publicRecipient, $recipient)) {
-                        return false;
-                    }
-                }
-
-                return true;
-            }),
-        );
+        return $this->protocol['BCC'] ?? [];
     }
 
     public function jsonSerialize(): array
     {
         return [
-            'id' => $this->id,
-            'from' => $this->sender,
-            'reply_to' => $this->replyTo,
-            'subject' => $this->subject,
-            'to' => $this->recipients,
-            'cc' => $this->ccs,
-            'bcc' => $this->getBccs(),
-            'text' => $this->textBody,
-            'html' => $this->htmlBody,
-            'raw' => $this->raw,
-            'attachments' => $this->attachments,
+            'protocol' => $this->protocol,
+            'headers' => $this->headers,
+            'messages' => $this->messages,
+            'attaches' => $this->attaches,
         ];
     }
 }

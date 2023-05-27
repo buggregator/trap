@@ -71,7 +71,7 @@ final class Smtp implements RendererInterface
         $output->writeln('</><fg=gray>---</>');
 
         // Text body
-        foreach ($message->getTexts() as $text) {
+        foreach ($message->getMessages() as $text) {
             $type = $text->getHeaderLine('Content-Type') ?: 'text/plain';
             $output->writeln(['', "<fg=green>Body </><fg=yellow> $type </>", '']);
             $output->write($text->getValue(), true, OutputInterface::OUTPUT_NORMAL);

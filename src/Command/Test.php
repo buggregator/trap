@@ -50,8 +50,8 @@ final class Test extends Command
             $this->sendMailPackage($output, $socket, '', '220 ');
             $this->sendMailPackage($output, $socket, "HELO\r\n", '250 ');
             $this->sendMailPackage($output, $socket, "MAIL FROM: <someusername@foo.bar>\r\n", '250 ');
-            // $this->sendMailPackage($output, $socket, "RCPT TO: <user1@company.tld>\r\n", '250 ');
-            // $this->sendMailPackage($output, $socket, "RCPT TO: <user2@company.tld>\r\n", '250 ');
+            $this->sendMailPackage($output, $socket, "RCPT TO: <user1@company.tld>\r\n", '250 ');
+            $this->sendMailPackage($output, $socket, "RCPT TO: <user2@company.tld>\r\n", '250 ');
             $this->sendMailPackage($output, $socket, "DATA\r\n", '354 ');
 
             // Send Data

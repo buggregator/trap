@@ -8,18 +8,13 @@ use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UploadedFileInterface;
 
-class File extends Part implements UploadedFileInterface
+final class File extends Part implements UploadedFileInterface
 {
     private UploadedFileInterface $uploadedFile;
 
     public function __construct(array $headers, ?string $name = null, private ?string $fileName = null)
     {
         parent::__construct($headers, $name);
-    }
-
-    public function isFile(): bool
-    {
-        return true;
     }
 
     public function setStream(StreamInterface $stream, ?int $size = null, int $code = \UPLOAD_ERR_OK): void
@@ -61,6 +56,14 @@ class File extends Part implements UploadedFileInterface
     public function getClientMediaType(): ?string
     {
         return $this->getUploadedFile()->getClientMediaType();
+    }
+
+    public function jsonSerialize(): array
+    {
+        return parent::jsonSerialize() + [
+                'size' => $this->getSize(),
+                'fileName' => $this->fileName,
+            ];
     }
 
     private function getUploadedFile(): UploadedFileInterface

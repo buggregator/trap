@@ -11,11 +11,6 @@ final class Field extends Part
         parent::__construct($headers, $name);
     }
 
-    public function isFile(): bool
-    {
-        return false;
-    }
-
     public function getValue(): string
     {
         return $this->value;
@@ -26,5 +21,12 @@ final class Field extends Part
         $clone = clone $this;
         $clone->value = $value;
         return $clone;
+    }
+
+    public function jsonSerialize(): array
+    {
+        return parent::jsonSerialize() + [
+            'value' => $this->value,
+        ];
     }
 }

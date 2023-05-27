@@ -16,7 +16,7 @@ use Psr\Http\Message\StreamInterface;
  */
 final class Smtp
 {
-    public function parseStream(StreamClient $stream): Message\Smtp
+    public function parseStream(array $protocol, StreamClient $stream): Message\Smtp
     {
         $headerBlock = Http::getBlock($stream);
         $headers = Http::parseHeaders($headerBlock);
@@ -25,7 +25,7 @@ final class Smtp
         $fileStream->write($headerBlock . "\r\n\r\n");
 
         // Create message with headers only.
-        $message = Message\Smtp::create(headers: $headers);
+        $message = Message\Smtp::create($protocol, headers: $headers);
 
         // Defaults
         $boundary = "\r\n.\r\n";

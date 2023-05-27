@@ -22,6 +22,9 @@ trait Headers
         return isset($this->headerNames[\strtr($header, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')]);
     }
 
+    /**
+     * @return string[]
+     */
     public function getHeader(string $header): array
     {
         if (!\is_string($header)) {

@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Buggregator\Client\Traffic\Message\Multipart;
 
 use Buggregator\Client\Traffic\Message\Headers;
+use JsonSerializable;
 use RuntimeException;
 
-abstract class Part
+abstract class Part implements JsonSerializable
 {
     use Headers;
 
@@ -59,5 +60,11 @@ abstract class Part
         return $clone;
     }
 
-    abstract public function isFile(): bool;
+    public function jsonSerialize(): array
+    {
+        return [
+            'name' => $this->name,
+            'headers' => $this->headers,
+        ];
+    }
 }
