@@ -91,6 +91,9 @@ trait Headers
         return $new;
     }
 
+    /**
+     * @param array<array-key, scalar|list<scalar>> $headers
+     */
     private function setHeaders(array $headers): void
     {
         foreach ($headers as $header => $value) {

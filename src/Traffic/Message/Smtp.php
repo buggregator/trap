@@ -6,6 +6,8 @@ namespace Buggregator\Client\Traffic\Message;
 
 use Buggregator\Client\Traffic\Message\Multipart\Field;
 use Buggregator\Client\Traffic\Message\Multipart\File;
+use Buggregator\Client\Traffic\Message\Smtp\Contact;
+use Buggregator\Client\Traffic\Message\Smtp\MessageFormat;
 use JsonSerializable;
 use Psr\Http\Message\StreamInterface;
 
@@ -33,13 +35,21 @@ final class Smtp implements JsonSerializable
     /** @var File[] */
     private array $attaches = [];
 
+    /**
+     * @param array<array-key, list<scalar>> $protocol
+     * @param array<array-key, scalar|list<scalar>> $headers
+     */
     private function __construct(
-        private array $protocol,
+        private readonly array $protocol,
         array $headers,
     ) {
         $this->setHeaders($headers);
     }
 
+    /**
+     * @param array<array-key, list<scalar>> $protocol
+     * @param array<array-key, scalar|list<scalar>> $headers
+     */
     public static function create(array $protocol, array $headers): self
     {
         return new self($protocol, $headers);
@@ -91,12 +101,12 @@ final class Smtp implements JsonSerializable
     }
 
     /**
-     * @param Field[] $texts
+     * @param Field[] $messages
      */
-    public function withTexts(array $texts): self
+    public function withMessages(array $messages): self
     {
         $clone = clone $this;
-        $clone->messages = $texts;
+        $clone->messages = $messages;
         return $clone;
     }
 
@@ -110,11 +120,6 @@ final class Smtp implements JsonSerializable
         return $clone;
     }
 
-    public function getSender(): string
-    {
-        return $this->protocol['FROM'] ?? $this->getHeaderLine('From');
-    }
-
     /**
      * @return array<string, string|list<string>>
      */
@@ -124,13 +129,71 @@ final class Smtp implements JsonSerializable
     }
 
     /**
+     * @return Contact[]
+     */
+    public function getSender(): array
+    {
+        $addrs = \array_unique(\array_merge((array)($this->protocol['FROM'] ?? []), $this->getHeader('From')));
+
+        return \array_map([$this, 'parseContact'], $addrs);
+    }
+
+    /**
+     * @return Contact[]
+     */
+    public function getTo(): array
+    {
+        return \array_map([$this, 'parseContact'], $this->getHeader('To'));
+    }
+
+    /**
+     * @return Contact[]
+     */
+    public function getCc(): array
+    {
+        return \array_map([$this, 'parseContact'], $this->getHeader('Cc'));
+    }
+
+    /**
      * BCCs are recipients passed as RCPTs but not
      * in the body of the mail.
      *
-     * @return non-empty-string[]
+     * @return Contact[]
      */
-    private function getBcc(): array
+    public function getBcc(): array
     {
-        return $this->protocol['BCC'] ?? [];
+        return \array_map([$this, 'parseContact'], $this->protocol['BCC'] ?? []);
+    }
+
+    /**
+     * @return Contact[]
+     */
+    public function getReplyTo(): array
+    {
+        return \array_map([$this, 'parseContact'], $this->getHeader('Reply-To'));
+    }
+
+    public function getSubject(): string
+    {
+        return \implode(' ', $this->getHeader('Subject'));
+    }
+
+    public function getMessage(MessageFormat $type): ?Field
+    {
+        foreach ($this->messages as $message) {
+            if (\stripos($message->getHeaderLine('Content-Type'), $type->contentType()) !== false) {
+                return $message;
+            }
+        }
+
+        return null;
+    }
+
+    private function parseContact(string $line): Contact {
+        if (\preg_match('/^\s*(?<name>.*)\s*<(?<email>.*)>\s*$/', $line, $matches) !== 1) {
+            return new Contact($matches['name'] ?: null, $matches['email'] ?: null);
+        }
+
+        return new Contact(null, $line);
     }
 }

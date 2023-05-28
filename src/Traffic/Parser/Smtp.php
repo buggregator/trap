@@ -16,6 +16,9 @@ use Psr\Http\Message\StreamInterface;
  */
 final class Smtp
 {
+    /**
+     * @param array<string, list<string>> $protocol
+     */
     public function parseStream(array $protocol, StreamClient $stream): Message\Smtp
     {
         $headerBlock = Http::getBlock($stream);
@@ -94,7 +97,7 @@ final class Smtp
             value: $content,
         );
 
-        return $message->withTexts([$body]);
+        return $message->withMessages([$body]);
     }
 
     private function processMultipartForm(Message\Smtp $message, StreamInterface $stream): Message\Smtp
@@ -114,6 +117,6 @@ final class Smtp
             }
         }
 
-        return $message->withTexts($texts)->withAttaches($attaches);
+        return $message->withMessages($texts)->withAttaches($attaches);
     }
 }
