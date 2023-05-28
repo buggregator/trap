@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Sender;
 
+use Buggregator\Client\Info;
+use Buggregator\Client\Support\Uuid;
+
 final class SaasSender extends SocketSender
 {
     private string $uuid;
@@ -12,9 +15,9 @@ final class SaasSender extends SocketSender
         string $uuid = null,
         string $host = '127.0.0.1',
         int $port = 9912,
-        private readonly string $clientVersion = '0.1',
+        private readonly string $clientVersion = Info::VERSION,
     ) {
-        $this->uuid = $uuid ?? $this->createUuid();
+        $this->uuid = $uuid ?? Uuid::generate();
 
         parent::__construct($host, $port);
     }
@@ -22,18 +25,5 @@ final class SaasSender extends SocketSender
     protected function makePackage(string $payload): string
     {
         return "1|$this->clientVersion|$this->uuid|$payload\n";
-    }
-
-    /**
-     * Generate UUID v4
-     */
-    private function createUuid(): string
-    {
-        $data = \random_bytes(16);
-
-        $data[6] = chr(ord($data[6]) & 0x0f | 0x40); // set version to 0100
-        $data[8] = chr(ord($data[8]) & 0x3f | 0x80); // set bits 6-7 to 10
-
-        return \vsprintf('%s%s-%s-%s-%s-%s%s%s', \str_split(\bin2hex($data), 4));
     }
 }

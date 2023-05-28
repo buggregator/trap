@@ -80,7 +80,6 @@ final class Run extends Command
             new Sender\SaasSender(
                 host: '127.0.0.1',
                 port: 9099,
-                clientVersion: Info::VERSION,
             )
         );
 
