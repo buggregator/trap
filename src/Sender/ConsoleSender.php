@@ -32,6 +32,7 @@ final class ConsoleSender implements Sender
         $renderer->register(new Renderer\Monolog($templateRenderer));
         $renderer->register(new Renderer\Smtp($templateRenderer));
         $renderer->register(new Renderer\Http());
+        $renderer->register(new Renderer\Binary());
         $renderer->register(new Renderer\Plain($templateRenderer));
 
         return new self($renderer);

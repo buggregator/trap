@@ -17,15 +17,12 @@ final class VarDumper extends Frame
         parent::__construct(ProtoType::VarDumper, $time);
     }
 
-    /**
-     * @throws \JsonException
-     */
     public function __toString(): string
     {
         return $this->dump;
     }
 
-    static public function fromString(string $payload, DateTimeImmutable $time): Frame
+    public static function fromString(string $payload, DateTimeImmutable $time): Frame
     {
         return new self($payload, $time);
     }

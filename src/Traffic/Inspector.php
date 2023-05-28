@@ -8,8 +8,8 @@ use Buggregator\Client\Logger;
 use Buggregator\Client\Processable;
 use Buggregator\Client\Proto\Buffer;
 use Buggregator\Client\Socket\StreamClient;
+use Buggregator\Client\Traffic\Dispatcher\Binary;
 use Fiber;
-use RuntimeException;
 
 final class Inspector implements Processable
 {
@@ -61,7 +61,6 @@ final class Inspector implements Processable
                     break 2;
                 }
                 if ($result === false) {
-                    Logger::info("Dispatcher $key has declined the data.");
                     unset($dispatchers[$key]);
                 }
             }
@@ -75,13 +74,9 @@ final class Inspector implements Processable
             $stream->waitData();
         } while (count($dispatchers) > 0);
 
-        if ($dispatchers === []) {
-            Logger::debug(\base64_encode($stream->getData()));
-            throw new RuntimeException('Stream data detection failed.');
-        }
-        $dispatcher = \reset($dispatchers);
-
-        Logger::debug('Got %s', $dispatcher::class);
+        $dispatcher = $dispatchers === []
+            ? new Binary()
+            : \reset($dispatchers);
 
         foreach ($dispatcher->dispatch($stream) as $frame) {
             // Queue frame to send

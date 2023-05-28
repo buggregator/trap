@@ -51,8 +51,6 @@ final class Http implements Dispatcher
             return true;
         }
 
-        Logger::info($data);
-
         return false;
     }
 }

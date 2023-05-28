@@ -34,6 +34,9 @@ final class Test extends Command
         $this->mail($output, false);
         \usleep(100_000);
         $this->sendContent('sentry.http');
+        \usleep(100_000);
+        $this->sendContent('90275024.png');
+
 
         return Command::SUCCESS;
     }
