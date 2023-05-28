@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Proto\Frame;
 
+use Buggregator\Client\Proto\FilesCarrier;
 use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\ProtoType;
 use Buggregator\Client\Traffic\Message;
 use DateTimeImmutable;
 
-final class Smtp extends Frame
+final class Smtp extends Frame implements FilesCarrier
 {
     public function __construct(
         public readonly Message\Smtp $message,
@@ -32,5 +33,15 @@ final class Smtp extends Frame
         $message = Message\Smtp::fromArray($payload);
 
         return new self($message, $time);
+    }
+
+    public function hasFiles(): bool
+    {
+        return \count($this->message->getAttaches()) > 0;
+    }
+
+    public function getFiles(): array
+    {
+        return $this->message->getAttaches();
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Proto\Frame;
 
+use Buggregator\Client\Proto\FilesCarrier;
 use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\ProtoType;
 use DateTimeImmutable;
@@ -11,7 +12,7 @@ use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\ServerRequestInterface;
 
-final class Http extends Frame
+final class Http extends Frame implements FilesCarrier
 {
     public function __construct(
         public readonly ServerRequestInterface $request,
@@ -38,7 +39,7 @@ final class Http extends Frame
         ], JSON_THROW_ON_ERROR);
     }
 
-    static public function fromString(string $payload, DateTimeImmutable $time): Frame
+    public static function fromString(string $payload, DateTimeImmutable $time): Frame
     {
         $payload = \json_decode($payload, true, \JSON_THROW_ON_ERROR);
 
@@ -77,5 +78,15 @@ final class Http extends Frame
                 static fn(int $carry, array $file): int => $carry + $file['size'],
                 0
             );
+    }
+
+    public function hasFiles(): bool
+    {
+        return \count($this->request->getUploadedFiles()) > 0;
+    }
+
+    public function getFiles(): array
+    {
+        return $this->request->getUploadedFiles();
     }
 }

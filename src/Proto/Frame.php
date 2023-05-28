@@ -15,7 +15,7 @@ abstract class Frame implements \Stringable, \JsonSerializable
     ) {
     }
 
-    abstract static public function fromString(string $payload, DateTimeImmutable $time): self;
+    abstract public static function fromString(string $payload, DateTimeImmutable $time): self;
 
     /**
      * @return int<0, max>
@@ -25,7 +25,7 @@ abstract class Frame implements \Stringable, \JsonSerializable
         return \strlen((string)$this);
     }
 
-    public final function jsonSerialize(): array
+    final public function jsonSerialize(): array
     {
         return [
             'time' => $this->time->format('Y-m-d H:i:s.u'),
