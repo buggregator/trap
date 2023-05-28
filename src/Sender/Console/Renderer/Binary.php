@@ -18,6 +18,40 @@ final class Binary implements RendererInterface
 {
     use RenderFile;
 
+    private const BYTE_REPLACES = [
+        '[ ]' => ' ',
+        '[\\x00]' => '<fg=red>0</>',
+        // '[\\x01]' => '<fg=red>1</>',
+        // '[\\x02]' => '<fg=red>2</>',
+        // '[\\x03]' => '<fg=red>3</>',
+        // '[\\x04]' => '<fg=red>4</>',
+        // '[\\x05]' => '<fg=red>5</>',
+        // '[\\x06]' => '<fg=red>6</>',
+        '[\\x07]' => '<fg=green>a</>',
+        '[\\x08]' => '<fg=green>b</>',
+        '[\\x09]' => '<fg=green>t</>',
+        '[\\x0a]' => '<fg=green>n</>',
+        '[\\x0b]' => '<fg=green>v</>',
+        '[\\x0c]' => '<fg=green>f</>',
+        '[\\x0d]' => '<fg=green>r</>',
+        // '[\\x0e]' => '<fg=red>e</>',
+        // '[\\x0f]' => '<fg=red>f</>',
+        // '[\\x10]' => '<fg=yellow>0</>',
+        // '[\\x11]' => '<fg=yellow>1</>',
+        // '[\\x12]' => '<fg=yellow>2</>',
+        // '[\\x13]' => '<fg=yellow>3</>',
+        // '[\\x14]' => '<fg=yellow>4</>',
+        // '[\\x15]' => '<fg=yellow>5</>',
+        // '[\\x16]' => '<fg=yellow>6</>',
+        // '[\\x17]' => '<fg=yellow>7</>',
+        // '[\\x18]' => '<fg=yellow>8</>',
+        // '[\\x19]' => '<fg=yellow>9</>',
+        // '[\\x1a]' => '<fg=yellow>a</>',
+        '[\\x1b]' => '<fg=green>e</>',
+        // '[\\x7f]' => '<fg=green>d</>',
+        '/[^[:print:]]/' => '<fg=gray>.</>',
+    ];
+
     public function __construct(
         public readonly int $printBytes = 1024,
     ) { }
@@ -71,6 +105,7 @@ final class Binary implements RendererInterface
         );
         $lines = \array_chunk($hexes, 16);
         $offset = 0;
+        $s = '<fg=yellow>';
         foreach ($lines as $line) {
             $hexes = \str_pad(\implode(' ', $line), 47, ' ');
             $hexes = \substr($hexes, 0, 23) . ' ' . \substr($hexes, 23); // Add space between in the middle
@@ -78,7 +113,10 @@ final class Binary implements RendererInterface
                 '<info>%s</info>  %s  %s',
                 \str_pad(\dechex($offset), 8, '0', \STR_PAD_LEFT),
                 $hexes,
-                \preg_replace('/[^[:print:]]/', '.', substr($read, $offset, 16)),
+                \preg_replace(
+                    \array_keys(self::BYTE_REPLACES),
+                    \array_values(self::BYTE_REPLACES),
+                    \substr($read, $offset, 16)),
             ));
             $offset += 16;
         }
