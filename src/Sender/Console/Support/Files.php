@@ -6,7 +6,11 @@ namespace Buggregator\Client\Sender\Console\Support;
 
 use Symfony\Component\Console\Output\OutputInterface;
 
-trait RenderFile
+/**
+ * @internal
+ * @psalm-internal Buggregator\Client\Sender\Console
+ */
+final class Files
 {
     /**
      * Render file info. Example:
@@ -21,7 +25,7 @@ trait RenderFile
      *  │ico│  unknown size
      *  └───┘  image/x-icon
      */
-    private function renderFile(
+    public static function renderFile(
         OutputInterface $output,
         string $fileName,
         ?int $size,
@@ -33,7 +37,7 @@ trait RenderFile
         $ex = \strlen($ex) > 3 ? '   ' :  \str_pad($ex, 3, ' ', \STR_PAD_BOTH);
 
         // File size
-        $sizeStr = $this->normalizeSize($size) ?? 'unknown size';
+        $sizeStr = self::normalizeSize($size) ?? 'unknown size';
 
         // Header with top border
         $output->writeln("<bg=black;fg=magenta> ┌───┐</>  <info>$fileName</info>");
@@ -51,7 +55,7 @@ trait RenderFile
         $output->writeln("<bg=black;fg=magenta> └───┘</>  <fg=gray>$type</>");
     }
 
-    public function normalizeSize(?int $size): ?string
+    public static function normalizeSize(?int $size): ?string
     {
         if ($size === null) {
             return null;

@@ -8,9 +8,13 @@ use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Terminal;
 
-trait RenderTable
+/**
+ * @internal
+ * @psalm-internal Buggregator\Client\Sender\Console
+ */
+final class Tables
 {
-    private function renderKeyValueTable(OutputInterface $output, string $title, array $data): void
+    public static function renderKeyValueTable(OutputInterface $output, string $title, array $data): void
     {
         $table = (new Table($output))->setHeaderTitle($title);
         if ($data === []) {

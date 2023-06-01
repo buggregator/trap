@@ -7,7 +7,8 @@ namespace Buggregator\Client\Sender\Console\Renderer;
 use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\ProtoType;
 use Buggregator\Client\Sender\Console\RendererInterface;
-use Buggregator\Client\Sender\Console\Support\RenderFile;
+use Buggregator\Client\Sender\Console\Support\Common;
+use Buggregator\Client\Sender\Console\Support\Files;
 use Fiber;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -16,8 +17,6 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 final class Binary implements RendererInterface
 {
-    use RenderFile;
-
     private const BYTE_REPLACES = [
         '[ ]' => ' ',
         '[\\x00]' => '<fg=red>0</>',
@@ -53,7 +52,7 @@ final class Binary implements RendererInterface
     ];
 
     public function __construct(
-        public readonly int $printBytes = 1024,
+        public readonly int $printBytes = 512,
     ) { }
 
     public function isSupport(Frame $frame): bool
@@ -65,16 +64,15 @@ final class Binary implements RendererInterface
     {
         \assert($frame instanceof Frame\Binary);
 
-        $output->writeln([
-            '',
-            '<fg=white;bg=blue> BINARY </>',
-            '',
-            \sprintf('<info>Time:</> <fg=gray>%s</>', $frame->time->format('Y-m-d H:i:s.u')),
-            \sprintf('<info>Size:</> <fg=gray>%s</>', $this->normalizeSize($frame->getSize())),
-            '',
+        Common::renderHeader1($output, 'BINARY');
+
+        $size = $frame->getSize();
+        Common::renderMetadata($output, [
+            'Time' => $frame->time->format('Y-m-d H:i:s.u'),
+            'Size' => Files::normalizeSize($size) . ($size > 1024 ? \sprintf(' (%d bytes)', $size) : ''),
         ]);
 
-        if ($frame->getSize() === 0) {
+        if ($size === 0) {
             return;
         }
 
@@ -84,16 +82,13 @@ final class Binary implements RendererInterface
         Fiber::suspend();
 
         // Print header if needed
-        if ($this->printBytes < $frame->getSize()) {
-            $output->writeln(
-                \sprintf(
-                    '<fg=white;options=bold>First %d bytes of %d </>',
-                    $this->printBytes,
-                    $frame->getSize(),
-                ),
-            );
+        if ($this->printBytes < $size) {
+            Common::renderHeader3($output, \sprintf('First %d bytes of %d', $this->printBytes, $size));
+        } else {
+            // Just empty line
+            $output->writeln('');
         }
-        $read = $stream->read(\min($this->printBytes, $frame->getSize()));
+        $read = $stream->read(\min($this->printBytes, $size));
 
         // Render table
         $output->writeln(' <info>Offset    0  1  2  3  4  5  6  7   8  9 10 11 12 13 14 15</info>');

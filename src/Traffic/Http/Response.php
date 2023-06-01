@@ -25,19 +25,14 @@ final class Response
         public readonly int $statusCode,
         public readonly string $statusText,
         public readonly string $body = '',
-        public readonly array $headers = [],
+        public array $headers = [],
     ) {
+        $this->headers['Content-Length'] = [\strlen($this->body)];
     }
 
     public function __toString(): string
     {
-        return \sprintf(
-                'HTTP/%s %d %s',
-                '1.1',
-                $this->statusCode,
-                $this->statusText,
-            )
-            . "\r\n"
+        return \sprintf('HTTP/%s %d %s', '1.1', $this->statusCode, $this->statusText) . "\r\n"
             . \implode(
                 "\r\n",
                 \array_map(
