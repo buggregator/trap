@@ -132,7 +132,12 @@ final class StreamClientMock implements StreamClient
         if ($this->isFinished()) {
             return;
         }
-        $this->queue->enqueue((string) $this->generator->current());
+        $value = (string) $this->generator->current();
+
+        if ($value !== '') {
+            $this->queue->enqueue($value);
+        }
+
         $this->generator->next();
     }
 }
