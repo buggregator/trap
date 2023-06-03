@@ -7,10 +7,10 @@ namespace Buggregator\Client\Traffic\Dispatcher;
 use Buggregator\Client\Handler\Http\Middleware;
 use Buggregator\Client\Handler\Pipeline;
 use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher;
 use Buggregator\Client\Traffic\Emitter;
 use Buggregator\Client\Traffic\Parser;
+use Buggregator\Client\Traffic\StreamClient;
 use Psr\Http\Message\ResponseInterface;
 
 final class Http implements Dispatcher

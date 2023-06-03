@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Emitter;
 
-use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Support\StreamHelper;
+use Buggregator\Client\Traffic\StreamClient;
 use Fiber;
 use Psr\Http\Message\ResponseInterface;
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Parser;
 
-use Buggregator\Client\Socket\StreamClient;
+use Buggregator\Client\Traffic\StreamClient;
 use Buggregator\Client\Support\StreamHelper;
 use Buggregator\Client\Traffic\Message;
 use Buggregator\Client\Traffic\Message\Multipart\Field;
@@ -69,18 +69,24 @@ final class Smtp
         string $end = "\r\n.\r\n",
     ): int {
         $written = 0;
+        $endLen = \strlen($end);
 
         foreach ($stream->getIterator() as $chunk) {
-            // Check trailed double \r\n
-            if (!$stream->hasData() && \str_ends_with($chunk, $end)) {
-                // Remove transparent dot and write to stream
-                $fileStream->write(\substr($chunk, 0, -5));
-                return $written + \strlen($chunk) - 5;
-            }
-
-            // Remove transparent dot
+            // Write chunk to the file stream.
             $fileStream->write($chunk);
             $written += \strlen($chunk);
+
+            // Check the end of the message.
+            if (!$stream->hasData()) {
+                if (\strlen($chunk) < $endLen) {
+                    $fileStream->seek(-$endLen, \SEEK_CUR);
+                    $chunk = $fileStream->read($endLen);
+                }
+                if (\str_ends_with($chunk, $end)) {
+                    return $written;
+                }
+            }
+
             unset($chunk);
             \Fiber::suspend();
         }
@@ -90,7 +96,7 @@ final class Smtp
 
     private function processSingleBody(Message\Smtp $message, StreamInterface $stream): Message\Smtp
     {
-        $content = \preg_replace("/^\.([^\r])/m", '$1', $stream->getContents());
+        $content = \preg_replace(["/^\.([^\r])/m", "/(\r\n\\.\r\n)$/D"], ['$1', ''], $stream->getContents());
 
         $body = new Field(
             headers: \array_intersect_key($message->getHeaders(), ['Content-Type' => true]),
@@ -108,15 +114,15 @@ final class Smtp
 
         $boundary = $matches[1];
         $parts = Http::parseMultipartBody($stream, $boundary);
-        $attaches = $texts = [];
+        $attachments = $texts = [];
         foreach ($parts as $part) {
             if ($part instanceof Field) {
                 $texts[] = $part;
             } elseif ($part instanceof File) {
-                $attaches[] = $part;
+                $attachments[] = $part;
             }
         }
 
-        return $message->withMessages($texts)->withAttaches($attaches);
+        return $message->withMessages($texts)->withAttachments($attachments);
     }
 }

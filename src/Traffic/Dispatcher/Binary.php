@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Buggregator\Client\Traffic\Dispatcher;
 
 use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Support\StreamHelper;
 use Buggregator\Client\Traffic\Dispatcher;
+use Buggregator\Client\Traffic\StreamClient;
 
 final class Binary implements Dispatcher
 {

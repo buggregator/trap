@@ -11,7 +11,7 @@ use Buggregator\Client\Handler\Http\Middleware\Resources;
 use Buggregator\Client\Proto\Buffer;
 use Buggregator\Client\Socket\Client;
 use Buggregator\Client\Socket\Server;
-use Buggregator\Client\Socket\StreamClient;
+use Buggregator\Client\Socket\SocketStream;
 use Buggregator\Client\Support\Timer;
 use Buggregator\Client\Traffic\Inspector;
 use Fiber;
@@ -138,7 +138,7 @@ final class Application implements Processable
         $inspector = $this->inspector;
         $clientInflector = function (Client $client, int $id) use ($inspector): Client {
             Logger::debug('New client connected %d', $id);
-            $inspector->addStream(StreamClient::create($client, $id));
+            $inspector->addStream(SocketStream::create($client, $id));
             return $client;
         };
 

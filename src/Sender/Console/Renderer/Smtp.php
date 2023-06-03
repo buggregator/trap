@@ -48,10 +48,10 @@ final class Smtp implements RendererInterface
             $output->write($text->getValue(), true, OutputInterface::OUTPUT_NORMAL);
         }
 
-        // Attaches
-        if (\count($message->getAttaches()) > 0) {
+        // Attachments
+        if (\count($message->getAttachments()) > 0) {
             Common::renderHeader3($output, 'Attached files');
-            foreach ($message->getAttaches() as $attach) {
+            foreach ($message->getAttachments() as $attach) {
                 Files::renderFile(
                     $output,
                     $attach->getClientFilename(),

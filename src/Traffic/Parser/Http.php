@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Parser;
 
-use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Support\StreamHelper;
 use Buggregator\Client\Traffic\Message\Multipart\Field;
 use Buggregator\Client\Traffic\Message\Multipart\File;
 use Buggregator\Client\Traffic\Message\Multipart\Part;
+use Buggregator\Client\Traffic\StreamClient;
 use Fiber;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\UploadedFile;
