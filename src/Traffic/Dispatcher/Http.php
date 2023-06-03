@@ -9,8 +9,7 @@ use Buggregator\Client\Handler\Pipeline;
 use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher;
-use Buggregator\Client\Traffic\Http\HandlerPipeline;
-use Buggregator\Client\Traffic\Http\Response;
+use Buggregator\Client\Traffic\Emitter;
 use Buggregator\Client\Traffic\Parser;
 use Psr\Http\Message\ResponseInterface;
 
@@ -41,11 +40,9 @@ final class Http implements Dispatcher
         $time = new \DateTimeImmutable();
         $request = $this->parser->parseStream($stream);
 
-        $response = Response::fromPsr7(
-            $this->handler->handle($request)
-        );
+        $response = ($this->pipeline)($request);
 
-        $stream->sendData((string)$response);
+        Emitter\Http::emit($stream, $response);
 
         $stream->disconnect();
 
