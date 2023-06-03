@@ -125,4 +125,24 @@ final class StreamHelper
     {
         return Stream::create(\fopen('php://temp/maxmemory:' . self::MAX_FILE_MEMORY_SIZE, 'w+b'));
     }
+
+    /**
+     * Wrap a {@see StreamInterface} to read it concurrently.
+     * The new stream will tell and seek the origin stream automatically to read it sequentially.
+     *
+     * TODO: implement
+     *
+     * @throws \InvalidArgumentException If the stream is not seekable.
+     */
+    public static function concurrentReadStream(StreamInterface $stream): StreamInterface
+    {
+        if (!$stream->isSeekable()) {
+            throw new \InvalidArgumentException('Cannot read concurrently a non seekable stream.');
+        }
+
+        // TODO: implement
+        // The idea is to create a new stream class that will store the current read position and seek the origin stream
+        // before reading the next chunk.
+        return $stream;
+    }
 }

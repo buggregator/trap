@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Client\Traffic\Emitter;
 
 use Buggregator\Client\Socket\StreamClient;
+use Buggregator\Client\Support\StreamHelper;
 use Fiber;
 use Psr\Http\Message\ResponseInterface;
 
@@ -22,7 +23,9 @@ final class Http
     /**
      * Send {@see ResponseInterface} to the client.
      *
-     * Note: response stream mustn't have concurrent readers.
+     * Note: response stream might have concurrent readers. It will be wrapped automatically
+     * using {@see StreamHelper::concurrentReadStream()} if it's possible, but if it's not, the
+     * stream mustn't be read concurrently (in another fiber) or it will be corrupted.
      */
     public static function emit(StreamClient $streamClient, ResponseInterface $response): bool
     {
@@ -81,7 +84,11 @@ final class Http
     {
         $chunked = !$response->hasHeader('Content-Length') && $response->getBody()->getSize() === null;
 
-        $body = $response->getBody();
+        try {
+            $body = StreamHelper::concurrentReadStream($response->getBody());
+        } catch (\Throwable) {
+            $body = $response->getBody();
+        }
 
         // Rewind stream if it's seekable.
         $body->isSeekable() and $body->rewind();
