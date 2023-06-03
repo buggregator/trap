@@ -7,7 +7,6 @@ namespace Buggregator\Client\Traffic;
 use Buggregator\Client\Logger;
 use Buggregator\Client\Processable;
 use Buggregator\Client\Proto\Buffer;
-use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher\Binary;
 use Fiber;
 

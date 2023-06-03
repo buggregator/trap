@@ -37,11 +37,11 @@ final class Smtp extends Frame implements FilesCarrier
 
     public function hasFiles(): bool
     {
-        return \count($this->message->getAttaches()) > 0;
+        return \count($this->message->getAttachments()) > 0;
     }
 
     public function getFiles(): array
     {
-        return $this->message->getAttaches();
+        return $this->message->getAttachments();
     }
 }

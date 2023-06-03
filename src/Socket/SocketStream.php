@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Socket;
 
+use Buggregator\Client\Traffic\StreamClient;
 use Fiber;
 use Generator;
 use IteratorAggregate;
@@ -12,7 +13,7 @@ use IteratorAggregate;
  * Simple abstraction over {@see Client} to make it easier to work with.
  * Use {@see Server::$clientInflector} to wrap {@see Client} into {@see self}.
  */
-final class StreamClient implements IteratorAggregate
+final class SocketStream implements IteratorAggregate, StreamClient
 {
     /** @var \SplQueue<string> */
     private \SplQueue $queue;
@@ -69,28 +70,16 @@ final class StreamClient implements IteratorAggregate
         $this->client->disconnect();
     }
 
-    /**
-     * @return bool Return {@see true} if stream was closed.
-     */
     public function isDisconnected(): bool
     {
         return $this->disconnected;
     }
 
-    /**
-     * @return bool Return {@see true} if there will be no more data.
-     */
     public function isFinished(): bool
     {
         return $this->disconnected && $this->queue->isEmpty();
     }
 
-    /**
-     * Returns {@see string} with trailing EOL or without it if stream was closed.
-     * Uses {@see Fiber} to wait for EOL|EOF.
-     *
-     * todo: collect buffer until EOL|EOF and slice by EOL
-     */
     public function fetchLine(): string
     {
         $line = '';
@@ -120,29 +109,16 @@ final class StreamClient implements IteratorAggregate
         return $line;
     }
 
-    /**
-     * Uses {@see Fiber} to wait for all data.
-     */
     public function fetchAll(): string
     {
         return \implode('', \iterator_to_array($this->getIterator()));
     }
 
-    /**
-     * Get read data without waiting and without cleaning.
-     */
     public function getData(): string
     {
         return \implode('', [...$this->queue]);
     }
 
-    /**
-     * Iterate all data by read chunks using {@see Generator} until {@see self::isDisconnected()}.
-     * Cleans cache.
-     * Uses {@see Fiber} to wait for all data.
-     *
-     * @return Generator<int, string, mixed, void>
-     */
     public function getIterator(): Generator
     {
         while (!$this->disconnected || !$this->queue->isEmpty()) {

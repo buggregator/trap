@@ -4,22 +4,35 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Dispatcher;
 
-use Buggregator\Client\Logger;
+use Buggregator\Client\Handler\Http\Middleware;
+use Buggregator\Client\Handler\Pipeline;
 use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher;
-use Buggregator\Client\Traffic\Http\HandlerPipeline;
-use Buggregator\Client\Traffic\Http\Response;
+use Buggregator\Client\Traffic\Emitter;
 use Buggregator\Client\Traffic\Parser;
+use Buggregator\Client\Traffic\StreamClient;
+use Psr\Http\Message\ResponseInterface;
 
 final class Http implements Dispatcher
 {
     private readonly Parser\Http $parser;
+    /** @var Pipeline<Middleware, ResponseInterface> */
+    private readonly Pipeline $pipeline;
 
+    /**
+     * @param iterable<array-key, Middleware> $middlewares
+     */
     public function __construct(
-        private readonly HandlerPipeline $handler,
+        iterable $middlewares = [],
     ) {
         $this->parser = new Parser\Http();
+        $this->pipeline = Pipeline::build(
+            $middlewares,
+            /** @see Middleware::handle() */
+            'handle',
+            static fn (): ResponseInterface => new \Nyholm\Psr7\Response(404),
+            ResponseInterface::class,
+        );
     }
 
     public function dispatch(StreamClient $stream): iterable
@@ -27,11 +40,9 @@ final class Http implements Dispatcher
         $time = new \DateTimeImmutable();
         $request = $this->parser->parseStream($stream);
 
-        $response = Response::fromPsr7(
-            $this->handler->handle($request)
-        );
+        $response = ($this->pipeline)($request);
 
-        $stream->sendData((string)$response);
+        Emitter\Http::emit($stream, $response);
 
         $stream->disconnect();
 

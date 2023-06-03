@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Client\Traffic;
 
 use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\Socket\StreamClient;
 
 interface Dispatcher
 {

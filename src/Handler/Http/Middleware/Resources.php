@@ -2,16 +2,21 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Http;
+namespace Buggregator\Client\Handler\Http\Middleware;
 
+use Buggregator\Client\Handler\Http\Middleware;
 use Buggregator\Client\Info;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
-final class Resources implements HandlerInterface
+/**
+ * @internal
+ * @psalm-internal Buggregator\Client
+ */
+final class Resources implements Middleware
 {
-    public function handle(ServerRequestInterface $request, \Closure $next): ResponseInterface
+    public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
         $path = $request->getUri()->getPath();
         // Shortcut only for favicon

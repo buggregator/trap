@@ -4,21 +4,20 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Tests\Traffic\Parser;
 
+use Buggregator\Client\Tests\FiberTrait;
+use Buggregator\Client\Tests\Mock\StreamClientMock;
 use Buggregator\Client\Traffic\Parser;
-use Fiber;
-use Generator;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
 
-/**
- * Todo: repair tests. It need to mock StreamClient.
- */
 class HttpParserTest extends TestCase
 {
+    use FiberTrait;
+
     public function testSimpleGet(): void
     {
-        $generator = $this->makeBodyGenerator(
+        $body = \str_split(
             <<<HTTP
                 GET /foo/bar?get=jet&foo=%20bar+ugar HTTP/1.1\r
                 Host: 127.0.0.1:9912\r
@@ -35,9 +34,10 @@ class HttpParserTest extends TestCase
                 Sec-Fetch-Site: none\r
                 Sec-Fetch-User: ?1\r\n\r\n
                 HTTP,
+            50,
         );
 
-        $request = $this->parseStream($generator);
+        $request = $this->parseStream($body);
 
         $this->assertSame('GET', $request->getMethod());
         $this->assertSame('/foo/bar', $request->getUri()->getPath());
@@ -54,7 +54,7 @@ class HttpParserTest extends TestCase
 
     public function testPostUrlEncoded(): void
     {
-        $generator = $this->makeBodyGenerator(
+        $body = \str_split(
             <<<HTTP
                 POST /foo/bar?get=jet&foo=%20bar+ugar HTTP/1.1\r
                 Host: foo.bar.com\r
@@ -73,9 +73,10 @@ class HttpParserTest extends TestCase
                 Sec-Fetch-User: ?1\r\n\r
                 foo=bar&baz=qux&quux=corge+grault\r\n\r\n
                 HTTP,
+            50,
         );
 
-        $request = $this->parseStream($generator);
+        $request = $this->parseStream($body);
 
         $this->assertSame('POST', $request->getMethod());
         $this->assertSame('/foo/bar', $request->getUri()->getPath());
@@ -125,9 +126,7 @@ class HttpParserTest extends TestCase
                 Keep-Alive: 300\r\n\r\n
                 HTTP;
 
-        $generator = $this->makeBodyGenerator($headers . $body);
-
-        $request = $this->parseStream($generator);
+        $request = $this->parseStream($headers . $body);
 
         $this->assertSame('POST', $request->getMethod());
         $this->assertSame('/send-message.html', $request->getUri()->getPath());
@@ -142,48 +141,36 @@ class HttpParserTest extends TestCase
         // Uploaded files
         $this->assertCount(2, $files = $request->getUploadedFiles());
         /** @var UploadedFileInterface[] $files */
-        $this->assertSame('deburger.png', $files['AttachedFile1']->getClientFilename());
-        $this->assertSame('image/png', $files['AttachedFile1']->getClientMediaType());
-        $this->assertSame($file1, $files['AttachedFile1']->getStream()->__toString());
+        $this->assertSame('deburger.png', $files['AttachedFile1'][0]->getClientFilename());
+        $this->assertSame('image/png', $files['AttachedFile1'][0]->getClientMediaType());
+        $this->assertSame($file1, $files['AttachedFile1'][0]->getStream()->__toString());
 
-        $this->assertSame('buggregator.png', $files['AttachedFile2']->getClientFilename());
-        $this->assertSame('image/png', $files['AttachedFile2']->getClientMediaType());
-        $this->assertSame($file2, $files['AttachedFile2']->getStream()->__toString());
+        $this->assertSame('buggregator.png', $files['AttachedFile2'][0]->getClientFilename());
+        $this->assertSame('image/png', $files['AttachedFile2'][0]->getClientMediaType());
+        $this->assertSame($file2, $files['AttachedFile2'][0]->getStream()->__toString());
     }
 
     public function testGzippedBody(): void
     {
         $http = \file_get_contents(__DIR__ . '/../../Stub/sentry.bin');
-        $generator = $this->makeBodyGenerator($http);
 
-        $request = $this->parseStream($generator);
+        $request = $this->parseStream($http);
 
         $file = \file_get_contents(__DIR__ . '/../../Stub/sentry-body.bin');
         self::assertSame($file, $request->getBody()->__toString());
     }
 
-    /**
-     * @param Generator<int, string, mixed, void> $stream
-     */
-    private function parseStream(Generator $stream): ServerRequestInterface
+    private function parseStream(array|string $body): ServerRequestInterface
     {
-        $fiber = new Fiber(
-            static fn(Generator $stream): ServerRequestInterface => (new Parser\Http())->parseStream($stream)
+        $stream = StreamClientMock::createFromGenerator(
+            (static function () use ($body) {
+                if (\is_string($body)) {
+                    yield $body;
+                    return;
+                }
+                yield from $body;
+            })()
         );
-        $fiber->start($stream);
-        while (!$fiber->isTerminated()) {
-            $fiber->resume();
-        }
-        return $fiber->getReturn();
-    }
-
-    /**
-     * @return Generator<int, string, mixed, void>
-     */
-    private function makeBodyGenerator(string $data): Generator
-    {
-        foreach (\explode("\n", $data) as $line) {
-            yield $line . "\n";
-        }
+        return $this->runInFiber(static fn() => (new Parser\Http)->parseStream($stream));
     }
 }

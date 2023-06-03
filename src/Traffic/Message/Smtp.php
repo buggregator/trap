@@ -21,7 +21,7 @@ use Psr\Http\Message\StreamInterface;
  *     protocol: array<string, string|list<string>>,
  *     headers: array<string, list<string>>,
  *     messages: array<int, FieldDataArray>,
- *     attaches: array<int, FileDataArray>
+ *     attachments: array<int, FileDataArray>
  * }
  */
 final class Smtp implements JsonSerializable
@@ -33,7 +33,7 @@ final class Smtp implements JsonSerializable
     private array $messages = [];
 
     /** @var File[] */
-    private array $attaches = [];
+    private array $attachments = [];
 
     /**
      * @param array<array-key, list<scalar>> $protocol
@@ -64,8 +64,8 @@ final class Smtp implements JsonSerializable
         foreach ($data['messages'] as $message) {
             $self->messages[] = Field::fromArray($message);
         }
-        foreach ($data['attaches'] as $attach) {
-            $self->attaches[] = File::fromArray($attach);
+        foreach ($data['attachments'] as $attach) {
+            $self->attachments[] = File::fromArray($attach);
         }
 
         return $self;
@@ -80,7 +80,7 @@ final class Smtp implements JsonSerializable
             'protocol' => $this->protocol,
             'headers' => $this->headers,
             'messages' => $this->messages,
-            'attaches' => $this->attaches,
+            'attachments' => $this->attachments,
         ];
     }
 
@@ -95,9 +95,9 @@ final class Smtp implements JsonSerializable
     /**
      * @return File[]
      */
-    public function getAttaches(): array
+    public function getAttachments(): array
     {
-        return $this->attaches;
+        return $this->attachments;
     }
 
     /**
@@ -111,12 +111,12 @@ final class Smtp implements JsonSerializable
     }
 
     /**
-     * @param File[] $attaches
+     * @param File[] $attachments
      */
-    public function withAttaches(array $attaches): self
+    public function withAttachments(array $attachments): self
     {
         $clone = clone $this;
-        $clone->attaches = $attaches;
+        $clone->attachments = $attachments;
         return $clone;
     }
 
