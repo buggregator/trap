@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace Buggregator\Client;
 
 use Buggregator\Client\Config\SocketServer;
+use Buggregator\Client\Handler\Http\Middleware\DebugPage;
+use Buggregator\Client\Handler\Http\Middleware\RayRequestDump;
+use Buggregator\Client\Handler\Http\Middleware\Resources;
 use Buggregator\Client\Proto\Buffer;
 use Buggregator\Client\Socket\Client;
 use Buggregator\Client\Socket\Server;
 use Buggregator\Client\Socket\StreamClient;
 use Buggregator\Client\Support\Timer;
-use Buggregator\Client\Traffic\Http\DebugPage;
-use Buggregator\Client\Traffic\Http\HandlerPipeline;
-use Buggregator\Client\Traffic\Http\RayRequestDump;
-use Buggregator\Client\Traffic\Http\Resources;
 use Buggregator\Client\Traffic\Inspector;
 use Fiber;
 
@@ -42,15 +41,14 @@ final class Application implements Processable
     ) {
         $this->buffer = new Buffer(bufferSize: 10485760, timer: 0.1);
 
-        $httpHandler = new HandlerPipeline();
-        $httpHandler->register(new Resources());
-        $httpHandler->register(new DebugPage());
-        $httpHandler->register(new RayRequestDump());
-
         $this->inspector = new Inspector(
             $this->buffer,
             new Traffic\Dispatcher\VarDumper(),
-            new Traffic\Dispatcher\Http($httpHandler),
+            new Traffic\Dispatcher\Http([
+                new Resources(),
+                new DebugPage(),
+                new RayRequestDump(),
+            ]),
             new Traffic\Dispatcher\Smtp(),
             new Traffic\Dispatcher\Monolog(),
         );
