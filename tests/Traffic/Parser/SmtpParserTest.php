@@ -80,7 +80,25 @@ final class SmtpParserTest extends TestCase
             \r
             --boundary-string--\r\n\r\n
             SMTP, 10);
-        $message = $this->parse($data);
+        $message = $this->parse($data, [
+            'FROM' => ['<someusername@foo.bar>'],
+            'BCC' => ['<user1@company.tld>', '<user2@company.tld>'],
+        ]);
+
+        // Check contacts
+
+        // Sender
+        $this->assertCount(2, $message->getSender());
+        $this->assertNull($message->getSender()[0]->name);
+        $this->assertSame('someusername@foo.bar', $message->getSender()[0]->email);
+        $this->assertNull($message->getSender()[1]->name);
+        $this->assertSame('sender@example.com', $message->getSender()[1]->email);
+        // BCC
+        $this->assertCount(2, $message->getBcc());
+        $this->assertNull($message->getBcc()[0]->name);
+        $this->assertSame('user1@company.tld', $message->getBcc()[0]->email);
+        $this->assertNull($message->getBcc()[1]->name);
+        $this->assertSame('user2@company.tld', $message->getBcc()[1]->email);
 
         $this->assertSame(\implode('', $data), (string)$message->getBody());
         $this->assertCount(3, $message->getMessages());
@@ -131,7 +149,7 @@ final class SmtpParserTest extends TestCase
         $this->assertCount(1, $message->getAttachments());
     }
 
-    private function parse(array|string $body): Message\Smtp
+    private function parse(array|string $body, array $protocol = []): Message\Smtp
     {
         $stream = StreamClientMock::createFromGenerator(
             (static function () use ($body) {
@@ -142,7 +160,7 @@ final class SmtpParserTest extends TestCase
                 yield from $body;
             })()
         );
-        return $this->runInFiber(static fn() => (new Parser\Smtp)->parseStream([], $stream));
+        return $this->runInFiber(static fn() => (new Parser\Smtp)->parseStream($protocol, $stream));
     }
 
 }

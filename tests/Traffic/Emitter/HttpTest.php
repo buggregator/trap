@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Tests\Traffic\Emitter;
 
+use Buggregator\Client\Handler\Http\Emitter;
 use Buggregator\Client\Test\Mock\StreamClientMock;
 use Buggregator\Client\Tests\FiberTrait;
-use Buggregator\Client\Traffic\Emitter\Http;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\TestCase;
 
@@ -29,7 +29,7 @@ final class HttpTest extends TestCase
         \fwrite($stream, $content);
         $response = new Response(200, [], $stream);
 
-        $bufferBefore = Http::$bufferSize;
+        $bufferBefore = Emitter::$bufferSize;
 
         $function = static function (string &$emittedData): \Generator {
             $i = 1;
@@ -44,17 +44,17 @@ final class HttpTest extends TestCase
         $stream2 = StreamClientMock::createFromGenerator($function($data2));
 
         try {
-            Http::$bufferSize = 2;
+            Emitter::$bufferSize = 2;
             $this->runInFibers(
                 static function () use ($response, $stream1): void {
-                    Http::emit($stream1, $response);
+                    Emitter::emit($stream1, $response);
                 },
                 static function () use ($response, $stream2): void {
-                    Http::emit($stream2, $response);
+                    Emitter::emit($stream2, $response);
                 },
             );
         } finally {
-            Http::$bufferSize = $bufferBefore;
+            Emitter::$bufferSize = $bufferBefore;
         }
 
         // Check that the data is the same
