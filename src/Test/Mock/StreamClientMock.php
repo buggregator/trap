@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Tests\Mock;
+namespace Buggregator\Client\Test\Mock;
 
-use Buggregator\Client\Tests\Mock\StreamClientMock\DisconnectCommand;
+use Buggregator\Client\Test\Mock\StreamClientMock\DisconnectCommand;
 use Buggregator\Client\Traffic\StreamClient;
 use Fiber;
 use Generator;

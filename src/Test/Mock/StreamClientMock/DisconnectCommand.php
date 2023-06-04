@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Tests\Mock\StreamClientMock;
+namespace Buggregator\Client\Test\Mock\StreamClientMock;
 
 class DisconnectCommand
 {

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Tests\Traffic\Parser;
 
+use Buggregator\Client\Test\Mock\StreamClientMock;
 use Buggregator\Client\Tests\FiberTrait;
-use Buggregator\Client\Tests\Mock\StreamClientMock;
 use Buggregator\Client\Traffic\Parser;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ServerRequestInterface;
