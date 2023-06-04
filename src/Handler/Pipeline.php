@@ -70,6 +70,8 @@ final class Pipeline
      * @param mixed ...$arguments
      *
      * @return TReturn
+     *
+     * @throws \Exception
      */
     public function __invoke(mixed ...$arguments): mixed
     {
@@ -79,15 +81,10 @@ final class Pipeline
             return ($this->last)(...$arguments);
         }
 
-        try {
-            $next = $this->next();
-            $arguments[] = $next;
+        $next = $this->next();
+        $arguments[] = $next;
 
-            return $middleware->{$this->method}(...$arguments);
-        } catch (\Throwable $e) {
-            // throw new MiddlewareCallException(previous: $e);
-            throw $e;
-        }
+        return $middleware->{$this->method}(...$arguments);
     }
 
     private function next(): self

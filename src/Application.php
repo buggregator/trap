@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace Buggregator\Client;
 
 use Buggregator\Client\Config\SocketServer;
-use Buggregator\Client\Handler\Http\Middleware\DebugPage;
-use Buggregator\Client\Handler\Http\Middleware\RayRequestDump;
-use Buggregator\Client\Handler\Http\Middleware\Resources;
+use Buggregator\Client\Handler\Http\Handler\Websocket;
+use Buggregator\Client\Handler\Http\Middleware;
 use Buggregator\Client\Proto\Buffer;
 use Buggregator\Client\Socket\Client;
 use Buggregator\Client\Socket\Server;
@@ -45,10 +44,10 @@ final class Application implements Processable
             $this->buffer,
             new Traffic\Dispatcher\VarDumper(),
             new Traffic\Dispatcher\Http([
-                new Resources(),
-                new DebugPage(),
-                new RayRequestDump(),
-            ]),
+                new Middleware\Resources(),
+                new Middleware\DebugPage(),
+                new Middleware\RayRequestDump(),
+            ], [new Websocket()]),
             new Traffic\Dispatcher\Smtp(),
             new Traffic\Dispatcher\Monolog(),
         );

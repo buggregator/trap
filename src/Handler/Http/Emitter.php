@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Emitter;
+namespace Buggregator\Client\Handler\Http;
 
 use Buggregator\Client\Support\StreamHelper;
 use Buggregator\Client\Traffic\StreamClient;
@@ -11,9 +11,9 @@ use Psr\Http\Message\ResponseInterface;
 
 /**
  * @internal
- * @psalm-internal Buggregator\Client
+ * @psalm-internal Buggregator\Client\Handler\Http
  */
-final class Http
+final class Emitter
 {
     /**
      * Preferred chunk size to be read from the stream before emitting. A value of 0 disables stream response.

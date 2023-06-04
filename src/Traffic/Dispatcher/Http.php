@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic\Dispatcher;
 
+use Buggregator\Client\Handler\Http\Handler\Fallback;
 use Buggregator\Client\Handler\Http\Middleware;
+use Buggregator\Client\Handler\Http\RequestHandler;
 use Buggregator\Client\Handler\Pipeline;
 use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Traffic\Dispatcher;
-use Buggregator\Client\Traffic\Emitter;
 use Buggregator\Client\Traffic\Parser;
 use Buggregator\Client\Traffic\StreamClient;
-use Psr\Http\Message\ResponseInterface;
+use Generator;
 
 /**
  * @internal
@@ -20,39 +21,45 @@ use Psr\Http\Message\ResponseInterface;
 final class Http implements Dispatcher
 {
     private readonly Parser\Http $parser;
-    /** @var Pipeline<Middleware, ResponseInterface> */
+
+    /**
+     * Pipeline of {@see RequestHandler}.
+     * @var Pipeline<RequestHandler, iterable<array-key, Frame>>
+     */
     private readonly Pipeline $pipeline;
 
     /**
      * @param iterable<array-key, Middleware> $middlewares
+     * @param array<array-key, RequestHandler> $handlers
      */
     public function __construct(
         iterable $middlewares = [],
+        array $handlers = [],
     ) {
+        // Init HTTP parser.
         $this->parser = new Parser\Http();
+
+        // Add default fallback handler at the end of pipeline.
+        $handlers[] = new Fallback($middlewares);
+
+        // Build pipeline of handlers.
         $this->pipeline = Pipeline::build(
-            $middlewares,
-            /** @see Middleware::handle() */
+            $handlers,
+            /** @see RequestHandler::handle() */
             'handle',
-            static fn (): ResponseInterface => new \Nyholm\Psr7\Response(404),
-            ResponseInterface::class,
+            static function (): never { throw new \LogicException('No handler found for request.'); },
+            Generator::class,
         );
     }
 
     public function dispatch(StreamClient $stream): iterable
     {
         $time = new \DateTimeImmutable();
-        $request = $this->parser->parseStream($stream);
-
-        $response = ($this->pipeline)($request);
-
-        Emitter\Http::emit($stream, $response);
-
-        $stream->disconnect();
-
-        yield new Frame\Http(
-            $request,
-            $time,
+        yield from ($this->pipeline)(
+            $stream,
+            $this->parser
+                ->parseStream($stream)
+                ->withAttribute('begin_at', $time),
         );
     }
 
