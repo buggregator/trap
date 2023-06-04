@@ -8,6 +8,10 @@ use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Traffic\Dispatcher;
 use Buggregator\Client\Traffic\StreamClient;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator\Client
+ */
 final class VarDumper implements Dispatcher
 {
     public function dispatch(StreamClient $stream): iterable

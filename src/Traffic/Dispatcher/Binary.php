@@ -9,6 +9,10 @@ use Buggregator\Client\Support\StreamHelper;
 use Buggregator\Client\Traffic\Dispatcher;
 use Buggregator\Client\Traffic\StreamClient;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator\Client
+ */
 final class Binary implements Dispatcher
 {
     public function dispatch(StreamClient $stream): iterable

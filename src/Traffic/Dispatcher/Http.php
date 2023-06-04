@@ -13,6 +13,10 @@ use Buggregator\Client\Traffic\Parser;
 use Buggregator\Client\Traffic\StreamClient;
 use Psr\Http\Message\ResponseInterface;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator\Client
+ */
 final class Http implements Dispatcher
 {
     private readonly Parser\Http $parser;

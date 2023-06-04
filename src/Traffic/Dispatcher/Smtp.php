@@ -9,6 +9,10 @@ use Buggregator\Client\Traffic\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher;
 use Buggregator\Client\Traffic\Parser;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator\Client
+ */
 final class Smtp implements Dispatcher
 {
     private const READY = 220;

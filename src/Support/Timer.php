@@ -8,6 +8,10 @@ use Closure;
 use Fiber;
 use RuntimeException;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator\Client
+ */
 final class Timer
 {
     private float $start;
@@ -46,6 +50,9 @@ final class Timer
         return $this->stop;
     }
 
+    /**
+     * Reset timer and start it again.
+     */
     public function reset(): self
     {
         $this->start = \microtime(true);
