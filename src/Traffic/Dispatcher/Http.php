@@ -12,6 +12,7 @@ use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Traffic\Dispatcher;
 use Buggregator\Client\Traffic\Parser;
 use Buggregator\Client\Traffic\StreamClient;
+use DateTimeImmutable;
 use Generator;
 
 /**
@@ -54,16 +55,15 @@ final class Http implements Dispatcher
 
     public function dispatch(StreamClient $stream): iterable
     {
-        $time = new \DateTimeImmutable();
         yield from ($this->pipeline)(
             $stream,
             $this->parser
                 ->parseStream($stream)
-                ->withAttribute('begin_at', $time),
+                ->withAttribute('begin_at', $stream->getCreatedAt()),
         );
     }
 
-    public function detect(string $data): ?bool
+    public function detect(string $data, DateTimeImmutable $createdAt): ?bool
     {
         if (!\str_contains($data, "\r\n")) {
             return null;

@@ -7,6 +7,7 @@ namespace Buggregator\Client\Traffic;
 use Buggregator\Client\Logger;
 use Buggregator\Client\Processable;
 use Buggregator\Client\Proto\Buffer;
+use Buggregator\Client\Support\Timer;
 use Buggregator\Client\Traffic\Dispatcher\Binary;
 use Fiber;
 
@@ -54,7 +55,7 @@ final class Inspector implements Processable
 
         do {
             foreach ($dispatchers as $key => $dispatcher) {
-                $result = $dispatcher->detect($stream->getData());
+                $result = $dispatcher->detect($stream->getData(), $stream->getCreatedAt());
                 if ($result === true) {
                     $dispatchers = [$dispatcher];
                     break 2;
@@ -70,8 +71,8 @@ final class Inspector implements Processable
                 break;
             }
 
-            $stream->waitData();
-        } while (count($dispatchers) > 0);
+            $stream->waitData(new Timer(0.1));
+        } while (\count($dispatchers) > 0);
 
         $dispatcher = $dispatchers === []
             ? new Binary()

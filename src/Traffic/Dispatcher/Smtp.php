@@ -8,6 +8,7 @@ use Buggregator\Client\Proto\Frame;
 use Buggregator\Client\Traffic\StreamClient;
 use Buggregator\Client\Traffic\Dispatcher;
 use Buggregator\Client\Traffic\Parser;
+use DateTimeImmutable;
 
 /**
  * @internal
@@ -29,7 +30,6 @@ final class Smtp implements Dispatcher
 
     public function dispatch(StreamClient $stream): iterable
     {
-        $time = new \DateTimeImmutable();
         $stream->sendData($this->createResponse(self::READY, 'mailamie'));
 
         $protocol = [];
@@ -60,12 +60,17 @@ final class Smtp implements Dispatcher
             return;
         }
 
-        yield new Frame\Smtp($message, $time);
+        yield new Frame\Smtp($message, $stream->getCreatedAt());
     }
 
-    public function detect(string $data): ?bool
+    public function detect(string $data, DateTimeImmutable $createdAt): ?bool
     {
-        return $data === '';
+        if ($data !== '') {
+            return false;
+        }
+
+        $interval = $createdAt->diff(new DateTimeImmutable());
+        return $interval->f > 0.5 ? true : null;
     }
 
     private function createResponse(int $statusCode, string|null $comment = null): string

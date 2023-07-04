@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Test\Mock;
 
+use Buggregator\Client\Support\Timer;
 use Buggregator\Client\Test\Mock\StreamClientMock\DisconnectCommand;
 use Buggregator\Client\Traffic\StreamClient;
 use Fiber;
@@ -31,7 +32,7 @@ final class StreamClientMock implements StreamClient
         return !$this->queue->isEmpty();
     }
 
-    public function waitData(): void
+    public function waitData(?Timer $timer = null): void
     {
         $before = $this->queue->count();
         do {

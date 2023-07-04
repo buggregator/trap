@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Socket;
 
+use Buggregator\Client\Support\Timer;
 use Buggregator\Client\Traffic\StreamClient;
+use DateTimeImmutable;
 use Fiber;
 use Generator;
 use IteratorAggregate;
@@ -18,12 +20,14 @@ final class SocketStream implements IteratorAggregate, StreamClient
     /** @var \SplQueue<string> */
     private \SplQueue $queue;
     private bool $disconnected = false;
+    private readonly DateTimeImmutable $createdAt;
 
     private function __construct(
         private readonly Client $client,
         public readonly int $clientId,
     ) {
         $this->queue = new \SplQueue();
+        $this->createdAt = new DateTimeImmutable();
     }
 
     public static function create(Client $client, int $id): self
@@ -39,17 +43,22 @@ final class SocketStream implements IteratorAggregate, StreamClient
         return $self;
     }
 
+    public function getCreatedAt(): DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
     public function hasData(): bool
     {
         return !$this->queue->isEmpty();
     }
 
-    public function waitData(): void
+    public function waitData(?Timer $timer = null): void
     {
         $before = $this->queue->count();
         do {
             Fiber::suspend();
-        } while (!$this->disconnected && $this->queue->count() === $before);
+        } while (!$this->disconnected && $this->queue->count() === $before && $timer?->isReady() !== true);
     }
 
     public function sendData(string $data): bool

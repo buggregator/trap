@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Client\Traffic;
 
+use Buggregator\Client\Support\Timer;
+use DateTimeImmutable;
 use Generator;
 
 /**
@@ -13,9 +15,11 @@ use Generator;
  */
 interface StreamClient extends \IteratorAggregate
 {
+    public function getCreatedAt(): DateTimeImmutable;
+
     public function hasData(): bool;
 
-    public function waitData(): void;
+    public function waitData(?Timer $timer = null): void;
 
     /**
      * @return bool Return {@see false} if data is empty or stream was closed.
