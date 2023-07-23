@@ -7,6 +7,10 @@
 **Follow us on Twitter**  
 [![Twitter](https://img.shields.io/badge/twitter-Follow-blue)](https://twitter.com/buggregator)
 
+- [Installation](#installation)
+- [Usage](#usage)
+
+
 Buggregator Trap, the streamlined Command Line Interface (CLI) version of Buggregator, marks a new era in debugging PHP applications. Boasting an array of powerful debugging "traps", including:
 
 - Symfony var-dumper, 
@@ -172,7 +176,7 @@ In addition to the local debugging features, Buggregator Trap provides an innova
 To install Buggregator Trap in your PHP application, add the package as a dependency to your project using Composer:
 
 ```bash
-composer require --dev buggregator/trap
+composer require --dev buggregator/trap:*
 ```
 
 ## Usage
@@ -184,6 +188,16 @@ vendor/bin/trap
 ```
 
 This command will activate the Trap server, setting it up to listen for all TCP requests. Upon receiving these requests, the server will search for a corresponding listener that can process the incoming data and display a dump accordingly.
+
+Then just call the `trap()` function in your code:
+
+```php
+trap(); // dump current stack trace
+trap($var); // dump variable
+trap($var, foo: $far, bar: $bar); // dump variables sequence
+```
+
+The `trap()` function configures `$_SERVER['REMOTE_ADDR']` and `$_SERVER['REMOTE_PORT']` automatically, if they are not set. Also, it can dump google/protobuf messages.
 
 ### Default port
 
