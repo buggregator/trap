@@ -34,6 +34,7 @@ final class Server implements Processable
         int $port,
         private readonly int $payloadSize,
         private readonly ?Closure $clientInflector,
+        private readonly Logger $logger,
     ) {
         $this->socket = @\socket_create_listen($port);
         /** @link https://github.com/buggregator/trap/pull/14 */
@@ -44,7 +45,7 @@ final class Server implements Processable
         }
         \socket_set_nonblock($this->socket);
 
-        Logger::info('Server started on 127.0.0.1:%s', $port);
+        $logger->status('Application', 'Server started on 127.0.0.1:%s', $port);
     }
 
     public function __destruct()
@@ -68,8 +69,9 @@ final class Server implements Processable
         int $port = 9912,
         int $payloadSize = 10485760,
         ?Closure $clientInflector = null,
+        Logger $logger,
     ): self {
-        return new self($port, $payloadSize, $clientInflector);
+        return new self($port, $payloadSize, $clientInflector, $logger);
     }
 
     public function process(): void
@@ -98,7 +100,7 @@ final class Server implements Processable
                 }
             } catch (\Throwable $e) {
                 if ($e instanceof DisconnectClient) {
-                    Logger::info('Custom disconnect.');
+                    $this->logger->info('Custom disconnect.');
                 }
                 $this->clients[$key]->__destruct();
                 // Logger::exception($e, 'Client fiber.');

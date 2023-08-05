@@ -23,6 +23,7 @@ final class Inspector implements Processable
 
     public function __construct(
         private Buffer $buffer,
+        private readonly Logger $logger,
         Dispatcher ...$dispatchers,
     ) {
         $this->dispatchers = $dispatchers;
@@ -45,7 +46,7 @@ final class Inspector implements Processable
             } catch (\Throwable $e) {
                 // todo replace with better exception handling
                 if ($e->getMessage() !== 'Stream terminated.') {
-                    Logger::exception($e, 'Fiber failed in the Traffic inspector');
+                    $this->logger->exception($e, 'Fiber failed in the Traffic inspector');
                 }
                 unset($this->fibers[$key]);
             }

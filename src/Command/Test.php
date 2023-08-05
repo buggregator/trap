@@ -25,10 +25,14 @@ final class Test extends Command
     private string $addr = '127.0.0.1';
     private int $port = 9912;
 
+    private Logger $logger;
+
     protected function execute(
         InputInterface $input,
         OutputInterface $output,
     ): int {
+        $this->logger = new Logger($output);
+
         $this->dump();
         \usleep(100_000);
         $this->mail($output, true);
@@ -160,7 +164,7 @@ final class Test extends Command
             \socket_close($socket);
 
         } catch (\Throwable $e) {
-            Logger::exception($e, 'Mail protocol error');
+            $this->logger->exception($e, 'Mail protocol error', important: true);
         }
     }
 
@@ -222,7 +226,7 @@ final class Test extends Command
             }
 
         } catch (\Throwable $e) {
-            Logger::exception($e, "$file sending error");
+            $this->logger->exception($e, "$file sending error", important: true);
         } finally {
             if (isset($fp) && \is_resource($fp)) {
                 @\flock($fp, LOCK_UN);

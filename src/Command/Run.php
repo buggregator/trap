@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Command;
 use Buggregator\Trap\Application;
 use Buggregator\Trap\Config\SocketServer;
 use Buggregator\Trap\Info;
+use Buggregator\Trap\Logger;
 use Buggregator\Trap\Sender;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -50,7 +51,8 @@ final class Run extends Command
             $registry = $this->createRegistry($output);
 
             $app = new Application(
-                [new SocketServer($port)]
+                [new SocketServer($port)],
+                new Logger($output),
             );
 
             $app->run(

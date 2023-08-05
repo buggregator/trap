@@ -157,7 +157,7 @@ final class Client
     {
         while (($left = $length - \strlen($this->readBuffer)) > 0) {
             $data = '';
-            $read = \socket_recv($this->socket, $data, $left, 0);
+            $read = @\socket_recv($this->socket, $data, $left, 0);
             if ($read === false || $data === null) {
                 if ($this->readBuffer !== '') {
                     $result = $this->readBuffer;

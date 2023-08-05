@@ -61,10 +61,10 @@ if (!\function_exists('trap')) {
 /**
  * Register the var-dump caster for protobuf messages
  */
-if (\class_exists(AbstractCloner::class) && !isset(AbstractCloner::$defaultCasters[Message::class])) {
-    AbstractCloner::$defaultCasters[Message::class] = [ProtobufCaster::class, 'cast'];
-    AbstractCloner::$defaultCasters[RepeatedField::class] = [ProtobufCaster::class, 'castRepeated'];
-    AbstractCloner::$defaultCasters[MapField::class] = [ProtobufCaster::class, 'castMap'];
-    AbstractCloner::$defaultCasters[EnumValue::class] = [ProtobufCaster::class, 'castEnum'];
+if (\class_exists(AbstractCloner::class)) {
+    AbstractCloner::$defaultCasters[Message::class] ??= [ProtobufCaster::class, 'cast'];
+    AbstractCloner::$defaultCasters[RepeatedField::class] ??= [ProtobufCaster::class, 'castRepeated'];
+    AbstractCloner::$defaultCasters[MapField::class] ??= [ProtobufCaster::class, 'castMap'];
+    AbstractCloner::$defaultCasters[EnumValue::class] ??= [ProtobufCaster::class, 'castEnum'];
 }
 

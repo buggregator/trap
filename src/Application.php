@@ -37,11 +37,13 @@ final class Application implements Processable
      */
     public function __construct(
         array $map = [],
+        private readonly Logger $logger = new Logger(),
     ) {
         $this->buffer = new Buffer(bufferSize: 10485760, timer: 0.1);
 
         $this->inspector = new Inspector(
             $this->buffer,
+            $this->logger,
             new Traffic\Dispatcher\VarDumper(),
             new Traffic\Dispatcher\Http([
                 new Middleware\Resources(),
@@ -59,8 +61,8 @@ final class Application implements Processable
                     try {
                         $this->processors[] = $this->servers[$config->port] = $this->createServer($config);
                         return;
-                    } catch (\Throwable $e) {
-                        Logger::error("Can't create TCP socket on port $config->port.");
+                    } catch (\Throwable) {
+                        $this->logger->error("Can't create TCP socket on port $config->port.");
                         (new Timer(1.0))->wait();
                     }
                 } while (true);
@@ -109,7 +111,7 @@ final class Application implements Processable
                     unset($this->fibers[$key]);
                 }
             } catch (\Throwable $e) {
-                Logger::exception($e);
+                $this->logger->exception($e);
                 unset($this->fibers[$key]);
             }
         }
@@ -129,18 +131,20 @@ final class Application implements Processable
         }
     }
 
-    /**
-     * @param int<1, 65535> $port
-     */
     private function createServer(SocketServer $config): Server
     {
         $inspector = $this->inspector;
-        $clientInflector = function (Client $client, int $id) use ($inspector): Client {
-            Logger::debug('New client connected %d', $id);
+        $clientInflector = static function (Client $client, int $id) use ($inspector): Client {
+            // Logger::debug('New client connected %d', $id);
             $inspector->addStream(SocketStream::create($client, $id));
             return $client;
         };
 
-        return Server::init($config->port, payloadSize: 524_288, clientInflector: $clientInflector);
+        return Server::init(
+            $config->port,
+            payloadSize: 524_288,
+            clientInflector: $clientInflector,
+            logger: $this->logger,
+        );
     }
 }

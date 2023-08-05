@@ -63,7 +63,7 @@ final class Files
 
         $units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
         $power = \floor(\log($size, 1024));
-        $float = \round($size / (1024 ** $power), 2);
+        $float = $power > 0 ? \round($size / (1024 ** $power), 2) : $size;
         return $float . ' ' . $units[$power];
     }
 }
