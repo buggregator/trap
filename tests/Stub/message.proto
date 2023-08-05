@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+// PHP classes
+option php_namespace = "Buggregator\\Trap\\Tests\\Stub\\Proto";
+option php_metadata_namespace = "Buggregator\\Trap\\Tests\\Stub\\Proto\\Metadata";
+
+package stub.proto;
+
+message Message {
+    message Metadata {
+        string key = 1;
+        string value = 2;
+    }
+    uint64 id = 1;
+    string command = 2;
+    string payload = 3;
+    repeated Metadata metadata = 4;
+}
