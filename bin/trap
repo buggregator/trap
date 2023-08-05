@@ -15,12 +15,12 @@ if ('cli' !== PHP_SAPI) {
     $cwd = \getcwd();
 
     $possibleAutoloadPaths = [
+        // local dev repository
+        \dirname(__DIR__) . '/vendor/autoload.php',
         // running from project root
         $cwd . '/vendor/autoload.php',
         // running from project bin
         \dirname($cwd) . '/autoload.php',
-        // local dev repository
-        \dirname(__DIR__) . '/vendor/autoload.php',
         // dependency
         \dirname(__DIR__, 4) . '/vendor/autoload.php',
     ];

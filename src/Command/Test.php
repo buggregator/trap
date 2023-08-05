@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Command;
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Logger;
 use DateTimeImmutable;
+use Google\Protobuf\Internal\MapField;
 use RuntimeException;
 use Socket;
 use Symfony\Component\Console\Command\Command;
@@ -46,9 +47,27 @@ final class Test extends Command
         $_SERVER['VAR_DUMPER_FORMAT'] = 'server';
         $_SERVER['VAR_DUMPER_SERVER'] = "$this->addr:$this->port";
 
-        \dump(['foo' => 'bar']);
-        \dump(123);
-        \dump(new DateTimeImmutable());
+        \trap(['foo' => 'bar']);
+        \trap(123);
+        \trap(new DateTimeImmutable());
+
+        $message = (new \Buggregator\Trap\Test\Proto\Message())
+            ->setId(123)
+            ->setPayload('foo')
+            ->setCommand('bar')
+            ->setMainMetadata([
+                (new \Buggregator\Trap\Test\Proto\Message\Metadata())
+                    ->setKey('foo')
+                    ->setValue('bar'),
+            ])
+            ->setHeader(
+                (new \Buggregator\Trap\Test\Proto\Message\Header())
+                    ->setKey('foo')
+                    ->setValue('bar'),
+            )
+            ->setMapaMapa(['foo' => 'bar', 'baz' => 'qux', '2' => 'quuz', 'quux ff' => 'quuz'])
+            ->setFoo(\Buggregator\Trap\Test\Proto\Message\Foo::BAR);
+        \trap(Nested: (object)['msg' => $message]);
     }
 
     private function mail(OutputInterface $output, bool $multipart = false): void

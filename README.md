@@ -13,11 +13,11 @@
 
 Buggregator Trap, the streamlined Command Line Interface (CLI) version of Buggregator, marks a new era in debugging PHP applications. Boasting an array of powerful debugging "traps", including:
 
-- Symfony var-dumper, 
-- Monolog, 
-- Sentry, 
-- SMTP, 
-- HTTP dumps, 
+- Symfony var-dumper,
+- Monolog,
+- Sentry,
+- SMTP,
+- HTTP dumps,
 - and Ray
 
 This lightweight tool facilitates and streamlines the process of debugging for developers, regardless of their environment.
@@ -247,4 +247,4 @@ Here are a few reasons why you should consider contributing:
 
 ## License
 
-Buggregator Trap is open-sourced software licensed under the BSD-4 license.
+Buggregator Trap is open-sourced software licensed under the BSD-3 license.
