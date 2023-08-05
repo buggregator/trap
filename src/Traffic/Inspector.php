@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic;
+namespace Buggregator\Trap\Traffic;
 
-use Buggregator\Client\Logger;
-use Buggregator\Client\Processable;
-use Buggregator\Client\Proto\Buffer;
-use Buggregator\Client\Support\Timer;
-use Buggregator\Client\Traffic\Dispatcher\Binary;
+use Buggregator\Trap\Logger;
+use Buggregator\Trap\Processable;
+use Buggregator\Trap\Proto\Buffer;
+use Buggregator\Trap\Support\Timer;
+use Buggregator\Trap\Traffic\Dispatcher\Binary;
 use Fiber;
 
 final class Inspector implements Processable

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Socket\Exception;
+namespace Buggregator\Trap\Socket\Exception;
 
 class DisconnectClient extends \RuntimeException
 {

@@ -1,8 +1,8 @@
 <?php
 
-namespace Buggregator\Client\Tests\Support;
+namespace Buggregator\Trap\Tests\Support;
 
-use Buggregator\Client\Support\ProtobufDTO;
+use Buggregator\Trap\Support\ProtobufDTO;
 use PHPUnit\Framework\TestCase;
 
 class ProtobufDTOTest extends TestCase

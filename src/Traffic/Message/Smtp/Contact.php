@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Message\Smtp;
+namespace Buggregator\Trap\Traffic\Message\Smtp;
 
 /**
  * @psalm-immutable
  * @internal
- * @psalm-internal Buggregator\Client
+ * @psalm-internal Buggregator\Trap
  */
 final class Contact
 {

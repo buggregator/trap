@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Command;
+namespace Buggregator\Trap\Command;
 
-use Buggregator\Client\Info;
-use Buggregator\Client\Logger;
+use Buggregator\Trap\Info;
+use Buggregator\Trap\Logger;
 use DateTimeImmutable;
 use RuntimeException;
 use Socket;

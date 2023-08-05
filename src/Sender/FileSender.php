@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Sender;
+namespace Buggregator\Trap\Sender;
 
-use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\Sender;
+use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Sender;
 use DateTimeImmutable;
 
 class FileSender implements Sender

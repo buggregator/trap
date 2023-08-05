@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Config;
+namespace Buggregator\Trap\Config;
 
 final class SocketServer
 {

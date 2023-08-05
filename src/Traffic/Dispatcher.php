@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic;
+namespace Buggregator\Trap\Traffic;
 
-use Buggregator\Client\Proto\Frame;
+use Buggregator\Trap\Proto\Frame;
 use DateTimeImmutable;
 
 /**
  * @internal
- * @psalm-internal Buggregator\Client\Traffic
+ * @psalm-internal Buggregator\Trap\Traffic
  */
 interface Dispatcher
 {

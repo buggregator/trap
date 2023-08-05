@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Sender;
+namespace Buggregator\Trap\Sender;
 
-use Buggregator\Client\Logger;
-use Buggregator\Client\Processable;
-use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\Sender;
-use Buggregator\Client\Support\Timer;
+use Buggregator\Trap\Logger;
+use Buggregator\Trap\Processable;
+use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Sender;
+use Buggregator\Trap\Support\Timer;
 use Fiber;
 use RuntimeException;
 use Socket;

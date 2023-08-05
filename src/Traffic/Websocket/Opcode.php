@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Websocket;
+namespace Buggregator\Trap\Traffic\Websocket;
 
 /**
  * Opcode: 4 bits
@@ -21,7 +21,7 @@ namespace Buggregator\Client\Traffic\Websocket;
  * @link https://datatracker.ietf.org/doc/html/rfc6455#section-5.2
  *
  * @internal
- * @psalm-internal Buggregator\Client\Traffic\Websocket
+ * @psalm-internal Buggregator\Trap\Traffic\Websocket
  */
 enum Opcode: int
 {

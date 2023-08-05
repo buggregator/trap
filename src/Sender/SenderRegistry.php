@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Sender;
+namespace Buggregator\Trap\Sender;
 
-use Buggregator\Client\Sender;
+use Buggregator\Trap\Sender;
 
 final class SenderRegistry
 {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Handler;
+namespace Buggregator\Trap\Handler;
 
 use Closure;
 
@@ -17,7 +17,7 @@ use Closure;
  *
  * @psalm-immutable
  * @internal
- * @psalm-internal Buggregator\Client
+ * @psalm-internal Buggregator\Trap
  */
 final class Pipeline
 {

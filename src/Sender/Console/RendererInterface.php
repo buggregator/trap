@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Sender\Console;
+namespace Buggregator\Trap\Sender\Console;
 
-use Buggregator\Client\Proto\Frame;
+use Buggregator\Trap\Proto\Frame;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**

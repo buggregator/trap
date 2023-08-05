@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Message;
+namespace Buggregator\Trap\Traffic\Message;
 
 trait Headers
 {

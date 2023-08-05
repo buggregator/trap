@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Sender\Console\Renderer;
+namespace Buggregator\Trap\Sender\Console\Renderer;
 
-use Buggregator\Client\Support\TemplateEngine;
+use Buggregator\Trap\Support\TemplateEngine;
 use Termwind\HtmlRenderer;
 
 final class TemplateRenderer

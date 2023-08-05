@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Tests\Traffic\Parser;
+namespace Buggregator\Trap\Tests\Traffic\Parser;
 
-use Buggregator\Client\Test\Mock\StreamClientMock;
-use Buggregator\Client\Tests\FiberTrait;
-use Buggregator\Client\Traffic\Message;
-use Buggregator\Client\Traffic\Parser;
+use Buggregator\Trap\Test\Mock\StreamClientMock;
+use Buggregator\Trap\Tests\FiberTrait;
+use Buggregator\Trap\Traffic\Message;
+use Buggregator\Trap\Traffic\Parser;
 use PHPUnit\Framework\TestCase;
 
 final class SmtpParserTest extends TestCase

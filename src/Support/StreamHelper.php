@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Support;
+namespace Buggregator\Trap\Support;
 
 use Fiber;
 use Http\Message\Encoding\GzipDecodeStream;

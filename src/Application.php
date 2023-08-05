@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client;
+namespace Buggregator\Trap;
 
-use Buggregator\Client\Config\SocketServer;
-use Buggregator\Client\Handler\Http\Handler\Websocket;
-use Buggregator\Client\Handler\Http\Middleware;
-use Buggregator\Client\Proto\Buffer;
-use Buggregator\Client\Socket\Client;
-use Buggregator\Client\Socket\Server;
-use Buggregator\Client\Socket\SocketStream;
-use Buggregator\Client\Support\Timer;
-use Buggregator\Client\Traffic\Inspector;
+use Buggregator\Trap\Config\SocketServer;
+use Buggregator\Trap\Handler\Http\Handler\Websocket;
+use Buggregator\Trap\Handler\Http\Middleware;
+use Buggregator\Trap\Proto\Buffer;
+use Buggregator\Trap\Socket\Client;
+use Buggregator\Trap\Socket\Server;
+use Buggregator\Trap\Socket\SocketStream;
+use Buggregator\Trap\Support\Timer;
+use Buggregator\Trap\Traffic\Inspector;
 use Fiber;
 
 /**

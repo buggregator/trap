@@ -1,8 +1,9 @@
 <?php
 
-namespace Buggregator\Client\Tests\Traffic\Dispatcher;
+namespace Buggregator\Trap\Tests\Traffic\Dispatcher;
 
-use Buggregator\Client\Traffic\Dispatcher\Http;
+use Buggregator\Trap\Traffic\Dispatcher\Http;
+use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -23,6 +24,6 @@ class HttpTest extends TestCase
     public function testDetect(string $data, ?bool $expected): void
     {
         $dispatcher = new Http();
-        $this->assertSame($expected, $dispatcher->detect($data));
+        $this->assertSame($expected, $dispatcher->detect($data, new DateTimeImmutable()));
     }
 }

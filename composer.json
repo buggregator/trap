@@ -14,7 +14,7 @@
     ],
     "autoload": {
         "psr-4": {
-            "Buggregator\\Client\\": "src/"
+            "Buggregator\\Trap\\": "src/"
         },
         "files": [
             "src/functions.php"
@@ -22,7 +22,7 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Buggregator\\Client\\Tests\\": "tests/"
+            "Buggregator\\Trap\\Tests\\": "tests/"
         }
     },
     "bin": [

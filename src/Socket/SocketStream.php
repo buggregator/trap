@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Socket;
+namespace Buggregator\Trap\Socket;
 
-use Buggregator\Client\Support\Timer;
-use Buggregator\Client\Traffic\StreamClient;
+use Buggregator\Trap\Support\Timer;
+use Buggregator\Trap\Traffic\StreamClient;
 use DateTimeImmutable;
 use Fiber;
 use Generator;

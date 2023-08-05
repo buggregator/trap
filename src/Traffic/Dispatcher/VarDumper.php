@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Dispatcher;
+namespace Buggregator\Trap\Traffic\Dispatcher;
 
-use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\Traffic\Dispatcher;
-use Buggregator\Client\Traffic\StreamClient;
+use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Traffic\Dispatcher;
+use Buggregator\Trap\Traffic\StreamClient;
 use DateTimeImmutable;
 
 /**
  * @internal
- * @psalm-internal Buggregator\Client
+ * @psalm-internal Buggregator\Trap
  */
 final class VarDumper implements Dispatcher
 {

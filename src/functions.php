@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Buggregator\Client\Support\ProtobufDTO;
+use Buggregator\Trap\Support\ProtobufDTO;
 use Google\Protobuf\Internal\Message;
 use Symfony\Component\VarDumper\Caster\TraceStub;
 use Symfony\Component\VarDumper\VarDumper;

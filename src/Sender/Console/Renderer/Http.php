@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Sender\Console\Renderer;
+namespace Buggregator\Trap\Sender\Console\Renderer;
 
-use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\ProtoType;
-use Buggregator\Client\Sender\Console\RendererInterface;
-use Buggregator\Client\Sender\Console\Support\Color;
-use Buggregator\Client\Sender\Console\Support\Common;
-use Buggregator\Client\Sender\Console\Support\Files;
+use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\ProtoType;
+use Buggregator\Trap\Sender\Console\RendererInterface;
+use Buggregator\Trap\Sender\Console\Support\Color;
+use Buggregator\Trap\Sender\Console\Support\Common;
+use Buggregator\Trap\Sender\Console\Support\Files;
 use Psr\Http\Message\UploadedFileInterface;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Output\OutputInterface;

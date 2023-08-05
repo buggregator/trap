@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client;
+namespace Buggregator\Trap;
 
-use Buggregator\Client\Proto\Frame;
+use Buggregator\Trap\Proto\Frame;
 
 interface Sender
 {

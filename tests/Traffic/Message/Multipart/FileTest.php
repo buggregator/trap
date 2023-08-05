@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Tests\Traffic\Message\Multipart;
+namespace Buggregator\Trap\Tests\Traffic\Message\Multipart;
 
-use Buggregator\Client\Support\StreamHelper;
-use Buggregator\Client\Traffic\Message\Multipart\File;
+use Buggregator\Trap\Support\StreamHelper;
+use Buggregator\Trap\Traffic\Message\Multipart\File;
 use PHPUnit\Framework\TestCase;
 
 class FileTest extends TestCase

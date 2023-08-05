@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Handler\Http\Handler;
+namespace Buggregator\Trap\Handler\Http\Handler;
 
-use Buggregator\Client\Handler\Http\Emitter as HttpEmitter;
-use Buggregator\Client\Handler\Http\Middleware;
-use Buggregator\Client\Handler\Http\RequestHandler;
-use Buggregator\Client\Handler\Pipeline;
-use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\Traffic\StreamClient;
+use Buggregator\Trap\Handler\Http\Emitter as HttpEmitter;
+use Buggregator\Trap\Handler\Http\Middleware;
+use Buggregator\Trap\Handler\Http\RequestHandler;
+use Buggregator\Trap\Handler\Pipeline;
+use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Traffic\StreamClient;
 use DateTimeInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -18,7 +18,7 @@ use Psr\Http\Message\ServerRequestInterface;
  * Simple fallback handler that runs {@see Pipeline} of {@see Middleware} and emits {@see ResponseInterface}.
  *
  * @internal
- * @psalm-internal Buggregator\Client
+ * @psalm-internal Buggregator\Trap
  */
 final class Fallback implements RequestHandler
 {

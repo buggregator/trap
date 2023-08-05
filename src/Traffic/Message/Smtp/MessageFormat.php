@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Message\Smtp;
+namespace Buggregator\Trap\Traffic\Message\Smtp;
 
 enum MessageFormat: string
 {

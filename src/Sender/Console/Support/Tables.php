@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Sender\Console\Support;
+namespace Buggregator\Trap\Sender\Console\Support;
 
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -10,7 +10,7 @@ use Symfony\Component\Console\Terminal;
 
 /**
  * @internal
- * @psalm-internal Buggregator\Client\Sender\Console
+ * @psalm-internal Buggregator\Trap\Sender\Console
  */
 final class Tables
 {

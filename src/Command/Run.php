@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Command;
+namespace Buggregator\Trap\Command;
 
-use Buggregator\Client\Application;
-use Buggregator\Client\Config\SocketServer;
-use Buggregator\Client\Info;
-use Buggregator\Client\Sender;
+use Buggregator\Trap\Application;
+use Buggregator\Trap\Config\SocketServer;
+use Buggregator\Trap\Info;
+use Buggregator\Trap\Sender;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;

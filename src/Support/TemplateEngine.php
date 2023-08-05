@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Support;
+namespace Buggregator\Trap\Support;
 
 final class TemplateEngine
 {

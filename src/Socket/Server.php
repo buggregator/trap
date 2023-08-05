@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Socket;
+namespace Buggregator\Trap\Socket;
 
-use Buggregator\Client\Logger;
-use Buggregator\Client\Processable;
-use Buggregator\Client\Socket\Exception\DisconnectClient;
+use Buggregator\Trap\Logger;
+use Buggregator\Trap\Processable;
+use Buggregator\Trap\Socket\Exception\DisconnectClient;
 use Closure;
 use Fiber;
 use RuntimeException;
