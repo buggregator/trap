@@ -12,6 +12,9 @@ use Fiber;
 use RuntimeException;
 use Socket;
 
+/**
+ * @internal
+ */
 final class Server implements Processable
 {
     /** @var false|resource|Socket */

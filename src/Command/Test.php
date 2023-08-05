@@ -7,7 +7,6 @@ namespace Buggregator\Trap\Command;
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Logger;
 use DateTimeImmutable;
-use Google\Protobuf\Internal\MapField;
 use RuntimeException;
 use Socket;
 use Symfony\Component\Console\Command\Command;
@@ -16,6 +15,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Run application
+ *
+ * @internal
  */
 final class Test extends Command
 {

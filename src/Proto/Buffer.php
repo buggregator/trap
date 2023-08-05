@@ -6,6 +6,9 @@ namespace Buggregator\Trap\Proto;
 
 use Buggregator\Trap\Support\Timer;
 
+/**
+ * @internal
+ */
 final class Buffer
 {
     /** @var Frame[] */

@@ -15,6 +15,8 @@ use Psr\Http\Message\UploadedFileInterface;
  *     fileName: string,
  *     size?: int
  * }
+ *
+ * @internal
  */
 final class File extends Part implements UploadedFileInterface
 {

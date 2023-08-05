@@ -6,6 +6,9 @@ namespace Buggregator\Trap\Sender;
 
 use Buggregator\Trap\Sender;
 
+/**
+ * @internal
+ */
 final class SenderRegistry
 {
     /** @var array<non-empty-string, Sender> */

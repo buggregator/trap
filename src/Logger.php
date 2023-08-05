@@ -8,6 +8,7 @@ use Throwable;
 
 /**
  * Console color logger
+ * @internal
  */
 final class Logger
 {

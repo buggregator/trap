@@ -14,6 +14,9 @@ use RuntimeException;
 use Socket;
 use SplQueue;
 
+/**
+ * @internal
+ */
 abstract class SocketSender implements Sender, Processable
 {
     private ?Socket $socket = null;

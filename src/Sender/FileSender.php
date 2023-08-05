@@ -8,6 +8,9 @@ use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Sender;
 use DateTimeImmutable;
 
+/**
+ * @internal
+ */
 class FileSender implements Sender
 {
     private readonly string $path;

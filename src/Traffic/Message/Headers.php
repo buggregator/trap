@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Traffic\Message;
 
+/**
+ * @internal
+ */
 trait Headers
 {
     /** @var array Map of all registered headers, as original name => array of values */

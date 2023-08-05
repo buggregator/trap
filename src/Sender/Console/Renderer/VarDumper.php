@@ -18,6 +18,8 @@ use Symfony\Component\VarDumper\Dumper\CliDumper;
 
 /**
  * @implements RendererInterface<Frame\VarDumper>
+ *
+ * @internal
  */
 final class VarDumper implements RendererInterface
 {

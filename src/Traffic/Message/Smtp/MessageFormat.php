@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Traffic\Message\Smtp;
 
+/**
+ * @internal
+ */
 enum MessageFormat: string
 {
     case Plain = 'plain';

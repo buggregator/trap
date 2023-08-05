@@ -9,6 +9,8 @@ use Fiber;
 
 /**
  * Client state on the server side.
+ *
+ * @internal
  */
 final class Client
 {

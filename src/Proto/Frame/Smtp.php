@@ -10,6 +10,10 @@ use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Traffic\Message;
 use DateTimeImmutable;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator
+ */
 final class Smtp extends Frame implements FilesCarrier
 {
     public function __construct(

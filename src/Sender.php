@@ -6,6 +6,9 @@ namespace Buggregator\Trap;
 
 use Buggregator\Trap\Proto\Frame;
 
+/**
+ * @internal
+ */
 interface Sender
 {
     /**

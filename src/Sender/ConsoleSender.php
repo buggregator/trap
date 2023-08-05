@@ -15,6 +15,9 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Termwind\HtmlRenderer;
 use Termwind\Termwind;
 
+/**
+ * @internal
+ */
 final class ConsoleSender implements Sender
 {
     public static function create(OutputInterface $output): self

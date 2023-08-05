@@ -10,6 +10,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * @implements RendererInterface<Frame>
+ *
+ * @internal
  */
 final class Plain implements RendererInterface
 {

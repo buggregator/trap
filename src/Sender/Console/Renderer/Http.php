@@ -16,6 +16,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * @implements RendererInterface<Frame\Http>
+ *
+ * @internal
  */
 final class Http implements RendererInterface
 {

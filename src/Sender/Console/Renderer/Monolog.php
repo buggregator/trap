@@ -11,6 +11,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * @implements RendererInterface<Frame\Monolog>
+ *
+ * @internal
  */
 final class Monolog implements RendererInterface
 {

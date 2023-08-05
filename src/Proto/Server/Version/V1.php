@@ -10,6 +10,10 @@ use Buggregator\Trap\ProtoType;
 use InvalidArgumentException;
 use RuntimeException;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator
+ */
 final class V1 implements PayloadDecoder
 {
     public function isSupport(string $payload): bool

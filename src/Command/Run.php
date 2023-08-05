@@ -15,6 +15,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Run application
+ *
+ * @internal
  */
 final class Run extends Command
 {
@@ -77,7 +79,7 @@ final class Run extends Command
         $registry->register('file', new Sender\FileSender());
         $registry->register(
             'server',
-            new Sender\SaasSender(
+            new Sender\RemoteSender(
                 host: '127.0.0.1',
                 port: 9099,
             )

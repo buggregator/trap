@@ -8,6 +8,9 @@ use Buggregator\Trap\Proto\Frame;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @internal
+ */
 final class ConsoleRenderer implements HandlerInterface
 {
     /**

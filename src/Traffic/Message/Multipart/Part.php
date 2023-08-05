@@ -8,6 +8,9 @@ use Buggregator\Trap\Traffic\Message\Headers;
 use JsonSerializable;
 use RuntimeException;
 
+/**
+ * @internal
+ */
 abstract class Part implements JsonSerializable
 {
     use Headers;

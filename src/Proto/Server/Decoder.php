@@ -7,6 +7,10 @@ namespace Buggregator\Trap\Proto\Server;
 use Buggregator\Trap\Proto\Server\Version\PayloadDecoder;
 use RuntimeException;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator
+ */
 final class Decoder
 {
     /**

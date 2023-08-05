@@ -6,6 +6,8 @@ namespace Buggregator\Trap;
 
 /**
  * Must be processed in a main loop.
+ *
+ * @internal
  */
 interface Processable
 {

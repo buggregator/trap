@@ -6,6 +6,10 @@ namespace Buggregator\Trap\Proto\Server\Version;
 
 use Buggregator\Trap\Proto\Server\Request;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator
+ */
 interface PayloadDecoder
 {
     public function isSupport(string $payload): bool;

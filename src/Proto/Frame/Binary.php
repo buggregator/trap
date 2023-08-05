@@ -9,6 +9,10 @@ use Buggregator\Trap\ProtoType;
 use DateTimeImmutable;
 use Psr\Http\Message\StreamInterface;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator
+ */
 final class Binary extends Frame
 {
     public function __construct(

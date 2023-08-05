@@ -14,6 +14,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * @implements RendererInterface<Frame\Binary>
+ *
+ * @internal
  */
 final class Binary implements RendererInterface
 {

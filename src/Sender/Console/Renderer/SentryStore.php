@@ -9,6 +9,9 @@ use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\RendererInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @internal
+ */
 final class SentryStore implements RendererInterface
 {
     public function __construct(

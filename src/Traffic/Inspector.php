@@ -11,6 +11,9 @@ use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Traffic\Dispatcher\Binary;
 use Fiber;
 
+/**
+ * @internal
+ */
 final class Inspector implements Processable
 {
     /** @var Fiber[] */

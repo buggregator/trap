@@ -13,6 +13,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * @implements RendererInterface<Frame\Smtp>
+ *
+ * @internal
  */
 final class Smtp implements RendererInterface
 {

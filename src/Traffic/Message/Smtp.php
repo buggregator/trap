@@ -23,6 +23,8 @@ use Psr\Http\Message\StreamInterface;
  *     messages: array<int, FieldDataArray>,
  *     attachments: array<int, FileDataArray>
  * }
+ *
+ * @internal
  */
 final class Smtp implements JsonSerializable
 {

@@ -12,6 +12,10 @@ use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\ServerRequestInterface;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator
+ */
 final class Http extends Frame implements FilesCarrier
 {
     public function __construct(

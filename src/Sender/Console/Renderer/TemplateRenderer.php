@@ -7,6 +7,9 @@ namespace Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Support\TemplateEngine;
 use Termwind\HtmlRenderer;
 
+/**
+ * @internal
+ */
 final class TemplateRenderer
 {
     public function __construct(

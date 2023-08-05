@@ -13,6 +13,7 @@ use Psr\Http\Message\StreamInterface;
 
 /**
  * Todo: parse and decrypt `Content-Transfer-Encoding: base64`, `Content-Transfer-Encoding: 7bit`
+ * @internal
  */
 final class Smtp
 {

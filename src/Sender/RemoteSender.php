@@ -7,7 +7,10 @@ namespace Buggregator\Trap\Sender;
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Support\Uuid;
 
-final class SaasSender extends SocketSender
+/**
+ * @internal
+ */
+final class RemoteSender extends SocketSender
 {
     private string $uuid;
 

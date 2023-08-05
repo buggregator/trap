@@ -11,6 +11,9 @@ use DateTimeImmutable;
 use Fiber;
 use Generator;
 
+/**
+ * @internal
+ */
 final class StreamClientMock implements StreamClient
 {
     /** @var \SplQueue<string> */

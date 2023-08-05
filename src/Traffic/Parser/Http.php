@@ -16,6 +16,9 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
 use RuntimeException;
 
+/**
+ * @internal
+ */
 final class Http
 {
     private const MAX_URL_ENCODED_BODY_SIZE = 4194304; // 4MB

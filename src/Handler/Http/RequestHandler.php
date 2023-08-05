@@ -8,6 +8,10 @@ use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Traffic\StreamClient;
 use Psr\Http\Message\ServerRequestInterface;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator\Trap
+ */
 interface RequestHandler
 {
     /**

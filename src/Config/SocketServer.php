@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Config;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator
+ */
 final class SocketServer
 {
     /**

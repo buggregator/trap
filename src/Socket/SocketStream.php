@@ -14,6 +14,8 @@ use IteratorAggregate;
 /**
  * Simple abstraction over {@see Client} to make it easier to work with.
  * Use {@see Server::$clientInflector} to wrap {@see Client} into {@see self}.
+ *
+ * @internal
  */
 final class SocketStream implements IteratorAggregate, StreamClient
 {

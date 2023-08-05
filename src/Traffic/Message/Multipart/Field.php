@@ -10,6 +10,8 @@ namespace Buggregator\Trap\Traffic\Message\Multipart;
  *     name?: string,
  *     value: string
  * }
+ *
+ * @internal
  */
 final class Field extends Part
 {
