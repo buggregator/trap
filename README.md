@@ -1,15 +1,24 @@
-# Buggregator Trap: Revolutionize Your Debugging Experience with PHP
+<div align="center">
+    <img src="https://github.com/buggregator/trap/assets/4152481/c53e7107-e1c5-48b9-9789-4a6bce9b903b" style="width: 3in" />
+    <div>Revolutionize Your Debugging Experience with PHP</div>
+</div>
+<h1 align="center">Buggregator Trap</h1>
 
-**Support us on Patreon**  
-[![roxblnfk](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Droxblnfk%26type%3Dpatrons&style=flat)](https://patreon.com/roxblnfk)
-[![butschster](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Dbutschster%26type%3Dpatrons&style=flat)](https://patreon.com/butschster)
+<div align="center">
 
-**Follow us on Twitter**  
-[![Twitter](https://img.shields.io/badge/twitter-Follow-blue)](https://twitter.com/buggregator)
+**Support us on Patreon** and **follow us on Twitter**  
+[![roxblnfk](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Droxblnfk%26type%3Dpatrons&style=flat)](https://patreon.com/roxblnfk)  [![butschster](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Dbutschster%26type%3Dpatrons&style=flat)](https://patreon.com/butschster)  [![Twitter](https://img.shields.io/badge/twitter-Follow-blue)](https://twitter.com/buggregator)
 
+</div>
+
+- [Intro](#intro)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Contributing](#contributing)
+- [License](#license)
 
+
+## Intro
 
 Buggregator Trap, the streamlined Command Line Interface (CLI) version of Buggregator, marks a new era in debugging PHP applications. Boasting an array of powerful debugging "traps", including:
 
@@ -176,7 +185,7 @@ In addition to the local debugging features, Buggregator Trap provides an innova
 To install Buggregator Trap in your PHP application, add the package as a dependency to your project using Composer:
 
 ```bash
-composer require --dev buggregator/trap:*
+composer require --dev buggregator/trap
 ```
 
 ## Usage

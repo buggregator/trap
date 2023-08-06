@@ -73,6 +73,18 @@ final class Test extends Command
             ->setMapaMapa(['foo' => 'bar', 'baz' => 'qux', '2' => 'quuz', 'quux ff' => 'quuz'])
             ->setFoo(\Buggregator\Trap\Test\Proto\Message\Foo::BAR);
         \trap(Nested: (object)['msg' => $message]);
+
+        try {
+            $socket = @\socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+            @\socket_connect($socket, $this->addr, $this->port);
+            @\socket_write($socket, $message->serializeToString());
+        } catch (\Throwable $e) {
+            $this->logger->exception($e, "Proto sending error", important: true);
+        } finally {
+            if (isset($socket)) {
+                @\socket_close($socket);
+            }
+        }
     }
 
     private function mail(OutputInterface $output, bool $multipart = false): void
