@@ -2,11 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Message;
+namespace Buggregator\Trap\Traffic\Message;
 
 use Nyholm\Psr7\Stream;
 use Psr\Http\Message\StreamInterface;
 
+/**
+ * @internal
+ */
 trait StreamBody
 {
     private ?StreamInterface $stream = null;

@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic;
+namespace Buggregator\Trap\Traffic;
 
-use Buggregator\Client\Support\Timer;
+use Buggregator\Trap\Support\Timer;
 use DateTimeImmutable;
 use Generator;
 
 /**
  * Simple abstraction over a client two-way stream.
  * @internal
- * @psalm-internal Buggregator\Client\Traffic
+ * @psalm-internal Buggregator\Trap\Traffic
  */
 interface StreamClient extends \IteratorAggregate
 {

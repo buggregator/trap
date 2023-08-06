@@ -2,12 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Handler\Http;
+namespace Buggregator\Trap\Handler\Http;
 
-use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\Traffic\StreamClient;
+use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Traffic\StreamClient;
 use Psr\Http\Message\ServerRequestInterface;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator\Trap
+ */
 interface RequestHandler
 {
     /**

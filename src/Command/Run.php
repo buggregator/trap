@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Command;
+namespace Buggregator\Trap\Command;
 
-use Buggregator\Client\Application;
-use Buggregator\Client\Config\SocketServer;
-use Buggregator\Client\Info;
-use Buggregator\Client\Sender;
+use Buggregator\Trap\Application;
+use Buggregator\Trap\Config\SocketServer;
+use Buggregator\Trap\Info;
+use Buggregator\Trap\Logger;
+use Buggregator\Trap\Sender;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -15,6 +16,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Run application
+ *
+ * @internal
  */
 final class Run extends Command
 {
@@ -48,7 +51,8 @@ final class Run extends Command
             $registry = $this->createRegistry($output);
 
             $app = new Application(
-                [new SocketServer($port)]
+                [new SocketServer($port)],
+                new Logger($output),
             );
 
             $app->run(
@@ -77,7 +81,7 @@ final class Run extends Command
         $registry->register('file', new Sender\FileSender());
         $registry->register(
             'server',
-            new Sender\SaasSender(
+            new Sender\RemoteSender(
                 host: '127.0.0.1',
                 port: 9099,
             )

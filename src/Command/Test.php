@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Command;
+namespace Buggregator\Trap\Command;
 
-use Buggregator\Client\Info;
-use Buggregator\Client\Logger;
+use Buggregator\Trap\Info;
+use Buggregator\Trap\Logger;
 use DateTimeImmutable;
 use RuntimeException;
 use Socket;
@@ -15,6 +15,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Run application
+ *
+ * @internal
  */
 final class Test extends Command
 {
@@ -23,10 +25,14 @@ final class Test extends Command
     private string $addr = '127.0.0.1';
     private int $port = 9912;
 
+    private Logger $logger;
+
     protected function execute(
         InputInterface $input,
         OutputInterface $output,
     ): int {
+        $this->logger = new Logger($output);
+
         $this->dump();
         \usleep(100_000);
         $this->mail($output, true);
@@ -46,9 +52,27 @@ final class Test extends Command
         $_SERVER['VAR_DUMPER_FORMAT'] = 'server';
         $_SERVER['VAR_DUMPER_SERVER'] = "$this->addr:$this->port";
 
-        \dump(['foo' => 'bar']);
-        \dump(123);
-        \dump(new DateTimeImmutable());
+        \trap(['foo' => 'bar']);
+        \trap(123);
+        \trap(new DateTimeImmutable());
+
+        $message = (new \Buggregator\Trap\Test\Proto\Message())
+            ->setId(123)
+            ->setPayload('foo')
+            ->setCommand('bar')
+            ->setMainMetadata([
+                (new \Buggregator\Trap\Test\Proto\Message\Metadata())
+                    ->setKey('foo')
+                    ->setValue('bar'),
+            ])
+            ->setHeader(
+                (new \Buggregator\Trap\Test\Proto\Message\Header())
+                    ->setKey('foo')
+                    ->setValue('bar'),
+            )
+            ->setMapaMapa(['foo' => 'bar', 'baz' => 'qux', '2' => 'quuz', 'quux ff' => 'quuz'])
+            ->setFoo(\Buggregator\Trap\Test\Proto\Message\Foo::BAR);
+        \trap(Nested: (object)['msg' => $message]);
     }
 
     private function mail(OutputInterface $output, bool $multipart = false): void
@@ -140,7 +164,7 @@ final class Test extends Command
             \socket_close($socket);
 
         } catch (\Throwable $e) {
-            Logger::exception($e, 'Mail protocol error');
+            $this->logger->exception($e, 'Mail protocol error', important: true);
         }
     }
 
@@ -202,7 +226,7 @@ final class Test extends Command
             }
 
         } catch (\Throwable $e) {
-            Logger::exception($e, "$file sending error");
+            $this->logger->exception($e, "$file sending error", important: true);
         } finally {
             if (isset($fp) && \is_resource($fp)) {
                 @\flock($fp, LOCK_UN);

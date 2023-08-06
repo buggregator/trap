@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Message\Multipart;
+namespace Buggregator\Trap\Traffic\Message\Multipart;
 
 /**
  * @psalm-type FieldDataArray = array{
@@ -10,6 +10,8 @@ namespace Buggregator\Client\Traffic\Message\Multipart;
  *     name?: string,
  *     value: string
  * }
+ *
+ * @internal
  */
 final class Field extends Part
 {

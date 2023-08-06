@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Handler\Http;
+namespace Buggregator\Trap\Handler\Http;
 
-use Buggregator\Client\Support\StreamHelper;
-use Buggregator\Client\Traffic\StreamClient;
+use Buggregator\Trap\Support\StreamHelper;
+use Buggregator\Trap\Traffic\StreamClient;
 use Fiber;
 use Psr\Http\Message\ResponseInterface;
 
 /**
  * @internal
- * @psalm-internal Buggregator\Client\Handler\Http
+ * @psalm-internal Buggregator\Trap\Handler\Http
  */
 final class Emitter
 {

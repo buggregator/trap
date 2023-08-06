@@ -2,14 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Test\Mock;
+namespace Buggregator\Trap\Test\Mock;
 
-use Buggregator\Client\Support\Timer;
-use Buggregator\Client\Test\Mock\StreamClientMock\DisconnectCommand;
-use Buggregator\Client\Traffic\StreamClient;
+use Buggregator\Trap\Support\Timer;
+use Buggregator\Trap\Test\Mock\StreamClientMock\DisconnectCommand;
+use Buggregator\Trap\Traffic\StreamClient;
+use DateTimeImmutable;
 use Fiber;
 use Generator;
 
+/**
+ * @internal
+ */
 final class StreamClientMock implements StreamClient
 {
     /** @var \SplQueue<string> */
@@ -75,7 +79,7 @@ final class StreamClientMock implements StreamClient
     }
 
     /**
-     * Copy of {@see \Buggregator\Client\Socket\SocketStream::fetchLine()}
+     * Copy of {@see \Buggregator\Trap\Socket\SocketStream::fetchLine()}
      */
     public function fetchLine(): string
     {
@@ -140,5 +144,10 @@ final class StreamClientMock implements StreamClient
         }
 
         $this->generator->next();
+    }
+
+    public function getCreatedAt(): DateTimeImmutable
+    {
+        return new DateTimeImmutable();
     }
 }

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Tests\Traffic\Message\Multipart;
+namespace Buggregator\Trap\Tests\Traffic\Message\Multipart;
 
-use Buggregator\Client\Traffic\Message\Multipart\Field;
+use Buggregator\Trap\Traffic\Message\Multipart\Field;
 use PHPUnit\Framework\TestCase;
 
 final class FieldTest extends TestCase

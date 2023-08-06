@@ -2,12 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Sender;
+namespace Buggregator\Trap\Sender;
 
-use Buggregator\Client\Info;
-use Buggregator\Client\Support\Uuid;
+use Buggregator\Trap\Info;
+use Buggregator\Trap\Support\Uuid;
 
-final class SaasSender extends SocketSender
+/**
+ * @internal
+ */
+final class RemoteSender extends SocketSender
 {
     private string $uuid;
 

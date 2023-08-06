@@ -2,12 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Proto\Frame;
+namespace Buggregator\Trap\Proto\Frame;
 
-use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\ProtoType;
+use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\ProtoType;
 use DateTimeImmutable;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator
+ */
 final class VarDumper extends Frame
 {
     public function __construct(

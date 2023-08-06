@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Tests\Traffic\Proto\Server\Version;
+namespace Buggregator\Trap\Tests\Traffic\Proto\Server\Version;
 
-use Buggregator\Client\Proto\Server\Version\V1;
+use Buggregator\Trap\Proto\Server\Version\V1;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 

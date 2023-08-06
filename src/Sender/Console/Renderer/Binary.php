@@ -2,18 +2,20 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Sender\Console\Renderer;
+namespace Buggregator\Trap\Sender\Console\Renderer;
 
-use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\ProtoType;
-use Buggregator\Client\Sender\Console\RendererInterface;
-use Buggregator\Client\Sender\Console\Support\Common;
-use Buggregator\Client\Sender\Console\Support\Files;
+use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\ProtoType;
+use Buggregator\Trap\Sender\Console\RendererInterface;
+use Buggregator\Trap\Sender\Console\Support\Common;
+use Buggregator\Trap\Sender\Console\Support\Files;
 use Fiber;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * @implements RendererInterface<Frame\Binary>
+ *
+ * @internal
  */
 final class Binary implements RendererInterface
 {

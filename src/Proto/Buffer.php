@@ -2,10 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Proto;
+namespace Buggregator\Trap\Proto;
 
-use Buggregator\Client\Support\Timer;
+use Buggregator\Trap\Support\Timer;
 
+/**
+ * @internal
+ */
 final class Buffer
 {
     /** @var Frame[] */

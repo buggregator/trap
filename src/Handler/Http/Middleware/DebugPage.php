@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Handler\Http\Middleware;
+namespace Buggregator\Trap\Handler\Http\Middleware;
 
-use Buggregator\Client\Handler\Http\Middleware;
+use Buggregator\Trap\Handler\Http\Middleware;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * @internal
- * @psalm-internal Buggregator\Client
+ * @psalm-internal Buggregator\Trap
  */
 final class DebugPage implements Middleware
 {

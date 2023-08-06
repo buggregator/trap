@@ -2,8 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client;
+namespace Buggregator\Trap;
 
+/**
+ * @internal
+ */
 enum ProtoType: string
 {
     case VarDumper = 'var-dumper';

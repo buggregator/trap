@@ -2,13 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Socket;
+namespace Buggregator\Trap\Socket;
 
-use Buggregator\Client\Socket\Exception\DisconnectClient;
+use Buggregator\Trap\Socket\Exception\DisconnectClient;
 use Fiber;
 
 /**
  * Client state on the server side.
+ *
+ * @internal
  */
 final class Client
 {
@@ -155,7 +157,7 @@ final class Client
     {
         while (($left = $length - \strlen($this->readBuffer)) > 0) {
             $data = '';
-            $read = \socket_recv($this->socket, $data, $left, 0);
+            $read = @\socket_recv($this->socket, $data, $left, 0);
             if ($read === false || $data === null) {
                 if ($this->readBuffer !== '') {
                     $result = $this->readBuffer;

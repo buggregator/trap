@@ -2,10 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Proto\Server;
+namespace Buggregator\Trap\Proto\Server;
 
 use Closure;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator
+ */
 final class Request
 {
     /**

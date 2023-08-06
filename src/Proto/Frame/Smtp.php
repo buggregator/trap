@@ -2,14 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Proto\Frame;
+namespace Buggregator\Trap\Proto\Frame;
 
-use Buggregator\Client\Proto\FilesCarrier;
-use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\ProtoType;
-use Buggregator\Client\Traffic\Message;
+use Buggregator\Trap\Proto\FilesCarrier;
+use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\ProtoType;
+use Buggregator\Trap\Traffic\Message;
 use DateTimeImmutable;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator
+ */
 final class Smtp extends Frame implements FilesCarrier
 {
     public function __construct(

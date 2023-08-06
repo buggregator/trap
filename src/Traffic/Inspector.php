@@ -2,15 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic;
+namespace Buggregator\Trap\Traffic;
 
-use Buggregator\Client\Logger;
-use Buggregator\Client\Processable;
-use Buggregator\Client\Proto\Buffer;
-use Buggregator\Client\Support\Timer;
-use Buggregator\Client\Traffic\Dispatcher\Binary;
+use Buggregator\Trap\Logger;
+use Buggregator\Trap\Processable;
+use Buggregator\Trap\Proto\Buffer;
+use Buggregator\Trap\Support\Timer;
+use Buggregator\Trap\Traffic\Dispatcher\Binary;
 use Fiber;
 
+/**
+ * @internal
+ */
 final class Inspector implements Processable
 {
     /** @var Fiber[] */
@@ -20,6 +23,7 @@ final class Inspector implements Processable
 
     public function __construct(
         private Buffer $buffer,
+        private readonly Logger $logger,
         Dispatcher ...$dispatchers,
     ) {
         $this->dispatchers = $dispatchers;
@@ -42,7 +46,7 @@ final class Inspector implements Processable
             } catch (\Throwable $e) {
                 // todo replace with better exception handling
                 if ($e->getMessage() !== 'Stream terminated.') {
-                    Logger::exception($e, 'Fiber failed in the Traffic inspector');
+                    $this->logger->exception($e, 'Fiber failed in the Traffic inspector');
                 }
                 unset($this->fibers[$key]);
             }

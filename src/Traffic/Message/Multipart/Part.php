@@ -2,12 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Message\Multipart;
+namespace Buggregator\Trap\Traffic\Message\Multipart;
 
-use Buggregator\Client\Traffic\Message\Headers;
+use Buggregator\Trap\Traffic\Message\Headers;
 use JsonSerializable;
 use RuntimeException;
 
+/**
+ * @internal
+ */
 abstract class Part implements JsonSerializable
 {
     use Headers;

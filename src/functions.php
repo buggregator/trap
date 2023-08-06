@@ -2,12 +2,16 @@
 
 declare(strict_types=1);
 
-use Buggregator\Client\Support\ProtobufDTO;
+use Buggregator\Trap\Support\Caster\EnumValue;
+use Buggregator\Trap\Support\ProtobufCaster;
+use Google\Protobuf\Internal\MapField;
 use Google\Protobuf\Internal\Message;
+use Google\Protobuf\Internal\RepeatedField;
 use Symfony\Component\VarDumper\Caster\TraceStub;
+use Symfony\Component\VarDumper\Cloner\AbstractCloner;
 use Symfony\Component\VarDumper\VarDumper;
 
-if (!function_exists('trap')) {
+if (!\function_exists('trap')) {
     /**
      * Configure VarDumper to dump values to the local server.
      * If there are no values - dump stack trace.
@@ -41,17 +45,6 @@ if (!function_exists('trap')) {
             return;
         }
 
-        // Process protobuf classes
-        foreach ($values as $key => $value) {
-            try {
-                if ($value instanceof Message) {
-                    $values[$key] = ProtobufDTO::createFromMessage($value);
-                }
-            } catch (\Throwable) {
-                // Ignore
-            }
-        }
-
         // Dump single value
         if (array_keys($values) === [0]) {
             VarDumper::dump($values);
@@ -63,5 +56,15 @@ if (!function_exists('trap')) {
             VarDumper::dump($value, $key);
 		}
     }
+}
+
+/**
+ * Register the var-dump caster for protobuf messages
+ */
+if (\class_exists(AbstractCloner::class)) {
+    AbstractCloner::$defaultCasters[Message::class] ??= [ProtobufCaster::class, 'cast'];
+    AbstractCloner::$defaultCasters[RepeatedField::class] ??= [ProtobufCaster::class, 'castRepeated'];
+    AbstractCloner::$defaultCasters[MapField::class] ??= [ProtobufCaster::class, 'castMap'];
+    AbstractCloner::$defaultCasters[EnumValue::class] ??= [ProtobufCaster::class, 'castEnum'];
 }
 

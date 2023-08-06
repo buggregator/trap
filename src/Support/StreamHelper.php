@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Support;
+namespace Buggregator\Trap\Support;
 
 use Fiber;
 use Http\Message\Encoding\GzipDecodeStream;
@@ -10,6 +10,10 @@ use Nyholm\Psr7\Stream;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator\Trap
+ */
 final class StreamHelper
 {
     private const CHUNK_SIZE = 1048576; // 1 Mb

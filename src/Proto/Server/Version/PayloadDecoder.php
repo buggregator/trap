@@ -2,10 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Proto\Server\Version;
+namespace Buggregator\Trap\Proto\Server\Version;
 
-use Buggregator\Client\Proto\Server\Request;
+use Buggregator\Trap\Proto\Server\Request;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator
+ */
 interface PayloadDecoder
 {
     public function isSupport(string $payload): bool;

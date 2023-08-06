@@ -2,19 +2,22 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Sender;
+namespace Buggregator\Trap\Sender;
 
-use Buggregator\Client\Info;
-use Buggregator\Client\Sender;
-use Buggregator\Client\Sender\Console\ConsoleRenderer;
-use Buggregator\Client\Sender\Console\HandlerInterface;
-use Buggregator\Client\Sender\Console\Renderer;
-use Buggregator\Client\Sender\Console\Renderer\TemplateRenderer;
-use Buggregator\Client\Support\TemplateEngine;
+use Buggregator\Trap\Info;
+use Buggregator\Trap\Sender;
+use Buggregator\Trap\Sender\Console\ConsoleRenderer;
+use Buggregator\Trap\Sender\Console\HandlerInterface;
+use Buggregator\Trap\Sender\Console\Renderer;
+use Buggregator\Trap\Sender\Console\Renderer\TemplateRenderer;
+use Buggregator\Trap\Support\TemplateEngine;
 use Symfony\Component\Console\Output\OutputInterface;
 use Termwind\HtmlRenderer;
 use Termwind\Termwind;
 
+/**
+ * @internal
+ */
 final class ConsoleSender implements Sender
 {
     public static function create(OutputInterface $output): self

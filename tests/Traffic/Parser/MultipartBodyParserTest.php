@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Tests\Traffic\Parser;
+namespace Buggregator\Trap\Tests\Traffic\Parser;
 
-use Buggregator\Client\Tests\FiberTrait;
-use Buggregator\Client\Traffic\Message\Multipart\Field;
-use Buggregator\Client\Traffic\Message\Multipart\File;
-use Buggregator\Client\Traffic\Message\Multipart\Part;
-use Buggregator\Client\Traffic\Parser;
+use Buggregator\Trap\Tests\FiberTrait;
+use Buggregator\Trap\Traffic\Message\Multipart\Field;
+use Buggregator\Trap\Traffic\Message\Multipart\File;
+use Buggregator\Trap\Traffic\Message\Multipart\Part;
+use Buggregator\Trap\Traffic\Parser;
 use Nyholm\Psr7\Stream;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\StreamInterface;

@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+// PHP classes
+option php_namespace = "Buggregator\\Trap\\Test\\Proto";
+option php_metadata_namespace = "Buggregator\\Trap\\Test\\Proto\\Metadata";
+
+package stub.proto;
+
+message Message {
+    message Metadata {
+        string key = 1;
+        string value = 2;
+    }
+    message Header {
+        string key = 1;
+        string value = 2;
+    }
+    enum Foo {
+        FOO = 0;
+        BAR = 1;
+    }
+    uint64 id = 1;
+    string command = 2;
+    string payload = 3;
+    repeated Metadata main_metadata = 4;
+    reserved 5, 6, 7;
+    Foo foo = 8;
+    bool is_foo = 9;
+    bytes data = 10;
+    oneof meta {
+        Metadata metadata = 11;
+        Header header = 12;
+    }
+    map<string, string> mapa_mapa = 13;
+}

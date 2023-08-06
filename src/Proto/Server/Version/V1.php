@@ -2,14 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Proto\Server\Version;
+namespace Buggregator\Trap\Proto\Server\Version;
 
-use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\Proto\Server\Request;
-use Buggregator\Client\ProtoType;
+use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Proto\Server\Request;
+use Buggregator\Trap\ProtoType;
 use InvalidArgumentException;
 use RuntimeException;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator
+ */
 final class V1 implements PayloadDecoder
 {
     public function isSupport(string $payload): bool

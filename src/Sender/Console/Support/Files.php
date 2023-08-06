@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Sender\Console\Support;
+namespace Buggregator\Trap\Sender\Console\Support;
 
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * @internal
- * @psalm-internal Buggregator\Client\Sender\Console
+ * @psalm-internal Buggregator\Trap\Sender\Console
  */
 final class Files
 {
@@ -63,7 +63,7 @@ final class Files
 
         $units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
         $power = \floor(\log($size, 1024));
-        $float = \round($size / (1024 ** $power), 2);
+        $float = $power > 0 ? \round($size / (1024 ** $power), 2) : $size;
         return $float . ' ' . $units[$power];
     }
 }

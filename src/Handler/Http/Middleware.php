@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Handler\Http;
+namespace Buggregator\Trap\Handler\Http;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -11,7 +11,7 @@ use Psr\Http\Message\ServerRequestInterface;
  * Http middleware interface.
  *
  * @internal
- * @psalm-internal Buggregator\Client
+ * @psalm-internal Buggregator\Trap
  */
 interface Middleware
 {

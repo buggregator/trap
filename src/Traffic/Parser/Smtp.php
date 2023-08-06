@@ -2,17 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Parser;
+namespace Buggregator\Trap\Traffic\Parser;
 
-use Buggregator\Client\Traffic\StreamClient;
-use Buggregator\Client\Support\StreamHelper;
-use Buggregator\Client\Traffic\Message;
-use Buggregator\Client\Traffic\Message\Multipart\Field;
-use Buggregator\Client\Traffic\Message\Multipart\File;
+use Buggregator\Trap\Traffic\StreamClient;
+use Buggregator\Trap\Support\StreamHelper;
+use Buggregator\Trap\Traffic\Message;
+use Buggregator\Trap\Traffic\Message\Multipart\Field;
+use Buggregator\Trap\Traffic\Message\Multipart\File;
 use Psr\Http\Message\StreamInterface;
 
 /**
  * Todo: parse and decrypt `Content-Transfer-Encoding: base64`, `Content-Transfer-Encoding: 7bit`
+ * @internal
  */
 final class Smtp
 {

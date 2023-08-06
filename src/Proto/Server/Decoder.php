@@ -2,11 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Proto\Server;
+namespace Buggregator\Trap\Proto\Server;
 
-use Buggregator\Client\Proto\Server\Version\PayloadDecoder;
+use Buggregator\Trap\Proto\Server\Version\PayloadDecoder;
 use RuntimeException;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator
+ */
 final class Decoder
 {
     /**

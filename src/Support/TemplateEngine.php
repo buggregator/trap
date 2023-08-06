@@ -2,8 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Support;
+namespace Buggregator\Trap\Support;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator\Trap
+ */
 final class TemplateEngine
 {
     public function __construct(

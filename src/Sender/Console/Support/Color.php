@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Sender\Console\Support;
+namespace Buggregator\Trap\Sender\Console\Support;
 
 /**
  * Default terminal colors
  *
  * @internal
- * @psalm-internal Buggregator\Client\Sender\Console
+ * @psalm-internal Buggregator\Trap\Sender\Console
  */
 enum Color: string
 {

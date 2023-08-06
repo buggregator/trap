@@ -2,13 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Sender\Console\Renderer;
+namespace Buggregator\Trap\Sender\Console\Renderer;
 
-use Buggregator\Client\Proto\Frame;
-use Buggregator\Client\ProtoType;
-use Buggregator\Client\Sender\Console\RendererInterface;
+use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\ProtoType;
+use Buggregator\Trap\Sender\Console\RendererInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @internal
+ */
 final class SentryStore implements RendererInterface
 {
     public function __construct(

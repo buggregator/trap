@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Traffic\Message\Multipart;
+namespace Buggregator\Trap\Traffic\Message\Multipart;
 
 use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\StreamInterface;
@@ -15,6 +15,8 @@ use Psr\Http\Message\UploadedFileInterface;
  *     fileName: string,
  *     size?: int
  * }
+ *
+ * @internal
  */
 final class File extends Part implements UploadedFileInterface
 {

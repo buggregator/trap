@@ -2,11 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Client\Proto;
+namespace Buggregator\Trap\Proto;
 
-use Buggregator\Client\ProtoType;
+use Buggregator\Trap\ProtoType;
 use DateTimeImmutable;
 
+/**
+ * @internal
+ * @psalm-internal Buggregator
+ */
 abstract class Frame implements \Stringable, \JsonSerializable
 {
     public function __construct(
