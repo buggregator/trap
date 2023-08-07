@@ -46,8 +46,8 @@ if (!\function_exists('trap')) {
         }
 
         // Dump single value
-        if (array_keys($values) === [0]) {
-            VarDumper::dump($values);
+        if (\array_keys($values) === [0]) {
+            VarDumper::dump($values[0]);
             return;
         }
 
