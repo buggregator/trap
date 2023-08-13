@@ -20,6 +20,10 @@ if (!\function_exists('trap')) {
      */
     function trap(mixed ...$values): void
     {
+        if (!\class_exists(VarDumper::class)) {
+            throw new \RuntimeException('VarDumper is not installed. Please install symfony/var-dumper package.');
+        }
+
         // Set default values if not set
         if (!isset($_SERVER['VAR_DUMPER_FORMAT'], $_SERVER['VAR_DUMPER_SERVER'])) {
             $_SERVER['VAR_DUMPER_FORMAT'] = 'server';
