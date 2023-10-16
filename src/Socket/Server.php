@@ -69,7 +69,7 @@ final class Server implements Processable
         int $port = 9912,
         int $payloadSize = 10485760,
         ?Closure $clientInflector = null,
-        Logger $logger,
+        Logger $logger = new Logger(),
     ): self {
         return new self($port, $payloadSize, $clientInflector, $logger);
     }
