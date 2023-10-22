@@ -55,7 +55,7 @@
         "nunomaduro/termwind": "^1.15",
         "nyholm/psr7": "^1.8",
         "php-http/message": "^1.15",
-        "psr/http-message": "^1",
+        "psr/http-message": "^1 || ^2",
         "symfony/console": "^5.0 || ^6.0"
     },
     "require-dev": {
