@@ -16,7 +16,8 @@ use Psr\Http\Message\StreamInterface;
  */
 final class EnvelopeParser
 {
-    private const MAX_ITEM_SIZE = 1024 * 1024; // 1MB
+    private const MAX_TEXT_ITEM_SIZE = 1024 * 1024; // 1MB
+    private const MAX_BINARY_ITEM_SIZE = 100 * 1024 * 1024; // 100MB
 
     public static function parse(
         StreamInterface $stream,
@@ -30,7 +31,7 @@ final class EnvelopeParser
         do {
             try {
                 $items[] = self::parseItem($stream);
-            } catch (\Throwable $e) {
+            } catch (\Throwable) {
                 break;
             }
         } while (true);
@@ -46,18 +47,27 @@ final class EnvelopeParser
         // Parse item header
         $itemHeader = \json_decode(self::readLine($stream), true, 4, JSON_THROW_ON_ERROR);
 
-        if (isset($itemHeader['length'])) {
-            // Parse item payload when length is specified
-            $length = (int)$itemHeader['length'];
-            if ($length > self::MAX_ITEM_SIZE) {
-                throw new \RuntimeException('Item is too big.');
-            }
+        $length = isset($itemHeader['length']) ? (int)$itemHeader['length'] : null;
+        $length >= 0 or throw new \RuntimeException('Invalid item length.');
 
-            $itemPayload = \json_decode(self::readBytes($stream, $length), true, 512, JSON_THROW_ON_ERROR);
-        } else {
-            // Parse item payload when length is not specified
-            $itemPayload = \json_decode(self::readLine($stream), true, 512, JSON_THROW_ON_ERROR);
+        $type = $itemHeader['type'] ?? null;
+
+        if ($length > ($type === 'attachment' ? self::MAX_BINARY_ITEM_SIZE : self::MAX_TEXT_ITEM_SIZE)) {
+            throw new \RuntimeException('Item is too big.');
         }
+
+        /** @var mixed $itemPayload */
+        $itemPayload = match (true) {
+            // Store attachments as a file stream
+            $type === 'attachment' => $length === null
+                ? StreamHelper::createFileStream()->write(self::readLine($stream))
+                : StreamHelper::createFileStream()->write(self::readBytes($stream, $length)),
+
+            // Text items
+            default => $length === null
+                ? \json_decode(self::readLine($stream), true, 512, JSON_THROW_ON_ERROR)
+                : \json_decode(self::readBytes($stream, $length), true, 512, JSON_THROW_ON_ERROR),
+        };
 
         return new SentryEnvelope\Item($itemHeader, $itemPayload);
     }
@@ -67,7 +77,7 @@ final class EnvelopeParser
      *        an exception will be thrown. Default is 10MB
      * @throws \Throwable
      */
-    private static function readLine(StreamInterface $stream, int $possibleBytes = self::MAX_ITEM_SIZE): string
+    private static function readLine(StreamInterface $stream, int $possibleBytes = self::MAX_TEXT_ITEM_SIZE): string
     {
         $currentPos = $stream->tell();
         $relOffset = StreamHelper::strpos($stream, "\n");
@@ -86,12 +96,15 @@ final class EnvelopeParser
     }
 
     /**
-     * @param positive-int $length
-     * @return non-empty-string
+     * @param int<0, max> $length
      * @throws \Throwable
      */
     private static function readBytes(StreamInterface $stream, int $length): string
     {
+        if ($length === 0) {
+            return '';
+        }
+
         $currentPos = $stream->tell();
         $size = $stream->getSize();
 

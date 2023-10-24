@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Handler\Http\Middleware;
 
 use Buggregator\Trap\Handler\Http\Middleware;
+use Buggregator\Trap\Handler\Http\Middleware\SentryTrap\EnvelopeParser;
 use Buggregator\Trap\Proto\Frame;
 use Fiber;
 use Nyholm\Psr7\Response;
@@ -22,6 +23,13 @@ final class SentryTrap implements Middleware
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
         try {
+            // Detect Sentry envelope
+            if ($request->getHeaderLine('Content-Type') === 'application/x-sentry-envelope'
+                && \str_ends_with($request->getUri()->getPath(), '/envelope/')
+            ) {
+                return $this->processEnvelope($request);
+            }
+
             if (\str_ends_with($request->getUri()->getPath(), '/store')
                 && (
                     $request->getHeaderLine('X-Buggregator-Event') === 'sentry'
@@ -41,6 +49,26 @@ final class SentryTrap implements Middleware
         }
 
         return $next($request);
+    }
+
+    /**
+     * @param ServerRequestInterface $request
+     * @return Response
+     * @throws \Throwable
+     */
+    public function processEnvelope(ServerRequestInterface $request): ResponseInterface
+    {
+        $size = $request->getBody()->getSize();
+        if ($size === null || $size > self::MAX_BODY_SIZE) {
+            // Reject too big envelope
+            return new Response(413);
+        }
+
+        $request->getBody()->rewind();
+        $frame = EnvelopeParser::parse($request->getBody(), $request->getAttribute('begin_at', null));
+        Fiber::suspend($frame);
+
+        return new Response(200);
     }
 
     private function processStore(ServerRequestInterface $request): ResponseInterface
