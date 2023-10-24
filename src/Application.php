@@ -49,6 +49,7 @@ final class Application implements Processable
                 new Middleware\Resources(),
                 new Middleware\DebugPage(),
                 new Middleware\RayRequestDump(),
+                new Middleware\SentryTrap(),
             ], [new Websocket()]),
             new Traffic\Dispatcher\Smtp(),
             new Traffic\Dispatcher\Monolog(),

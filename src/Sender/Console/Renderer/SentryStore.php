@@ -21,71 +21,24 @@ final class SentryStore implements RendererInterface
 
     public function isSupport(Frame $frame): bool
     {
-        if ($frame->type !== ProtoType::HTTP) {
-            return false;
-        }
-
-        \assert($frame instanceof Frame\Http);
-
-        $request = $frame->request;
-        $url = \rtrim($request->getUri()->getPath(), '/');
-
-        return ($request->getHeaderLine('X-Buggregator-Event') === 'sentry'
-                || $request->getAttribute('event-type') === 'sentry'
-                || $request->hasHeader('X-Sentry-Auth')
-                || $request->getUri()->getUserInfo() === 'sentry')
-            && \str_ends_with($url, '/store');
+        return $frame->type === ProtoType::Sentry && $frame instanceof Frame\SentryStore;
     }
 
     /**
-     * @param Frame\Http $frame
+     * @param Frame\SentryStore $frame
      * @throws \JsonException
      */
     public function render(OutputInterface $output, Frame $frame): void
     {
-        /**
-         * @var array{
-         *     event_id: non-empty-string,
-         *     timestamp: positive-int,
-         *     platform: non-empty-string,
-         *     sdk: array{
-         *      name: non-empty-string,
-         *      version: non-empty-string,
-         *     },
-         *     logger: non-empty-string,
-         *     server_name: non-empty-string,
-         *     transaction: non-empty-string,
-         *     modules: array<non-empty-string, non-empty-string>,
-         *     exception: array<array-key, array{
-         *      type: non-empty-string,
-         *      value: non-empty-string,
-         *      stacktrace: array{
-         *          frames: array<array-key, array{
-         *           filename: non-empty-string,
-         *           lineno: positive-int,
-         *           abs_path: non-empty-string,
-         *           context_line: non-empty-string,
-         *          }
-         *      }
-         *     }>
-         * } $payload
-         */
-        $payload = \json_decode((string)$frame->request->getBody(), true, 512, \JSON_THROW_ON_ERROR);
+        $exception = $frame->message;
 
-        foreach ($payload['exception']['values'] as $exception) {
-            $this->renderException($exception);
-        }
-    }
-
-    private function renderException(array $exception): void
-    {
         $frames = \array_reverse($exception['stacktrace']['frames']);
         $editorFrame = \reset($frames);
 
         $this->renderer->render(
             'sentry-store',
             [
-                'date' => date('r'),
+                'date' => $frame->time->format('Y-m-d H:i:s'),
                 'type' => $exception['type'],
                 'message' => $exception['value'],
                 'trace' => \iterator_to_array($this->prepareTrace($frames)),
