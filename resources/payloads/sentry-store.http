@@ -1,0 +1,23 @@
+POST /api/1/store/ HTTP/1.1
+Host: 127.0.0.1:9912
+User-Agent: sentry-python/1.0
+Content-Type: application/json
+X-Sentry-Auth: Sentry sentry_version=7, sentry_key=b70a31b3510c4cf793964a185cfe1fd0, sentry_secret=b7d80b520139450f903720eb7991bf3d, sentry_client=sentry-python/1.0
+Contet-Length: 335
+
+{
+  "event_id": "fc6d8c0c43fc4630ad850ee518f1b9d0",
+  "culprit": "my.module.function_name",
+  "timestamp": "2011-05-02T17:41:36",
+  "message": "SyntaxError: Wattttt!",
+  "exception": {
+    "values": [
+      {
+        "type": "SyntaxError",
+        "value": "Wattttt!",
+        "module": "__builtins__"
+      }
+    ]
+  }
+}
+

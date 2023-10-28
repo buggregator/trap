@@ -30,10 +30,9 @@ final class SentryTrap implements Middleware
                 return $this->processEnvelope($request);
             }
 
-            if (\str_ends_with($request->getUri()->getPath(), '/store')
+            if (\str_ends_with($request->getUri()->getPath(), '/store/')
                 && (
                     $request->getHeaderLine('X-Buggregator-Event') === 'sentry'
-                    || $request->getAttribute('event-type') === 'sentry'
                     || $request->hasHeader('X-Sentry-Auth')
                     || $request->getUri()->getUserInfo() === 'sentry'
                 )
