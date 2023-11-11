@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\RendererInterface;
+use Buggregator\Trap\Sender\Console\Support\Common;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -25,6 +26,10 @@ final class SentryEnvelope implements RendererInterface
      */
     public function render(OutputInterface $output, Frame $frame): void
     {
+        Common::renderHeader1($output, 'SENTRY', 'ENVELOPE');
+        Common::renderMetadata($output, [
+            'Time' => $frame->time->format('Y-m-d H:i:s.u'),
+        ]);
         $output->writeln(
             \sprintf(
                 '<fg=red>%s</>',

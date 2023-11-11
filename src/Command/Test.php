@@ -39,8 +39,9 @@ final class Test extends Command
         \usleep(100_000);
         $this->mail($output, false);
         \usleep(100_000);
-        $this->sendContent('sentry-store.http');
-        $this->sendContent('sentry-envelope.http');
+        $this->sendContent('sentry-store.http'); // Sentry Store very short
+        $this->sendContent('sentry-store-2.http'); // Sentry Store full
+        $this->sendContent('sentry-envelope.http'); // Sentry envelope
         \usleep(100_000);
         $this->sendContent('90275024.png');
 

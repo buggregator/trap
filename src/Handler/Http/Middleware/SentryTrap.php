@@ -80,14 +80,12 @@ final class SentryTrap implements Middleware
 
         $payload = \json_decode((string)$request->getBody(), true, 96, \JSON_THROW_ON_ERROR);
 
-        foreach ($payload['exception']['values'] as $exception) {
-            Fiber::suspend(
-                new Frame\SentryStore(
-                    message: $exception,
-                    time: $request->getAttribute('begin_at', null),
-                )
-            );
-        }
+        Fiber::suspend(
+            new Frame\SentryStore(
+                message: $payload,
+                time: $request->getAttribute('begin_at', null),
+            )
+        );
 
         return new Response(200);
     }

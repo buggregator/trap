@@ -18,16 +18,18 @@ final class SentryStore extends Frame
      * @param array{
      *     event_id: non-empty-string,
      *     timestamp: positive-int,
-     *     platform: non-empty-string,
-     *     sdk: array{
+     *     platform?: non-empty-string,
+     *     sdk?: array{
      *         name: non-empty-string,
      *         version: non-empty-string,
      *     },
-     *     logger: non-empty-string,
-     *     server_name: non-empty-string,
-     *     transaction: non-empty-string,
-     *     modules: array<non-empty-string, non-empty-string>,
-     *     exception: array<array-key, array{
+     *     logger?: non-empty-string,
+     *     contexts?: array<non-empty-string, array<non-empty-string, non-empty-string>>,
+     *     environment?: non-empty-string,
+     *     server_name?: non-empty-string,
+     *     transaction?: non-empty-string,
+     *     modules?: array<non-empty-string, non-empty-string>,
+     *     exception?: array<array-key, array{
      *         type: non-empty-string,
      *         value: non-empty-string,
      *         stacktrace: array{

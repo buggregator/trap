@@ -68,6 +68,50 @@ final class Common
     }
 
     /**
+     * @param array<int|string, string> $tags
+     */
+    public static function renderTags(OutputInterface $output, array $tags): void
+    {
+        if ($tags === []) {
+            return;
+        }
+
+        $lines = [];
+        $parts = [];
+        $lineLen = 0;
+        foreach ($tags as $name => $value) {
+            if (\is_string($name)) {
+                $currentLen = \strlen($name) + \strlen($value) + 5; // 4 paddings and 1 margin
+                $tag = \sprintf('<fg=white;bg=gray> %s:</><fg=white;bg=green;options=bold> %s </>', $name, $value,);
+            } else {
+                $currentLen = \strlen($value) + 3; // 2 paddings and 1 margin
+                $tag = \sprintf('<fg=white;bg=green;options=bold> %s </>', $value);
+            }
+            if ($lineLen === 0 || $lineLen + $currentLen < 80) {
+                $parts[] = $tag;
+                $lineLen += $currentLen;
+            } else {
+                $lines[] = \implode(' ', $parts);
+                $parts = [$tag];
+                $lineLen = $currentLen;
+            }
+        }
+        $lines[] = \implode(' ', $parts);
+
+        $output->writeln($lines);
+    }
+
+    public static function hr(OutputInterface $output, string $color = 'gray', int $padding = 0): void
+    {
+        $output->writeln(\sprintf(
+            '%s<fg=%s>%s</>',
+            \str_repeat(' ', $padding),
+            $color,
+            \str_repeat('─', 80 - $padding),
+        ));
+    }
+
+    /**
      * @param array<array-key, string|string[]> $headers
      */
     public static function renderHeaders(OutputInterface $output, array $headers): void
