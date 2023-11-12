@@ -29,7 +29,7 @@ final class Monolog extends Frame
         return \json_encode($this->message, JSON_THROW_ON_ERROR);
     }
 
-    public static function fromString(string $payload, DateTimeImmutable $time): Frame
+    public static function fromString(string $payload, DateTimeImmutable $time): static
     {
         return new self(
             \json_decode($payload, true, JSON_THROW_ON_ERROR),

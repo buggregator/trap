@@ -14,4 +14,5 @@ enum ProtoType: string
     case SMTP = 'smtp';
     case Monolog = 'monolog';
     case Binary = 'binary';
+    case Sentry = 'sentry';
 }

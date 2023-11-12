@@ -11,6 +11,7 @@ use Buggregator\Trap\Handler\Pipeline;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Traffic\StreamClient;
 use DateTimeInterface;
+use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -35,7 +36,7 @@ final class Fallback implements RequestHandler
             $middlewares,
             /** @see Middleware::handle() */
             'handle',
-            static fn (): ResponseInterface => new \Nyholm\Psr7\Response(404),
+            static fn (): ResponseInterface => new Response(404),
             ResponseInterface::class,
         );
     }
@@ -44,15 +45,44 @@ final class Fallback implements RequestHandler
     {
         $time = $request->getAttribute('begin_at', null);
         $time = $time instanceof DateTimeInterface ? $time : new \DateTimeImmutable();
+        $gotFrame = false;
 
-        $response = ($this->pipeline)($request);
-        HttpEmitter::emit($streamClient, $response);
+        try {
+            $fiber = new \Fiber(($this->pipeline)(...));
+            do {
+                /** @var mixed $got */
+                $got = $fiber->isStarted() ? $fiber->resume() : $fiber->start($request);
 
-        $streamClient->disconnect();
+                if ($got instanceof Frame) {
+                    $gotFrame = true;
+                    yield $got;
+                }
 
-        yield new Frame\Http(
-            $request,
-            $time,
-        );
+                if ($fiber->isTerminated()) {
+                    $response = $fiber->getReturn();
+                    if (!$response instanceof ResponseInterface) {
+                        throw new \RuntimeException('Invalid response type.');
+                    }
+
+                    break;
+                }
+
+                \Fiber::suspend();
+            } while (true);
+
+            HttpEmitter::emit($streamClient, $response);
+        } catch (\Throwable) {
+            // Emit error response
+            HttpEmitter::emit($streamClient, new Response(500));
+        } finally {
+            $streamClient->disconnect();
+        }
+
+        if (!$gotFrame) {
+            yield new Frame\Http(
+                $request,
+                $time,
+            );
+        }
     }
 }

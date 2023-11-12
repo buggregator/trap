@@ -31,7 +31,7 @@ final class Smtp extends Frame implements FilesCarrier
         return \json_encode($this->message, \JSON_THROW_ON_ERROR);
     }
 
-    public static function fromString(string $payload, DateTimeImmutable $time): self
+    public static function fromString(string $payload, DateTimeImmutable $time): static
     {
         $payload = \json_decode($payload, true, \JSON_THROW_ON_ERROR);
         $message = Message\Smtp::fromArray($payload);

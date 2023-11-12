@@ -1,0 +1,79 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Buggregator\Trap\Sender\Console\Renderer\Sentry;
+
+use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Sender\Console\RendererInterface;
+use Buggregator\Trap\Sender\Console\Support\Common;
+use DateTimeImmutable;
+use Symfony\Component\Console\Output\OutputInterface;
+
+/**
+ * @implements RendererInterface<Frame\Binary>
+ *
+ * @internal
+ */
+final class Header
+{
+    public static function renderMessageHeader(OutputInterface $output, array $message)
+    {
+        // Collect metadata
+        $meta = [];
+        $time = new DateTimeImmutable(isset($message['sent_at']) ? $message['sent_at'] : "@$message[timestamp]");
+        $meta['Time'] = $time->format('Y-m-d H:i:s.u');
+        isset($message['event_id']) and $meta['Event ID'] = $message['event_id'];
+        isset($message['transaction']) and $meta['Transaction'] = $message['transaction'];
+        isset($message['server_name']) and $meta['Server'] = $message['server_name'];
+
+        // Metadata from context
+        if (isset($message['contexts']) && \is_array($message['contexts'])) {
+            $context = $message['contexts'];
+            isset($context['runtime']) and $meta['Runtime'] = \implode(' ', (array)$context['runtime']);
+            isset($context['os']) and $meta['OS'] = \implode(' ', (array)$context['os']);
+        }
+        isset($message['sdk']) and $meta['SDK'] = \implode(' ', (array)$message['sdk']);
+
+        Common::renderMetadata($output, $meta);
+
+        // Render short content values as tags
+        $tags = self::pullTagsFromMessage($message, [
+            'level' => 'level',
+            'platform' => 'platform',
+            'environment' => 'env',
+            'logger' => 'logger',
+        ]);
+        if ($tags !== []) {
+            $output->writeln('');
+            Common::renderTags($output, $tags);
+        }
+
+        // Render tags
+        $tags = isset($message['tags']) && \is_array($message['tags']) ? $message['tags'] : [];
+        if ($tags !== []) {
+            Common::renderHeader2($output, 'Tags');
+            Common::renderTags($output, $tags);
+        }
+    }
+
+    /**
+     * Collect tags from message fields
+     *
+     * @param array<string, mixed> $message
+     * @param array<string, string> $tags Key => Alias
+     *
+     * @return array<string, string>
+     */
+    private static function pullTagsFromMessage(array $message, array $tags): array
+    {
+        $result = [];
+        foreach ($tags as $key => $alias) {
+            if (isset($message[$key]) && \is_string($message[$key])) {
+                $result[$alias] ??= \implode(' ', (array)($message[$key]));
+            }
+        }
+
+        return $result;
+    }
+}

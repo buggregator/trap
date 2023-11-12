@@ -8,8 +8,7 @@ use Buggregator\Trap\Proto\Frame;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * @template TFrame of Frame
- * @template-covariant
+ * @template-covariant TFrame of Frame
  */
 interface RendererInterface
 {
