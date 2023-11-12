@@ -6,11 +6,15 @@ namespace Buggregator\Trap\Sender\Console\Renderer;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
+use Buggregator\Trap\Sender\Console\Renderer\Sentry\Exceptions;
+use Buggregator\Trap\Sender\Console\Renderer\Sentry\Header;
 use Buggregator\Trap\Sender\Console\RendererInterface;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
+ * @implements RendererInterface<Frame\Sentry\SentryEnvelope>
+ *
  * @internal
  */
 final class SentryEnvelope implements RendererInterface
@@ -20,31 +24,34 @@ final class SentryEnvelope implements RendererInterface
         return $frame->type === ProtoType::Sentry && $frame instanceof Frame\Sentry\SentryEnvelope;
     }
 
-    /**
-     * @param \Buggregator\Trap\Proto\Frame\Sentry\SentryEnvelope $frame
-     * @throws \JsonException
-     */
     public function render(OutputInterface $output, Frame $frame): void
     {
         Common::renderHeader1($output, 'SENTRY', 'ENVELOPE');
-        Common::renderMetadata($output, [
-            'Time' => $frame->time->format('Y-m-d H:i:s.u'),
-        ]);
-        $output->writeln(
-            \sprintf(
-                '<fg=red>%s</>',
-                'Sentry envelope renderer is not implemented yet.',
-            )
-        );
+        Header::renderMessageHeader($output, $frame->headers + ['timestamp' => $frame->time->format('U.u')]);
 
-        $output->writeln(
-            \sprintf(
-                '<fg=gray>%s</>',
-                \sprintf(
-                    'Envelope items count: %d',
-                    \count($frame->items),
-                ),
-            )
-        );
+        $i = 0;
+        foreach ($frame->items as $item) {
+            ++$i;
+            try {
+                $type = $item->headers['type'] ?? null;
+                Common::renderHeader2($output, "Item $i", green: $type);
+
+                Header::renderMessageHeader($output, $item->payload);
+                $this->renderItem($output, $item);
+            } catch (\Throwable $e) {
+                $output->writeln(['<fg=red>Render error</>', $e->getMessage()]);
+                \trap($e);
+            }
+        }
+    }
+
+    private function renderItem(OutputInterface $output, Frame\Sentry\EnvelopeItem $data): void
+    {
+        if (isset($data->payload['exceptions'])) {
+            Exceptions::render($output, $data->payload['exceptions']);
+            return;
+        }
+
+        $output->writeln(['', '<fg=red>There is no renderer for this item type.</>']);
     }
 }

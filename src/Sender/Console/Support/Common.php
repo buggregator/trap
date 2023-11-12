@@ -12,10 +12,13 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 final class Common
 {
-    public static function renderHeader1(OutputInterface $output, string $title, string ...$sub): void
+    public static function renderHeader1(OutputInterface $output, string $title, ?string ...$sub): void
     {
         $parts = ["<fg=white;bg=blue;options=bold> $title </>"];
         foreach ($sub as $color => $value) {
+            if ($value === null) {
+                continue;
+            }
             $parts[] = \sprintf('<fg=white;bg=%s;options=bold> %s </>', \is_string($color) ? $color : 'gray', $value);
         }
 
@@ -26,7 +29,8 @@ final class Common
     {
         $parts = ["<fg=white;options=bold># $title </>"];
         foreach ($sub as $color => $value) {
-            $parts[] = \sprintf('<fg=gray> %s </>', $value);
+            $color = \is_string($color) ? $color : 'gray';
+            $parts[] = \sprintf('<fg=%s> %s </>', $color, $value);
         }
 
         $output->writeln(['', \implode('', $parts), '']);
