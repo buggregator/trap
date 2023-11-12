@@ -43,7 +43,7 @@ final class Http extends Frame implements FilesCarrier
         ], JSON_THROW_ON_ERROR);
     }
 
-    public static function fromString(string $payload, DateTimeImmutable $time): Frame
+    public static function fromString(string $payload, DateTimeImmutable $time): static
     {
         $payload = \json_decode($payload, true, \JSON_THROW_ON_ERROR);
 

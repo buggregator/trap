@@ -18,11 +18,11 @@ final class SentryStore implements RendererInterface
 {
     public function isSupport(Frame $frame): bool
     {
-        return $frame->type === ProtoType::Sentry && $frame instanceof Frame\SentryStore;
+        return $frame->type === ProtoType::Sentry && $frame instanceof Frame\Sentry\SentryStore;
     }
 
     /**
-     * @param Frame\SentryStore $frame
+     * @param \Buggregator\Trap\Proto\Frame\Sentry\SentryStore $frame
      * @throws \JsonException
      */
     public function render(OutputInterface $output, Frame $frame): void

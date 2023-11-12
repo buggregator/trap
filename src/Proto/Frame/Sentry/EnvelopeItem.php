@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Proto\Frame\SentryEnvelope;
+namespace Buggregator\Trap\Proto\Frame\Sentry;
 
 /**
  * @internal
  * @psalm-internal Buggregator
  */
-final class Item implements \Stringable, \JsonSerializable
+final class EnvelopeItem implements \Stringable, \JsonSerializable
 {
     public function __construct(
         public readonly array $headers,
@@ -21,8 +21,7 @@ final class Item implements \Stringable, \JsonSerializable
      */
     public function __toString(): string
     {
-        return \json_encode($this->headers, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . "\n"
-            . \json_encode($this->payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        return \json_encode($this->jsonSerialize(), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
     }
 
     public function jsonSerialize(): mixed

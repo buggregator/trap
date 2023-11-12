@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Proto\Frame;
+namespace Buggregator\Trap\Proto\Frame\Sentry;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
@@ -12,8 +12,10 @@ use DateTimeImmutable;
  * @internal
  * @psalm-internal Buggregator
  */
-final class SentryStore extends Frame
+final class SentryStore extends Frame\Sentry
 {
+    public const SENTRY_FRAME_TYPE = 'store';
+
     /**
      * @param array{
      *     event_id: non-empty-string,
@@ -58,11 +60,8 @@ final class SentryStore extends Frame
         return \json_encode($this->message, JSON_THROW_ON_ERROR);
     }
 
-    public static function fromString(string $payload, DateTimeImmutable $time): Frame
+    public static function fromArray(array $data, DateTimeImmutable $time): static
     {
-        return new self(
-            \json_decode($payload, true, JSON_THROW_ON_ERROR),
-            $time
-        );
+        return new self($data, $time);
     }
 }

@@ -26,7 +26,7 @@ final class VarDumper extends Frame
         return $this->dump;
     }
 
-    public static function fromString(string $payload, DateTimeImmutable $time): Frame
+    public static function fromString(string $payload, DateTimeImmutable $time): static
     {
         return new self($payload, $time);
     }

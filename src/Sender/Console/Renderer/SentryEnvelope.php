@@ -17,11 +17,11 @@ final class SentryEnvelope implements RendererInterface
 {
     public function isSupport(Frame $frame): bool
     {
-        return $frame->type === ProtoType::Sentry && $frame instanceof Frame\SentryEnvelope;
+        return $frame->type === ProtoType::Sentry && $frame instanceof Frame\Sentry\SentryEnvelope;
     }
 
     /**
-     * @param Frame\SentryEnvelope $frame
+     * @param \Buggregator\Trap\Proto\Frame\Sentry\SentryEnvelope $frame
      * @throws \JsonException
      */
     public function render(OutputInterface $output, Frame $frame): void
