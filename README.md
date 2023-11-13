@@ -7,10 +7,9 @@
 <div align="center">
 
 **Support us on Patreon**  
-[![roxblnfk](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Droxblnfk%26type%3Dpatrons&style=flat-square)](https://patreon.com/roxblnfk)  [![butschster](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Dbutschster%26type%3Dpatrons&style=flat-square)](https://patreon.com/butschster)
-
+[![roxblnfk](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Droxblnfk%26type%3Dpatrons&style=flat-square)](https://patreon.com/roxblnfk)  [![butschster](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Dbutschster%26type%3Dpatrons&style=flat-square)](https://patreon.com/butschster)  
 **Community** <!-- and **Documentation** -->  
-[![Twitter](https://img.shields.io/badge/twitter-Follow-blue?style=flat-square&logo=twitter)](https://twitter.com/buggregator)
+[![Twitter](https://img.shields.io/badge/-Follow-black?style=flat-square&logo=X)](https://twitter.com/buggregator)
 [![Discord](https://img.shields.io/discord/1172942458598985738?style=flat-square&logo=discord&color=blue)](https://discord.gg/qF3HpXhMEP)
 
 <!-- 
