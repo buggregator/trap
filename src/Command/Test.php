@@ -9,6 +9,7 @@ use Buggregator\Trap\Logger;
 use DateTimeImmutable;
 use RuntimeException;
 use Socket;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -18,10 +19,12 @@ use Symfony\Component\Console\Output\OutputInterface;
  *
  * @internal
  */
+#[AsCommand(
+    name: 'test',
+    description: 'Send test data',
+)]
 final class Test extends Command
 {
-    protected static $defaultName = 'test';
-
     private string $addr = '127.0.0.1';
     private int $port = 9912;
 
