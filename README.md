@@ -6,8 +6,19 @@
 
 <div align="center">
 
-**Support us on Patreon** and **follow us on Twitter**  
-[![roxblnfk](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Droxblnfk%26type%3Dpatrons&style=flat)](https://patreon.com/roxblnfk)  [![butschster](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Dbutschster%26type%3Dpatrons&style=flat)](https://patreon.com/butschster)  [![Twitter](https://img.shields.io/badge/twitter-Follow-blue)](https://twitter.com/buggregator)
+**Support us on Patreon**  
+[![roxblnfk](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Droxblnfk%26type%3Dpatrons&style=flat-square)](https://patreon.com/roxblnfk)  [![butschster](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Dbutschster%26type%3Dpatrons&style=flat-square)](https://patreon.com/butschster)
+
+**Community** <!-- and **Documentation** -->  
+[![Twitter](https://img.shields.io/badge/twitter-Follow-blue?style=flat-square&logo=twitter)](https://twitter.com/buggregator)
+[![Discord](https://img.shields.io/discord/1172942458598985738?style=flat-square&logo=discord&color=blue)](https://discord.gg/qF3HpXhMEP)
+
+<!-- 
+[![PHP](https://img.shields.io/packagist/php-v/buggregator/trap.svg?style=flat-square&logo=php)](https://packagist.org/packages/buggregator/trap)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/buggregator/trap.svg?style=flat-square&logo=packagist)](https://packagist.org/packages/buggregator/trap)
+[![Total Downloads](https://img.shields.io/packagist/dt/buggregator/trap.svg?style=flat-square)](https://packagist.org/packages/buggregator/trap)
+[![dependency status](https://php.package.health/packages/buggregator/trap/dev-master/status.svg)](https://php.package.health/packages/buggregator/trap/dev-master)
+ [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/buggregator/trap/run-tests.yml?label=tests&style=flat-square)](https://github.com/buggregator/trap/actions?query=workflow%3Arun-tests+branch%3Amain) -->
 
 </div>
 
