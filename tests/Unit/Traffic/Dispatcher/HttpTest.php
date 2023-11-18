@@ -1,6 +1,6 @@
 <?php
 
-namespace Buggregator\Trap\Tests\Traffic\Dispatcher;
+namespace Buggregator\Trap\Tests\Unit\Traffic\Dispatcher;
 
 use Buggregator\Trap\Traffic\Dispatcher\Http;
 use DateTimeImmutable;

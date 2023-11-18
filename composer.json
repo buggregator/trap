@@ -2,6 +2,7 @@
     "name": "buggregator/trap",
     "type": "library",
     "license": "BSD-3-Clause",
+    "description": "A simple and powerful tool for debugging PHP applications.",
     "homepage": "https://buggregator.dev/",
     "authors": [
         {

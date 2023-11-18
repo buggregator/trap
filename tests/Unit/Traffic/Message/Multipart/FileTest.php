@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Tests\Traffic\Message\Multipart;
+namespace Buggregator\Trap\Tests\Unit\Traffic\Message\Multipart;
 
 use Buggregator\Trap\Support\StreamHelper;
 use Buggregator\Trap\Traffic\Message\Multipart\File;

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Tests\Traffic\Parser;
+namespace Buggregator\Trap\Tests\Unit\Traffic\Parser;
 
 use Buggregator\Trap\Test\Mock\StreamClientMock;
-use Buggregator\Trap\Tests\FiberTrait;
+use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Buggregator\Trap\Traffic\Message;
 use Buggregator\Trap\Traffic\Parser;
 use PHPUnit\Framework\TestCase;
