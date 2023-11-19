@@ -173,19 +173,4 @@ final class ProtobufCaster
 
         return $values;
     }
-
-    private static function extractViaPublic(Message $message, PublicDescriptor $descriptor): mixed
-    {
-        for ($i = 0; $i < $descriptor->getFieldCount(); $i++) {
-            /** @var FieldDescriptor $d */
-            $d = $descriptor->getField($i);
-            // $d->
-            if ($d->getType() !== GPBType::MESSAGE) {
-                continue;
-            }
-
-            // todo what can we do?
-            // $descriptor = $d->getMessageType();
-        }
-    }
 }

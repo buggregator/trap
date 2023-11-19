@@ -1,0 +1,11 @@
+name: Testing
+
+on: [push, pull_request]
+
+jobs:
+  unit:
+    name: Unit Testing
+    uses: ./.github/workflows/run-test-suite.yml
+    with:
+      fail-fast: false
+      test-suite: Unit

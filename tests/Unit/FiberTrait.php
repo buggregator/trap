@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Tests;
+namespace Buggregator\Trap\Tests\Unit;
 
 trait FiberTrait
 {

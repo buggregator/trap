@@ -12,26 +12,55 @@
 [![Twitter](https://img.shields.io/badge/-Follow-black?style=flat-square&logo=X)](https://twitter.com/buggregator)
 [![Discord](https://img.shields.io/discord/1172942458598985738?style=flat-square&logo=discord&color=0000ff)](https://discord.gg/qF3HpXhMEP)
 
-<!-- 
-[![PHP](https://img.shields.io/packagist/php-v/buggregator/trap.svg?style=flat-square&logo=php)](https://packagist.org/packages/buggregator/trap)
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/buggregator/trap.svg?style=flat-square&logo=packagist)](https://packagist.org/packages/buggregator/trap)
-[![Total Downloads](https://img.shields.io/packagist/dt/buggregator/trap.svg?style=flat-square)](https://packagist.org/packages/buggregator/trap)
-[![dependency status](https://php.package.health/packages/buggregator/trap/dev-master/status.svg)](https://php.package.health/packages/buggregator/trap/dev-master)
- [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/buggregator/trap/run-tests.yml?label=tests&style=flat-square)](https://github.com/buggregator/trap/actions?query=workflow%3Arun-tests+branch%3Amain) -->
-
 </div>
 
-- [Intro](#intro)
+<br />
+
+**Buggregator Trap** is a minified version of the [Buggregator Server](https://github.com/buggregator/server)
+in the form of a terminal application and a set of utilities to assist with debugging.
+The package is designed to enhance the debugging experience in conjunction with the Buggregator Server.
+
 - [Installation](#installation)
+- [Overview](#overview)
 - [Usage](#usage)
 - [Contributing](#contributing)
 - [License](#license)
 
+## Installation
 
-## Intro
+To install Buggregator Trap in your PHP application, add the package as a dev dependency
+to your project using Composer:
 
-Buggregator Trap, the streamlined Command Line Interface (CLI) version of Buggregator, marks a new era in debugging PHP
-applications. Boasting an array of powerful debugging "traps", including:
+```bash
+composer require --dev buggregator/trap
+```
+
+[![PHP](https://img.shields.io/packagist/php-v/buggregator/trap.svg?style=flat-square&logo=php)](https://packagist.org/packages/buggregator/trap)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/buggregator/trap.svg?style=flat-square&logo=packagist)](https://packagist.org/packages/buggregator/trap)
+[![License](https://img.shields.io/packagist/l/buggregator/trap.svg?style=flat-square)](LICENSE.md)
+[![Total Downloads](https://img.shields.io/packagist/dt/buggregator/trap.svg?style=flat-square)](https://packagist.org/packages/buggregator/trap)
+
+And that's it. Trap is [ready to go](#usage).
+
+## Overview
+
+Buggregator Trap provides a toolkit for use in your code. Firstly, just having Buggregator Trap in your
+package enhances the capabilities of Symfony Var-Dumper.
+
+If you've already worked with google/protobuf, you probably know how unpleasant it can be.
+Now let's compare the dumps of protobuf-message: on the left (with trap) and on the right (without trap).
+
+![trap-proto-diff](https://github.com/buggregator/trap/assets/4152481/30662429-809e-422a-83c6-61d7d2788b18)
+
+This simultaneously compact and informative output format of protobuf message will be just as compact
+and informative in the Buggregator Server interface. Now, working with protobuf is enjoyable.
+
+---
+
+Buggreagtor Trap includes a console application - a mini-server.
+The application is entirely written in PHP and does not require Docker to be installed in the system.
+It may seem like it's just the same as the `symfony/var-dumper` server, but it's not.
+Buggregator Trap boasts a much wider range of handlers ("traps") for debug messages:
 
 - Symfony var-dumper,
 - Monolog,
@@ -39,18 +68,11 @@ applications. Boasting an array of powerful debugging "traps", including:
 - SMTP,
 - HTTP dumps,
 - Ray,
-- And any raw data
+- Any raw data
 
-This lightweight tool facilitates and streamlines the process of debugging for developers, regardless of their
-environment.
+You can effortlessly visualize and analyze console information about various elements of your codebase.
 
-It enables you to easily install a client in your PHP application using a Composer package and run a local server
-specifically designed for debugging. This isn't just a debugging tool, it's a supercharged version of
-the `symfony/var-dumper` server, designed to offer more versatility and in-depth insights into your code.
-
-Now you can effortlessly visualize and analyze console information about various elements of your codebase.
-
-Here's a sneak peek into the console output you can expect with traps:
+Here's a sneak peek into the console output you can expect with Trap:
 
 | symfony/var-dumper (proto)                                                                             | Binary Data                                                                                             |
 |--------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
@@ -60,40 +82,39 @@ Here's a sneak peek into the console output you can expect with traps:
 |--------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
 | ![smtp](https://github.com/buggregator/trap/assets/4152481/b11c4a7f-072a-4e66-b11d-9bbd3177bfe2) | ![http-dump](https://github.com/buggregator/trap/assets/4152481/48201ce6-7756-4402-8954-76a27489b632) |
 
-In addition to the local debugging features, Buggregator Trap provides an innovative functionality as a proxy client. It
-can transmit data to a remote Buggregator server, thereby facilitating a centralized debugging process for your team or
-organization.
+---
 
-## Installation
+Additionally, you can manually set traps in the code. Use the `trap()` function,
+which works almost the same as Symfony's `dump()`, but configures the dumper to send dumps to the local server,
+unless other user settings are provided.
 
-To install Buggregator Trap in your PHP application, add the package as a dependency to your project using Composer:
+---
 
-```bash
-composer require --dev buggregator/trap
-```
-
+We care about the quality of our products' codebase and strive to provide the best user experience.
+Buggregator Trap has passed the Proof of Concept stage and is now an important part of the Buggregator ecosystem.
+We have big plans for the development of the entire ecosystem and we would be delighted if you join us on this journey.
 
 ## Usage
 
-After successfully installing Buggregator Trap, you can initiate the debugging process by using the following command:
+After successfully [installing](#installation) Buggregator Trap, you can initiate the debugging process by using the following command:
 
 ```bash
 vendor/bin/trap
 ```
 
-This command will activate the Trap server, setting it up to listen for all TCP requests. Upon receiving these requests,
-the server will search for a corresponding listener that can process the incoming data and display a dump accordingly.
+This command will start the Trap server, ready to receive any debug messages. Once a debug message is trapped, you will see a convenient report about it right here in the terminal.
 
 Then just call the `trap()` function in your code:
 
 ```php
-trap(); // dump current stack trace
-trap($var); // dump variable
-trap($var, foo: $far, bar: $bar); // dump variables sequence
+trap(); // dump the current stack trace
+trap($var); // dump a variable
+trap($var, foo: $far, bar: $bar); // dump a variables sequence
 ```
 
-The `trap()` function configures `$_SERVER['REMOTE_ADDR']` and `$_SERVER['REMOTE_PORT']` automatically, if they are not
-set. Also, it can dump google/protobuf messages.
+> **Note**:
+> The `trap()` function configures `$_SERVER['REMOTE_ADDR']` and `$_SERVER['REMOTE_PORT']` automatically,
+> if they are not set.
 
 ### Default port
 
@@ -159,3 +180,22 @@ becoming a better developer. So, don't hesitate to jump in and start contributin
 ## License
 
 Buggregator Trap is open-sourced software licensed under the BSD-3 license.
+
+
+
+
+<!--
+
+Quality badges:
+
+[![Tests Status](https://img.shields.io/github/actions/workflow/status/buggregator/trap/testing.yml?label=tests&style=flat-square)](https://github.com/buggregator/trap/actions/workflows/testing.yml?query=workflow%3Atesting%3Amaster)
+[![Dependency status](https://php.package.health/packages/buggregator/trap/dev-master/status.svg)](https://php.package.health/packages/buggregator/trap/dev-master)
+
+# (tests coverage)
+# (types coverage)
+# (psalm level)
+# (static analysis)
+# (mutation)
+# (scrutinizer score)
+# (code style)
+-->

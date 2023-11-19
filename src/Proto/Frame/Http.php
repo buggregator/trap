@@ -50,7 +50,7 @@ final class Http extends Frame implements FilesCarrier
         $request = new ServerRequest(
             $payload['method'] ?? 'GET',
             $payload['uri'] ?? '/',
-            (array)$payload['headers'] ?? [],
+            (array)($payload['headers'] ?? []),
             $payload['body'] ?? '',
             $payload['protocolVersion'] ?? '1.1',
             $payload['serverParams'] ?? [],

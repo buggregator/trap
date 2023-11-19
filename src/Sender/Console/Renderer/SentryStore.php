@@ -26,6 +26,8 @@ final class SentryStore implements RendererInterface
 
     public function render(OutputInterface $output, Frame $frame): void
     {
+        \assert($frame instanceof Frame\Sentry\SentryStore);
+
         Common::renderHeader1($output, 'SENTRY');
 
         try {

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Tests\Traffic\Emitter;
+namespace Buggregator\Trap\Tests\Unit\Traffic\Emitter;
 
 use Buggregator\Trap\Handler\Http\Emitter;
 use Buggregator\Trap\Test\Mock\StreamClientMock;
-use Buggregator\Trap\Tests\FiberTrait;
+use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\TestCase;
 

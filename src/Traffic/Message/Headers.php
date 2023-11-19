@@ -30,10 +30,6 @@ trait Headers
      */
     public function getHeader(string $header): array
     {
-        if (!\is_string($header)) {
-            throw new \InvalidArgumentException('Header name must be an RFC 7230 compatible string');
-        }
-
         $header = \strtr($header, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz');
         if (!isset($this->headerNames[$header])) {
             return [];
@@ -66,7 +62,7 @@ trait Headers
 
     public function withAddedHeader(string $header, string $value): static
     {
-        if (!\is_string($header) || '' === $header) {
+        if ('' === $header) {
             throw new \InvalidArgumentException('Header name must be an RFC 7230 compatible string');
         }
 
@@ -78,10 +74,6 @@ trait Headers
 
     public function withoutHeader(string $header): static
     {
-        if (!\is_string($header)) {
-            throw new \InvalidArgumentException('Header name must be an RFC 7230 compatible string');
-        }
-
         $normalized = \strtr($header, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz');
         if (!isset($this->headerNames[$normalized])) {
             return $this;
@@ -137,7 +129,7 @@ trait Headers
      */
     private function validateAndTrimHeader(string $header, $values): array
     {
-        if (!\is_string($header) || 1 !== \preg_match("@^[!#$%&'*+.^_`|~0-9A-Za-z-]+$@D", $header)) {
+        if (1 !== \preg_match("@^[!#$%&'*+.^_`|~0-9A-Za-z-]+$@D", $header)) {
             throw new \InvalidArgumentException('Header name must be an RFC 7230 compatible string');
         }
 

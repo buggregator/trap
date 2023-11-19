@@ -15,7 +15,6 @@ use Closure;
  *
  * @psalm-type TLast = Closure(mixed ...): mixed
  *
- * @psalm-immutable
  * @internal
  * @psalm-internal Buggregator\Trap
  */
@@ -30,7 +29,7 @@ final class Pipeline
     /**
      * @param iterable<TMiddleware> $middlewares
      * @param non-empty-string $method
-     * @param Closure(): TReturn $last
+     * @param Closure(mixed...): TReturn $last
      * @param class-string<TReturn>|string $returnType
      */
     private function __construct(

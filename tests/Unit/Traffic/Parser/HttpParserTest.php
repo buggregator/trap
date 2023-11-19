@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Tests\Traffic\Parser;
+namespace Buggregator\Trap\Tests\Unit\Traffic\Parser;
 
 use Buggregator\Trap\Test\Mock\StreamClientMock;
-use Buggregator\Trap\Tests\FiberTrait;
+use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Buggregator\Trap\Traffic\Parser;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ServerRequestInterface;
@@ -88,8 +88,8 @@ class HttpParserTest extends TestCase
 
     public function testPostMultipartFormData(): void
     {
-        $file1 = \file_get_contents(__DIR__ . '/../../Stub/deburger.png');
-        $file2 = \file_get_contents(__DIR__ . '/../../Stub/buggregator.png');
+        $file1 = \file_get_contents(__DIR__ . '/../../../Stub/deburger.png');
+        $file2 = \file_get_contents(__DIR__ . '/../../../Stub/buggregator.png');
         $body = <<<BODY
                 --Asrf456BGe4h\r
                 Content-Disposition: form-data; name="Authors"\r
@@ -152,11 +152,11 @@ class HttpParserTest extends TestCase
 
     public function testGzippedBody(): void
     {
-        $http = \file_get_contents(__DIR__ . '/../../Stub/sentry.bin');
+        $http = \file_get_contents(__DIR__ . '/../../../Stub/sentry.bin');
 
         $request = $this->parseStream($http);
 
-        $file = \file_get_contents(__DIR__ . '/../../Stub/sentry-body.bin');
+        $file = \file_get_contents(__DIR__ . '/../../../Stub/sentry-body.bin');
         self::assertSame($file, $request->getBody()->__toString());
     }
 

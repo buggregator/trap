@@ -2,7 +2,11 @@
     "name": "buggregator/trap",
     "type": "library",
     "license": "BSD-3-Clause",
+    "description": "A simple and powerful tool for debugging PHP applications.",
     "homepage": "https://buggregator.dev/",
+    "keywords": [
+        "debug", "cli", "console", "sentry", "smtp", "dump"
+    ],
     "authors": [
         {
             "name": "Aleksei Gagarin (roxblnfk)",
@@ -55,16 +59,17 @@
         "nunomaduro/termwind": "^1.15",
         "nyholm/psr7": "^1.8",
         "php-http/message": "^1.15",
-        "psr/http-message": "^1 || ^2",
-        "symfony/console": "^5 || ^6 || ^7"
+        "psr/http-message": "^1.1 || ^2",
+        "symfony/console": "^5.4 || ^6 || ^7"
     },
     "suggest": {
         "symfony/var-dumper": "To use the trap() function"
     },
     "require-dev": {
+        "dereuromark/composer-prefer-lowest": "^0.1.10",
         "google/protobuf": "^3.23",
         "phpunit/phpunit": "^10.4",
-        "vimeo/psalm": "^5.11",
-        "symfony/var-dumper": "^6 || ^7"
+        "symfony/var-dumper": "^6 || ^7",
+        "vimeo/psalm": "^5.11"
     }
 }

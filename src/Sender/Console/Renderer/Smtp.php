@@ -25,6 +25,8 @@ final class Smtp implements RendererInterface
 
     public function render(OutputInterface $output, Frame $frame): void
     {
+        \assert($frame instanceof Frame\Smtp);
+
         Common::renderHeader1($output, 'SMTP');
         Common::renderMetadata($output, [
             'Time' => $frame->time->format('Y-m-d H:i:s.u'),

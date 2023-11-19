@@ -66,7 +66,7 @@ final class Websocket implements RequestHandler
     }
 
     /**
-     * Todo: extract to a separate Websocket service
+     * Todo: extract to a separated Websocket service
      *
      * @return iterable<array-key, Frame>
      */

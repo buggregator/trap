@@ -28,6 +28,8 @@ final class Monolog implements RendererInterface
 
     public function render(OutputInterface $output, Frame $frame): void
     {
+        \assert($frame instanceof Frame\Monolog);
+
         $payload = $frame->message;
         $levelColor = match (\strtolower($payload['level_name'])) {
             'notice', 'info' => 'blue',
@@ -41,7 +43,7 @@ final class Monolog implements RendererInterface
             [
                 'date' => $payload['datetime'],
                 'channel' => $payload['channel'] ?? '',
-                'level' => $payload['level_name'] . '' ?? 'DEBUG',
+                'level' => $payload['level_name'] ?? 'DEBUG',
                 'levelColor' => $levelColor,
                 'messages' => \explode("\n", $payload['message']),
             ]

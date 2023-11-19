@@ -1,0 +1,112 @@
+name: Unit
+
+on:
+  workflow_call:
+    inputs:
+      test-suite:
+        required: true
+        type: string
+      fail-fast:
+        required: false
+        type: boolean
+        default: true
+      test-timeout:
+        required: false
+        type: number
+        default: 15
+
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - 'bin/**'
+      - 'resources/**'
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.gitignore'
+      - '.gitattributes'
+      - '.editorconfig'
+      - 'psalm.xml'
+
+  push:
+    paths-ignore:
+      - 'docs/**'
+      - 'bin/**'
+      - 'resources/**'
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.gitignore'
+      - '.gitattributes'
+      - '.editorconfig'
+      - 'psalm.xml'
+
+jobs:
+  test:
+    name: (PHP ${{ matrix.php }}, ${{ matrix.os }}, ${{ matrix.dependencies }} deps
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: ${{ matrix.timeout-minutes }}
+    env: { GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
+    strategy:
+      fail-fast: ${{ inputs.fail-fast }}
+      matrix:
+        php: [ 8.1, 8.2 ]
+        os: [ ubuntu-latest, windows-latest ]
+        dependencies: [ lowest , highest ]
+        timeout-minutes: [ '${{ inputs.test-timeout }}' ]
+        exclude:
+          - os: windows-latest
+            php: 8.2
+        include:
+          - os: ubuntu-latest
+            php: 8.3
+            dependencies: highest
+            timeout-minutes: 40
+    steps:
+      - name: Set Git To Use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Setup PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          extensions: sockets, curl
+
+      - name: Check Out Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Validate composer.json and composer.lock
+        run: composer validate --strict
+
+      - name: Get Composer Cache Directory
+        id: composer-cache
+        run: |
+          echo "::set-output name=dir::$(composer config cache-files-dir)"
+
+      - name: Cache Composer Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: php-${{ matrix.php }}-${{ matrix.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            php-${{ matrix.php }}-${{ matrix.os }}-composer-
+
+      - name: Install lowest dependencies from composer.json
+        if: matrix.dependencies == 'lowest'
+        run: composer update --no-interaction --no-progress --prefer-lowest
+
+      - name: Validate lowest dependencies
+        if: matrix.dependencies == 'lowest'
+        env:
+          COMPOSER_POOL_OPTIMIZER: 0
+        run: vendor/bin/validate-prefer-lowest
+
+      - name: Install highest dependencies from composer.json
+        if: matrix.dependencies == 'highest'
+        run: composer update --no-interaction --no-progress
+
+      - name: Run tests
+        run: vendor/bin/phpunit --testsuite=${{ inputs.test-suite }} --testdox

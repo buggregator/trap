@@ -11,8 +11,6 @@ use DateTimeImmutable;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * @implements RendererInterface<Frame\Binary>
- *
  * @internal
  */
 final class Header

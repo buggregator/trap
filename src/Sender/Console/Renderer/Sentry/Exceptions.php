@@ -10,8 +10,6 @@ use Buggregator\Trap\Sender\Console\Support\Common;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * @implements RendererInterface<Frame\Binary>
- *
  * @internal
  * @psalm-internal Buggregator\Trap\Sender\Console\Renderer
  */

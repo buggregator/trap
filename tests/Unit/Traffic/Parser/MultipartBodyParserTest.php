@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Tests\Traffic\Parser;
+namespace Buggregator\Trap\Tests\Unit\Traffic\Parser;
 
-use Buggregator\Trap\Tests\FiberTrait;
+use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Buggregator\Trap\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
 use Buggregator\Trap\Traffic\Message\Multipart\Part;
@@ -50,8 +50,8 @@ final class MultipartBodyParserTest extends TestCase
 
     public function testWithFileAttach(): void
     {
-        $file1 = \file_get_contents(__DIR__ . '/../../Stub/deburger.png');
-        $file2 = \file_get_contents(__DIR__ . '/../../Stub/buggregator.png');
+        $file1 = \file_get_contents(__DIR__ . '/../../../Stub/deburger.png');
+        $file2 = \file_get_contents(__DIR__ . '/../../../Stub/buggregator.png');
         $body = $this->makeStream(<<<BODY
                 --Asrf456BGe4h\r
                 Content-Disposition: form-data; name="Authors"\r
