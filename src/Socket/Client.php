@@ -71,14 +71,17 @@ final class Client
                 throw new \RuntimeException('Socket select failed.');
             }
 
+            /** @psalm-suppress RedundantCondition */
             if ($read !== []) {
                 $this->readMessage();
             }
 
+            /** @psalm-suppress RedundantCondition */
             if ($write !== [] && $this->writeQueue !== []) {
                 $this->writeQueue();
             }
 
+            /** @psalm-suppress RedundantCondition */
             if ($except !== [] || \socket_last_error($this->socket) !== 0) {
                 throw new \RuntimeException('Socket exception.');
             }
@@ -150,14 +153,13 @@ final class Client
 
     /**
      * @param positive-int $length
-     *
-     * @return non-empty-string
      */
     private function readBytes(int $length, bool $canBeLess = false): string
     {
         while (($left = $length - \strlen($this->readBuffer)) > 0) {
             $data = '';
             $read = @\socket_recv($this->socket, $data, $left, 0);
+            /** @psalm-suppress TypeDoesNotContainNull */
             if ($read === false || $data === null) {
                 if ($this->readBuffer !== '') {
                     $result = $this->readBuffer;

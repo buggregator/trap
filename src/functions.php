@@ -57,6 +57,7 @@ if (!\function_exists('trap')) {
 
         // Dump sequence of values
         foreach ($values as $key => $value) {
+            /** @psalm-suppress TooManyArguments */
             VarDumper::dump($value, $key);
 		}
     }

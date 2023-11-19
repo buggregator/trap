@@ -39,7 +39,7 @@ final class SentryStore extends Frame\Sentry
      *                 filename: non-empty-string,
      *                 lineno: positive-int,
      *                 abs_path: non-empty-string,
-     *                 context_line: non-empty-string,
+     *                 context_line: non-empty-string
      *             }
      *         }
      *     }>

@@ -129,7 +129,7 @@ trait Headers
      */
     private function validateAndTrimHeader(string $header, $values): array
     {
-        if (!\is_string($header) || 1 !== \preg_match("@^[!#$%&'*+.^_`|~0-9A-Za-z-]+$@D", $header)) {
+        if (1 !== \preg_match("@^[!#$%&'*+.^_`|~0-9A-Za-z-]+$@D", $header)) {
             throw new \InvalidArgumentException('Header name must be an RFC 7230 compatible string');
         }
 
