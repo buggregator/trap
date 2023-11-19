@@ -6,6 +6,7 @@
        resolveFromConfigFile="true"
        findUnusedBaselineEntry="false"
        findUnusedCode="false"
+       errorBaseline="psalm-baseline.xml"
 >
     <issueHandlers>
         <RedundantConditionGivenDocblockType errorLevel="suppress"/>

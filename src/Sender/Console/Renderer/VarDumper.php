@@ -101,6 +101,7 @@ final class VarDumper implements RendererInterface
                     // Do nothing.
                 }
 
+                /** @psalm-suppress InternalMethod, InternalClass */
                 Common::renderMetadata($output, $meta);
                 $output->writeln('');
 
