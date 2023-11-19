@@ -9,6 +9,7 @@
          stopOnError="false"
          stderr="true"
          cacheDirectory=".phpunit.cache"
+         resolveDependencies="true"
 >
     <testsuites>
         <testsuite name="Unit">
