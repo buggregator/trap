@@ -12,6 +12,7 @@ use Generator;
  * Simple abstraction over a client two-way stream.
  * @internal
  * @psalm-internal Buggregator\Trap\Traffic
+ * @extends \IteratorAggregate<int, string>
  */
 interface StreamClient extends \IteratorAggregate
 {

@@ -18,7 +18,7 @@ interface RendererInterface
     public function isSupport(Frame $frame): bool;
 
     /**
-     * @param TFrame $frame
+     * @psalm-assert-if-true TFrame $frame
      */
     public function render(OutputInterface $output, Frame $frame): void;
 }

@@ -17,13 +17,6 @@ use Psr\Http\Message\StreamInterface;
  * @psalm-import-type FieldDataArray from Field
  * @psalm-import-type FileDataArray from File
  *
- * @psalm-type SmtpDataArray = array{
- *     protocol: array<string, string|list<string>>,
- *     headers: array<string, list<string>>,
- *     messages: array<int, FieldDataArray>,
- *     attachments: array<int, FileDataArray>
- * }
- *
  * @internal
  */
 final class Smtp implements JsonSerializable
@@ -31,10 +24,10 @@ final class Smtp implements JsonSerializable
     use Headers;
     use StreamBody;
 
-    /** @var Field[] */
+    /** @var list<Field> */
     private array $messages = [];
 
-    /** @var File[] */
+    /** @var list<File> */
     private array $attachments = [];
 
     /**
@@ -57,9 +50,6 @@ final class Smtp implements JsonSerializable
         return new self($protocol, $headers);
     }
 
-    /**
-     * @param SmtpDataArray $data
-     */
     public static function fromArray(array $data): self
     {
         $self = new self($data['protocol'], $data['headers']);
@@ -73,9 +63,6 @@ final class Smtp implements JsonSerializable
         return $self;
     }
 
-    /**
-     * @return SmtpDataArray
-     */
     public function jsonSerialize(): array
     {
         return [

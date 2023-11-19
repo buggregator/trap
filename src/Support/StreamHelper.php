@@ -56,6 +56,8 @@ final class StreamHelper
         }
 
         $stream->seek($caret, \SEEK_SET);
+
+        \assert($result >= 0);
         return $result;
     }
 

@@ -32,6 +32,8 @@ final class VarDumper implements RendererInterface
 
     public function render(OutputInterface $output, Frame $frame): void
     {
+        \assert($frame instanceof Frame\VarDumper);
+
         $payload = @\unserialize(\base64_decode($frame->dump), ['allowed_classes' => [Data::class, Stub::class]]);
 
         // Impossible to decode the message, give up.

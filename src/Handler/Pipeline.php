@@ -15,7 +15,6 @@ use Closure;
  *
  * @psalm-type TLast = Closure(mixed ...): mixed
  *
- * @psalm-immutable
  * @internal
  * @psalm-internal Buggregator\Trap
  */

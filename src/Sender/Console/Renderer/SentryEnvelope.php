@@ -26,6 +26,8 @@ final class SentryEnvelope implements RendererInterface
 
     public function render(OutputInterface $output, Frame $frame): void
     {
+        \assert($frame instanceof Frame\Sentry\SentryEnvelope);
+
         Common::renderHeader1($output, 'SENTRY', 'ENVELOPE');
         Header::renderMessageHeader($output, $frame->headers + ['timestamp' => $frame->time->format('U.u')]);
 

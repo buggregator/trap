@@ -55,6 +55,9 @@ final class Files
         $output->writeln("<bg=black;fg=magenta> └───┘</>  <fg=gray>$type</>");
     }
 
+    /**
+     * @param int<0, max>|null $size
+     */
     public static function normalizeSize(?int $size): ?string
     {
         if ($size === null) {
@@ -62,8 +65,11 @@ final class Files
         }
 
         $units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
-        $power = \floor(\log($size, 1024));
+        $power = (int)\floor(\log($size, 1024));
         $float = $power > 0 ? \round($size / (1024 ** $power), 2) : $size;
-        return $float . ' ' . $units[$power];
+
+        \assert($power >= 0 && $power <= 5);
+
+        return \sprintf('%s %s', \number_format($float, 2), $units[$power]);
     }
 }
