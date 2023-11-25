@@ -23,6 +23,19 @@ final class TrapHandle
         return $new;
     }
 
+    /**
+     * Dump only if the condition is true.
+     */
+    public function if(bool|callable $condition): self
+    {
+        if (\is_callable($condition)) {
+            $condition = $condition();
+        }
+
+        $this->haveToSend = $condition;
+        return $this;
+    }
+
     public function __destruct()
     {
         $this->haveToSend and $this->sendUsingDump();
