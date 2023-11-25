@@ -4,27 +4,27 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Client;
 
+use Buggregator\Trap\Client\TrapHandle\Counter;
 use Symfony\Component\VarDumper\Caster\TraceStub;
 use Symfony\Component\VarDumper\VarDumper;
 
 /**
  * @internal
- * @psalm-internal Buggregator\Trap
  */
 final class TrapHandle
 {
-    private array $values;
     private bool $haveToSend = true;
+    private int $times = 0;
+    private string $timesCounterKey = '';
 
     public static function fromArray(array $array): self
     {
-        $new = new self();
-        $new->values = $array;
-        return $new;
+        return new self($array);
     }
 
     /**
      * Dump only if the condition is true.
+     * The check is performed immediately upon declaration.
      */
     public function if(bool|callable $condition): self
     {
@@ -36,9 +36,36 @@ final class TrapHandle
         return $this;
     }
 
+    /**
+     * Dump only $times times.
+     * The counter isn't incremented if the dump is not sent (any other condition is not met).
+     * It might be useful for debugging in loops, recursive or just multiple function calls.
+     *
+     * @param positive-int $times
+     * @param bool $fullStack If true, the counter is incremented for each stack trace, not for the line.
+     */
+    public function times(int $times, bool $fullStack = false): self
+    {
+        $this->times = $times;
+        $this->timesCounterKey = (\serialize(
+            $fullStack
+                ? $this->stackTrace()
+                : $this->stackTrace()[0]
+        ));
+        return $this;
+    }
+
+    /**
+     * Dump values only once.
+     */
+    public function once(): self
+    {
+        return $this->times(1);
+    }
+
     public function __destruct()
     {
-        $this->haveToSend and $this->sendUsingDump();
+        $this->haveToSend() and $this->sendUsingDump();
     }
 
     private function sendUsingDump(): void
@@ -88,24 +115,41 @@ final class TrapHandle
      *     args?: array
      * }>
      */
-    private function stackTrace(string $baseDir): array
+    private function stackTrace(string $baseDir = ''): array
     {
-        $dir = \getcwd() . \DIRECTORY_SEPARATOR;
+        $dir = $baseDir . \DIRECTORY_SEPARATOR;
         $cwdLen = \strlen($dir);
-        // Replace paths with relative paths
         $stack = [];
         foreach (\debug_backtrace(\DEBUG_BACKTRACE_IGNORE_ARGS) as $frame) {
-            if (($frame['class'] ?? null) === __CLASS__) {
+            if (($frame['file'] ?? null) === __FILE__) {
                 continue;
             }
 
             // Convert absolute paths to relative ones
-            isset($frame['file']) && \str_starts_with($frame['file'], $dir)
+            $cwdLen > 1 && isset($frame['file']) && \str_starts_with($frame['file'], $dir)
                 and $frame['file'] = '.' . \DIRECTORY_SEPARATOR . \substr($frame['file'], $cwdLen);
 
             $stack[] = $frame;
         }
 
         return $stack;
+    }
+
+    private function __construct(
+        private array $values,
+    ) {
+    }
+
+    private function haveToSend(): bool
+    {
+        if (!$this->haveToSend) {
+            return false;
+        }
+
+        if ($this->times > 0) {
+            return Counter::checkAndIncrement($this->timesCounterKey, $this->times);
+        }
+
+        return true;
     }
 }
