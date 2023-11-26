@@ -99,8 +99,8 @@ foreach ($veryLargeArray as $item) {
     trap($item)->times(3);
 }
 
-// Dump only if the condition is true
-trap($animal)->once()->if($var instanceof Anumal\Cat);
+// Dump once if the condition is true
+trap($animal)->once()->if($var instanceof Animal\Cat);
 ```
 
 ---
