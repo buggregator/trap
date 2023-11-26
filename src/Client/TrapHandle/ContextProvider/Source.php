@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Buggregator\Trap\Client\TrapHandle\ContextProvider;
 
 use Buggregator\Trap\Client\TrapHandle\StackTrace;
@@ -18,6 +16,11 @@ use Twig\Template;
  * @author Nicolas Grekas <p@tchwork.com>
  * @author Maxime Steinhausser <maxime.steinhausser@gmail.com>
  *
+ * @link https://github.com/symfony/var-dumper/blob/7.0/Dumper/ContextProvider/SourceContextProvider.php
+ * @link https://github.com/symfony/var-dumper/blob/6.3/Dumper/ContextProvider/SourceContextProvider.php
+ *
+ * @psalm-suppress all
+ *
  * todo: rewrite and decompose
  */
 final class Source implements ContextProviderInterface
@@ -27,6 +30,9 @@ final class Source implements ContextProviderInterface
     private ?string $projectDir;
     private ?FileLinkFormatter $fileLinkFormatter;
 
+    /**
+     * @psalm-suppress UndefinedClass
+     */
     public function __construct(string $charset = null, string $projectDir = null, FileLinkFormatter $fileLinkFormatter = null, int $limit = 9)
     {
         $this->charset = $charset;

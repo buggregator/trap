@@ -22,33 +22,35 @@ use Symfony\Component\VarDumper\Dumper\ServerDumper;
 /**
  * @internal
  * @psalm-internal Buggregator\Trap\Client
- * @psalm-type DumperHandler = Closure(mixed $var, string|int|null $label, int $depth): void
  */
 final class Dumper
 {
-    /** @var DumperHandler|null */
+    /** @var null|Closure(mixed, string|null, int): mixed */
     private static ?Closure $handler;
 
-    public static function dump(mixed $var, string|int|null $label = null, int $depth = 0)
+    public static function dump(mixed $var, string|int|null $label = null, int $depth = 0): mixed
     {
-        return (self::$handler ??= self::registerHandler())($var, $label, $depth);
+        return (self::$handler ??= self::registerHandler())($var, empty($label) ? null : (string)$label, $depth);
     }
 
     /**
-     * @return DumperHandler|null The previous handler if any
+     * @return null|callable(mixed, string|null, int): mixed
+     * @psalm-suppress MixedInferredReturnType, MixedPropertyTypeCoercion, MismatchingDocblockReturnType
      */
     public static function setHandler(callable $callable = null): ?Closure
     {
-        return ([$callable, self::$handler] = [self::$handler, $callable(...)])[0];
+        return ([$callable, self::$handler] = [self::$handler, $callable === null ? null : $callable(...)])[0];
     }
 
     /**
-     * @return DumperHandler
+     * @return Closure(mixed, string|null, int): mixed
+     *
      * @author Nicolas Grekas <p@tchwork.com>
      */
     private static function registerHandler(): Closure
     {
         $cloner = new VarCloner();
+        /** @psalm-suppress InvalidArgument */
         $cloner->addCasters(ReflectionCaster::UNSET_CLOSURE_FILE_INFO);
 
         $format = $_SERVER['VAR_DUMPER_FORMAT'] ?? null;
@@ -73,19 +75,22 @@ final class Dumper
             $dumper = new ContextualizedDumper($dumper, [new SourceContextProvider()]);
         }
 
-        return self::$handler = static function ($var, string|int|null $label = null, int $depth = 0) use ($cloner, $dumper): void {
+        return self::$handler = static function (mixed $var, string|null $label = null, int $depth = 0)
+        use ($cloner, $dumper): ?string {
             $var = $cloner->cloneVar($var);
 
             $label === null or $var = $var->withContext(['label' => $label]);
             $depth > 0 and $var = $var->withMaxDepth($depth);
 
-            $dumper->dump($var);
+            return $dumper->dump($var);
         };
     }
 
     /**
      * @return array<array-key, ContextProviderInterface> The context providers
      * @author Nicolas Grekas <p@tchwork.com>
+     *
+     * @psalm-suppress UndefinedClass
      */
     private static function getContextProviders(): array
     {
@@ -93,11 +98,15 @@ final class Dumper
 
         if (!\in_array(\PHP_SAPI, ['cli', 'phpdbg'], true) && \class_exists(Request::class)) {
             $requestStack = new RequestStack();
+            /** @psalm-suppress MixedMethodCall */
             $requestStack->push(Request::createFromGlobals());
             $contextProviders['request'] = new RequestContextProvider($requestStack);
         }
 
-        $fileLinkFormatter = \class_exists(FileLinkFormatter::class) ? new FileLinkFormatter(null, $requestStack ?? null) : null;
+        /** @var null|FileLinkFormatter $fileLinkFormatter */
+        $fileLinkFormatter = \class_exists(FileLinkFormatter::class)
+            ? new FileLinkFormatter(null, $requestStack ?? null)
+            : null;
 
         return $contextProviders + [
                 'cli' => new CliContextProvider(),

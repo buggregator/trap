@@ -19,6 +19,7 @@ try {
      */
     function trap(mixed ...$values): TrapHandle
     {
+        /** @psalm-suppress InternalMethod */
         return TrapHandle::fromArray($values);
     }
 } catch (\Throwable $e) {

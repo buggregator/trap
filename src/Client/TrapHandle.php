@@ -31,7 +31,13 @@ final class TrapHandle
     public function if(bool|callable $condition): self
     {
         if (\is_callable($condition)) {
-            $condition = $condition();
+            try {
+                $condition = (bool)$condition();
+            } catch (\Throwable $e) {
+                $this->values[] = $e;
+
+                return $this;
+            }
         }
 
         $this->haveToSend = $condition;
@@ -106,6 +112,10 @@ final class TrapHandle
         }
 
         // Dump sequence of values
+        /**
+         * @var string|int $key
+         * @var mixed $value
+         */
         foreach ($this->values as $key => $value) {
             /** @psalm-suppress TooManyArguments */
             VarDumper::dump($value, label: $key, depth: $this->depth);
