@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Client;
 
 use Buggregator\Trap\Client\TrapHandle\Counter;
+use Buggregator\Trap\Client\TrapHandle\Dumper as VarDumper;
+use Buggregator\Trap\Client\TrapHandle\StackTrace;
 use Symfony\Component\VarDumper\Caster\TraceStub;
-use Symfony\Component\VarDumper\VarDumper;
 
 /**
  * @internal
@@ -16,6 +17,7 @@ final class TrapHandle
     private bool $haveToSend = true;
     private int $times = 0;
     private string $timesCounterKey = '';
+    private int $depth = 0;
 
     public static function fromArray(array $array): self
     {
@@ -37,6 +39,17 @@ final class TrapHandle
     }
 
     /**
+     * Set max depth for the dump.
+     *
+     * @param int<0, max> $depth If 0 - no limit.
+     */
+    public function depth(int $depth): self
+    {
+        $this->depth = $depth;
+        return $this;
+    }
+
+    /**
      * Dump only $times times.
      * The counter isn't incremented if the dump is not sent (any other condition is not met).
      * It might be useful for debugging in loops, recursive or just multiple function calls.
@@ -47,10 +60,10 @@ final class TrapHandle
     public function times(int $times, bool $fullStack = false): self
     {
         $this->times = $times;
-        $this->timesCounterKey = (\serialize(
+        $this->timesCounterKey = \sha1(\serialize(
             $fullStack
-                ? $this->stackTrace()
-                : $this->stackTrace()[0]
+                ? StackTrace::stackTrace()
+                : StackTrace::stackTrace()[0]
         ));
         return $this;
     }
@@ -65,10 +78,10 @@ final class TrapHandle
 
     public function __destruct()
     {
-        $this->haveToSend() and $this->sendUsingDump();
+        $this->haveToSend() and $this->sendDump();
     }
 
-    private function sendUsingDump(): void
+    private function sendDump(): void
     {
         \class_exists(VarDumper::class) or throw new \RuntimeException(
             'VarDumper is not installed. Please install symfony/var-dumper package.'
@@ -85,54 +98,22 @@ final class TrapHandle
         if ($this->values === []) {
             VarDumper::dump([
                 'cwd' => \getcwd(),
-                'trace' => new TraceStub(($this->stackTrace(\getcwd()))),
-            ]);
+                'trace' => new TraceStub((StackTrace::stackTrace(\getcwd()))),
+            ], depth: $this->depth);
             return;
         }
 
         // Dump single value
         if (\array_keys($this->values) === [0]) {
-            VarDumper::dump($this->values[0]);
+            VarDumper::dump($this->values[0], depth: $this->depth);
             return;
         }
 
         // Dump sequence of values
         foreach ($this->values as $key => $value) {
             /** @psalm-suppress TooManyArguments */
-            VarDumper::dump($value, $key);
+            VarDumper::dump($value, label: $key, depth: $this->depth);
         }
-    }
-
-    /**
-     * @param string $baseDir Base directory for relative paths
-     * @return array<string, array{
-     *     function?: non-empty-string,
-     *     line?: int<0, max>,
-     *     file?: non-empty-string,
-     *     class?: class-string,
-     *     object?: object,
-     *     type?: non-empty-string,
-     *     args?: array
-     * }>
-     */
-    private function stackTrace(string $baseDir = ''): array
-    {
-        $dir = $baseDir . \DIRECTORY_SEPARATOR;
-        $cwdLen = \strlen($dir);
-        $stack = [];
-        foreach (\debug_backtrace(\DEBUG_BACKTRACE_IGNORE_ARGS) as $frame) {
-            if (($frame['file'] ?? null) === __FILE__) {
-                continue;
-            }
-
-            // Convert absolute paths to relative ones
-            $cwdLen > 1 && isset($frame['file']) && \str_starts_with($frame['file'], $dir)
-                and $frame['file'] = '.' . \DIRECTORY_SEPARATOR . \substr($frame['file'], $cwdLen);
-
-            $stack[] = $frame;
-        }
-
-        return $stack;
     }
 
     private function __construct(
