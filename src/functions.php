@@ -2,65 +2,28 @@
 
 declare(strict_types=1);
 
+use Buggregator\Trap\Client\TrapHandle;
 use Buggregator\Trap\Support\Caster\EnumValue;
 use Buggregator\Trap\Support\ProtobufCaster;
 use Google\Protobuf\Internal\MapField;
 use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
-use Symfony\Component\VarDumper\Caster\TraceStub;
 use Symfony\Component\VarDumper\Cloner\AbstractCloner;
-use Symfony\Component\VarDumper\VarDumper;
 
-if (!\function_exists('trap')) {
+try {
     /**
      * Configure VarDumper to dump values to the local server.
      * If there are no values - dump stack trace.
      *
      * @param mixed ...$values
      */
-    function trap(mixed ...$values): void
+    function trap(mixed ...$values): TrapHandle
     {
-        if (!\class_exists(VarDumper::class)) {
-            throw new \RuntimeException('VarDumper is not installed. Please install symfony/var-dumper package.');
-        }
-
-        // Set default values if not set
-        if (!isset($_SERVER['VAR_DUMPER_FORMAT'], $_SERVER['VAR_DUMPER_SERVER'])) {
-            $_SERVER['VAR_DUMPER_FORMAT'] = 'server';
-            // todo use the config file in the future
-            $_SERVER['VAR_DUMPER_SERVER'] = '127.0.0.1:9912';
-        }
-
-        // If there are no values - stack trace
-        if ($values === []) {
-            // VarDumper::dump(\debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS));
-            $cwd = \getcwd();
-            $stack = \debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
-            // Replace paths with relative paths
-            foreach ($stack as $i => $frame) {
-                if (isset($frame['file'])) {
-                    $stack[$i]['file'] = \str_replace($cwd, '.', $frame['file']);
-                }
-            }
-            VarDumper::dump([
-                'cwd' => $cwd,
-                'trace' => new TraceStub($stack)
-            ]);
-            return;
-        }
-
-        // Dump single value
-        if (\array_keys($values) === [0]) {
-            VarDumper::dump($values[0]);
-            return;
-        }
-
-        // Dump sequence of values
-        foreach ($values as $key => $value) {
-            /** @psalm-suppress TooManyArguments */
-            VarDumper::dump($value, $key);
-		}
+        /** @psalm-suppress InternalMethod */
+        return TrapHandle::fromArray($values);
     }
+} catch (\Throwable $e) {
+    // do nothing
 }
 
 /**

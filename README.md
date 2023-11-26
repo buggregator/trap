@@ -88,6 +88,21 @@ Additionally, you can manually set traps in the code. Use the `trap()` function,
 which works almost the same as Symfony's `dump()`, but configures the dumper to send dumps to the local server,
 unless other user settings are provided.
 
+Also, the `trap()` has a lot of useful options:
+
+```php
+// Limit the depth of the dumped structure
+trap($veryDeepArray)->depth(3);
+
+foreach ($veryLargeArray as $item) {
+    // We don't need to dump more than 3 items
+    trap($item)->times(3);
+}
+
+// Dump once if the condition is true
+trap($animal)->once()->if($var instanceof Animal\Cat);
+```
+
 ---
 
 We care about the quality of our products' codebase and strive to provide the best user experience.
@@ -108,8 +123,8 @@ Then just call the `trap()` function in your code:
 
 ```php
 trap(); // dump the current stack trace
-trap($var); // dump a variable
-trap($var, foo: $far, bar: $bar); // dump a variables sequence
+trap($var)->depth(4); // dump a variable with a depth limit
+trap($var, foo: $far, bar: $bar); // dump a named variables sequence
 ```
 
 > **Note**:

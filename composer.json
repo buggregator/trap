@@ -60,16 +60,13 @@
         "nyholm/psr7": "^1.8",
         "php-http/message": "^1.15",
         "psr/http-message": "^1.1 || ^2",
-        "symfony/console": "^5.4 || ^6 || ^7"
-    },
-    "suggest": {
-        "symfony/var-dumper": "To use the trap() function"
+        "symfony/console": "^5.4 || ^6 || ^7",
+        "symfony/var-dumper": "^6 || ^7"
     },
     "require-dev": {
         "dereuromark/composer-prefer-lowest": "^0.1.10",
         "google/protobuf": "^3.23",
         "phpunit/phpunit": "^10.4",
-        "symfony/var-dumper": "^6 || ^7",
         "vimeo/psalm": "^5.11"
     }
 }
