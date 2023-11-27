@@ -6,9 +6,6 @@
 
 <div align="center">
 
-**Support us on Patreon**  
-[![roxblnfk](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Droxblnfk%26type%3Dpatrons&style=flat-square)](https://patreon.com/roxblnfk)  [![butschster](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Dbutschster%26type%3Dpatrons&style=flat-square)](https://patreon.com/butschster)  
-**Community** <!-- and **Documentation** -->  
 [![Twitter](https://img.shields.io/badge/-Follow-black?style=flat-square&logo=X)](https://twitter.com/buggregator)
 [![Discord](https://img.shields.io/discord/1172942458598985738?style=flat-square&logo=discord&color=0000ff)](https://discord.gg/qF3HpXhMEP)
 
@@ -163,30 +160,18 @@ vendor/bin/trap -s console -s file -s server
 
 ## Contributing
 
-We enthusiastically invite you to contribute to Buggregator Trap! Whether you've uncovered a bug, have innovative
-feature suggestions, or wish to contribute in any other capacity, we warmly welcome your participation. Simply open an
-issue or submit a pull request on our GitHub repository to get started.
+We believe in the power of community-driven development. Here's how you can contribute:
 
-We use the [help wanted](https://github.com/buggregator/trap/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22)
-label to categorize all issues that would benefit from your help in the repository.
-
-### Why Should Developers Contribute to Open Source?
-
-Open source contributions, such as to Buggregator Trap, present a unique and rewarding opportunity, especially for
-junior developers.
-
-Here are a few reasons why you should consider contributing:
-
-1. **Experiment with New Technologies:** Open source projects can expose you to technologies and frameworks you might
-   not encounter in your daily job. It's an excellent opportunity to learn and try out new things.
-2. **Expand Your Network:** Collaborating on open source projects connects you with a global community of developers.
-   You can learn from their experiences, and they can learn from yours.
-3. **Improve Your Résumé:** Potential employers often value open source contributions. They demonstrate initiative,
-   technical competency, and the ability to work collaboratively
-4. **Learn Best Practices:** Code reviews and feedback in open source projects are valuable learning tools. They expose
-   you to different perspectives and ways to improve your code.
-5. **Create Impact:** Your contributions can help others and make a meaningful impact on the project. The feeling of
-   seeing your code being used by others is immensely satisfying.
+- **Report Bugs:** Encounter a glitch? Let us know on our [issue tracker](https://github.com/buggregator/trap/issues).
+- **Feature Suggestions:** Have ideas to improve the Buggregator Trap? [Create a feature request](https://github.com/buggregator/trap/issues)!
+- **Code Contributions:** Submit a pull request to help us improve the Buggregator Trap codebase. You can find a list of
+  issues labeled "help wanted" [here](https://github.com/buggregator/trap/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22).
+- **Documentation:** Help us improve our [guides and tutorials](https://github.com/buggregator/docs/tree/master/docs) for a smoother user experience.
+- **Community Support:** Join our [Discord](https://discord.gg/qF3HpXhMEP) and help others get the most out of Buggregator.
+- **Spread the Word:** Share your experience with Buggregator on social media and encourage others to contribute. 
+- **Donate:** Support our work by becoming a patron or making a one-time donation  
+  [![roxblnfk](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Droxblnfk%26type%3Dpatrons&label=roxblnfk&style=flat-square)](https://patreon.com/roxblnfk)
+  [![butschster](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Dbutschster%26type%3Dpatrons&label=butschster&style=flat-square)](https://patreon.com/butschster)
 
 **Remember, every great developer was once a beginner. Contributing to open source projects is a step in your journey to
 becoming a better developer. So, don't hesitate to jump in and start contributing!**
