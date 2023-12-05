@@ -3,6 +3,7 @@
 namespace Buggregator\Trap\Client\TrapHandle\ContextProvider;
 
 use Buggregator\Trap\Client\TrapHandle\StackTrace;
+use Buggregator\Trap\Client\TrapHandle\StaticState;
 use Symfony\Component\HttpKernel\Debug\FileLinkFormatter;
 use Symfony\Component\VarDumper\Cloner\VarCloner;
 use Symfony\Component\VarDumper\Dumper\ContextProvider\ContextProviderInterface;
@@ -43,7 +44,8 @@ final class Source implements ContextProviderInterface
 
     public function getContext(): ?array
     {
-        $trace = StackTrace::stackTrace((string)$this->projectDir);
+        \assert(StaticState::getValue() !== null);
+        $trace = StaticState::getValue()->stackTraceWithObjects;
 
         $file = $trace[0]['file'];
         $line = $trace[0]['line'];

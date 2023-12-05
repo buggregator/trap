@@ -9,6 +9,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Debug\FileLinkFormatter;
 use Symfony\Component\VarDumper\Caster\ReflectionCaster;
+use Symfony\Component\VarDumper\Cloner\DumperInterface;
 use Symfony\Component\VarDumper\Cloner\VarCloner;
 use Symfony\Component\VarDumper\Dumper\CliDumper;
 use Symfony\Component\VarDumper\Dumper\ContextProvider\CliContextProvider;
@@ -16,6 +17,7 @@ use Symfony\Component\VarDumper\Dumper\ContextProvider\ContextProviderInterface;
 use Symfony\Component\VarDumper\Dumper\ContextProvider\RequestContextProvider;
 use Symfony\Component\VarDumper\Dumper\ContextProvider\SourceContextProvider;
 use Symfony\Component\VarDumper\Dumper\ContextualizedDumper;
+use Symfony\Component\VarDumper\Dumper\DataDumperInterface;
 use Symfony\Component\VarDumper\Dumper\HtmlDumper;
 use Symfony\Component\VarDumper\Dumper\ServerDumper;
 
@@ -26,7 +28,7 @@ use Symfony\Component\VarDumper\Dumper\ServerDumper;
 final class Dumper
 {
     /** @var null|Closure(mixed, string|null, int): mixed */
-    private static ?Closure $handler;
+    private static ?Closure $handler = null;
 
     public static function dump(mixed $var, string|int|null $label = null, int $depth = 0): mixed
     {
@@ -40,6 +42,30 @@ final class Dumper
     public static function setHandler(callable $callable = null): ?Closure
     {
         return ([$callable, self::$handler] = [self::$handler, $callable === null ? null : $callable(...)])[0];
+    }
+
+    /**
+     * @return Closure(mixed, string|null, int): mixed
+     */
+    public static function setDumper(?DataDumperInterface $dumper = null): Closure
+    {
+        if ($dumper === null) {
+            return self::registerHandler();
+        }
+
+        $cloner = new VarCloner();
+        /** @psalm-suppress InvalidArgument */
+        $cloner->addCasters(ReflectionCaster::UNSET_CLOSURE_FILE_INFO);
+
+        return self::$handler = static function (mixed $var, string|null $label = null, int $depth = 0)
+            use ($cloner, $dumper): ?string {
+                $var = $cloner->cloneVar($var);
+
+                $label === null or $var = $var->withContext(['label' => $label]);
+                $depth > 0 and $var = $var->withMaxDepth($depth);
+
+                return $dumper->dump($var);
+            };
     }
 
     /**
@@ -75,15 +101,7 @@ final class Dumper
             $dumper = new ContextualizedDumper($dumper, [new SourceContextProvider()]);
         }
 
-        return self::$handler = static function (mixed $var, string|null $label = null, int $depth = 0)
-        use ($cloner, $dumper): ?string {
-            $var = $cloner->cloneVar($var);
-
-            $label === null or $var = $var->withContext(['label' => $label]);
-            $depth > 0 and $var = $var->withMaxDepth($depth);
-
-            return $dumper->dump($var);
-        };
+        return self::setDumper($dumper);
     }
 
     /**
