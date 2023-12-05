@@ -7,6 +7,9 @@ namespace Buggregator\Trap\Client\TrapHandle;
 final class StackTrace
 {
     /**
+     * Returns a backtrace as an array.
+     * Removes the internal frames and the first next frames after them.
+     *
      * @param string $baseDir Base directory for relative paths
      * @return list<array{
      *     function?: string,
@@ -18,13 +21,17 @@ final class StackTrace
      *     args?: list<mixed>
      * }>
      */
-    public static function stackTrace(string $baseDir = ''): array
+    public static function stackTrace(string $baseDir = '', bool $provideObjects = false): array
     {
         $dir = $baseDir . \DIRECTORY_SEPARATOR;
         $cwdLen = \strlen($dir);
         $stack = [];
         $internal = false;
-        foreach (\debug_backtrace(\DEBUG_BACKTRACE_PROVIDE_OBJECT | \DEBUG_BACKTRACE_IGNORE_ARGS) as $frame) {
+        foreach (
+            \debug_backtrace(
+                ($provideObjects ? \DEBUG_BACKTRACE_PROVIDE_OBJECT : 0) | \DEBUG_BACKTRACE_IGNORE_ARGS
+            ) as $frame
+        ) {
             if (\str_starts_with($frame['class'] ?? '', 'Buggregator\\Trap\\Client\\')) {
                 $internal = true;
                 $stack = [];

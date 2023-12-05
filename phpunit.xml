@@ -5,6 +5,8 @@
          colors="true"
          processIsolation="false"
          executionOrder="random"
+         failOnRisky="true"
+         failOnWarning="true"
          stopOnFailure="false"
          stopOnError="false"
          stderr="true"
@@ -22,6 +24,7 @@
         </include>
         <exclude>
             <directory>tests</directory>
+            <directory>src/Test</directory>
         </exclude>
     </source>
 </phpunit>

@@ -6,7 +6,7 @@ namespace Buggregator\Trap\Client;
 
 use Buggregator\Trap\Client\TrapHandle\Counter;
 use Buggregator\Trap\Client\TrapHandle\Dumper as VarDumper;
-use Buggregator\Trap\Client\TrapHandle\StackTrace;
+use Buggregator\Trap\Client\TrapHandle\StaticState;
 use Symfony\Component\VarDumper\Caster\TraceStub;
 
 /**
@@ -18,6 +18,7 @@ final class TrapHandle
     private int $times = 0;
     private string $timesCounterKey = '';
     private int $depth = 0;
+    private StaticState $staticState;
 
     public static function fromArray(array $array): self
     {
@@ -68,8 +69,8 @@ final class TrapHandle
         $this->times = $times;
         $this->timesCounterKey = \sha1(\serialize(
             $fullStack
-                ? StackTrace::stackTrace()
-                : StackTrace::stackTrace()[0]
+                ? $this->staticState->stackTrace
+                : $this->staticState->stackTrace[0]
         ));
         return $this;
     }
@@ -89,42 +90,52 @@ final class TrapHandle
 
     private function sendDump(): void
     {
-        // Set default values if not set
-        if (!isset($_SERVER['VAR_DUMPER_FORMAT'], $_SERVER['VAR_DUMPER_SERVER'])) {
-            $_SERVER['VAR_DUMPER_FORMAT'] = 'server';
-            // todo use the config file in the future
-            $_SERVER['VAR_DUMPER_SERVER'] = '127.0.0.1:9912';
-        }
+        try {
+            $staticState = StaticState::getValue();
+            // todo resolve race condition with fibers
+            StaticState::setState($this->staticState);
 
-        // If there are no values - stack trace
-        if ($this->values === []) {
-            VarDumper::dump([
-                'cwd' => \getcwd(),
-                'trace' => new TraceStub((StackTrace::stackTrace(\getcwd()))),
-            ], depth: $this->depth);
-            return;
-        }
+            // Set default values if not set
+            if (!isset($_SERVER['VAR_DUMPER_FORMAT'], $_SERVER['VAR_DUMPER_SERVER'])) {
+                $_SERVER['VAR_DUMPER_FORMAT'] = 'server';
+                // todo use the config file in the future
+                $_SERVER['VAR_DUMPER_SERVER'] = '127.0.0.1:9912';
+            }
 
-        // Dump single value
-        if (\array_keys($this->values) === [0]) {
-            VarDumper::dump($this->values[0], depth: $this->depth);
-            return;
-        }
+            // If there are no values - stack trace
+            if ($this->values === []) {
+                VarDumper::dump([
+                    'cwd' => \getcwd(),
+                    // todo StackTrace::stackTrace(\getcwd()) - add CWD
+                    'trace' => new TraceStub($this->staticState->stackTrace),
+                ], depth: $this->depth);
+                return;
+            }
 
-        // Dump sequence of values
-        /**
-         * @var string|int $key
-         * @var mixed $value
-         */
-        foreach ($this->values as $key => $value) {
-            /** @psalm-suppress TooManyArguments */
-            VarDumper::dump($value, label: $key, depth: $this->depth);
+            // Dump single value
+            if (\array_keys($this->values) === [0]) {
+                VarDumper::dump($this->values[0], depth: $this->depth);
+                return;
+            }
+
+            // Dump sequence of values
+            /**
+             * @var string|int $key
+             * @var mixed $value
+             */
+            foreach ($this->values as $key => $value) {
+                /** @psalm-suppress TooManyArguments */
+                VarDumper::dump($value, label: $key, depth: $this->depth);
+            }
+        } finally {
+            StaticState::setState($staticState);
         }
     }
 
     private function __construct(
         private array $values,
     ) {
+        $this->staticState = StaticState::new();
     }
 
     private function haveToSend(): bool
