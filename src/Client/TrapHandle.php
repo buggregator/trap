@@ -90,11 +90,11 @@ final class TrapHandle
 
     private function sendDump(): void
     {
-        try {
-            $staticState = StaticState::getValue();
-            // todo resolve race condition with fibers
-            StaticState::setState($this->staticState);
+        $staticState = StaticState::getValue();
+        // todo resolve race condition with fibers
+        StaticState::setState($this->staticState);
 
+        try {
             // Set default values if not set
             if (!isset($_SERVER['VAR_DUMPER_FORMAT'], $_SERVER['VAR_DUMPER_SERVER'])) {
                 $_SERVER['VAR_DUMPER_FORMAT'] = 'server';

@@ -4,6 +4,26 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Client\TrapHandle;
 
+/**
+ *
+ * @psalm-type StackTraceWithObjects = list<array{
+ *        function?: string,
+ *        line?: int,
+ *        file?: string,
+ *        class?: class-string,
+ *        type?: string,
+ *        object?: object,
+ *        args?: list<mixed>
+ *    }>
+ * @psalm-type SimpleStackTrace = list<array{
+ *        function?: string,
+ *        line?: int,
+ *        file?: string,
+ *        class?: class-string,
+ *        type?: string,
+ *        args?: list<mixed>
+ *    }>
+ */
 final class StackTrace
 {
     /**
@@ -11,15 +31,9 @@ final class StackTrace
      * Removes the internal frames and the first next frames after them.
      *
      * @param string $baseDir Base directory for relative paths
-     * @return list<array{
-     *     function?: string,
-     *     line?: int,
-     *     file?: string,
-     *     class?: class-string,
-     *     object?: object,
-     *     type?: string,
-     *     args?: list<mixed>
-     * }>
+     * @param bool $provideObjects Whether to provide objects in the stack trace
+     *
+     * @return ($provideObjects is true ? StackTraceWithObjects : SimpleStackTrace)
      */
     public static function stackTrace(string $baseDir = '', bool $provideObjects = false): array
     {

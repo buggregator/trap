@@ -7,43 +7,27 @@ namespace Buggregator\Trap\Client\TrapHandle;
 /**
  * @internal
  * @psalm-internal Buggregator\Trap\Client
+ * @psalm-import-type SimpleStackTrace from StackTrace
+ * @psalm-import-type StackTraceWithObjects from StackTrace
  */
 final class StaticState
 {
+    /**
+     * @param SimpleStackTrace $stackTrace Simple stack trace without arguments and objects.
+     * @param StackTraceWithObjects $stackTraceWithObjects Stack trace without arguments but with objects.
+     */
     private function __construct(
-        /**
-         * Simple stack trace without arguments and objects.
-         *
-         * @var list<array{
-         *      function?: string,
-         *      line?: int,
-         *      file?: string,
-         *      class?: class-string,
-         *      type?: string,
-         *      args?: list<mixed>
-         *  }>
-         */
         public array $stackTrace = [],
-
-        /**
-         * Stack trace without arguments but with objects.
-         *
-         * @var list<array{
-         *      function?: string,
-         *      line?: int,
-         *      file?: string,
-         *      class?: class-string,
-         *      type?: string,
-         *      object?: object,
-         *      args?: list<mixed>
-         *  }>
-         */
         public array $stackTraceWithObjects = [],
     ) {
     }
 
     private static ?StaticState $value = null;
 
+    /**
+     * @param SimpleStackTrace|null $stackTrace
+     * @param StackTraceWithObjects|null $stackTraceWithObjects
+     */
     public static function new(
         array $stackTrace = null,
         array $stackTraceWithObjects = null,

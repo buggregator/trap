@@ -44,6 +44,9 @@ final class Dumper
         return ([$callable, self::$handler] = [self::$handler, $callable === null ? null : $callable(...)])[0];
     }
 
+    /**
+     * @return Closure(mixed, string|null, int): mixed
+     */
     public static function setDumper(?DataDumperInterface $dumper = null): Closure
     {
         if ($dumper === null) {
