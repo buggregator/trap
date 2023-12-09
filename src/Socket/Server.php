@@ -54,7 +54,7 @@ final class Server implements Processable
             \socket_close($this->socket);
         } finally {
             foreach ($this->clients as $client) {
-                $client->__destruct();
+                $client->close();
             }
             unset($this->socket, $this->clients, $this->fibers);
         }
@@ -76,17 +76,16 @@ final class Server implements Processable
 
     public function process(): void
     {
-        $socket = @\socket_accept($this->socket);
-        if ($socket !== false) {
-            $key = (int)\array_key_last($this->clients) + 1;
+        while (false !== ($socket = \socket_accept($this->socket))) {
             $client = null;
             try {
                 $client = Client::init($socket, $this->payloadSize);
+                $key = (int)\array_key_last($this->clients) + 1;
                 $this->clients[$key] = $client;
                 $this->clientInflector !== null and ($this->clientInflector)($client, $key);
                 $this->fibers[$key] = new Fiber($client->process(...));
             } catch (\Throwable) {
-                $client?->__destruct();
+                $client?->close();
                 unset($client, $this->clients[$key], $this->fibers[$key]);
             }
         }
@@ -102,7 +101,7 @@ final class Server implements Processable
                 if ($e instanceof DisconnectClient) {
                     $this->logger->info('Custom disconnect.');
                 }
-                $this->clients[$key]->__destruct();
+                $this->clients[$key]->close();
                 // Logger::exception($e, 'Client fiber.');
                 unset($this->clients[$key], $this->fibers[$key]);
             }

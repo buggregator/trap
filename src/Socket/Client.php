@@ -40,8 +40,15 @@ final class Client
         } catch (\Throwable) {
             // Do nothing.
         } finally {
-            ($this->onClose)();
+            isset($this->onClose) and ($this->onClose)();
         }
+    }
+
+    public function close(): void
+    {
+        isset($this->onClose) and ($this->onClose)();
+        // Unlink all closures and free resources.
+        unset($this->onClose, $this->onPayload, $this->readBuffer);
     }
 
     public function disconnect(): void
@@ -86,7 +93,7 @@ final class Client
                 throw new \RuntimeException('Socket exception.');
             }
 
-            if ($this->toDisconnect && $this->writeQueue !== []) {
+            if ($this->toDisconnect && $this->writeQueue === []) {
                 throw new DisconnectClient();
             }
             Fiber::suspend();
