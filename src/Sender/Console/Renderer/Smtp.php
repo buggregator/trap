@@ -6,17 +6,17 @@ namespace Buggregator\Trap\Sender\Console\Renderer;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
-use Buggregator\Trap\Sender\Console\RendererInterface;
+use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Buggregator\Trap\Sender\Console\Support\Files;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * @implements RendererInterface<Frame\Smtp>
+ * @implements Renderer<Frame\Smtp>
  *
  * @internal
  */
-final class Smtp implements RendererInterface
+final class Smtp implements Renderer
 {
     public function isSupport(Frame $frame): bool
     {

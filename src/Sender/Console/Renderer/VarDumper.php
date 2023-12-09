@@ -6,7 +6,7 @@ namespace Buggregator\Trap\Sender\Console\Renderer;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
-use Buggregator\Trap\Sender\Console\RendererInterface;
+use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use DateTimeImmutable;
 use RuntimeException;
@@ -19,11 +19,11 @@ use Symfony\Component\VarDumper\Command\Descriptor\DumpDescriptorInterface;
 use Symfony\Component\VarDumper\Dumper\CliDumper;
 
 /**
- * @implements RendererInterface<Frame\VarDumper>
+ * @implements Renderer<Frame\VarDumper>
  *
  * @internal
  */
-final class VarDumper implements RendererInterface
+final class VarDumper implements Renderer
 {
     public function isSupport(Frame $frame): bool
     {

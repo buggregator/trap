@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender\Console\Renderer;
 
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Sender\Console\RendererInterface;
+use Buggregator\Trap\Sender\Console\Renderer;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * @implements RendererInterface<Frame>
+ * @implements Renderer<Frame>
  *
  * @internal
  */
-final class Plain implements RendererInterface
+final class Plain implements Renderer
 {
     public function __construct(
         private readonly TemplateRenderer $renderer,

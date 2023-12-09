@@ -8,16 +8,16 @@ use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\Renderer\Sentry\Exceptions;
 use Buggregator\Trap\Sender\Console\Renderer\Sentry\Header;
-use Buggregator\Trap\Sender\Console\RendererInterface;
+use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * @implements RendererInterface<Frame\Sentry\SentryStore>
+ * @implements Renderer<Frame\Sentry\SentryStore>
  *
  * @internal
  */
-final class SentryStore implements RendererInterface
+final class SentryStore implements Renderer
 {
     public function isSupport(Frame $frame): bool
     {
