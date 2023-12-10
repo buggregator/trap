@@ -6,22 +6,37 @@ namespace Buggregator\Trap\Sender\Websocket;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Sender\FrameHandler as HandlerInterface;
+use Buggregator\Trap\Sender\Websocket\RPC\Push;
 
 /**
  * @internal
  */
 final class FrameHandler implements HandlerInterface
 {
+    private readonly FrameMapper $frameMapper;
+
     public function __construct(
         private readonly ConnectionPool $connectionPool,
+        private readonly EventsStorage $eventsStorage,
     ) {
+        $this->frameMapper = new FrameMapper();
     }
 
     public function handle(Frame $frame): void
     {
-        // todo Replace with buffer
+        $this->eventsStorage->add($event = $this->frameMapper->map($frame));
+        unset($frame);
+
+        // Send event to all connections
         $this->connectionPool->send(\Buggregator\Trap\Traffic\Websocket\Frame::text(
-            '{"push":{"channel":"events","pub":{"data":{"event":"event.received","data":{"projectId":null,"uuid":"018c4fe7-cc08-71fc-9e5d-cebbaf02d9e5","type":"var-dump","payload":{"payload":{"type":"boolean","value":""},"context":{"timestamp":1702147640.315089,"cli":{"command_line":"D:\\git\\buggregator\\trap\\bin\\trap test","identifier":"387029ce"},"source":{"name":"Test.php","file":"D:\\git\\buggregator\\trap\\src\\Command\\Test.php","line":58,"file_excerpt":false}}},"timestamp":1702147640.329395}}}}}'
+            \json_encode(
+                new Push(
+                    event: 'event.received',
+                    channel: 'events',
+                    data: [$event],
+                ),
+                JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
+            ),
         ));
     }
 }

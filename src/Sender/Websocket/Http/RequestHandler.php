@@ -6,7 +6,6 @@ namespace Buggregator\Trap\Sender\Websocket\Http;
 
 use Buggregator\Trap\Handler\Http\Emitter as HttpEmitter;
 use Buggregator\Trap\Handler\Http\RequestHandler as RequestHandlernterace;
-use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Sender;
 use Buggregator\Trap\Traffic\StreamClient;
 use Nyholm\Psr7\Response;
@@ -15,6 +14,10 @@ use Psr\Http\Message\ServerRequestInterface;
 /**
  * @internal
  * @psalm-internal Buggregator\Trap
+ *
+ * Read about Sec-WebSocket-Extensions:
+ * @link https://datatracker.ietf.org/doc/html/rfc7692
+ * @link https://www.igvita.com/2013/11/27/configuring-and-optimizing-websocket-compression/
  */
 final class RequestHandler implements RequestHandlernterace
 {
@@ -23,7 +26,7 @@ final class RequestHandler implements RequestHandlernterace
     ) {
     }
 
-    public function handle(StreamClient $streamClient, ServerRequestInterface $request, callable $next): iterable
+    public function handle(StreamClient $streamClient, ServerRequestInterface $request, callable $next): \Generator
     {
         if (
             !$request->hasHeader('Sec-WebSocket-Key')
@@ -32,10 +35,6 @@ final class RequestHandler implements RequestHandlernterace
             yield from $next($streamClient, $request);
             return;
         }
-
-        // Get the time of the request
-        $time = $request->getAttribute('begin_at', null);
-        $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
 
         // Calculate the accept key for the handshake
         $key = $request->getHeaderLine('Sec-WebSocket-Key');
@@ -48,9 +47,6 @@ final class RequestHandler implements RequestHandlernterace
             'Sec-WebSocket-Version' => '13',
             'Sec-WebSocket-Accept' => $accept,
         ]);
-
-        // Send the Request Frame to the Buffer
-        yield new Frame\Http($request, $time);
 
         HttpEmitter::emit($streamClient, $response);
         unset($response);

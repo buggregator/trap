@@ -166,7 +166,7 @@ final class Application implements Processable
 
     public function configureUI(int $port): void
     {
-        $this->senders[] = $wsSender = Sender\WebsocketSender::create();
+        $this->senders[] = $wsSender = Sender\WebsocketSender::create($this->logger);
 
         $inspector = new Inspector(
             $this->buffer,
@@ -174,6 +174,8 @@ final class Application implements Processable
             new Traffic\Dispatcher\Http(
                 [
                     new Sender\Websocket\Http\StaticFiles(),
+                    new Sender\Websocket\Http\Events($wsSender->getEventStorage()),
+                    new Sender\Websocket\Http\Version(),
                 ],
                 [new Sender\Websocket\Http\RequestHandler($wsSender->getConnectionPool())],
                 silentMode: true,
