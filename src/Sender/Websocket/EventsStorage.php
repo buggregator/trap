@@ -35,4 +35,9 @@ final class EventsStorage implements IteratorAggregate
     {
         return new \ArrayIterator($this->events);
     }
+
+    public function delete(string $key): void
+    {
+        unset($this->events[$key]);
+    }
 }

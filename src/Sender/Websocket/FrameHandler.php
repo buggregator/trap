@@ -33,7 +33,7 @@ final class FrameHandler implements HandlerInterface
                 new Push(
                     event: 'event.received',
                     channel: 'events',
-                    data: [$event],
+                    data: $event,
                 ),
                 JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
             ),

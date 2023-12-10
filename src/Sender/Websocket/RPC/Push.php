@@ -21,11 +21,13 @@ final class Push implements JsonSerializable
     public function jsonSerialize(): array
     {
         return [
-            'channel' => $this->channel,
-            'pub' => [
-                'data' => [
-                    'data' => $this->data,
-                    'event' => $this->event,
+            'push' => [
+                'channel' => $this->channel,
+                'pub' => [
+                    'data' => [
+                        'event' => $this->event,
+                        'data' => $this->data,
+                    ],
                 ],
             ],
         ];

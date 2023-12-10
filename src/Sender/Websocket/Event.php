@@ -15,7 +15,7 @@ final class Event
         public readonly string $type,
         public readonly array $payload,
         public readonly float $timestamp,
-        public readonly ?string $project_id = null,
+        public readonly ?string $projectId = null,
     ) {
     }
 }

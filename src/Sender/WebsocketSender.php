@@ -19,8 +19,8 @@ final class WebsocketSender implements \Buggregator\Trap\Sender, Processable
         ?Websocket\ConnectionPool $connectionPool = null,
         ?Websocket\EventsStorage $eventStorage = null,
     ): self {
-        $connectionPool ??= new Websocket\ConnectionPool($logger);
         $eventStorage ??= new Websocket\EventsStorage();
+        $connectionPool ??= new Websocket\ConnectionPool($logger, new Websocket\RPC($logger, $eventStorage));
         return new self(
             $connectionPool,
             $eventStorage,

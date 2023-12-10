@@ -184,7 +184,7 @@ final class Frame implements \Stringable
 
         return \sprintf(
             '%s%s%s',
-            \chr(128 | $this->opcode->value),
+            \chr(128 | ($this->rsv1 ? 64 : 0) | $this->opcode->value),
             match (true) {
                 $len < 126 => \chr($len),
                 $len < 65536 => \pack('Cn', 126, $len),

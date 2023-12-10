@@ -24,7 +24,8 @@ final class ConnectionPool implements IteratorAggregate, Processable
     private array $fibers = [];
 
     public function __construct(
-        private readonly Logger $logger
+        private readonly Logger $logger,
+        private RPC $rpc,
     ) {
     }
 
@@ -82,11 +83,11 @@ final class ConnectionPool implements IteratorAggregate, Processable
             foreach ($stream as $chunk) {
                 // \error_log('Read chunk: ' . $chunk);
                 $frame = Frame::read($chunk);
-                // \trap($frame);
+                $response = $this->rpc->handleMessage($frame->content);
 
-                // \error_log('Websocket encoded data: ' .\gzdecode($frame->content));
-                // \trap();
-                // $data = $stream->();
+                if (null !== $response) {
+                    $stream->sendData(Frame::text($response)->__toString());
+                }
             }
 
             $stream->waitData();
