@@ -59,7 +59,7 @@ final class Emitter
     private static function prepareHeaders(ResponseInterface $response): iterable
     {
         $headers = $response->getHeaders();
-        if (!$response->hasHeader('Content-Length')) {
+        if (!$response->hasHeader('Content-Length') && $response->getStatusCode() >= 200) {
             if ($response->getBody()->getSize() !== null) {
                 $headers['Content-Length'] = [(string)$response->getBody()->getSize()];
             } else {
