@@ -21,14 +21,12 @@ final class StaticFiles implements Middleware
         $path = $request->getUri()->getPath();
         if ($path === '/') {
             $path = '/index.html';
-            // $path = '/index-trap.html';
         }
 
         if (\preg_match('#^/((?:[a-zA-Z0-9\\-_]+/)?[a-zA-Z0-9.\\-\\[\\]() _]+?\\.([a-zA-Z0-4]++))$#', $path, $matches)) {
             $file = \sprintf("%s/resources/frontend/%s", Info::TRAP_ROOT, $matches[1]);
 
             if (!\is_file($file)) {
-                // \trap(...['NO_FILE' => $file]);
                 return new Response(404);
             }
 
@@ -53,8 +51,6 @@ final class StaticFiles implements Middleware
                 ],
                 \file_get_contents($file),
             );
-        } else {
-            // \trap($path);
         }
 
         return $next($request);

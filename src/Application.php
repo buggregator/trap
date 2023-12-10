@@ -39,6 +39,7 @@ final class Application implements Processable
         array $map = [],
         private readonly Logger $logger = new Logger(),
         private array $senders = [],
+        bool $configureUI = true,
     ) {
         $this->buffer = new Buffer(bufferSize: 10485760, timer: 0.1);
 
@@ -61,7 +62,7 @@ final class Application implements Processable
         );
         $this->processors[] = $inspector;
 
-        $this->configureUI(8000);
+        $configureUI and $this->configureUI(8000);
 
         foreach ($map as $config) {
             $this->prepareServerFiber($config, $inspector, $this->logger);

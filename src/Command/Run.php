@@ -36,6 +36,7 @@ final class Run extends Command
             'Senders',
             ['console']
         );
+        $this->addOption('ui', null, InputOption::VALUE_OPTIONAL, 'Enable WEB UI (experimental)', false);
     }
 
     protected function execute(
@@ -57,6 +58,7 @@ final class Run extends Command
                 [new SocketServer($port)],
                 new Logger($output),
                 senders: $registry->getSenders($senders),
+                configureUI: $input->getOption('ui') !== false,
             );
 
             $app->run();

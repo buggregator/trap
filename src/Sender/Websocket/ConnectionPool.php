@@ -76,12 +76,10 @@ final class ConnectionPool implements IteratorAggregate, Processable
     {
         while (true) {
             if ($stream->isDisconnected()) {
-                \error_log('Websocket disconnected');
                 return;
             }
 
             foreach ($stream as $chunk) {
-                // \error_log('Read chunk: ' . $chunk);
                 $frame = Frame::read($chunk);
                 $response = $this->rpc->handleMessage($frame->content);
 
