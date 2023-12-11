@@ -8,6 +8,7 @@ use Buggregator\Trap\Logger;
 use Buggregator\Trap\Processable;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Sender;
+use Buggregator\Trap\Support\Json;
 use Buggregator\Trap\Support\Timer;
 use Fiber;
 use RuntimeException;
@@ -104,7 +105,7 @@ abstract class SocketSender implements Sender, Processable
     protected function preparePayload(iterable $frames): string
     {
         return '[' . \implode(',', \array_map(
-                static fn (Frame $frame): string => \json_encode($frame),
+                static fn (Frame $frame): string => Json::encode($frame),
                 \is_array($frames) ? $frames : \iterator_to_array($frames),
             )) . ']';
     }

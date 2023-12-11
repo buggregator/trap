@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Proto\Frame\Sentry;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
+use Buggregator\Trap\Support\Json;
 use DateTimeImmutable;
 
 /**
@@ -57,7 +58,7 @@ final class SentryStore extends Frame\Sentry
      */
     public function __toString(): string
     {
-        return \json_encode($this->message, JSON_THROW_ON_ERROR);
+        return Json::encode($this->message);
     }
 
     public static function fromArray(array $data, DateTimeImmutable $time): static

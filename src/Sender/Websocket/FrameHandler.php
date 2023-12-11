@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Sender\Websocket;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Sender\FrameHandler as HandlerInterface;
 use Buggregator\Trap\Sender\Websocket\RPC\Push;
+use Buggregator\Trap\Support\Json;
 
 /**
  * @internal
@@ -29,13 +30,12 @@ final class FrameHandler implements HandlerInterface
 
         // Send event to all connections
         $this->connectionPool->send(\Buggregator\Trap\Traffic\Websocket\Frame::text(
-            \json_encode(
+            Json::encode(
                 new Push(
                     event: 'event.received',
                     channel: 'events',
                     data: $event,
                 ),
-                JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
             ),
         ));
     }

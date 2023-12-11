@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Sender\Websocket\Http;
 
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Sender\Websocket\EventsStorage;
+use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -34,10 +35,7 @@ final class Events implements Middleware
                 'Content-Type' => 'application/json',
                 'Cache-Control' => 'no-cache',
             ],
-            \json_encode(
-                $this->getEvents(),
-                \JSON_THROW_ON_ERROR,
-            ),
+            Json::encode($this->getEvents()),
         );
     }
 

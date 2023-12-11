@@ -31,7 +31,9 @@ final class StaticFiles implements Middleware
             if (!\is_file($file)) {
                 return new Response(404);
             }
+
             $content = null;
+            $headers = [];
 
             $type = match($matches[2]) {
                 'css' => 'text/css',
@@ -55,21 +57,17 @@ final class StaticFiles implements Middleware
                         $content,
                         $matches,
                     );
-                    $this->earlyResponse = $matches[1];
+                    $this->earlyResponse = \array_unique($matches[1]);
                 }
 
-                empty($this->earlyResponse) or \Fiber::suspend(
-                    new Response(
-                        103,
-                        [
-                            'Link' => \array_map(
-                                static fn (string $css): string => \sprintf('<%s>; rel=preload; as=style', $css),
-                                $this->earlyResponse,
-                            ),
-                        ],
+                $headers = [
+                    'Link' => \array_map(
+                        static fn (string $css): string => \sprintf('<%s>; rel=preload; as=style', $css),
+                        $this->earlyResponse,
                     ),
-                );
-                // (new \Buggregator\Trap\Support\Timer(5))->wait(); // to test early hints
+                ];
+                empty($headers) or \Fiber::suspend(new Response(103, $headers));
+                // (new \Buggregator\Trap\Support\Timer(2))->wait(); // to test early hints
             }
 
 
@@ -78,7 +76,7 @@ final class StaticFiles implements Middleware
                 [
                     'Content-Type' => $type,
                     'Content-Length' => \filesize($file),
-                ],
+                ] + $headers,
                 $content ?? \file_get_contents($file),
             );
         }

@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Sender\Websocket\Http;
 
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Info;
+use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -29,11 +30,10 @@ final class Version implements Middleware
                 'Content-Type' => 'application/json',
                 'Cache-Control' => 'no-cache',
             ],
-            \json_encode(
+            Json::encode(
                 [
                     'version' => Info::VERSION,
                 ],
-                \JSON_THROW_ON_ERROR,
             ),
         );
     }

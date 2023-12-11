@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Proto\Frame;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
+use Buggregator\Trap\Support\Json;
 use DateTimeImmutable;
 use Psr\Http\Message\StreamInterface;
 
@@ -32,9 +33,9 @@ final class Binary extends Frame
      */
     public function __toString(): string
     {
-        return \json_encode([
+        return Json::encode([
             'size' => $this->getSize(),
-        ], JSON_THROW_ON_ERROR);
+        ]);
     }
 
     public static function fromString(string $payload, DateTimeImmutable $time): never

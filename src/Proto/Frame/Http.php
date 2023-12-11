@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\FilesCarrier;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
+use Buggregator\Trap\Support\Json;
 use DateTimeImmutable;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\UploadedFile;
@@ -30,7 +31,7 @@ final class Http extends Frame implements FilesCarrier
      */
     public function __toString(): string
     {
-        return \json_encode([
+        return Json::encode([
             'headers' => $this->request->getHeaders(),
             'method' => $this->request->getMethod(),
             'uri' => (string)$this->request->getUri(),
@@ -40,7 +41,7 @@ final class Http extends Frame implements FilesCarrier
             'queryParams' => $this->request->getQueryParams(),
             'protocolVersion' => $this->request->getProtocolVersion(),
             'uploadedFiles' => $this->request->getUploadedFiles(),
-        ], JSON_THROW_ON_ERROR);
+        ]);
     }
 
     public static function fromString(string $payload, DateTimeImmutable $time): static

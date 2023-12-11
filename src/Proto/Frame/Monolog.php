@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Proto\Frame;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
+use Buggregator\Trap\Support\Json;
 use DateTimeImmutable;
 
 /**
@@ -26,7 +27,7 @@ final class Monolog extends Frame
      */
     public function __toString(): string
     {
-        return \json_encode($this->message, JSON_THROW_ON_ERROR);
+        return Json::encode($this->message);
     }
 
     public static function fromString(string $payload, DateTimeImmutable $time): static

@@ -45,6 +45,10 @@ final class Emitter
     {
         $reasonPhrase = $response->getReasonPhrase();
 
+        if ($response->getStatusCode() === 103) {
+            $reasonPhrase = 'Early Hints';
+        }
+
         return \sprintf(
             'HTTP/%s %d%s',
             $response->getProtocolVersion(),
