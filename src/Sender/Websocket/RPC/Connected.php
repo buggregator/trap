@@ -23,16 +23,16 @@ final class Connected implements JsonSerializable
     public function jsonSerialize(): array
     {
         return [
+            'id' => $this->id,
             'connect' => [
                 'client' => $this->client,
-                'ping' => $this->ping,
-                'pong' => $this->pong,
+                'version' => Info::VERSION,
                 'subs' => [
                     'events' => (object)[],
                 ],
-                'version' => Info::VERSION,
+                'ping' => $this->ping,
+                'pong' => $this->pong,
             ],
-            'id' => $this->id,
         ];
     }
 }

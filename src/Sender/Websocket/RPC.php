@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Sender\Websocket;
 
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Logger;
+use Buggregator\Trap\Support\Json;
 use Buggregator\Trap\Support\Uuid;
 use JsonSerializable;
 
@@ -20,19 +21,11 @@ final class RPC
     ) {
     }
 
-    private static function json_encode(array|JsonSerializable $array)
-    {
-        return \json_encode($array, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE | \JSON_INVALID_UTF8_SUBSTITUTE);
-    }
-
-    /**
-     * @return non-empty-string|null $response
-     */
-    public function handleMessage(string $message): ?string
+    public function handleMessage(string $message): ?object
     {
         try {
             if ($message === '') {
-                return '';
+                return (object)[];
             }
 
             $json = \json_decode($message, true, 512, \JSON_THROW_ON_ERROR);
@@ -42,14 +35,13 @@ final class RPC
             $id = $json['id'] ?? 1;
 
             if (isset($json['connect'])) {
-                return self::json_encode(new RPC\Connected(id: $id, client: Uuid::uuid4()),);
+                return new RPC\Connected(id: $id, client: Uuid::uuid4());
             }
 
             if (isset($json['rpc']['method'])) {
                 $method = $json['rpc']['method'];
 
-                $response = $this->callMethod($id, $method);
-                return $response === null ? null : self::json_encode($response);
+                return $this->callMethod($id, $method);
             }
         } catch (\Throwable $e) {
             $this->logger->exception($e);

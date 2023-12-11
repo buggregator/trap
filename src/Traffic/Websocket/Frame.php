@@ -111,7 +111,7 @@ namespace Buggregator\Trap\Traffic\Websocket;
  */
 final class Frame implements \Stringable
 {
-    private function __construct(
+    public function __construct(
         public readonly string $content,
         public readonly Opcode $opcode,
         public readonly bool $fin = true,
@@ -119,58 +119,19 @@ final class Frame implements \Stringable
     ) {
     }
 
-    /**
-     * Parse row client frame and extract body.
-     */
-    public static function read(string $content): self
-    {
-        $fin = (bool)(\ord($content[0]) & 128);
-        $opcode = Opcode::from(\ord($content[0]) & 0x0f);
-        $len = \ord($content[1]) & 127;
-        $isMask = (bool)(\ord($content[1]) & 128);
-        $rsv1 = (bool)(\ord($content[0]) & 64);
-
-        if ($len === 126) {
-            $len = \unpack('n', \substr($content, 2, 2))[1];
-            $maskOffset = 4;
-        } elseif ($len === 127) {
-            $len = \unpack('J', \substr($content, 2, 8))[1];
-            $maskOffset = 10;
-        } else {
-            $maskOffset = 2;
-        }
-
-        $mask = $isMask ? \substr($content, $maskOffset, 4) : null;
-        $body = \substr($content, $maskOffset + ($isMask ? 4 : 0), $len);
-
-        // Apply mask
-        if ($isMask) {
-            for ($i = 0; $i < $len; ++$i) {
-                $body[$i] = \chr(\ord($body[$i]) ^ \ord($mask[$i % 4]));
-            }
-        }
-
-        return new self(
-            $body,
-            $opcode,
-            $fin,
-            $rsv1,
-        );
-    }
-
     public static function text(string $content): self
     {
         return new self($content, Opcode::Text);
     }
 
-    public static function ping(): self
+    public static function ping(string $content = ''): self
     {
-        return new self('', Opcode::Ping);
+        return new self($content, Opcode::Ping);
     }
 
-    public static function pong(): self
+    public static function pong(string $content = ''): self
     {
-        return new self('', Opcode::Pong);
+        return new self($content, Opcode::Pong);
     }
 
     public static function close(): self
