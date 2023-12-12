@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Handler\Router;
 
 use Buggregator\Trap\Handler\Router\Attribute\Route as RouteAttribute;
+use Throwable;
 
 /**
  * @internal
@@ -26,6 +27,10 @@ final class Router
     }
 
     /**
+     * @param class-string|object $classOrObject Class name or object to create router for.
+     *        Specify an object to associate router with an object. It is important for routes defined in
+     *        non-static methods.
+     *
      * @throws \Exception
      */
     public static function new(string|object $classOrObject): self
@@ -35,6 +40,9 @@ final class Router
             : self::newStatic($classOrObject);
     }
 
+    /**
+     * Associate router with an object.
+     */
     private function withObject(object $object): self
     {
         $new = clone $this;
@@ -43,6 +51,8 @@ final class Router
     }
 
     /**
+     * Create a new instance of Router for specified class. To associate router with an object use {@see withObject()}.
+     *
      * @param class-string $class
      *
      * @throws \Exception
@@ -75,6 +85,8 @@ final class Router
     }
 
     /**
+     * Collect routes from class.
+     *
      * @param class-string $class
      *
      * @return list<RouteDto>
@@ -83,7 +95,7 @@ final class Router
      */
     private static function collectRoutes(string $class): array
     {
-        /** @var RouteAttribute[] $result */
+        /** @var list<RouteDto> $result */
         $result = [];
 
         // Find all public methods with #[Route] attribute
@@ -104,7 +116,7 @@ final class Router
     }
 
     /**
-     * @param null|object $object Null for static methods
+     * Find a route for specified method and path.
      *
      * @return null|callable(mixed...): mixed Returns null if no route matches
      *
@@ -114,8 +126,8 @@ final class Router
     {
         foreach ($this->routes[$method->value] as $route) {
             $match = match ($route->route::class) {
-                Attribute\StaticRoute::class => $path === $route->route->path,
-                Attribute\RegexpRoute::class => \preg_match($route->route->regexp, $path, $matches) === 1
+                Attribute\StaticRoute::class => $path === (string)$route->route->path,
+                Attribute\RegexpRoute::class => \preg_match((string)$route->route->regexp, $path, $matches) === 1
                     ? \array_filter($matches, '\is_string', \ARRAY_FILTER_USE_KEY)
                     : false,
                 default => throw new \LogicException(\sprintf(
@@ -143,9 +155,14 @@ final class Router
         return null;
     }
 
+    /**
+     * Invoke a method with specified arguments. The arguments will be filtered by parameter names.
+     *
+     * @throws Throwable
+     */
     private static function invoke(\ReflectionMethod $method, ?object $object, array $args): mixed
     {
-        // Filter args
+        /** @var array<string, mixed> $filteredArgs Filter args */
         $filteredArgs = [];
         foreach ($method->getParameters() as $param) {
             $name = $param->getName();
