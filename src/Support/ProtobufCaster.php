@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Support;
 
 use Buggregator\Trap\Support\Caster\EnumValue;
-use Google\Protobuf\FieldDescriptor;
 use Google\Protobuf\Internal\Descriptor as InternalDescriptor;
 use Google\Protobuf\Descriptor as PublicDescriptor;
 use Google\Protobuf\Internal\DescriptorPool;

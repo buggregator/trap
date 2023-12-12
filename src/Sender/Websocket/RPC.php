@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Websocket;
 
-use Buggregator\Trap\Info;
+use Buggregator\Trap\Handler\Router\Attribute\RegexpRoute;
+use Buggregator\Trap\Handler\Router\Attribute\StaticRoute;
+use Buggregator\Trap\Handler\Router\Method;
+use Buggregator\Trap\Handler\Router\Router;
 use Buggregator\Trap\Logger;
-use Buggregator\Trap\Support\Json;
 use Buggregator\Trap\Support\Uuid;
 use JsonSerializable;
 
@@ -15,10 +17,13 @@ use JsonSerializable;
  */
 final class RPC
 {
+    private readonly Router $router;
+
     public function __construct(
         private readonly Logger $logger,
         private readonly EventsStorage $eventsStorage,
     ) {
+        $this->router = Router::new($this);
     }
 
     public function handleMessage(string $message): ?object
@@ -49,26 +54,34 @@ final class RPC
         return null;
     }
 
+    #[RegexpRoute(Method::Delete, '#^/api/events/(?<uuid>[a-f0-9-]++)#i')]
+    public function eventDelete(string $uuid): bool
+    {
+        $this->eventsStorage->delete($uuid);
+        return true;
+    }
+
+    #[StaticRoute(Method::Delete, 'api/events')]
+    public function eventsDelete(): bool
+    {
+        $this->eventsStorage->clear();
+        return true;
+    }
+
     private function callMethod(int|string $id, string $initMethod): ?JsonSerializable
     {
         [$method, $path] = \explode(':', $initMethod, 2);
 
-        switch ($method) {
-            case 'delete':
-                if (\str_starts_with($path, 'api/event/')) {
-                    $uuid = \substr($path, 10);
-                    $this->eventsStorage->delete($uuid);
-                    return new RPC\Success(id: $id, code: 200, status: true);
-                }
-                if (\str_starts_with($path, 'api/events')) {
-                    $this->eventsStorage->clear();
-                    return new RPC\Success(id: $id, code: 200, status: true);
-                }
-                break;
-            default:
-                $this->logger->error('Unknown RPC method: ' . $initMethod);
-        }
+        $route = $this->router->match(Method::fromString($method), $path ?? '');
 
-        return null;
+        if ($route === null) {
+            // todo: Error message
+            return null;
+        }
+        $result = $route(id: $id);
+
+        return $result === true
+            ? new RPC\Success(id: $id, code: 200, status: true)
+            : $result;
     }
 }
