@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Frontend\Message;
 
+use Buggregator\Trap\Sender\Frontend\Event;
+
 final class EventCollection implements \JsonSerializable
 {
     /**

@@ -12,6 +12,7 @@ use DateTimeImmutable;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\UploadedFileInterface;
 
 /**
  * @internal
@@ -19,10 +20,17 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 final class Http extends Frame implements FilesCarrier
 {
+    private readonly int $cachedSize;
+
     public function __construct(
         public readonly ServerRequestInterface $request,
         DateTimeImmutable $time = new DateTimeImmutable(),
     ) {
+        $this->cachedSize = $request->getBody()->getSize() + \array_reduce(
+                \iterator_to_array($this->iterateUploadedFiles(), false),
+                static fn(int $carry, UploadedFileInterface $file): int => $carry + $file->getSize(),
+                0,
+            );
         parent::__construct(type: ProtoType::HTTP, time: $time);
     }
 
@@ -78,11 +86,7 @@ final class Http extends Frame implements FilesCarrier
 
     public function getSize(): int
     {
-        return $this->request->getBody()->getSize() + \array_reduce(
-                $this->request->getUploadedFiles(),
-                static fn(int $carry, array $file): int => $carry + $file['size'],
-                0
-            );
+        return $this->cachedSize;
     }
 
     public function hasFiles(): bool
@@ -93,5 +97,24 @@ final class Http extends Frame implements FilesCarrier
     public function getFiles(): array
     {
         return $this->request->getUploadedFiles();
+    }
+
+    /**
+     * @return \Generator<array-key, UploadedFileInterface, mixed, void>
+     */
+    public function iterateUploadedFiles(): \Generator
+    {
+        $generator = static function (array $files) use (&$generator): \Generator {
+            foreach ($files as $file) {
+                if (\is_array($file)) {
+                    yield from $generator($file);
+                    continue;
+                }
+
+                yield $file;
+            }
+        };
+
+        return $generator($this->request->getUploadedFiles());
     }
 }

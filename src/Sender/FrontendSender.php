@@ -24,7 +24,7 @@ final class FrontendSender implements \Buggregator\Trap\Sender, Processable
         return new self(
             $connectionPool,
             $eventStorage,
-            new Frontend\FrameHandler($connectionPool, $eventStorage),
+            new Frontend\FrameHandler($logger, $connectionPool, $eventStorage),
         );
     }
 

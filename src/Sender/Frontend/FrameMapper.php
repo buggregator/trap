@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender\Frontend;
 
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Sender\Frontend\Message\Event;
 use IteratorAggregate;
 
 /**
@@ -18,6 +17,7 @@ final class FrameMapper
     {
         return match ($frame::class) {
             Frame\VarDumper::class => (new Mapper\VarDump())->map($frame),
+            Frame\Http::class => (new Mapper\HttpRequest())->map($frame),
             default => throw new \InvalidArgumentException('Unknown frame type ' . $frame::class),
         };
     }

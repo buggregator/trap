@@ -39,7 +39,6 @@ final class Router implements Middleware
 
             $handler = $this->router->match(Method::fromString($method), $path);
 
-            \trap($path, $method, $handler)->if(Method::fromString($method) === Method::Delete);
             if ($handler === null) {
                 return new Response(404);
             }

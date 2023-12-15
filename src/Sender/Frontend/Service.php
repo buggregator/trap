@@ -8,7 +8,6 @@ use Buggregator\Trap\Handler\Router\Attribute\RegexpRoute;
 use Buggregator\Trap\Handler\Router\Attribute\StaticRoute;
 use Buggregator\Trap\Handler\Router\Method;
 use Buggregator\Trap\Logger;
-use Buggregator\Trap\Sender\Frontend\Message\Event;
 use Buggregator\Trap\Sender\Frontend\Message\EventCollection;
 use Buggregator\Trap\Sender\Frontend\Message\Success;
 use Buggregator\Trap\Sender\Frontend\Message\Version;
@@ -31,7 +30,7 @@ final class Service
         return new Version();
     }
 
-    #[RegexpRoute(Method::Delete, '#^/api/event/(?<uuid>[a-f0-9-]++)#i')]
+    #[RegexpRoute(Method::Delete, '#^api/event/(?<uuid>[a-f0-9-]++)#i')]
     public function eventDelete(string $uuid): Success
     {
         $this->debug('Delete event %s', $uuid);
@@ -39,12 +38,11 @@ final class Service
         return new Success();
     }
 
-    #[RegexpRoute(Method::Get, '#^/api/event/(?<uuid>[a-f0-9-]++)#i')]
+    #[RegexpRoute(Method::Get, '#^api/event/(?<uuid>[a-f0-9-]++)#i')]
     public function eventShow(string $uuid): Event|Success
     {
         $this->debug('Show event %s', $uuid);
         $event = $this->eventsStorage->get($uuid);
-        // todo: verify correct format
         return $event ?? new Success(status: false);
     }
 

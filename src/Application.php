@@ -175,8 +175,8 @@ final class Application implements Processable
             new Traffic\Dispatcher\Http(
                 [
                     new Sender\Frontend\Http\StaticFiles(),
+                    new Sender\Frontend\Http\EventAssets($this->logger, $wsSender->getEventStorage()),
                     new Sender\Frontend\Http\Router($this->logger, $wsSender->getEventStorage()),
-                    new Sender\Frontend\Http\Version(),
                 ],
                 [new Sender\Frontend\Http\RequestHandler($wsSender->getConnectionPool())],
                 silentMode: true,
