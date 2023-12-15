@@ -10,10 +10,9 @@ use JsonSerializable;
 /**
  * @internal
  */
-final class Connected implements JsonSerializable
+final class Connect implements JsonSerializable
 {
     public function __construct(
-        public readonly string|int $id,
         public readonly string $client,
         public readonly int $ping = 25,
         public readonly bool $pong = true,
@@ -23,16 +22,13 @@ final class Connected implements JsonSerializable
     public function jsonSerialize(): array
     {
         return [
-            'id' => $this->id,
-            'connect' => [
-                'client' => $this->client,
-                'version' => Info::VERSION,
-                'subs' => [
-                    'events' => (object)[],
-                ],
-                'ping' => $this->ping,
-                'pong' => $this->pong,
+            'client' => $this->client,
+            'version' => Info::VERSION,
+            'subs' => [
+                'events' => (object)[],
             ],
+            'ping' => $this->ping,
+            'pong' => $this->pong,
         ];
     }
 }

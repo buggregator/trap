@@ -6,14 +6,18 @@ namespace Buggregator\Trap\Sender\Websocket;
 
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Processable;
+use Buggregator\Trap\Sender\Websocket\RPC\Connect;
+use Buggregator\Trap\Sender\Websocket\RPC\Response;
 use Buggregator\Trap\Support\Json;
 use Buggregator\Trap\Support\Timer;
+use Buggregator\Trap\Support\Uuid;
 use Buggregator\Trap\Traffic\StreamClient;
 use Buggregator\Trap\Traffic\Websocket\Frame;
 use Buggregator\Trap\Traffic\Websocket\Opcode;
 use Buggregator\Trap\Traffic\Websocket\StreamReader;
 use Fiber;
 use IteratorAggregate;
+use JsonSerializable;
 use Traversable;
 
 /**
@@ -91,28 +95,46 @@ final class ConnectionPool implements IteratorAggregate, Processable
             }
 
             // Ping-pong
-            $frame->opcode === Opcode::Ping and $stream->sendData(Frame::pong($frame->content)->__toString());
+            $frame->opcode === Opcode::Ping and $stream->sendData($this->packPayload('', Opcode::Pong));
 
-            // RPC
-            $response = $this->rpc->handleMessage($frame->content);
+            // Pong using `{}` message
+            if ($frame->content === '{}') {
+                $stream->sendData($this->packPayload('{}'));
+                continue;
+            }
 
-            // On connected ping using `{}` message
-            if ($response instanceof RPC\Connected && $response->ping > 0){
-                $pingTimer = new Timer($response->ping);
+            // Message must be JSON only
+            $payload = Json::decode($frame->content);
+            $response = new Response($payload['id'] ?? 0);
+
+            // On connected start periodic ping using `{}` message
+            if (isset($payload['connect'])){
+                $response->connect = new Connect(Uuid::uuid4());
+
+                $pingTimer = new Timer($response->connect->ping);
                 $this->fibers[] = new Fiber(
                     function () use ($stream, $pingTimer): void {
                         while ($pingTimer->wait() && !$stream->isDisconnected()) {
-                            $stream->sendData(Frame::text('{}')->__toString());
+                            $stream->sendData($this->packPayload('{}'));
                             $pingTimer->reset();
                         }
                     }
                 );
             }
 
-            if (null !== $response) {
-                $stream->sendData(Frame::text(Json::encode($response))->__toString());
-                $pingTimer?->reset();
+            // RPC
+            if (isset($payload['rpc'])) {
+                $response->rpc = $this->rpc->handleMessage($payload['rpc']);
             }
+
+            $stream->sendData($this->packPayload(Json::encode($response)));
+            // Reset ping timer on any message
+            $pingTimer?->reset();
         }
+    }
+
+    private function packPayload(string|JsonSerializable $payload, Opcode $type = Opcode::Text): string
+    {
+        return (new Frame(\is_string($payload) ? $payload : Json::encode($payload), $type, true))->__toString();
     }
 }

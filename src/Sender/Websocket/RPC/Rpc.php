@@ -9,19 +9,17 @@ use JsonSerializable;
 /**
  * @internal
  */
-final class Success implements JsonSerializable
+final class Rpc implements JsonSerializable
 {
     public function __construct(
-        public readonly int $code = 200,
-        public readonly bool $status = true,
+        public readonly mixed $data,
     ) {
     }
 
     public function jsonSerialize(): array
     {
         return [
-            'code' => $this->code,
-            'status' => $this->status,
+            'data' => $this->data,
         ];
     }
 }
