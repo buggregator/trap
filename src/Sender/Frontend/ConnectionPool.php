@@ -15,6 +15,7 @@ use Buggregator\Trap\Traffic\StreamClient;
 use Buggregator\Trap\Traffic\Websocket\Frame;
 use Buggregator\Trap\Traffic\Websocket\Opcode;
 use Buggregator\Trap\Traffic\Websocket\StreamReader;
+use DateTimeImmutable;
 use Fiber;
 use IteratorAggregate;
 use JsonSerializable;
@@ -87,6 +88,7 @@ final class ConnectionPool implements IteratorAggregate, Processable
     private function processSocket(StreamClient $stream): void
     {
         $pingTimer = null;
+        $lastPong = new DateTimeImmutable();
 
         foreach (StreamReader::readFrames($stream->getIterator()) as $frame) {
             // Connection close
@@ -99,7 +101,7 @@ final class ConnectionPool implements IteratorAggregate, Processable
 
             // Pong using `{}` message
             if ($frame->content === '{}') {
-                $stream->sendData($this->packPayload('{}'));
+                $lastPong = new DateTimeImmutable();
                 continue;
             }
 

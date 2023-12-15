@@ -32,7 +32,9 @@ final class HttpRequest
                     'method' => $request->getMethod(),
                     'uri' => $uri,
                     'headers' => $request->getHeaders(),
-                    'body' => (string)$request->getBody(),
+                    'body' => $request->getParsedBody() === null
+                        ? (string)$request->getBody()
+                        : '',
                     'query' => $request->getQueryParams(),
                     'post' => $request->getParsedBody() ?? [],
                     'cookies' => $request->getCookieParams(),
