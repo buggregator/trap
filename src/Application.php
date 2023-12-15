@@ -39,7 +39,7 @@ final class Application implements Processable
         array $map = [],
         private readonly Logger $logger = new Logger(),
         private array $senders = [],
-        bool $configureUI = true,
+        bool $withFrontend = true,
     ) {
         $this->buffer = new Buffer(bufferSize: 10485760, timer: 0.1);
 
@@ -62,7 +62,7 @@ final class Application implements Processable
         );
         $this->processors[] = $inspector;
 
-        $configureUI and $this->configureUI(8000);
+        $withFrontend and $this->configureFrontend(8000);
 
         foreach ($map as $config) {
             $this->prepareServerFiber($config, $inspector, $this->logger);
@@ -165,20 +165,20 @@ final class Application implements Processable
         });
     }
 
-    public function configureUI(int $port): void
+    public function configureFrontend(int $port): void
     {
-        $this->senders[] = $wsSender = Sender\WebsocketSender::create($this->logger);
+        $this->senders[] = $wsSender = Sender\FrontendSender::create($this->logger);
 
         $inspector = new Inspector(
             $this->buffer,
             $this->logger,
             new Traffic\Dispatcher\Http(
                 [
-                    new Sender\Websocket\Http\StaticFiles(),
-                    new Sender\Websocket\Http\Events($wsSender->getEventStorage()),
-                    new Sender\Websocket\Http\Version(),
+                    new Sender\Frontend\Http\StaticFiles(),
+                    new Sender\Frontend\Http\Events($wsSender->getEventStorage()),
+                    new Sender\Frontend\Http\Version(),
                 ],
-                [new Sender\Websocket\Http\RequestHandler($wsSender->getConnectionPool())],
+                [new Sender\Frontend\Http\RequestHandler($wsSender->getConnectionPool())],
                 silentMode: true,
             ),
         );

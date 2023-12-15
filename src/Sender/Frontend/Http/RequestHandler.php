@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Sender\Websocket\Http;
+namespace Buggregator\Trap\Sender\Frontend\Http;
 
 use Buggregator\Trap\Handler\Http\Emitter as HttpEmitter;
 use Buggregator\Trap\Handler\Http\RequestHandler as RequestHandlernterace;
@@ -22,7 +22,7 @@ use Psr\Http\Message\ServerRequestInterface;
 final class RequestHandler implements RequestHandlernterace
 {
     public function __construct(
-        private readonly Sender\Websocket\ConnectionPool $connectionPool,
+        private readonly Sender\Frontend\ConnectionPool $connectionPool,
     ) {
     }
 

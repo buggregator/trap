@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Sender\Websocket\Http;
+namespace Buggregator\Trap\Sender\Frontend\Http;
 
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Info;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Sender\Websocket;
+namespace Buggregator\Trap\Sender\Frontend;
 
 use Buggregator\Trap\Handler\Router\Attribute\RegexpRoute;
 use Buggregator\Trap\Handler\Router\Attribute\StaticRoute;
@@ -23,6 +23,7 @@ final class Service
     #[RegexpRoute(Method::Delete, '#^/api/events/(?<uuid>[a-f0-9-]++)#i')]
     public function eventDelete(string $uuid): bool
     {
+        $this->debug('Delete event %s', $uuid);
         $this->eventsStorage->delete($uuid);
         return true;
     }
@@ -30,7 +31,13 @@ final class Service
     #[StaticRoute(Method::Delete, 'api/events')]
     public function eventsDelete(): bool
     {
+        $this->debug('Delete all events');
         $this->eventsStorage->clear();
         return true;
+    }
+
+    private function debug(string $pattern, string ...$args): void
+    {
+        $this->logger->debug("[UI Service] $pattern", ...$args);
     }
 }

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Sender\Websocket;
+namespace Buggregator\Trap\Sender\Frontend;
 
 use Buggregator\Trap\Handler\Router\Method;
 use Buggregator\Trap\Handler\Router\Router;
@@ -27,7 +27,7 @@ final class RPC
      *     method?: non-empty-string,
      * } $message
      */
-    public function handleMessage(mixed $message): ?RPC\Rpc
+    public function handleMessage(mixed $message): ?Message\Rpc
     {
         try {
             if (!\is_array($message)) {
@@ -45,7 +45,7 @@ final class RPC
         return null;
     }
 
-    private function callMethod(string $initMethod): ?RPC\Rpc
+    private function callMethod(string $initMethod): ?Message\Rpc
     {
         [$method, $path] = \explode(':', $initMethod, 2);
 
@@ -57,6 +57,6 @@ final class RPC
         }
 
         $result = $route();
-        return $result === null ? null : new RPC\Rpc(data: $result);
+        return $result === null ? null : new Message\Rpc(data: $result);
     }
 }

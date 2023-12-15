@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Sender\Websocket;
+namespace Buggregator\Trap\Sender\Frontend;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Sender\FrameHandler as HandlerInterface;
-use Buggregator\Trap\Sender\Websocket\RPC\Push;
+use Buggregator\Trap\Sender\Frontend\Message\Push;
 use Buggregator\Trap\Support\Json;
 
 /**

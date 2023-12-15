@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Sender\Websocket\Http;
+namespace Buggregator\Trap\Sender\Frontend\Http;
 
 use Buggregator\Trap\Handler\Http\Middleware;
-use Buggregator\Trap\Sender\Websocket\EventsStorage;
+use Buggregator\Trap\Info;
 use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
@@ -15,17 +15,12 @@ use Psr\Http\Message\ServerRequestInterface;
  * @internal
  * @psalm-internal Buggregator\Trap
  */
-final class Events implements Middleware
+final class Version implements Middleware
 {
-    public function __construct(
-        private EventsStorage $framesStorage,
-    ) {
-    }
-
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
         $path = $request->getUri()->getPath();
-        if ($path !== '/api/events') {
+        if ($path !== '/api/version') {
             return $next($request);
         }
 
@@ -35,17 +30,11 @@ final class Events implements Middleware
                 'Content-Type' => 'application/json',
                 'Cache-Control' => 'no-cache',
             ],
-            Json::encode($this->getEvents()),
+            Json::encode(
+                [
+                    'version' => Info::VERSION,
+                ],
+            ),
         );
-    }
-
-    private function getEvents()
-    {
-        return [
-            'data' => \iterator_to_array($this->framesStorage, false),
-            'meta' => [
-                'grid' => []
-            ]
-        ];
     }
 }

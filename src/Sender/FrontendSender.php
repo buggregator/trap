@@ -7,30 +7,30 @@ namespace Buggregator\Trap\Sender;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Processable;
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Sender\Websocket\ConnectionPool;
+use Buggregator\Trap\Sender\Frontend\ConnectionPool;
 
 /**
  * @internal
  */
-final class WebsocketSender implements \Buggregator\Trap\Sender, Processable
+final class FrontendSender implements \Buggregator\Trap\Sender, Processable
 {
     public static function create(
         Logger $logger,
-        ?Websocket\ConnectionPool $connectionPool = null,
-        ?Websocket\EventsStorage $eventStorage = null,
+        ?Frontend\ConnectionPool $connectionPool = null,
+        ?Frontend\EventsStorage $eventStorage = null,
     ): self {
-        $eventStorage ??= new Websocket\EventsStorage();
-        $connectionPool ??= new Websocket\ConnectionPool($logger, new Websocket\RPC($logger, $eventStorage));
+        $eventStorage ??= new Frontend\EventsStorage();
+        $connectionPool ??= new Frontend\ConnectionPool($logger, new Frontend\RPC($logger, $eventStorage));
         return new self(
             $connectionPool,
             $eventStorage,
-            new Websocket\FrameHandler($connectionPool, $eventStorage),
+            new Frontend\FrameHandler($connectionPool, $eventStorage),
         );
     }
 
     private function __construct(
         private readonly ConnectionPool $connectionPool,
-        private readonly Websocket\EventsStorage $framesStorage,
+        private readonly Frontend\EventsStorage $framesStorage,
         private readonly FrameHandler $handler,
     ) {
     }
@@ -52,9 +52,9 @@ final class WebsocketSender implements \Buggregator\Trap\Sender, Processable
     }
 
     /**
-     * @return Websocket\EventsStorage
+     * @return Frontend\EventsStorage
      */
-    public function getEventStorage(): Websocket\EventsStorage
+    public function getEventStorage(): Frontend\EventsStorage
     {
         return $this->framesStorage;
     }

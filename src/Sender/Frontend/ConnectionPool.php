@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Sender\Websocket;
+namespace Buggregator\Trap\Sender\Frontend;
 
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Processable;
-use Buggregator\Trap\Sender\Websocket\RPC\Connect;
-use Buggregator\Trap\Sender\Websocket\RPC\Response;
+use Buggregator\Trap\Sender\Frontend\Message\Connect;
+use Buggregator\Trap\Sender\Frontend\Message\Response;
 use Buggregator\Trap\Support\Json;
 use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Support\Uuid;
