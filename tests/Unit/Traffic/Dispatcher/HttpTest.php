@@ -7,6 +7,9 @@ use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * @covers \Buggregator\Trap\Traffic\Dispatcher\Http
+ */
 class HttpTest extends TestCase
 {
     public static function detectProvider()
@@ -17,6 +20,7 @@ class HttpTest extends TestCase
         yield ['POST /foo HT', null];
         yield ['GET /foo HTTP/1.1', null];
         yield ["BUGGREGATOR /foo HTTP/1.1\r\n", false];
+        yield ["DELETE /foo HTTP/1.1\r\n", true];
         yield ["GET  HTTP/1.1\r\n", false];
         yield [<<<HTTP
             GET /_nuxt/index.30fc2cdf.js HTTP/1.1\r

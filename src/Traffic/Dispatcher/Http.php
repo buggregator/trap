@@ -83,6 +83,6 @@ final class Http implements Dispatcher
             return null;
         }
 
-        return \preg_match('/^(GET|POST|PUT|HEAD|OPTIONS) \\S++ HTTP\\/1\\.\\d\\r$/m', $data) === 1;
+        return \preg_match('/^(GET|POST|PUT|HEAD|OPTIONS|DELETE|PATCH|TRACE|CONNECT) \\S++ HTTP\\/1\\.\\d\\r$/m', $data) === 1;
     }
 }

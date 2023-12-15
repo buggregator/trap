@@ -58,7 +58,7 @@ final class Run extends Command
                 [new SocketServer($port)],
                 new Logger($output),
                 senders: $registry->getSenders($senders),
-                configureUI: $input->getOption('ui') !== false,
+                withFrontend: $input->getOption('ui') !== false,
             );
 
             $app->run();

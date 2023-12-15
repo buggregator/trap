@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender\Frontend\Mapper;
 
 use Buggregator\Trap\Proto\Frame\VarDumper;
-use Buggregator\Trap\Sender\Frontend\Event;
+use Buggregator\Trap\Sender\Frontend\Message\Event;
 use Buggregator\Trap\Support\Uuid;
 use Symfony\Component\VarDumper\Cloner\Data;
 use Symfony\Component\VarDumper\Cloner\Stub;

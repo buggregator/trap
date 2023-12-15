@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender\Frontend;
 
 use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Sender\Frontend\Message\Event;
 use IteratorAggregate;
 
 /**

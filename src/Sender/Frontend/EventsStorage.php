@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Frontend;
 
-use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Sender\Frontend\Message\Event;
 use IteratorAggregate;
 
 /**
@@ -39,5 +39,10 @@ final class EventsStorage implements IteratorAggregate
     public function delete(string $key): void
     {
         unset($this->events[$key]);
+    }
+
+    public function get(string $uuid): ?Event
+    {
+        return $this->events[$uuid] ?? null;
     }
 }

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Sender\Frontend;
+namespace Buggregator\Trap\Sender\Frontend\Message;
 
-final class Event
+final class Event implements \JsonSerializable
 {
     /**
      * @param non-empty-string $uuid
@@ -17,5 +17,16 @@ final class Event
         public readonly float $timestamp,
         public readonly ?string $projectId = null,
     ) {
+    }
+
+    public function jsonSerialize(): array
+    {
+        return [
+            'uuid' => $this->uuid,
+            'type' => $this->type,
+            'payload' => $this->payload,
+            'timestamp' => $this->timestamp,
+            'projectId' => $this->projectId,
+        ];
     }
 }
