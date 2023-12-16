@@ -5,7 +5,7 @@
     "description": "A simple and powerful tool for debugging PHP applications.",
     "homepage": "https://buggregator.dev/",
     "keywords": [
-        "debug", "cli", "console", "sentry", "smtp", "dump"
+        "debug", "cli", "console", "sentry", "smtp", "dump", "binary dump", "websockets", "server", "helper"
     ],
     "authors": [
         {
@@ -68,5 +68,11 @@
         "google/protobuf": "^3.23",
         "phpunit/phpunit": "^10.4",
         "vimeo/psalm": "^5.11"
+    },
+    "replace": {
+        "symfony/polyfill-php72": "*",
+        "symfony/polyfill-php73": "*",
+        "symfony/polyfill-php74": "*",
+        "symfony/polyfill-php80": "*"
     }
 }
