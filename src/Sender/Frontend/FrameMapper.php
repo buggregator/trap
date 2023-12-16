@@ -20,6 +20,7 @@ final class FrameMapper
             Frame\Http::class => (new Mapper\HttpRequest())->map($frame),
             Frame\Smtp::class => (new Mapper\Smtp())->map($frame),
             Frame\Sentry\SentryStore::class => (new Mapper\SentryStore())->map($frame),
+            Frame\Sentry\SentryEnvelope::class => (new Mapper\SentryEnvelope())->map($frame),
             default => throw new \InvalidArgumentException('Unknown frame type ' . $frame::class),
         };
     }
