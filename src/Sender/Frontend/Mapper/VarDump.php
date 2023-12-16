@@ -20,7 +20,7 @@ final class VarDump
     {
         $payload = $this->parse($frame->dump);
         return new Event(
-            uuid: Uuid::uuid4(),
+            uuid: Uuid::generate(),
             type: 'var-dump',
             payload: [
                 'payload' => [
@@ -33,6 +33,9 @@ final class VarDump
         );
     }
 
+    /**
+     * @return array{0: Data, 1: array, ...}
+     */
     private function parse(string $message): array
     {
         $payload = @\unserialize(\base64_decode($message), ['allowed_classes' => [Data::class, Stub::class]]);
@@ -57,6 +60,7 @@ final class VarDump
     private function convertToPrimitive(Data $data): string|null
     {
         if (\in_array($data->getType(), ['string', 'boolean'])) {
+            /** @psalm-suppress PossiblyInvalidCast */
             return (string)$data->getValue();
         }
 

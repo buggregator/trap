@@ -43,6 +43,7 @@ final class Router implements Middleware
                 return new Response(404);
             }
 
+            /** @var mixed $message */
             $message = $handler($request);
 
             return new Response(

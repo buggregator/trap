@@ -9,6 +9,9 @@ namespace Buggregator\Trap\Sender\Frontend\Event;
  */
 abstract class Asset
 {
+    /**
+     * @param non-empty-string $uuid
+     */
     public function __construct(
         public readonly string $uuid,
     ) {

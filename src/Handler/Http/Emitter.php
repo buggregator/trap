@@ -11,7 +11,7 @@ use Psr\Http\Message\ResponseInterface;
 
 /**
  * @internal
- * @psalm-internal Buggregator\Trap\Handler\Http
+ * @psalm-internal Buggregator\Trap
  */
 final class Emitter
 {

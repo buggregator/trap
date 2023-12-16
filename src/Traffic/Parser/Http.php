@@ -201,21 +201,20 @@ final class Http
     }
 
     /**
-     * @param non-empty-string $headersBlock
-     *
      * @return array<non-empty-string, list<non-empty-string>>
      */
     public static function parseHeaders(string $headersBlock): array
     {
         $result = [];
         foreach (\explode("\r\n", $headersBlock) as $line) {
-            if (!\str_contains($line, ':')) {
+            [$name, $value] = \explode(':', $line, 2) + [1 => ''];
+            $name = \trim($name);
+            $value = \trim($value);
+            if ($name === '' || $value === '') {
                 continue;
             }
 
-            [$name, $value] = \explode(':', $line, 2);
-
-            $result[\trim($name)][] = \trim($value);
+            $result[$name][] = $value;
         }
 
         return $result;

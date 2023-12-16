@@ -23,39 +23,34 @@ final class RPC
     }
 
     /**
-     * @param array{
-     *     method?: non-empty-string,
-     * } $message
+     * @param mixed $message Array is expected
      */
     public function handleMessage(mixed $message): ?Message\Rpc
     {
         try {
-            if (!\is_array($message)) {
+            if (!\is_array($message) || !\is_string($method = $message['method'] ?? null)) {
                 return null;
             }
 
-            if (isset($message['method'])) {
-                $method = $message['method'];
-
-                return $this->callMethod($method);
-            }
+            return $this->callMethod($method);
         } catch (\Throwable $e) {
             $this->logger->exception($e);
+            return null;
         }
-        return null;
     }
 
     private function callMethod(string $initMethod): ?Message\Rpc
     {
-        [$method, $path] = \explode(':', $initMethod, 2);
+        [$method, $path] = \explode(':', $initMethod, 2) + [1 => ''];
 
-        $route = $this->router->match(Method::fromString($method), $path ?? '');
+        $route = $this->router->match(Method::fromString($method), $path);
 
         if ($route === null) {
             // todo: Error message?
             return null;
         }
 
+        /** @var mixed $result */
         $result = $route();
         return $result === null ? null : new Message\Rpc(data: $result);
     }

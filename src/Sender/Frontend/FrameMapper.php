@@ -5,11 +5,9 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender\Frontend;
 
 use Buggregator\Trap\Proto\Frame;
-use IteratorAggregate;
 
 /**
  * @internal
- * @implements IteratorAggregate<Frame>
  */
 final class FrameMapper
 {

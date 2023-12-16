@@ -97,7 +97,7 @@ final class ConnectionPool implements IteratorAggregate, Processable
             }
 
             // Ping-pong
-            $frame->opcode === Opcode::Ping and $stream->sendData($this->packPayload('', Opcode::Pong));
+            $frame->opcode === Opcode::Ping and $stream->sendData((string)Frame::pong($frame->content));
 
             // Pong using `{}` message
             if ($frame->content === '{}') {
@@ -107,7 +107,11 @@ final class ConnectionPool implements IteratorAggregate, Processable
 
             // Message must be JSON only
             $payload = Json::decode($frame->content);
-            $response = new Response($payload['id'] ?? 0);
+            if (!\is_array($payload)) {
+                continue;
+            }
+
+            $response = new Response(\is_numeric($payload['id'] ?? null) ? (int)$payload['id'] : 0);
 
             // On connected start periodic ping using `{}` message
             if (isset($payload['connect'])){
@@ -135,8 +139,8 @@ final class ConnectionPool implements IteratorAggregate, Processable
         }
     }
 
-    private function packPayload(string|JsonSerializable $payload, Opcode $type = Opcode::Text): string
+    private function packPayload(string|JsonSerializable $payload): string
     {
-        return (new Frame(\is_string($payload) ? $payload : Json::encode($payload), $type, true))->__toString();
+        return Frame::text(\is_string($payload) ? $payload : Json::encode($payload))->__toString();
     }
 }

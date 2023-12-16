@@ -24,6 +24,7 @@ final class StreamReader
         $reader = (static fn () => yield from $chunks)();
         $buffer = '';
         $isFirst = true;
+        /** @var \Closure(int<1, max>): ?non-empty-string $read */
         $read = static function (int $len) use (&$buffer, $reader, &$isFirst): ?string {
             /** @var string $buffer */
             while (\strlen($buffer) < $len) {
@@ -60,7 +61,8 @@ final class StreamReader
     }
 
     /**
-     * @return Generator<array-key, int|Frame, string, null>
+     * @psalm-suppress InvalidReturnType
+     * @return Generator<int, Frame|int<1, max>, non-empty-string, null>
      */
     private static function frameParser(): Generator
     {
@@ -78,8 +80,10 @@ final class StreamReader
 
             // Parse length
             if ($len === 126) {
+                /** @var int $len */
                 $len = \unpack('n', yield 2)[1];
             } elseif ($len === 127) {
+                /** @var int $len */
                 $len = \unpack('J', yield 8)[1];
             }
 
@@ -91,6 +95,7 @@ final class StreamReader
             // Apply mask
             if ($isMask) {
                 for ($i = 0; $i < $len; ++$i) {
+                    /** @psalm-suppress PossiblyNullArrayAccess, PossiblyNullArgument */
                     $body[$i] = \chr(\ord($body[$i]) ^ \ord($mask[$i % 4]));
                 }
             }

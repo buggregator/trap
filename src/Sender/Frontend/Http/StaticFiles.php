@@ -67,7 +67,7 @@ final class StaticFiles implements Middleware
                         $this->earlyResponse,
                     ),
                 ];
-                empty($headers) or \Fiber::suspend(new Response(103, $headers));
+                empty($this->earlyResponse) or \Fiber::suspend(new Response(103, $headers));
                 // (new \Buggregator\Trap\Support\Timer(2))->wait(); // to test early hints
             }
 

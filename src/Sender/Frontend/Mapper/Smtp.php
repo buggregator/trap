@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Frontend\Mapper;
 
+use ArrayAccess;
 use ArrayObject;
 use Buggregator\Trap\Proto\Frame\Smtp as SmtpFrame;
 use Buggregator\Trap\Sender\Frontend\Event;
@@ -20,10 +21,11 @@ final class Smtp
     {
         $message = $frame->message;
 
+        /** @var ArrayAccess<non-empty-string, Event\Asset> $assets */
         $assets = new ArrayObject();
 
         return new Event(
-            uuid: $uuid = Uuid::uuid4(),
+            uuid: $uuid = Uuid::generate(),
             type: 'smtp',
             payload: [
                 'from' => $message->getSender(),
@@ -38,7 +40,7 @@ final class Smtp
                 'attachments' => \array_map(
                     static function (File $attachment) use ($assets, $uuid): array {
                         $asset = new Event\AttachedFile(
-                            id: Uuid::uuid4(),
+                            id: Uuid::generate(),
                             file: $attachment,
                         );
                         $uri = $uuid . '/' . $asset->uuid;

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Frontend\Mapper;
 
-use ArrayObject;
 use Buggregator\Trap\Proto\Frame\Http as HttpFrame;
 use Buggregator\Trap\Sender\Frontend\Event;
 use Buggregator\Trap\Support\Uuid;
@@ -20,10 +19,11 @@ final class HttpRequest
         $request = $frame->request;
 
         $uri = \ltrim($request->getUri()->getPath(), '/');
-        $assets = new ArrayObject();
+        /** @var \ArrayAccess<non-empty-string, Event\Asset> $assets */
+        $assets = new \ArrayObject();
 
         return new Event(
-            uuid: $uuid = Uuid::uuid4(),
+            uuid: $uuid = Uuid::generate(),
             type: 'http-dump',
             payload: [
                 'received_at' => $frame->time->format('Y-m-d H:i:s'),
@@ -41,7 +41,7 @@ final class HttpRequest
                     'files' => \array_map(
                         static function (UploadedFileInterface $attachment) use ($assets, $uuid): array {
                             $asset = new Event\AttachedFile(
-                                id: Uuid::uuid4(),
+                                id: Uuid::generate(),
                                 file: $attachment,
                             );
                             $uri = $uuid . '/' . $asset->uuid;

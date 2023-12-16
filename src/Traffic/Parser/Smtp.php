@@ -113,6 +113,7 @@ final class Smtp
             return $message;
         }
 
+        /** @var non-empty-string $boundary */
         $boundary = $matches[1];
         $parts = Http::parseMultipartBody($stream, $boundary);
         $attachments = $texts = [];

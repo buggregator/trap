@@ -43,13 +43,21 @@ final class EventAssets implements Middleware
             return $next($request);
         }
 
-        return $handler() ?? new Response(404);
+        /** @var ResponseInterface $response */
+        $response = $handler() ?? new Response(404);
+
+        return $response;
     }
 
+    /**
+     * @param non-empty-string $eventId
+     */
     #[RegexpRoute(Method::Get, '#^api/smtp/(?<eventId>[a-f0-9-]++)/html#')]
-    #[AssertSuccess(Method::Get, 'api/smtp/0145a0e0-0b1a-4e4a-9b1a/html', ['eventId' => '0145a0e0-0b1a-4e4a-9b1a'])]
-    #[AssertSuccess(Method::Get, 'api/smtp/0145a0e0-0b1a-4e4a-9b1a/html/', ['eventId' => '0145a0e0-0b1a-4e4a-9b1a'])]
-    #[AssertFail(Method::Get, 'api/smtp/foo-bar-baz/html')]
+    #[
+        AssertSuccess(Method::Get, 'api/smtp/0145a0e0-0b1a-4e4a-9b1a/html', ['eventId' => '0145a0e0-0b1a-4e4a-9b1a']),
+        AssertSuccess(Method::Get, 'api/smtp/0145a0e0-0b1a-4e4a-9b1a/html/', ['eventId' => '0145a0e0-0b1a-4e4a-9b1a']),
+        AssertFail(Method::Get, 'api/smtp/foo-bar-baz/html')
+    ]
     public function smtpHtml(string $eventId): ?Response
     {
         // Find event
@@ -60,23 +68,32 @@ final class EventAssets implements Middleware
             return null;
         }
 
+        /** @var string $html */
+        $html = $event->payload['html'] ?? '';
+
         return new Response(
             200,
             [
                 'Content-Type' => 'text/html',
                 'Cache-Control' => 'no-cache',
             ],
-            $event->payload['html'] ?? '',
+            $html,
         );
     }
 
+    /**
+     * @param non-empty-string $eventId
+     * @param non-empty-string $attachId
+     */
     #[RegexpRoute(Method::Get, '#^api/smtp/(?<eventId>[a-f0-9-]++)/attachment/(?<attachId>[a-f0-9-]++)$#')]
-    #[AssertSuccess(
-        Method::Get,
-        'api/smtp/0145a0e0-0b1a-4e4a-9b1a/attachment/0145a0e0-0b1a-4e4a-9b1a',
-        ['eventId' => '0145a0e0-0b1a-4e4a-9b1a', 'attachId' => '0145a0e0-0b1a-4e4a-9b1a']
-    )]
-    #[AssertFail(Method::Get, 'api/smtp/0145a0e0-0b1a-4e4a-9b1a/attachment/0145a0e0ZZZZzzzz')]
+    #[
+        AssertSuccess(
+            Method::Get,
+            'api/smtp/0145a0e0-0b1a-4e4a-9b1a/attachment/0145a0e0-0b1a-4e4a-9b1a',
+            ['eventId' => '0145a0e0-0b1a-4e4a-9b1a', 'attachId' => '0145a0e0-0b1a-4e4a-9b1a']
+        ),
+        AssertFail(Method::Get, 'api/smtp/0145a0e0-0b1a-4e4a-9b1a/attachment/0145a0e0ZZZZzzzz')
+    ]
     public function attachment(string $eventId, string $attachId): ?Response
     {
         // Find event
@@ -101,7 +118,7 @@ final class EventAssets implements Middleware
                 'Content-Type' => $attachment->file->getClientMediaType(),
                 'Content-Disposition' => \sprintf(
                     "attachment; filename=\"%s\"",
-                    \rawurlencode($attachment->file->getClientFilename()),
+                    \rawurlencode($attachment->file->getClientFilename() ?? 'unnamed'),
                 ),
                 'Content-Length' => (string)$attachment->file->getSize(),
                 'Cache-Control' => 'no-cache',
