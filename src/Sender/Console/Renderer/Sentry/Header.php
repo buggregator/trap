@@ -19,7 +19,8 @@ final class Header
     {
         // Collect metadata
         $meta = [];
-        $time = new DateTimeImmutable(isset($message['sent_at']) ? $message['sent_at'] : "@$message[timestamp]");
+        $timeValue = $message['sent_at'] ?? $message['timestamp'] ?? 'now';
+        $time = new DateTimeImmutable(\is_numeric($timeValue) ? "@$timeValue" : $timeValue);
         $meta['Time'] = $time->format('Y-m-d H:i:s.u');
         isset($message['event_id']) and $meta['Event ID'] = $message['event_id'];
         isset($message['transaction']) and $meta['Transaction'] = $message['transaction'];

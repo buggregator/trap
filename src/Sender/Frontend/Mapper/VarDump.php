@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Frontend\Mapper;
 
-use Buggregator\Trap\Proto\Frame\VarDumper;
+use Buggregator\Trap\Proto\Frame\VarDumper as VarDumperFrame;
 use Buggregator\Trap\Sender\Frontend\Event;
 use Buggregator\Trap\Support\Uuid;
 use Symfony\Component\VarDumper\Cloner\Data;
@@ -16,7 +16,7 @@ use Symfony\Component\VarDumper\Dumper\HtmlDumper;
  */
 final class VarDump
 {
-    public function map(VarDumper $frame): Event
+    public function map(VarDumperFrame $frame): Event
     {
         $payload = $this->parse($frame->dump);
         return new Event(
