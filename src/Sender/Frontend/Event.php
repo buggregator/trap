@@ -7,6 +7,9 @@ namespace Buggregator\Trap\Sender\Frontend;
 use ArrayAccess;
 use Buggregator\Trap\Sender\Frontend\Event\Asset;
 
+/**
+ * @internal
+ */
 final class Event implements \JsonSerializable
 {
     /**

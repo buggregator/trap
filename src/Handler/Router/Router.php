@@ -124,6 +124,7 @@ final class Router
      */
     public function match(Method $method, string $path): ?callable
     {
+        $path = \trim($path, '/');
         foreach ($this->routes[$method->value] as $route) {
             $match = match ($route->route::class) {
                 Attribute\StaticRoute::class => $path === (string)$route->route->path,

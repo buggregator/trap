@@ -18,6 +18,7 @@ final class FrameMapper
         return match ($frame::class) {
             Frame\VarDumper::class => (new Mapper\VarDump())->map($frame),
             Frame\Http::class => (new Mapper\HttpRequest())->map($frame),
+            Frame\Smtp::class => (new Mapper\Smtp())->map($frame),
             default => throw new \InvalidArgumentException('Unknown frame type ' . $frame::class),
         };
     }

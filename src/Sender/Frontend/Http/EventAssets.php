@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender\Frontend\Http;
 
 use Buggregator\Trap\Handler\Http\Middleware;
+use Buggregator\Trap\Handler\Router\Attribute\RegexpRoute;
+use Buggregator\Trap\Handler\Router\Method;
+use Buggregator\Trap\Handler\Router\Router as CommonRouter;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Sender\Frontend\Event\AttachedFile;
 use Buggregator\Trap\Sender\Frontend\EventsStorage;
@@ -18,33 +21,67 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 final class EventAssets implements Middleware
 {
+    private readonly CommonRouter $router;
+
     public function __construct(
         private readonly Logger $logger,
         private readonly EventsStorage $eventsStorage,
     ) {
+        $this->router = CommonRouter::new($this);
     }
 
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
         $path = $request->getUri()->getPath();
-        if (\preg_match('#^/api/smtp/([^/]++)/attachment/([^/]++)#', $path, $matches) !== 1) {
+        $method = $request->getMethod();
+
+        $handler = $this->router->match(Method::fromString($method), $path);
+
+        if ($handler === null) {
             return $next($request);
         }
 
+        return $handler() ?? new Response(404);
+    }
 
+    #[RegexpRoute(Method::Get, '#^api/smtp/(?<eventId>[a-f0-9-]++)/html#')]
+    public function smtpHtml(string $eventId): ?Response
+    {
         // Find event
-        $event = $this->eventsStorage->get($matches[1]);
+        $event = $this->eventsStorage->get($eventId);
+
         if ($event === null) {
-            $this->logger->debug('Get attachment %s for event %s. Event not found.', $matches[2], $matches[1]);
-            return new Response(404);
+            $this->logger->debug('Get HTML for event `%s`. Event not found.', $eventId);
+            return null;
+        }
+
+        return new Response(
+            200,
+            [
+                'Content-Type' => 'text/html',
+                'Cache-Control' => 'no-cache',
+            ],
+            $event->payload['html'] ?? '',
+        );
+    }
+
+    #[RegexpRoute(Method::Get, '#^api/smtp/(?<eventId>[a-f0-9-]++)/attachment/(?<attachId>[a-f0-9-]++)#')]
+    public function attachment(string $eventId, string $attachId): ?Response
+    {
+        // Find event
+        $event = $this->eventsStorage->get($eventId);
+
+        if ($event === null) {
+            $this->logger->debug('Get attachment `%s` for event `%s`. Event not found.', $attachId, $eventId);
+            return null;
         }
 
         // Find attachment
-        $attachment = $event->assets[$matches[2]] ?? null;
+        $attachment = $event->assets[$attachId] ?? null;
 
         if (!$attachment instanceof AttachedFile) {
-            $this->logger->debug('Get attachment %s for event %s. Attached file not found.', $matches[2], $matches[1]);
-            return new Response(404);
+            $this->logger->debug('Get attachment `%s` for event `%s`. Attached file not found.', $attachId, $eventId);
+            return null;
         }
 
         return new Response(
