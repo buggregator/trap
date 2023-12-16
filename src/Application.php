@@ -165,6 +165,9 @@ final class Application implements Processable
         });
     }
 
+    /**
+     * @param int<1, 65535> $port
+     */
     public function configureFrontend(int $port): void
     {
         $this->senders[] = $wsSender = Sender\FrontendSender::create($this->logger);

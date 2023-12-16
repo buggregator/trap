@@ -12,12 +12,12 @@ use Nyholm\Psr7\Response;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
- * @internal
- * @psalm-internal Buggregator\Trap
- *
  * Read about Sec-WebSocket-Extensions:
  * @link https://datatracker.ietf.org/doc/html/rfc7692
  * @link https://www.igvita.com/2013/11/27/configuring-and-optimizing-websocket-compression/
+ *
+ * @internal
+ * @psalm-internal Buggregator\Trap
  */
 final class RequestHandler implements RequestHandlernterace
 {

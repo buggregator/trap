@@ -40,12 +40,14 @@ final class Client
         } catch (\Throwable) {
             // Do nothing.
         } finally {
+            /** @psalm-suppress RedundantPropertyInitializationCheck */
             isset($this->onClose) and ($this->onClose)();
         }
     }
 
     public function close(): void
     {
+        /** @psalm-suppress RedundantPropertyInitializationCheck */
         isset($this->onClose) and ($this->onClose)();
         // Unlink all closures and free resources.
         unset($this->onClose, $this->onPayload, $this->readBuffer);

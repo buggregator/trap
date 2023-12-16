@@ -12,6 +12,9 @@ use Buggregator\Trap\Handler\Router\Method;
 #[\Attribute(\Attribute::TARGET_METHOD | \Attribute::IS_REPEATABLE)]
 final class RegexpRoute extends Route
 {
+    /**
+     * @param non-empty-string|\Stringable $regexp
+     */
     public function __construct(
         Method $method,
         public string|\Stringable $regexp,

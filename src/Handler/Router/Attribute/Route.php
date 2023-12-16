@@ -9,7 +9,6 @@ use Buggregator\Trap\Handler\Router\Method;
 /**
  * @internal
  */
-#[\Attribute(\Attribute::TARGET_METHOD | \Attribute::IS_REPEATABLE)]
 abstract class Route
 {
     public function __construct(

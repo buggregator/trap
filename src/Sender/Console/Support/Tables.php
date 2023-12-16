@@ -29,7 +29,7 @@ final class Tables
         $table->setRows([...(static function (array $data) use ($valueLength): iterable {
             foreach ($data as $key => $value) {
                 if (!\is_string($value)) {
-                    $value = Json::encode($value, JSON_THROW_ON_ERROR);
+                    $value = Json::encode($value);
                 }
                 $values = \strlen($value) > $valueLength
                     ? \str_split($value, $valueLength)

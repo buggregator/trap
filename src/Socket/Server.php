@@ -86,7 +86,10 @@ final class Server implements Processable
                 $this->fibers[$key] = new Fiber($client->process(...));
             } catch (\Throwable) {
                 $client?->close();
-                unset($client, $this->clients[$key], $this->fibers[$key]);
+                unset($client);
+                if (isset($key)) {
+                    unset($this->clients[$key], $this->fibers[$key]);
+                }
             }
         }
 

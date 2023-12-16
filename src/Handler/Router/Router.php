@@ -52,7 +52,7 @@ final class Router
 
         $self = new self($index);
 
-        /** @var list<AssertAttribute> $fails */
+        /** @var list<non-empty-string> $fails */
         $fails = [];
         foreach ($assertions as $assertion) {
             $assertion instanceof AssertAttribute or throw new \InvalidArgumentException(\sprintf(
@@ -96,6 +96,7 @@ final class Router
                 }
 
                 // Check params
+                /** @var array<non-empty-string, mixed> $args */
                 $args = $handler();
                 if ($args !== $assertion->args) {
                     $fails[] = \sprintf(
@@ -215,9 +216,11 @@ final class Router
     public function match(Method $method, string $path): ?callable
     {
         foreach ($this->routes[$method->value] as $route) {
-            $match = match ($route->route::class) {
-                Attribute\StaticRoute::class => $path === (string)$route->route->path,
-                Attribute\RegexpRoute::class => \preg_match((string)$route->route->regexp, $path, $matches) === 1
+            $rr = $route->route;
+            /** @psalm-suppress ArgumentTypeCoercion */
+            $match = match ($rr::class) {
+                Attribute\StaticRoute::class => $path === (string)$rr->path,
+                Attribute\RegexpRoute::class => \preg_match((string)$rr->regexp, $path, $matches) === 1
                     ? \array_filter($matches, '\is_string', \ARRAY_FILTER_USE_KEY)
                     : false,
                 default => throw new \LogicException(\sprintf(
@@ -255,11 +258,12 @@ final class Router
         if ($method->isVariadic()) {
             $filteredArgs = $args;
         } else {
-            /** @var array<string, mixed> $filteredArgs Filter args */
+            /** @var array<non-empty-string, mixed> $filteredArgs Filter args */
             $filteredArgs = [];
             foreach ($method->getParameters() as $param) {
                 $name = $param->getName();
                 if (isset($args[$name])) {
+                    /** @psalm-suppress MixedAssignment */
                     $filteredArgs[$name] = $args[$name];
                 }
             }

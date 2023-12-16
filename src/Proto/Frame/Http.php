@@ -12,7 +12,7 @@ use DateTimeImmutable;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\ServerRequestInterface;
-use Psr\Http\Message\UploadedFileInterface;
+use Psr\Http\Message\UploadedFileInterface as PsrUploadedFile;
 
 /**
  * @internal
@@ -20,17 +20,18 @@ use Psr\Http\Message\UploadedFileInterface;
  */
 final class Http extends Frame implements FilesCarrier
 {
+    /** @var int<0, max> */
     private readonly int $cachedSize;
 
     public function __construct(
         public readonly ServerRequestInterface $request,
         DateTimeImmutable $time = new DateTimeImmutable(),
     ) {
-        $this->cachedSize = $request->getBody()->getSize() + \array_reduce(
-                \iterator_to_array($this->iterateUploadedFiles(), false),
-                static fn(int $carry, UploadedFileInterface $file): int => $carry + $file->getSize(),
-                0,
-            );
+        $this->cachedSize = \max(0, (int)$request->getBody()->getSize() + \array_reduce(
+            \iterator_to_array($this->iterateUploadedFiles(), false),
+            static fn(int $carry, PsrUploadedFile $file): int => $carry + (int)$file->getSize(),
+            0,
+        ));
         parent::__construct(type: ProtoType::HTTP, time: $time);
     }
 
@@ -100,17 +101,23 @@ final class Http extends Frame implements FilesCarrier
     }
 
     /**
-     * @return \Generator<array-key, UploadedFileInterface, mixed, void>
+     * @return \Iterator<int, PsrUploadedFile>
      */
-    public function iterateUploadedFiles(): \Generator
+    public function iterateUploadedFiles(): \Iterator
     {
+        /** @var \Closure(array): \Iterator<int, PsrUploadedFile> $generator */
         $generator = static function (array $files) use (&$generator): \Generator {
+            /** @var PsrUploadedFile|array<PsrUploadedFile> $file */
             foreach ($files as $file) {
                 if (\is_array($file)) {
-                    yield from $generator($file);
+                    /** @var PsrUploadedFile $subFile */
+                    foreach ($generator($file) as $subFile) {
+                        yield $subFile;
+                    }
                     continue;
                 }
 
+                \assert($file instanceof PsrUploadedFile);
                 yield $file;
             }
         };
