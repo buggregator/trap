@@ -25,7 +25,7 @@ final class StaticFiles implements Middleware
             $path = '/index.html';
         }
 
-        if (\preg_match('#^/((?:[a-zA-Z0-9\\-_]+/)?[a-zA-Z0-9.\\-\\[\\]() _]+?\\.([a-zA-Z0-4]++))$#', $path, $matches)) {
+        if (\preg_match('#^/((?:[a-zA-Z0-9\\-_]+/)*[a-zA-Z0-9.\\-\\[\\]() _]+?\\.([a-zA-Z0-4]++))$#', $path, $matches)) {
             $file = \sprintf("%s/resources/frontend/%s", Info::TRAP_ROOT, $matches[1]);
 
             if (!\is_file($file)) {
@@ -42,6 +42,7 @@ final class StaticFiles implements Middleware
                 'js' => 'application/javascript',
                 'ico' => 'image/x-icon',
                 'png' => 'image/png',
+                'json' => 'application/json',
                 'svg' => 'image/svg+xml',
                 'xml' => 'application/xml',
                 'webmanifest' => 'application/manifest+json',
