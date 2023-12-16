@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Frontend;
 
+use Buggregator\Trap\Handler\Router\Attribute\AssertRouteFail as AssertFail;
+use Buggregator\Trap\Handler\Router\Attribute\AssertRouteSuccess as AssertSuccess;
 use Buggregator\Trap\Handler\Router\Attribute\RegexpRoute;
 use Buggregator\Trap\Handler\Router\Attribute\StaticRoute;
 use Buggregator\Trap\Handler\Router\Method;
@@ -30,7 +32,10 @@ final class Service
         return new Version();
     }
 
-    #[RegexpRoute(Method::Delete, '#^api/event/(?<uuid>[a-f0-9-]++)#i')]
+    #[RegexpRoute(Method::Delete, '#^api/event/(?<uuid>[a-f0-9-]++)$#i')]
+    #[AssertSuccess(Method::Delete, 'api/event/0145a0e0-0b1a-4e4a-9b1a', ['uuid' => '0145a0e0-0b1a-4e4a-9b1a'])]
+    #[AssertFail(Method::Delete, 'api/event/foo-bar-baz')]
+    #[AssertFail(Method::Delete, 'api/event/')]
     public function eventDelete(string $uuid): Success
     {
         $this->debug('Delete event %s', $uuid);
@@ -38,7 +43,10 @@ final class Service
         return new Success();
     }
 
-    #[RegexpRoute(Method::Get, '#^api/event/(?<uuid>[a-f0-9-]++)#i')]
+    #[RegexpRoute(Method::Get, '#^api/event/(?<uuid>[a-f0-9-]++)$#i')]
+    #[AssertSuccess(Method::Get, 'api/event/0145a0e0-0b1a-4e4a-9b1a', ['uuid' => '0145a0e0-0b1a-4e4a-9b1a'])]
+    #[AssertFail(Method::Get, 'api/event/foo-bar-baz')]
+    #[AssertFail(Method::Get, 'api/event/')]
     public function eventShow(string $uuid): Event|Success
     {
         $this->debug('Show event %s', $uuid);
@@ -47,6 +55,8 @@ final class Service
     }
 
     #[StaticRoute(Method::Delete, 'api/events')]
+    #[AssertFail(Method::Delete, '/api/events')]
+    #[AssertFail(Method::Delete, 'api/events/')]
     public function eventsDelete(): Success
     {
         $this->debug('Delete all events');
@@ -55,6 +65,8 @@ final class Service
     }
 
     #[StaticRoute(Method::Get, 'api/events')]
+    #[AssertFail(Method::Post, 'api/events')]
+    #[AssertFail(Method::Get, '/api/events')]
     public function eventsList(): EventCollection
     {
         $this->debug('List all events');

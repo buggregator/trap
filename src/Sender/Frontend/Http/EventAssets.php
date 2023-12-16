@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender\Frontend\Http;
 
 use Buggregator\Trap\Handler\Http\Middleware;
+use Buggregator\Trap\Handler\Router\Attribute\AssertRouteFail as AssertFail;
+use Buggregator\Trap\Handler\Router\Attribute\AssertRouteSuccess as AssertSuccess;
 use Buggregator\Trap\Handler\Router\Attribute\RegexpRoute;
 use Buggregator\Trap\Handler\Router\Method;
 use Buggregator\Trap\Handler\Router\Router as CommonRouter;
@@ -32,7 +34,7 @@ final class EventAssets implements Middleware
 
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
-        $path = $request->getUri()->getPath();
+        $path = \trim($request->getUri()->getPath(), '/');
         $method = $request->getMethod();
 
         $handler = $this->router->match(Method::fromString($method), $path);
@@ -45,6 +47,9 @@ final class EventAssets implements Middleware
     }
 
     #[RegexpRoute(Method::Get, '#^api/smtp/(?<eventId>[a-f0-9-]++)/html#')]
+    #[AssertSuccess(Method::Get, 'api/smtp/0145a0e0-0b1a-4e4a-9b1a/html', ['eventId' => '0145a0e0-0b1a-4e4a-9b1a'])]
+    #[AssertSuccess(Method::Get, 'api/smtp/0145a0e0-0b1a-4e4a-9b1a/html/', ['eventId' => '0145a0e0-0b1a-4e4a-9b1a'])]
+    #[AssertFail(Method::Get, 'api/smtp/foo-bar-baz/html')]
     public function smtpHtml(string $eventId): ?Response
     {
         // Find event
@@ -65,7 +70,13 @@ final class EventAssets implements Middleware
         );
     }
 
-    #[RegexpRoute(Method::Get, '#^api/smtp/(?<eventId>[a-f0-9-]++)/attachment/(?<attachId>[a-f0-9-]++)#')]
+    #[RegexpRoute(Method::Get, '#^api/smtp/(?<eventId>[a-f0-9-]++)/attachment/(?<attachId>[a-f0-9-]++)$#')]
+    #[AssertSuccess(
+        Method::Get,
+        'api/smtp/0145a0e0-0b1a-4e4a-9b1a/attachment/0145a0e0-0b1a-4e4a-9b1a',
+        ['eventId' => '0145a0e0-0b1a-4e4a-9b1a', 'attachId' => '0145a0e0-0b1a-4e4a-9b1a']
+    )]
+    #[AssertFail(Method::Get, 'api/smtp/0145a0e0-0b1a-4e4a-9b1a/attachment/0145a0e0ZZZZzzzz')]
     public function attachment(string $eventId, string $attachId): ?Response
     {
         // Find event

@@ -34,7 +34,7 @@ final class Router implements Middleware
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
         try {
-            $path = $request->getUri()->getPath();
+            $path = \trim($request->getUri()->getPath(), '/');
             $method = $request->getMethod();
 
             $handler = $this->router->match(Method::fromString($method), $path);
