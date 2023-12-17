@@ -35,16 +35,29 @@ final class Router implements Middleware
     {
         try {
             $path = \trim($request->getUri()->getPath(), '/');
-            $method = $request->getMethod();
+            $method = Method::fromString($request->getMethod());
 
-            $handler = $this->router->match(Method::fromString($method), $path);
+            $handler = $this->router->match($method, $path);
 
             if ($handler === null) {
                 return new Response(404);
             }
 
+            try {
+                // Params
+                if ($method === Method::Get) {
+                    $params = $request->getQueryParams();
+                } else {
+                    /** @var mixed $params */
+                    $params = Json::decode((string)$request->getBody());
+                    \is_array($params) or $params = [];
+                }
+            } catch (\Throwable) {
+                $params = [];
+            }
+
             /** @var mixed $message */
-            $message = $handler($request);
+            $message = $handler(...$params);
 
             return new Response(
                 200,

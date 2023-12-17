@@ -111,7 +111,7 @@ final class Http
     private function parseBody(StreamClient $stream, ServerRequestInterface $request): ServerRequestInterface
     {
         // Methods have body
-        if (!\in_array($request->getMethod(), ['POST', 'PUT', 'PATCH'], true)) {
+        if (!\in_array($request->getMethod(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
             return $request;
         }
 
