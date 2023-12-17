@@ -36,7 +36,7 @@ final class Service
     #[
         AssertSuccess(Method::Delete, 'api/event/0145a0e0-0b1a-4e4a-9b1a', ['uuid' => '0145a0e0-0b1a-4e4a-9b1a']),
         AssertFail(Method::Delete, 'api/event/foo-bar-baz'),
-        AssertFail(Method::Delete, 'api/event/')
+        AssertFail(Method::Delete, 'api/event/'),
     ]
     public function eventDelete(string $uuid): Success
     {
@@ -49,7 +49,7 @@ final class Service
     #[
         AssertSuccess(Method::Get, 'api/event/0145a0e0-0b1a-4e4a-9b1a', ['uuid' => '0145a0e0-0b1a-4e4a-9b1a']),
         AssertFail(Method::Get, 'api/event/foo-bar-baz'),
-        AssertFail(Method::Get, 'api/event/')
+        AssertFail(Method::Get, 'api/event/'),
     ]
     public function eventShow(string $uuid): Event|Success
     {
@@ -61,7 +61,8 @@ final class Service
     #[StaticRoute(Method::Delete, 'api/events')]
     #[
         AssertFail(Method::Delete, '/api/events'),
-        AssertFail(Method::Delete, 'api/events/')
+        AssertFail(Method::Delete, 'api/events/'),
+        AssertFail(Method::Delete, 'api/event'),
     ]
     public function eventsDelete(array $uuids = []): Success
     {
@@ -86,8 +87,9 @@ final class Service
 
     #[StaticRoute(Method::Get, 'api/events')]
     #[
+        AssertFail(Method::Get, 'api/event'),
         AssertFail(Method::Post, 'api/events'),
-        AssertFail(Method::Get, '/api/events')
+        AssertFail(Method::Get, '/api/events'),
     ]
     public function eventsList(): EventCollection
     {
