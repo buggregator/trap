@@ -33,9 +33,11 @@ final class Service
     }
 
     #[RegexpRoute(Method::Delete, '#^api/event/(?<uuid>[a-f0-9-]++)$#i')]
-    #[AssertSuccess(Method::Delete, 'api/event/0145a0e0-0b1a-4e4a-9b1a', ['uuid' => '0145a0e0-0b1a-4e4a-9b1a'])]
-    #[AssertFail(Method::Delete, 'api/event/foo-bar-baz')]
-    #[AssertFail(Method::Delete, 'api/event/')]
+    #[
+        AssertSuccess(Method::Delete, 'api/event/0145a0e0-0b1a-4e4a-9b1a', ['uuid' => '0145a0e0-0b1a-4e4a-9b1a']),
+        AssertFail(Method::Delete, 'api/event/foo-bar-baz'),
+        AssertFail(Method::Delete, 'api/event/')
+    ]
     public function eventDelete(string $uuid): Success
     {
         $this->debug('Delete event %s', $uuid);
@@ -44,9 +46,11 @@ final class Service
     }
 
     #[RegexpRoute(Method::Get, '#^api/event/(?<uuid>[a-f0-9-]++)$#i')]
-    #[AssertSuccess(Method::Get, 'api/event/0145a0e0-0b1a-4e4a-9b1a', ['uuid' => '0145a0e0-0b1a-4e4a-9b1a'])]
-    #[AssertFail(Method::Get, 'api/event/foo-bar-baz')]
-    #[AssertFail(Method::Get, 'api/event/')]
+    #[
+        AssertSuccess(Method::Get, 'api/event/0145a0e0-0b1a-4e4a-9b1a', ['uuid' => '0145a0e0-0b1a-4e4a-9b1a']),
+        AssertFail(Method::Get, 'api/event/foo-bar-baz'),
+        AssertFail(Method::Get, 'api/event/')
+    ]
     public function eventShow(string $uuid): Event|Success
     {
         $this->debug('Show event %s', $uuid);
@@ -55,18 +59,36 @@ final class Service
     }
 
     #[StaticRoute(Method::Delete, 'api/events')]
-    #[AssertFail(Method::Delete, '/api/events')]
-    #[AssertFail(Method::Delete, 'api/events/')]
-    public function eventsDelete(): Success
+    #[
+        AssertFail(Method::Delete, '/api/events'),
+        AssertFail(Method::Delete, 'api/events/')
+    ]
+    public function eventsDelete(array $uuids = []): Success
     {
         $this->debug('Delete all events');
-        $this->eventsStorage->clear();
+        if (empty($uuids)) {
+            $this->eventsStorage->clear();
+            return new Success();
+        }
+
+        try {
+            foreach ($uuids as $uuid) {
+                \is_string($uuid) or throw new \InvalidArgumentException('UUID must be a string');
+                $this->eventsStorage->delete($uuid);
+            }
+        } catch (\Throwable $e) {
+            $this->logger->exception($e);
+            return new Success(status: false);
+        }
+
         return new Success();
     }
 
     #[StaticRoute(Method::Get, 'api/events')]
-    #[AssertFail(Method::Post, 'api/events')]
-    #[AssertFail(Method::Get, '/api/events')]
+    #[
+        AssertFail(Method::Post, 'api/events'),
+        AssertFail(Method::Get, '/api/events')
+    ]
     public function eventsList(): EventCollection
     {
         $this->debug('List all events');
