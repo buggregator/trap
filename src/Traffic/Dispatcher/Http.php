@@ -38,7 +38,7 @@ final class Http implements Dispatcher
     public function __construct(
         iterable $middlewares = [],
         array $handlers = [],
-        private bool $silentMode = false,
+        private readonly bool $silentMode = false,
     ) {
         // Init HTTP parser.
         $this->parser = new Parser\Http();
