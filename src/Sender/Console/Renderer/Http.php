@@ -6,20 +6,19 @@ namespace Buggregator\Trap\Sender\Console\Renderer;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
-use Buggregator\Trap\Sender\Console\RendererInterface;
+use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Color;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Buggregator\Trap\Sender\Console\Support\Files;
 use Psr\Http\Message\UploadedFileInterface;
-use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * @implements RendererInterface<Frame\Http>
+ * @implements Renderer<Frame\Http>
  *
  * @internal
  */
-final class Http implements RendererInterface
+final class Http implements Renderer
 {
     public function isSupport(Frame $frame): bool
     {
@@ -28,6 +27,7 @@ final class Http implements RendererInterface
 
     public function render(OutputInterface $output, Frame $frame): void
     {
+        \assert($frame instanceof Frame\Http);
         $this->renderData($output, $frame);
     }
 

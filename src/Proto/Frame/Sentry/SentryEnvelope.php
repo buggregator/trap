@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Proto\Frame\Sentry;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
+use Buggregator\Trap\Support\Json;
 use DateTimeImmutable;
 
 /**
@@ -33,9 +34,8 @@ final class SentryEnvelope extends Frame\Sentry
      */
     public function __toString(): string
     {
-        return \json_encode(
+        return Json::encode(
             ['headers' => $this->headers, 'items' => $this->items],
-            JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
         );
     }
 

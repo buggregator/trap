@@ -11,7 +11,7 @@ use Psr\Http\Message\ResponseInterface;
 
 /**
  * @internal
- * @psalm-internal Buggregator\Trap\Handler\Http
+ * @psalm-internal Buggregator\Trap
  */
 final class Emitter
 {
@@ -45,6 +45,10 @@ final class Emitter
     {
         $reasonPhrase = $response->getReasonPhrase();
 
+        if ($response->getStatusCode() === 103) {
+            $reasonPhrase = 'Early Hints';
+        }
+
         return \sprintf(
             'HTTP/%s %d%s',
             $response->getProtocolVersion(),
@@ -59,7 +63,7 @@ final class Emitter
     private static function prepareHeaders(ResponseInterface $response): iterable
     {
         $headers = $response->getHeaders();
-        if (!$response->hasHeader('Content-Length')) {
+        if (!$response->hasHeader('Content-Length') && $response->getStatusCode() >= 200) {
             if ($response->getBody()->getSize() !== null) {
                 $headers['Content-Length'] = [(string)$response->getBody()->getSize()];
             } else {

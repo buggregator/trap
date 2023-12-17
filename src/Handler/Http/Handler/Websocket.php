@@ -5,28 +5,21 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Handler\Http\Handler;
 
 use Buggregator\Trap\Handler\Http\Emitter as HttpEmitter;
-use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Handler\Http\RequestHandler;
-use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Traffic\StreamClient;
-use DateTimeInterface;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
+ * Upgrade the connection to a websocket and send a simple timer to the client.
+ *
  * @internal
  * @psalm-internal Buggregator\Trap
  */
 final class Websocket implements RequestHandler
 {
-    /**
-     * @param iterable<array-key, Middleware> $middlewares
-     */
-    public function __construct(
-    ) {
-    }
-
     public function handle(StreamClient $streamClient, ServerRequestInterface $request, callable $next): iterable
     {
         if (
@@ -39,7 +32,7 @@ final class Websocket implements RequestHandler
 
         // Get the time of the request
         $time = $request->getAttribute('begin_at', null);
-        $time = $time instanceof DateTimeInterface ? $time : new \DateTimeImmutable();
+        $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
 
         // Calculate the accept key for the handshake
         $key = $request->getHeaderLine('Sec-WebSocket-Key');
@@ -54,10 +47,7 @@ final class Websocket implements RequestHandler
         ]);
 
         // Send the Request Frame to the Buffer
-        yield new Frame\Http(
-            $request,
-            $time,
-        );
+        yield new Frame\Http($request, $time);
 
         HttpEmitter::emit($streamClient, $response);
         unset($response);
@@ -66,8 +56,6 @@ final class Websocket implements RequestHandler
     }
 
     /**
-     * Todo: extract to a separated Websocket service
-     *
      * @return iterable<array-key, Frame>
      */
     private function handleWebsocket(
@@ -79,7 +67,7 @@ final class Websocket implements RequestHandler
             $timer->reset();
 
             $content = 'Elapsed: ' . (\time() - $time->getTimestamp()) . 's';
-            $response = chr(129) . chr(strlen($content)) . $content;
+            $response = \chr(129) . \chr(strlen($content)) . $content;
 
             $stream->sendData($response);
         }

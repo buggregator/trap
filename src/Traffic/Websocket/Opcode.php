@@ -21,7 +21,7 @@ namespace Buggregator\Trap\Traffic\Websocket;
  * @link https://datatracker.ietf.org/doc/html/rfc6455#section-5.2
  *
  * @internal
- * @psalm-internal Buggregator\Trap\Traffic\Websocket
+ * @psalm-internal Buggregator\Trap
  */
 enum Opcode: int
 {

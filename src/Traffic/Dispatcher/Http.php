@@ -13,6 +13,7 @@ use Buggregator\Trap\Traffic\Dispatcher;
 use Buggregator\Trap\Traffic\Parser;
 use Buggregator\Trap\Traffic\StreamClient;
 use DateTimeImmutable;
+use Exception;
 use Generator;
 
 /**
@@ -32,10 +33,12 @@ final class Http implements Dispatcher
     /**
      * @param iterable<array-key, Middleware> $middlewares
      * @param array<array-key, RequestHandler> $handlers
+     * @param bool $silentMode Don't emit Frames on dispatch if set to true.
      */
     public function __construct(
         iterable $middlewares = [],
         array $handlers = [],
+        private bool $silentMode = false,
     ) {
         // Init HTTP parser.
         $this->parser = new Parser\Http();
@@ -53,14 +56,25 @@ final class Http implements Dispatcher
         );
     }
 
+    /**
+     * @throws Exception
+     */
     public function dispatch(StreamClient $stream): iterable
     {
-        yield from ($this->pipeline)(
+        $generator = ($this->pipeline)(
             $stream,
             $this->parser
                 ->parseStream($stream)
                 ->withAttribute('begin_at', $stream->getCreatedAt()),
         );
+
+        if ($this->silentMode) {
+            foreach ($generator as $frame) {
+                unset($frame);
+            }
+        } else {
+            yield from $generator;
+        }
     }
 
     public function detect(string $data, DateTimeImmutable $createdAt): ?bool
@@ -69,10 +83,6 @@ final class Http implements Dispatcher
             return null;
         }
 
-        if (\preg_match('/^(GET|POST|PUT|HEAD|OPTIONS) \\S++ HTTP\\/1\\.\\d\\r$/m', $data) === 1) {
-            return true;
-        }
-
-        return false;
+        return \preg_match('/^(GET|POST|PUT|HEAD|OPTIONS|DELETE|PATCH|TRACE|CONNECT) \\S++ HTTP\\/1\\.\\d\\r$/m', $data) === 1;
     }
 }

@@ -10,7 +10,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 /**
  * @template-covariant TFrame of Frame
  */
-interface RendererInterface
+interface Renderer
 {
     /**
      * @psalm-assert-if-true TFrame $frame

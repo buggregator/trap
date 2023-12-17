@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender\Console\Renderer\Sentry;
 
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Sender\Console\RendererInterface;
+use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use DateTimeImmutable;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -19,7 +19,13 @@ final class Header
     {
         // Collect metadata
         $meta = [];
-        $time = new DateTimeImmutable(isset($message['sent_at']) ? $message['sent_at'] : "@$message[timestamp]");
+        /** @var mixed $timeValue */
+        $timeValue = $message['sent_at'] ?? $message['timestamp'] ?? 'now';
+        try {
+            $time = new DateTimeImmutable(\is_numeric($timeValue) ? "@$timeValue" : (string)$timeValue);
+        } catch (\Throwable) {
+            $time = new DateTimeImmutable();
+        }
         $meta['Time'] = $time->format('Y-m-d H:i:s.u');
         isset($message['event_id']) and $meta['Event ID'] = $message['event_id'];
         isset($message['transaction']) and $meta['Transaction'] = $message['transaction'];

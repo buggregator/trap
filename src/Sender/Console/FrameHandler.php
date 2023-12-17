@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender\Console;
 
 use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Sender\FrameHandler as HandlerInterface;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * @internal
  */
-final class ConsoleRenderer implements HandlerInterface
+final class FrameHandler implements HandlerInterface
 {
     /**
-     * @var RendererInterface[]
+     * @var Renderer[]
      */
     private array $renderers = [];
 
@@ -42,7 +43,7 @@ final class ConsoleRenderer implements HandlerInterface
         }
     }
 
-    public function register(RendererInterface $renderer): void
+    public function register(Renderer $renderer): void
     {
         $this->renderers[] = $renderer;
     }

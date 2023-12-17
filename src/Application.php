@@ -30,54 +30,51 @@ final class Application implements Processable
     private array $fibers = [];
 
     private readonly Buffer $buffer;
-    private Inspector $inspector;
 
     /**
      * @param SocketServer[] $map
+     * @param Sender[] $senders
      */
     public function __construct(
         array $map = [],
         private readonly Logger $logger = new Logger(),
+        private array $senders = [],
+        bool $withFrontend = true,
     ) {
         $this->buffer = new Buffer(bufferSize: 10485760, timer: 0.1);
 
-        $this->inspector = new Inspector(
+        $inspector = new Inspector(
             $this->buffer,
             $this->logger,
+            // new Traffic\Dispatcher\WebSocket(),
             new Traffic\Dispatcher\VarDumper(),
-            new Traffic\Dispatcher\Http([
-                new Middleware\Resources(),
-                new Middleware\DebugPage(),
-                new Middleware\RayRequestDump(),
-                new Middleware\SentryTrap(),
-            ], [new Websocket()]),
+            new Traffic\Dispatcher\Http(
+                [
+                    new Middleware\Resources(),
+                    new Middleware\DebugPage(),
+                    new Middleware\RayRequestDump(),
+                    new Middleware\SentryTrap(),
+                ],
+                [new Websocket()],
+            ),
             new Traffic\Dispatcher\Smtp(),
             new Traffic\Dispatcher\Monolog(),
         );
-        $this->processors[] = $this->inspector;
+        $this->processors[] = $inspector;
+
+        $withFrontend and $this->configureFrontend(8000);
 
         foreach ($map as $config) {
-            $this->fibers[] = new Fiber(function () use ($config) {
-                do {
-                    try {
-                        $this->processors[] = $this->servers[$config->port] = $this->createServer($config);
-                        return;
-                    } catch (\Throwable) {
-                        $this->logger->error("Can't create TCP socket on port $config->port.");
-                        (new Timer(1.0))->wait();
-                    }
-                } while (true);
-            });
+            $this->prepareServerFiber($config, $inspector, $this->logger);
         }
     }
 
     /**
-     * @param Sender[] $senders
      * @param positive-int $sleep Sleep time in microseconds
      */
-    public function run(array $senders = [], int $sleep = 50): void
+    public function run(int $sleep = 50): void
     {
-        foreach ($senders as $sender) {
+        foreach ($this->senders as $sender) {
             \assert($sender instanceof Sender);
             if ($sender instanceof Processable) {
                 $this->processors[] = $sender;
@@ -85,7 +82,7 @@ final class Application implements Processable
         }
 
         while (true) {
-            $this->process($senders);
+            $this->process($this->senders);
             \usleep($sleep);
         }
     }
@@ -132,9 +129,8 @@ final class Application implements Processable
         }
     }
 
-    private function createServer(SocketServer $config): Server
+    private function createServer(SocketServer $config, Inspector $inspector): Server
     {
-        $inspector = $this->inspector;
         $clientInflector = static function (Client $client, int $id) use ($inspector): Client {
             // Logger::debug('New client connected %d', $id);
             $inspector->addStream(SocketStream::create($client, $id));
@@ -147,5 +143,51 @@ final class Application implements Processable
             clientInflector: $clientInflector,
             logger: $this->logger,
         );
+    }
+
+    /**
+     * @param SocketServer $config
+     * @param Inspector $inspector
+     * @return Fiber
+     */
+    public function prepareServerFiber(SocketServer $config, Inspector $inspector, Logger $logger): Fiber
+    {
+        return $this->fibers[] = new Fiber(function () use ($config, $inspector, $logger) {
+            do {
+                try {
+                    $this->processors[] = $this->servers[$config->port] = $this->createServer($config, $inspector);
+                    return;
+                } catch (\Throwable) {
+                    $logger->error("Can't create TCP socket on port $config->port.");
+                    (new Timer(1.0))->wait();
+                }
+            } while (true);
+        });
+    }
+
+    /**
+     * @param int<1, 65535> $port
+     */
+    public function configureFrontend(int $port): void
+    {
+        $this->senders[] = $wsSender = Sender\FrontendSender::create($this->logger);
+
+        $inspector = new Inspector(
+            $this->buffer,
+            $this->logger,
+            new Traffic\Dispatcher\Http(
+                [
+                    new Sender\Frontend\Http\StaticFiles(),
+                    new Sender\Frontend\Http\EventAssets($this->logger, $wsSender->getEventStorage()),
+                    new Sender\Frontend\Http\Router($this->logger, $wsSender->getEventStorage()),
+                ],
+                [new Sender\Frontend\Http\RequestHandler($wsSender->getConnectionPool())],
+                silentMode: true,
+            ),
+        );
+        $this->processors[] = $inspector;
+
+        $this->processors[] = $wsSender;
+        $this->prepareServerFiber(new SocketServer(port: $port), $inspector, $this->logger);
     }
 }

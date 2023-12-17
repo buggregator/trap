@@ -26,7 +26,7 @@ final class SocketStream implements IteratorAggregate, StreamClient
     private readonly DateTimeImmutable $createdAt;
 
     private function __construct(
-        private readonly Client $client,
+        private Client $client,
         public readonly int $clientId,
     ) {
         $this->queue = new \SplQueue();
@@ -41,6 +41,7 @@ final class SocketStream implements IteratorAggregate, StreamClient
         });
         $client->setOnClose(function () use ($self): void {
             $self->disconnected = true;
+            unset($self->client);
         });
 
         return $self;

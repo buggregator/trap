@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Proto\Frame\Sentry;
 
+use Buggregator\Trap\Support\Json;
+
 /**
  * @internal
  * @psalm-internal Buggregator
@@ -21,7 +23,7 @@ final class EnvelopeItem implements \Stringable, \JsonSerializable
      */
     public function __toString(): string
     {
-        return \json_encode($this->jsonSerialize(), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        return Json::encode($this->jsonSerialize());
     }
 
     public function jsonSerialize(): mixed

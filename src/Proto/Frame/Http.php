@@ -7,10 +7,12 @@ namespace Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\FilesCarrier;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
+use Buggregator\Trap\Support\Json;
 use DateTimeImmutable;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\UploadedFileInterface as PsrUploadedFile;
 
 /**
  * @internal
@@ -18,10 +20,18 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 final class Http extends Frame implements FilesCarrier
 {
+    /** @var int<0, max> */
+    private readonly int $cachedSize;
+
     public function __construct(
         public readonly ServerRequestInterface $request,
         DateTimeImmutable $time = new DateTimeImmutable(),
     ) {
+        $this->cachedSize = \max(0, (int)$request->getBody()->getSize() + \array_reduce(
+            \iterator_to_array($this->iterateUploadedFiles(), false),
+            static fn(int $carry, PsrUploadedFile $file): int => $carry + (int)$file->getSize(),
+            0,
+        ));
         parent::__construct(type: ProtoType::HTTP, time: $time);
     }
 
@@ -30,7 +40,7 @@ final class Http extends Frame implements FilesCarrier
      */
     public function __toString(): string
     {
-        return \json_encode([
+        return Json::encode([
             'headers' => $this->request->getHeaders(),
             'method' => $this->request->getMethod(),
             'uri' => (string)$this->request->getUri(),
@@ -40,7 +50,7 @@ final class Http extends Frame implements FilesCarrier
             'queryParams' => $this->request->getQueryParams(),
             'protocolVersion' => $this->request->getProtocolVersion(),
             'uploadedFiles' => $this->request->getUploadedFiles(),
-        ], JSON_THROW_ON_ERROR);
+        ]);
     }
 
     public static function fromString(string $payload, DateTimeImmutable $time): static
@@ -77,11 +87,7 @@ final class Http extends Frame implements FilesCarrier
 
     public function getSize(): int
     {
-        return $this->request->getBody()->getSize() + \array_reduce(
-                $this->request->getUploadedFiles(),
-                static fn(int $carry, array $file): int => $carry + $file['size'],
-                0
-            );
+        return $this->cachedSize;
     }
 
     public function hasFiles(): bool
@@ -92,5 +98,30 @@ final class Http extends Frame implements FilesCarrier
     public function getFiles(): array
     {
         return $this->request->getUploadedFiles();
+    }
+
+    /**
+     * @return \Iterator<int, PsrUploadedFile>
+     */
+    public function iterateUploadedFiles(): \Iterator
+    {
+        /** @var \Closure(array): \Iterator<int, PsrUploadedFile> $generator */
+        $generator = static function (array $files) use (&$generator): \Generator {
+            /** @var PsrUploadedFile|array<PsrUploadedFile> $file */
+            foreach ($files as $file) {
+                if (\is_array($file)) {
+                    /** @var PsrUploadedFile $subFile */
+                    foreach ($generator($file) as $subFile) {
+                        yield $subFile;
+                    }
+                    continue;
+                }
+
+                \assert($file instanceof PsrUploadedFile);
+                yield $file;
+            }
+        };
+
+        return $generator($this->request->getUploadedFiles());
     }
 }

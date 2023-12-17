@@ -6,15 +6,15 @@ namespace Buggregator\Trap\Sender\Console\Renderer;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
-use Buggregator\Trap\Sender\Console\RendererInterface;
+use Buggregator\Trap\Sender\Console\Renderer;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * @implements RendererInterface<Frame\Monolog>
+ * @implements Renderer<Frame\Monolog>
  *
  * @internal
  */
-final class Monolog implements RendererInterface
+final class Monolog implements Renderer
 {
     public function __construct(
         private readonly TemplateRenderer $renderer,

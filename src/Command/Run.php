@@ -26,8 +26,6 @@ use Symfony\Component\Console\Output\OutputInterface;
 )]
 final class Run extends Command
 {
-    protected static $defaultName = 'run';
-
     public function configure(): void
     {
         $this->addOption('port', 'p', InputOption::VALUE_OPTIONAL, 'Port to listen', 9912);
@@ -38,6 +36,7 @@ final class Run extends Command
             'Senders',
             ['console']
         );
+        $this->addOption('ui', null, InputOption::VALUE_OPTIONAL, 'Enable WEB UI (experimental)', false);
     }
 
     protected function execute(
@@ -58,11 +57,11 @@ final class Run extends Command
             $app = new Application(
                 [new SocketServer($port)],
                 new Logger($output),
+                senders: $registry->getSenders($senders),
+                withFrontend: $input->getOption('ui') !== false,
             );
 
-            $app->run(
-                senders: $registry->getSenders($senders)
-            );
+            $app->run();
         } catch (\Throwable $e) {
             if ($output->isVerbose()) {
                 // Write colorful exception (title, message, stacktrace)

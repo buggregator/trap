@@ -58,6 +58,10 @@ final class Fallback implements RequestHandler
                     yield $got;
                 }
 
+                if ($got instanceof ResponseInterface) {
+                    HttpEmitter::emit($streamClient, $got);
+                }
+
                 if ($fiber->isTerminated()) {
                     $response = $fiber->getReturn();
                     if (!$response instanceof ResponseInterface) {

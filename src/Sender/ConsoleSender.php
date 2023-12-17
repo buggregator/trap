@@ -6,8 +6,7 @@ namespace Buggregator\Trap\Sender;
 
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Sender;
-use Buggregator\Trap\Sender\Console\ConsoleRenderer;
-use Buggregator\Trap\Sender\Console\HandlerInterface;
+use Buggregator\Trap\Sender\Console\FrameHandler;
 use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Renderer\TemplateRenderer;
 use Buggregator\Trap\Support\TemplateEngine;
@@ -29,7 +28,7 @@ final class ConsoleSender implements Sender
             new TemplateEngine(Info::TRAP_ROOT . '/resources/templates')
         );
         // Configure renderer
-        $renderer = new ConsoleRenderer($output);
+        $renderer = new FrameHandler($output);
         $renderer->register(new Renderer\VarDumper());
         $renderer->register(new Renderer\SentryStore());
         $renderer->register(new Renderer\SentryEnvelope());
@@ -43,7 +42,7 @@ final class ConsoleSender implements Sender
     }
 
     public function __construct(
-        private readonly HandlerInterface $handler,
+        private readonly FrameHandler $handler,
     ) {
     }
 
