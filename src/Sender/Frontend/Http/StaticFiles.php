@@ -28,7 +28,10 @@ final class StaticFiles implements Middleware
         if (\preg_match('#^/((?:[a-zA-Z0-9\\-_]+/)*[a-zA-Z0-9.\\-\\[\\]() _]+?\\.([a-zA-Z0-4]++))$#', $path, $matches)) {
             $file = \sprintf("%s/resources/frontend/%s", Info::TRAP_ROOT, $matches[1]);
 
-            if (!\is_file($file)) {
+            /** @var array<non-empty-string, string> $cache */
+            static $cache = [];
+
+            if (!\array_key_exists($file, $cache) && !\is_file($file)) {
                 return new Response(404);
             }
 
@@ -51,11 +54,11 @@ final class StaticFiles implements Middleware
 
             if ($path === '/index.html') {
                 if (empty($this->earlyResponse)) {
-                    $content = \file_get_contents($file);
+                    $cache[$file] ??= \file_get_contents($file);
                     // Find all CSS files
                     \preg_match_all(
                         '#\\bhref="([^"]+?\\.css)"#i',
-                        $content,
+                        $cache[$file],
                         $matches,
                     );
                     $this->earlyResponse = \array_unique($matches[1]);
@@ -71,14 +74,18 @@ final class StaticFiles implements Middleware
                 // (new \Buggregator\Trap\Support\Timer(2))->wait(); // to test early hints
             }
 
+            $cache[$file] ??= \file_get_contents($file);
 
             return new Response(
                 200,
                 [
-                    'Content-Type' => $type,
-                    'Content-Length' => \filesize($file),
+                    'Content-Type' => [$type],
+                    'Content-Length' => [\filesize($file)],
+                    'Date' => [\gmdate('D, d M Y H:i:s T')],
+                    'Cache-Control' => ['max-age=604801'],
+                    'ETag' => [\sha1($cache[$file])],
                 ] + $headers,
-                $content ?? \file_get_contents($file),
+                $cache[$file] ??= \file_get_contents($file),
             );
         }
 
