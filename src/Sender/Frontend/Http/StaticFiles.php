@@ -26,16 +26,19 @@ final class StaticFiles implements Middleware
         }
 
         if (\preg_match('#^/((?:[a-zA-Z0-9\\-_]+/)*[a-zA-Z0-9.\\-\\[\\]() _]+?\\.([a-zA-Z0-4]++))$#', $path, $matches)) {
-            $file = \sprintf("%s/resources/frontend/%s", Info::TRAP_ROOT, $matches[1]);
+            $file = \sprintf('%s/resources/frontend/%s', Info::TRAP_ROOT, $matches[1]);
 
-            /** @var array<non-empty-string, string> $cache */
-            static $cache = [];
+            /** @var array<non-empty-string, string> $cacheContent */
+            static $cacheContent = [];
+            /** @var array<non-empty-string, non-empty-string> $cacheHash */
+            static $cacheHash = [];
+            /** @var array<non-empty-string, int<0, max>> $cacheSize */
+            static $cacheSize = [];
 
-            if (!\array_key_exists($file, $cache) && !\is_file($file)) {
+            if (!\array_key_exists($file, $cacheContent) && !\is_file($file)) {
                 return new Response(404);
             }
 
-            $content = null;
             $headers = [];
 
             $type = match($matches[2]) {
@@ -54,11 +57,11 @@ final class StaticFiles implements Middleware
 
             if ($path === '/index.html') {
                 if (empty($this->earlyResponse)) {
-                    $cache[$file] ??= \file_get_contents($file);
+                    $cacheContent[$file] ??= \file_get_contents($file);
                     // Find all CSS files
                     \preg_match_all(
                         '#\\bhref="([^"]+?\\.css)"#i',
-                        $cache[$file],
+                        $cacheContent[$file],
                         $matches,
                     );
                     $this->earlyResponse = \array_unique($matches[1]);
@@ -74,18 +77,18 @@ final class StaticFiles implements Middleware
                 // (new \Buggregator\Trap\Support\Timer(2))->wait(); // to test early hints
             }
 
-            $cache[$file] ??= \file_get_contents($file);
-
+            $cacheContent[$file] ??= \file_get_contents($file);
             return new Response(
                 200,
                 [
                     'Content-Type' => [$type],
-                    'Content-Length' => [\filesize($file)],
+                    'Content-Length' => [$cacheSize[$file] ??= \filesize($file)],
                     'Date' => [\gmdate('D, d M Y H:i:s T')],
                     'Cache-Control' => ['max-age=604801'],
-                    'ETag' => [\sha1($cache[$file])],
+                    'Accept-Ranges' => ['none'],
+                    'ETag' => [$cacheHash[$file] ??= \sha1($cacheContent[$file])],
                 ] + $headers,
-                $cache[$file] ??= \file_get_contents($file),
+                $cacheContent[$file],
             );
         }
 
