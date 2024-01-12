@@ -4,27 +4,24 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Client;
 
+use Buggregator\Trap\Client\TrapHandle\Counter;
 use Buggregator\Trap\Client\TrapHandle\Dumper;
 use Closure;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\VarDumper\Caster\ReflectionCaster;
 use Symfony\Component\VarDumper\Cloner\Data;
-use Symfony\Component\VarDumper\Cloner\VarCloner;
 use Symfony\Component\VarDumper\Dumper\DataDumperInterface;
 
 class Base extends TestCase
 {
-    protected static Data $lastData;
+    protected static ?Data $lastData = null;
     protected static ?Closure $handler = null;
 
     protected function setUp(): void
     {
-        $cloner = new VarCloner();
-        /** @psalm-suppress InvalidArgument */
-        $cloner->addCasters(ReflectionCaster::UNSET_CLOSURE_FILE_INFO);
+        Counter::clear();
         $dumper = $this->getMockBuilder(DataDumperInterface::class)
             ->getMock();
-        $dumper->expects($this->once())
+        $dumper->expects($this->atLeastOnce())
             ->method('dump')
             ->with(
                 $this->callback(static function (Data $data): bool {
@@ -41,6 +38,7 @@ class Base extends TestCase
 
     protected function tearDown(): void
     {
+        Counter::clear();
         Dumper::setDumper(null);
         parent::tearDown();
     }

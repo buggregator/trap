@@ -61,7 +61,7 @@ final class TrapHandle
      * The counter isn't incremented if the dump is not sent (any other condition is not met).
      * It might be useful for debugging in loops, recursive or just multiple function calls.
      *
-     * @param positive-int $times
+     * @param positive-int $times Zero means no limit.
      * @param bool $fullStack If true, the counter is incremented for each stack trace, not for the line.
      */
     public function times(int $times, bool $fullStack = false): self
@@ -145,6 +145,7 @@ final class TrapHandle
         }
 
         if ($this->times > 0) {
+            \assert($this->timesCounterKey !== '');
             return Counter::checkAndIncrement($this->timesCounterKey, $this->times);
         }
 
