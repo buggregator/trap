@@ -14,14 +14,14 @@ use Symfony\Component\VarDumper\Dumper\DataDumperInterface;
 class Base extends TestCase
 {
     protected static ?Data $lastData = null;
-    protected static ?Closure $handler = null;
 
     protected function setUp(): void
     {
+        self::$lastData = null;
         Counter::clear();
         $dumper = $this->getMockBuilder(DataDumperInterface::class)
             ->getMock();
-        $dumper->expects($this->atLeastOnce())
+        $dumper->expects($this->any())
             ->method('dump')
             ->with(
                 $this->callback(static function (Data $data): bool {
@@ -38,6 +38,7 @@ class Base extends TestCase
 
     protected function tearDown(): void
     {
+        self::$lastData = null;
         Counter::clear();
         Dumper::setDumper(null);
         parent::tearDown();

@@ -17,13 +17,23 @@ final class TrapTest extends Base
      */
     public function testStackTrace(): void
     {
-        $line = __FILE__ . ':' . __LINE__ and trap();
+        $line = __FILE__ . ':' . __LINE__ and trap()->stackTrace();
 
         $this->assertArrayHasKey('trace', static::$lastData->getValue());
 
         $neededLine = \array_key_first(static::$lastData->getValue()['trace']->getValue());
 
         $this->assertStringContainsString($line, $neededLine);
+    }
+
+    /**
+     * Nothing is dumped if no arguments are passed to {@see trap()}.
+     */
+    public function testEmptyTrapCall(): void
+    {
+        trap();
+
+        self::assertNull(self::$lastData);
     }
 
     /**
