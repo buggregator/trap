@@ -105,7 +105,7 @@ trap($animal)->once()->if($var instanceof Animal\Cat);
 > [!TIP]
 > Feature in development:
 > add the flag `--ui` to rise the web interface of the Buggregator Server without docker.
-
+![trap-ui](https://github.com/buggregator/trap/assets/4152481/1ccc2c85-2f81-4b62-8ae7-49ee76380674)
 ---
 
 We care about the quality of our products' codebase and strive to provide the best user experience.
