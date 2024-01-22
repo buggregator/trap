@@ -5,7 +5,7 @@
     "description": "A simple and powerful tool for debugging PHP applications.",
     "homepage": "https://buggregator.dev/",
     "keywords": [
-        "debug", "cli", "console", "sentry", "smtp", "dump", "binary dump", "websockets", "server", "helper"
+        "debug", "cli", "console", "sentry", "smtp", "dump", "binary dump", "websockets", "server", "helper", "dev"
     ],
     "authors": [
         {

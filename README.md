@@ -102,6 +102,12 @@ trap($animal)->once()->if($var instanceof Animal\Cat);
 
 ---
 
+> [!TIP]
+> Feature in development:
+> add the flag `--ui` to rise the web interface of the Buggregator Server without docker.
+
+---
+
 We care about the quality of our products' codebase and strive to provide the best user experience.
 Buggregator Trap has passed the Proof of Concept stage and is now an important part of the Buggregator ecosystem.
 We have big plans for the development of the entire ecosystem and we would be delighted if you join us on this journey.
