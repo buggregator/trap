@@ -62,7 +62,9 @@ final class Logger
         $r .= "In \033[3;32m" . $e->getFile() . ':' . $e->getLine() . "\033[0m\n";
         // Print stack trace using gray
         $r .= "Stack trace:\n";
-        $r .= "\033[90m" . $e->getTraceAsString() . "\033[0m\n";
+        // Limit stacktrace to 5 lines
+        $stack = \explode("\n", $e->getTraceAsString());
+        $r .= "\033[90m" . implode("\n", \array_slice($stack, 0, \min(5, \count($stack)))) . "\033[0m\n";
         $r .= "\n";
         $this->echo($r, !$important);
     }

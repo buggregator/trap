@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Socket;
 
-use Buggregator\Trap\Socket\Exception\DisconnectClient;
+use Buggregator\Trap\Destroyable;
+use Buggregator\Trap\Socket\Exception\ClientDisconnected;
+use Buggregator\Trap\Support\Timer;
 use Fiber;
 
 /**
@@ -12,7 +14,7 @@ use Fiber;
  *
  * @internal
  */
-final class Client
+final class Client implements Destroyable
 {
      /** @var string[] */
     private array $writeQueue = [];
@@ -33,24 +35,24 @@ final class Client
         $this->setOnClose(fn() => null);
     }
 
-    public function __destruct()
-    {
-        try {
-            \socket_close($this->socket);
-        } catch (\Throwable) {
-            // Do nothing.
-        } finally {
-            /** @psalm-suppress RedundantPropertyInitializationCheck */
-            isset($this->onClose) and ($this->onClose)();
-        }
-    }
-
-    public function close(): void
+    public function destroy(): void
     {
         /** @psalm-suppress RedundantPropertyInitializationCheck */
         isset($this->onClose) and ($this->onClose)();
+        try {
+            \socket_close($this->socket);
+        } catch (\Throwable) {
+            // do nothing
+        }
         // Unlink all closures and free resources.
-        unset($this->onClose, $this->onPayload, $this->readBuffer);
+        unset($this->onClose, $this->onPayload);
+        $this->writeQueue = [];
+        $this->readBuffer = '';
+    }
+
+    public function __destruct()
+    {
+        $this->destroy();
     }
 
     public function disconnect(): void
@@ -96,7 +98,9 @@ final class Client
             }
 
             if ($this->toDisconnect && $this->writeQueue === []) {
-                throw new DisconnectClient();
+                // Wait for the socket buffer to be flushed.
+                (new Timer(0.1))->wait();
+                throw new ClientDisconnected();
             }
             Fiber::suspend();
         } while (true);
@@ -126,6 +130,10 @@ final class Client
 
     public function send(string $payload): void
     {
+        if ($this->toDisconnect) {
+            return;
+        }
+
         $this->writeQueue[] = $payload;
     }
 
@@ -147,7 +155,7 @@ final class Client
 
         $this->writeQueue = [];
 
-        $this->toDisconnect and throw new DisconnectClient();
+        $this->toDisconnect and throw new ClientDisconnected();
     }
 
     private function readMessage(): void

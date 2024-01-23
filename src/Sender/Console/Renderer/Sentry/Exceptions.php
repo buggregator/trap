@@ -58,6 +58,8 @@ final class Exceptions
 
     /**
      * Renders the trace of the exception.
+     *
+     * @psalm-suppress RiskyTruthyFalsyComparison
      */
     private static function renderTrace(OutputInterface $output, array $frames, bool $verbose = false): void
     {
@@ -82,6 +84,7 @@ final class Exceptions
             $file = $getValue($frame, 'filename');
             $line = $getValue($frame, 'lineno', null);
             $class = $getValue($frame, 'class');
+            /** @psalm-suppress RiskyTruthyFalsyComparison */
             $class = empty($class) ? '' : $class . '::';
             $function = $getValue($frame, 'function');
 

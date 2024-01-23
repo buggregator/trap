@@ -32,6 +32,7 @@ final class Dumper
 
     public static function dump(mixed $var, string|int|null $label = null, int $depth = 0): mixed
     {
+        /** @psalm-suppress RiskyTruthyFalsyComparison */
         return (self::$handler ??= self::registerHandler())($var, empty($label) ? null : (string)$label, $depth);
     }
 
@@ -72,6 +73,7 @@ final class Dumper
      * @return Closure(mixed, string|null, int): mixed
      *
      * @author Nicolas Grekas <p@tchwork.com>
+     * @psalm-suppress RiskyTruthyFalsyComparison
      */
     private static function registerHandler(): Closure
     {
