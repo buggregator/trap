@@ -7,6 +7,6 @@ namespace Buggregator\Trap\Socket\Exception;
 /**
  * @internal
  */
-class DisconnectClient extends \RuntimeException
+class ClientDisconnected extends \RuntimeException
 {
 }

@@ -18,7 +18,7 @@ use Fiber;
 /**
  * @internal
  */
-final class Application implements Processable
+final class Application implements Processable, Cancellable, Destroyable
 {
     /** @var Processable[] */
     private array $processors = [];
@@ -115,6 +115,32 @@ final class Application implements Processable
         }
     }
 
+    public function destroy(): void
+    {
+        foreach ([...$this->servers, ...$this->processors] as $instance) {
+            if ($instance instanceof Destroyable) {
+                $instance->destroy();
+            }
+        }
+
+        $this->servers = [];
+        $this->processors = [];
+        $this->fibers = [];
+    }
+
+    public function cancel(): void
+    {
+        foreach ($this->servers as $server) {
+            $server->cancel();
+        }
+
+        while ($this->fibers !== [] || $this->processors !== []) {
+            echo '.';
+            $this->process();
+            Fiber::getCurrent() === null or Fiber::suspend();
+        }
+    }
+
     /**
      * @param Sender[] $senders
      */
@@ -131,8 +157,9 @@ final class Application implements Processable
 
     private function createServer(SocketServer $config, Inspector $inspector): Server
     {
-        $clientInflector = static function (Client $client, int $id) use ($inspector): Client {
-            // Logger::debug('New client connected %d', $id);
+        $logger = $this->logger;
+        $clientInflector = static function (Client $client, int $id) use ($inspector, $logger): Client {
+            $logger->debug('Client %d connected', $id);
             $inspector->addStream(SocketStream::create($client, $id));
             return $client;
         };
