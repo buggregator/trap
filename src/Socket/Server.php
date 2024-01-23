@@ -95,6 +95,7 @@ final class Server implements Processable, Cancellable, Destroyable
         while (!$this->cancelled and false !== ($socket = \socket_accept($this->socket))) {
             $client = null;
             try {
+                /** @psalm-suppress MixedArgument */
                 $client = Client::init($socket, $this->payloadSize);
                 $key = (int)\array_key_last($this->clients) + 1;
                 $this->clients[$key] = $client;
