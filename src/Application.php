@@ -30,6 +30,7 @@ final class Application implements Processable, Cancellable, Destroyable
     private array $fibers = [];
 
     private readonly Buffer $buffer;
+    private bool $cancelled = false;
 
     /**
      * @param SocketServer[] $map
@@ -130,15 +131,14 @@ final class Application implements Processable, Cancellable, Destroyable
 
     public function cancel(): void
     {
-        foreach ($this->servers as $server) {
-            $server->cancel();
-        }
-
-        while ($this->fibers !== [] || $this->processors !== []) {
-            echo '.';
-            $this->process();
-            Fiber::getCurrent() === null or Fiber::suspend();
-        }
+        $this->cancelled = true;
+        $this->fibers[] = new Fiber(
+            function () {
+                foreach ($this->servers as $server) {
+                    $server->cancel();
+                }
+            }
+        );
     }
 
     /**
@@ -188,7 +188,7 @@ final class Application implements Processable, Cancellable, Destroyable
                     $logger->error("Can't create TCP socket on port $config->port.");
                     (new Timer(1.0))->wait();
                 }
-            } while (true);
+            } while (!$this->cancelled);
         });
     }
 

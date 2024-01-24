@@ -28,6 +28,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 final class Run extends Command implements SignalableCommandInterface
 {
     private ?Application $app = null;
+    private bool $cancelled = false;
 
     public function configure(): void
     {
@@ -106,18 +107,24 @@ final class Run extends Command implements SignalableCommandInterface
         return $result;
     }
 
-    public function handleSignal(int $signal): void
+    public function handleSignal(int $signal): int|false
     {
         if (\defined('SIGINT') && $signal === \SIGINT) {
-            // todo may be uncommented if it's possible to switch fibers when signal is received
-            // todo Error: Cannot switch fibers in current execution context
-            // $this->app?->cancel();
+            if ($this->cancelled) {
+                // Force exit
+                $this->app?->destroy();
+                return $signal;
+            }
 
-            $this->app?->destroy();
+            $this->app?->cancel();
+            $this->cancelled = true;
         }
 
         if (\defined('SIGTERM') && $signal === \SIGTERM) {
             $this->app?->destroy();
+            return $signal;
         }
+
+        return false;
     }
 }
