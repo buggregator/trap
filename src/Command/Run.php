@@ -28,6 +28,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 final class Run extends Command implements SignalableCommandInterface
 {
     private ?Application $app = null;
+    private bool $cancelled = false;
 
     public function configure(): void
     {
@@ -109,7 +110,14 @@ final class Run extends Command implements SignalableCommandInterface
     public function handleSignal(int $signal): int|false
     {
         if (\defined('SIGINT') && $signal === \SIGINT) {
+            if ($this->cancelled) {
+                // Force exit
+                $this->app?->destroy();
+                return $signal;
+            }
+
             $this->app?->cancel();
+            $this->cancelled = true;
         }
 
         if (\defined('SIGTERM') && $signal === \SIGTERM) {
