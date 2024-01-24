@@ -29,7 +29,7 @@ To install Buggregator Trap in your PHP application, add the package as a dev de
 to your project using Composer:
 
 ```bash
-composer require --dev buggregator/trap
+composer require --dev buggregator/trap -W
 ```
 
 [![PHP](https://img.shields.io/packagist/php-v/buggregator/trap.svg?style=flat-square&logo=php)](https://packagist.org/packages/buggregator/trap)
