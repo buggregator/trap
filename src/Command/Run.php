@@ -107,7 +107,7 @@ final class Run extends Command implements SignalableCommandInterface
         return $result;
     }
 
-    public function handleSignal(int $signal): int|false
+    public function handleSignal(int $signal, int|false $previousExitCode = 0): int|false
     {
         if (\defined('SIGINT') && $signal === \SIGINT) {
             if ($this->cancelled) {
