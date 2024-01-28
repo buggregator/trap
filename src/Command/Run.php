@@ -11,6 +11,7 @@ use Buggregator\Trap\Logger;
 use Buggregator\Trap\Sender;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Command\SignalableCommandInterface;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -24,8 +25,11 @@ use Symfony\Component\Console\Output\OutputInterface;
     name: 'run',
     description: 'Run application',
 )]
-final class Run extends Command
+final class Run extends Command implements SignalableCommandInterface
 {
+    private ?Application $app = null;
+    private bool $cancelled = false;
+
     public function configure(): void
     {
         $this->addOption('port', 'p', InputOption::VALUE_OPTIONAL, 'Port to listen', 9912);
@@ -54,14 +58,14 @@ final class Run extends Command
 
             $registry = $this->createRegistry($output);
 
-            $app = new Application(
+            $this->app = new Application(
                 [new SocketServer($port)],
                 new Logger($output),
                 senders: $registry->getSenders($senders),
                 withFrontend: $input->getOption('ui') !== false,
             );
 
-            $app->run();
+            $this->app->run();
         } catch (\Throwable $e) {
             if ($output->isVerbose()) {
                 // Write colorful exception (title, message, stacktrace)
@@ -92,5 +96,35 @@ final class Run extends Command
         );
 
         return $registry;
+    }
+
+    public function getSubscribedSignals(): array
+    {
+        $result = [];
+        \defined('SIGINT') and $result[] = \SIGINT;
+        \defined('SIGTERM') and $result[] = \SIGTERM;
+
+        return $result;
+    }
+
+    public function handleSignal(int $signal, int|false $previousExitCode = 0): int|false
+    {
+        if (\defined('SIGINT') && $signal === \SIGINT) {
+            if ($this->cancelled) {
+                // Force exit
+                $this->app?->destroy();
+                return $signal;
+            }
+
+            $this->app?->cancel();
+            $this->cancelled = true;
+        }
+
+        if (\defined('SIGTERM') && $signal === \SIGTERM) {
+            $this->app?->destroy();
+            return $signal;
+        }
+
+        return false;
     }
 }

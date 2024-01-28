@@ -57,6 +57,9 @@ final class VarDumper implements Renderer
             ) {
             }
 
+            /**
+             * @psalm-suppress RiskyTruthyFalsyComparison
+             */
             public function describe(OutputInterface $output, Data $data, array $context, int $clientId): void
             {
                 Common::renderHeader1($output, 'DUMP');
