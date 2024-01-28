@@ -46,6 +46,20 @@ final class TrapHandle
     }
 
     /**
+     * Add stack trace to the dump.
+     */
+    public function stackTrace(): self
+    {
+        $cwd = \getcwd();
+        $this->values['Stack trace'] = [
+            'cwd' => $cwd,
+            'trace' => new TraceStub($this->staticState->stackTrace),
+        ];
+
+        return $this;
+    }
+
+    /**
      * Set max depth for the dump.
      *
      * @param int<0, max> $depth If 0 - no limit.
@@ -61,7 +75,7 @@ final class TrapHandle
      * The counter isn't incremented if the dump is not sent (any other condition is not met).
      * It might be useful for debugging in loops, recursive or just multiple function calls.
      *
-     * @param positive-int $times
+     * @param positive-int $times Zero means no limit.
      * @param bool $fullStack If true, the counter is incremented for each stack trace, not for the line.
      */
     public function times(int $times, bool $fullStack = false): self
@@ -102,16 +116,6 @@ final class TrapHandle
                 $_SERVER['VAR_DUMPER_SERVER'] = '127.0.0.1:9912';
             }
 
-            // If there are no values - stack trace
-            if ($this->values === []) {
-                VarDumper::dump([
-                    'cwd' => \getcwd(),
-                    // todo StackTrace::stackTrace(\getcwd()) - add CWD
-                    'trace' => new TraceStub($this->staticState->stackTrace),
-                ], depth: $this->depth);
-                return;
-            }
-
             // Dump single value
             if (\array_keys($this->values) === [0]) {
                 VarDumper::dump($this->values[0], depth: $this->depth);
@@ -140,11 +144,12 @@ final class TrapHandle
 
     private function haveToSend(): bool
     {
-        if (!$this->haveToSend) {
+        if (!$this->haveToSend || $this->values === []) {
             return false;
         }
 
         if ($this->times > 0) {
+            \assert($this->timesCounterKey !== '');
             return Counter::checkAndIncrement($this->timesCounterKey, $this->times);
         }
 
