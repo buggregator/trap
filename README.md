@@ -125,9 +125,14 @@ This command will start the Trap server, ready to receive any debug messages. On
 Then just call the `trap()` function in your code:
 
 ```php
-trap(); // dump the current stack trace
-trap($var)->depth(4); // dump a variable with a depth limit
-trap($var, foo: $far, bar: $bar); // dump a named variables sequence
+// dump the current stack trace
+trap()->stackTrace();
+// dump a variable with a depth limit
+trap($var)->depth(4);
+ // dump a named variables sequence
+trap($var, foo: $far, bar: $bar);
+// dump a variable and return it
+$responder->respond(trap($response)->return()); 
 ```
 
 > **Note**:
