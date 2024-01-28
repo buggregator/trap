@@ -59,6 +59,21 @@ final class TrapTest extends Base
         }
     }
 
+    public function testReturn(): void
+    {
+        $this->assertSame(42, \trap(42)->return());
+        $this->assertSame(42, \trap(named: 42)->return());
+        $this->assertSame(42, \trap(named: 42)->return('bad-name'));
+        $this->assertSame(42, \trap(42, 43)->return());
+        $this->assertSame(42, \trap(int: 42, foo: 'bar')->return('int'));
+        $this->assertSame(42, \trap(int: 42, foo: 'bar')->return(0));
+        $this->assertSame('foo', \trap(...['0' => 'foo', 42 => 90])->return());
+        $this->assertNull(\trap(null)->return());
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->assertSame(42, \trap(42, 43)->return(10));
+    }
+
     public static function provideTrapTimes(): iterable
     {
         yield 'no limit' => [0, [false, false, false, false, false]];

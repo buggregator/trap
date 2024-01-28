@@ -97,6 +97,44 @@ final class TrapHandle
         return $this->times(1);
     }
 
+    /**
+     * Send the dump if possible and then return the dumped value immediately.
+     *
+     * @param int|string $key Position in the value sequence (0-based) or name of the named argument.
+     *
+     * ```php
+     * trap(42)->return(); // 42
+     * trap(count: 42, value: 90)->return('value'); // 90
+     * trap(foo: 'bar')->return(0); // 'bar'
+     * trap()->return(); // exception
+     * ```
+     */
+    public function return(int|string $key = 0): mixed
+    {
+        $this->haveToSend() and $this->sendDump();
+
+        if (\count($this->values) === 0) {
+            throw new \InvalidArgumentException('No values to return.');
+        }
+
+        if (\count($this->values) === 1) {
+            return \reset($this->values);
+        }
+
+        $k = match (true) {
+            \array_key_exists($key, $this->values) => $key,
+            \array_key_exists($key, $keys = \array_keys($this->values)) => $keys[$key],
+            default => throw new \InvalidArgumentException(
+                \sprintf(
+                    'Value with key "%s" is not set.',
+                    $key,
+                )
+            ),
+        };
+
+        return $this->values[$k];
+    }
+
     public function __destruct()
     {
         $this->haveToSend() and $this->sendDump();
