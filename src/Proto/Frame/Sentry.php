@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Frame\Sentry\SentryEnvelope;
 use Buggregator\Trap\Proto\Frame\Sentry\SentryStore;
+use Buggregator\Trap\Support\Json;
 use DateTimeImmutable;
 
 /**
@@ -17,7 +18,7 @@ abstract class Sentry extends Frame
 {
     public static function fromString(string $payload, DateTimeImmutable $time): static
     {
-        $data = \json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+        $data = Json::decode($payload);
         return match (true) {
             $data['type'] === SentryEnvelope::SENTRY_FRAME_TYPE => SentryEnvelope::fromArray($data, $time),
             $data['type'] === SentryStore::SENTRY_FRAME_TYPE => SentryStore::fromArray($data, $time),
