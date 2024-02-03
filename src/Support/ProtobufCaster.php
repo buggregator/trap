@@ -89,8 +89,6 @@ final class ProtobufCaster
         ];
     }
 
-    public mixed $value;
-
     private static function castMessage(Message $message, PublicDescriptor|InternalDescriptor $descriptor): array
     {
         return [
