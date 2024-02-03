@@ -43,17 +43,21 @@ final class Handler
     {
         $files = $this->getFiles();
         $newFiles = [];
+        $newState = [];
 
         foreach ($files as $fileInfo) {
-            if (\array_key_exists($fileInfo->getRealPath(), $this->cache)) {
+            $path = $fileInfo->getRealPath();
+            if (!\is_string($path) || \array_key_exists($path, $this->cache)) {
+                $newState[$path] = $this->cache[$path];
                 continue;
             }
 
             $info = FileInfo::fromSplFileInfo($fileInfo);
-            $this->cache[$fileInfo->getRealPath()] = $info;
+            $newState[$path] = $info;
             $newFiles[] = $info;
         }
 
+        $this->cache = $newState;
         return $newFiles;
     }
 

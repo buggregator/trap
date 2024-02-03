@@ -8,7 +8,7 @@ use Buggregator\Trap\Cancellable;
 use Buggregator\Trap\Config\FilesObserver as Config;
 use Buggregator\Trap\Processable;
 use Buggregator\Trap\Proto\Buffer;
-use Buggregator\Trap\Proto\Frame\Profile\File as FileFrame;
+use Buggregator\Trap\Proto\Frame\Profiler\File as FileFrame;
 use Buggregator\Trap\Service\FilesObserver\FileInfo;
 use Buggregator\Trap\Service\FilesObserver\Handler;
 use Fiber;

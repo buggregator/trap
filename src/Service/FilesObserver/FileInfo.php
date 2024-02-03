@@ -17,7 +17,7 @@ final class FileInfo
     public static function fromSplFileInfo(\SplFileInfo $fileInfo): self
     {
         return new self(
-            $fileInfo->getPathname(),
+            $fileInfo->getRealPath(),
             $fileInfo->getSize(),
             $fileInfo->getCTime(),
             $fileInfo->getMTime(),

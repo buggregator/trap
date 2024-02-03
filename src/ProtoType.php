@@ -15,4 +15,5 @@ enum ProtoType: string
     case Monolog = 'monolog';
     case Binary = 'binary';
     case Sentry = 'sentry';
+    case Profiler = 'profiler';
 }
