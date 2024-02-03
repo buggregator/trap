@@ -94,7 +94,7 @@ final class Service
     public function eventsList(): EventCollection
     {
         $this->debug('List all events');
-        return new EventCollection(events: \iterator_to_array($this->eventsStorage, false));
+        return new EventCollection(events: \array_reverse(\iterator_to_array($this->eventsStorage->getIterator(), false)));
     }
 
     private function debug(string $pattern, string ...$args): void

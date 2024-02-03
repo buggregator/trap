@@ -99,7 +99,7 @@ final class Client implements Destroyable
 
             if ($this->toDisconnect && $this->writeQueue === []) {
                 // Wait for the socket buffer to be flushed.
-                (new Timer(0.1))->wait();
+                (new Timer(0.005))->wait();
                 throw new ClientDisconnected();
             }
             Fiber::suspend();
