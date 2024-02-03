@@ -1,4 +1,5 @@
 /.*/
+!/.github/
 /runtime/
 /vendor/
 /composer.lock

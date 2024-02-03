@@ -12,12 +12,9 @@ We work best with you when we have accepted the idea first before you code. -->
 <!-- Tell your future self why have you made these changes -->
 
 ## Checklist
-<!--- add/delete as needed --->
 
 - Closes #<!-- add issue number here -->
-- How was this tested:
-  <!--- Please describe how you tested your changes/how we can test them -->
-  <!-- - Added autotests -->
-- Any docs updates needed?
-  <!--- Provide a part of the documentation that should be updated
-        or a link to related PR in the documentation repository -->
+- Tested
+  - [ ] Tested manually
+  - [ ] Unit tests added
+- [ ] Documentation <!--- Remove if not needed -->
