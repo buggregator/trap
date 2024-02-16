@@ -111,8 +111,6 @@ final class TrapHandle
      */
     public function return(int|string $key = 0): mixed
     {
-        $this->haveToSend() and $this->sendDump();
-
         if (\count($this->values) === 0) {
             throw new \InvalidArgumentException('No values to return.');
         }
