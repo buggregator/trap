@@ -6,10 +6,10 @@ namespace Buggregator\Trap\Service;
 
 use Buggregator\Trap\Cancellable;
 use Buggregator\Trap\Config\FilesObserver as Config;
+use Buggregator\Trap\Logger;
 use Buggregator\Trap\Processable;
 use Buggregator\Trap\Proto\Buffer;
-use Buggregator\Trap\Proto\Frame\Profiler\File as FileFrame;
-use Buggregator\Trap\Service\FilesObserver\FileInfo;
+use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Service\FilesObserver\Handler;
 use Fiber;
 
@@ -23,13 +23,14 @@ final class FilesObserver implements Processable, Cancellable
     private array $fibers = [];
 
     public function __construct(
+        private readonly Logger $logger,
         private readonly Buffer $buffer,
         Config ...$configs,
     ) {
         foreach ($configs as $config) {
             $this->fibers[] = new Fiber(function () use ($config) {
-                foreach (Handler::generate($config) as $fileInfo) {
-                    $this->propagateFrame($fileInfo);
+                foreach (Handler::generate($config) as $frame) {
+                    $this->propagateFrame($frame);
                 }
             });
         }
@@ -61,9 +62,8 @@ final class FilesObserver implements Processable, Cancellable
         $this->fibers = [];
     }
 
-    private function propagateFrame(FileInfo $info): void
+    private function propagateFrame(Frame $frame): void
     {
-        $frame = new FileFrame($info);
         $this->buffer->addFrame($frame);
     }
 }

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Service\FilesObserver;
 
+/**
+ * @internal
+ */
 final class FileInfo
 {
     public function __construct(
@@ -42,5 +45,15 @@ final class FileInfo
             $data['ctime'],
             $data['mtime'],
         );
+    }
+
+    public function getExtension(): string
+    {
+        return \pathinfo($this->path, PATHINFO_EXTENSION);
+    }
+
+    public function getName(): string
+    {
+        return \pathinfo($this->path, PATHINFO_FILENAME);
     }
 }

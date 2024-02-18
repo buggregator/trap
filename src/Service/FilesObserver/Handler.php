@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Service\FilesObserver;
 
 use Buggregator\Trap\Config\FilesObserver as Config;
+use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Support\Timer;
 
 /**
@@ -16,22 +17,27 @@ final class Handler
     /** @var array<non-empty-string, FileInfo> */
     private array $cache = [];
     private readonly string $path;
+    private FrameConverter $converter;
 
     private function __construct(
         Config $config,
     ) {
         $this->path = $config->path;
         $this->timer = new Timer($config->interval);
+        $this->converter = new ($config->converter)();
     }
 
     /**
-     * @return \Generator<int, FileInfo, mixed, void>
+     * @return \Generator<int, Frame, mixed, void>
      */
     public static function generate(Config $config): \Generator
     {
         $self = new self($config);
         do {
-            yield from $self->syncFiles();
+            foreach ($self->syncFiles() as $info) {
+                yield from $self->converter->convert($info);
+            }
+
             $self->timer->wait()->reset();
         } while (true);
     }
@@ -45,14 +51,13 @@ final class Handler
         $newFiles = [];
         $newState = [];
 
-        foreach ($files as $fileInfo) {
-            $path = $fileInfo->getRealPath();
+        foreach ($files as $info) {
+            $path = $info->path;
             if (!\is_string($path) || \array_key_exists($path, $this->cache)) {
                 $newState[$path] = $this->cache[$path];
                 continue;
             }
 
-            $info = FileInfo::fromSplFileInfo($fileInfo);
             $newState[$path] = $info;
             $newFiles[] = $info;
         }
@@ -62,7 +67,7 @@ final class Handler
     }
 
     /**
-     * @return \Traversable<int, \SplFileInfo>
+     * @return \Traversable<int, FileInfo>
      */
     private function getFiles(): \Traversable
     {
@@ -73,8 +78,8 @@ final class Handler
         );
 
         foreach ($iterator as $fileInfo) {
-            if ($fileInfo->isFile()) {
-                yield $fileInfo;
+            if ($fileInfo->isFile() && $this->converter->validate($info = FileInfo::fromSplFileInfo($fileInfo))) {
+                yield $info;
             }
         }
     }

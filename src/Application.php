@@ -8,6 +8,7 @@ use Buggregator\Trap\Config\SocketServer;
 use Buggregator\Trap\Handler\Http\Handler\Websocket;
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Proto\Buffer;
+use Buggregator\Trap\Service\FilesObserver\Filter\XHProf;
 use Buggregator\Trap\Socket\Client;
 use Buggregator\Trap\Socket\Server;
 use Buggregator\Trap\Socket\SocketStream;
@@ -64,6 +65,7 @@ final class Application implements Processable, Cancellable, Destroyable
         $this->processors[] = $inspector;
 
         $withFrontend and $this->configureFrontend(8000);
+        $this->configureFileObserver();
 
         foreach ($map as $config) {
             $this->prepareServerFiber($config, $inspector, $this->logger);
@@ -139,6 +141,11 @@ final class Application implements Processable, Cancellable, Destroyable
                 }
             }
         );
+        foreach ($this->processors as $processor) {
+            if ($processor instanceof Cancellable) {
+                $processor->cancel();
+            }
+        }
     }
 
     /**
@@ -216,5 +223,23 @@ final class Application implements Processable, Cancellable, Destroyable
 
         $this->processors[] = $wsSender;
         $this->prepareServerFiber(new SocketServer(port: $port), $inspector, $this->logger);
+    }
+
+    private function configureFileObserver()
+    {
+        // todo add
+        // \ini_get('xdebug.output_dir'),
+
+        if (false !== ($path = \ini_get('xhprof.output_dir'))) {
+            $this->processors[] = new Service\FilesObserver(
+                $this->logger,
+                $this->buffer,
+                new Config\FilesObserver(
+                    path: $path,
+                    converter: XHProf::class,
+                    interval: 2.0,
+                ),
+            );
+        }
     }
 }
