@@ -53,7 +53,13 @@ final class XHProf implements FileFilterInterface
         $edges = [];
         /** @var array<string, array<string, int>> $parents */
         $parents = [];
+        /** @var array<string, list<array>> $parents items with unknown caller */
+        $callerLess = [];
         $i = 0;
+        \uasort($data, static function (array $a, array $b) {
+            return $b['wt'] <=> $a['wt'];
+        });
+        // $data = \array_reverse($data, true);
         foreach ($data as $key => $value) {
             [$caller, $callee] = \explode('==>', $key, 2) + [1 => null];
             if ($callee === null) {
@@ -72,8 +78,29 @@ final class XHProf implements FileFilterInterface
                 ],
             ];
 
-            $edges['e' . ++$i] = &$edge;
-            $parents[$callee] = &$edge['cost'];
+            // if (++$j > 10) {
+            //     print_r(\array_keys($parents));
+            //     print_r(\array_keys($edges));
+            //     die;
+            // }
+
+            if ($caller !== null && !\array_key_exists($caller, $parents) && $caller !== $callee) {
+                $callerLess[$caller][] = &$edge;
+                // echo "CALLER: $caller\n";
+                // echo "CALLEE: $callee\n";
+            } else {
+                // echo "CALLER: $callee\n";
+                $parents[$callee] = &$edge['cost'];
+                $edges['e' . ++$i] = &$edge;
+                if (\array_key_exists($callee, $callerLess)) {
+                    foreach ($callerLess[$callee] as $item) {
+                        $edges['a' . ++$i] = &$item;
+                        $parents[$item['callee']] = &$item['cost'];
+                        unset($item);
+                    }
+                    unset($callerLess[$callee]);
+                }
+            }
 
             $peaks['cpu'] = \max($peaks['cpu'], $edge['cost']['cpu']);
             $peaks['ct'] = \max($peaks['ct'], $edge['cost']['ct']);
@@ -84,7 +111,34 @@ final class XHProf implements FileFilterInterface
             unset($edge);
         }
 
-        $edges = \array_reverse($edges);
+        // Merge callerLess items
+        while ($callerLess !== []) {
+            $merged = 0;
+            foreach ($callerLess as $caller => $items) {
+                if (\array_key_exists($caller, $parents)) {
+                    foreach ($items as &$item) {
+                        $edges['c' . ++$i] = &$item;
+                        $parents[$item['callee']] = &$item['cost'];
+                        unset($item);
+                    }
+                    ++$merged;
+                    unset($callerLess[$caller]);
+                }
+            }
+
+            // Just merge all as is
+            if ($merged === 0) {
+                foreach ($callerLess as $items) {
+                    foreach ($items as &$item) {
+                        $edges['f' . ++$i] = &$item;
+                        $parents[$item['callee']] = &$item['cost'];
+                        unset($item);
+                    }
+                }
+
+                $callerLess = [];
+            }
+        }
 
         // calc percentages and delta
         foreach ($edges as &$value) {
