@@ -1,0 +1,1 @@
+import{E as t}from"./layout-sidebar.vue.66485d1b.js";const m=a=>({id:a.uuid,type:t.SMTP,labels:[t.SMTP],origin:null,serverName:"",date:a.timestamp?new Date(a.timestamp*1e3):null,payload:a.payload}),l=()=>({normalizeSmtpEvent:m});export{l as u};

@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Client;
 
+use Buggregator\Trap\Client\TrapHandle\Counter;
+use Buggregator\Trap\Client\TrapHandle\Dumper;
+use Symfony\Component\VarDumper\Cloner\Data;
+use Symfony\Component\VarDumper\Dumper\DataDumperInterface;
+
 final class TrapTest extends Base
 {
     public function testLabel(): void
@@ -72,6 +77,18 @@ final class TrapTest extends Base
 
         $this->expectException(\InvalidArgumentException::class);
         $this->assertSame(42, \trap(42, 43)->return(10));
+    }
+
+    public function testReturnSendsDumpOnce(): void
+    {
+        $dumper = $this->getMockBuilder(DataDumperInterface::class)
+            ->getMock();
+        $dumper->expects($this->once())
+            ->method('dump')
+            ->willReturnArgument(1);
+        Dumper::setDumper($dumper);
+
+        $this->assertSame(42, \trap(42)->return());
     }
 
     public static function provideTrapTimes(): iterable

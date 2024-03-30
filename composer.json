@@ -67,13 +67,10 @@
         "dereuromark/composer-prefer-lowest": "^0.1.10",
         "google/protobuf": "^3.23",
         "phpunit/phpunit": "^10.4",
+        "roxblnfk/unpoly": "^1.8.1",
         "vimeo/psalm": "^5.11"
     },
-    "replace": {
-        "symfony/polyfill-php72": "*",
-        "symfony/polyfill-php73": "*",
-        "symfony/polyfill-php74": "*",
-        "symfony/polyfill-php80": "*",
-        "symfony/polyfill-php81": "*"
+    "suggest": {
+        "roxblnfk/unpoly": "If you want to remove unnecessary PHP polyfills depend on PHP version."
     }
 }
