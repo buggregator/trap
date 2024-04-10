@@ -17,8 +17,9 @@ final class Emitter
 {
     /**
      * Preferred chunk size to be read from the stream before emitting. A value of 0 disables stream response.
+     * Value greater than 100 KB might not work with Linux Docker.
      */
-    public static int $bufferSize = 2_097_152; // 2MB
+    public static int $bufferSize = 1024 * 100;
 
     /**
      * Send {@see ResponseInterface} to the client.

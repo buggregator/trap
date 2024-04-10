@@ -43,7 +43,6 @@ final class Server implements Processable, Cancellable, Destroyable
     ) {
         $this->socket = @\socket_create_listen($port);
         /** @link https://github.com/buggregator/trap/pull/14 */
-        // todo
         // \socket_set_option($this->socket, \SOL_SOCKET, \SO_LINGER, ['l_linger' => 0, 'l_onoff' => 1]);
 
         if ($this->socket === false) {
