@@ -11,6 +11,7 @@ use Buggregator\Trap\Handler\Router\Attribute\StaticRoute;
 use Buggregator\Trap\Handler\Router\Method;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Sender\Frontend\Message\EventCollection;
+use Buggregator\Trap\Sender\Frontend\Message\Settings;
 use Buggregator\Trap\Sender\Frontend\Message\Success;
 use Buggregator\Trap\Sender\Frontend\Message\Version;
 
@@ -95,6 +96,18 @@ final class Service
     {
         $this->debug('List all events');
         return new EventCollection(events: \iterator_to_array($this->eventsStorage->getIterator(), false));
+    }
+
+    #[StaticRoute(Method::Get, 'api/settings')]
+    #[
+        AssertFail(Method::Get, 'api/setting'),
+        AssertFail(Method::Post, 'api/settings'),
+        AssertFail(Method::Get, '/api/settings'),
+    ]
+    public function settings(): Settings
+    {
+        $this->debug('List settings');
+        return new Settings();
     }
 
     private function debug(string $pattern, string ...$args): void
