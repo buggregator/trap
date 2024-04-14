@@ -70,7 +70,7 @@ final class Binary implements Renderer
 
         $size = $frame->getSize();
         Common::renderMetadata($output, [
-            'Time' => $frame->time->format('Y-m-d H:i:s.u'),
+            'Time' => $frame->time,
             'Size' => Files::normalizeSize($size) . ($size > 1024 ? \sprintf(' (%d bytes)', $size) : ''),
         ]);
 

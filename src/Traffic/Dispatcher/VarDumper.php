@@ -24,7 +24,7 @@ final class VarDumper implements Dispatcher
                 continue;
             }
 
-            yield new Frame\VarDumper($line, $stream->getCreatedAt());
+            yield new Frame\VarDumper($line);
         }
     }
 

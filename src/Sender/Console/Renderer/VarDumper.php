@@ -67,8 +67,7 @@ final class VarDumper implements Renderer
                 $this->dumper->setColors($output->isDecorated());
 
                 $meta = [];
-                $meta['Time'] = (new DateTimeImmutable())->setTimestamp((int)$context['timestamp'])
-                    ->format('Y-m-d H:i:s');
+                $meta['Time'] = (new DateTimeImmutable())->setTimestamp((int)$context['timestamp']);
 
                 try {
                     if (isset($context['source'])) {
