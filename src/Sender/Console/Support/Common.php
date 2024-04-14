@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Console\Support;
 
+use DateTimeInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -52,12 +53,13 @@ final class Common
     }
 
     /**
-     * @param array<array-key, string|string[]> $data
+     * @param array<array-key, mixed> $data
      */
     public static function renderMetadata(OutputInterface $output, array $data): void
     {
         $maxHeaderLength = \max(\array_map('strlen', \array_keys($data)));
 
+        /** @var mixed $value */
         foreach ($data as $head => $value) {
             // Align headers to the right
             self::renderHeader(
@@ -125,13 +127,10 @@ final class Common
         }
     }
 
-    /**
-     * @param string|string[]|array $value
-     */
     public static function renderHeader(
         OutputInterface $output,
         string $name,
-        string|array $value,
+        mixed $value,
         Color $keyColor = Color::Green,
         Color $valueColor = Color::Default,
         Color $secondKeyColor = Color::Gray,
@@ -144,9 +143,14 @@ final class Common
                 $output->write(\sprintf('<fg=%s>%s</>: ', $secondKeyColor->value, $name));
             }
 
-            if (!\is_scalar($item)) {
-                $item = \print_r($item, true);
-            }
+            $item = match (true) {
+                $value instanceof DateTimeInterface => $value->format('u') === '000000'
+                    ? $value->format('Y-m-d H:i:s')
+                    : $value->format('Y-m-d H:i:s.u'),
+                \is_scalar($value) || $value instanceof \Stringable => (string)$value,
+                default => \print_r($item, true),
+            };
+
             $output->writeln(\sprintf('<fg=%s>%s</>', $valueColor->value, $item));
         }
     }

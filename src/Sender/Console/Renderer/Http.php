@@ -34,9 +34,6 @@ final class Http implements Renderer
     private function renderData(OutputInterface $output, Frame\Http $frame): void
     {
         $request = $frame->request;
-        $date = $frame->time->format('Y-m-d H:i:s.u');
-        $uri = (string)$request->getUri();
-        $method = $request->getMethod();
         $body = $request->getBody();
 
         $color = match ($frame->request->getMethod()) {
@@ -46,11 +43,11 @@ final class Http implements Renderer
             default => Color::Gray->value,
         };
 
-        Common::renderHeader1($output, 'HTTP', ...[$color => $method]);
+        Common::renderHeader1($output, 'HTTP', ...[$color => $request->getMethod()]);
 
         Common::renderMetadata($output, [
-            'Time' => $date,
-            'URI' => $uri,
+            'Time' => $frame->time,
+            'URI' => (string)$request->getUri(),
         ]);
 
         if ($request->getQueryParams() !== []) {
