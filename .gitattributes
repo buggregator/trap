@@ -8,3 +8,5 @@
 /psalm.*       export-ignore
 /infection.*   export-ignore
 /codecov.*     export-ignore
+
+*.http binary
