@@ -26,7 +26,7 @@ final class Header
         } catch (\Throwable) {
             $time = new DateTimeImmutable();
         }
-        $meta['Time'] = $time->format('Y-m-d H:i:s.u');
+        $meta['Time'] = $time;
         isset($message['event_id']) and $meta['Event ID'] = $message['event_id'];
         isset($message['transaction']) and $meta['Transaction'] = $message['transaction'];
         isset($message['server_name']) and $meta['Server'] = $message['server_name'];

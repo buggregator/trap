@@ -29,7 +29,7 @@ final class Smtp implements Renderer
 
         Common::renderHeader1($output, 'SMTP');
         Common::renderMetadata($output, [
-            'Time' => $frame->time->format('Y-m-d H:i:s.u'),
+            'Time' => $frame->time,
         ]);
         $message = $frame->message;
 

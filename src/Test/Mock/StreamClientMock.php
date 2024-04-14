@@ -8,6 +8,7 @@ use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Test\Mock\StreamClientMock\DisconnectCommand;
 use Buggregator\Trap\Traffic\StreamClient;
 use DateTimeImmutable;
+use DateTimeInterface;
 use Fiber;
 use Generator;
 
@@ -22,6 +23,7 @@ final class StreamClientMock implements StreamClient
 
     private function __construct(
         private readonly Generator $generator,
+        private readonly DateTimeInterface $createdAt = new DateTimeImmutable(),
     ) {
         $this->queue = new \SplQueue();
     }
@@ -69,7 +71,7 @@ final class StreamClientMock implements StreamClient
 
     public function isDisconnected(): bool
     {
-        $this->disconnected = $this->disconnected && $this->generator->valid();
+        $this->disconnected = $this->disconnected || !$this->generator->valid();
         return $this->disconnected;
     }
 
@@ -148,6 +150,6 @@ final class StreamClientMock implements StreamClient
 
     public function getCreatedAt(): DateTimeImmutable
     {
-        return new DateTimeImmutable();
+        return $this->createdAt;
     }
 }
