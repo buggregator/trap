@@ -29,10 +29,14 @@ final class XHProf implements FileFilterInterface
             $payload = $this->dataToPayload($data);
             $payload['date'] = $file->mtime;
             $payload['hostname'] = \explode('.', $file->getName(), 2)[0];
+            $payload['filename'] = $file->getName();
 
-            yield new ProfilerFrame\Payload(
-                $payload,
+            yield new ProfilerFrame(
+                ProfilerFrame\Payload::fromArray($payload, ProfilerFrame\Type::XHProf),
             );
+            // yield new ProfilerFrame(
+            //     ProfilerFrame\Payload::fromFile($file),
+            // );
         } catch (\Throwable $e) {
             // todo log
             var_dump($e->getMessage());

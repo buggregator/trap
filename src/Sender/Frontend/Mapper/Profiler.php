@@ -12,12 +12,12 @@ use Buggregator\Trap\Support\Uuid;
  */
 final class Profiler
 {
-    public function map(\Buggregator\Trap\Proto\Frame\Profiler\Payload $frame): Event
+    public function map(\Buggregator\Trap\Proto\Frame\Profiler $frame): Event
     {
         return new Event(
             uuid: Uuid::generate(),
             type: 'profiler',
-            payload: $frame->payload,
+            payload: $frame->payload->toArray(),
             timestamp: (float)$frame->time->format('U.u'),
         );
     }

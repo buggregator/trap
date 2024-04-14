@@ -4,36 +4,84 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Proto\Frame\Profiler;
 
-use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\ProtoType;
-use Buggregator\Trap\Support\Json;
-use DateTimeImmutable;
+use Buggregator\Trap\Proto\Frame\Profiler\Type as PayloadType;
+use Buggregator\Trap\Service\FilesObserver\FileInfo;
 
 /**
+ * @psalm-type Metadata = array{
+ *     date: int,
+ *     hostname: non-empty-string,
+ *     filename?: non-empty-string,
+ *     ...
+ * }
+ * @psalm-type Calls = array{
+ *     edges: array,
+ *     peaks: array
+ * }
+ *
  * @internal
  * @psalm-internal Buggregator
  */
-final class Payload extends Frame\Profiler
+class Payload implements \JsonSerializable
 {
-    public const PROFILE_FRAME_TYPE = 'payload';
-
-    public function __construct(
-        public array $payload,
-        DateTimeImmutable $time = new DateTimeImmutable(),
+    /**
+     * @param PayloadType $type
+     * @param Metadata $metadata
+     * @param \Closure(): Calls $callsProvider
+     */
+    private function __construct(
+        public readonly PayloadType $type,
+        private array $metadata,
+        private \Closure $callsProvider,
     ) {
-        parent::__construct(ProtoType::Profiler, $time);
+        $this->metadata['type'] = $type->value;
+    }
+
+    public static function fromArray(array $data, ?Type $type = null): static
+    {
+        $metadata = $data;
+        unset($metadata['edges'], $metadata['peaks']);
+        return new static(
+            $type ?? PayloadType::from($data['type']),
+            $metadata,
+            static fn(): array => $data,
+        );
+    }
+
+    public static function fromFile(FileInfo $fileInfo): static
+    {
+        // todo
+        // $metadata = $data;
+        // unset($metadata['edges'], $metadata['peaks']);
+        // return new static(PayloadType::from($data['type']), $metadata, fn(): array => $data);
     }
 
     /**
-     * @throws \JsonException
+     * @return Calls
      */
-    public function __toString(): string
+    public function getCalls(): array
     {
-        return Json::encode($this->payload);
+        return ($this->callsProvider)();
     }
 
-    public static function fromArray(array $data, DateTimeImmutable $time): static
+    /**
+     * @return Metadata
+     */
+    public function getMetadata(): array
     {
-        return new self($data, $time);
+        return $this->metadata;
+    }
+
+    public function toArray(): array
+    {
+        return ['type' => $this->type->value] + $this->getCalls() + $this->getMetadata();
+    }
+
+    /**
+     * @return array{type: non-empty-string}&Calls&Metadata
+     */
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
     }
 }
