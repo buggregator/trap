@@ -43,9 +43,8 @@ final class Test extends Command
         $this->mail($output, false);
         \usleep(100_000);
         $this->sendContent('sentry-store.http'); // Sentry Store very short
-        $this->sendContent('sentry-store-py.http'); // Sentry Store from python
-         $this->sendContent('sentry-store-2.http'); // Sentry Store full
-         $this->sendContent('sentry-envelope.http'); // Sentry envelope
+        $this->sendContent('sentry-store-2.http'); // Sentry Store full
+        $this->sendContent('sentry-envelope.http'); // Sentry envelope
         \usleep(100_000);
         $this->sendContent('90275024.png');
 
