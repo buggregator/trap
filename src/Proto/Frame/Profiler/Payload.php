@@ -37,6 +37,19 @@ class Payload implements \JsonSerializable
         $this->metadata['type'] = $type->value;
     }
 
+    /**
+     * @param PayloadType $type
+     * @param Metadata $metadata
+     * @param \Closure(): Calls $callsProvider
+     */
+    public static function new(
+        PayloadType $type,
+        array $metadata,
+        \Closure $callsProvider,
+    ): self {
+        return new static($type, $metadata, $callsProvider);
+    }
+
     public static function fromArray(array $data, ?Type $type = null): static
     {
         $metadata = $data;
@@ -46,14 +59,6 @@ class Payload implements \JsonSerializable
             $metadata,
             static fn(): array => $data,
         );
-    }
-
-    public static function fromFile(FileInfo $fileInfo): static
-    {
-        // todo
-        // $metadata = $data;
-        // unset($metadata['edges'], $metadata['peaks']);
-        // return new static(PayloadType::from($data['type']), $metadata, fn(): array => $data);
     }
 
     /**

@@ -21,22 +21,23 @@ final class XHProf implements FileFilterInterface
     public function convert(FileInfo $file): \Traversable
     {
         try {
-            // todo read in a stream
-            $content = \file_get_contents($file->path);
-
-            $data = \unserialize($content, ['allowed_classes' => false]);
-
-            $payload = $this->dataToPayload($data);
-            $payload['date'] = $file->mtime;
-            $payload['hostname'] = \explode('.', $file->getName(), 2)[0];
-            $payload['filename'] = $file->getName();
+            $metadata = [
+                'date' => $file->mtime,
+                'hostname' => \explode('.', $file->getName(), 2)[0],
+                'filename' => $file->getName(),
+            ];
 
             yield new ProfilerFrame(
-                ProfilerFrame\Payload::fromArray($payload, ProfilerFrame\Type::XHProf),
+                ProfilerFrame\Payload::new(
+                    type: ProfilerFrame\Type::XHProf,
+                    metadata: $metadata,
+                    callsProvider: function () use ($file): array {
+                        $content = \file_get_contents($file->path);
+                        $data = \unserialize($content, ['allowed_classes' => false]);
+                        return $this->dataToPayload($data);
+                    },
+                ),
             );
-            // yield new ProfilerFrame(
-            //     ProfilerFrame\Payload::fromFile($file),
-            // );
         } catch (\Throwable $e) {
             // todo log
             var_dump($e->getMessage());
