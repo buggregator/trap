@@ -29,7 +29,7 @@ final class FilesObserver implements Processable, Cancellable
     ) {
         foreach ($configs as $config) {
             $this->fibers[] = new Fiber(function () use ($config) {
-                foreach (Handler::generate($config) as $frame) {
+                foreach (Handler::generate($config, $this->logger) as $frame) {
                     $this->propagateFrame($frame);
                 }
             });

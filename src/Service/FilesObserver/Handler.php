@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Service\FilesObserver;
 
 use Buggregator\Trap\Config\FilesObserver as Config;
+use Buggregator\Trap\Logger;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Support\Timer;
 
@@ -21,6 +22,7 @@ final class Handler
 
     private function __construct(
         Config $config,
+        private readonly Logger $logger,
     ) {
         $this->path = $config->path;
         $this->timer = new Timer($config->interval);
@@ -30,9 +32,9 @@ final class Handler
     /**
      * @return \Generator<int, Frame, mixed, void>
      */
-    public static function generate(Config $config): \Generator
+    public static function generate(Config $config, Logger $logger): \Generator
     {
-        $self = new self($config);
+        $self = new self($config, $logger);
         do {
             foreach ($self->syncFiles() as $info) {
                 yield from $self->converter->convert($info);
@@ -71,16 +73,22 @@ final class Handler
      */
     private function getFiles(): \Traversable
     {
-        /** @var \Iterator<\SplFileInfo> $iterator */
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($this->path, \RecursiveDirectoryIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::SELF_FIRST,
-        );
+        try {
+            /** @var \Iterator<\SplFileInfo> $iterator */
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($this->path, \RecursiveDirectoryIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::SELF_FIRST,
+            );
 
-        foreach ($iterator as $fileInfo) {
-            if ($fileInfo->isFile() && $this->converter->validate($info = FileInfo::fromSplFileInfo($fileInfo))) {
-                yield $info;
+            foreach ($iterator as $fileInfo) {
+                if ($fileInfo->isFile() && $this->converter->validate($info = FileInfo::fromSplFileInfo($fileInfo))) {
+                    yield $info;
+                }
             }
+        } catch (\Throwable $e) {
+            $this->logger->info('Failed to read files from path `%s`', $this->path);
+            $this->logger->exception($e);
+            return [];
         }
     }
 }

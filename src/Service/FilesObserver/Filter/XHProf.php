@@ -27,6 +27,7 @@ final class XHProf implements FileFilterInterface
                 'filename' => $file->getName(),
             ];
 
+            /** @psalm-suppress MixedArgumentTypeCoercion */
             yield new ProfilerFrame(
                 ProfilerFrame\Payload::new(
                     type: ProfilerFrame\Type::XHProf,
