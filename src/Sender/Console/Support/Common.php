@@ -136,7 +136,7 @@ final class Common
         Color $secondKeyColor = Color::Gray,
     ): void {
         $i = 0;
-        foreach ((array)$value as $item) {
+        foreach (\is_array($value) ? $value : [$value] as $item) {
             if ($i++ === 0) {
                 $output->write(\sprintf('<fg=%s;options=bold>%s</>: ', $keyColor->value, $name));
             } else {
