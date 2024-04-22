@@ -63,11 +63,18 @@ final class Run extends Command implements SignalableCommandInterface
              * @var SocketServer[] $servers
              */
             $servers = [];
-            foreach ($input->getOption('port') ?: [9912] as $port) {
+            $ports = $input->getOption('port') ?: [9912];
+            \assert(\is_array($ports));
+            foreach ($ports as $port) {
+                \assert(\is_scalar($port));
                 \is_numeric($port) or throw new \InvalidArgumentException(
-                    \sprintf('Invalid port `%s`. It must be a number.', $port),
+                    \sprintf('Invalid port `%s`. It must be a number.', (string)$port),
                 );
-                $servers[] = new SocketServer((int)$port);
+                $port = (int)$port;
+                $port > 0 && $port < 65536 or throw new \InvalidArgumentException(
+                    \sprintf('Invalid port `%s`. It must be in range 1-65535.', $port),
+                );
+                $servers[] = new SocketServer($port);
             }
 
             /** @var non-empty-string[] $senders */
