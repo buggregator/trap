@@ -32,7 +32,13 @@ final class Run extends Command implements SignalableCommandInterface
 
     public function configure(): void
     {
-        $this->addOption('port', 'p', InputOption::VALUE_OPTIONAL, 'Port to listen', 9912);
+        $this->addOption(
+            'port',
+            'p',
+            InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY,
+            'Port to listen',
+            [9912],
+        );
         $this->addOption(
             'sender',
             's',
@@ -52,14 +58,25 @@ final class Run extends Command implements SignalableCommandInterface
             $output->writeln(\sprintf('<fg=yellow;options=bold>%s</> <info>v%s</>', Info::NAME, Info::VERSION));
             $output->write(Info::LOGO_CLI_COLOR . "\n", true, OutputInterface::OUTPUT_RAW);
 
-            $port = (int)$input->getOption('port') ?: 9912;
+            /**
+             * Prepare port listeners
+             * @var SocketServer[] $servers
+             */
+            $servers = [];
+            foreach ($input->getOption('port') ?: [9912] as $port) {
+                \is_numeric($port) or throw new \InvalidArgumentException(
+                    \sprintf('Invalid port `%s`. It must be a number.', $port),
+                );
+                $servers[] = new SocketServer((int)$port);
+            }
+
             /** @var non-empty-string[] $senders */
             $senders = (array)$input->getOption('sender');
 
             $registry = $this->createRegistry($output);
 
             $this->app = new Application(
-                [new SocketServer($port)],
+                $servers,
                 new Logger($output),
                 senders: $registry->getSenders($senders),
                 withFrontend: $input->getOption('ui') !== false,
