@@ -141,13 +141,20 @@ $responder->respond(trap($response)->return());
 
 ### Default port
 
-By default, the Trap server operates on port `9912`. However, if you wish to utilize a different port, you can easily
-make this adjustment using the `-p` option.
-
-For example, to switch to port 8000, you would use the following command:
+Trap automatically recognizes the type of traffic.
+Therefore, there is no need to open separate ports for different protocols.
+By default, it operates on port `9912`.
+However, if you wish to utilize a different port, you can easily make this adjustment using the `-p` option:
 
 ```bash
-vendor/bin/trap -p 8000
+vendor/bin/trap -p8000
+```
+
+Sometimes, it's convenient to run Trap on the same ports that [Buggregator](https://github.com/buggregator/server)
+uses by default. Well, that's also possible:
+
+```bash
+vendor/bin/trap -p1025 -p9912 -p9913 -p8000
 ```
 
 ### Choosing Your Senders
