@@ -32,17 +32,17 @@ class CliStartupSpeechBubble
         $result = '';
 
         $jokeLines = self::getJokeLines();
-        $maxJokeLineLen = max(array_map('mb_strlen', $jokeLines)) + 2;
+        $maxJokeLineLen = \max(\array_map('\mb_strlen', $jokeLines)) + 2;
 
         foreach ($jokeLines as $line) {
-            $rightSpaces = str_repeat(' ', $maxJokeLineLen - mb_strlen($line));
+            $rightSpaces = \str_repeat(' ', $maxJokeLineLen - \mb_strlen($line));
             $result .= "\e[44;97;1m" . $line .  $rightSpaces .  "\e[0m\n";
         }
 
-        $logoLines = explode("\n", self::LOGO);
+        $logoLines = \explode("\n", self::LOGO);
 
         foreach ($logoLines as $line) {
-            $rightSpaces = str_repeat(' ', $maxJokeLineLen - mb_strlen($line));
+            $rightSpaces = \str_repeat(' ', $maxJokeLineLen - \mb_strlen($line));
             $result .= "\e[44;97;1m" . $line .  $rightSpaces .  "\e[0m\n";
         }
 
@@ -54,15 +54,15 @@ class CliStartupSpeechBubble
      */
     private static function getJokeLines(): array
     {
-        $joke = self::JOKES[mt_rand(0, \count(self::JOKES) - 1)];
-        $jokeLen = max(\strlen($joke), 13);
-        $speechBubbleLeftSpace = str_repeat(' ', 14);
+        $joke = self::JOKES[\mt_rand(0, \count(self::JOKES) - 1)];
+        $jokeLen = \max(\strlen($joke), 13);
+        $speechBubbleLeftSpace = \str_repeat(' ', 14);
 
         $lines = [];
-        $lines[] = $speechBubbleLeftSpace.'⠘⡀⠀⠀'.str_repeat(' ', $jokeLen).'⠀⠀ ⡜';
-        $lines[] = $speechBubbleLeftSpace.' ⠘⡀⠀'.str_pad($joke, $jokeLen, ' ', STR_PAD_BOTH).'⠀ ⡜';
-        $lines[] = $speechBubbleLeftSpace.'  ⠑⡀'.str_repeat(' ', $jokeLen).'⡔⠁';
-        $lines[] = $speechBubbleLeftSpace.'   ⢸    '.str_repeat('⣀', $jokeLen - 13).'⣀⣀⣀⣀⡀⠤⠄⠒⠈';
+        $lines[] = $speechBubbleLeftSpace.'⠘⡀⠀⠀'.\str_repeat(' ', $jokeLen).'⠀⠀ ⡜';
+        $lines[] = $speechBubbleLeftSpace.' ⠘⡀⠀'.\str_pad($joke, $jokeLen, ' ', STR_PAD_BOTH).'⠀ ⡜';
+        $lines[] = $speechBubbleLeftSpace.'  ⠑⡀'.\str_repeat(' ', $jokeLen).'⡔⠁';
+        $lines[] = $speechBubbleLeftSpace.'   ⢸    '.\str_repeat('⣀', $jokeLen - 13).'⣀⣀⣀⣀⡀⠤⠄⠒⠈';
         $lines[] = $speechBubbleLeftSpace.'   ⠘⣀⠄⠊⠁';
 
         return $lines;
