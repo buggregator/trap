@@ -25,6 +25,7 @@ class CliStartupSpeechBubble
         'Two hard things in computer science: cache invalidation, naming things and stack overflow.',
         'Depressive programming style through dump and die.',
         'PHP was dead 84 years ago right?',
+        'Submit a pull request to help us improve the Buggregator Trap codebase',
     ];
 
     public static function getStartupSpeechBubble(): string
