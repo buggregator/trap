@@ -6,7 +6,7 @@ namespace Buggregator\Trap\Command;
 
 use Buggregator\Trap\Application;
 use Buggregator\Trap\Config\SocketServer;
-use Buggregator\Trap\Cli\StartupJokeSpeechBubble;
+use Buggregator\Trap\Cli\CliStartupSpeechBubble;
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Sender;
@@ -58,7 +58,7 @@ final class Run extends Command implements SignalableCommandInterface
             // Print intro
             $output->writeln(\sprintf('<fg=yellow;options=bold>%s</> <info>v%s</>', Info::NAME, Info::VERSION));
             $output->write(
-                StartupJokeSpeechBubble::randomStartupJokeSpeechBubble() . Info::LOGO_CLI_COLOR . "\n",
+                "\n" . CliStartupSpeechBubble::getStartupSpeechBubble() . "\n",
                 true,
                 OutputInterface::OUTPUT_RAW
             );
