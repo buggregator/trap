@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Traffic\Message;
 
 use Buggregator\Trap\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
+use Buggregator\Trap\Traffic\Message\Multipart\Part;
 use Buggregator\Trap\Traffic\Message\Smtp\Contact;
 use Buggregator\Trap\Traffic\Message\Smtp\MessageFormat;
 use JsonSerializable;
@@ -31,8 +32,8 @@ final class Smtp implements JsonSerializable
     private array $attachments = [];
 
     /**
-     * @param array<array-key, list<scalar>> $protocol
-     * @param array<array-key, scalar|list<scalar>> $headers
+     * @param array<non-empty-string, list<non-empty-string>> $protocol
+     * @param array<string, scalar|list<scalar>> $headers
      */
     private function __construct(
         private readonly array $protocol,
@@ -42,14 +43,22 @@ final class Smtp implements JsonSerializable
     }
 
     /**
-     * @param array<array-key, list<scalar>> $protocol
-     * @param array<array-key, scalar|list<scalar>> $headers
+     * @param array<non-empty-string, list<non-empty-string>> $protocol
+     * @param array<string, scalar|list<scalar>> $headers
      */
     public static function create(array $protocol, array $headers): self
     {
         return new self($protocol, $headers);
     }
 
+    /**
+     * @param array{
+     *     protocol: array<non-empty-string, list<non-empty-string>>,
+     *     headers: array<string, scalar|list<scalar>>,
+     *     messages: list<FieldDataArray>,
+     *     attachments: list<FileDataArray>,
+     * } $data
+     */
     public static function fromArray(array $data): self
     {
         $self = new self($data['protocol'], $data['headers']);
@@ -74,7 +83,7 @@ final class Smtp implements JsonSerializable
     }
 
     /**
-     * @return Field[]
+     * @return list<Field>
      */
     public function getMessages(): array
     {
@@ -82,7 +91,7 @@ final class Smtp implements JsonSerializable
     }
 
     /**
-     * @return File[]
+     * @return list<File>
      */
     public function getAttachments(): array
     {
@@ -90,7 +99,7 @@ final class Smtp implements JsonSerializable
     }
 
     /**
-     * @param Field[] $messages
+     * @param list<Field> $messages
      */
     public function withMessages(array $messages): self
     {
@@ -100,7 +109,7 @@ final class Smtp implements JsonSerializable
     }
 
     /**
-     * @param File[] $attachments
+     * @param list<File> $attachments
      */
     public function withAttachments(array $attachments): self
     {
@@ -110,7 +119,7 @@ final class Smtp implements JsonSerializable
     }
 
     /**
-     * @return array<string, string|list<string>>
+     * @return array<non-empty-string, list<non-empty-string>>
      */
     public function getProtocol(): array
     {

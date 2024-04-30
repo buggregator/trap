@@ -26,6 +26,9 @@ final class Client implements Destroyable
     private \Closure $onPayload;
     private \Closure $onClose;
 
+    /**
+     * @param positive-int $payloadSize
+     */
     private function __construct(
         private readonly \Socket $socket,
         private readonly int $payloadSize,
@@ -117,6 +120,7 @@ final class Client implements Destroyable
      */
     public function setOnPayload(callable $callable): void
     {
+        /** @psalm-suppress PossiblyNullPropertyAssignmentValue */
         $this->onPayload = \Closure::bind($callable(...), $this);
     }
 
@@ -126,6 +130,7 @@ final class Client implements Destroyable
      */
     public function setOnClose(callable $callable): void
     {
+        /** @psalm-suppress PossiblyNullPropertyAssignmentValue */
         $this->onClose = \Closure::bind($callable(...), $this);
     }
 

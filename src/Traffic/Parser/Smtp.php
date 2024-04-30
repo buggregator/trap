@@ -18,7 +18,7 @@ use Psr\Http\Message\StreamInterface;
 final class Smtp
 {
     /**
-     * @param array<string, list<string>> $protocol
+     * @param array<non-empty-string, list<non-empty-string>> $protocol
      */
     public function parseStream(array $protocol, StreamClient $stream): Message\Smtp
     {

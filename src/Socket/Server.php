@@ -92,6 +92,7 @@ final class Server implements Processable, Cancellable, Destroyable
 
     public function process(): void
     {
+        /** @psalm-suppress PossiblyInvalidArgument */
         while (!$this->cancelled and false !== ($socket = \socket_accept($this->socket))) {
             $client = null;
             try {

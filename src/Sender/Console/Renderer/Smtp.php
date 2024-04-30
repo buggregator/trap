@@ -58,9 +58,9 @@ final class Smtp implements Renderer
             foreach ($message->getAttachments() as $attach) {
                 Files::renderFile(
                     $output,
-                    $attach->getClientFilename(),
+                    $attach->getClientFilename() ?? 'undefined',
                     $attach->getSize(),
-                    $attach->getClientMediaType(),
+                    $attach->getClientMediaType() ?? 'undefined',
                 );
             }
             $output->writeln('');

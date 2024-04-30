@@ -9,12 +9,15 @@ namespace Buggregator\Trap\Traffic\Message;
  */
 trait Headers
 {
-    /** @var array Map of all registered headers, as original name => array of values */
+    /** @var array<non-empty-string, list<string>> Map of all registered headers, as original name => array of values */
     private array $headers = [];
 
-    /** @var array Map of lowercase header name => original name at registration */
+    /** @var array<non-empty-string, non-empty-string> Map of lowercase header name => original name at registration */
     private array $headerNames = [];
 
+    /**
+     * @return array<non-empty-string, list<string>>
+     */
     public function getHeaders(): array
     {
         return $this->headers;
@@ -26,7 +29,7 @@ trait Headers
     }
 
     /**
-     * @return string[]
+     * @return list<string>
      */
     public function getHeader(string $header): array
     {
@@ -45,9 +48,10 @@ trait Headers
         return \implode(', ', $this->getHeader($header));
     }
 
-    public function withHeader(string $header, $value): static
+    public function withHeader(string $header, mixed $value): static
     {
         $value = $this->validateAndTrimHeader($header, $value);
+        /** @var non-empty-string $normalized */
         $normalized = \strtr($header, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz');
 
         $new = clone $this;
@@ -87,7 +91,7 @@ trait Headers
     }
 
     /**
-     * @param array<array-key, scalar|list<scalar>> $headers
+     * @param array<string|int, scalar|list<scalar>> $headers
      */
     private function setHeaders(array $headers): void
     {
@@ -98,6 +102,7 @@ trait Headers
                 $header = (string)$header;
             }
             $value = $this->validateAndTrimHeader($header, $value);
+            /** @var non-empty-string $normalized */
             $normalized = \strtr($header, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz');
             if (isset($this->headerNames[$normalized])) {
                 $header = $this->headerNames[$normalized];
@@ -126,8 +131,12 @@ trait Headers
      * field-value  = *( ( %x21-7E / %x80-FF ) [ 1*( SP / HTAB ) ( %x21-7E / %x80-FF ) ] )
      *
      * @see https://tools.ietf.org/html/rfc7230#section-3.2.4
+     *
+     * @psalm-assert non-empty-string $header
+     *
+     * @return non-empty-list<string>
      */
-    private function validateAndTrimHeader(string $header, $values): array
+    private function validateAndTrimHeader(string $header, mixed $values): array
     {
         if (1 !== \preg_match("@^[!#$%&'*+.^_`|~0-9A-Za-z-]+$@D", $header)) {
             throw new \InvalidArgumentException('Header name must be an RFC 7230 compatible string');
@@ -170,10 +179,10 @@ trait Headers
     /**
      * List of header values.
      *
-     * @param array<string, list<non-empty-string>> $headers
+     * @param array<non-empty-string, list<string>> $headers
      * @param non-empty-string $header
      *
-     * @return list<non-empty-string>
+     * @return list<string>
      */
     private static function findHeader(array $headers, string $header): array
     {

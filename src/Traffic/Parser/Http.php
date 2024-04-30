@@ -64,8 +64,13 @@ final class Http
             $rawCookies = \explode(';', $request->getHeaderLine('Cookie'));
             $cookies = [];
             foreach ($rawCookies as $cookie) {
-                [$name, $value] = \explode('=', \trim($cookie), 2);
-                $cookies[$name] = $value;
+                if (!str_contains($cookie, '=')) {
+                    /** @psalm-suppress PossiblyUndefinedArrayOffset */
+                    [$name, $value] = \explode('=', \trim($cookie), 2);
+                    $cookies[$name] = $value;
+                } else {
+                    throw new RuntimeException('Invalid cookie: ' . $cookie);
+                }
             }
 
             $request = $request->withCookieParams($cookies);
@@ -77,7 +82,7 @@ final class Http
     /**
      * @param string $line
      *
-     * @return array{0: non-empty-string, 1: non-empty-string, 2: non-empty-string}
+     * @return list{non-empty-string, non-empty-string, non-empty-string}
      */
     private function parseFirstLine(string $line): array
     {
@@ -85,7 +90,11 @@ final class Http
         if (\count($parts) !== 3) {
             throw new \InvalidArgumentException('Invalid first line.');
         }
+
         $parts[2] = \explode('/', $parts[2], 2)[1] ?? $parts[2];
+        if ($parts[0] === '' || $parts[1] === '' || $parts[2] === '') {
+            throw new \InvalidArgumentException('Invalid first line.');
+        }
 
         return $parts;
     }
@@ -143,8 +152,11 @@ final class Http
         if (\preg_match('/boundary="?([^"\\s;]++)"?/', $request->getHeaderLine('Content-Type'), $matches) !== 1) {
             return $request;
         }
-
         $boundary = $matches[1];
+        if ($boundary === '') {
+            throw new \Exception('Boundary can\'t be empty');
+        }
+
         $parts = self::parseMultipartBody($request->getBody(), $boundary);
         $uploadedFiles = $parsedBody = [];
         foreach ($parts as $part) {
@@ -159,7 +171,7 @@ final class Http
             if ($part instanceof File) {
                 $uploadedFiles[$name][] = new UploadedFile(
                     $part->getStream(),
-                    $part->getSize(),
+                    (int) $part->getSize(),
                     $part->getError(),
                     $part->getClientFilename(),
                     $part->getClientMediaType(),

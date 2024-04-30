@@ -13,6 +13,9 @@ use Symfony\Component\Console\Output\OutputInterface;
 final class Files
 {
     /**
+     *
+     * @param non-negative-int|null $size
+     *
      * Render file info. Example:
      *  ┌───┐  logo.ico
      *  │ico│  20.06 KiB
@@ -24,6 +27,7 @@ final class Files
      *  │   │  any value                <= positional argument
      *  │ico│  unknown size
      *  └───┘  image/x-icon
+     *
      */
     public static function renderFile(
         OutputInterface $output,
@@ -33,7 +37,7 @@ final class Files
         string ...$additional
     ): void {
         // File extension
-        $ex = \substr($fileName, \strrpos($fileName, '.') + 1);
+        $ex = \substr($fileName, (int) \strrpos($fileName, '.') + 1);
         $ex = \strlen($ex) > 3 ? '   ' :  \str_pad($ex, 3, ' ', \STR_PAD_BOTH);
 
         // File size

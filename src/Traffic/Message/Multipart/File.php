@@ -10,10 +10,10 @@ use Psr\Http\Message\UploadedFileInterface;
 
 /**
  * @psalm-type FileDataArray = array{
- *     headers: array<string, non-empty-list<string>>,
+ *     headers: array<non-empty-string, list<string>>,
  *     name?: string,
- *     fileName: string,
- *     size?: int
+ *     fileName?: string,
+ *     size?: non-negative-int
  * }
  *
  * @internal
@@ -21,8 +21,12 @@ use Psr\Http\Message\UploadedFileInterface;
 final class File extends Part implements UploadedFileInterface
 {
     private ?UploadedFileInterface $uploadedFile = null;
+    /** @var non-negative-int|null  */
     private ?int $fileSize = null;
 
+    /**
+     * @param array<non-empty-string, list<string>> $headers
+     */
     public function __construct(array $headers, ?string $name = null, private ?string $fileName = null)
     {
         parent::__construct($headers, $name);
@@ -33,24 +37,35 @@ final class File extends Part implements UploadedFileInterface
      */
     public static function fromArray(array $data): self
     {
-        $self = new self($data['headers'], $data['name'] ?? null, $data['fileName']);
+        $self = new self($data['headers'], $data['name'] ?? null, $data['fileName'] ?? null);
         $self->fileSize = $data['size'] ?? null;
         return $self;
     }
 
     /**
      * @return FileDataArray
+     *
+     * @psalm-suppress ImplementedReturnTypeMismatch
      */
     public function jsonSerialize(): array
     {
-        return parent::jsonSerialize() + [
-                'fileName' => $this->fileName,
-                'size' => $this->getSize(),
-            ];
+        $data = parent::jsonSerialize();
+        if ($this->fileName !== null) {
+            $data['fileName'] = $this->fileName;
+        }
+        if ($this->fileSize !== null) {
+            $data['size'] = $this->fileSize;
+        }
+
+        return $data;
     }
 
+    /**
+     * @param non-negative-int|null $size
+     */
     public function setStream(StreamInterface $stream, ?int $size = null, int $code = \UPLOAD_ERR_OK): void
     {
+        /** @psalm-suppress PropertyTypeCoercion */
         $this->fileSize = $size ?? $stream->getSize() ?? null;
         $this->uploadedFile = new UploadedFile(
             $stream,
@@ -83,6 +98,9 @@ final class File extends Part implements UploadedFileInterface
         $this->getUploadedFile()->moveTo($targetPath);
     }
 
+    /**
+     * @return non-negative-int|null
+     */
     public function getSize(): ?int
     {
         return $this->fileSize;
