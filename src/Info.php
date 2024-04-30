@@ -27,4 +27,11 @@ class Info
         CONSOLE;
 
     public const TRAP_ROOT = __DIR__ . '/..';
+    public const JOKES = [
+        'Why do programmers always mix up Halloween and Christmas? Because Oct 31 == Dec 25.',
+        'Two hard things in computer science: cache invalidation, naming things and stack overflow.',
+        'Depressive programming style through dump and die.',
+        'PHP was dead 84 years ago right?',
+        'Submit a pull request to help us improve the Buggregator Trap codebase',
+    ];
 }

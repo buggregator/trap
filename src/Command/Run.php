@@ -6,7 +6,6 @@ namespace Buggregator\Trap\Command;
 
 use Buggregator\Trap\Application;
 use Buggregator\Trap\Config\SocketServer;
-use Buggregator\Trap\Cli\CliStartupSpeechBubble;
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Sender;
@@ -56,12 +55,9 @@ final class Run extends Command implements SignalableCommandInterface
     ): int {
         try {
             // Print intro
-            $output->writeln(\sprintf('<fg=yellow;options=bold>%s</> <info>v%s</>', Info::NAME, Info::VERSION));
-            $output->write(
-                "\n" . CliStartupSpeechBubble::getStartupSpeechBubble() . "\n",
-                true,
-                OutputInterface::OUTPUT_RAW
-            );
+            $output->writeln(\sprintf('<fg=yellow;options=bold>%s</> <info>v%s</>:', Info::NAME, Info::VERSION));
+            trap(Info::JOKES[\array_rand(Info::JOKES)]);
+            $output->write(Info::LOGO_CLI_COLOR . "\n", true, OutputInterface::OUTPUT_RAW);
 
             /**
              * Prepare port listeners
