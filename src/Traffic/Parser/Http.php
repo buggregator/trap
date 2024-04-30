@@ -64,12 +64,10 @@ final class Http
             $rawCookies = \explode(';', $request->getHeaderLine('Cookie'));
             $cookies = [];
             foreach ($rawCookies as $cookie) {
-                if (!str_contains($cookie, '=')) {
+                if (\str_contains($cookie, '=')) {
                     /** @psalm-suppress PossiblyUndefinedArrayOffset */
                     [$name, $value] = \explode('=', \trim($cookie), 2);
                     $cookies[$name] = $value;
-                } else {
-                    throw new RuntimeException('Invalid cookie: ' . $cookie);
                 }
             }
 
@@ -82,7 +80,7 @@ final class Http
     /**
      * @param string $line
      *
-     * @return list{non-empty-string, non-empty-string, non-empty-string}
+     * @return array{non-empty-string, non-empty-string, non-empty-string}
      */
     private function parseFirstLine(string $line): array
     {
@@ -152,10 +150,8 @@ final class Http
         if (\preg_match('/boundary="?([^"\\s;]++)"?/', $request->getHeaderLine('Content-Type'), $matches) !== 1) {
             return $request;
         }
+        /** @var non-empty-string $boundary */
         $boundary = $matches[1];
-        if ($boundary === '') {
-            throw new \Exception('Boundary can\'t be empty');
-        }
 
         $parts = self::parseMultipartBody($request->getBody(), $boundary);
         $uploadedFiles = $parsedBody = [];
@@ -213,7 +209,7 @@ final class Http
     }
 
     /**
-     * @return array<non-empty-string, list<non-empty-string>>
+     * @return array<array-key, non-empty-list<non-empty-string>>
      */
     public static function parseHeaders(string $headersBlock): array
     {

@@ -47,13 +47,12 @@ final class Http implements Dispatcher
         $handlers[] = new Fallback($middlewares);
 
         // Build pipeline of handlers.
-        /** @psalm-suppress MixedPropertyTypeCoercion */
         $this->pipeline = Pipeline::build(
             $handlers,
             /** @see RequestHandler::handle() */
             'handle',
             static function (): never { throw new \LogicException('No handler found for request.'); },
-            Generator::class,
+            'never',
         );
     }
 

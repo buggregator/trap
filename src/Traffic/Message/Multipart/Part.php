@@ -17,7 +17,7 @@ abstract class Part implements JsonSerializable
     use Headers;
 
     /**
-     * @param array<string, list<string>> $headers
+     * @param array<non-empty-string, non-empty-list<string>> $headers
      */
     protected function __construct(
         array $headers,
@@ -27,7 +27,7 @@ abstract class Part implements JsonSerializable
     }
 
     /**
-     * @param array<non-empty-string, list<non-empty-string>> $headers
+     * @param array<non-empty-string, non-empty-list<non-empty-string>> $headers
      */
     public static function create(array $headers): Part
     {
@@ -75,7 +75,7 @@ abstract class Part implements JsonSerializable
 
     /**
      * @return array{
-     *      headers: array<non-empty-string, list<string>>,
+     *      headers: array<non-empty-string, non-empty-list<string>>,
      *      name?: string,
      *  }
      */

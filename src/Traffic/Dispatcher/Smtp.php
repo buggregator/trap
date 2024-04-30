@@ -39,11 +39,11 @@ final class Smtp implements Dispatcher
             if (\preg_match('/^(?:EHLO|HELO)/', $response)) {
                 $stream->sendData($this->createResponse(self::OK));
             } elseif (\preg_match('/^MAIL FROM:\s*<(.*)>/', $response, $matches)) {
-                /** @var array{1: non-empty-string} $matches */
+                /** @var array{0: non-empty-string, 1: string} $matches */
                 $protocol['FROM'][] = $matches[1];
                 $stream->sendData($this->createResponse(self::OK));
             } elseif (\preg_match('/^RCPT TO:\s*<(.*)>/', $response, $matches)) {
-                /** @var array{1: non-empty-string} $matches */
+                /** @var array{0: non-empty-string, 1: string} $matches */
                 $protocol['BCC'][] = $matches[1];
                 $stream->sendData($this->createResponse(self::OK));
             } elseif (\str_starts_with($response, 'QUIT')) {

@@ -18,6 +18,13 @@ use Psr\Http\Message\StreamInterface;
  * @psalm-import-type FieldDataArray from Field
  * @psalm-import-type FileDataArray from File
  *
+ * @psalm-type TArrayData = array{
+ *      protocol: array<non-empty-string, list<string>>,
+ *      headers: array<array-key, scalar|non-empty-list<non-empty-string>>,
+ *      messages: list<FieldDataArray>,
+ *      attachments: list<FileDataArray>,
+ *  }
+ *
  * @internal
  */
 final class Smtp implements JsonSerializable
@@ -32,8 +39,8 @@ final class Smtp implements JsonSerializable
     private array $attachments = [];
 
     /**
-     * @param array<non-empty-string, list<non-empty-string>> $protocol
-     * @param array<string, scalar|list<scalar>> $headers
+     * @param array<non-empty-string, list<string>> $protocol
+     * @param array<array-key, scalar|list<non-empty-string>> $headers
      */
     private function __construct(
         private readonly array $protocol,
@@ -43,8 +50,8 @@ final class Smtp implements JsonSerializable
     }
 
     /**
-     * @param array<non-empty-string, list<non-empty-string>> $protocol
-     * @param array<string, scalar|list<scalar>> $headers
+     * @param array<non-empty-string, list<string>> $protocol
+     * @param array<array-key, scalar|list<non-empty-string>> $headers
      */
     public static function create(array $protocol, array $headers): self
     {
@@ -52,12 +59,7 @@ final class Smtp implements JsonSerializable
     }
 
     /**
-     * @param array{
-     *     protocol: array<non-empty-string, list<non-empty-string>>,
-     *     headers: array<string, scalar|list<scalar>>,
-     *     messages: list<FieldDataArray>,
-     *     attachments: list<FileDataArray>,
-     * } $data
+     * @param TArrayData $data
      */
     public static function fromArray(array $data): self
     {
@@ -119,7 +121,7 @@ final class Smtp implements JsonSerializable
     }
 
     /**
-     * @return array<non-empty-string, list<non-empty-string>>
+     * @return array<non-empty-string, list<string>>
      */
     public function getProtocol(): array
     {

@@ -16,7 +16,7 @@ namespace Buggregator\Trap\Traffic\Message\Multipart;
 final class Field extends Part
 {
     /**
-     * @param array<non-empty-string, list<string>> $headers
+     * @param array<non-empty-string, non-empty-list<string>> $headers
      */
     public function __construct(array $headers, ?string $name = null, private string $value = '')
     {

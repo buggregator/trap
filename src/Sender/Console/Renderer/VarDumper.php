@@ -58,7 +58,7 @@ final class VarDumper implements Renderer
             }
 
             /**
-             * @psalm-suppress RiskyTruthyFalsyComparison
+             * @psalm-suppress RiskyTruthyFalsyComparison, MixedArrayAccess, MixedArgument
              */
             public function describe(OutputInterface $output, Data $data, array $context, int $clientId): void
             {
@@ -94,7 +94,7 @@ final class VarDumper implements Renderer
                         empty($request['method'] ?? '') or $meta['Method'] = $request['method'];
                         empty($request['uri'] ?? '') or $meta['URI'] = $request['uri'];
                         if ($controller = $request['controller']) {
-                            $meta['Controller'] = rtrim((string) $this->dumper->dump($controller, true), "\n");
+                            $meta['Controller'] = \rtrim((string) $this->dumper->dump($controller, true), "\n");
                         }
                     } elseif (isset($context['cli'])) {
                         $meta['Command'] = $context['cli']['command_line'];

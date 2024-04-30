@@ -9,7 +9,7 @@ namespace Buggregator\Trap\Traffic\Message;
  */
 trait Headers
 {
-    /** @var array<non-empty-string, list<string>> Map of all registered headers, as original name => array of values */
+    /** @var array<non-empty-string, non-empty-list<string>> Map of all registered headers */
     private array $headers = [];
 
     /** @var array<non-empty-string, non-empty-string> Map of lowercase header name => original name at registration */
@@ -91,7 +91,7 @@ trait Headers
     }
 
     /**
-     * @param array<string|int, scalar|list<scalar>> $headers
+     * @param array<array-key, scalar|list<scalar>> $headers
      */
     private function setHeaders(array $headers): void
     {
@@ -101,6 +101,7 @@ trait Headers
                 // We must cast it back to a string in order to comply with validation.
                 $header = (string)$header;
             }
+
             $value = $this->validateAndTrimHeader($header, $value);
             /** @var non-empty-string $normalized */
             $normalized = \strtr($header, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz');

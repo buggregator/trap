@@ -26,12 +26,16 @@ final class Common
         $output->writeln(['', \implode('', $parts), '']);
     }
 
-    public static function renderHeader2(OutputInterface $output, string $title, ?string ...$sub): void
+    public static function renderHeader2(OutputInterface $output, string $title, string ...$sub): void
     {
         $parts = ["<fg=white;options=bold># $title </>"];
         foreach ($sub as $color => $value) {
+            if ($value === '') {
+                continue;
+            }
+
             $color = \is_string($color) ? $color : 'gray';
-            $parts[] = \sprintf('<fg=%s> %s </>', $color, $value ?? 'NULL');
+            $parts[] = \sprintf('<fg=%s> %s </>', $color, $value);
         }
 
         $output->writeln(['', \implode('', $parts), '']);
@@ -53,12 +57,14 @@ final class Common
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param array<array-key, mixed> $data
      */
     public static function renderMetadata(OutputInterface $output, array $data): void
     {
-        /** @psalm-suppress ArgumentTypeCoercion */
-        $maxHeaderLength = \max(\array_map('strlen', \array_keys($data)));
+        $maxHeaderLength = \max(0, ...\array_map(
+            static fn(string|int $key): int => \strlen((string) $key),
+            \array_keys($data)),
+        );
 
         foreach ($data as $head => $value) {
             // Align headers to the right

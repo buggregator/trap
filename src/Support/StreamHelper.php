@@ -67,7 +67,7 @@ final class StreamHelper
      *
      * @param non-empty-string $boundary
      *
-     * @return non-negative-int Bytes written
+     * @return int<0, max> Bytes written
      */
     public static function writeStreamUntil(StreamInterface $from, StreamInterface $to, string $boundary): int
     {

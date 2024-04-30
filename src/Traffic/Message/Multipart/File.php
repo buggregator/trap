@@ -10,7 +10,7 @@ use Psr\Http\Message\UploadedFileInterface;
 
 /**
  * @psalm-type FileDataArray = array{
- *     headers: array<non-empty-string, list<string>>,
+ *     headers: array<non-empty-string, non-empty-list<string>>,
  *     name?: string,
  *     fileName?: string,
  *     size?: non-negative-int
@@ -25,7 +25,7 @@ final class File extends Part implements UploadedFileInterface
     private ?int $fileSize = null;
 
     /**
-     * @param array<non-empty-string, list<string>> $headers
+     * @param array<non-empty-string, non-empty-list<string>> $headers
      */
     public function __construct(array $headers, ?string $name = null, private ?string $fileName = null)
     {
@@ -50,12 +50,8 @@ final class File extends Part implements UploadedFileInterface
     public function jsonSerialize(): array
     {
         $data = parent::jsonSerialize();
-        if ($this->fileName !== null) {
-            $data['fileName'] = $this->fileName;
-        }
-        if ($this->fileSize !== null) {
-            $data['size'] = $this->fileSize;
-        }
+        $this->fileName === null or $data['fileName'] = $this->fileName;
+        $this->fileSize === null or $data['size'] = $this->fileSize;
 
         return $data;
     }
