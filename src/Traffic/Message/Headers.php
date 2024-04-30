@@ -180,7 +180,7 @@ trait Headers
     /**
      * List of header values.
      *
-     * @param array<non-empty-string, list<string>> $headers
+     * @param array<array-key, list<string>> $headers
      * @param non-empty-string $header
      *
      * @return list<string>
@@ -190,7 +190,7 @@ trait Headers
         $header = \strtr($header, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz');
         $result = [];
         foreach ($headers as $name => $values) {
-            if (\strtr($name, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') === $header) {
+            if (\strtr((string) $name, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') === $header) {
                 $result = [...$result, ...$values];
             }
         }

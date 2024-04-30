@@ -10,7 +10,7 @@ use Psr\Http\Message\UploadedFileInterface;
 
 /**
  * @psalm-type FileDataArray = array{
- *     headers: array<non-empty-string, non-empty-list<string>>,
+ *     headers: array<array-key, non-empty-list<string>>,
  *     name?: string,
  *     fileName?: string,
  *     size?: non-negative-int
@@ -25,7 +25,7 @@ final class File extends Part implements UploadedFileInterface
     private ?int $fileSize = null;
 
     /**
-     * @param array<non-empty-string, non-empty-list<string>> $headers
+     * @param array<array-key, non-empty-list<string>> $headers
      */
     public function __construct(array $headers, ?string $name = null, private ?string $fileName = null)
     {

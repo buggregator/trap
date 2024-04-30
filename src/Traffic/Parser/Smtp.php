@@ -99,6 +99,7 @@ final class Smtp
     {
         $content = \preg_replace(["/^\.([^\r])/m", "/(\r\n\\.\r\n)$/D"], ['$1', ''], $stream->getContents());
 
+        /** @psalm-suppress InvalidArgument */
         $body = new Field(
             headers: \array_intersect_key($message->getHeaders(), ['Content-Type' => true]),
             value: $content,

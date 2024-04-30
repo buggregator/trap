@@ -6,7 +6,7 @@ namespace Buggregator\Trap\Traffic\Message\Multipart;
 
 /**
  * @psalm-type FieldDataArray = array{
- *     headers: array<non-empty-string, list<string>>,
+ *     headers: array<array-key, non-empty-list<string>>,
  *     name?: string,
  *     value: string
  * }
@@ -16,7 +16,7 @@ namespace Buggregator\Trap\Traffic\Message\Multipart;
 final class Field extends Part
 {
     /**
-     * @param array<non-empty-string, non-empty-list<string>> $headers
+     * @param array<array-key, non-empty-list<string>> $headers
      */
     public function __construct(array $headers, ?string $name = null, private string $value = '')
     {

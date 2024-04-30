@@ -41,7 +41,7 @@ final class Http
         $request = $this->factory->createServerRequest($method, $uri, [])
             ->withProtocolVersion($protocol);
         foreach ($headers as $name => $value) {
-            $request = $request->withHeader($name, $value);
+            $request = $request->withHeader((string) $name, $value);
         }
 
         // Todo refactor:
