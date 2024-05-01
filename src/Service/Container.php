@@ -41,7 +41,7 @@ final class Container implements ContainerInterface, Destroyable
      * @param array $arguments Will be used if the object is created for the first time.
      * @return T
      *
-     * @psalm-suppress MoreSpecificImplementedParamType
+     * @psalm-suppress MoreSpecificImplementedParamType, InvalidReturnType
      */
     public function get(string $id, array $arguments = []): object
     {

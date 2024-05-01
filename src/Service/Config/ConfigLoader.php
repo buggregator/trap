@@ -16,6 +16,7 @@ final class ConfigLoader
 
     /**
      * @param null|callable(): non-empty-string $xmlProvider
+     * @psalm-suppress RiskyTruthyFalsyComparison
      */
     public function __construct(
         private Logger $logger,
@@ -57,7 +58,7 @@ final class ConfigLoader
 
     /**
      * @param \ReflectionProperty $property
-     * @param array<\ReflectionAttribute> $attributes
+     * @param list<\ReflectionAttribute<ConfigAttribute>> $attributes
      */
     private function injectValue(object $config, \ReflectionProperty $property, array $attributes): void
     {
@@ -65,6 +66,7 @@ final class ConfigLoader
             try {
                 $attribute = $attribute->newInstance();
 
+                /** @var mixed $value */
                 $value = match (true) {
                     $attribute instanceof XPath => $this->xml?->xpath($attribute->path)[$attribute->key],
                     $attribute instanceof Env => \getenv($attribute->name) === false ? null : \getenv($attribute->name),
@@ -78,8 +80,10 @@ final class ConfigLoader
 
                 // Cast value to the property type
                 $type = $property->getType();
+
+                /** @var mixed $result */
                 $result = match (true) {
-                    $type === null => $value,
+                    !$type instanceof \ReflectionNamedType => $value,
                     $type->allowsNull() && $value === '' => null,
                     $type->isBuiltin() => match ($type->getName()) {
                         'int' => (int) $value,

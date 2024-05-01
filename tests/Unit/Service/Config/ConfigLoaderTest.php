@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Service\Config;
 
+use Buggregator\Trap\Logger;
 use Buggregator\Trap\Service\Config\ConfigLoader;
 use Buggregator\Trap\Service\Config\XPath;
 use PHPUnit\Framework\TestCase;
@@ -33,7 +34,7 @@ final class ConfigLoaderTest extends TestCase
             </trap>
             XML;
 
-        $loader = new ConfigLoader(fn() => $xml);
+        $loader = new ConfigLoader(new Logger(), null, fn() => $xml);
         $loader->hidrate($dto);
 
         self::assertTrue($dto->myBool);

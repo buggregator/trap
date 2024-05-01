@@ -13,7 +13,7 @@ use Buggregator\Trap\Service\Config\XPath;
  */
 final class Frontend
 {
-    /** @var int<1, max> */
+    /** @var int<1, 65535> */
     #[Env('TRAP_FRONTEND_PORT')]
     #[CliOption('ui')]
     #[XPath('/trap/frontend/@port')]
