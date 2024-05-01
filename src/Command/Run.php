@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Command;
 
 use Buggregator\Trap\Application;
-use Buggregator\Trap\Config\SocketServer;
+use Buggregator\Trap\Config\Server\SocketServer;
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Sender;
+use Buggregator\Trap\Service\Container;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Command\SignalableCommandInterface;
@@ -82,13 +83,15 @@ final class Run extends Command implements SignalableCommandInterface
 
             $registry = $this->createRegistry($output);
 
-            $this->app = new Application(
-                $servers,
-                new Logger($output),
-                senders: $registry->getSenders($senders),
-                withFrontend: $input->getOption('ui') !== false,
-            );
+            $container = new Container();
+            $container->set(new Logger($output));
+            $container->set($container->make(Application::class, [
+                'map' => $servers,
+                'senders' => $registry->getSenders($senders),
+                'withFrontend' => $input->getOption('ui') !== false,
+            ]));
 
+            $this->app = $container->get(Application::class);
             $this->app->run();
         } catch (\Throwable $e) {
             if ($output->isVerbose()) {

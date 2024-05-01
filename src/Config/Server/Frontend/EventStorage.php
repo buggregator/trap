@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Config\Frontend;
+namespace Buggregator\Trap\Config\Server\Frontend;
 
 use Buggregator\Trap\Service\Config\XPath;
 
