@@ -71,6 +71,7 @@
         "vimeo/psalm": "^5.11"
     },
     "suggest": {
+        "ext-simplexml": "To load trap.xml",
         "roxblnfk/unpoly": "If you want to remove unnecessary PHP polyfills depend on PHP version."
     }
 }
