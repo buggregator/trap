@@ -25,8 +25,6 @@ final class ConfigLoaderTest extends TestCase
             public string $myString;
             #[XPath('/trap/container/MyFloat/@value')]
             public float $myFloat;
-            #[XPath('/trap/container/Nothing/@value')]
-            public float $none = 3.14;
         };
         $xml = <<<'XML'
             <?xml version="1.0"?>
@@ -44,7 +42,31 @@ final class ConfigLoaderTest extends TestCase
         self::assertSame(200, $dto->myInt);
         self::assertSame('foo-bar', $dto->myString);
         self::assertSame(42.0, $dto->myFloat);
-        self::assertSame(3.14, $dto->none);
+    }
+
+    public function testNonExistingOptions(): void
+    {
+        $dto = new class() {
+            #[XPath('/trap/container/Nothing/@value')]
+            public float $none1 = 3.14;
+            #[Env('f--o--o')]
+            public float $none2 = 3.14;
+            #[InputOption('f--o--o')]
+            public float $none3 = 3.14;
+            #[InputArgument('f--o--o')]
+            public float $none4 = 3.14;
+        };
+        $xml = <<<'XML'
+            <?xml version="1.0"?>
+            <trap my-string="foo-bar"> </trap>
+            XML;
+
+        $this->createConfigLoader(xml: $xml)->hidrate($dto);
+
+        self::assertSame(3.14, $dto->none1);
+        self::assertSame(3.14, $dto->none2);
+        self::assertSame(3.14, $dto->none3);
+        self::assertSame(3.14, $dto->none4);
     }
 
     public function testAttributesOrder(): void
