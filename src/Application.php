@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap;
 
-use Buggregator\Trap\Config\SocketServer;
+use Buggregator\Trap\Config\Server\Frontend as FrontendConfig;
+use Buggregator\Trap\Config\Server\SocketServer;
 use Buggregator\Trap\Handler\Http\Handler\Websocket;
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Proto\Buffer;
+use Buggregator\Trap\Service\Container;
 use Buggregator\Trap\Socket\Client;
 use Buggregator\Trap\Socket\Server;
 use Buggregator\Trap\Socket\SocketStream;
@@ -31,22 +33,23 @@ final class Application implements Processable, Cancellable, Destroyable
 
     private readonly Buffer $buffer;
     private bool $cancelled = false;
+    private readonly Logger $logger;
 
     /**
      * @param SocketServer[] $map
      * @param Sender[] $senders
      */
     public function __construct(
+        private readonly Container $container,
         array $map = [],
-        private readonly Logger $logger = new Logger(),
         private array $senders = [],
         bool $withFrontend = true,
     ) {
+        $this->logger = $this->container->get(Logger::class);
         $this->buffer = new Buffer(bufferSize: 10485760, timer: 0.1);
+        $this->container->set($this->buffer);
 
-        $inspector = new Inspector(
-            $this->buffer,
-            $this->logger,
+        $inspector = $container->make(Inspector::class, [
             // new Traffic\Dispatcher\WebSocket(),
             new Traffic\Dispatcher\VarDumper(),
             new Traffic\Dispatcher\Http(
@@ -60,7 +63,7 @@ final class Application implements Processable, Cancellable, Destroyable
             ),
             new Traffic\Dispatcher\Smtp(),
             new Traffic\Dispatcher\Monolog(),
-        );
+        ]);
         $this->processors[] = $inspector;
 
         $withFrontend and $this->configureFrontend(8000);
@@ -199,9 +202,7 @@ final class Application implements Processable, Cancellable, Destroyable
     {
         $this->senders[] = $wsSender = Sender\FrontendSender::create($this->logger);
 
-        $inspector = new Inspector(
-            $this->buffer,
-            $this->logger,
+        $inspector = $this->container->make(Inspector::class, [
             new Traffic\Dispatcher\Http(
                 [
                     new Sender\Frontend\Http\StaticFiles(),
@@ -210,11 +211,11 @@ final class Application implements Processable, Cancellable, Destroyable
                 ],
                 [new Sender\Frontend\Http\RequestHandler($wsSender->getConnectionPool())],
                 silentMode: true,
-            ),
-        );
+            )
+        ]);
         $this->processors[] = $inspector;
-
         $this->processors[] = $wsSender;
-        $this->prepareServerFiber(new SocketServer(port: $port), $inspector, $this->logger);
+        $config = $this->container->get(FrontendConfig::class);
+        $this->prepareServerFiber(new SocketServer(port: $config->port), $inspector, $this->logger);
     }
 }

@@ -22,7 +22,7 @@ final class Service
 {
     public function __construct(
         private readonly Logger $logger,
-        private readonly EventsStorage $eventsStorage,
+        private readonly EventStorage $eventsStorage,
     ) {
     }
 

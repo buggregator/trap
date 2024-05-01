@@ -17,9 +17,9 @@ final class FrontendSender implements \Buggregator\Trap\Sender, Processable
     public static function create(
         Logger $logger,
         ?Frontend\ConnectionPool $connectionPool = null,
-        ?Frontend\EventsStorage $eventStorage = null,
+        ?Frontend\EventStorage $eventStorage = null,
     ): self {
-        $eventStorage ??= new Frontend\EventsStorage();
+        $eventStorage ??= new Frontend\EventStorage();
         $connectionPool ??= new Frontend\ConnectionPool($logger, new Frontend\RPC($logger, $eventStorage));
         return new self(
             $connectionPool,
@@ -30,7 +30,7 @@ final class FrontendSender implements \Buggregator\Trap\Sender, Processable
 
     private function __construct(
         private readonly ConnectionPool $connectionPool,
-        private readonly Frontend\EventsStorage $framesStorage,
+        private readonly Frontend\EventStorage $framesStorage,
         private readonly FrameHandler $handler,
     ) {
     }
@@ -52,9 +52,9 @@ final class FrontendSender implements \Buggregator\Trap\Sender, Processable
     }
 
     /**
-     * @return Frontend\EventsStorage
+     * @return Frontend\EventStorage
      */
-    public function getEventStorage(): Frontend\EventsStorage
+    public function getEventStorage(): Frontend\EventStorage
     {
         return $this->framesStorage;
     }

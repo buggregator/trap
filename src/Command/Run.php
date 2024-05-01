@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Command;
 
 use Buggregator\Trap\Application;
-use Buggregator\Trap\Config\SocketServer;
+use Buggregator\Trap\Bootstrap;
+use Buggregator\Trap\Config\Server\SocketServer;
+use Buggregator\Trap\Config\Server\TcpPorts;
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Sender;
+use Buggregator\Trap\Service\Container;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Command\SignalableCommandInterface;
@@ -37,16 +40,38 @@ final class Run extends Command implements SignalableCommandInterface
             'p',
             InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY,
             'Port to listen',
-            [9912],
         );
         $this->addOption(
             'sender',
             's',
             InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY,
             'Senders',
-            ['console']
         );
         $this->addOption('ui', null, InputOption::VALUE_OPTIONAL, 'Enable WEB UI (experimental)', false);
+    }
+
+    /**
+     * Prepare port listeners
+     * @return SocketServer[]
+     */
+    public function getServers(Container $container): array
+    {
+        $config = $container->get(TcpPorts::class);
+
+        $servers = [];
+        $ports = $config->ports ?: [9912];
+        /** @var scalar $port */
+        foreach ($ports as $port) {
+            \is_numeric($port) or throw new \InvalidArgumentException(
+                \sprintf('Invalid port `%s`. It must be a number.', (string)$port),
+            );
+            $port = (int)$port;
+            $port > 0 && $port < 65536 or throw new \InvalidArgumentException(
+                \sprintf('Invalid port `%s`. It must be in range 1-65535.', $port),
+            );
+            $servers[] = new SocketServer($port, $config->host, $config->type);
+        }
+        return $servers;
     }
 
     protected function execute(
@@ -58,36 +83,26 @@ final class Run extends Command implements SignalableCommandInterface
             $output->writeln(\sprintf('<fg=yellow;options=bold>%s</> <info>v%s</>', Info::NAME, Info::VERSION));
             $output->write(Info::LOGO_CLI_COLOR . "\n", true, OutputInterface::OUTPUT_RAW);
 
-            /**
-             * Prepare port listeners
-             * @var SocketServer[] $servers
-             */
-            $servers = [];
-            $ports = $input->getOption('port') ?: [9912];
-            \assert(\is_array($ports));
-            foreach ($ports as $port) {
-                \assert(\is_scalar($port));
-                \is_numeric($port) or throw new \InvalidArgumentException(
-                    \sprintf('Invalid port `%s`. It must be a number.', (string)$port),
-                );
-                $port = (int)$port;
-                $port > 0 && $port < 65536 or throw new \InvalidArgumentException(
-                    \sprintf('Invalid port `%s`. It must be in range 1-65535.', $port),
-                );
-                $servers[] = new SocketServer($port);
-            }
-
             /** @var non-empty-string[] $senders */
             $senders = (array)$input->getOption('sender');
 
             $registry = $this->createRegistry($output);
 
-            $this->app = new Application(
-                $servers,
-                new Logger($output),
-                senders: $registry->getSenders($senders),
-                withFrontend: $input->getOption('ui') !== false,
-            );
+            $container = Bootstrap::init()->withConfig(
+                xml: \dirname(__DIR__, 2) . '/trap.xml',
+                inputOptions: $input->getOptions(),
+                inputArguments: $input->getArguments(),
+                environment: \getenv(),
+            )->finish();
+            $container->set($registry);
+            $container->set($input, InputInterface::class);
+            $container->set(new Logger($output));
+            $this->app = $container->get(Application::class, [
+                'map' => $this->getServers($container),
+                'senders' => $registry->getSenders($senders),
+                'withFrontend' => $input->getOption('ui') !== false,
+            ]);
+
 
             $this->app->run();
         } catch (\Throwable $e) {
