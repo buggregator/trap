@@ -14,7 +14,8 @@ class EventsStorageTest extends TestCase
 {
     public function testMaxEventsLimit(): void
     {
-        $config = new Config(2);
+        $config = new Config();
+        $config->maxEvents = 2;
         $storage = new EventStorage($config);
 
         $storage->add($e1 = $this->createEvent());
@@ -30,7 +31,8 @@ class EventsStorageTest extends TestCase
 
     public function testMaxEventsLimitWithSort(): void
     {
-        $config = new Config(2);
+        $config = new Config();
+        $config->maxEvents = 2;
         $storage = new EventStorage($config);
 
         $storage->add($e1 = $this->createEvent());

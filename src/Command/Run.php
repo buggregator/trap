@@ -84,14 +84,16 @@ final class Run extends Command implements SignalableCommandInterface
             $registry = $this->createRegistry($output);
 
             $container = new Container();
+            $container->set($registry);
+            $container->set($input, InputInterface::class);
             $container->set(new Logger($output));
-            $container->set($container->make(Application::class, [
+            $this->app = $container->get(Application::class, [
                 'map' => $servers,
                 'senders' => $registry->getSenders($senders),
                 'withFrontend' => $input->getOption('ui') !== false,
-            ]));
+            ]);
 
-            $this->app = $container->get(Application::class);
+
             $this->app->run();
         } catch (\Throwable $e) {
             if ($output->isVerbose()) {

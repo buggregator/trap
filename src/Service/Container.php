@@ -19,7 +19,7 @@ final class Container implements ContainerInterface, Destroyable
     /** @var array<class-string, object> */
     private array $cache = [];
 
-    /** @var array<class-string, callable(Container): object> */
+    /** @var array<class-string, array|\Closure(Container): object> */
     private array $factory = [];
 
     private readonly Injector $injector;
@@ -38,14 +38,15 @@ final class Container implements ContainerInterface, Destroyable
     /**
      * @template T of object
      * @param class-string<T> $id
+     * @param array $arguments Will be used if the object is created for the first time.
      * @return T
      *
      * @psalm-suppress MoreSpecificImplementedParamType
      */
-    public function get(string $id): object
+    public function get(string $id, array $arguments = []): object
     {
         /** @psalm-suppress InvalidReturnStatement */
-        return $this->cache[$id] ??= $this->make($id);
+        return $this->cache[$id] ??= $this->make($id, $arguments);
     }
 
     /**
@@ -78,9 +79,13 @@ final class Container implements ContainerInterface, Destroyable
      */
     public function make(string $class, array $arguments = []): object
     {
-        $result = \array_key_exists($class, $this->factory)
-            ? ($this->factory[$class])($this)
-            : $this->injector->make($class, $arguments);
+        $binding = $this->factory[$class] ?? null;
+
+        $result = match(true) {
+            $binding === null => $this->injector->make($class, $arguments),
+            \is_array($binding) => $this->injector->make($class, \array_merge($binding, $arguments)),
+            default => ($this->factory[$class])($this),
+        };
 
         \assert($result instanceof $class, "Created object must be instance of {$class}.");
 
@@ -97,15 +102,15 @@ final class Container implements ContainerInterface, Destroyable
     }
 
     /**
-     * Declare a factory for the specified class.
+     * Declare a factory or predefined arguments for the specified class.
      *
      * @template T of object
      * @param class-string<T> $id
-     * @param (callable(Container): T) $callback
+     * @param array|\Closure(Container): T $binding
      */
-    public function bind(string $id, callable $callback): void
+    public function bind(string $id, \Closure|array $binding): void
     {
-        $this->factory[$id] = $callback;
+        $this->factory[$id] = $binding;
     }
 
     public function destroy(): void
