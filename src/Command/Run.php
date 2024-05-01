@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Command;
 
 use Buggregator\Trap\Application;
+use Buggregator\Trap\Bootstrap;
 use Buggregator\Trap\Config\Server\SocketServer;
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Sender;
-use Buggregator\Trap\Service\Container;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Command\SignalableCommandInterface;
@@ -83,7 +83,12 @@ final class Run extends Command implements SignalableCommandInterface
 
             $registry = $this->createRegistry($output);
 
-            $container = new Container();
+            $container = Bootstrap::init()->withConfig(
+                xml: \dirname(__DIR__, 2) . '/trap.xml',
+                inputOptions: $input->getOptions(),
+                inputArguments: $input->getArguments(),
+                environment: \getenv(),
+            )->finish();
             $container->set($registry);
             $container->set($input, InputInterface::class);
             $container->set(new Logger($output));

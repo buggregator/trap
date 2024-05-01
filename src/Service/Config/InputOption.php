@@ -8,7 +8,7 @@ namespace Buggregator\Trap\Service\Config;
  * @internal
  */
 #[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class CliOption implements ConfigAttribute
+final class InputOption implements ConfigAttribute
 {
     public function __construct(
         public string $name,

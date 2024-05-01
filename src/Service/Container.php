@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Service;
 use Buggregator\Trap\Destroyable;
 use Buggregator\Trap\Service\Config\ConfigLoader;
 use Psr\Container\ContainerInterface;
+use Psr\Container\NotFoundExceptionInterface;
 use Yiisoft\Injector\Injector;
 
 /**
@@ -81,16 +82,19 @@ final class Container implements ContainerInterface, Destroyable
     {
         $binding = $this->factory[$class] ?? null;
 
-        $result = match(true) {
-            $binding === null => $this->injector->make($class, $arguments),
-            \is_array($binding) => $this->injector->make($class, \array_merge($binding, $arguments)),
-            default => ($this->factory[$class])($this),
-        };
+        if ($binding instanceof \Closure) {
+            $result = $binding($this);
+        } else {
+            try {
+                $result = $this->injector->make($class, \array_merge((array) $binding, $arguments));
+            } catch (\Throwable $e) {
+                throw new class(previous: $e) extends \RuntimeException implements NotFoundExceptionInterface {};
+            }
+        }
 
         \assert($result instanceof $class, "Created object must be instance of {$class}.");
 
         // Detect Trap related types
-
         // Configs
         if (\str_starts_with($class, 'Buggregator\\Trap\\Config\\')) {
             // Hydrate config
