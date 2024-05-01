@@ -66,7 +66,7 @@ final class ConfigLoader
                     default => null,
                 };
 
-                if ($value === null) {
+                if (\in_array($value, [null, []], true)) {
                     continue;
                 }
 
@@ -81,6 +81,11 @@ final class ConfigLoader
                         'int' => (int) $value,
                         'float' => (float) $value,
                         'bool' => \filter_var($value, FILTER_VALIDATE_BOOLEAN),
+                        'array' => match (true) {
+                            \is_array($value) => $value,
+                            \is_string($value) => explode(',', $value),
+                            default => [$value],
+                        },
                         default => $value,
                     },
                     default => $value,
