@@ -154,8 +154,14 @@ Sometimes, it's convenient to run Trap on the same ports that [Buggregator](http
 uses by default. Well, that's also possible:
 
 ```bash
-vendor/bin/trap -p1025 -p9912 -p9913 -p8000
+vendor/bin/trap -p1025 -p9912 -p9913 -p8000 --ui=8080
 ```
+
+Environment variables can also be used to set endpoints:
+- `TRAP_TCP_PORTS` - for TCP traffic: `9912,9913,1025,8000`
+- `TRAP_TCP_HOST` - for the TCP host (default: `127.0.0.1`)
+- `TRAP_UI_PORT` - for the web interface: `8080`
+
 
 ### Choosing Your Senders
 

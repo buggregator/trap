@@ -14,7 +14,7 @@ use Buggregator\Trap\Service\Config\XPath;
 final class Frontend
 {
     /** @var int<1, 65535> */
-    #[Env('TRAP_FRONTEND_PORT')]
+    #[Env('TRAP_UI_PORT')]
     #[InputOption('ui')]
     #[XPath('/trap/frontend/@port')]
     public int $port = 8000;

@@ -22,7 +22,7 @@ final class TcpPorts
      */
     #[Env('TRAP_TCP_PORTS')]
     #[InputOption('port')]
-    public array $ports = [9912, 9913];
+    public array $ports = [9912];
 
     /**
      * Host to listen

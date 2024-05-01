@@ -7,7 +7,7 @@ namespace Buggregator\Trap\Service\Config;
 /**
  * @internal
  */
-#[\Attribute(\Attribute::TARGET_PROPERTY)]
+#[\Attribute(\Attribute::TARGET_PROPERTY | \Attribute::IS_REPEATABLE)]
 final class Env implements ConfigAttribute
 {
     public function __construct(
