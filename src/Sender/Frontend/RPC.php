@@ -17,7 +17,7 @@ final class RPC
 
     public function __construct(
         private readonly Logger $logger,
-        EventsStorage $eventsStorage,
+        EventStorage $eventsStorage,
     ) {
         $this->router = Router::new(new Service($logger, $eventsStorage));
     }
