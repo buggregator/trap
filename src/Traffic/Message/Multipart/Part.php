@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Traffic\Message\Multipart;
 
 use Buggregator\Trap\Traffic\Message\Headers;
 use JsonSerializable;
+use RuntimeExceptio;
 use RuntimeException;
 
 /**
@@ -15,6 +16,9 @@ abstract class Part implements JsonSerializable
 {
     use Headers;
 
+    /**
+     * @param array<array-key, non-empty-list<string>> $headers
+     */
     protected function __construct(
         array $headers,
         protected ?string $name,
@@ -22,7 +26,10 @@ abstract class Part implements JsonSerializable
         $this->setHeaders($headers);
     }
 
-    public static function create(array $headers): static
+    /**
+     * @param array<array-key, non-empty-list<non-empty-string>> $headers
+     */
+    public static function create(array $headers): Part
     {
         /**
          * Check Content-Disposition header
@@ -31,6 +38,9 @@ abstract class Part implements JsonSerializable
          */
         $contentDisposition = self::findHeader($headers, 'Content-Disposition')[0]
             ?? throw new RuntimeException('Missing Content-Disposition header.');
+        if ($contentDisposition === '') {
+            throw new RuntimeException('Missing Content-Disposition header, can\'t be empty');
+        }
 
         // Get field name and file name
         $name = \preg_match('/\bname=(?:(?<a>[^" ;,]++)|"(?<b>[^"]++)")/', $contentDisposition, $matches) === 1
@@ -63,11 +73,22 @@ abstract class Part implements JsonSerializable
         return $clone;
     }
 
+    /**
+     * @return array{
+     *      headers: array<array-key, non-empty-list<string>>,
+     *      name?: string
+     *  }
+     */
     public function jsonSerialize(): array
     {
-        return [
-            'name' => $this->name,
+        $data = [
             'headers' => $this->headers,
         ];
+
+        if ($this->name !== null) {
+            $data['name'] = $this->name;
+        }
+
+        return $data;
     }
 }

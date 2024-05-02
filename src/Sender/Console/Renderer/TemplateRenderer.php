@@ -20,6 +20,7 @@ final class TemplateRenderer
 
     public function render(string $template, array $data = []): void
     {
+        /** @psalm-suppress InternalMethod */
         $this->renderer->render(
             $this->templateEngine->render($template, $data),
             0

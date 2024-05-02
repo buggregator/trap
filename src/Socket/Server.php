@@ -20,8 +20,7 @@ use Socket;
  */
 final class Server implements Processable, Cancellable, Destroyable
 {
-    /** @var false|resource|Socket */
-    private $socket;
+    private Socket $socket;
 
     /** @var array<int, Client> */
     private array $clients = [];
@@ -41,13 +40,11 @@ final class Server implements Processable, Cancellable, Destroyable
         private readonly ?Closure $clientInflector,
         private readonly Logger $logger,
     ) {
-        $this->socket = @\socket_create_listen($port);
+        $this->socket = @\socket_create_listen($port) ?: throw new \RuntimeException('Socket create failed.');
+
         /** @link https://github.com/buggregator/trap/pull/14 */
         // \socket_set_option($this->socket, \SOL_SOCKET, \SO_LINGER, ['l_linger' => 0, 'l_onoff' => 1]);
 
-        if ($this->socket === false) {
-            throw new \RuntimeException('Socket create failed.');
-        }
         \socket_set_nonblock($this->socket);
 
         $logger->status('Application', 'Server started on 127.0.0.1:%s', $port);
@@ -92,6 +89,7 @@ final class Server implements Processable, Cancellable, Destroyable
 
     public function process(): void
     {
+        // /** @psalm-suppress PossiblyInvalidArgument */
         while (!$this->cancelled and false !== ($socket = \socket_accept($this->socket))) {
             $client = null;
             try {

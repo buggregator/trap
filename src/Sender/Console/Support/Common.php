@@ -30,6 +30,10 @@ final class Common
     {
         $parts = ["<fg=white;options=bold># $title </>"];
         foreach ($sub as $color => $value) {
+            if ($value === '') {
+                continue;
+            }
+
             $color = \is_string($color) ? $color : 'gray';
             $parts[] = \sprintf('<fg=%s> %s </>', $color, $value);
         }
@@ -57,9 +61,11 @@ final class Common
      */
     public static function renderMetadata(OutputInterface $output, array $data): void
     {
-        $maxHeaderLength = \max(\array_map('strlen', \array_keys($data)));
+        $maxHeaderLength = \max(0, ...\array_map(
+            static fn(string|int $key): int => \strlen((string) $key),
+            \array_keys($data)),
+        );
 
-        /** @var mixed $value */
         foreach ($data as $head => $value) {
             // Align headers to the right
             self::renderHeader(

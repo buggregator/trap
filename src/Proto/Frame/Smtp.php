@@ -14,6 +14,7 @@ use DateTimeImmutable;
 /**
  * @internal
  * @psalm-internal Buggregator
+ * @psalm-import-type TArrayData from Message\Smtp
  */
 final class Smtp extends Frame implements FilesCarrier
 {
@@ -34,6 +35,7 @@ final class Smtp extends Frame implements FilesCarrier
 
     public static function fromString(string $payload, DateTimeImmutable $time): static
     {
+        /** @var TArrayData $payload */
         $payload = \json_decode($payload, true, \JSON_THROW_ON_ERROR);
         $message = Message\Smtp::fromArray($payload);
 

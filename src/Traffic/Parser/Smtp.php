@@ -18,7 +18,7 @@ use Psr\Http\Message\StreamInterface;
 final class Smtp
 {
     /**
-     * @param array<string, list<string>> $protocol
+     * @param array<non-empty-string, list<string>> $protocol
      */
     public function parseStream(array $protocol, StreamClient $stream): Message\Smtp
     {
@@ -99,6 +99,7 @@ final class Smtp
     {
         $content = \preg_replace(["/^\.([^\r])/m", "/(\r\n\\.\r\n)$/D"], ['$1', ''], $stream->getContents());
 
+        /** @psalm-suppress InvalidArgument */
         $body = new Field(
             headers: \array_intersect_key($message->getHeaders(), ['Content-Type' => true]),
             value: $content,

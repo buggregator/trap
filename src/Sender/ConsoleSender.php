@@ -21,8 +21,10 @@ final class ConsoleSender implements Sender
 {
     public static function create(OutputInterface $output): self
     {
+        /** @psalm-suppress InternalMethod, InternalClass */
         Termwind::renderUsing($output);
 
+        /** @psalm-suppress InternalClass */
         $templateRenderer = new TemplateRenderer(
             new HtmlRenderer(),
             new TemplateEngine(Info::TRAP_ROOT . '/resources/templates')
