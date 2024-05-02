@@ -11,12 +11,6 @@
     <issueHandlers>
         <RedundantConditionGivenDocblockType errorLevel="suppress"/>
         <RedundantCastGivenDocblockType errorLevel="suppress"/>
-        <MixedAssignment errorLevel="suppress"/>
-        <MixedArrayOffset errorLevel="suppress"/>
-        <MixedArgument errorLevel="suppress"/>
-        <MixedMethodCall errorLevel="suppress"/>
-        <MixedPropertyTypeCoercion errorLevel="suppress"/>
-        <MixedArrayAccess errorLevel="suppress"/>
     </issueHandlers>
     <projectFiles>
         <directory name="src"/>

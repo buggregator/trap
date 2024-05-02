@@ -6,6 +6,10 @@
     </PossiblyInvalidArgument>
   </file>
   <file src="src/Command/Test.php">
+    <MixedArgument>
+      <code><![CDATA[$output::OUTPUT_RAW]]></code>
+      <code><![CDATA[$output::OUTPUT_RAW]]></code>
+    </MixedArgument>
     <PropertyNotSetInConstructor>
       <code><![CDATA[$logger]]></code>
     </PropertyNotSetInConstructor>
@@ -21,19 +25,56 @@
     <ArgumentTypeCoercion>
       <code><![CDATA[$time]]></code>
     </ArgumentTypeCoercion>
+    <MixedArgument>
+      <code><![CDATA[$response]]></code>
+    </MixedArgument>
+    <MixedAssignment>
+      <code><![CDATA[$time]]></code>
+    </MixedAssignment>
     <PossiblyUndefinedVariable>
       <code><![CDATA[$response]]></code>
     </PossiblyUndefinedVariable>
+  </file>
+  <file src="src/Handler/Http/Handler/Websocket.php">
+    <MixedAssignment>
+      <code><![CDATA[$time]]></code>
+    </MixedAssignment>
+  </file>
+  <file src="src/Handler/Http/Middleware/SentryTrap.php">
+    <MixedArgument>
+      <code><![CDATA[$payload]]></code>
+      <code><![CDATA[$request->getAttribute('begin_at', null)]]></code>
+      <code><![CDATA[$request->getAttribute('begin_at', null)]]></code>
+    </MixedArgument>
+    <MixedAssignment>
+      <code><![CDATA[$payload]]></code>
+    </MixedAssignment>
   </file>
   <file src="src/Handler/Http/Middleware/SentryTrap/EnvelopeParser.php">
     <ArgumentTypeCoercion>
       <code><![CDATA[$offset - $currentPos]]></code>
     </ArgumentTypeCoercion>
+    <MixedArgument>
+      <code><![CDATA[$headers]]></code>
+      <code><![CDATA[$itemHeader]]></code>
+    </MixedArgument>
+    <MixedArrayAccess>
+      <code><![CDATA[$itemHeader['length']]]></code>
+      <code><![CDATA[$itemHeader['type']]]></code>
+    </MixedArrayAccess>
+    <MixedAssignment>
+      <code><![CDATA[$headers]]></code>
+      <code><![CDATA[$itemHeader]]></code>
+      <code><![CDATA[$type]]></code>
+    </MixedAssignment>
   </file>
   <file src="src/Handler/Pipeline.php">
     <MixedInferredReturnType>
       <code><![CDATA[TReturn]]></code>
     </MixedInferredReturnType>
+    <MixedMethodCall>
+      <code><![CDATA[$this->method]]></code>
+    </MixedMethodCall>
     <MixedReturnStatement>
       <code><![CDATA[$middleware->{$this->method}(...$arguments)]]></code>
     </MixedReturnStatement>
@@ -55,10 +96,43 @@
     </MoreSpecificReturnType>
   </file>
   <file src="src/Proto/Frame/Http.php">
+    <MixedArgument>
+      <code><![CDATA[$file['clientFilename']]]></code>
+      <code><![CDATA[$file['clientMediaType']]]></code>
+      <code><![CDATA[$file['content']]]></code>
+      <code><![CDATA[$file['size']]]></code>
+      <code><![CDATA[$payload['body'] ?? '']]></code>
+      <code><![CDATA[$payload['cookies'] ?? []]]></code>
+      <code><![CDATA[$payload['method'] ?? 'GET']]></code>
+      <code><![CDATA[$payload['protocolVersion'] ?? '1.1']]></code>
+      <code><![CDATA[$payload['queryParams'] ?? []]]></code>
+      <code><![CDATA[$payload['serverParams'] ?? []]]></code>
+      <code><![CDATA[$payload['uploadedFiles'] ?? []]]></code>
+      <code><![CDATA[$payload['uri'] ?? '/']]></code>
+    </MixedArgument>
+    <MixedArrayAccess>
+      <code><![CDATA[$payload['body']]]></code>
+      <code><![CDATA[$payload['cookies']]]></code>
+      <code><![CDATA[$payload['headers']]]></code>
+      <code><![CDATA[$payload['method']]]></code>
+      <code><![CDATA[$payload['protocolVersion']]]></code>
+      <code><![CDATA[$payload['queryParams']]]></code>
+      <code><![CDATA[$payload['serverParams']]]></code>
+      <code><![CDATA[$payload['uploadedFiles']]]></code>
+      <code><![CDATA[$payload['uri']]]></code>
+    </MixedArrayAccess>
+    <MixedAssignment>
+      <code><![CDATA[$payload]]></code>
+    </MixedAssignment>
     <MixedReturnTypeCoercion>
       <code><![CDATA[$this->request->getUploadedFiles()]]></code>
       <code><![CDATA[array]]></code>
     </MixedReturnTypeCoercion>
+  </file>
+  <file src="src/Proto/Frame/Monolog.php">
+    <MixedArgument>
+      <code><![CDATA[\json_decode($payload, true, JSON_THROW_ON_ERROR)]]></code>
+    </MixedArgument>
   </file>
   <file src="src/Proto/Frame/Sentry.php">
     <LessSpecificReturnStatement>
@@ -68,9 +142,30 @@
             default => throw new \InvalidArgumentException('Unknown Sentry frame type.'),
         }]]></code>
     </LessSpecificReturnStatement>
+    <MixedArgument>
+      <code><![CDATA[$data]]></code>
+      <code><![CDATA[$data]]></code>
+    </MixedArgument>
+    <MixedArrayAccess>
+      <code><![CDATA[$data['type']]]></code>
+      <code><![CDATA[$data['type']]]></code>
+    </MixedArrayAccess>
+    <MixedAssignment>
+      <code><![CDATA[$data]]></code>
+    </MixedAssignment>
     <MoreSpecificReturnType>
       <code><![CDATA[static]]></code>
     </MoreSpecificReturnType>
+  </file>
+  <file src="src/Proto/Frame/Sentry/SentryEnvelope.php">
+    <MixedArgument>
+      <code><![CDATA[$data['headers']]]></code>
+      <code><![CDATA[$item]]></code>
+      <code><![CDATA[$item]]></code>
+    </MixedArgument>
+    <MixedAssignment>
+      <code><![CDATA[$item]]></code>
+    </MixedAssignment>
   </file>
   <file src="src/Proto/Frame/Sentry/SentryStore.php">
     <InvalidDocblock>
@@ -99,6 +194,12 @@
       <code><![CDATA[$request->getQueryParams()]]></code>
     </MixedArgumentTypeCoercion>
   </file>
+  <file src="src/Sender/Console/Renderer/Monolog.php">
+    <MixedArgument>
+      <code><![CDATA[$payload['level_name']]]></code>
+      <code><![CDATA[$payload['message']]]></code>
+    </MixedArgument>
+  </file>
   <file src="src/Sender/Console/Renderer/Sentry/Exceptions.php">
     <ArgumentTypeCoercion>
       <code><![CDATA[$file]]></code>
@@ -108,6 +209,14 @@
     <MissingClosureReturnType>
       <code><![CDATA[static fn() => $output->writeln(]]></code>
     </MissingClosureReturnType>
+    <MixedArgument>
+      <code><![CDATA[$exception['value']]]></code>
+      <code><![CDATA[isset($exception['type']) ? $exception['type'] : 'Exception']]></code>
+    </MixedArgument>
+    <MixedAssignment>
+      <code><![CDATA[$row]]></code>
+      <code><![CDATA[$stacktrace]]></code>
+    </MixedAssignment>
     <PossiblyInvalidArgument>
       <code><![CDATA[\str_replace('\\', '/', $file)]]></code>
     </PossiblyInvalidArgument>
@@ -128,5 +237,84 @@
       <code><![CDATA[(array)$context['runtime']]]></code>
       <code><![CDATA[(array)$message['sdk']]]></code>
     </MixedArgumentTypeCoercion>
+    <MixedAssignment>
+      <code><![CDATA[$meta['Event ID']]]></code>
+      <code><![CDATA[$meta['Server']]]></code>
+      <code><![CDATA[$meta['Transaction']]]></code>
+    </MixedAssignment>
+  </file>
+  <file src="src/Sender/Console/Renderer/SentryEnvelope.php">
+    <MixedArgument>
+      <code><![CDATA[$item->payload]]></code>
+    </MixedArgument>
+    <MixedArrayAccess>
+      <code><![CDATA[$data->payload['exceptions']]]></code>
+    </MixedArrayAccess>
+    <MixedAssignment>
+      <code><![CDATA[$type]]></code>
+    </MixedAssignment>
+  </file>
+  <file src="src/Sender/Console/Renderer/VarDumper.php">
+    <MixedArgument>
+      <code><![CDATA[$context]]></code>
+      <code><![CDATA[$data]]></code>
+    </MixedArgument>
+    <MixedArrayAccess>
+      <code><![CDATA[$context]]></code>
+      <code><![CDATA[$data]]></code>
+    </MixedArrayAccess>
+    <MixedAssignment>
+      <code><![CDATA[$controller]]></code>
+      <code><![CDATA[$describer]]></code>
+      <code><![CDATA[$fileLink]]></code>
+      <code><![CDATA[$meta['Command']]]></code>
+      <code><![CDATA[$meta['File']]]></code>
+      <code><![CDATA[$meta['Method']]]></code>
+      <code><![CDATA[$meta['URI']]]></code>
+      <code><![CDATA[$payload]]></code>
+      <code><![CDATA[[$data, $context]]]></code>
+    </MixedAssignment>
+    <MixedMethodCall>
+      <code><![CDATA[describe]]></code>
+    </MixedMethodCall>
+  </file>
+  <file src="src/Sender/Console/Support/Common.php">
+    <MixedAssignment>
+      <code><![CDATA[$item]]></code>
+      <code><![CDATA[$value]]></code>
+    </MixedAssignment>
+  </file>
+  <file src="src/Sender/Console/Support/Tables.php">
+    <MixedAssignment>
+      <code><![CDATA[$value]]></code>
+    </MixedAssignment>
+  </file>
+  <file src="src/Sender/SocketSender.php">
+    <MixedPropertyTypeCoercion>
+      <code><![CDATA[new SplQueue()]]></code>
+    </MixedPropertyTypeCoercion>
+  </file>
+  <file src="src/Socket/SocketStream.php">
+    <MixedPropertyTypeCoercion>
+      <code><![CDATA[new \SplQueue()]]></code>
+    </MixedPropertyTypeCoercion>
+  </file>
+  <file src="src/Support/ProtobufCaster.php">
+    <MixedArgument>
+      <code><![CDATA[$ed->getClass()]]></code>
+      <code><![CDATA[$value]]></code>
+      <code><![CDATA[$value]]></code>
+    </MixedArgument>
+    <MixedArrayOffset>
+      <code><![CDATA[$values[$fd->getName()]]]></code>
+      <code><![CDATA[$values[$fd->getName()]]]></code>
+    </MixedArrayOffset>
+    <MixedAssignment>
+      <code><![CDATA[$value]]></code>
+      <code><![CDATA[$values[$fd->getName()]]]></code>
+    </MixedAssignment>
+    <MixedMethodCall>
+      <code><![CDATA[getDescriptorByClassName]]></code>
+    </MixedMethodCall>
   </file>
 </files>
