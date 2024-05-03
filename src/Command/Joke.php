@@ -25,7 +25,7 @@ final class Joke extends Command
         OutputInterface $output,
     ): int {
         $jokes = \file(filename: 'resources/registry/jokes.txt', flags: \FILE_SKIP_EMPTY_LINES);
-        $joke = base64_decode($jokes[\array_rand($jokes)]);
+        $joke = \base64_decode($jokes[\array_rand($jokes)]);
         \trap($joke);
 
         return Command::SUCCESS;

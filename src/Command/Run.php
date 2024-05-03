@@ -55,7 +55,7 @@ final class Run extends Command implements SignalableCommandInterface
     ): int {
         try {
             // Print intro
-            $output->writeln(\sprintf('<fg=yellow;options=bold>%s</> <info>v%s</>:', Info::NAME, Info::VERSION));
+            $output->writeln(\sprintf('<fg=yellow;options=bold>%s</> <info>v%s</>', Info::NAME, Info::VERSION));
             $output->write(Info::LOGO_CLI_COLOR . "\n", true, OutputInterface::OUTPUT_RAW);
 
             /**
