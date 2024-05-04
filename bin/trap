@@ -44,8 +44,8 @@ if ('cli' !== PHP_SAPI) {
     $application = new Application();
     $application->setCommandLoader(
         new FactoryCommandLoader([
-            Command\Joke::getDefaultName() => static fn() => new Command\Joke(),
             Command\Run::getDefaultName() => static fn() => new Command\Run(),
+            Command\Joke::getDefaultName() => static fn() => new Command\Joke(),
             Command\Test::getDefaultName() => static fn() => new Command\Test(),
         ]),
     );
