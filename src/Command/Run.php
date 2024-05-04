@@ -46,6 +46,7 @@ final class Run extends Command implements SignalableCommandInterface
             's',
             InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY,
             'Senders',
+            ['console'],
         );
         $this->addOption('ui', null, InputOption::VALUE_OPTIONAL, 'Enable WEB UI (experimental)', false);
     }
