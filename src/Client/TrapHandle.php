@@ -133,6 +133,35 @@ final class TrapHandle
         return $this->values[$k];
     }
 
+    /**
+     * Add dynamic context to the dumped data.
+     * The method merges new values with the existing ones using the {@see \array_merge()} function.
+     *
+     * There are two ways to add context:
+     *
+     * 1. Use named arguments:
+     * ```php
+     * trap($phpCode)->context(language: 'php');
+     * ```
+     *
+     * 2. Use array:
+     * ```php
+     * trap()->context(['foo bar', => 42, 'baz' => 69]);
+     * ```
+     *
+     * @param mixed ...$values
+     */
+    public function context(mixed ...$values): self
+    {
+        if (\array_keys($values) === [0] && \is_array($values[0])) {
+            $this->staticState->dataContext = \array_merge($this->staticState->dataContext, $values[0]);
+            return $this;
+        }
+
+        $this->staticState->dataContext = \array_merge($this->staticState->dataContext, $values);
+        return $this;
+    }
+
     public function __destruct()
     {
         $this->haveToSend() and $this->sendDump();

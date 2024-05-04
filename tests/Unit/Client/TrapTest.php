@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Client;
 
-use Buggregator\Trap\Client\TrapHandle\Counter;
 use Buggregator\Trap\Client\TrapHandle\Dumper;
-use Symfony\Component\VarDumper\Cloner\Data;
 use Symfony\Component\VarDumper\Dumper\DataDumperInterface;
 
 final class TrapTest extends Base
@@ -15,6 +13,30 @@ final class TrapTest extends Base
     {
         trap(FooName: 'foo-value');
         $this->assertSame('FooName', static::$lastData->getContext()['label']);
+    }
+
+    public function testSimpleContext(): void
+    {
+        trap('test-value')->context(foo: 'test-context');
+
+        self::assertSame(['foo' => 'test-context'], static::$lastData->getContext());
+    }
+
+    public function testArrayContext(): void
+    {
+        trap('test-value')->context(['foo' => 'test-context']);
+
+        self::assertSame(['foo' => 'test-context'], static::$lastData->getContext());
+    }
+
+    public function testContextMultiple(): void
+    {
+        trap('test-value')
+            ->context(['foo' => 'test-context'])
+            ->context(['bar' => 'bar-context'])
+            ->context(foo: 'new');
+
+        self::assertSame(['foo' => 'new', 'bar' => 'bar-context'], static::$lastData->getContext());
     }
 
     /**

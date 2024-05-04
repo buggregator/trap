@@ -9,7 +9,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Debug\FileLinkFormatter;
 use Symfony\Component\VarDumper\Caster\ReflectionCaster;
-use Symfony\Component\VarDumper\Cloner\DumperInterface;
 use Symfony\Component\VarDumper\Cloner\VarCloner;
 use Symfony\Component\VarDumper\Dumper\CliDumper;
 use Symfony\Component\VarDumper\Dumper\ContextProvider\CliContextProvider;
@@ -62,7 +61,10 @@ final class Dumper
             use ($cloner, $dumper): ?string {
                 $var = $cloner->cloneVar($var);
 
-                $label === null or $var = $var->withContext(['label' => $label]);
+                $context = StaticState::getValue()->dataContext;
+
+                $label === null or $context['label'] ??= $label;
+                $label === [] or $var = $var->withContext($context);
                 $depth > 0 and $var = $var->withMaxDepth($depth);
 
                 return $dumper->dump($var);
