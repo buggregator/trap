@@ -205,6 +205,7 @@ final class Application implements Processable, Cancellable, Destroyable
         $inspector = $this->container->make(Inspector::class, [
             new Traffic\Dispatcher\Http(
                 [
+                    new Sender\Frontend\Http\Cors(),
                     new Sender\Frontend\Http\StaticFiles(),
                     new Sender\Frontend\Http\EventAssets($this->logger, $wsSender->getEventStorage()),
                     new Sender\Frontend\Http\Router($this->logger, $wsSender->getEventStorage()),
