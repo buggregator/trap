@@ -28,6 +28,7 @@ final class Test extends Command
     private string $addr = '127.0.0.1';
     private int $port = 9912;
 
+    /** @psalm-suppress PropertyNotSetInConstructor */
     private Logger $logger;
 
     protected function execute(
@@ -197,7 +198,7 @@ final class Test extends Command
             $output->write(
                 '> ' . \str_replace(["\r", "\n"], ["\e[32m\\r\e[0m", "\e[32m\\n\e[0m"], $content),
                 true,
-                $output::OUTPUT_RAW,
+                (int) $output::OUTPUT_RAW,
             );
         }
 
@@ -205,6 +206,7 @@ final class Test extends Command
             return;
         }
         @\socket_recv($socket, $buf, 65536, 0);
+        /** @var string|null $buf */
         if ($buf === null) {
             $output->writeln('<error>Disconnected</>');
             return;
@@ -214,7 +216,7 @@ final class Test extends Command
             "\e[33m< \"%s\"\e[0m",
             \str_replace(["\r", "\n"], ["\e[32m\\r\e[33m", "\e[32m\\n\e[33m"], $buf)),
             true,
-            $output::OUTPUT_RAW,
+            (int) $output::OUTPUT_RAW,
         );
 
         $prefix = \substr($buf, 0, \strlen($expectedResponsePrefix));
@@ -245,7 +247,7 @@ final class Test extends Command
         } catch (\Throwable $e) {
             $this->logger->exception($e, "$file sending error", important: true);
         } finally {
-            if (isset($fp) && \is_resource($fp)) {
+            if (isset($fp)) {
                 @\flock($fp, LOCK_UN);
                 @\fclose($fp);
             }

@@ -1,64 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <files psalm-version="5.15.0@5c774aca4746caf3d239d9c8cadb9f882ca29352">
-  <file src="src/Application.php">
-    <PossiblyInvalidArgument>
-      <code>$data</code>
-    </PossiblyInvalidArgument>
-  </file>
-  <file src="src/Command/Run.php">
-    <ArgumentTypeCoercion>
-      <code>$port</code>
-    </ArgumentTypeCoercion>
-  </file>
-  <file src="src/Command/Test.php">
-    <MixedArgument>
-      <code>$output::OUTPUT_RAW</code>
-      <code>$output::OUTPUT_RAW</code>
-    </MixedArgument>
-    <PropertyNotSetInConstructor>
-      <code>$logger</code>
-    </PropertyNotSetInConstructor>
-    <RedundantCondition>
-      <code>\is_resource($fp)</code>
-      <code><![CDATA[isset($fp) && \is_resource($fp)]]></code>
-    </RedundantCondition>
-    <TypeDoesNotContainNull>
-      <code>$buf === null</code>
-    </TypeDoesNotContainNull>
-  </file>
-  <file src="src/Handler/Http/Handler/Fallback.php">
-    <ArgumentTypeCoercion>
-      <code>$time</code>
-    </ArgumentTypeCoercion>
-    <MixedArgument>
-      <code>$response</code>
-    </MixedArgument>
-    <MixedAssignment>
-      <code>$time</code>
-    </MixedAssignment>
-    <PossiblyUndefinedVariable>
-      <code>$response</code>
-    </PossiblyUndefinedVariable>
-  </file>
-  <file src="src/Handler/Http/Handler/Websocket.php">
-    <ArgumentTypeCoercion>
-      <code>$time</code>
-      <code>$time</code>
-    </ArgumentTypeCoercion>
-    <MixedAssignment>
-      <code>$time</code>
-    </MixedAssignment>
-  </file>
-  <file src="src/Handler/Http/Middleware/SentryTrap.php">
-    <MixedArgument>
-      <code>$payload</code>
-      <code><![CDATA[$request->getAttribute('begin_at', null)]]></code>
-      <code><![CDATA[$request->getAttribute('begin_at', null)]]></code>
-    </MixedArgument>
-    <MixedAssignment>
-      <code>$payload</code>
-    </MixedAssignment>
-  </file>
   <file src="src/Handler/Http/Middleware/SentryTrap/EnvelopeParser.php">
     <ArgumentTypeCoercion>
       <code>$offset - $currentPos</code>
@@ -164,44 +105,6 @@
     <MixedArgument>
       <code>\json_decode($payload, true, JSON_THROW_ON_ERROR)</code>
     </MixedArgument>
-  </file>
-  <file src="src/Proto/Frame/Sentry.php">
-    <LessSpecificReturnStatement>
-      <code><![CDATA[match (true) {
-            $data['type'] === SentryEnvelope::SENTRY_FRAME_TYPE => SentryEnvelope::fromArray($data, $time),
-            $data['type'] === SentryStore::SENTRY_FRAME_TYPE => SentryStore::fromArray($data, $time),
-            default => throw new \InvalidArgumentException('Unknown Sentry frame type.'),
-        }]]></code>
-    </LessSpecificReturnStatement>
-    <MixedArgument>
-      <code>$data</code>
-      <code>$data</code>
-    </MixedArgument>
-    <MixedArrayAccess>
-      <code><![CDATA[$data['type']]]></code>
-      <code><![CDATA[$data['type']]]></code>
-    </MixedArrayAccess>
-    <MixedAssignment>
-      <code>$data</code>
-    </MixedAssignment>
-    <MoreSpecificReturnType>
-      <code>static</code>
-    </MoreSpecificReturnType>
-  </file>
-  <file src="src/Proto/Frame/Sentry/SentryEnvelope.php">
-    <MixedArgument>
-      <code><![CDATA[$data['headers']]]></code>
-      <code>$item</code>
-      <code>$item</code>
-    </MixedArgument>
-    <MixedAssignment>
-      <code>$item</code>
-    </MixedAssignment>
-  </file>
-  <file src="src/Proto/Frame/Sentry/SentryStore.php">
-    <InvalidDocblock>
-      <code>public function __construct(</code>
-    </InvalidDocblock>
   </file>
   <file src="src/Proto/Frame/Smtp.php">
     <MixedArgument>

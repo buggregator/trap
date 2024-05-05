@@ -31,7 +31,8 @@ final class Websocket implements RequestHandler
         }
 
         // Get the time of the request
-        $time = $request->getAttribute('begin_at', null);
+        /** @psalm-suppress MixedAssignment */
+        $time = $request->getAttribute('begin_at');
         $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
 
         // Calculate the accept key for the handshake
