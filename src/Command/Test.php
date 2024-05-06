@@ -198,7 +198,7 @@ final class Test extends Command
             $output->write(
                 '> ' . \str_replace(["\r", "\n"], ["\e[32m\\r\e[0m", "\e[32m\\n\e[0m"], $content),
                 true,
-                (int) $output::OUTPUT_RAW,
+                OutputInterface::OUTPUT_RAW,
             );
         }
 
@@ -216,7 +216,7 @@ final class Test extends Command
             "\e[33m< \"%s\"\e[0m",
             \str_replace(["\r", "\n"], ["\e[32m\\r\e[33m", "\e[32m\\n\e[33m"], $buf)),
             true,
-            (int) $output::OUTPUT_RAW,
+            OutputInterface::OUTPUT_RAW,
         );
 
         $prefix = \substr($buf, 0, \strlen($expectedResponsePrefix));

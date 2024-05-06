@@ -23,24 +23,24 @@ use DateTimeImmutable;
  *          version: non-empty-string,
  *     },
  *     logger?: non-empty-string,
- *      contexts?: array<non-empty-string, array<non-empty-string, non-empty-string>>,
- *      environment?: non-empty-string,
- *      server_name?: non-empty-string,
- *      transaction?: non-empty-string,
- *      modules?: array<non-empty-string, non-empty-string>,
- *      exception?: array<array-key, array{
- *          type: non-empty-string,
- *          value: non-empty-string,
- *          stacktrace: array{
- *              frames: array<array-key, array{
- *                  filename: non-empty-string,
- *                  lineno: positive-int,
- *                  abs_path: non-empty-string,
- *                  context_line: non-empty-string
- *              }>
- *          }
- *      }>
- *  }
+ *     contexts?: array<non-empty-string, array<non-empty-string, non-empty-string>>,
+ *     environment?: non-empty-string,
+ *     server_name?: non-empty-string,
+ *     transaction?: non-empty-string,
+ *     modules?: array<non-empty-string, non-empty-string>,
+ *     exception?: array<array-key, array{
+ *         type: non-empty-string,
+ *         value: non-empty-string,
+ *         stacktrace: array{
+ *             frames: array<array-key, array{
+ *                 filename: non-empty-string,
+ *                 lineno: positive-int,
+ *                 abs_path: non-empty-string,
+ *                 context_line: non-empty-string
+ *             }>
+ *         }
+ *     }>
+ * }
  */
 final class SentryStore extends Frame\Sentry
 {

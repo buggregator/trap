@@ -42,7 +42,7 @@ final class Fallback implements RequestHandler
 
     public function handle(StreamClient $streamClient, ServerRequestInterface $request, callable $next): iterable
     {
-        /** @psalm-suppress MixedAssignment */
+        /** @var mixed $time */
         $time = $request->getAttribute('begin_at');
         $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
         $gotFrame = false;
@@ -67,8 +67,8 @@ final class Fallback implements RequestHandler
                     if (!$response instanceof ResponseInterface) {
                         throw new \RuntimeException('Invalid response type.');
                     }
-                    HttpEmitter::emit($streamClient, $response);
 
+                    HttpEmitter::emit($streamClient, $response);
                     break;
                 }
 

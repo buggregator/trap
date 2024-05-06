@@ -67,7 +67,7 @@ final class SentryTrap implements Middleware
 
         $request->getBody()->rewind();
 
-        /** @psalm-suppress MixedAssignment */
+        /** @var mixed $time */
         $time = $request->getAttribute('begin_at');
         $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
 

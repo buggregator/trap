@@ -18,19 +18,22 @@ use DateTimeImmutable;
  */
 abstract class Sentry extends Frame
 {
-    /**
-     * @psalm-suppress MoreSpecificReturnType
-     */
-    public static function fromString(string $payload, DateTimeImmutable $time): static
+    final public static function fromString(string $payload, DateTimeImmutable $time): static
     {
+        static::class === self::class or throw new \LogicException(
+            \sprintf('Factory method must be called from %s class.', self::class),
+        );
+
         /** @var array{type: string, ...mixed} $data */
         $data = \json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
 
-        /** @psalm-suppress LessSpecificReturnStatement, InvalidArgument */
-        return match ($data['type']) {
+        /** @psalm-suppress InvalidArgument */
+        $result = match ($data['type']) {
             SentryEnvelope::SENTRY_FRAME_TYPE => SentryEnvelope::fromArray($data, $time),
             SentryStore::SENTRY_FRAME_TYPE => SentryStore::fromArray($data, $time),
             default => throw new \InvalidArgumentException('Unknown Sentry frame type.'),
         };
+
+        return $result;
     }
 }
