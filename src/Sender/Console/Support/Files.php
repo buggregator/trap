@@ -69,7 +69,7 @@ final class Files
         }
 
         $units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
-        $power = (int)\floor(\log($size, 1024));
+        $power = (int) \floor(\log($size, 1024));
         $float = $power > 0 ? \round($size / (1024 ** $power), 2) : $size;
 
         \assert($power >= 0 && $power <= 5);

@@ -19,7 +19,7 @@ final class SentryStore
             uuid: Uuid::uuid4(),
             type: 'sentry',
             payload: $frame->message,
-            timestamp: (float)$frame->time->format('U.u'),
+            timestamp: (float) $frame->time->format('U.u'),
         );
     }
 }

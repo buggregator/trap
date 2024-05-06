@@ -33,7 +33,7 @@ final class TrapHandle
     {
         if (\is_callable($condition)) {
             try {
-                $condition = (bool)$condition();
+                $condition = (bool) $condition();
             } catch (\Throwable $e) {
                 $this->values[] = $e;
 

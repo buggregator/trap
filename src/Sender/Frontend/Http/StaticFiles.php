@@ -69,7 +69,7 @@ final class StaticFiles implements Middleware
 
                 $headers = [
                     'Link' => \array_map(
-                        static fn (string $css): string => \sprintf('<%s>; rel=preload; as=style', $css),
+                        static fn(string $css): string => \sprintf('<%s>; rel=preload; as=style', $css),
                         $this->earlyResponse,
                     ),
                 ];

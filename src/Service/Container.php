@@ -88,7 +88,7 @@ final class Container implements ContainerInterface, Destroyable
             try {
                 $result = $this->injector->make($class, \array_merge((array) $binding, $arguments));
             } catch (\Throwable $e) {
-                throw new class(previous: $e) extends \RuntimeException implements NotFoundExceptionInterface {};
+                throw new class (previous: $e) extends \RuntimeException implements NotFoundExceptionInterface {};
             }
         }
 

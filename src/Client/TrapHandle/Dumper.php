@@ -32,7 +32,7 @@ final class Dumper
     public static function dump(mixed $var, string|int|null $label = null, int $depth = 0): mixed
     {
         /** @psalm-suppress RiskyTruthyFalsyComparison */
-        return (self::$handler ??= self::registerHandler())($var, empty($label) ? null : (string)$label, $depth);
+        return (self::$handler ??= self::registerHandler())($var, empty($label) ? null : (string) $label, $depth);
     }
 
     /**
@@ -57,20 +57,19 @@ final class Dumper
         /** @psalm-suppress InvalidArgument */
         $cloner->addCasters(ReflectionCaster::UNSET_CLOSURE_FILE_INFO);
 
-        return self::$handler = static function (mixed $var, string|null $label = null, int $depth = 0)
-            use ($cloner, $dumper): ?string {
-                $var = $cloner->cloneVar($var);
+        return self::$handler = static function (mixed $var, string|null $label = null, int $depth = 0) use ($cloner, $dumper): ?string {
+            $var = $cloner->cloneVar($var);
 
-                /** @var array<array-key, mixed> $context*/
-                $context = StaticState::getValue()?->dataContext ?? [];
+            /** @var array<array-key, mixed> $context*/
+            $context = StaticState::getValue()?->dataContext ?? [];
 
-                /** @var string|null $label */
-                $label === null or $context['label'] = $label;
-                $context === [] or $var = $var->withContext($context);
-                $depth > 0 and $var = $var->withMaxDepth($depth);
+            /** @var string|null $label */
+            $label === null or $context['label'] = $label;
+            $context === [] or $var = $var->withContext($context);
+            $depth > 0 and $var = $var->withMaxDepth($depth);
 
-                return $dumper->dump($var);
-            };
+            return $dumper->dump($var);
+        };
     }
 
     /**
@@ -133,8 +132,8 @@ final class Dumper
             : null;
 
         return $contextProviders + [
-                'cli' => new CliContextProvider(),
-                'source' => new ContextProvider\Source(null, null, $fileLinkFormatter),
-            ];
+            'cli' => new CliContextProvider(),
+            'source' => new ContextProvider\Source(null, null, $fileLinkFormatter),
+        ];
     }
 }

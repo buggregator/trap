@@ -22,7 +22,7 @@ final class Header
         /** @var mixed $timeValue */
         $timeValue = $message['sent_at'] ?? $message['timestamp'] ?? 'now';
         try {
-            $time = new DateTimeImmutable(\is_numeric($timeValue) ? "@$timeValue" : (string)$timeValue);
+            $time = new DateTimeImmutable(\is_numeric($timeValue) ? "@$timeValue" : (string) $timeValue);
         } catch (\Throwable) {
             $time = new DateTimeImmutable();
         }
@@ -34,10 +34,10 @@ final class Header
         // Metadata from context
         if (isset($message['contexts']) && \is_array($message['contexts'])) {
             $context = $message['contexts'];
-            isset($context['runtime']) and $meta['Runtime'] = \implode(' ', (array)$context['runtime']);
-            isset($context['os']) and $meta['OS'] = \implode(' ', (array)$context['os']);
+            isset($context['runtime']) and $meta['Runtime'] = \implode(' ', (array) $context['runtime']);
+            isset($context['os']) and $meta['OS'] = \implode(' ', (array) $context['os']);
         }
-        isset($message['sdk']) and $meta['SDK'] = \implode(' ', (array)$message['sdk']);
+        isset($message['sdk']) and $meta['SDK'] = \implode(' ', (array) $message['sdk']);
 
         Common::renderMetadata($output, $meta);
 
@@ -74,7 +74,7 @@ final class Header
         $result = [];
         foreach ($tags as $key => $alias) {
             if (isset($message[$key]) && \is_string($message[$key])) {
-                $result[$alias] ??= \implode(' ', (array)($message[$key]));
+                $result[$alias] ??= \implode(' ', (array) ($message[$key]));
             }
         }
 

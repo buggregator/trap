@@ -21,8 +21,7 @@ final class FrameHandler implements HandlerInterface
 
     public function __construct(
         private readonly OutputInterface $output,
-    ) {
-    }
+    ) {}
 
     public function handle(Frame $frame): void
     {

@@ -15,8 +15,7 @@ final class Push implements JsonSerializable
         public readonly string $event,
         public readonly string $channel,
         public readonly mixed $data,
-    ) {
-    }
+    ) {}
 
     public function jsonSerialize(): array
     {

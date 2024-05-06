@@ -27,9 +27,9 @@ final class Http extends Frame implements FilesCarrier
         public readonly ServerRequestInterface $request,
         DateTimeImmutable $time = new DateTimeImmutable(),
     ) {
-        $this->cachedSize = \max(0, (int)$request->getBody()->getSize() + \array_reduce(
+        $this->cachedSize = \max(0, (int) $request->getBody()->getSize() + \array_reduce(
             \iterator_to_array($this->iterateUploadedFiles(), false),
-            static fn(int $carry, PsrUploadedFile $file): int => $carry + (int)$file->getSize(),
+            static fn(int $carry, PsrUploadedFile $file): int => $carry + (int) $file->getSize(),
             0,
         ));
         parent::__construct(type: ProtoType::HTTP, time: $time);
@@ -43,8 +43,8 @@ final class Http extends Frame implements FilesCarrier
         return Json::encode([
             'headers' => $this->request->getHeaders(),
             'method' => $this->request->getMethod(),
-            'uri' => (string)$this->request->getUri(),
-            'body' => (string)$this->request->getBody(),
+            'uri' => (string) $this->request->getUri(),
+            'body' => (string) $this->request->getBody(),
             'serverParams' => $this->request->getServerParams(),
             'cookies' => $this->request->getCookieParams(),
             'queryParams' => $this->request->getQueryParams(),
@@ -60,7 +60,7 @@ final class Http extends Frame implements FilesCarrier
         $request = new ServerRequest(
             $payload['method'] ?? 'GET',
             $payload['uri'] ?? '/',
-            (array)($payload['headers'] ?? []),
+            (array) ($payload['headers'] ?? []),
             $payload['body'] ?? '',
             $payload['protocolVersion'] ?? '1.1',
             $payload['serverParams'] ?? [],

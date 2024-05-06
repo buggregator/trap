@@ -15,7 +15,7 @@ use Throwable;
 final class Router
 {
     /** @var array<class-string, self> */
-    static private array $cache = [];
+    private static array $cache = [];
 
     /** @var null|object Null for routes defined in static methods */
     private ?object $object = null;
@@ -25,8 +25,7 @@ final class Router
      */
     private function __construct(
         private readonly array $routes,
-    ) {
-    }
+    ) {}
 
     /**
      * @param array<RouteAttribute> $routes
@@ -86,10 +85,10 @@ final class Router
             // Must be matched
             if ($assertion::class === Attribute\AssertRouteSuccess::class) {
                 $found or $fails[] = \sprintf(
-                        '> Should be matched -> %s `%s`.',
-                        $assertion->method->value,
-                        $assertion->path,
-                    );
+                    '> Should be matched -> %s `%s`.',
+                    $assertion->method->value,
+                    $assertion->path,
+                );
 
                 if (!$found || $assertion->args === null) {
                     continue;
@@ -219,8 +218,8 @@ final class Router
             $rr = $route->route;
             /** @psalm-suppress ArgumentTypeCoercion */
             $match = match ($rr::class) {
-                Attribute\StaticRoute::class => $path === (string)$rr->path,
-                Attribute\RegexpRoute::class => \preg_match((string)$rr->regexp, $path, $matches) === 1
+                Attribute\StaticRoute::class => $path === (string) $rr->path,
+                Attribute\RegexpRoute::class => \preg_match((string) $rr->regexp, $path, $matches) === 1
                     ? \array_filter($matches, '\is_string', \ARRAY_FILTER_USE_KEY)
                     : false,
                 default => throw new \LogicException(\sprintf(

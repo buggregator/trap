@@ -15,8 +15,7 @@ final class EnvelopeItem implements \Stringable, \JsonSerializable
     public function __construct(
         public readonly array $headers,
         public readonly mixed $payload,
-    ) {
-    }
+    ) {}
 
     /**
      * @throws \JsonException

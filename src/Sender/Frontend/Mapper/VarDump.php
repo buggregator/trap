@@ -29,7 +29,7 @@ final class VarDump
                 ],
                 'context' => $payload[1],
             ],
-            timestamp: (float)$frame->time->format('U.u'),
+            timestamp: (float) $frame->time->format('U.u'),
         );
     }
 
@@ -61,7 +61,7 @@ final class VarDump
     {
         if (\in_array($data->getType(), ['string', 'boolean'])) {
             /** @psalm-suppress PossiblyInvalidCast */
-            return (string)$data->getValue();
+            return (string) $data->getValue();
         }
 
         return (new HtmlDumper())->dump($data, true);

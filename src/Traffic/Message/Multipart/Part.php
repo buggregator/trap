@@ -52,7 +52,7 @@ abstract class Part implements JsonSerializable
             ? ($matches['a'] ?: $matches['b'])
             : null;
         $fileName = $fileName !== null ? \html_entity_decode($fileName) : null;
-        $isFile = (string)$fileName !== ''
+        $isFile = (string) $fileName !== ''
             || \preg_match('/text\\/.++/', self::findHeader($headers, 'Content-Type')[0] ?? 'text/plain') !== 1;
 
         return match ($isFile) {

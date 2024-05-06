@@ -212,7 +212,7 @@ final class Application implements Processable, Cancellable, Destroyable
                 ],
                 [new Sender\Frontend\Http\RequestHandler($wsSender->getConnectionPool())],
                 silentMode: true,
-            )
+            ),
         ]);
         $this->processors[] = $inspector;
         $this->processors[] = $wsSender;

@@ -33,7 +33,7 @@ final class HttpRequest
                     'uri' => $uri,
                     'headers' => $request->getHeaders(),
                     'body' => $request->getParsedBody() === null
-                        ? (string)$request->getBody()
+                        ? (string) $request->getBody()
                         : '',
                     'query' => $request->getQueryParams(),
                     'post' => $request->getParsedBody() ?? [],
@@ -59,7 +59,7 @@ final class HttpRequest
                     ),
                 ],
             ],
-            timestamp: (float)$frame->time->format('U.u'),
+            timestamp: (float) $frame->time->format('U.u'),
             assets: $assets,
         );
     }

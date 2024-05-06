@@ -95,7 +95,7 @@ final class Server implements Processable, Cancellable, Destroyable
             try {
                 /** @psalm-suppress MixedArgument */
                 $client = Client::init($socket, $this->payloadSize);
-                $key = (int)\array_key_last($this->clients) + 1;
+                $key = (int) \array_key_last($this->clients) + 1;
                 $this->clients[$key] = $client;
                 $this->clientInflector !== null and ($this->clientInflector)($client, $key);
                 $this->fibers[$key] = new Fiber($client->process(...));

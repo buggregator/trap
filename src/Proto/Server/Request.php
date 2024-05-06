@@ -25,8 +25,7 @@ final class Request
         public readonly string $uuid,
         public readonly string $payload,
         private readonly \Closure $payloadParser,
-    ) {
-    }
+    ) {}
 
     /**
      * @return iterable

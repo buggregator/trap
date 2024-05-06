@@ -13,6 +13,5 @@ final class XPath implements ConfigAttribute
     public function __construct(
         public string $path,
         public int $key = 0,
-    ) {
-    }
+    ) {}
 }

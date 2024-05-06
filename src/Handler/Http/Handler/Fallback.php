@@ -35,7 +35,7 @@ final class Fallback implements RequestHandler
             $middlewares,
             /** @see Middleware::handle() */
             'handle',
-            static fn (): ResponseInterface => new Response(404),
+            static fn(): ResponseInterface => new Response(404),
             ResponseInterface::class,
         );
     }

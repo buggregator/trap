@@ -12,6 +12,5 @@ final class InputOption implements ConfigAttribute
 {
     public function __construct(
         public string $name,
-    ) {
-    }
+    ) {}
 }

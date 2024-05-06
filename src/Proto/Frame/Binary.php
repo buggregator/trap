@@ -25,7 +25,7 @@ final class Binary extends Frame
 
     public function getSize(): int
     {
-        return (int)$this->stream->getSize();
+        return (int) $this->stream->getSize();
     }
 
     /**

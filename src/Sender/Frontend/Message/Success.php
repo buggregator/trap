@@ -14,8 +14,7 @@ final class Success implements JsonSerializable
     public function __construct(
         public readonly int $code = 200,
         public readonly bool $status = true,
-    ) {
-    }
+    ) {}
 
     public function jsonSerialize(): array
     {

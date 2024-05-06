@@ -78,7 +78,7 @@ final class Test extends Command
             )
             ->setMapaMapa(['foo' => 'bar', 'baz' => 'qux', '2' => 'quuz', 'quux ff' => 'quuz'])
             ->setFoo(\Buggregator\Trap\Test\Proto\Message\Foo::BAR);
-        \trap(Nested: (object)['msg' => $message]);
+        \trap(Nested: (object) ['msg' => $message]);
 
         try {
             $socket = @\socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
@@ -212,9 +212,11 @@ final class Test extends Command
             return;
         }
 
-        $output->write(\sprintf(
-            "\e[33m< \"%s\"\e[0m",
-            \str_replace(["\r", "\n"], ["\e[32m\\r\e[33m", "\e[32m\\n\e[33m"], $buf)),
+        $output->write(
+            \sprintf(
+                "\e[33m< \"%s\"\e[0m",
+                \str_replace(["\r", "\n"], ["\e[32m\\r\e[33m", "\e[32m\\n\e[33m"], $buf)
+            ),
             true,
             OutputInterface::OUTPUT_RAW,
         );

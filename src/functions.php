@@ -39,4 +39,3 @@ if (\class_exists(AbstractCloner::class)) {
     /** @psalm-suppress MixedAssignment */
     AbstractCloner::$defaultCasters[EnumValue::class] ??= [ProtobufCaster::class, 'castEnum'];
 }
-

@@ -16,8 +16,7 @@ final class Connect implements JsonSerializable
         public readonly string $client,
         public readonly int $ping = 25,
         public readonly bool $pong = true,
-    ) {
-    }
+    ) {}
 
     public function jsonSerialize(): array
     {
@@ -25,7 +24,7 @@ final class Connect implements JsonSerializable
             'client' => $this->client,
             'version' => Info::VERSION,
             'subs' => [
-                'events' => (object)[],
+                'events' => (object) [],
             ],
             'ping' => $this->ping,
             'pong' => $this->pong,

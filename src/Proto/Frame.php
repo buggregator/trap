@@ -16,8 +16,7 @@ abstract class Frame implements \Stringable, \JsonSerializable
     public function __construct(
         public readonly ProtoType $type,
         public readonly DateTimeImmutable $time = new DateTimeImmutable(),
-    ) {
-    }
+    ) {}
 
     abstract public static function fromString(string $payload, DateTimeImmutable $time): static;
 
@@ -26,7 +25,7 @@ abstract class Frame implements \Stringable, \JsonSerializable
      */
     public function getSize(): int
     {
-        return \strlen((string)$this);
+        return \strlen((string) $this);
     }
 
     final public function jsonSerialize(): array

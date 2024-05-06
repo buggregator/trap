@@ -38,8 +38,8 @@ final class Field extends Part
     public function jsonSerialize(): array
     {
         return parent::jsonSerialize() + [
-                'value' => $this->value,
-            ];
+            'value' => $this->value,
+        ];
     }
 
     public function getValue(): string

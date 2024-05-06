@@ -116,8 +116,7 @@ final class Frame implements \Stringable
         public readonly Opcode $opcode,
         public readonly bool $fin = true,
         public readonly bool $rsv1 = false,
-    ) {
-    }
+    ) {}
 
     public static function text(string $content): self
     {
