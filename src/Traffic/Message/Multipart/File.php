@@ -95,7 +95,7 @@ final class File extends Part implements UploadedFileInterface
     }
 
     /**
-     * @return non-negative-int|null
+     * @return int<0, max>|null
      */
     public function getSize(): ?int
     {

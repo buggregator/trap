@@ -15,6 +15,8 @@ use Psr\Http\Message\ServerRequestInterface;
 /**
  * @internal
  * @psalm-internal Buggregator\Trap
+ *
+ * @psalm-import-type SentryStoreMessage from Frame\Sentry\SentryStore
  */
 final class SentryTrap implements Middleware
 {
@@ -64,7 +66,12 @@ final class SentryTrap implements Middleware
         }
 
         $request->getBody()->rewind();
-        $frame = EnvelopeParser::parse($request->getBody(), $request->getAttribute('begin_at', null));
+
+        /** @var mixed $time */
+        $time = $request->getAttribute('begin_at');
+        $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
+
+        $frame = EnvelopeParser::parse($request->getBody(), $time);
         Fiber::suspend($frame);
 
         return new Response(200);
@@ -77,13 +84,17 @@ final class SentryTrap implements Middleware
             // Reject too big content
             return new Response(413);
         }
-
+        /** @var SentryStoreMessage $payload */
         $payload = \json_decode((string)$request->getBody(), true, 96, \JSON_THROW_ON_ERROR);
+
+        /** @psalm-suppress MixedAssignment */
+        $time = $request->getAttribute('begin_at');
+        $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
 
         Fiber::suspend(
             new Frame\Sentry\SentryStore(
                 message: $payload,
-                time: $request->getAttribute('begin_at', null),
+                time: $time,
             )
         );
 

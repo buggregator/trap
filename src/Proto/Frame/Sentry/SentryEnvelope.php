@@ -12,6 +12,12 @@ use DateTimeImmutable;
 /**
  * @internal
  * @psalm-internal Buggregator
+ *
+ * @psalm-type SentryEnvelopeMessage = array{
+ *     type: SentryEnvelope::SENTRY_FRAME_TYPE,
+ *     items: array<array-key, array{array<array-key, mixed>, mixed}>,
+ *     headers: array<string, string>
+ * }
  */
 final class SentryEnvelope extends Frame\Sentry
 {
@@ -39,6 +45,11 @@ final class SentryEnvelope extends Frame\Sentry
         );
     }
 
+    /**
+     * @psalm-assert SentryEnvelopeMessage $data
+     *
+     * @param SentryEnvelopeMessage $data
+     */
     public static function fromArray(array $data, DateTimeImmutable $time): static
     {
         $items = [];

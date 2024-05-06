@@ -1,76 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<files psalm-version="5.23.1@8471a896ccea3526b26d082f4461eeea467f10a4">
-  <file src="src/Application.php">
-    <PossiblyInvalidArgument>
-      <code><![CDATA[$data]]></code>
-    </PossiblyInvalidArgument>
-  </file>
-  <file src="src/Command/Test.php">
-    <MixedArgument>
-      <code><![CDATA[$output::OUTPUT_RAW]]></code>
-      <code><![CDATA[$output::OUTPUT_RAW]]></code>
-    </MixedArgument>
-    <PropertyNotSetInConstructor>
-      <code><![CDATA[$logger]]></code>
-    </PropertyNotSetInConstructor>
-    <RedundantCondition>
-      <code><![CDATA[\is_resource($fp)]]></code>
-      <code><![CDATA[isset($fp) && \is_resource($fp)]]></code>
-    </RedundantCondition>
-    <TypeDoesNotContainNull>
-      <code><![CDATA[$buf === null]]></code>
-    </TypeDoesNotContainNull>
-  </file>
-  <file src="src/Handler/Http/Handler/Fallback.php">
-    <ArgumentTypeCoercion>
-      <code><![CDATA[$time]]></code>
-    </ArgumentTypeCoercion>
-    <MixedArgument>
-      <code><![CDATA[$response]]></code>
-    </MixedArgument>
-    <MixedAssignment>
-      <code><![CDATA[$time]]></code>
-    </MixedAssignment>
-    <PossiblyUndefinedVariable>
-      <code><![CDATA[$response]]></code>
-    </PossiblyUndefinedVariable>
-  </file>
-  <file src="src/Handler/Http/Handler/Websocket.php">
-    <MixedAssignment>
-      <code><![CDATA[$time]]></code>
-    </MixedAssignment>
-  </file>
-  <file src="src/Handler/Http/Middleware/SentryTrap.php">
-    <MixedArgument>
-      <code><![CDATA[$payload]]></code>
-      <code><![CDATA[$request->getAttribute('begin_at', null)]]></code>
-      <code><![CDATA[$request->getAttribute('begin_at', null)]]></code>
-    </MixedArgument>
-    <MixedAssignment>
-      <code><![CDATA[$payload]]></code>
-    </MixedAssignment>
-  </file>
+<files psalm-version="5.15.0@5c774aca4746caf3d239d9c8cadb9f882ca29352">
   <file src="src/Handler/Http/Middleware/SentryTrap/EnvelopeParser.php">
     <ArgumentTypeCoercion>
-      <code><![CDATA[$offset - $currentPos]]></code>
+      <code>$offset - $currentPos</code>
     </ArgumentTypeCoercion>
     <MixedArgument>
-      <code><![CDATA[$headers]]></code>
-      <code><![CDATA[$itemHeader]]></code>
+      <code>$headers</code>
+      <code>$itemHeader</code>
     </MixedArgument>
     <MixedArrayAccess>
       <code><![CDATA[$itemHeader['length']]]></code>
       <code><![CDATA[$itemHeader['type']]]></code>
     </MixedArrayAccess>
     <MixedAssignment>
-      <code><![CDATA[$headers]]></code>
-      <code><![CDATA[$itemHeader]]></code>
-      <code><![CDATA[$type]]></code>
+      <code>$headers</code>
+      <code>$itemHeader</code>
+      <code>$type</code>
     </MixedAssignment>
   </file>
   <file src="src/Handler/Pipeline.php">
     <MixedInferredReturnType>
-      <code><![CDATA[TReturn]]></code>
+      <code>TReturn</code>
     </MixedInferredReturnType>
     <MixedMethodCall>
       <code><![CDATA[$this->method]]></code>
@@ -81,10 +31,10 @@
   </file>
   <file src="src/Logger.php">
     <ArgumentTypeCoercion>
-      <code><![CDATA[$values]]></code>
-      <code><![CDATA[$values]]></code>
-      <code><![CDATA[$values]]></code>
-      <code><![CDATA[$values]]></code>
+      <code>$values</code>
+      <code>$values</code>
+      <code>$values</code>
+      <code>$values</code>
     </ArgumentTypeCoercion>
   </file>
   <file src="src/Proto/Frame/Binary.php">
@@ -92,10 +42,17 @@
       <code><![CDATA[(int)$this->stream->getSize()]]></code>
     </LessSpecificReturnStatement>
     <MoreSpecificReturnType>
-      <code><![CDATA[int]]></code>
+      <code>int</code>
     </MoreSpecificReturnType>
   </file>
   <file src="src/Proto/Frame/Http.php">
+    <LessSpecificReturnStatement>
+      <code><![CDATA[$this->request->getBody()->getSize() + \array_reduce(
+                $this->request->getUploadedFiles(),
+                static fn(int $carry, array $file): int => $carry + $file['size'],
+                0
+            )]]></code>
+    </LessSpecificReturnStatement>
     <MixedArgument>
       <code><![CDATA[$file['clientFilename']]]></code>
       <code><![CDATA[$file['clientMediaType']]]></code>
@@ -122,59 +79,44 @@
       <code><![CDATA[$payload['uri']]]></code>
     </MixedArrayAccess>
     <MixedAssignment>
-      <code><![CDATA[$payload]]></code>
+      <code>$payload</code>
     </MixedAssignment>
+    <MixedInferredReturnType>
+      <code>int</code>
+    </MixedInferredReturnType>
+    <MixedOperand>
+      <code><![CDATA[$file['size']]]></code>
+    </MixedOperand>
+    <MixedReturnStatement>
+      <code><![CDATA[$carry + $file['size']]]></code>
+    </MixedReturnStatement>
     <MixedReturnTypeCoercion>
       <code><![CDATA[$this->request->getUploadedFiles()]]></code>
-      <code><![CDATA[array]]></code>
+      <code>array</code>
     </MixedReturnTypeCoercion>
+    <MoreSpecificReturnType>
+      <code>int</code>
+    </MoreSpecificReturnType>
+    <PossiblyNullOperand>
+      <code><![CDATA[$this->request->getBody()->getSize()]]></code>
+    </PossiblyNullOperand>
   </file>
   <file src="src/Proto/Frame/Monolog.php">
     <MixedArgument>
-      <code><![CDATA[\json_decode($payload, true, JSON_THROW_ON_ERROR)]]></code>
+      <code>\json_decode($payload, true, JSON_THROW_ON_ERROR)</code>
     </MixedArgument>
   </file>
-  <file src="src/Proto/Frame/Sentry.php">
-    <LessSpecificReturnStatement>
-      <code><![CDATA[match (true) {
-            $data['type'] === SentryEnvelope::SENTRY_FRAME_TYPE => SentryEnvelope::fromArray($data, $time),
-            $data['type'] === SentryStore::SENTRY_FRAME_TYPE => SentryStore::fromArray($data, $time),
-            default => throw new \InvalidArgumentException('Unknown Sentry frame type.'),
-        }]]></code>
-    </LessSpecificReturnStatement>
+  <file src="src/Proto/Frame/Smtp.php">
     <MixedArgument>
-      <code><![CDATA[$data]]></code>
-      <code><![CDATA[$data]]></code>
-    </MixedArgument>
-    <MixedArrayAccess>
-      <code><![CDATA[$data['type']]]></code>
-      <code><![CDATA[$data['type']]]></code>
-    </MixedArrayAccess>
-    <MixedAssignment>
-      <code><![CDATA[$data]]></code>
-    </MixedAssignment>
-    <MoreSpecificReturnType>
-      <code><![CDATA[static]]></code>
-    </MoreSpecificReturnType>
-  </file>
-  <file src="src/Proto/Frame/Sentry/SentryEnvelope.php">
-    <MixedArgument>
-      <code><![CDATA[$data['headers']]]></code>
-      <code><![CDATA[$item]]></code>
-      <code><![CDATA[$item]]></code>
+      <code>$payload</code>
     </MixedArgument>
     <MixedAssignment>
-      <code><![CDATA[$item]]></code>
+      <code>$payload</code>
     </MixedAssignment>
-  </file>
-  <file src="src/Proto/Frame/Sentry/SentryStore.php">
-    <InvalidDocblock>
-      <code><![CDATA[public function __construct(]]></code>
-    </InvalidDocblock>
   </file>
   <file src="src/Proto/Server/Version/V1.php">
     <ArgumentTypeCoercion>
-      <code><![CDATA[$payload]]></code>
+      <code>$payload</code>
     </ArgumentTypeCoercion>
     <PossiblyFalseOperand>
       <code><![CDATA[\strpos($payload, '[')]]></code>
@@ -182,12 +124,12 @@
   </file>
   <file src="src/Sender/Console/Renderer/Binary.php">
     <PossiblyNullOperand>
-      <code><![CDATA[Files::normalizeSize($size)]]></code>
+      <code>Files::normalizeSize($size)</code>
     </PossiblyNullOperand>
   </file>
   <file src="src/Sender/Console/Renderer/Http.php">
     <ArgumentTypeCoercion>
-      <code><![CDATA[$file->getSize()]]></code>
+      <code>$frame</code>
     </ArgumentTypeCoercion>
     <MixedArgumentTypeCoercion>
       <code><![CDATA[$request->getCookieParams()]]></code>
@@ -202,9 +144,9 @@
   </file>
   <file src="src/Sender/Console/Renderer/Sentry/Exceptions.php">
     <ArgumentTypeCoercion>
-      <code><![CDATA[$file]]></code>
-      <code><![CDATA[$file]]></code>
-      <code><![CDATA[$function]]></code>
+      <code>$file</code>
+      <code>$file</code>
+      <code>$function</code>
     </ArgumentTypeCoercion>
     <MissingClosureReturnType>
       <code><![CDATA[static fn() => $output->writeln(]]></code>
@@ -214,25 +156,29 @@
       <code><![CDATA[isset($exception['type']) ? $exception['type'] : 'Exception']]></code>
     </MixedArgument>
     <MixedAssignment>
-      <code><![CDATA[$row]]></code>
-      <code><![CDATA[$stacktrace]]></code>
+      <code>$row</code>
+      <code>$stacktrace</code>
     </MixedAssignment>
     <PossiblyInvalidArgument>
       <code><![CDATA[\str_replace('\\', '/', $file)]]></code>
     </PossiblyInvalidArgument>
     <PossiblyNullArgument>
-      <code><![CDATA[$file]]></code>
-      <code><![CDATA[$file]]></code>
-      <code><![CDATA[$function]]></code>
+      <code>$file</code>
+      <code>$file</code>
+      <code>$function</code>
     </PossiblyNullArgument>
   </file>
   <file src="src/Sender/Console/Renderer/Sentry/Header.php">
     <MissingReturnType>
-      <code><![CDATA[renderMessageHeader]]></code>
+      <code>renderMessageHeader</code>
     </MissingReturnType>
+    <MixedArgument>
+      <code><![CDATA[isset($message['sent_at']) ? $message['sent_at'] : "@$message[timestamp]"]]></code>
+    </MixedArgument>
     <MixedArgumentTypeCoercion>
-      <code><![CDATA[$message]]></code>
-      <code><![CDATA[$tags]]></code>
+      <code>$message</code>
+      <code>$meta</code>
+      <code>$tags</code>
       <code><![CDATA[(array)$context['os']]]></code>
       <code><![CDATA[(array)$context['runtime']]]></code>
       <code><![CDATA[(array)$message['sdk']]]></code>
@@ -246,75 +192,301 @@
   <file src="src/Sender/Console/Renderer/SentryEnvelope.php">
     <MixedArgument>
       <code><![CDATA[$item->payload]]></code>
+      <code>$type</code>
     </MixedArgument>
     <MixedArrayAccess>
       <code><![CDATA[$data->payload['exceptions']]]></code>
     </MixedArrayAccess>
     <MixedAssignment>
-      <code><![CDATA[$type]]></code>
+      <code>$type</code>
     </MixedAssignment>
+    <PossiblyNullArgument>
+      <code>$type</code>
+    </PossiblyNullArgument>
+  </file>
+  <file src="src/Sender/Console/Renderer/Smtp.php">
+    <MixedArgumentTypeCoercion>
+      <code><![CDATA[$message->getHeaders()]]></code>
+      <code><![CDATA[$text->getHeaders()]]></code>
+    </MixedArgumentTypeCoercion>
+    <PossiblyNullArgument>
+      <code><![CDATA[$attach->getClientFilename()]]></code>
+      <code><![CDATA[$attach->getClientMediaType()]]></code>
+    </PossiblyNullArgument>
+  </file>
+  <file src="src/Sender/Console/Renderer/TemplateRenderer.php">
+    <InternalMethod>
+      <code>render</code>
+    </InternalMethod>
   </file>
   <file src="src/Sender/Console/Renderer/VarDumper.php">
+    <InternalClass>
+      <code><![CDATA[Common::renderHeader1($output, 'DUMP')]]></code>
+    </InternalClass>
+    <InternalMethod>
+      <code><![CDATA[Common::renderHeader1($output, 'DUMP')]]></code>
+    </InternalMethod>
     <MixedArgument>
-      <code><![CDATA[$context]]></code>
-      <code><![CDATA[$data]]></code>
+      <code>$context</code>
+      <code>$controller</code>
+      <code>$data</code>
+      <code>$fileLink</code>
+      <code><![CDATA[$source['file']]]></code>
+      <code><![CDATA[$source['line']]]></code>
+      <code><![CDATA[$source['line']]]></code>
+      <code><![CDATA[$source['name']]]></code>
     </MixedArgument>
+    <MixedArgumentTypeCoercion>
+      <code>$meta</code>
+    </MixedArgumentTypeCoercion>
     <MixedArrayAccess>
-      <code><![CDATA[$context]]></code>
-      <code><![CDATA[$data]]></code>
+      <code>$context</code>
+      <code><![CDATA[$context['cli']['command_line']]]></code>
+      <code>$data</code>
     </MixedArrayAccess>
     <MixedAssignment>
-      <code><![CDATA[$controller]]></code>
-      <code><![CDATA[$describer]]></code>
-      <code><![CDATA[$fileLink]]></code>
+      <code>$controller</code>
+      <code>$describer</code>
+      <code>$fileLink</code>
       <code><![CDATA[$meta['Command']]]></code>
       <code><![CDATA[$meta['File']]]></code>
       <code><![CDATA[$meta['Method']]]></code>
       <code><![CDATA[$meta['URI']]]></code>
-      <code><![CDATA[$payload]]></code>
-      <code><![CDATA[[$data, $context]]]></code>
+      <code>$payload</code>
+      <code>[$data, $context]</code>
     </MixedAssignment>
     <MixedMethodCall>
-      <code><![CDATA[describe]]></code>
+      <code>describe</code>
     </MixedMethodCall>
+    <PossiblyNullArgument>
+      <code><![CDATA[$this->dumper->dump($controller, true)]]></code>
+      <code><![CDATA[$this->dumper->dump($data, true)]]></code>
+    </PossiblyNullArgument>
   </file>
   <file src="src/Sender/Console/Support/Common.php">
+    <ArgumentTypeCoercion>
+      <code>$item</code>
+      <code><![CDATA[\array_map('strlen', \array_keys($data))]]></code>
+    </ArgumentTypeCoercion>
+    <MixedArgumentTypeCoercion>
+      <code>\array_keys($data)</code>
+    </MixedArgumentTypeCoercion>
     <MixedAssignment>
-      <code><![CDATA[$item]]></code>
-      <code><![CDATA[$value]]></code>
+      <code>$item</code>
     </MixedAssignment>
   </file>
+  <file src="src/Sender/Console/Support/Files.php">
+    <ArgumentTypeCoercion>
+      <code>$size</code>
+    </ArgumentTypeCoercion>
+    <PossiblyFalseOperand>
+      <code><![CDATA[\strrpos($fileName, '.')]]></code>
+    </PossiblyFalseOperand>
+  </file>
   <file src="src/Sender/Console/Support/Tables.php">
+    <MixedArgumentTypeCoercion>
+      <code>$key</code>
+    </MixedArgumentTypeCoercion>
     <MixedAssignment>
-      <code><![CDATA[$value]]></code>
+      <code>$value</code>
     </MixedAssignment>
+  </file>
+  <file src="src/Sender/ConsoleSender.php">
+    <InternalClass>
+      <code>Termwind::renderUsing($output)</code>
+      <code>new HtmlRenderer()</code>
+    </InternalClass>
+    <InternalMethod>
+      <code>Termwind::renderUsing($output)</code>
+    </InternalMethod>
   </file>
   <file src="src/Sender/SocketSender.php">
     <MixedPropertyTypeCoercion>
-      <code><![CDATA[new SplQueue()]]></code>
+      <code>new SplQueue()</code>
     </MixedPropertyTypeCoercion>
+  </file>
+  <file src="src/Socket/Client.php">
+    <ArgumentTypeCoercion>
+      <code><![CDATA[$this->payloadSize]]></code>
+    </ArgumentTypeCoercion>
+    <PossiblyNullPropertyAssignmentValue>
+      <code>\Closure::bind($callable(...), $this)</code>
+      <code>\Closure::bind($callable(...), $this)</code>
+    </PossiblyNullPropertyAssignmentValue>
+  </file>
+  <file src="src/Socket/Server.php">
+    <PossiblyInvalidArgument>
+      <code><![CDATA[$this->socket]]></code>
+      <code><![CDATA[$this->socket]]></code>
+    </PossiblyInvalidArgument>
   </file>
   <file src="src/Socket/SocketStream.php">
     <MixedPropertyTypeCoercion>
-      <code><![CDATA[new \SplQueue()]]></code>
+      <code>new \SplQueue()</code>
     </MixedPropertyTypeCoercion>
   </file>
   <file src="src/Support/ProtobufCaster.php">
     <MixedArgument>
       <code><![CDATA[$ed->getClass()]]></code>
-      <code><![CDATA[$value]]></code>
-      <code><![CDATA[$value]]></code>
+      <code>$value</code>
+      <code>$value</code>
     </MixedArgument>
     <MixedArrayOffset>
       <code><![CDATA[$values[$fd->getName()]]]></code>
       <code><![CDATA[$values[$fd->getName()]]]></code>
     </MixedArrayOffset>
     <MixedAssignment>
-      <code><![CDATA[$value]]></code>
+      <code>$value</code>
       <code><![CDATA[$values[$fd->getName()]]]></code>
     </MixedAssignment>
     <MixedMethodCall>
-      <code><![CDATA[getDescriptorByClassName]]></code>
+      <code>getDescriptorByClassName</code>
     </MixedMethodCall>
+  </file>
+  <file src="src/Traffic/Dispatcher/Http.php">
+    <MixedPropertyTypeCoercion>
+      <code><![CDATA[Pipeline::build(
+            $handlers,
+            /** @see RequestHandler::handle() */
+            'handle',
+            static function (): never { throw new \LogicException('No handler found for request.'); },
+            Generator::class,
+        )]]></code>
+    </MixedPropertyTypeCoercion>
+  </file>
+  <file src="src/Traffic/Message/Headers.php">
+    <MissingParamType>
+      <code>$value</code>
+      <code>$values</code>
+    </MissingParamType>
+    <MixedArgument>
+      <code><![CDATA[$this->headers[$header]]]></code>
+    </MixedArgument>
+    <MixedArrayOffset>
+      <code><![CDATA[$new->headers[$header]]]></code>
+      <code><![CDATA[$new->headers[$new->headerNames[$normalized]]]]></code>
+      <code><![CDATA[$this->headers[$header]]]></code>
+      <code><![CDATA[$this->headers[$header]]]></code>
+      <code><![CDATA[$this->headers[$header]]]></code>
+    </MixedArrayOffset>
+    <MixedArrayTypeCoercion>
+      <code><![CDATA[$this->headers[$header]]]></code>
+    </MixedArrayTypeCoercion>
+    <MixedAssignment>
+      <code>$header</code>
+      <code>$header</code>
+      <code>$header</code>
+    </MixedAssignment>
+    <MixedInferredReturnType>
+      <code>string[]</code>
+    </MixedInferredReturnType>
+  </file>
+  <file src="src/Traffic/Message/Multipart/Field.php">
+    <MixedReturnTypeCoercion>
+      <code>FieldDataArray</code>
+      <code><![CDATA[parent::jsonSerialize() + [
+                'value' => $this->value,
+            ]]]></code>
+    </MixedReturnTypeCoercion>
+  </file>
+  <file src="src/Traffic/Message/Multipart/File.php">
+    <MixedReturnTypeCoercion>
+      <code>FileDataArray</code>
+      <code><![CDATA[parent::jsonSerialize() + [
+                'fileName' => $this->fileName,
+                'size' => $this->getSize(),
+            ]]]></code>
+    </MixedReturnTypeCoercion>
+  </file>
+  <file src="src/Traffic/Message/Multipart/Part.php">
+    <LessSpecificReturnStatement>
+      <code><![CDATA[match ($isFile) {
+            true => new File($headers, $name, $fileName),
+            false => new Field($headers, $name),
+        }]]></code>
+    </LessSpecificReturnStatement>
+    <MixedArgumentTypeCoercion>
+      <code>$headers</code>
+      <code>$headers</code>
+      <code>$headers</code>
+    </MixedArgumentTypeCoercion>
+    <MoreSpecificReturnType>
+      <code>static</code>
+    </MoreSpecificReturnType>
+  </file>
+  <file src="src/Traffic/Message/Smtp.php">
+    <ArgumentTypeCoercion>
+      <code>$addrs</code>
+      <code><![CDATA[$this->protocol['BCC'] ?? []]]></code>
+    </ArgumentTypeCoercion>
+    <LessSpecificReturnStatement>
+      <code><![CDATA[$this->protocol]]></code>
+    </LessSpecificReturnStatement>
+    <MixedArgument>
+      <code>$attach</code>
+      <code><![CDATA[$data['headers']]]></code>
+      <code><![CDATA[$data['protocol']]]></code>
+      <code>$message</code>
+    </MixedArgument>
+    <MixedAssignment>
+      <code>$attach</code>
+      <code>$message</code>
+    </MixedAssignment>
+    <MoreSpecificReturnType>
+      <code><![CDATA[array<string, string|list<string>>]]></code>
+    </MoreSpecificReturnType>
+    <PropertyTypeCoercion>
+      <code>$attachments</code>
+      <code>$messages</code>
+    </PropertyTypeCoercion>
+  </file>
+  <file src="src/Traffic/Parser/Http.php">
+    <ArgumentTypeCoercion>
+      <code>$boundary</code>
+      <code>$headersBlock</code>
+      <code><![CDATA[$stream->read($blockEnd - $pos + 2)]]></code>
+    </ArgumentTypeCoercion>
+    <LessSpecificReturnStatement>
+      <code>$parts</code>
+      <code>$result</code>
+    </LessSpecificReturnStatement>
+    <MoreSpecificReturnType>
+      <code><![CDATA[array<non-empty-string, list<non-empty-string>>]]></code>
+      <code>array{0: non-empty-string, 1: non-empty-string, 2: non-empty-string}</code>
+    </MoreSpecificReturnType>
+    <PossiblyNullArgument>
+      <code><![CDATA[$part->getSize()]]></code>
+    </PossiblyNullArgument>
+    <PossiblyUndefinedArrayOffset>
+      <code>$value</code>
+      <code>$value</code>
+    </PossiblyUndefinedArrayOffset>
+  </file>
+  <file src="src/Traffic/Parser/Smtp.php">
+    <ArgumentTypeCoercion>
+      <code>$boundary</code>
+      <code>$headerBlock</code>
+    </ArgumentTypeCoercion>
+  </file>
+  <file src="src/functions.php">
+    <MixedArrayAccess>
+      <code>AbstractCloner::$defaultCasters[EnumValue::class]</code>
+      <code>AbstractCloner::$defaultCasters[MapField::class]</code>
+      <code>AbstractCloner::$defaultCasters[Message::class]</code>
+      <code>AbstractCloner::$defaultCasters[RepeatedField::class]</code>
+    </MixedArrayAccess>
+    <MixedArrayAssignment>
+      <code>AbstractCloner::$defaultCasters[EnumValue::class]</code>
+      <code>AbstractCloner::$defaultCasters[MapField::class]</code>
+      <code>AbstractCloner::$defaultCasters[Message::class]</code>
+      <code>AbstractCloner::$defaultCasters[RepeatedField::class]</code>
+    </MixedArrayAssignment>
+    <MixedAssignment>
+      <code>$value</code>
+      <code>AbstractCloner::$defaultCasters[EnumValue::class]</code>
+      <code>AbstractCloner::$defaultCasters[MapField::class]</code>
+      <code>AbstractCloner::$defaultCasters[Message::class]</code>
+      <code>AbstractCloner::$defaultCasters[RepeatedField::class]</code>
+    </MixedAssignment>
   </file>
 </files>
