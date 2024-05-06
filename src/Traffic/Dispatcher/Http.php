@@ -52,7 +52,7 @@ final class Http implements Dispatcher
             /** @see RequestHandler::handle() */
             'handle',
             static function (): never { throw new \LogicException('No handler found for request.'); },
-            Generator::class,
+            'never',
         );
     }
 

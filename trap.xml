@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<trap>
+    <frontend port="8000">
+        <EventStorage maxEvents="200"/>
+    </frontend>
+</trap>

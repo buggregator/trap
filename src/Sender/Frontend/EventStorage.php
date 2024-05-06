@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Frontend;
 
-use Buggregator\Trap\Config\Frontend\Buffer as Config;
+use Buggregator\Trap\Config\Server\Frontend\EventStorage as Config;
 use Countable;
 use IteratorAggregate;
 
@@ -12,7 +12,7 @@ use IteratorAggregate;
  * @internal
  * @implements IteratorAggregate<Event>
  */
-final class EventsStorage implements IteratorAggregate, Countable
+final class EventStorage implements IteratorAggregate, Countable
 
 {
     /**
@@ -32,7 +32,7 @@ final class EventsStorage implements IteratorAggregate, Countable
         $this->events[$event->uuid] = $event;
         $this->sorted = false;
 
-        if (\count($this->events) > $this->config->maxSize) {
+        if (\count($this->events) > $this->config->maxEvents) {
             // find most old event and remove it
             $k = $event->uuid;
             $t = $event->timestamp;

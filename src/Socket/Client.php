@@ -26,6 +26,9 @@ final class Client implements Destroyable
     private \Closure $onPayload;
     private \Closure $onClose;
 
+    /**
+     * @param positive-int $payloadSize
+     */
     private function __construct(
         private readonly \Socket $socket,
         private readonly int $payloadSize,
@@ -112,21 +115,21 @@ final class Client implements Destroyable
     }
 
     /**
-     * @param callable(string): void $callable Non-static callable.
+     * @param callable(string): void $callable If non-static callable, it will be bound to the current instance.
      * @psalm-assert callable(string): void $callable
      */
     public function setOnPayload(callable $callable): void
     {
-        $this->onPayload = \Closure::bind($callable(...), $this);
+        $this->onPayload = \Closure::bind($callable(...), $this) ?? $callable(...);
     }
 
     /**
-     * @param callable(): void $callable Non-static callable.
+     * @param callable(): void $callable If non-static callable, it will be bound to the current instance.
      * @psalm-assert callable(): void $callable
      */
     public function setOnClose(callable $callable): void
     {
-        $this->onClose = \Closure::bind($callable(...), $this);
+        $this->onClose = \Closure::bind($callable(...), $this) ?? $callable(...);
     }
 
     public function send(string $payload): void

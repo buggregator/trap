@@ -31,7 +31,6 @@ final class Smtp implements Dispatcher
     public function dispatch(StreamClient $stream): iterable
     {
         $stream->sendData($this->createResponse(self::READY, 'mailamie'));
-
         $protocol = [];
 
         $message = null;
@@ -40,9 +39,11 @@ final class Smtp implements Dispatcher
             if (\preg_match('/^(?:EHLO|HELO)/', $response)) {
                 $stream->sendData($this->createResponse(self::OK));
             } elseif (\preg_match('/^MAIL FROM:\s*<(.*)>/', $response, $matches)) {
+                /** @var array{0: non-empty-string, 1: string} $matches */
                 $protocol['FROM'][] = $matches[1];
                 $stream->sendData($this->createResponse(self::OK));
             } elseif (\preg_match('/^RCPT TO:\s*<(.*)>/', $response, $matches)) {
+                /** @var array{0: non-empty-string, 1: string} $matches */
                 $protocol['BCC'][] = $matches[1];
                 $stream->sendData($this->createResponse(self::OK));
             } elseif (\str_starts_with($response, 'QUIT')) {

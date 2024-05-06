@@ -12,7 +12,7 @@ use Buggregator\Trap\Handler\Router\Method;
 use Buggregator\Trap\Handler\Router\Router as CommonRouter;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Sender\Frontend\Event\AttachedFile;
-use Buggregator\Trap\Sender\Frontend\EventsStorage;
+use Buggregator\Trap\Sender\Frontend\EventStorage;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -27,7 +27,7 @@ final class EventAssets implements Middleware
 
     public function __construct(
         private readonly Logger $logger,
-        private readonly EventsStorage $eventsStorage,
+        private readonly EventStorage $eventsStorage,
     ) {
         $this->router = CommonRouter::new($this);
     }
