@@ -12,6 +12,7 @@ namespace Buggregator\Trap\Client\TrapHandle;
  */
 final class StaticState
 {
+    /** @var array<array-key, mixed> */
     public array $dataContext = [];
 
     /**

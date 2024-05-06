@@ -61,10 +61,12 @@ final class Dumper
             use ($cloner, $dumper): ?string {
                 $var = $cloner->cloneVar($var);
 
-                $context = StaticState::getValue()->dataContext;
+                /** @var array<array-key, mixed> $context*/
+                $context = StaticState::getValue()?->dataContext ?? [];
 
-                $label === null or $context['label'] ??= $label;
-                $label === [] or $var = $var->withContext($context);
+                /** @var string|null $label */
+                $label === null or $context['label'] = $label;
+                $context === [] or $var = $var->withContext($context);
                 $depth > 0 and $var = $var->withMaxDepth($depth);
 
                 return $dumper->dump($var);
