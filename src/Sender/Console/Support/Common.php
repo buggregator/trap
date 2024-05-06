@@ -66,6 +66,7 @@ final class Common
             \array_keys($data)),
         );
 
+        /** @var mixed $value */
         foreach ($data as $head => $value) {
             // Align headers to the right
             self::renderHeader(

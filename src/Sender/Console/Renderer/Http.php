@@ -84,10 +84,13 @@ final class Http implements Renderer
             foreach ($uploadedFiles as $name => $fileSet) {
                 $fileSet = \is_array($fileSet) ? $fileSet : [$fileSet];
                 foreach ($fileSet as $subName => $file) {
+                    /** @var int<0, max>|null $size */
+                    $size = $file->getSize();
+
                     Files::renderFile(
                         $output,
                         (string)$file->getClientFilename(),
-                        $file->getSize(),
+                        $size,
                         (string)$file->getClientMediaType(),
                         Field: \sprintf("%s[%s]", $name, $subName)
                     );
