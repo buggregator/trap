@@ -12,6 +12,9 @@ namespace Buggregator\Trap\Client\TrapHandle;
  */
 final class StaticState
 {
+    /** @var array<array-key, mixed> */
+    public array $dataContext = [];
+
     /**
      * @param SimpleStackTrace $stackTrace Simple stack trace without arguments and objects.
      * @param StackTraceWithObjects $stackTraceWithObjects Stack trace without arguments but with objects.

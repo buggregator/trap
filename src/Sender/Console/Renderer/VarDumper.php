@@ -107,6 +107,16 @@ final class VarDumper implements Renderer
                 Common::renderMetadata($output, $meta);
                 $output->writeln('');
 
+                // Render Data context
+                if ($data->getContext() !== []) {
+                    Common::renderHeader3($output, 'Data context');
+                    // todo the context may contain mixed data
+                    // todo need to consider it and render the context in a good way
+                    Common::renderMetadata($output, $data->getContext());
+                    // $output->writeln(\print_r($data->getContext(), true));
+                    $output->writeln('');
+                }
+
                 $output->write((string) $this->dumper->dump($data, true), true, OutputInterface::OUTPUT_RAW);
             }
         };
