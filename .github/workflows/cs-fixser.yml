@@ -77,5 +77,6 @@ jobs:
         with:
           commit_message: Apply php-cs-fixer changes
           branch: ${{ github.head_ref }}
+          commit_author: "github-actions <github-actions@users.noreply.github.com>"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
