@@ -9,6 +9,9 @@ return (new Config())
     ->setRules([
         '@PER-CS2.0' => true,
         '@PHP81Migration' => true,
+        'new_with_parentheses' => [
+            'anonymous_class' => false,
+        ],
     ])
     ->setRiskyAllowed(true)
     ->setFinder(
@@ -16,6 +19,6 @@ return (new Config())
             ->files()
             ->name('*.php')
             ->in([__DIR__ . '/src'])
-        ->exclude([__DIR__ . '/src/Test']),
+            ->exclude(['Test/Proto/']),
     )
     ->setCacheFile('.cache/.php-cs-fixer.cache');
