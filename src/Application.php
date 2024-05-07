@@ -198,9 +198,9 @@ final class Application implements Processable, Cancellable, Destroyable
     /**
      * @param int<1, 65535> $port
      */
-    public function configureFrontend(int $port): void
+    public function configureFrontend(): void
     {
-        $this->senders[] = $wsSender = Sender\FrontendSender::create($this->logger);
+        $this->senders [ ] = $wsSender = Sender\FrontendSender::create($this->logger);
 
         $inspector = $this->container->make(Inspector::class, [
             new Traffic\Dispatcher\Http(
@@ -215,8 +215,9 @@ final class Application implements Processable, Cancellable, Destroyable
             ),
         ]);
         $this->processors[] = $inspector;
-        $this->processors[] = $wsSender;
-        $config = $this->container->get(FrontendConfig::class);
+        $this->processors[] =  $wsSender;
+        $config = $this->container->get( FrontendConfig::class);
         $this->prepareServerFiber(new SocketServer(port: $config->port), $inspector, $this->logger);
     }
 }
+
