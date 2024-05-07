@@ -47,7 +47,7 @@ final class Http implements Renderer
 
         Common::renderMetadata($output, [
             'Time' => $frame->time,
-            'URI' => (string)$request->getUri(),
+            'URI' => (string) $request->getUri(),
         ]);
 
         if ($request->getQueryParams() !== []) {
@@ -89,9 +89,9 @@ final class Http implements Renderer
 
                     Files::renderFile(
                         $output,
-                        (string)$file->getClientFilename(),
+                        (string) $file->getClientFilename(),
                         $size,
-                        (string)$file->getClientMediaType(),
+                        (string) $file->getClientMediaType(),
                         Field: \sprintf("%s[%s]", $name, $subName)
                     );
                 }

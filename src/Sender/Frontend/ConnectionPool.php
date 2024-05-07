@@ -35,12 +35,11 @@ final class ConnectionPool implements IteratorAggregate, Processable
     public function __construct(
         private readonly Logger $logger,
         private RPC $rpc,
-    ) {
-    }
+    ) {}
 
     public function addStream(StreamClient $stream): void
     {
-        $key = (int)\array_key_last($this->streams) + 1;
+        $key = (int) \array_key_last($this->streams) + 1;
         $this->streams[$key] = $stream;
         $this->fibers[] = new Fiber(function () use ($key, $stream) {
             try {
@@ -79,7 +78,7 @@ final class ConnectionPool implements IteratorAggregate, Processable
 
     public function send(Frame $frame): void
     {
-        $data = (string)$frame;
+        $data = (string) $frame;
         foreach ($this->streams as $stream) {
             $stream->sendData($data);
         }
@@ -97,7 +96,7 @@ final class ConnectionPool implements IteratorAggregate, Processable
             }
 
             // Ping-pong
-            $frame->opcode === Opcode::Ping and $stream->sendData((string)Frame::pong($frame->content));
+            $frame->opcode === Opcode::Ping and $stream->sendData((string) Frame::pong($frame->content));
 
             // Pong using `{}` message
             if ($frame->content === '{}') {
@@ -111,10 +110,10 @@ final class ConnectionPool implements IteratorAggregate, Processable
                 continue;
             }
 
-            $response = new Response(\is_numeric($payload['id'] ?? null) ? (int)$payload['id'] : 0);
+            $response = new Response(\is_numeric($payload['id'] ?? null) ? (int) $payload['id'] : 0);
 
             // On connected start periodic ping using `{}` message
-            if (isset($payload['connect'])){
+            if (isset($payload['connect'])) {
                 $response->connect = new Connect(Uuid::uuid4());
 
                 $pingTimer = new Timer($response->connect->ping);

@@ -105,9 +105,9 @@ abstract class SocketSender implements Sender, Processable
     protected function preparePayload(iterable $frames): string
     {
         return '[' . \implode(',', \array_map(
-                static fn (Frame $frame): string => Json::encode($frame),
-                \is_array($frames) ? $frames : \iterator_to_array($frames),
-            )) . ']';
+            static fn(Frame $frame): string => Json::encode($frame),
+            \is_array($frames) ? $frames : \iterator_to_array($frames),
+        )) . ']';
     }
 
     /**

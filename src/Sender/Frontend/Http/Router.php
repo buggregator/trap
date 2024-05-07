@@ -49,7 +49,7 @@ final class Router implements Middleware
                     $params = $request->getQueryParams();
                 } else {
                     /** @var mixed $params */
-                    $params = Json::decode((string)$request->getBody());
+                    $params = Json::decode((string) $request->getBody());
                     \is_array($params) or $params = [];
                 }
             } catch (\Throwable) {

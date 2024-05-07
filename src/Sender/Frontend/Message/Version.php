@@ -14,8 +14,7 @@ final class Version implements JsonSerializable
 {
     public function __construct(
         public readonly string $number = Info::VERSION,
-    ) {
-    }
+    ) {}
 
     public function jsonSerialize(): array
     {

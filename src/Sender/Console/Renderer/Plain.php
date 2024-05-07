@@ -17,8 +17,7 @@ final class Plain implements Renderer
 {
     public function __construct(
         private readonly TemplateRenderer $renderer,
-    ) {
-    }
+    ) {}
 
     public function isSupport(Frame $frame): bool
     {
@@ -32,7 +31,7 @@ final class Plain implements Renderer
             [
                 'date' => $frame->time->format('Y-m-d H:i:s.u'),
                 'channel' => \strtoupper($frame->type->value),
-                'body' => \htmlspecialchars((string)$frame),
+                'body' => \htmlspecialchars((string) $frame),
             ]
         );
     }

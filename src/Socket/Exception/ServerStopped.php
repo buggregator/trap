@@ -7,6 +7,4 @@ namespace Buggregator\Trap\Socket\Exception;
 /**
  * @internal
  */
-class ServerStopped extends \RuntimeException
-{
-}
+class ServerStopped extends \RuntimeException {}

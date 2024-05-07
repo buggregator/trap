@@ -51,11 +51,10 @@ final class VarDumper implements Renderer
 
     private function getDescriber(): DumpDescriptorInterface
     {
-        return new class() implements DumpDescriptorInterface {
+        return new class implements DumpDescriptorInterface {
             public function __construct(
                 private CliDumper $dumper = new CliDumper(),
-            ) {
-            }
+            ) {}
 
             /**
              * @psalm-suppress RiskyTruthyFalsyComparison, MixedArrayAccess, MixedArgument
@@ -67,7 +66,7 @@ final class VarDumper implements Renderer
                 $this->dumper->setColors($output->isDecorated());
 
                 $meta = [];
-                $meta['Time'] = (new DateTimeImmutable())->setTimestamp((int)$context['timestamp']);
+                $meta['Time'] = (new DateTimeImmutable())->setTimestamp((int) $context['timestamp']);
 
                 try {
                     if (isset($context['source'])) {

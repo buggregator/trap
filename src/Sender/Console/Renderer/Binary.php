@@ -55,7 +55,7 @@ final class Binary implements Renderer
 
     public function __construct(
         public readonly int $printBytes = 512,
-    ) { }
+    ) {}
 
     public function isSupport(Frame $frame): bool
     {
@@ -113,7 +113,8 @@ final class Binary implements Renderer
                 \preg_replace(
                     \array_keys(self::BYTE_REPLACES),
                     \array_values(self::BYTE_REPLACES),
-                    \substr($read, $offset, 16)),
+                    \substr($read, $offset, 16)
+                ),
             ));
             $offset += 16;
         }

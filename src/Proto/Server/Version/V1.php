@@ -55,7 +55,7 @@ final class V1 implements PayloadDecoder
         }
 
         /** @var positive-int $protocol */
-        $protocol = (int)$protocol;
+        $protocol = (int) $protocol;
         \assert($protocol > 0);
 
         // UUID

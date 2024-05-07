@@ -13,7 +13,6 @@ use IteratorAggregate;
  * @implements IteratorAggregate<Event>
  */
 final class EventStorage implements IteratorAggregate, Countable
-
 {
     /**
      * Events. Will be sorted by timestamp in descending order when requested via the {@see getIterator()} method.
@@ -24,8 +23,7 @@ final class EventStorage implements IteratorAggregate, Countable
 
     public function __construct(
         private readonly Config $config = new Config(),
-    ) {
-    }
+    ) {}
 
     public function add(Event $event): void
     {

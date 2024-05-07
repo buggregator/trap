@@ -16,8 +16,7 @@ final class Bootstrap
 {
     private function __construct(
         private Container $container,
-    ) {
-    }
+    ) {}
 
     public static function init(Container $container = new Container()): self
     {

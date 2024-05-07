@@ -43,7 +43,7 @@ final class StackTrace
         $internal = false;
         foreach (
             \debug_backtrace(
-                ($provideObjects ? \DEBUG_BACKTRACE_PROVIDE_OBJECT : 0) | \DEBUG_BACKTRACE_IGNORE_ARGS
+                ($provideObjects ? \DEBUG_BACKTRACE_PROVIDE_OBJECT : 0) | \DEBUG_BACKTRACE_IGNORE_ARGS,
             ) as $frame
         ) {
             if (\str_starts_with($frame['class'] ?? '', 'Buggregator\\Trap\\Client\\')) {

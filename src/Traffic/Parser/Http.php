@@ -124,7 +124,7 @@ final class Http
 
         // Guess length
         $length = $request->hasHeader('Content-Length') ? $request->getHeaderLine('Content-Length') : null;
-        $length = \is_numeric($length) ? (int)$length : null;
+        $length = \is_numeric($length) ? (int) $length : null;
 
         $request = $request->withBody($this->createBody($stream, $length));
         $request->getBody()->rewind();

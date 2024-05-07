@@ -133,7 +133,7 @@ final class Smtp implements JsonSerializable
      */
     public function getSender(): array
     {
-        $addrs = \array_unique(\array_merge((array)($this->protocol['FROM'] ?? []), $this->getHeader('From')));
+        $addrs = \array_unique(\array_merge((array) ($this->protocol['FROM'] ?? []), $this->getHeader('From')));
 
         return \array_map([$this, 'parseContact'], $addrs);
     }
@@ -189,7 +189,8 @@ final class Smtp implements JsonSerializable
         return null;
     }
 
-    private function parseContact(string $line): Contact {
+    private function parseContact(string $line): Contact
+    {
         if (\preg_match('/^\s*(?<name>.*)\s*<(?<email>.*)>\s*$/', $line, $matches) === 1) {
             return new Contact($matches['name'] ?: null, $matches['email'] ?: null);
         }

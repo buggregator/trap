@@ -45,8 +45,7 @@ final class ConsoleSender implements Sender
 
     public function __construct(
         private readonly FrameHandler $handler,
-    ) {
-    }
+    ) {}
 
     public function send(iterable $frames): void
     {

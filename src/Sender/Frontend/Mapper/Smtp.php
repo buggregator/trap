@@ -36,7 +36,7 @@ final class Smtp
                 'bcc' => $message->getBcc(),
                 'text' => $message->getMessage(MessageFormat::Plain)?->getValue() ?? '',
                 'html' => $message->getMessage(MessageFormat::Html)?->getValue() ?? '',
-                'raw' => (string)$message->getBody(),
+                'raw' => (string) $message->getBody(),
                 'attachments' => \array_map(
                     static function (File $attachment) use ($assets, $uuid): array {
                         $asset = new Event\AttachedFile(
@@ -57,7 +57,7 @@ final class Smtp
                     $message->getAttachments(),
                 ),
             ],
-            timestamp: (float)$frame->time->format('U.u'),
+            timestamp: (float) $frame->time->format('U.u'),
             assets: $assets,
         );
     }

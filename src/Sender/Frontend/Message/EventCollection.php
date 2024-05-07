@@ -18,8 +18,7 @@ final class EventCollection implements \JsonSerializable
     public function __construct(
         public readonly array $events,
         public readonly array $meta = [],
-    ) {
-    }
+    ) {}
 
     public function jsonSerialize(): array
     {

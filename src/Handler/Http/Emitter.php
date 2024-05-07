@@ -66,7 +66,7 @@ final class Emitter
         $headers = $response->getHeaders();
         if (!$response->hasHeader('Content-Length') && $response->getStatusCode() >= 200) {
             if ($response->getBody()->getSize() !== null) {
-                $headers['Content-Length'] = [(string)$response->getBody()->getSize()];
+                $headers['Content-Length'] = [(string) $response->getBody()->getSize()];
             } else {
                 $headers['Transfer-Encoding'] = ['chunked'];
             }

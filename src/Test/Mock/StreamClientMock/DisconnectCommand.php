@@ -7,6 +7,4 @@ namespace Buggregator\Trap\Test\Mock\StreamClientMock;
 /**
  * @internal
  */
-class DisconnectCommand
-{
-}
+class DisconnectCommand {}

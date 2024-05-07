@@ -15,8 +15,7 @@ final class Response implements JsonSerializable
         public readonly string|int $id,
         public ?Rpc $rpc = null,
         public ?Connect $connect = null,
-    ) {
-    }
+    ) {}
 
     public function jsonSerialize(): array
     {

@@ -85,7 +85,7 @@ final class SentryTrap implements Middleware
             return new Response(413);
         }
         /** @var SentryStoreMessage $payload */
-        $payload = \json_decode((string)$request->getBody(), true, 96, \JSON_THROW_ON_ERROR);
+        $payload = \json_decode((string) $request->getBody(), true, 96, \JSON_THROW_ON_ERROR);
 
         /** @psalm-suppress MixedAssignment */
         $time = $request->getAttribute('begin_at');

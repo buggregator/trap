@@ -22,8 +22,7 @@ final class StaticState
     private function __construct(
         public array $stackTrace = [],
         public array $stackTraceWithObjects = [],
-    ) {
-    }
+    ) {}
 
     private static ?StaticState $value = null;
 

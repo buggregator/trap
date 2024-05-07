@@ -24,8 +24,7 @@ final class Event implements \JsonSerializable
         public readonly float $timestamp,
         public readonly ?string $projectId = null,
         public readonly ?ArrayAccess $assets = null,
-    ) {
-    }
+    ) {}
 
     public function jsonSerialize(): array
     {

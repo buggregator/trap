@@ -64,9 +64,9 @@ final class Run extends Command implements SignalableCommandInterface
         /** @var scalar $port */
         foreach ($ports as $port) {
             \is_numeric($port) or throw new \InvalidArgumentException(
-                \sprintf('Invalid port `%s`. It must be a number.', (string)$port),
+                \sprintf('Invalid port `%s`. It must be a number.', (string) $port),
             );
-            $port = (int)$port;
+            $port = (int) $port;
             $port > 0 && $port < 65536 or throw new \InvalidArgumentException(
                 \sprintf('Invalid port `%s`. It must be in range 1-65535.', $port),
             );
@@ -85,7 +85,7 @@ final class Run extends Command implements SignalableCommandInterface
             $output->write(Info::LOGO_CLI_COLOR . "\n", true, OutputInterface::OUTPUT_RAW);
 
             /** @var non-empty-string[] $senders */
-            $senders = (array)$input->getOption('sender');
+            $senders = (array) $input->getOption('sender');
 
             $registry = $this->createRegistry($output);
 

@@ -99,7 +99,7 @@ trait Headers
             if (\is_int($header)) {
                 // If a header name was set to a numeric string, PHP will cast the key to an int.
                 // We must cast it back to a string in order to comply with validation.
-                $header = (string)$header;
+                $header = (string) $header;
             }
 
             $value = $this->validateAndTrimHeader($header, $value);
@@ -146,13 +146,13 @@ trait Headers
         if (!\is_array($values)) {
             // This is simple, just one value.
             if ((!\is_numeric($values) && !\is_string($values)) || 1 !== \preg_match(
-                    "@^[ \t\x21-\x7E\x80-\xFF]*$@",
-                    (string)$values,
-                )) {
+                "@^[ \t\x21-\x7E\x80-\xFF]*$@",
+                (string) $values,
+            )) {
                 throw new \InvalidArgumentException('Header values must be RFC 7230 compatible strings');
             }
 
-            return [\trim((string)$values, " \t")];
+            return [\trim((string) $values, " \t")];
         }
 
         if (empty($values)) {
@@ -165,13 +165,13 @@ trait Headers
         $returnValues = [];
         foreach ($values as $v) {
             if ((!\is_numeric($v) && !\is_string($v)) || 1 !== \preg_match(
-                    "@^[ \t\x21-\x7E\x80-\xFF]*$@D",
-                    (string)$v,
-                )) {
+                "@^[ \t\x21-\x7E\x80-\xFF]*$@D",
+                (string) $v,
+            )) {
                 throw new \InvalidArgumentException('Header values must be RFC 7230 compatible strings');
             }
 
-            $returnValues[] = \trim((string)$v, " \t");
+            $returnValues[] = \trim((string) $v, " \t");
         }
 
         return $returnValues;

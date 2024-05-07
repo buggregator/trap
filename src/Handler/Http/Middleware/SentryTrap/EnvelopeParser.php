@@ -48,7 +48,7 @@ final class EnvelopeParser
         // Parse item header
         $itemHeader = \json_decode(self::readLine($stream), true, 4, JSON_THROW_ON_ERROR);
 
-        $length = isset($itemHeader['length']) ? (int)$itemHeader['length'] : null;
+        $length = isset($itemHeader['length']) ? (int) $itemHeader['length'] : null;
         $length >= 0 or throw new \RuntimeException('Invalid item length.');
 
         $type = $itemHeader['type'] ?? null;

@@ -16,7 +16,7 @@ use Fiber;
  */
 final class Client implements Destroyable
 {
-     /** @var string[] */
+    /** @var string[] */
     private array $writeQueue = [];
 
     /** @var string */
@@ -110,9 +110,7 @@ final class Client implements Destroyable
         } while (true);
     }
 
-    protected function onInit(): void
-    {
-    }
+    protected function onInit(): void {}
 
     /**
      * @param callable(string): void $callable If non-static callable, it will be bound to the current instance.

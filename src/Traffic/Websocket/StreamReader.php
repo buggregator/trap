@@ -21,7 +21,7 @@ final class StreamReader
     public static function readFrames(iterable $chunks): Generator
     {
         $parser = self::frameParser();
-        $reader = (static fn () => yield from $chunks)();
+        $reader = (static fn() => yield from $chunks)();
         $buffer = '';
         $isFirst = true;
         /** @var \Closure(int<1, max>): ?non-empty-string $read */
@@ -69,14 +69,14 @@ final class StreamReader
         while (true) {
             // Read first byte
             $c = \ord(yield 1);
-            $fin = (bool)($c & 128);
+            $fin = (bool) ($c & 128);
             $opcode = Opcode::from($c & 0x0f);
-            $rsv1 = (bool)($c & 64);
+            $rsv1 = (bool) ($c & 64);
 
             // Read second byte
             $c = \ord(yield 1);
             $len = $c & 127;
-            $isMask = (bool)($c & 128);
+            $isMask = (bool) ($c & 128);
 
             // Parse length
             if ($len === 126) {

@@ -25,7 +25,7 @@ final class SentryEnvelope
             uuid: Uuid::uuid4(),
             type: 'sentry',
             payload: $frame->items[0]->payload,
-            timestamp: (float)$frame->time->format('U.u'),
+            timestamp: (float) $frame->time->format('U.u'),
         );
     }
 }

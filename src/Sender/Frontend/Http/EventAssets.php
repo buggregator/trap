@@ -120,7 +120,7 @@ final class EventAssets implements Middleware
                     "attachment; filename=\"%s\"",
                     \rawurlencode($attachment->file->getClientFilename() ?? 'unnamed'),
                 ),
-                'Content-Length' => (string)$attachment->file->getSize(),
+                'Content-Length' => (string) $attachment->file->getSize(),
                 'Cache-Control' => 'no-cache',
             ],
             $attachment->file->getStream(),

@@ -32,8 +32,7 @@ final class FrontendSender implements \Buggregator\Trap\Sender, Processable
         private readonly ConnectionPool $connectionPool,
         private readonly Frontend\EventStorage $framesStorage,
         private readonly FrameHandler $handler,
-    ) {
-    }
+    ) {}
 
     /**
      * @param iterable<Frame> $frames

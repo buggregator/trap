@@ -12,6 +12,5 @@ final class Env implements ConfigAttribute
 {
     public function __construct(
         public string $name,
-    ) {
-    }
+    ) {}
 }

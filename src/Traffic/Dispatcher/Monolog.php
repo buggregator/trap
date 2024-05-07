@@ -27,7 +27,7 @@ final class Monolog implements Dispatcher
             }
 
             yield new Frame\Monolog(
-                (array)\json_decode($line, true, 512, JSON_THROW_ON_ERROR),
+                (array) \json_decode($line, true, 512, JSON_THROW_ON_ERROR),
                 $stream->getCreatedAt(),
             );
         }
