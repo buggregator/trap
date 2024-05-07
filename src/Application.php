@@ -182,7 +182,7 @@ final class Application implements Processable, Cancellable, Destroyable
      */
     public function prepareServerFiber(SocketServer $config, Inspector $inspector, Logger $logger): Fiber
     {
-        return $this->fibers[] = new Fiber(  function () use ($config, $inspector, $logger) {
+        return $this->fibers[] = new Fiber(function () use ($config, $inspector, $logger) {
             do {
                 try {
                     $this->processors[] = $this->servers[$config->port] = $this->createServer($config, $inspector);
