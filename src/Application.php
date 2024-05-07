@@ -216,8 +216,7 @@ final class Application implements Processable, Cancellable, Destroyable
         ]);
         $this->processors[] = $inspector;
         $this->processors[] =  $wsSender;
-        $config = $this->container->get( FrontendConfig::class);
+        $config = $this->container->get(FrontendConfig::class);
         $this->prepareServerFiber(new SocketServer(port: $config->port), $inspector, $this->logger);
     }
 }
-
