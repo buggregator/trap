@@ -51,7 +51,7 @@ final class VarDumper implements Renderer
 
     private function getDescriber(): DumpDescriptorInterface
     {
-        return new class () implements DumpDescriptorInterface {
+        return new class implements DumpDescriptorInterface {
             public function __construct(
                 private CliDumper $dumper = new CliDumper(),
             ) {}
