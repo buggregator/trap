@@ -72,3 +72,10 @@ jobs:
 
       - name: Check Coding Standards
         run: vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.php --diff -vvv --using-cache=no
+
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: Apply php-cs-fixer changes
+          branch: ${{ github.head_ref }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
