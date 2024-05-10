@@ -12,9 +12,12 @@ use JsonSerializable;
  */
 final class Settings implements JsonSerializable
 {
-    public function __construct(
-        public readonly string $number = Info::VERSION,
-    ) {}
+    public readonly string $number;
+
+    public function __construct()
+    {
+        $this->number = Info::version();
+    }
 
     public function jsonSerialize(): array
     {
@@ -23,7 +26,7 @@ final class Settings implements JsonSerializable
                 'enabled' => false,
                 'login_url' => '/auth/sso/login',
             ],
-            'version' => Info::VERSION,
+            'version' => $this->number,
         ];
     }
 }

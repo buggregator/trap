@@ -22,7 +22,7 @@ final class Connect implements JsonSerializable
     {
         return [
             'client' => $this->client,
-            'version' => Info::VERSION,
+            'version' => Info::version(),
             'subs' => [
                 'events' => (object) [],
             ],
