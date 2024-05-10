@@ -9,12 +9,10 @@ use Buggregator\Trap\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
 use Buggregator\Trap\Traffic\Message\Multipart\Part;
 use Buggregator\Trap\Traffic\StreamClient;
-use Fiber;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
-use RuntimeException;
 
 /**
  * @internal
@@ -39,7 +37,8 @@ final class Http
         $headers = self::parseHeaders($headersBlock);
 
         $request = $this->factory->createServerRequest($method, $uri, [])
-            ->withProtocolVersion($protocol);
+            ->withProtocolVersion($protocol)
+        ;
         foreach ($headers as $name => $value) {
             $request = $request->withHeader((string) $name, $value);
         }
@@ -78,27 +77,7 @@ final class Http
     }
 
     /**
-     * @param string $line
-     *
-     * @return array{non-empty-string, non-empty-string, non-empty-string}
-     */
-    private function parseFirstLine(string $line): array
-    {
-        $parts = \explode(' ', \trim($line));
-        if (\count($parts) !== 3) {
-            throw new \InvalidArgumentException('Invalid first line.');
-        }
-
-        $parts[2] = \explode('/', $parts[2], 2)[1] ?? $parts[2];
-        if ($parts[0] === '' || $parts[1] === '' || $parts[2] === '') {
-            throw new \InvalidArgumentException('Invalid first line.');
-        }
-
-        return $parts;
-    }
-
-    /**
-     * Get text block before empty line
+     * Get text block before empty line.
      */
     public static function getBlock(StreamClient $stream): string
     {
@@ -113,99 +92,6 @@ final class Http
         }
 
         return $block;
-    }
-
-    private function parseBody(StreamClient $stream, ServerRequestInterface $request): ServerRequestInterface
-    {
-        // Methods have body
-        if (!\in_array($request->getMethod(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
-            return $request;
-        }
-
-        // Guess length
-        $length = $request->hasHeader('Content-Length') ? $request->getHeaderLine('Content-Length') : null;
-        $length = \is_numeric($length) ? (int) $length : null;
-
-        $request = $request->withBody($this->createBody($stream, $length));
-        $request->getBody()->rewind();
-
-        // Decode encoded content
-        if ($request->hasHeader('Content-Encoding')) {
-            $encoding = $request->getHeaderLine('Content-Encoding');
-            if ($encoding === 'gzip') {
-                $request = StreamHelper::unzipBody($request);
-            }
-        }
-
-        $contentType = $request->getHeaderLine('Content-Type');
-        return match (true) {
-            $contentType === 'application/x-www-form-urlencoded' => self::parseUrlEncodedBody($request),
-            \str_contains($contentType, 'multipart/form-data') => $this->processMultipartForm($request),
-            default => $request,
-        };
-    }
-
-    private function processMultipartForm(ServerRequestInterface $request): ServerRequestInterface
-    {
-        if (\preg_match('/boundary="?([^"\\s;]++)"?/', $request->getHeaderLine('Content-Type'), $matches) !== 1) {
-            return $request;
-        }
-        /** @var non-empty-string $boundary */
-        $boundary = $matches[1];
-
-        $parts = self::parseMultipartBody($request->getBody(), $boundary);
-        $uploadedFiles = $parsedBody = [];
-        foreach ($parts as $part) {
-            $name = $part->getName();
-            if ($name === null) {
-                continue;
-            }
-            if ($part instanceof Field) {
-                $parsedBody[$name] = $part->getValue();
-                continue;
-            }
-            if ($part instanceof File) {
-                $uploadedFiles[$name][] = new UploadedFile(
-                    $part->getStream(),
-                    (int) $part->getSize(),
-                    $part->getError(),
-                    $part->getClientFilename(),
-                    $part->getClientMediaType(),
-                );
-            }
-        }
-
-        return $request->withUploadedFiles($uploadedFiles)->withParsedBody($parsedBody);
-    }
-
-    /**
-     * Flush stream data PSR stream.
-     * Note: there can be read more data than {@see $limit} bytes but write only {@see $limit} bytes.
-     */
-    private function createBody(StreamClient $stream, ?int $limit): StreamInterface
-    {
-        $fileStream = StreamHelper::createFileStream();
-        $written = 0;
-
-        foreach ($stream->getIterator() as $chunk) {
-            if ($limit !== null && \strlen($chunk) + $written >= $limit) {
-                $fileStream->write(\substr($chunk, 0, $limit - $written));
-                return $fileStream;
-            }
-
-            // Check trailed double \r\n
-            if ($limit === null && !$stream->hasData() && \str_ends_with($chunk, "\r\n\r\n")) {
-                $fileStream->write(\substr($chunk, 0, -4));
-                return $fileStream;
-            }
-
-            $fileStream->write($chunk);
-            $written += \strlen($chunk);
-            unset($chunk);
-            Fiber::suspend();
-        }
-
-        return $fileStream;
     }
 
     /**
@@ -238,6 +124,7 @@ final class Http
 
         try {
             \parse_str($str, $parsed);
+
             return $request->withParsedBody($parsed);
         } catch (\Throwable) {
             return $request;
@@ -253,6 +140,7 @@ final class Http
     {
         $result = [];
         $findBoundary = "--{$boundary}";
+
         try {
             while (false !== ($pos = StreamHelper::strpos($stream, $findBoundary))) {
                 $stream->seek($pos + \strlen($findBoundary), \SEEK_CUR);
@@ -275,7 +163,7 @@ final class Http
                     $part->setStream($fileStream, $fileSize);
                 } elseif ($part instanceof Field) {
                     $endOfContent = StreamHelper::strpos($stream, $findBoundary);
-                    $endOfContent !== false or throw new RuntimeException('Missing end of content');
+                    $endOfContent !== false or throw new \RuntimeException('Missing end of content');
 
                     $part = $part->withValue($endOfContent > 0 ? $stream->read($endOfContent) : '');
                 }
@@ -286,5 +174,121 @@ final class Http
         }
 
         return $result;
+    }
+
+    /**
+     * @return array{non-empty-string, non-empty-string, non-empty-string}
+     */
+    private function parseFirstLine(string $line): array
+    {
+        $parts = \explode(' ', \trim($line));
+        if (\count($parts) !== 3) {
+            throw new \InvalidArgumentException('Invalid first line.');
+        }
+
+        $parts[2] = \explode('/', $parts[2], 2)[1] ?? $parts[2];
+        if ($parts[0] === '' || $parts[1] === '' || $parts[2] === '') {
+            throw new \InvalidArgumentException('Invalid first line.');
+        }
+
+        return $parts;
+    }
+
+    private function parseBody(StreamClient $stream, ServerRequestInterface $request): ServerRequestInterface
+    {
+        // Methods have body
+        if (!\in_array($request->getMethod(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+            return $request;
+        }
+
+        // Guess length
+        $length = $request->hasHeader('Content-Length') ? $request->getHeaderLine('Content-Length') : null;
+        $length = \is_numeric($length) ? (int) $length : null;
+
+        $request = $request->withBody($this->createBody($stream, $length));
+        $request->getBody()->rewind();
+
+        // Decode encoded content
+        if ($request->hasHeader('Content-Encoding')) {
+            $encoding = $request->getHeaderLine('Content-Encoding');
+            if ($encoding === 'gzip') {
+                $request = StreamHelper::unzipBody($request);
+            }
+        }
+
+        $contentType = $request->getHeaderLine('Content-Type');
+
+        return match (true) {
+            $contentType === 'application/x-www-form-urlencoded' => self::parseUrlEncodedBody($request),
+            \str_contains($contentType, 'multipart/form-data') => $this->processMultipartForm($request),
+            default => $request,
+        };
+    }
+
+    private function processMultipartForm(ServerRequestInterface $request): ServerRequestInterface
+    {
+        if (\preg_match('/boundary="?([^"\\s;]++)"?/', $request->getHeaderLine('Content-Type'), $matches) !== 1) {
+            return $request;
+        }
+
+        /** @var non-empty-string $boundary */
+        $boundary = $matches[1];
+
+        $parts = self::parseMultipartBody($request->getBody(), $boundary);
+        $uploadedFiles = $parsedBody = [];
+        foreach ($parts as $part) {
+            $name = $part->getName();
+            if ($name === null) {
+                continue;
+            }
+            if ($part instanceof Field) {
+                $parsedBody[$name] = $part->getValue();
+
+                continue;
+            }
+            if ($part instanceof File) {
+                $uploadedFiles[$name][] = new UploadedFile(
+                    $part->getStream(),
+                    (int) $part->getSize(),
+                    $part->getError(),
+                    $part->getClientFilename(),
+                    $part->getClientMediaType(),
+                );
+            }
+        }
+
+        return $request->withUploadedFiles($uploadedFiles)->withParsedBody($parsedBody);
+    }
+
+    /**
+     * Flush stream data PSR stream.
+     * Note: there can be read more data than {@see $limit} bytes but write only {@see $limit} bytes.
+     */
+    private function createBody(StreamClient $stream, ?int $limit): StreamInterface
+    {
+        $fileStream = StreamHelper::createFileStream();
+        $written = 0;
+
+        foreach ($stream->getIterator() as $chunk) {
+            if ($limit !== null && \strlen($chunk) + $written >= $limit) {
+                $fileStream->write(\substr($chunk, 0, $limit - $written));
+
+                return $fileStream;
+            }
+
+            // Check trailed double \r\n
+            if ($limit === null && !$stream->hasData() && \str_ends_with($chunk, "\r\n\r\n")) {
+                $fileStream->write(\substr($chunk, 0, -4));
+
+                return $fileStream;
+            }
+
+            $fileStream->write($chunk);
+            $written += \strlen($chunk);
+            unset($chunk);
+            \Fiber::suspend();
+        }
+
+        return $fileStream;
     }
 }

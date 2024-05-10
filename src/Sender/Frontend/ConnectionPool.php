@@ -15,21 +15,23 @@ use Buggregator\Trap\Traffic\StreamClient;
 use Buggregator\Trap\Traffic\Websocket\Frame;
 use Buggregator\Trap\Traffic\Websocket\Opcode;
 use Buggregator\Trap\Traffic\Websocket\StreamReader;
-use DateTimeImmutable;
-use Fiber;
 use IteratorAggregate;
-use JsonSerializable;
-use Traversable;
 
 /**
  * @internal
+ *
  * @implements IteratorAggregate<StreamClient>
  */
-final class ConnectionPool implements IteratorAggregate, Processable
+final class ConnectionPool implements \IteratorAggregate, Processable
 {
-    /** @var StreamClient[] */
+    /**
+     * @var StreamClient[]
+     */
     private array $streams = [];
-    /** @var Fiber[] */
+
+    /**
+     * @var \Fiber[]
+     */
     private array $fibers = [];
 
     public function __construct(
@@ -41,7 +43,7 @@ final class ConnectionPool implements IteratorAggregate, Processable
     {
         $key = (int) \array_key_last($this->streams) + 1;
         $this->streams[$key] = $stream;
-        $this->fibers[] = new Fiber(function () use ($key, $stream) {
+        $this->fibers[] = new \Fiber(function () use ($key, $stream) {
             try {
                 $this->processSocket($stream);
             } finally {
@@ -67,9 +69,9 @@ final class ConnectionPool implements IteratorAggregate, Processable
     }
 
     /**
-     * @return Traversable<StreamClient>
+     * @return \Traversable<StreamClient>
      */
-    public function getIterator(): Traversable
+    public function getIterator(): \Traversable
     {
         foreach ($this->streams as $stream) {
             yield $stream;
@@ -87,7 +89,7 @@ final class ConnectionPool implements IteratorAggregate, Processable
     private function processSocket(StreamClient $stream): void
     {
         $pingTimer = null;
-        $lastPong = new DateTimeImmutable();
+        $lastPong = new \DateTimeImmutable();
 
         foreach (StreamReader::readFrames($stream->getIterator()) as $frame) {
             // Connection close
@@ -100,7 +102,8 @@ final class ConnectionPool implements IteratorAggregate, Processable
 
             // Pong using `{}` message
             if ($frame->content === '{}') {
-                $lastPong = new DateTimeImmutable();
+                $lastPong = new \DateTimeImmutable();
+
                 continue;
             }
 
@@ -117,7 +120,7 @@ final class ConnectionPool implements IteratorAggregate, Processable
                 $response->connect = new Connect(Uuid::uuid4());
 
                 $pingTimer = new Timer($response->connect->ping);
-                $this->fibers[] = new Fiber(
+                $this->fibers[] = new \Fiber(
                     function () use ($stream, $pingTimer): void {
                         while ($pingTimer->wait() && !$stream->isDisconnected()) {
                             $stream->sendData($this->packPayload('{}'));
@@ -138,7 +141,7 @@ final class ConnectionPool implements IteratorAggregate, Processable
         }
     }
 
-    private function packPayload(string|JsonSerializable $payload): string
+    private function packPayload(\JsonSerializable|string $payload): string
     {
         return Frame::text(\is_string($payload) ? $payload : Json::encode($payload))->__toString();
     }

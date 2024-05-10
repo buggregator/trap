@@ -9,16 +9,20 @@ use Buggregator\Trap\Processable;
 use Buggregator\Trap\Proto\Buffer;
 use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Traffic\Dispatcher\Binary;
-use Fiber;
 
 /**
  * @internal
  */
 final class Inspector implements Processable
 {
-    /** @var Fiber[] */
+    /**
+     * @var \Fiber[]
+     */
     private array $fibers = [];
-    /** @var Dispatcher[] */
+
+    /**
+     * @var Dispatcher[]
+     */
     private array $dispatchers;
 
     public function __construct(
@@ -31,7 +35,7 @@ final class Inspector implements Processable
 
     public function addStream(StreamClient $stream): void
     {
-        $this->fibers[] = new Fiber(fn() => $this->processStream($stream));
+        $this->fibers[] = new \Fiber(fn () => $this->processStream($stream));
     }
 
     public function process(): void
@@ -62,6 +66,7 @@ final class Inspector implements Processable
                 $result = $dispatcher->detect($stream->getData(), $stream->getCreatedAt());
                 if ($result === true) {
                     $dispatchers = [$dispatcher];
+
                     break 2;
                 }
                 if ($result === false) {
@@ -72,6 +77,7 @@ final class Inspector implements Processable
             if ($stream->isDisconnected()) {
                 // todo set not found format dispatcher?
                 $dispatchers = [];
+
                 break;
             }
 

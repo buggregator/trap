@@ -10,9 +10,6 @@ use Buggregator\Trap\Logger;
 use Buggregator\Trap\Processable;
 use Buggregator\Trap\Socket\Exception\ClientDisconnected;
 use Buggregator\Trap\Socket\Exception\ServerStopped;
-use Closure;
-use Fiber;
-use RuntimeException;
 use Socket;
 
 /**
@@ -20,34 +17,43 @@ use Socket;
  */
 final class Server implements Processable, Cancellable, Destroyable
 {
-    private Socket $socket;
+    private \Socket $socket;
 
-    /** @var array<int, Client> */
+    /**
+     * @var array<int, Client>
+     */
     private array $clients = [];
 
-    /** @var array<int, Fiber> */
+    /**
+     * @var array<int, \Fiber>
+     */
     private array $fibers = [];
 
     private bool $cancelled = false;
 
     /**
-     * @param null|Closure(Client, int $id): void $clientInflector
-     * @param positive-int $payloadSize Max payload size.
+     * @param null|\Closure(Client, int $id): void $clientInflector
+     * @param positive-int $payloadSize max payload size
      */
     private function __construct(
         int $port,
         private readonly int $payloadSize,
-        private readonly ?Closure $clientInflector,
+        private readonly ?\Closure $clientInflector,
         private readonly Logger $logger,
     ) {
         $this->socket = @\socket_create_listen($port) ?: throw new \RuntimeException('Socket create failed.');
 
-        /** @link https://github.com/buggregator/trap/pull/14 */
+        /** @see https://github.com/buggregator/trap/pull/14 */
         // \socket_set_option($this->socket, \SOL_SOCKET, \SO_LINGER, ['l_linger' => 0, 'l_onoff' => 1]);
 
         \socket_set_nonblock($this->socket);
 
         $logger->status('Application', 'Server started on 127.0.0.1:%s', $port);
+    }
+
+    public function __destruct()
+    {
+        $this->destroy();
     }
 
     public function destroy(): void
@@ -68,20 +74,15 @@ final class Server implements Processable, Cancellable, Destroyable
         unset($this->socket, $this->clients, $this->fibers);
     }
 
-    public function __destruct()
-    {
-        $this->destroy();
-    }
-
     /**
      * @param int<1, 65535> $port
-     * @param positive-int $payloadSize Max payload size.
+     * @param positive-int $payloadSize max payload size
      * @param null|\Closure(Client, int $id): void $clientInflector
      */
     public static function init(
         int $port = 9912,
         int $payloadSize = 10485760,
-        ?Closure $clientInflector = null,
+        ?\Closure $clientInflector = null,
         Logger $logger = new Logger(),
     ): self {
         return new self($port, $payloadSize, $clientInflector, $logger);
@@ -92,15 +93,18 @@ final class Server implements Processable, Cancellable, Destroyable
         // /** @psalm-suppress PossiblyInvalidArgument */
         while (!$this->cancelled and false !== ($socket = \socket_accept($this->socket))) {
             $client = null;
+
             try {
                 /** @psalm-suppress MixedArgument */
                 $client = Client::init($socket, $this->payloadSize);
                 $key = (int) \array_key_last($this->clients) + 1;
                 $this->clients[$key] = $client;
                 $this->clientInflector !== null and ($this->clientInflector)($client, $key);
-                $this->fibers[$key] = new Fiber($client->process(...));
+                $this->fibers[$key] = new \Fiber($client->process(...));
+
                 /**
-                 * The {@see self::$cancelled} may be changed because of fibers
+                 * The {@see self::$cancelled} may be changed because of fibers.
+                 *
                  * @psalm-suppress all
                  */
                 $this->cancelled and $client->disconnect();
@@ -118,13 +122,13 @@ final class Server implements Processable, Cancellable, Destroyable
                 $fiber->isStarted() ? $fiber->resume() : $fiber->start();
 
                 if ($fiber->isTerminated()) {
-                    throw new RuntimeException("Client $key terminated.");
+                    throw new \RuntimeException("Client {$key} terminated.");
                 }
             } catch (\Throwable $e) {
                 if ($e instanceof ClientDisconnected) {
                     $this->logger->debug('Client %s disconnected', $key);
                 } else {
-                    $this->logger->exception($e, "Client $key fiber.");
+                    $this->logger->exception($e, "Client {$key} fiber.");
                 }
 
                 $this->clients[$key]->destroy();

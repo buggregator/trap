@@ -11,7 +11,9 @@ use Buggregator\Trap\Sender;
  */
 final class SenderRegistry
 {
-    /** @var array<non-empty-string, Sender> */
+    /**
+     * @var array<non-empty-string, Sender>
+     */
     private array $senders = [];
 
     /**
@@ -24,6 +26,7 @@ final class SenderRegistry
 
     /**
      * @param non-empty-string[] $types
+     *
      * @return Sender[]
      */
     public function getSenders(array $types): array

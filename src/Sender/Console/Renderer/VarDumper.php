@@ -8,8 +8,6 @@ use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Common;
-use DateTimeImmutable;
-use RuntimeException;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -37,8 +35,8 @@ final class VarDumper implements Renderer
         $payload = @\unserialize(\base64_decode($frame->dump), ['allowed_classes' => [Data::class, Stub::class]]);
 
         // Impossible to decode the message, give up.
-        if (false === $payload) {
-            throw new RuntimeException("Unable to decode a message.");
+        if ($payload === false) {
+            throw new \RuntimeException('Unable to decode a message.');
         }
 
         static $describer = null;
@@ -66,7 +64,7 @@ final class VarDumper implements Renderer
                 $this->dumper->setColors($output->isDecorated());
 
                 $meta = [];
-                $meta['Time'] = (new DateTimeImmutable())->setTimestamp((int) $context['timestamp']);
+                $meta['Time'] = (new \DateTimeImmutable())->setTimestamp((int) $context['timestamp']);
 
                 try {
                     if (isset($context['source'])) {

@@ -8,12 +8,13 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap\Sender\Console
  */
 final class Files
 {
     /**
-     * @param non-negative-int|null $size
+     * @param null|non-negative-int $size
      *
      * Render file info. Example:
      *  ┌───┐  logo.ico
@@ -44,23 +45,23 @@ final class Files
         $sizeStr = self::normalizeSize($size) ?? 'unknown size';
 
         // Header with top border
-        $output->writeln("<bg=black;fg=magenta> ┌───┐</>  <info>$fileName</info>");
+        $output->writeln("<bg=black;fg=magenta> ┌───┐</>  <info>{$fileName}</info>");
 
         // Additional info
         foreach ($additional as $key => $line) {
             $output->writeln(
-                \sprintf("<bg=black;fg=magenta> │   │</>  <fg=gray>%s</>", \is_string($key) ? "$key: $line" : $line),
+                \sprintf('<bg=black;fg=magenta> │   │</>  <fg=gray>%s</>', \is_string($key) ? "{$key}: {$line}" : $line),
             );
         }
         // File size
-        $output->writeln("<bg=black;fg=magenta> │{$ex}│</>  <fg=gray>$sizeStr</>");
+        $output->writeln("<bg=black;fg=magenta> │{$ex}│</>  <fg=gray>{$sizeStr}</>");
 
         // MIME type
-        $output->writeln("<bg=black;fg=magenta> └───┘</>  <fg=gray>$type</>");
+        $output->writeln("<bg=black;fg=magenta> └───┘</>  <fg=gray>{$type}</>");
     }
 
     /**
-     * @param int<0, max>|null $size
+     * @param null|int<0, max> $size
      */
     public static function normalizeSize(?int $size): ?string
     {

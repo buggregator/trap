@@ -8,6 +8,7 @@ use Buggregator\Trap\Support\Json;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator
  */
 final class EnvelopeItem implements \Stringable, \JsonSerializable

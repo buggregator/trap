@@ -32,7 +32,7 @@ final class Bootstrap
     }
 
     /**
-     * @param non-empty-string|null $xml File or XML content
+     * @param null|non-empty-string $xml File or XML content
      */
     public function withConfig(
         ?string $xml = null,

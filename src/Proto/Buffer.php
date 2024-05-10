@@ -14,9 +14,14 @@ use Buggregator\Trap\Support\Timer;
  */
 final class Buffer
 {
-    /** @var Frame[] */
+    /**
+     * @var Frame[]
+     */
     private array $frames = [];
-    /** @var int<0, max> Current payload size */
+
+    /**
+     * @var int<0, max> Current payload size
+     */
     private int $currentSize = 0;
     private ?Timer $timer;
 

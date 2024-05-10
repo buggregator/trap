@@ -7,7 +7,6 @@ namespace Buggregator\Trap\Socket;
 use Buggregator\Trap\Destroyable;
 use Buggregator\Trap\Socket\Exception\ClientDisconnected;
 use Buggregator\Trap\Support\Timer;
-use Fiber;
 
 /**
  * Client state on the server side.
@@ -16,10 +15,11 @@ use Fiber;
  */
 final class Client implements Destroyable
 {
-    /** @var string[] */
+    /**
+     * @var string[]
+     */
     private array $writeQueue = [];
 
-    /** @var string */
     private string $readBuffer = '';
 
     private bool $toDisconnect = false;
@@ -34,14 +34,20 @@ final class Client implements Destroyable
         private readonly int $payloadSize,
     ) {
         \socket_set_nonblock($this->socket);
-        $this->setOnPayload(fn(string $payload) => null);
-        $this->setOnClose(fn() => null);
+        $this->setOnPayload(fn (string $payload) => null);
+        $this->setOnClose(fn () => null);
+    }
+
+    public function __destruct()
+    {
+        $this->destroy();
     }
 
     public function destroy(): void
     {
         /** @psalm-suppress RedundantPropertyInitializationCheck */
         isset($this->onClose) and ($this->onClose)();
+
         try {
             \socket_close($this->socket);
         } catch (\Throwable) {
@@ -53,18 +59,13 @@ final class Client implements Destroyable
         $this->readBuffer = '';
     }
 
-    public function __destruct()
-    {
-        $this->destroy();
-    }
-
     public function disconnect(): void
     {
         $this->toDisconnect = true;
     }
 
     /**
-     * @param positive-int $payloadSize Max payload size.
+     * @param positive-int $payloadSize max payload size
      */
     public static function init(
         \Socket $socket,
@@ -77,7 +78,7 @@ final class Client implements Destroyable
     {
         $this->onInit();
 
-        do {
+        while (true) {
             $read = [$this->socket];
             $write = [$this->socket];
             $except = [$this->socket];
@@ -101,19 +102,18 @@ final class Client implements Destroyable
             }
 
             if ($this->toDisconnect && $this->writeQueue === []) {
-                # Wait for the socket buffer to be flushed.
+                // Wait for the socket buffer to be flushed.
                 // (new Timer(0.005))->wait();
 
                 throw new ClientDisconnected();
             }
-            Fiber::suspend();
-        } while (true);
+            \Fiber::suspend();
+        }
     }
 
-    protected function onInit(): void {}
-
     /**
-     * @param callable(string): void $callable If non-static callable, it will be bound to the current instance.
+     * @param callable(string): void $callable if non-static callable, it will be bound to the current instance
+     *
      * @psalm-assert callable(string): void $callable
      */
     public function setOnPayload(callable $callable): void
@@ -122,7 +122,8 @@ final class Client implements Destroyable
     }
 
     /**
-     * @param callable(): void $callable If non-static callable, it will be bound to the current instance.
+     * @param callable(): void $callable if non-static callable, it will be bound to the current instance
+     *
      * @psalm-assert callable(): void $callable
      */
     public function setOnClose(callable $callable): void
@@ -139,10 +140,12 @@ final class Client implements Destroyable
         $this->writeQueue[] = $payload;
     }
 
+    private function onInit(): void {}
+
     /**
      * @param non-empty-string $payload
      */
-    protected function processPayload(string $payload): void
+    private function processPayload(string $payload): void
     {
         ($this->onPayload)($payload);
     }
@@ -178,15 +181,18 @@ final class Client implements Destroyable
         while (($left = $length - \strlen($this->readBuffer)) > 0) {
             $data = '';
             $read = @\socket_recv($this->socket, $data, $left, 0);
+
             /** @psalm-suppress TypeDoesNotContainNull */
             if ($read === false || $data === null) {
                 if ($this->readBuffer !== '') {
                     $result = $this->readBuffer;
                     $this->readBuffer = '';
+
                     return $result;
                 }
                 $errNo = \socket_last_error($this->socket);
-                throw new \RuntimeException('Socket read failed [' . $errNo . ']: ' . \socket_strerror($errNo));
+
+                throw new \RuntimeException('Socket read failed ['.$errNo.']: '.\socket_strerror($errNo));
             }
 
             if ($canBeLess) {
@@ -194,7 +200,8 @@ final class Client implements Destroyable
             }
 
             if ($data === '') {
-                Fiber::suspend();
+                \Fiber::suspend();
+
                 continue;
             }
 

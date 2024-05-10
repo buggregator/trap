@@ -33,6 +33,7 @@ final class Field extends Part
 
     /**
      * @return FieldDataArray
+     *
      * @psalm-suppress ImplementedReturnTypeMismatch
      */
     public function jsonSerialize(): array
@@ -51,6 +52,7 @@ final class Field extends Part
     {
         $clone = clone $this;
         $clone->value = $value;
+
         return $clone;
     }
 }

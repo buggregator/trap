@@ -79,12 +79,13 @@ final class Http implements Renderer
         // Uploaded files block
         if ($hasFiles) {
             Common::renderHeader3($output, 'Uploaded files');
+
             /** @var UploadedFileInterface[]|UploadedFileInterface[][] $uploadedFiles */
             $uploadedFiles = $request->getUploadedFiles();
             foreach ($uploadedFiles as $name => $fileSet) {
                 $fileSet = \is_array($fileSet) ? $fileSet : [$fileSet];
                 foreach ($fileSet as $subName => $file) {
-                    /** @var int<0, max>|null $size */
+                    /** @var null|int<0, max> $size */
                     $size = $file->getSize();
 
                     Files::renderFile(
@@ -92,7 +93,7 @@ final class Http implements Renderer
                         (string) $file->getClientFilename(),
                         $size,
                         (string) $file->getClientMediaType(),
-                        Field: \sprintf("%s[%s]", $name, $subName)
+                        Field: \sprintf('%s[%s]', $name, $subName)
                     );
                 }
             }

@@ -32,6 +32,7 @@ final class FrameHandler implements HandlerInterface
             unset($frame);
         } catch (\Throwable $e) {
             $this->logger->error('Mapping frame failed: %s', $e->getMessage());
+
             return;
         }
 

@@ -6,7 +6,9 @@ namespace Buggregator\Trap\Traffic\Message\Smtp;
 
 /**
  * @psalm-immutable
+ *
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class Contact

@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender\Console\Support;
 
 /**
- * Default terminal colors
+ * Default terminal colors.
  *
  * @internal
+ *
  * @psalm-internal Buggregator\Trap\Sender\Console
  */
 enum Color: string

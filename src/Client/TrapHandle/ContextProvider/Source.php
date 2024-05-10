@@ -2,7 +2,6 @@
 
 namespace Buggregator\Trap\Client\TrapHandle\ContextProvider;
 
-use Buggregator\Trap\Client\TrapHandle\StackTrace;
 use Buggregator\Trap\Client\TrapHandle\StaticState;
 use Symfony\Component\HttpKernel\Debug\FileLinkFormatter;
 use Symfony\Component\VarDumper\Cloner\VarCloner;
@@ -17,8 +16,8 @@ use Twig\Template;
  * @author Nicolas Grekas <p@tchwork.com>
  * @author Maxime Steinhausser <maxime.steinhausser@gmail.com>
  *
- * @link https://github.com/symfony/var-dumper/blob/7.0/Dumper/ContextProvider/SourceContextProvider.php
- * @link https://github.com/symfony/var-dumper/blob/6.3/Dumper/ContextProvider/SourceContextProvider.php
+ * @see https://github.com/symfony/var-dumper/blob/7.0/Dumper/ContextProvider/SourceContextProvider.php
+ * @see https://github.com/symfony/var-dumper/blob/6.3/Dumper/ContextProvider/SourceContextProvider.php
  *
  * @psalm-suppress all
  *
@@ -34,7 +33,7 @@ final class Source implements ContextProviderInterface
     /**
      * @psalm-suppress UndefinedClass
      */
-    public function __construct(string $charset = null, string $projectDir = null, FileLinkFormatter $fileLinkFormatter = null, int $limit = 9)
+    public function __construct(?string $charset = null, ?string $projectDir = null, ?FileLinkFormatter $fileLinkFormatter = null, int $limit = 9)
     {
         $this->charset = $charset;
         $this->projectDir = $projectDir;
@@ -49,13 +48,13 @@ final class Source implements ContextProviderInterface
 
         $file = $trace[0]['file'];
         $line = $trace[0]['line'];
-        $name = '-' === $file || 'Standard input code' === $file ? 'Standard input code' : false;
+        $name = $file === '-' || $file === 'Standard input code' ? 'Standard input code' : false;
         $fileExcerpt = false;
 
         for ($i = 0; $i < $this->limit; ++$i) {
             if (isset($trace[$i]['class'], $trace[$i]['function'])
-                && 'dump' === $trace[$i]['function']
-                && VarDumper::class === $trace[$i]['class']
+                && $trace[$i]['function'] === 'dump'
+                && $trace[$i]['class'] === VarDumper::class
             ) {
                 $file = $trace[$i]['file'] ?? $file;
                 $line = $trace[$i]['line'] ?? $line;
@@ -66,7 +65,8 @@ final class Source implements ContextProviderInterface
                         $line = $trace[$i]['line'];
 
                         break;
-                    } elseif (isset($trace[$i]['object']) && $trace[$i]['object'] instanceof Template) {
+                    }
+                    if (isset($trace[$i]['object']) && $trace[$i]['object'] instanceof Template) {
                         $template = $trace[$i]['object'];
                         $name = $template->getTemplateName();
                         $src = method_exists($template, 'getSourceContext') ? $template->getSourceContext()->getCode() : (method_exists($template, 'getSource') ? $template->getSource() : false);
@@ -80,20 +80,22 @@ final class Source implements ContextProviderInterface
                                 $fileExcerpt = [];
 
                                 for ($i = max($line - 3, 1), $max = min($line + 3, \count($src)); $i <= $max; ++$i) {
-                                    $fileExcerpt[] = '<li' . ($i === $line ? ' class="selected"' : '') . '><code>' . $this->htmlEncode($src[$i - 1]) . '</code></li>';
+                                    $fileExcerpt[] = '<li'.($i === $line ? ' class="selected"' : '').'><code>'.$this->htmlEncode($src[$i - 1]).'</code></li>';
                                 }
 
-                                $fileExcerpt = '<ol start="' . max($line - 3, 1) . '">' . implode("\n", $fileExcerpt) . '</ol>';
+                                $fileExcerpt = '<ol start="'.max($line - 3, 1).'">'.implode("\n", $fileExcerpt).'</ol>';
                             }
                         }
+
                         break;
                     }
                 }
+
                 break;
             }
         }
 
-        if (false === $name) {
+        if ($name === false) {
             $name = str_replace('\\', '/', $file);
             $name = substr($name, strrpos($name, '/') + 1);
         }
@@ -101,7 +103,7 @@ final class Source implements ContextProviderInterface
         $context = ['name' => $name, 'file' => $file, 'line' => $line];
         $context['file_excerpt'] = $fileExcerpt;
 
-        if (null !== $this->projectDir) {
+        if ($this->projectDir !== null) {
             $context['project_dir'] = $this->projectDir;
             if (str_starts_with($file, $this->projectDir)) {
                 $context['file_relative'] = ltrim(substr($file, \strlen($this->projectDir)), \DIRECTORY_SEPARATOR);

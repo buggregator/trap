@@ -6,9 +6,6 @@ namespace Buggregator\Trap\Socket;
 
 use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Traffic\StreamClient;
-use DateTimeImmutable;
-use Fiber;
-use Generator;
 use IteratorAggregate;
 
 /**
@@ -16,21 +13,24 @@ use IteratorAggregate;
  * Use {@see Server::$clientInflector} to wrap {@see Client} into {@see self}.
  *
  * @internal
+ *
  * @implements IteratorAggregate<int, string>
  */
-final class SocketStream implements IteratorAggregate, StreamClient
+final class SocketStream implements \IteratorAggregate, StreamClient
 {
-    /** @var \SplQueue<string> */
+    /**
+     * @var \SplQueue<string>
+     */
     private \SplQueue $queue;
     private bool $disconnected = false;
-    private readonly DateTimeImmutable $createdAt;
+    private readonly \DateTimeImmutable $createdAt;
 
     private function __construct(
         private Client $client,
         public readonly int $clientId,
     ) {
         $this->queue = new \SplQueue();
-        $this->createdAt = new DateTimeImmutable();
+        $this->createdAt = new \DateTimeImmutable();
     }
 
     public static function create(Client $client, int $id): self
@@ -47,7 +47,7 @@ final class SocketStream implements IteratorAggregate, StreamClient
         return $self;
     }
 
-    public function getCreatedAt(): DateTimeImmutable
+    public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
     }
@@ -61,7 +61,7 @@ final class SocketStream implements IteratorAggregate, StreamClient
     {
         $before = $this->queue->count();
         do {
-            Fiber::suspend();
+            \Fiber::suspend();
         } while (!$this->disconnected && $this->queue->count() === $before && $timer?->isReady() !== true);
     }
 
@@ -72,6 +72,7 @@ final class SocketStream implements IteratorAggregate, StreamClient
         }
 
         $this->client->send($data);
+
         return true;
     }
 
@@ -106,13 +107,14 @@ final class SocketStream implements IteratorAggregate, StreamClient
             // Split chunk by EOL
             if (!$this->queue->isEmpty()) {
                 $split = \explode("\n", $this->queue[0], 2);
-                $line .= $split[0] . "\n";
+                $line .= $split[0]."\n";
 
                 if (!isset($split[1]) || $split[1] === '') {
                     $this->queue->dequeue();
                 } else {
                     $this->queue[0] = $split[1];
                 }
+
                 break;
             }
 
@@ -132,13 +134,15 @@ final class SocketStream implements IteratorAggregate, StreamClient
         return \implode('', [...$this->queue]);
     }
 
-    public function getIterator(): Generator
+    public function getIterator(): \Generator
     {
         while (!$this->disconnected || !$this->queue->isEmpty()) {
             if ($this->queue->isEmpty()) {
-                Fiber::suspend();
+                \Fiber::suspend();
+
                 continue;
             }
+
             yield $this->queue->dequeue();
         }
     }

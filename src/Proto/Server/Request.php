@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Proto\Server;
 
-use Closure;
-
 /**
  * @internal
+ *
  * @psalm-internal Buggregator
  */
 final class Request
@@ -17,7 +16,7 @@ final class Request
      * @param non-empty-string $client Client version
      * @param non-empty-string $uuid Storage UUID
      * @param non-empty-string $payload raw payload
-     * @param Closure(non-empty-string): iterable $payloadParser
+     * @param \Closure(non-empty-string): iterable $payloadParser
      */
     public function __construct(
         public readonly int $protocol,
@@ -27,9 +26,6 @@ final class Request
         private readonly \Closure $payloadParser,
     ) {}
 
-    /**
-     * @return iterable
-     */
     public function getParsedPayload(): iterable
     {
         return ($this->payloadParser)($this->payload);

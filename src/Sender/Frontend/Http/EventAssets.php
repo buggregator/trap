@@ -19,6 +19,7 @@ use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class EventAssets implements Middleware
@@ -44,9 +45,7 @@ final class EventAssets implements Middleware
         }
 
         /** @var ResponseInterface $response */
-        $response = $handler() ?? new Response(404);
-
-        return $response;
+        return $handler() ?? new Response(404);
     }
 
     /**
@@ -65,6 +64,7 @@ final class EventAssets implements Middleware
 
         if ($event === null) {
             $this->logger->debug('Get HTML for event `%s`. Event not found.', $eventId);
+
             return null;
         }
 
@@ -101,6 +101,7 @@ final class EventAssets implements Middleware
 
         if ($event === null) {
             $this->logger->debug('Get attachment `%s` for event `%s`. Event not found.', $attachId, $eventId);
+
             return null;
         }
 
@@ -109,6 +110,7 @@ final class EventAssets implements Middleware
 
         if (!$attachment instanceof AttachedFile) {
             $this->logger->debug('Get attachment `%s` for event `%s`. Attached file not found.', $attachId, $eventId);
+
             return null;
         }
 
@@ -117,7 +119,7 @@ final class EventAssets implements Middleware
             [
                 'Content-Type' => $attachment->file->getClientMediaType(),
                 'Content-Disposition' => \sprintf(
-                    "attachment; filename=\"%s\"",
+                    'attachment; filename="%s"',
                     \rawurlencode($attachment->file->getClientFilename() ?? 'unnamed'),
                 ),
                 'Content-Length' => (string) $attachment->file->getSize(),

@@ -16,6 +16,7 @@ use Psr\Http\Message\ServerRequestInterface;
  * Upgrade the connection to a websocket and send a simple timer to the client.
  *
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class Websocket implements RequestHandler
@@ -27,6 +28,7 @@ final class Websocket implements RequestHandler
             || \preg_match('/\\bwebsocket\\b/i', $request->getHeaderLine('Upgrade')) !== 1
         ) {
             yield from $next($streamClient, $request);
+
             return;
         }
 
@@ -37,7 +39,7 @@ final class Websocket implements RequestHandler
 
         // Calculate the accept key for the handshake
         $key = $request->getHeaderLine('Sec-WebSocket-Key');
-        $accept = \base64_encode(\sha1($key . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11', true));
+        $accept = \base64_encode(\sha1($key.'258EAFA5-E914-47DA-95CA-C5AB0DC85B11', true));
 
         // Prepare the response for the handshake
         $response = new Response(101, [
@@ -67,8 +69,8 @@ final class Websocket implements RequestHandler
         while ($timer->wait()) {
             $timer->reset();
 
-            $content = 'Elapsed: ' . (\time() - $time->getTimestamp()) . 's';
-            $response = \chr(129) . \chr(strlen($content)) . $content;
+            $content = 'Elapsed: '.(\time() - $time->getTimestamp()).'s';
+            $response = \chr(129).\chr(strlen($content)).$content;
 
             $stream->sendData($response);
         }

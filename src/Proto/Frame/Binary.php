@@ -7,25 +7,20 @@ namespace Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Support\Json;
-use DateTimeImmutable;
 use Psr\Http\Message\StreamInterface;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator
  */
 final class Binary extends Frame
 {
     public function __construct(
         public readonly StreamInterface $stream,
-        DateTimeImmutable $time = new DateTimeImmutable(),
+        \DateTimeImmutable $time = new \DateTimeImmutable(),
     ) {
         parent::__construct(ProtoType::Binary, $time);
-    }
-
-    public function getSize(): int
-    {
-        return (int) $this->stream->getSize();
     }
 
     /**
@@ -38,7 +33,12 @@ final class Binary extends Frame
         ]);
     }
 
-    public static function fromString(string $payload, DateTimeImmutable $time): never
+    public function getSize(): int
+    {
+        return (int) $this->stream->getSize();
+    }
+
+    public static function fromString(string $payload, \DateTimeImmutable $time): never
     {
         throw new \RuntimeException('Binary data can not be restored from string.');
     }

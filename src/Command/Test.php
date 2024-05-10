@@ -6,18 +6,21 @@ namespace Buggregator\Trap\Command;
 
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Logger;
-use DateTimeImmutable;
-use RuntimeException;
-use Socket;
+use Buggregator\Trap\Test\Proto\Message;
+use Buggregator\Trap\Test\Proto\Message\Foo;
+use Buggregator\Trap\Test\Proto\Message\Header;
+use Buggregator\Trap\Test\Proto\Message\Metadata;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * Run application
+ * Run application.
  *
  * @internal
+ *
+ * @coversNothing
  */
 #[AsCommand(
     name: 'test',
@@ -28,7 +31,9 @@ final class Test extends Command
     private string $addr = '127.0.0.1';
     private int $port = 9912;
 
-    /** @psalm-suppress PropertyNotSetInConstructor */
+    /**
+     * @psalm-suppress PropertyNotSetInConstructor
+     */
     private Logger $logger;
 
     protected function execute(
@@ -49,35 +54,35 @@ final class Test extends Command
         \usleep(100_000);
         $this->sendContent('90275024.png');
 
-
         return Command::SUCCESS;
     }
 
     private function dump(): void
     {
         $_SERVER['VAR_DUMPER_FORMAT'] = 'server';
-        $_SERVER['VAR_DUMPER_SERVER'] = "$this->addr:$this->port";
+        $_SERVER['VAR_DUMPER_SERVER'] = "{$this->addr}:{$this->port}";
 
         \trap(['foo' => 'bar']);
         \trap(123);
-        \trap(new DateTimeImmutable());
+        \trap(new \DateTimeImmutable());
 
-        $message = (new \Buggregator\Trap\Test\Proto\Message())
+        $message = (new Message())
             ->setId(123)
             ->setPayload('foo')
             ->setCommand('bar')
             ->setMainMetadata([
-                (new \Buggregator\Trap\Test\Proto\Message\Metadata())
+                (new Metadata())
                     ->setKey('foo')
                     ->setValue('bar'),
             ])
             ->setHeader(
-                (new \Buggregator\Trap\Test\Proto\Message\Header())
+                (new Header())
                     ->setKey('foo')
                     ->setValue('bar'),
             )
             ->setMapaMapa(['foo' => 'bar', 'baz' => 'qux', '2' => 'quuz', 'quux ff' => 'quuz'])
-            ->setFoo(\Buggregator\Trap\Test\Proto\Message\Foo::BAR);
+            ->setFoo(Foo::BAR)
+        ;
         \trap(Nested: (object) ['msg' => $message]);
 
         try {
@@ -85,7 +90,7 @@ final class Test extends Command
             @\socket_connect($socket, $this->addr, $this->port);
             @\socket_write($socket, $message->serializeToString());
         } catch (\Throwable $e) {
-            $this->logger->exception($e, "Proto sending error", important: true);
+            $this->logger->exception($e, 'Proto sending error', important: true);
         } finally {
             if (isset($socket)) {
                 @\socket_close($socket);
@@ -153,7 +158,7 @@ final class Test extends Command
                 $this->sendMailPackage(
                     $output,
                     $socket,
-                    \base64_encode(\file_get_contents(Info::TRAP_ROOT . '/resources/public/favicon.ico')) . "\r\n",
+                    \base64_encode(\file_get_contents(Info::TRAP_ROOT.'/resources/public/favicon.ico'))."\r\n",
                     '',
                 );
                 $this->sendMailPackage($output, $socket, "\r\n", '');
@@ -180,7 +185,6 @@ final class Test extends Command
             $this->sendMailPackage($output, $socket, "QUIT\r\n", '221 ');
 
             \socket_close($socket);
-
         } catch (\Throwable $e) {
             $this->logger->exception($e, 'Mail protocol error', important: true);
         }
@@ -188,7 +192,7 @@ final class Test extends Command
 
     private function sendMailPackage(
         OutputInterface $output,
-        Socket $socket,
+        \Socket $socket,
         string $content,
         string $expectedResponsePrefix,
     ): void {
@@ -196,7 +200,7 @@ final class Test extends Command
             \socket_write($socket, $content);
             // print green "hello" string in raw console markup
             $output->write(
-                '> ' . \str_replace(["\r", "\n"], ["\e[32m\\r\e[0m", "\e[32m\\n\e[0m"], $content),
+                '> '.\str_replace(["\r", "\n"], ["\e[32m\\r\e[0m", "\e[32m\\n\e[0m"], $content),
                 true,
                 OutputInterface::OUTPUT_RAW,
             );
@@ -206,9 +210,11 @@ final class Test extends Command
             return;
         }
         @\socket_recv($socket, $buf, 65536, 0);
-        /** @var string|null $buf */
+
+        /** @var null|string $buf */
         if ($buf === null) {
             $output->writeln('<error>Disconnected</>');
+
             return;
         }
 
@@ -223,7 +229,7 @@ final class Test extends Command
 
         $prefix = \substr($buf, 0, \strlen($expectedResponsePrefix));
         if ($prefix !== $expectedResponsePrefix) {
-            throw new RuntimeException("Invalid response `$buf`. Prefix `$expectedResponsePrefix` expected.");
+            throw new \RuntimeException("Invalid response `{$buf}`. Prefix `{$expectedResponsePrefix}` expected.");
         }
     }
 
@@ -236,18 +242,17 @@ final class Test extends Command
             $socket = @\socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
             @\socket_connect($socket, $this->addr, $this->port);
 
-            $fp = @\fopen(Info::TRAP_ROOT . '/resources/payloads/' . $file, 'rb');
+            $fp = @\fopen(Info::TRAP_ROOT.'/resources/payloads/'.$file, 'rb');
             if ($fp === false) {
-                throw new RuntimeException('Cannot open file.');
+                throw new \RuntimeException('Cannot open file.');
             }
             @\flock($fp, LOCK_SH);
             while (!\feof($fp)) {
                 $read = \fread($fp, 4096);
                 @\socket_write($socket, $read);
             }
-
         } catch (\Throwable $e) {
-            $this->logger->exception($e, "$file sending error", important: true);
+            $this->logger->exception($e, "{$file} sending error", important: true);
         } finally {
             if (isset($fp)) {
                 @\flock($fp, LOCK_UN);

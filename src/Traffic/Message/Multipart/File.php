@@ -21,7 +21,10 @@ use Psr\Http\Message\UploadedFileInterface;
 final class File extends Part implements UploadedFileInterface
 {
     private ?UploadedFileInterface $uploadedFile = null;
-    /** @var non-negative-int|null  */
+
+    /**
+     * @var null|non-negative-int
+     */
     private ?int $fileSize = null;
 
     /**
@@ -39,6 +42,7 @@ final class File extends Part implements UploadedFileInterface
     {
         $self = new self($data['headers'], $data['name'] ?? null, $data['fileName'] ?? null);
         $self->fileSize = $data['size'] ?? null;
+
         return $self;
     }
 
@@ -57,7 +61,7 @@ final class File extends Part implements UploadedFileInterface
     }
 
     /**
-     * @param non-negative-int|null $size
+     * @param null|non-negative-int $size
      */
     public function setStream(StreamInterface $stream, ?int $size = null, int $code = \UPLOAD_ERR_OK): void
     {
@@ -95,7 +99,7 @@ final class File extends Part implements UploadedFileInterface
     }
 
     /**
-     * @return int<0, max>|null
+     * @return null|int<0, max>
      */
     public function getSize(): ?int
     {
@@ -122,6 +126,7 @@ final class File extends Part implements UploadedFileInterface
         if (!isset($this->uploadedFile)) {
             throw new \RuntimeException('Uploaded file is not set.');
         }
+
         return $this->uploadedFile;
     }
 }

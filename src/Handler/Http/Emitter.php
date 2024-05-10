@@ -11,6 +11,7 @@ use Psr\Http\Message\ResponseInterface;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class Emitter
@@ -35,7 +36,7 @@ final class Emitter
             self::prepareStatusLine($response),
             ...self::prepareHeaders($response),
         ];
-        $streamClient->sendData(\implode("\r\n", $headerLines) . "\r\n\r\n");
+        $streamClient->sendData(\implode("\r\n", $headerLines)."\r\n\r\n");
 
         self::emitBody($streamClient, $response);
 
@@ -54,7 +55,7 @@ final class Emitter
             'HTTP/%s %d%s',
             $response->getProtocolVersion(),
             $response->getStatusCode(),
-            ($reasonPhrase ? ' ' . $reasonPhrase : '')
+            $reasonPhrase ? ' '.$reasonPhrase : ''
         );
     }
 
@@ -112,7 +113,7 @@ final class Emitter
             $streamClient->sendData($string);
 
             unset($string);
-            Fiber::suspend();
+            \Fiber::suspend();
         }
 
         if ($chunked) {

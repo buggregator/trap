@@ -7,12 +7,11 @@ namespace Buggregator\Trap\Handler\Http\Middleware\SentryTrap;
 use Buggregator\Trap\Proto\Frame\Sentry\EnvelopeItem;
 use Buggregator\Trap\Proto\Frame\Sentry\SentryEnvelope;
 use Buggregator\Trap\Support\StreamHelper;
-use DateTimeImmutable;
-use Fiber;
 use Psr\Http\Message\StreamInterface;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap\Handler\Http\Middleware
  */
 final class EnvelopeParser
@@ -22,20 +21,20 @@ final class EnvelopeParser
 
     public static function parse(
         StreamInterface $stream,
-        DateTimeImmutable $time = new DateTimeImmutable(),
+        \DateTimeImmutable $time = new \DateTimeImmutable(),
     ): SentryEnvelope {
         // Parse headers
         $headers = \json_decode(self::readLine($stream), true, 4, JSON_THROW_ON_ERROR);
 
         // Parse items
         $items = [];
-        do {
+        while (true) {
             try {
                 $items[] = self::parseItem($stream);
             } catch (\Throwable) {
                 break;
             }
-        } while (true);
+        }
 
         return new SentryEnvelope($headers, $items, $time);
     }
@@ -75,7 +74,8 @@ final class EnvelopeParser
 
     /**
      * @param positive-int $possibleBytes Maximum number of bytes to read. If the read fragment is longer than this
-     *        an exception will be thrown. Default is 10MB
+     *                                    an exception will be thrown. Default is 10MB
+     *
      * @throws \Throwable
      */
     private static function readLine(StreamInterface $stream, int $possibleBytes = self::MAX_TEXT_ITEM_SIZE): string
@@ -98,6 +98,7 @@ final class EnvelopeParser
 
     /**
      * @param int<0, max> $length
+     *
      * @throws \Throwable
      */
     private static function readBytes(StreamInterface $stream, int $length): string
@@ -113,7 +114,7 @@ final class EnvelopeParser
 
         /** @var non-empty-string $result */
         $result = '';
-        do {
+        while (true) {
             $read = $stream->read($length);
             $read === '' and throw new \RuntimeException('Failed to read bytes.');
 
@@ -123,8 +124,8 @@ final class EnvelopeParser
                 break;
             }
 
-            Fiber::suspend();
-        } while (true);
+            \Fiber::suspend();
+        }
 
         return $result;
     }

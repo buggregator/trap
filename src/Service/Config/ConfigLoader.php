@@ -11,7 +11,7 @@ use Buggregator\Trap\Logger;
  */
 final class ConfigLoader
 {
-    private \SimpleXMLElement|null $xml = null;
+    private ?\SimpleXMLElement $xml = null;
 
     /**
      * @psalm-suppress RiskyTruthyFalsyComparison
@@ -48,7 +48,6 @@ final class ConfigLoader
     }
 
     /**
-     * @param \ReflectionProperty $property
      * @param list<\ReflectionAttribute<ConfigAttribute>> $attributes
      */
     private function injectValue(object $config, \ReflectionProperty $property, array $attributes): void
@@ -95,6 +94,7 @@ final class ConfigLoader
 
                 // Set the property value
                 $property->setValue($config, $result);
+
                 return;
             } catch (\Throwable $e) {
                 $this->logger->exception($e, important: true);

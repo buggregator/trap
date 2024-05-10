@@ -15,7 +15,7 @@ final class RemoteSender extends SocketSender
     private string $uuid;
 
     public function __construct(
-        string $uuid = null,
+        ?string $uuid = null,
         string $host = '127.0.0.1',
         int $port = 9912,
         private readonly string $clientVersion = Info::VERSION,
@@ -27,6 +27,6 @@ final class RemoteSender extends SocketSender
 
     protected function makePackage(string $payload): string
     {
-        return "1|$this->clientVersion|$this->uuid|$payload\n";
+        return "1|{$this->clientVersion}|{$this->uuid}|{$payload}\n";
     }
 }

@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Config\Server;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator
  */
 final class SocketServer

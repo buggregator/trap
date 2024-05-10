@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Support;
 
 use Buggregator\Trap\Support\Caster\EnumValue;
-use Google\Protobuf\Internal\Descriptor as InternalDescriptor;
 use Google\Protobuf\Descriptor as PublicDescriptor;
+use Google\Protobuf\Internal\Descriptor as InternalDescriptor;
 use Google\Protobuf\Internal\DescriptorPool;
+use Google\Protobuf\Internal\EnumDescriptor;
+use Google\Protobuf\Internal\EnumValueDescriptorProto;
+use Google\Protobuf\Internal\FieldDescriptor;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\MapField;
 use Google\Protobuf\Internal\Message;
@@ -55,7 +58,7 @@ final class ProtobufCaster
 
     public static function cast(Message $c, array $a, Stub $stub, bool $isNested): array
     {
-        /** @var PublicDescriptor|InternalDescriptor $descriptor */
+        /** @var InternalDescriptor|PublicDescriptor $descriptor */
         $descriptor = DescriptorPool::getGeneratedPool()->getDescriptorByClassName($c::class);
 
         return self::castMessage($c, $descriptor);
@@ -76,24 +79,26 @@ final class ProtobufCaster
         // } else {
         //     $result[Caster::PREFIX_VIRTUAL . 'value type'] = self::TYPES[$c->getValueType()];
         // }
-        $result[Caster::PREFIX_VIRTUAL . 'values'] = \iterator_to_array($c);
+        $result[Caster::PREFIX_VIRTUAL.'values'] = \iterator_to_array($c);
+
         return $result;
     }
 
     public static function castEnum(EnumValue $c, array $a, Stub $stub, bool $isNested): array
     {
         $stub->class = $c->class;
+
         return [
-            Caster::PREFIX_VIRTUAL . 'name' => $c->name,
-            Caster::PREFIX_VIRTUAL . 'value' => $c->value,
+            Caster::PREFIX_VIRTUAL.'name' => $c->name,
+            Caster::PREFIX_VIRTUAL.'value' => $c->value,
         ];
     }
 
-    private static function castMessage(Message $message, PublicDescriptor|InternalDescriptor $descriptor): array
+    private static function castMessage(Message $message, InternalDescriptor|PublicDescriptor $descriptor): array
     {
         return [
-            Caster::PREFIX_VIRTUAL . 'message' => $descriptor->getFullName(),
-            Caster::PREFIX_VIRTUAL . 'values' => match (true) {
+            Caster::PREFIX_VIRTUAL.'message' => $descriptor->getFullName(),
+            Caster::PREFIX_VIRTUAL.'values' => match (true) {
                 $descriptor instanceof InternalDescriptor => self::extractViaInternal($message, $descriptor),
                 // $descriptor instanceof PublicDescriptor => self::extractViaPublic($message, $descriptor),
                 default => self::extractFallback($message),
@@ -117,8 +122,8 @@ final class ProtobufCaster
         $pub = $descriptor->getPublicDescriptor();
         $values = [];
 
-        for ($i = 0; $i < $pub->getFieldCount(); $i++) {
-            /** @var \Google\Protobuf\Internal\FieldDescriptor $fd */
+        for ($i = 0; $i < $pub->getFieldCount(); ++$i) {
+            /** @var FieldDescriptor $fd */
             $fd = $descriptor->getFieldByIndex($i);
             $value = $message->{$fd->getGetter()}();
 
@@ -150,9 +155,10 @@ final class ProtobufCaster
 
             // Wrap ENUM
             if ($fd->getType() === GPBType::ENUM) {
-                /** @var \Google\Protobuf\Internal\EnumDescriptor $ed */
+                /** @var EnumDescriptor $ed */
                 $ed = $fd->getEnumType();
-                /** @var \Google\Protobuf\Internal\EnumValueDescriptorProto $v */
+
+                /** @var EnumValueDescriptorProto $v */
                 $v = $ed->getValueByNumber($value);
 
                 $values[$fd->getName()] = new EnumValue(
@@ -162,6 +168,7 @@ final class ProtobufCaster
                 );
 
                 unset($ed, $v);
+
                 continue;
             }
 

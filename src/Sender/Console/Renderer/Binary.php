@@ -9,7 +9,6 @@ use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Buggregator\Trap\Sender\Console\Support\Files;
-use Fiber;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -71,7 +70,7 @@ final class Binary implements Renderer
         $size = $frame->getSize();
         Common::renderMetadata($output, [
             'Time' => $frame->time,
-            'Size' => Files::normalizeSize($size) . ($size > 1024 ? \sprintf(' (%d bytes)', $size) : ''),
+            'Size' => Files::normalizeSize($size).($size > 1024 ? \sprintf(' (%d bytes)', $size) : ''),
         ]);
 
         if ($size === 0) {
@@ -81,7 +80,7 @@ final class Binary implements Renderer
         // Render body
         $stream = $frame->stream;
         $stream->rewind();
-        Fiber::suspend();
+        \Fiber::suspend();
 
         // Print header if needed
         if ($this->printBytes < $size) {
@@ -97,7 +96,7 @@ final class Binary implements Renderer
         $output->writeln('<fg=gray>────────  ────────────────────────────────────────────────  ────────────────</>');
 
         $hexes = \array_map(
-            static fn(string $byte): string => \str_pad($byte, 2, '0', \STR_PAD_LEFT),
+            static fn (string $byte): string => \str_pad($byte, 2, '0', \STR_PAD_LEFT),
             \str_split(\bin2hex($read), 2)
         );
         $lines = \array_chunk($hexes, 16);
@@ -105,7 +104,7 @@ final class Binary implements Renderer
         $s = '<fg=yellow>';
         foreach ($lines as $line) {
             $hexes = \str_pad(\implode(' ', $line), 47, ' ');
-            $hexes = \substr($hexes, 0, 23) . ' ' . \substr($hexes, 23); // Add space between in the middle
+            $hexes = \substr($hexes, 0, 23).' '.\substr($hexes, 23); // Add space between in the middle
             $output->writeln(\sprintf(
                 '<info>%s</info>  %s  %s',
                 \str_pad(\dechex($offset), 8, '0', \STR_PAD_LEFT),

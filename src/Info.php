@@ -26,5 +26,5 @@ class Info
         \e[44;97;1m                                    \e[0m
         CONSOLE;
 
-    public const TRAP_ROOT = __DIR__ . '/..';
+    public const TRAP_ROOT = __DIR__.'/..';
 }

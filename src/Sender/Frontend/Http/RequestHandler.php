@@ -13,10 +13,12 @@ use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * Read about Sec-WebSocket-Extensions:
- * @link https://datatracker.ietf.org/doc/html/rfc7692
- * @link https://www.igvita.com/2013/11/27/configuring-and-optimizing-websocket-compression/
+ *
+ * @see https://datatracker.ietf.org/doc/html/rfc7692
+ * @see https://www.igvita.com/2013/11/27/configuring-and-optimizing-websocket-compression/
  *
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class RequestHandler implements RequestHandlernterace
@@ -32,12 +34,13 @@ final class RequestHandler implements RequestHandlernterace
             || \preg_match('/\\bwebsocket\\b/i', $request->getHeaderLine('Upgrade')) !== 1
         ) {
             yield from $next($streamClient, $request);
+
             return;
         }
 
         // Calculate the accept key for the handshake
         $key = $request->getHeaderLine('Sec-WebSocket-Key');
-        $accept = \base64_encode(\sha1($key . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11', true));
+        $accept = \base64_encode(\sha1($key.'258EAFA5-E914-47DA-95CA-C5AB0DC85B11', true));
 
         // Prepare the response for the handshake
         $response = new Response(101, [

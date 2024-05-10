@@ -19,6 +19,7 @@ final class VarDump
     public function map(VarDumperFrame $frame): Event
     {
         $payload = $this->parse($frame->dump);
+
         return new Event(
             uuid: Uuid::generate(),
             type: 'var-dump',
@@ -41,7 +42,7 @@ final class VarDump
         $payload = @\unserialize(\base64_decode($message), ['allowed_classes' => [Data::class, Stub::class]]);
 
         // Impossible to decode the message, give up.
-        if (false === $payload) {
+        if ($payload === false) {
             throw new \RuntimeException('Unable to decode a message from var-dumper client.');
         }
 
@@ -57,7 +58,7 @@ final class VarDump
         return $payload;
     }
 
-    private function convertToPrimitive(Data $data): string|null
+    private function convertToPrimitive(Data $data): ?string
     {
         if (\in_array($data->getType(), ['string', 'boolean'])) {
             /** @psalm-suppress PossiblyInvalidCast */

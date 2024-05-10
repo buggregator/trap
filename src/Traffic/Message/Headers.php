@@ -9,10 +9,14 @@ namespace Buggregator\Trap\Traffic\Message;
  */
 trait Headers
 {
-    /** @var array<non-empty-string, non-empty-list<string>> Map of all registered headers */
+    /**
+     * @var array<non-empty-string, non-empty-list<string>> Map of all registered headers
+     */
     private array $headers = [];
 
-    /** @var array<non-empty-string, non-empty-string> Map of lowercase header name => original name at registration */
+    /**
+     * @var array<non-empty-string, non-empty-string> Map of lowercase header name => original name at registration
+     */
     private array $headerNames = [];
 
     /**
@@ -51,6 +55,7 @@ trait Headers
     public function withHeader(string $header, mixed $value): static
     {
         $value = $this->validateAndTrimHeader($header, $value);
+
         /** @var non-empty-string $normalized */
         $normalized = \strtr($header, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz');
 
@@ -66,7 +71,7 @@ trait Headers
 
     public function withAddedHeader(string $header, string $value): static
     {
-        if ('' === $header) {
+        if ($header === '') {
             throw new \InvalidArgumentException('Header name must be an RFC 7230 compatible string');
         }
 
@@ -91,7 +96,7 @@ trait Headers
     }
 
     /**
-     * @param array<array-key, scalar|list<scalar>> $headers
+     * @param array<array-key, list<scalar>|scalar> $headers
      */
     private function setHeaders(array $headers): void
     {
@@ -103,6 +108,7 @@ trait Headers
             }
 
             $value = $this->validateAndTrimHeader($header, $value);
+
             /** @var non-empty-string $normalized */
             $normalized = \strtr($header, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz');
             if (isset($this->headerNames[$normalized])) {
@@ -139,16 +145,16 @@ trait Headers
      */
     private function validateAndTrimHeader(string $header, mixed $values): array
     {
-        if (1 !== \preg_match("@^[!#$%&'*+.^_`|~0-9A-Za-z-]+$@D", $header)) {
+        if (\preg_match("@^[!#$%&'*+.^_`|~0-9A-Za-z-]+$@D", $header) !== 1) {
             throw new \InvalidArgumentException('Header name must be an RFC 7230 compatible string');
         }
 
         if (!\is_array($values)) {
             // This is simple, just one value.
-            if ((!\is_numeric($values) && !\is_string($values)) || 1 !== \preg_match(
+            if ((!\is_numeric($values) && !\is_string($values)) || \preg_match(
                 "@^[ \t\x21-\x7E\x80-\xFF]*$@",
                 (string) $values,
-            )) {
+            ) !== 1) {
                 throw new \InvalidArgumentException('Header values must be RFC 7230 compatible strings');
             }
 
@@ -164,10 +170,10 @@ trait Headers
         // Assert Non empty array
         $returnValues = [];
         foreach ($values as $v) {
-            if ((!\is_numeric($v) && !\is_string($v)) || 1 !== \preg_match(
+            if ((!\is_numeric($v) && !\is_string($v)) || \preg_match(
                 "@^[ \t\x21-\x7E\x80-\xFF]*$@D",
                 (string) $v,
-            )) {
+            ) !== 1) {
                 throw new \InvalidArgumentException('Header values must be RFC 7230 compatible strings');
             }
 
@@ -194,6 +200,7 @@ trait Headers
                 $result = [...$result, ...$values];
             }
         }
+
         return $result;
     }
 }

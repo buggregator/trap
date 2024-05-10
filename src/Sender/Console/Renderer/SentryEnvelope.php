@@ -6,9 +6,9 @@ namespace Buggregator\Trap\Sender\Console\Renderer;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
+use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Renderer\Sentry\Exceptions;
 use Buggregator\Trap\Sender\Console\Renderer\Sentry\Header;
-use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -34,9 +34,10 @@ final class SentryEnvelope implements Renderer
         $i = 0;
         foreach ($frame->items as $item) {
             ++$i;
+
             try {
                 $type = $item->headers['type'] ?? null;
-                Common::renderHeader2($output, "Item $i", green: (string) $type);
+                Common::renderHeader2($output, "Item {$i}", green: (string) $type);
 
                 Header::renderMessageHeader($output, $item->payload);
                 $this->renderItem($output, $item);
@@ -51,6 +52,7 @@ final class SentryEnvelope implements Renderer
     {
         if (isset($data->payload['exceptions'])) {
             Exceptions::render($output, $data->payload['exceptions']);
+
             return;
         }
 

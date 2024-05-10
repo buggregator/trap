@@ -18,11 +18,14 @@ use Psr\Http\Message\ServerRequestInterface;
  * Simple fallback handler that runs {@see Pipeline} of {@see Middleware} and emits {@see ResponseInterface}.
  *
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class Fallback implements RequestHandler
 {
-    /** @var Pipeline<Middleware, ResponseInterface> */
+    /**
+     * @var Pipeline<Middleware, ResponseInterface>
+     */
     private readonly Pipeline $pipeline;
 
     /**
@@ -35,7 +38,7 @@ final class Fallback implements RequestHandler
             $middlewares,
             /** @see Middleware::handle() */
             'handle',
-            static fn(): ResponseInterface => new Response(404),
+            static fn (): ResponseInterface => new Response(404),
             ResponseInterface::class,
         );
     }
@@ -49,12 +52,13 @@ final class Fallback implements RequestHandler
 
         try {
             $fiber = new \Fiber(($this->pipeline)(...));
-            do {
+            while (true) {
                 /** @var mixed $got */
                 $got = $fiber->isStarted() ? $fiber->resume() : $fiber->start($request);
 
                 if ($got instanceof Frame) {
                     $gotFrame = true;
+
                     yield $got;
                 }
 
@@ -69,11 +73,12 @@ final class Fallback implements RequestHandler
                     }
 
                     HttpEmitter::emit($streamClient, $response);
+
                     break;
                 }
 
                 \Fiber::suspend();
-            } while (true);
+            }
         } catch (\Throwable) {
             // Emit error response
             HttpEmitter::emit($streamClient, new Response(500));

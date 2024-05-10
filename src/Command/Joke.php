@@ -24,7 +24,7 @@ final class Joke extends Command
         OutputInterface $output,
     ): int {
         $jokes = \file(
-            filename: Info::TRAP_ROOT . '/resources/registry/jokes.txt',
+            filename: Info::TRAP_ROOT.'/resources/registry/jokes.txt',
             flags: \FILE_IGNORE_NEW_LINES | \FILE_IGNORE_NEW_LINES,
         );
         $joke = \str_replace('%s', 'Buggregator', \base64_decode($jokes[\array_rand($jokes)]));

@@ -5,14 +5,11 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Traffic\Message\Multipart;
 
 use Buggregator\Trap\Traffic\Message\Headers;
-use JsonSerializable;
-use RuntimeExceptio;
-use RuntimeException;
 
 /**
  * @internal
  */
-abstract class Part implements JsonSerializable
+abstract class Part implements \JsonSerializable
 {
     use Headers;
 
@@ -32,14 +29,14 @@ abstract class Part implements JsonSerializable
     public static function create(array $headers): Part
     {
         /**
-         * Check Content-Disposition header
+         * Check Content-Disposition header.
          *
          * @var string $contentDisposition
          */
         $contentDisposition = self::findHeader($headers, 'Content-Disposition')[0]
-            ?? throw new RuntimeException('Missing Content-Disposition header.');
+            ?? throw new \RuntimeException('Missing Content-Disposition header.');
         if ($contentDisposition === '') {
-            throw new RuntimeException('Missing Content-Disposition header, can\'t be empty');
+            throw new \RuntimeException('Missing Content-Disposition header, can\'t be empty');
         }
 
         // Get field name and file name
@@ -70,6 +67,7 @@ abstract class Part implements JsonSerializable
     {
         $clone = clone $this;
         $clone->name = $name;
+
         return $clone;
     }
 

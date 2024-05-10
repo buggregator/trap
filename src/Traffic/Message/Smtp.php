@@ -6,10 +6,8 @@ namespace Buggregator\Trap\Traffic\Message;
 
 use Buggregator\Trap\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
-use Buggregator\Trap\Traffic\Message\Multipart\Part;
 use Buggregator\Trap\Traffic\Message\Smtp\Contact;
 use Buggregator\Trap\Traffic\Message\Smtp\MessageFormat;
-use JsonSerializable;
 use Psr\Http\Message\StreamInterface;
 
 /**
@@ -27,20 +25,24 @@ use Psr\Http\Message\StreamInterface;
  *
  * @internal
  */
-final class Smtp implements JsonSerializable
+final class Smtp implements \JsonSerializable
 {
     use Headers;
     use StreamBody;
 
-    /** @var list<Field> */
+    /**
+     * @var list<Field>
+     */
     private array $messages = [];
 
-    /** @var list<File> */
+    /**
+     * @var list<File>
+     */
     private array $attachments = [];
 
     /**
      * @param array<non-empty-string, list<string>> $protocol
-     * @param array<array-key, scalar|list<non-empty-string>> $headers
+     * @param array<array-key, list<non-empty-string>|scalar> $headers
      */
     private function __construct(
         private readonly array $protocol,
@@ -51,7 +53,7 @@ final class Smtp implements JsonSerializable
 
     /**
      * @param array<non-empty-string, list<string>> $protocol
-     * @param array<array-key, scalar|list<non-empty-string>> $headers
+     * @param array<array-key, list<non-empty-string>|scalar> $headers
      */
     public static function create(array $protocol, array $headers): self
     {
@@ -107,6 +109,7 @@ final class Smtp implements JsonSerializable
     {
         $clone = clone $this;
         $clone->messages = $messages;
+
         return $clone;
     }
 
@@ -117,6 +120,7 @@ final class Smtp implements JsonSerializable
     {
         $clone = clone $this;
         $clone->attachments = $attachments;
+
         return $clone;
     }
 

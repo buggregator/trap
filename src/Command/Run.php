@@ -20,7 +20,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * Run application
+ * Run application.
  *
  * @internal
  */
@@ -52,7 +52,8 @@ final class Run extends Command implements SignalableCommandInterface
     }
 
     /**
-     * Prepare port listeners
+     * Prepare port listeners.
+     *
      * @return SocketServer[]
      */
     public function getServers(Container $container): array
@@ -61,6 +62,7 @@ final class Run extends Command implements SignalableCommandInterface
 
         $servers = [];
         $ports = $config->ports ?: [9912];
+
         /** @var scalar $port */
         foreach ($ports as $port) {
             \is_numeric($port) or throw new \InvalidArgumentException(
@@ -72,54 +74,8 @@ final class Run extends Command implements SignalableCommandInterface
             );
             $servers[] = new SocketServer($port, $config->host, $config->type);
         }
+
         return $servers;
-    }
-
-    protected function execute(
-        InputInterface $input,
-        OutputInterface $output,
-    ): int {
-        try {
-            // Print intro
-            $output->writeln(\sprintf('<fg=yellow;options=bold>%s</> <info>v%s</>', Info::NAME, Info::VERSION));
-            $output->write(Info::LOGO_CLI_COLOR . "\n", true, OutputInterface::OUTPUT_RAW);
-
-            /** @var non-empty-string[] $senders */
-            $senders = (array) $input->getOption('sender');
-
-            $registry = $this->createRegistry($output);
-
-            $container = Bootstrap::init()->withConfig(
-                xml: \dirname(__DIR__, 2) . '/trap.xml',
-                inputOptions: $input->getOptions(),
-                inputArguments: $input->getArguments(),
-                environment: \getenv(),
-            )->finish();
-            $container->set($registry);
-            $container->set($input, InputInterface::class);
-            $container->set(new Logger($output));
-            $this->app = $container->get(Application::class, [
-                'map' => $this->getServers($container),
-                'senders' => $registry->getSenders($senders),
-                'withFrontend' => $input->getOption('ui') !== false,
-            ]);
-
-
-            $this->app->run();
-        } catch (\Throwable $e) {
-            if ($output->isVerbose()) {
-                // Write colorful exception (title, message, stacktrace)
-                $output->writeln(\sprintf("<fg=red;options=bold>%s</>", $e::class));
-            }
-
-            $output->writeln(\sprintf("<fg=red>%s</>", $e->getMessage()));
-
-            if ($output->isDebug()) {
-                $output->writeln(\sprintf("<fg=gray>%s</>", $e->getTraceAsString()));
-            }
-        }
-
-        return Command::SUCCESS;
     }
 
     public function createRegistry(OutputInterface $output): Sender\SenderRegistry
@@ -147,12 +103,13 @@ final class Run extends Command implements SignalableCommandInterface
         return $result;
     }
 
-    public function handleSignal(int $signal, int|false $previousExitCode = 0): int|false
+    public function handleSignal(int $signal, false|int $previousExitCode = 0): false|int
     {
         if (\defined('SIGINT') && $signal === \SIGINT) {
             if ($this->cancelled) {
                 // Force exit
                 $this->app?->destroy();
+
                 return $signal;
             }
 
@@ -162,9 +119,56 @@ final class Run extends Command implements SignalableCommandInterface
 
         if (\defined('SIGTERM') && $signal === \SIGTERM) {
             $this->app?->destroy();
+
             return $signal;
         }
 
         return false;
+    }
+
+    protected function execute(
+        InputInterface $input,
+        OutputInterface $output,
+    ): int {
+        try {
+            // Print intro
+            $output->writeln(\sprintf('<fg=yellow;options=bold>%s</> <info>v%s</>', Info::NAME, Info::VERSION));
+            $output->write(Info::LOGO_CLI_COLOR."\n", true, OutputInterface::OUTPUT_RAW);
+
+            /** @var non-empty-string[] $senders */
+            $senders = (array) $input->getOption('sender');
+
+            $registry = $this->createRegistry($output);
+
+            $container = Bootstrap::init()->withConfig(
+                xml: \dirname(__DIR__, 2).'/trap.xml',
+                inputOptions: $input->getOptions(),
+                inputArguments: $input->getArguments(),
+                environment: \getenv(),
+            )->finish();
+            $container->set($registry);
+            $container->set($input, InputInterface::class);
+            $container->set(new Logger($output));
+            $this->app = $container->get(Application::class, [
+                'map' => $this->getServers($container),
+                'senders' => $registry->getSenders($senders),
+                'withFrontend' => $input->getOption('ui') !== false,
+            ]);
+
+            $this->app->run();
+        } catch (\Throwable $e) {
+            if ($output->isVerbose()) {
+                // Write colorful exception (title, message, stacktrace)
+                $output->writeln(\sprintf('<fg=red;options=bold>%s</>', $e::class));
+            }
+
+            $output->writeln(\sprintf('<fg=red>%s</>', $e->getMessage()));
+
+            if ($output->isDebug()) {
+                $output->writeln(\sprintf('<fg=gray>%s</>', $e->getTraceAsString()));
+            }
+        }
+
+        return Command::SUCCESS;
     }
 }

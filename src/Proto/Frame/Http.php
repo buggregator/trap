@@ -8,7 +8,6 @@ use Buggregator\Trap\Proto\FilesCarrier;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Support\Json;
-use DateTimeImmutable;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\ServerRequestInterface;
@@ -16,20 +15,23 @@ use Psr\Http\Message\UploadedFileInterface as PsrUploadedFile;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator
  */
 final class Http extends Frame implements FilesCarrier
 {
-    /** @var int<0, max> */
+    /**
+     * @var int<0, max>
+     */
     private readonly int $cachedSize;
 
     public function __construct(
         public readonly ServerRequestInterface $request,
-        DateTimeImmutable $time = new DateTimeImmutable(),
+        \DateTimeImmutable $time = new \DateTimeImmutable(),
     ) {
         $this->cachedSize = \max(0, (int) $request->getBody()->getSize() + \array_reduce(
             \iterator_to_array($this->iterateUploadedFiles(), false),
-            static fn(int $carry, PsrUploadedFile $file): int => $carry + (int) $file->getSize(),
+            static fn (int $carry, PsrUploadedFile $file): int => $carry + (int) $file->getSize(),
             0,
         ));
         parent::__construct(type: ProtoType::HTTP, time: $time);
@@ -53,7 +55,7 @@ final class Http extends Frame implements FilesCarrier
         ]);
     }
 
-    public static function fromString(string $payload, DateTimeImmutable $time): static
+    public static function fromString(string $payload, \DateTimeImmutable $time): static
     {
         $payload = \json_decode($payload, true, \JSON_THROW_ON_ERROR);
 
@@ -71,7 +73,7 @@ final class Http extends Frame implements FilesCarrier
                 ->withCookieParams($payload['cookies'] ?? [])
                 ->withUploadedFiles(
                     \array_map(
-                        static fn(array $file) => new UploadedFile(
+                        static fn (array $file) => new UploadedFile(
                             $file['content'],
                             $file['size'],
                             \UPLOAD_ERR_OK,
@@ -107,17 +109,19 @@ final class Http extends Frame implements FilesCarrier
     {
         /** @var \Closure(array): \Iterator<int, PsrUploadedFile> $generator */
         $generator = static function (array $files) use (&$generator): \Generator {
-            /** @var PsrUploadedFile|array<PsrUploadedFile> $file */
+            /** @var array<PsrUploadedFile>|PsrUploadedFile $file */
             foreach ($files as $file) {
                 if (\is_array($file)) {
                     /** @var PsrUploadedFile $subFile */
                     foreach ($generator($file) as $subFile) {
                         yield $subFile;
                     }
+
                     continue;
                 }
 
                 \assert($file instanceof PsrUploadedFile);
+
                 yield $file;
             }
         };

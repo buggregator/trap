@@ -12,6 +12,7 @@ use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class StaticFiles implements Middleware
@@ -30,8 +31,10 @@ final class StaticFiles implements Middleware
 
             /** @var array<non-empty-string, string> $cacheContent */
             static $cacheContent = [];
+
             /** @var array<non-empty-string, non-empty-string> $cacheHash */
             static $cacheHash = [];
+
             /** @var array<non-empty-string, int<0, max>> $cacheSize */
             static $cacheSize = [];
 
@@ -41,7 +44,7 @@ final class StaticFiles implements Middleware
 
             $headers = [];
 
-            $type = match($matches[2]) {
+            $type = match ($matches[2]) {
                 'css' => 'text/css',
                 'html' => 'text/html',
                 'txt' => 'text/plain',
@@ -69,7 +72,7 @@ final class StaticFiles implements Middleware
 
                 $headers = [
                     'Link' => \array_map(
-                        static fn(string $css): string => \sprintf('<%s>; rel=preload; as=style', $css),
+                        static fn (string $css): string => \sprintf('<%s>; rel=preload; as=style', $css),
                         $this->earlyResponse,
                     ),
                 ];
@@ -78,6 +81,7 @@ final class StaticFiles implements Middleware
             }
 
             $cacheContent[$file] ??= \file_get_contents($file);
+
             return new Response(
                 200,
                 [

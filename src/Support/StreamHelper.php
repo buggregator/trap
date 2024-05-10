@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Support;
 
-use Fiber;
 use Http\Message\Encoding\GzipDecodeStream;
 use Nyholm\Psr7\Stream;
 use Psr\Http\Message\ServerRequestInterface;
@@ -12,6 +11,7 @@ use Psr\Http\Message\StreamInterface;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class StreamHelper
@@ -23,9 +23,9 @@ final class StreamHelper
     /**
      * @param non-empty-string $substr
      *
-     * @return int<0, max>|false Relative position from current caret position
+     * @return false|int<0, max> Relative position from current caret position
      */
-    public static function strpos(StreamInterface $stream, string $substr): int|false
+    public static function strpos(StreamInterface $stream, string $substr): false|int
     {
         $caret = $stream->tell();
         $ssLen = \strlen($substr);
@@ -36,7 +36,7 @@ final class StreamHelper
         $result = false;
         $prefix = '';
         while (!$stream->eof()) {
-            $read = $prefix . $stream->read(self::CHUNK_SIZE + $ssLen);
+            $read = $prefix.$stream->read(self::CHUNK_SIZE + $ssLen);
 
             $readLen = \strlen($read);
             if ($readLen < $ssLen) {
@@ -45,25 +45,26 @@ final class StreamHelper
 
             if (false !== ($pos = \strpos($read, $substr))) {
                 $result = $delta + $pos;
+
                 break;
             }
 
-            $prefix = \substr($read, - $ssLen);
+            $prefix = \substr($read, -$ssLen);
             $delta += \strlen($read) - $ssLen;
 
             unset($read);
-            Fiber::suspend();
+            \Fiber::suspend();
         }
 
         $stream->seek($caret, \SEEK_SET);
 
         \assert($result >= 0);
+
         return $result;
     }
 
     /**
-     *
-     * Write bytes from $from (current position) to $to (current position) until $boundary by chunks
+     * Write bytes from $from (current position) to $to (current position) until $boundary by chunks.
      *
      * @param non-empty-string $boundary
      *
@@ -81,7 +82,8 @@ final class StreamHelper
                 $result += \strlen($read);
                 $to->write($read);
                 unset($read);
-                Fiber::suspend();
+                \Fiber::suspend();
+
                 break;
             }
 
@@ -89,14 +91,14 @@ final class StreamHelper
             $to->write($read);
 
             unset($read);
-            Fiber::suspend();
+            \Fiber::suspend();
         }
 
         return $result;
     }
 
     /**
-     * Write $bytes from $from (current position) to $to (current position) by chunks
+     * Write $bytes from $from (current position) to $to (current position) by chunks.
      *
      * @param positive-int $bytes
      */
@@ -113,7 +115,7 @@ final class StreamHelper
             $written += \strlen($read);
 
             unset($read);
-            Fiber::suspend();
+            \Fiber::suspend();
         }
     }
 
@@ -129,7 +131,7 @@ final class StreamHelper
 
     public static function createFileStream(): StreamInterface
     {
-        return Stream::create(\fopen('php://temp/maxmemory:' . self::MAX_FILE_MEMORY_SIZE, 'w+b'));
+        return Stream::create(\fopen('php://temp/maxmemory:'.self::MAX_FILE_MEMORY_SIZE, 'w+b'));
     }
 
     /**
@@ -138,7 +140,7 @@ final class StreamHelper
      *
      * TODO: implement
      *
-     * @throws \InvalidArgumentException If the stream is not seekable.
+     * @throws \InvalidArgumentException if the stream is not seekable
      */
     public static function concurrentReadStream(StreamInterface $stream): StreamInterface
     {

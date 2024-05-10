@@ -19,6 +19,7 @@ final class HttpRequest
         $request = $frame->request;
 
         $uri = \ltrim($request->getUri()->getPath(), '/');
+
         /** @var \ArrayAccess<non-empty-string, Event\Asset> $assets */
         $assets = new \ArrayObject();
 
@@ -44,7 +45,7 @@ final class HttpRequest
                                 id: Uuid::generate(),
                                 file: $attachment,
                             );
-                            $uri = $uuid . '/' . $asset->uuid;
+                            $uri = $uuid.'/'.$asset->uuid;
                             $assets->offsetSet($asset->uuid, $asset);
 
                             return [

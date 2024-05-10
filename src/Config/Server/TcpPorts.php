@@ -8,15 +8,16 @@ use Buggregator\Trap\Service\Config\Env;
 use Buggregator\Trap\Service\Config\InputOption;
 
 /**
- * Config is a projection of plain TCP ports configuration via ENV and CLI
+ * Config is a projection of plain TCP ports configuration via ENV and CLI.
  *
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class TcpPorts
 {
     /**
-     * List of TCP ports to listen
+     * List of TCP ports to listen.
      *
      * @var list<int<1, 65535>>
      */
@@ -25,7 +26,7 @@ final class TcpPorts
     public array $ports = [9912];
 
     /**
-     * Host to listen
+     * Host to listen.
      *
      * @var non-empty-string
      */

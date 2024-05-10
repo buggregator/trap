@@ -37,6 +37,7 @@ final class RPC
             return $this->callMethod($method, $data);
         } catch (\Throwable $e) {
             $this->logger->exception($e);
+
             return null;
         }
     }
@@ -49,11 +50,13 @@ final class RPC
 
         if ($route === null) {
             $this->logger->error('RPC method `%s` not found.', $initMethod);
+
             return null;
         }
 
         /** @var mixed $result */
         $result = $route(...$data);
+
         return $result === null ? null : new Message\Rpc(data: $result);
     }
 }

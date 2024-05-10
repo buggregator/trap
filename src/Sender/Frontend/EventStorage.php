@@ -5,17 +5,18 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender\Frontend;
 
 use Buggregator\Trap\Config\Server\Frontend\EventStorage as Config;
-use Countable;
 use IteratorAggregate;
 
 /**
  * @internal
+ *
  * @implements IteratorAggregate<Event>
  */
-final class EventStorage implements IteratorAggregate, Countable
+final class EventStorage implements \IteratorAggregate, \Countable
 {
     /**
      * Events. Will be sorted by timestamp in descending order when requested via the {@see getIterator()} method.
+     *
      * @var array<non-empty-string, Event>
      */
     private array $events = [];
@@ -56,6 +57,7 @@ final class EventStorage implements IteratorAggregate, Countable
     {
         // Defers sorting of events until it is necessary.
         $this->sort();
+
         return new \ArrayIterator($this->events);
     }
 
@@ -83,7 +85,7 @@ final class EventStorage implements IteratorAggregate, Countable
     private function sort(): void
     {
         if (!$this->sorted) {
-            \uasort($this->events, static fn(Event $a, Event $b) => $b->timestamp <=> $a->timestamp);
+            \uasort($this->events, static fn (Event $a, Event $b) => $b->timestamp <=> $a->timestamp);
             $this->sorted = true;
         }
     }

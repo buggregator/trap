@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Frontend\Message;
 
-use JsonSerializable;
-
 /**
  * @internal
  */
-final class Push implements JsonSerializable
+final class Push implements \JsonSerializable
 {
     public function __construct(
         public readonly string $event,

@@ -11,6 +11,7 @@ use Psr\Http\Message\ServerRequestInterface;
  * Http middleware interface.
  *
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 interface Middleware

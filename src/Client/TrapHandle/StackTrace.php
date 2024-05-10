@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Client\TrapHandle;
 
 /**
- *
  * @psalm-type StackTraceWithObjects = list<array{
  *        function?: string,
  *        line?: int,
@@ -37,7 +36,7 @@ final class StackTrace
      */
     public static function stackTrace(string $baseDir = '', bool $provideObjects = false): array
     {
-        $dir = $baseDir . \DIRECTORY_SEPARATOR;
+        $dir = $baseDir.\DIRECTORY_SEPARATOR;
         $cwdLen = \strlen($dir);
         $stack = [];
         $internal = false;
@@ -49,6 +48,7 @@ final class StackTrace
             if (\str_starts_with($frame['class'] ?? '', 'Buggregator\\Trap\\Client\\')) {
                 $internal = true;
                 $stack = [];
+
                 continue;
             }
 
@@ -60,7 +60,7 @@ final class StackTrace
 
             // Convert absolute paths to relative ones
             $cwdLen > 1 && isset($frame['file']) && \str_starts_with($frame['file'], $dir)
-            and $frame['file'] = '.' . \DIRECTORY_SEPARATOR . \substr($frame['file'], $cwdLen);
+            and $frame['file'] = '.'.\DIRECTORY_SEPARATOR.\substr($frame['file'], $cwdLen);
 
             $stack[] = $frame;
         }

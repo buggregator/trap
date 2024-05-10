@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Traffic\Parser;
 
-use Buggregator\Trap\Traffic\StreamClient;
 use Buggregator\Trap\Support\StreamHelper;
 use Buggregator\Trap\Traffic\Message;
 use Buggregator\Trap\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
+use Buggregator\Trap\Traffic\StreamClient;
 use Psr\Http\Message\StreamInterface;
 
 /**
- * Todo: parse and decrypt `Content-Transfer-Encoding: base64`, `Content-Transfer-Encoding: 7bit`
+ * Todo: parse and decrypt `Content-Transfer-Encoding: base64`, `Content-Transfer-Encoding: 7bit`.
+ *
  * @internal
  */
 final class Smtp
@@ -26,7 +27,7 @@ final class Smtp
         $headers = Http::parseHeaders($headerBlock);
         $fileStream = StreamHelper::createFileStream();
         // Store read headers to the file stream.
-        $fileStream->write($headerBlock . "\r\n\r\n");
+        $fileStream->write($headerBlock."\r\n\r\n");
 
         // Create message with headers only.
         $message = Message\Smtp::create($protocol, headers: $headers);
@@ -49,20 +50,16 @@ final class Smtp
         // Message's body must be seeked to the beginning of the body.
         $fileStream->seek(-$stored, \SEEK_CUR);
 
-        $message = $isMultipart
+        return $isMultipart
             ? $this->processMultipartForm($message, $fileStream)
             : $this->processSingleBody($message, $fileStream);
-
-
-
-        return $message;
     }
 
     /**
      * Flush stream data into PSR stream.
      * Note: there can be read more data than {@see $limit} bytes but write only {@see $limit} bytes.
      *
-     * @return int Number of bytes written to the stream.
+     * @return int number of bytes written to the stream
      */
     private function storeBody(
         StreamInterface $fileStream,
@@ -97,7 +94,7 @@ final class Smtp
 
     private function processSingleBody(Message\Smtp $message, StreamInterface $stream): Message\Smtp
     {
-        $content = \preg_replace(["/^\.([^\r])/m", "/(\r\n\\.\r\n)$/D"], ['$1', ''], $stream->getContents());
+        $content = \preg_replace(["/^\\.([^\r])/m", "/(\r\n\\.\r\n)$/D"], ['$1', ''], $stream->getContents());
 
         /** @psalm-suppress InvalidArgument */
         $body = new Field(

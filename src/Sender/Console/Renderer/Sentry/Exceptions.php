@@ -4,19 +4,18 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Console\Renderer\Sentry;
 
-use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap\Sender\Console\Renderer
  */
 final class Exceptions
 {
     /**
-     * Render Exceptions block
+     * Render Exceptions block.
      */
     public static function render(OutputInterface $output, mixed $exceptions): void
     {
@@ -26,7 +25,7 @@ final class Exceptions
 
         $exceptions = \array_filter(
             $exceptions,
-            static fn(mixed $exception): bool => \is_array($exception),
+            static fn (mixed $exception): bool => \is_array($exception),
         );
 
         if (\count($exceptions) === 0) {
@@ -66,17 +65,16 @@ final class Exceptions
         if ($frames === []) {
             return;
         }
-        $getValue = static fn(array $frame, string $key, ?string $default = ''): string|int|float|bool|null =>
-        isset($frame[$key]) && \is_scalar($frame[$key]) ? $frame[$key] : $default;
+        $getValue = static fn (array $frame, string $key, ?string $default = ''): null|bool|float|int|string => isset($frame[$key]) && \is_scalar($frame[$key]) ? $frame[$key] : $default;
 
-        $i = \count($frames) ;
+        $i = \count($frames);
         $numPad = \strlen((string) ($i - 1)) + 2;
         // Skipped frames
         $vendorLines = [];
         $isFirst = true;
 
         foreach (\array_reverse($frames) as $frame) {
-            $i--;
+            --$i;
             if (!\is_array($frame)) {
                 continue;
             }
@@ -84,16 +82,17 @@ final class Exceptions
             $file = $getValue($frame, 'filename');
             $line = $getValue($frame, 'lineno', null);
             $class = $getValue($frame, 'class');
+
             /** @psalm-suppress RiskyTruthyFalsyComparison */
-            $class = empty($class) ? '' : $class . '::';
+            $class = empty($class) ? '' : $class.'::';
             $function = $getValue($frame, 'function');
 
-            $renderer = static fn() => $output->writeln(
+            $renderer = static fn () => $output->writeln(
                 \sprintf(
                     "<fg=gray>%s</><fg=white;options=bold>%s<fg=yellow>%s</>\n%s<fg=yellow>%s</><fg=gray>%s()</>",
-                    \str_pad("#$i", $numPad, ' '),
+                    \str_pad("#{$i}", $numPad, ' '),
                     $file,
-                    !$line ? '' : ":$line",
+                    !$line ? '' : ":{$line}",
                     \str_repeat(' ', $numPad),
                     $class,
                     $function,
@@ -105,11 +104,13 @@ final class Exceptions
                 $output->writeln('Stacktrace:');
                 $renderer();
                 self::renderCodeSnippet($output, $frame, padding: $numPad);
+
                 continue;
             }
 
             if (!$verbose && \str_starts_with(\ltrim(\str_replace('\\', '/', $file), './'), 'vendor/')) {
                 $vendorLines[] = $renderer;
+
                 continue;
             }
 
@@ -121,7 +122,7 @@ final class Exceptions
                 ));
                 $vendorLines = [];
             }
-            \array_map(static fn(callable $renderer) => $renderer(), $vendorLines);
+            \array_map(static fn (callable $renderer) => $renderer(), $vendorLines);
             $vendorLines = [];
             $renderer();
         }
@@ -136,7 +137,7 @@ final class Exceptions
             return;
         }
         $minPadding = 80;
-        $calcPadding = static fn(string $row): int => \strlen($row) - \strlen(\ltrim($row, ' '));
+        $calcPadding = static fn (string $row): int => \strlen($row) - \strlen(\ltrim($row, ' '));
         $content = [];
 
         try {

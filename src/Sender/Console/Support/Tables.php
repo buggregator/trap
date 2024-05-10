@@ -11,6 +11,7 @@ use Symfony\Component\Console\Terminal;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap\Sender\Console
  */
 final class Tables
@@ -20,10 +21,11 @@ final class Tables
         $table = (new Table($output))->setHeaderTitle($title);
         if ($data === []) {
             $table->setRows([['<fg=green> There is no data </>']])->render();
+
             return;
         }
 
-        $keyLength = \max(\array_map(static fn($key) => \strlen((string) $key), \array_keys($data)));
+        $keyLength = \max(\array_map(static fn ($key) => \strlen((string) $key), \array_keys($data)));
         $valueLength = \max(1, (new Terminal())->getWidth() - 7 - $keyLength);
 
         $table->setRows([...(static function (array $data) use ($valueLength): iterable {

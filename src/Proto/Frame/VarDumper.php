@@ -6,17 +6,17 @@ namespace Buggregator\Trap\Proto\Frame;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
-use DateTimeImmutable;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator
  */
 final class VarDumper extends Frame
 {
     public function __construct(
         public readonly string $dump,
-        DateTimeImmutable $time = new DateTimeImmutable()
+        \DateTimeImmutable $time = new \DateTimeImmutable()
     ) {
         parent::__construct(ProtoType::VarDumper, $time);
     }
@@ -26,7 +26,7 @@ final class VarDumper extends Frame
         return $this->dump;
     }
 
-    public static function fromString(string $payload, DateTimeImmutable $time): static
+    public static function fromString(string $payload, \DateTimeImmutable $time): static
     {
         return new self($payload, $time);
     }
