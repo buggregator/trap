@@ -16,7 +16,7 @@ trait StreamBody
 
     public function hasBody(): bool
     {
-        return $this->stream !== null;
+        return null !== $this->stream;
     }
 
     public function getBody(): StreamInterface

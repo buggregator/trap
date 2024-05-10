@@ -14,7 +14,10 @@ final class SmtpParserTest extends TestCase
 {
     use FiberTrait;
 
-    public function testParseSimpleBody(): void
+    /**
+     * @test
+     */
+    public function parse_simple_body(): void
     {
         $data = \str_split(<<<SMTP
             From: Some User <someusername@somecompany.ru>\r
@@ -27,7 +30,7 @@ final class SmtpParserTest extends TestCase
             SMTP, 10);
         $message = $this->parse($data);
 
-        $this->assertSame(\implode('', $data), (string)$message->getBody());
+        $this->assertSame(\implode('', $data), (string) $message->getBody());
         $this->assertCount(1, $message->getMessages());
         // Check headers
         $this->assertEquals([
@@ -40,7 +43,10 @@ final class SmtpParserTest extends TestCase
         $this->assertSame('Hi!', $message->getMessages()[0]->getValue());
     }
 
-    public function testParseMultipart(): void
+    /**
+     * @test
+     */
+    public function parse_multipart(): void
     {
         $data = \str_split(<<<SMTP
             From: sender@example.com\r
@@ -100,7 +106,7 @@ final class SmtpParserTest extends TestCase
         $this->assertNull($message->getBcc()[1]->name);
         $this->assertSame('user2@company.tld', $message->getBcc()[1]->email);
 
-        $this->assertSame(\implode('', $data), (string)$message->getBody());
+        $this->assertSame(\implode('', $data), (string) $message->getBody());
         $this->assertCount(3, $message->getMessages());
         // Check headers
         $this->assertEquals([
@@ -155,12 +161,13 @@ final class SmtpParserTest extends TestCase
             (static function () use ($body) {
                 if (\is_string($body)) {
                     yield $body;
+
                     return;
                 }
                 yield from $body;
             })()
         );
-        return $this->runInFiber(static fn() => (new Parser\Smtp)->parseStream($protocol, $stream));
-    }
 
+        return $this->runInFiber(static fn () => (new Parser\Smtp())->parseStream($protocol, $stream));
+    }
 }

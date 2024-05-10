@@ -12,7 +12,10 @@ use PHPUnit\Framework\TestCase;
 
 class EventsStorageTest extends TestCase
 {
-    public function testMaxEventsLimit(): void
+    /**
+     * @test
+     */
+    public function max_events_limit(): void
     {
         $config = new Config();
         $config->maxEvents = 2;
@@ -29,7 +32,10 @@ class EventsStorageTest extends TestCase
         $this->assertNotNull($storage->get($e3->uuid));
     }
 
-    public function testMaxEventsLimitWithSort(): void
+    /**
+     * @test
+     */
+    public function max_events_limit_with_sort(): void
     {
         $config = new Config();
         $config->maxEvents = 2;
@@ -55,7 +61,7 @@ class EventsStorageTest extends TestCase
         ?string $type = null,
         ?array $payload = null,
         ?float $timestamp = null,
-    ): Event{
+    ): Event {
         return new Event(
             uuid: $uuid ?? Uuid::uuid4(),
             type: $type ?? 'var-dump',

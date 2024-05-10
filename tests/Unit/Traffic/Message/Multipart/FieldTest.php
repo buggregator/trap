@@ -9,7 +9,10 @@ use PHPUnit\Framework\TestCase;
 
 final class FieldTest extends TestCase
 {
-    public function testGetters(): void
+    /**
+     * @test
+     */
+    public function getters(): void
     {
         $field = new Field(['Foo' => 'Bar'], 'name', 'value');
 
@@ -18,7 +21,10 @@ final class FieldTest extends TestCase
         $this->assertSame('Bar', $field->getHeaderLine('foo'));
     }
 
-    public function testWithHeader(): void
+    /**
+     * @test
+     */
+    public function with_header(): void
     {
         $field = new Field(['Foo' => 'Bar'], 'name', 'value');
         $new = $field->withHeader('foo', 'baz');
@@ -28,7 +34,10 @@ final class FieldTest extends TestCase
         $this->assertSame('baz', $new->getHeaderLine('foo'));
     }
 
-    public function testFromArray(): void
+    /**
+     * @test
+     */
+    public function from_array(): void
     {
         $field = Field::fromArray(['headers' => ['Foo' => ['Bar', 'Baz']], 'value' => 'bar']);
 
@@ -37,7 +46,10 @@ final class FieldTest extends TestCase
         $this->assertSame(['Bar', 'Baz'], $field->getHeader('foo'));
     }
 
-    public function testSerializeAndUnserialize(): void
+    /**
+     * @test
+     */
+    public function serialize_and_unserialize(): void
     {
         $from = new Field(['Foo' => ['Bar', 'Baz']], 'message', 'foo bar baz');
         $to = Field::fromArray($from->jsonSerialize());

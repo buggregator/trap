@@ -6,9 +6,9 @@ namespace Buggregator\Trap\Sender\Console\Renderer;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
+use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Renderer\Sentry\Exceptions;
 use Buggregator\Trap\Sender\Console\Renderer\Sentry\Header;
-use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -21,7 +21,7 @@ final class SentryEnvelope implements Renderer
 {
     public function isSupport(Frame $frame): bool
     {
-        return $frame->type === ProtoType::Sentry && $frame instanceof Frame\Sentry\SentryEnvelope;
+        return ProtoType::Sentry === $frame->type && $frame instanceof Frame\Sentry\SentryEnvelope;
     }
 
     public function render(OutputInterface $output, Frame $frame): void
@@ -51,6 +51,7 @@ final class SentryEnvelope implements Renderer
     {
         if (isset($data->payload['exceptions'])) {
             Exceptions::render($output, $data->payload['exceptions']);
+
             return;
         }
 

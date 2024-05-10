@@ -15,7 +15,6 @@ use Buggregator\Trap\Socket\Server;
 use Buggregator\Trap\Socket\SocketStream;
 use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Traffic\Inspector;
-use Fiber;
 
 /**
  * @internal
@@ -28,7 +27,7 @@ final class Application implements Processable, Cancellable, Destroyable
     /** @var Server[] */
     private array $servers = [];
 
-    /** @var Fiber[] Any tasks in fibers */
+    /** @var \Fiber[] Any tasks in fibers */
     private array $fibers = [];
 
     private readonly Buffer $buffer;
@@ -135,8 +134,8 @@ final class Application implements Processable, Cancellable, Destroyable
     public function cancel(): void
     {
         $this->cancelled = true;
-        $this->fibers[] = new Fiber(
-            function () {
+        $this->fibers[] = new \Fiber(
+            function (): void {
                 foreach ($this->servers as $server) {
                     $server->cancel();
                 }
@@ -144,54 +143,19 @@ final class Application implements Processable, Cancellable, Destroyable
         );
     }
 
-    /**
-     * @param Sender[] $senders
-     */
-    private function sendBuffer(array $senders = []): void
+    public function prepareServerFiber(SocketServer $config, Inspector $inspector, Logger $logger): \Fiber
     {
-        $data = $this->buffer->getAndClean();
-
-        foreach ($senders as $sender) {
-            $this->fibers[] = new Fiber(
-                static fn() => $sender->send($data)
-            );
-        }
-    }
-
-    private function createServer(SocketServer $config, Inspector $inspector): Server
-    {
-        $logger = $this->logger;
-        $clientInflector = static function (Client $client, int $id) use ($inspector, $logger): Client {
-            $logger->debug('Client %d connected', $id);
-            $inspector->addStream(SocketStream::create($client, $id));
-            return $client;
-        };
-
-        return Server::init(
-            $config->port,
-            payloadSize: 524_288,
-            clientInflector: $clientInflector,
-            logger: $this->logger,
-        );
-    }
-
-    /**
-     * @param SocketServer $config
-     * @param Inspector $inspector
-     * @return Fiber
-     */
-    public function prepareServerFiber(SocketServer $config, Inspector $inspector, Logger $logger): Fiber
-    {
-        return $this->fibers[] = new Fiber(function () use ($config, $inspector, $logger) {
+        return $this->fibers[] = new \Fiber(function () use ($config, $inspector, $logger): void {
             do {
                 try {
                     $this->processors[] = $this->servers[$config->port] = $this->createServer($config, $inspector);
+
                     return;
                 } catch (\Throwable) {
                     $logger->error("Can't create TCP socket on port $config->port.");
                     (new Timer(1.0))->wait();
                 }
-            } while (!$this->cancelled);
+            } while (! $this->cancelled);
         });
     }
 
@@ -218,5 +182,37 @@ final class Application implements Processable, Cancellable, Destroyable
         $this->processors[] = $wsSender;
         $config = $this->container->get(FrontendConfig::class);
         $this->prepareServerFiber(new SocketServer(port: $config->port), $inspector, $this->logger);
+    }
+
+    /**
+     * @param Sender[] $senders
+     */
+    private function sendBuffer(array $senders = []): void
+    {
+        $data = $this->buffer->getAndClean();
+
+        foreach ($senders as $sender) {
+            $this->fibers[] = new \Fiber(
+                static fn () => $sender->send($data)
+            );
+        }
+    }
+
+    private function createServer(SocketServer $config, Inspector $inspector): Server
+    {
+        $logger = $this->logger;
+        $clientInflector = static function (Client $client, int $id) use ($inspector, $logger): Client {
+            $logger->debug('Client %d connected', $id);
+            $inspector->addStream(SocketStream::create($client, $id));
+
+            return $client;
+        };
+
+        return Server::init(
+            $config->port,
+            payloadSize: 524_288,
+            clientInflector: $clientInflector,
+            logger: $this->logger,
+        );
     }
 }

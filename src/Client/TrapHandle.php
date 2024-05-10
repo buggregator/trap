@@ -42,6 +42,7 @@ final class TrapHandle
         }
 
         $this->haveToSend = $condition;
+
         return $this;
     }
 
@@ -62,11 +63,12 @@ final class TrapHandle
     /**
      * Set max depth for the dump.
      *
-     * @param int<0, max> $depth If 0 - no limit.
+     * @param int<0, max> $depth if 0 - no limit
      */
     public function depth(int $depth): self
     {
         $this->depth = $depth;
+
         return $this;
     }
 
@@ -75,8 +77,8 @@ final class TrapHandle
      * The counter isn't incremented if the dump is not sent (any other condition is not met).
      * It might be useful for debugging in loops, recursive or just multiple function calls.
      *
-     * @param positive-int $times Zero means no limit.
-     * @param bool $fullStack If true, the counter is incremented for each stack trace, not for the line.
+     * @param positive-int $times zero means no limit
+     * @param bool $fullStack if true, the counter is incremented for each stack trace, not for the line
      */
     public function times(int $times, bool $fullStack = false): self
     {
@@ -86,6 +88,7 @@ final class TrapHandle
                 ? $this->staticState->stackTrace
                 : $this->staticState->stackTrace[0]
         ));
+
         return $this;
     }
 
@@ -148,23 +151,18 @@ final class TrapHandle
      * ```php
      * trap()->context(['foo bar', => 42, 'baz' => 69]);
      * ```
-     *
-     * @param mixed ...$values
      */
     public function context(mixed ...$values): self
     {
         if (\array_keys($values) === [0] && \is_array($values[0])) {
             $this->staticState->dataContext = \array_merge($this->staticState->dataContext, $values[0]);
+
             return $this;
         }
 
         $this->staticState->dataContext = \array_merge($this->staticState->dataContext, $values);
-        return $this;
-    }
 
-    public function __destruct()
-    {
-        $this->haveToSend() and $this->sendDump();
+        return $this;
     }
 
     private function sendDump(): void
@@ -175,7 +173,7 @@ final class TrapHandle
 
         try {
             // Set default values if not set
-            if (!isset($_SERVER['VAR_DUMPER_FORMAT'], $_SERVER['VAR_DUMPER_SERVER'])) {
+            if (! isset($_SERVER['VAR_DUMPER_FORMAT'], $_SERVER['VAR_DUMPER_SERVER'])) {
                 $_SERVER['VAR_DUMPER_FORMAT'] = 'server';
                 // todo use the config file in the future
                 $_SERVER['VAR_DUMPER_SERVER'] = '127.0.0.1:9912';
@@ -184,6 +182,7 @@ final class TrapHandle
             // Dump single value
             if (\array_keys($this->values) === [0]) {
                 VarDumper::dump($this->values[0], depth: $this->depth);
+
                 return;
             }
 
@@ -193,7 +192,7 @@ final class TrapHandle
              * @var mixed $value
              */
             foreach ($this->values as $key => $value) {
-                /** @psalm-suppress TooManyArguments */
+                /* @psalm-suppress TooManyArguments */
                 VarDumper::dump($value, label: $key, depth: $this->depth);
             }
         } finally {
@@ -209,15 +208,21 @@ final class TrapHandle
 
     private function haveToSend(): bool
     {
-        if (!$this->haveToSend || $this->values === []) {
+        if (! $this->haveToSend || [] === $this->values) {
             return false;
         }
 
-        if ($this->times > 0) {
-            \assert($this->timesCounterKey !== '');
+        if (0 < $this->times) {
+            \assert('' !== $this->timesCounterKey);
+
             return Counter::checkAndIncrement($this->timesCounterKey, $this->times);
         }
 
         return true;
+    }
+
+    public function __destruct()
+    {
+        $this->haveToSend() and $this->sendDump();
     }
 }

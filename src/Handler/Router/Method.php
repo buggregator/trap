@@ -9,6 +9,10 @@ namespace Buggregator\Trap\Handler\Router;
  */
 enum Method: string
 {
+    public static function fromString(string $method): self
+    {
+        return self::from(\strtoupper($method));
+    }
     case Get = 'GET';
     case Post = 'POST';
     case Put = 'PUT';
@@ -18,9 +22,4 @@ enum Method: string
     case Options = 'OPTIONS';
     case Trace = 'TRACE';
     case Connect = 'CONNECT';
-
-    public static function fromString(string $method): self
-    {
-        return self::from(\strtoupper($method));
-    }
 }

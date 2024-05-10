@@ -21,8 +21,19 @@ use Psr\Http\Message\UploadedFileInterface;
 final class File extends Part implements UploadedFileInterface
 {
     private ?UploadedFileInterface $uploadedFile = null;
-    /** @var non-negative-int|null  */
+    /** @var non-negative-int|null */
     private ?int $fileSize = null;
+
+    /**
+     * @param FileDataArray $data
+     */
+    public static function fromArray(array $data): self
+    {
+        $self = new self($data['headers'], $data['name'] ?? null, $data['fileName'] ?? null);
+        $self->fileSize = $data['size'] ?? null;
+
+        return $self;
+    }
 
     /**
      * @param array<array-key, non-empty-list<string>> $headers
@@ -33,16 +44,6 @@ final class File extends Part implements UploadedFileInterface
     }
 
     /**
-     * @param FileDataArray $data
-     */
-    public static function fromArray(array $data): self
-    {
-        $self = new self($data['headers'], $data['name'] ?? null, $data['fileName'] ?? null);
-        $self->fileSize = $data['size'] ?? null;
-        return $self;
-    }
-
-    /**
      * @return FileDataArray
      *
      * @psalm-suppress ImplementedReturnTypeMismatch
@@ -50,8 +51,8 @@ final class File extends Part implements UploadedFileInterface
     public function jsonSerialize(): array
     {
         $data = parent::jsonSerialize();
-        $this->fileName === null or $data['fileName'] = $this->fileName;
-        $this->fileSize === null or $data['size'] = $this->fileSize;
+        null === $this->fileName or $data['fileName'] = $this->fileName;
+        null === $this->fileSize or $data['size'] = $this->fileSize;
 
         return $data;
     }
@@ -61,7 +62,7 @@ final class File extends Part implements UploadedFileInterface
      */
     public function setStream(StreamInterface $stream, ?int $size = null, int $code = \UPLOAD_ERR_OK): void
     {
-        /** @psalm-suppress PropertyTypeCoercion */
+        /* @psalm-suppress PropertyTypeCoercion */
         $this->fileSize = $size ?? $stream->getSize() ?? null;
         $this->uploadedFile = new UploadedFile(
             $stream,
@@ -119,9 +120,10 @@ final class File extends Part implements UploadedFileInterface
 
     private function getUploadedFile(): UploadedFileInterface
     {
-        if (!isset($this->uploadedFile)) {
+        if (! isset($this->uploadedFile)) {
             throw new \RuntimeException('Uploaded file is not set.');
         }
+
         return $this->uploadedFile;
     }
 }

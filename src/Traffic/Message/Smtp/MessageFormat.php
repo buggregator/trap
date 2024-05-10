@@ -9,10 +9,6 @@ namespace Buggregator\Trap\Traffic\Message\Smtp;
  */
 enum MessageFormat: string
 {
-    case Plain = 'plain';
-    case Html = 'html';
-    case Watch = 'watch';
-
     public function contentType(): string
     {
         return match ($this) {
@@ -21,4 +17,7 @@ enum MessageFormat: string
             self::Watch => 'text/watch-html',
         };
     }
+    case Plain = 'plain';
+    case Html = 'html';
+    case Watch = 'watch';
 }

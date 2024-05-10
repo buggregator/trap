@@ -12,6 +12,7 @@ use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class StaticFiles implements Middleware
@@ -21,7 +22,7 @@ final class StaticFiles implements Middleware
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
         $path = $request->getUri()->getPath();
-        if ($path === '/') {
+        if ('/' === $path) {
             $path = '/index.html';
         }
 
@@ -35,13 +36,13 @@ final class StaticFiles implements Middleware
             /** @var array<non-empty-string, int<0, max>> $cacheSize */
             static $cacheSize = [];
 
-            if (!\array_key_exists($file, $cacheContent) && !\is_file($file)) {
+            if (! \array_key_exists($file, $cacheContent) && ! \is_file($file)) {
                 return new Response(404);
             }
 
             $headers = [];
 
-            $type = match($matches[2]) {
+            $type = match ($matches[2]) {
                 'css' => 'text/css',
                 'html' => 'text/html',
                 'txt' => 'text/plain',
@@ -55,7 +56,7 @@ final class StaticFiles implements Middleware
                 default => 'octet/stream',
             };
 
-            if ($path === '/index.html') {
+            if ('/index.html' === $path) {
                 if (empty($this->earlyResponse)) {
                     $cacheContent[$file] ??= \file_get_contents($file);
                     // Find all CSS files
@@ -69,7 +70,7 @@ final class StaticFiles implements Middleware
 
                 $headers = [
                     'Link' => \array_map(
-                        static fn(string $css): string => \sprintf('<%s>; rel=preload; as=style', $css),
+                        static fn (string $css): string => \sprintf('<%s>; rel=preload; as=style', $css),
                         $this->earlyResponse,
                     ),
                 ];
@@ -78,6 +79,7 @@ final class StaticFiles implements Middleware
             }
 
             $cacheContent[$file] ??= \file_get_contents($file);
+
             return new Response(
                 200,
                 [

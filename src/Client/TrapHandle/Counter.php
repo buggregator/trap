@@ -8,6 +8,7 @@ namespace Buggregator\Trap\Client\TrapHandle;
  * Static counter for {@see TrapHandle::once()} and {@see TrapHandle::times()} methods.
  *
  * @internal
+ *
  * @psalm-internal Buggregator\Trap\Client
  */
 final class Counter
@@ -27,6 +28,7 @@ final class Counter
 
         if (self::$counters[$key] < $times) {
             ++self::$counters[$key];
+
             return true;
         }
 

@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Frontend\Mapper;
 
-use ArrayAccess;
-use ArrayObject;
 use Buggregator\Trap\Proto\Frame\Smtp as SmtpFrame;
 use Buggregator\Trap\Sender\Frontend\Event;
 use Buggregator\Trap\Support\Uuid;
@@ -21,8 +19,8 @@ final class Smtp
     {
         $message = $frame->message;
 
-        /** @var ArrayAccess<non-empty-string, Event\Asset> $assets */
-        $assets = new ArrayObject();
+        /** @var \ArrayAccess<non-empty-string, Event\Asset> $assets */
+        $assets = new \ArrayObject();
 
         return new Event(
             uuid: $uuid = Uuid::generate(),

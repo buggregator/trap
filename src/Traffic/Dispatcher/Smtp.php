@@ -5,21 +5,21 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Traffic\Dispatcher;
 
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Traffic\StreamClient;
 use Buggregator\Trap\Traffic\Dispatcher;
 use Buggregator\Trap\Traffic\Parser;
-use DateTimeImmutable;
+use Buggregator\Trap\Traffic\StreamClient;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class Smtp implements Dispatcher
 {
-    private const READY = 220;
     public const OK = 250;
     public const CLOSING = 221;
     public const START_MAIL_INPUT = 354;
+    private const READY = 220;
 
     private Parser\Smtp $parser;
 
@@ -34,16 +34,16 @@ final class Smtp implements Dispatcher
         $protocol = [];
 
         $message = null;
-        while (!$stream->isFinished()) {
+        while (! $stream->isFinished()) {
             $response = $stream->fetchLine();
             if (\preg_match('/^(?:EHLO|HELO)/', $response)) {
                 $stream->sendData($this->createResponse(self::OK));
             } elseif (\preg_match('/^MAIL FROM:\s*<(.*)>/', $response, $matches)) {
-                /** @var array{0: non-empty-string, 1: string} $matches */
+                /* @var array{0: non-empty-string, 1: string} $matches */
                 $protocol['FROM'][] = $matches[1];
                 $stream->sendData($this->createResponse(self::OK));
             } elseif (\preg_match('/^RCPT TO:\s*<(.*)>/', $response, $matches)) {
-                /** @var array{0: non-empty-string, 1: string} $matches */
+                /* @var array{0: non-empty-string, 1: string} $matches */
                 $protocol['BCC'][] = $matches[1];
                 $stream->sendData($this->createResponse(self::OK));
             } elseif (\str_starts_with($response, 'QUIT')) {
@@ -57,24 +57,25 @@ final class Smtp implements Dispatcher
             }
         }
 
-        if ($message === null) {
+        if (null === $message) {
             return;
         }
 
         yield new Frame\Smtp($message, $stream->getCreatedAt());
     }
 
-    public function detect(string $data, DateTimeImmutable $createdAt): ?bool
+    public function detect(string $data, \DateTimeImmutable $createdAt): ?bool
     {
-        if ($data !== '') {
+        if ('' !== $data) {
             return false;
         }
 
-        $interval = $createdAt->diff(new DateTimeImmutable());
-        return $interval->f > 0.5 ? true : null;
+        $interval = $createdAt->diff(new \DateTimeImmutable());
+
+        return 0.5 < $interval->f ? true : null;
     }
 
-    private function createResponse(int $statusCode, string|null $comment = null): string
+    private function createResponse(int $statusCode, ?string $comment = null): string
     {
         $response = \implode(' ', \array_filter([$statusCode, $comment]));
 

@@ -18,6 +18,7 @@ use Psr\Http\Message\ServerRequestInterface;
  * Simple fallback handler that runs {@see Pipeline} of {@see Middleware} and emits {@see ResponseInterface}.
  *
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class Fallback implements RequestHandler
@@ -33,24 +34,22 @@ final class Fallback implements RequestHandler
     ) {
         $this->pipeline = Pipeline::build(
             $middlewares,
-            /** @see Middleware::handle() */
+            /* @see Middleware::handle() */
             'handle',
-            static fn(): ResponseInterface => new Response(404),
+            static fn (): ResponseInterface => new Response(404),
             ResponseInterface::class,
         );
     }
 
     public function handle(StreamClient $streamClient, ServerRequestInterface $request, callable $next): iterable
     {
-        /** @var mixed $time */
         $time = $request->getAttribute('begin_at');
         $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
         $gotFrame = false;
 
         try {
             $fiber = new \Fiber(($this->pipeline)(...));
-            do {
-                /** @var mixed $got */
+            while (true) {
                 $got = $fiber->isStarted() ? $fiber->resume() : $fiber->start($request);
 
                 if ($got instanceof Frame) {
@@ -64,7 +63,7 @@ final class Fallback implements RequestHandler
 
                 if ($fiber->isTerminated()) {
                     $response = $fiber->getReturn();
-                    if (!$response instanceof ResponseInterface) {
+                    if (! $response instanceof ResponseInterface) {
                         throw new \RuntimeException('Invalid response type.');
                     }
 
@@ -73,7 +72,7 @@ final class Fallback implements RequestHandler
                 }
 
                 \Fiber::suspend();
-            } while (true);
+            }
         } catch (\Throwable) {
             // Emit error response
             HttpEmitter::emit($streamClient, new Response(500));
@@ -81,7 +80,7 @@ final class Fallback implements RequestHandler
             $streamClient->disconnect();
         }
 
-        if (!$gotFrame) {
+        if (! $gotFrame) {
             yield new Frame\Http(
                 $request,
                 $time,

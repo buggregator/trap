@@ -19,15 +19,21 @@ final class V1Test extends TestCase
         yield ['abc', false];
     }
 
+    /**
+     * @test
+     */
     #[DataProvider('payloadsDataProvider')]
-    public function testIsSuppoerted(string $payload, bool $isSupported): void
+    public function is_suppoerted(string $payload, bool $isSupported): void
     {
         $decoder = new V1();
 
         $this->assertSame($isSupported, $decoder->isSupport($payload));
     }
 
-    public function testDecode(): void
+    /**
+     * @test
+     */
+    public function decode(): void
     {
         $decoder = new V1();
 

@@ -5,26 +5,13 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Traffic\Message\Multipart;
 
 use Buggregator\Trap\Traffic\Message\Headers;
-use JsonSerializable;
-use RuntimeExceptio;
-use RuntimeException;
 
 /**
  * @internal
  */
-abstract class Part implements JsonSerializable
+abstract class Part implements \JsonSerializable
 {
     use Headers;
-
-    /**
-     * @param array<array-key, non-empty-list<string>> $headers
-     */
-    protected function __construct(
-        array $headers,
-        protected ?string $name,
-    ) {
-        $this->setHeaders($headers);
-    }
 
     /**
      * @param array<array-key, non-empty-list<non-empty-string>> $headers
@@ -32,14 +19,14 @@ abstract class Part implements JsonSerializable
     public static function create(array $headers): Part
     {
         /**
-         * Check Content-Disposition header
+         * Check Content-Disposition header.
          *
          * @var string $contentDisposition
          */
         $contentDisposition = self::findHeader($headers, 'Content-Disposition')[0]
-            ?? throw new RuntimeException('Missing Content-Disposition header.');
-        if ($contentDisposition === '') {
-            throw new RuntimeException('Missing Content-Disposition header, can\'t be empty');
+            ?? throw new \RuntimeException('Missing Content-Disposition header.');
+        if ('' === $contentDisposition) {
+            throw new \RuntimeException('Missing Content-Disposition header, can\'t be empty');
         }
 
         // Get field name and file name
@@ -51,7 +38,7 @@ abstract class Part implements JsonSerializable
         $fileName = \preg_match('/\bfilename=(?:(?<a>[^" ;,]++)|"(?<b>[^"]++)")/', $contentDisposition, $matches) === 1
             ? ($matches['a'] ?: $matches['b'])
             : null;
-        $fileName = $fileName !== null ? \html_entity_decode($fileName) : null;
+        $fileName = null !== $fileName ? \html_entity_decode($fileName) : null;
         $isFile = (string) $fileName !== ''
             || \preg_match('/text\\/.++/', self::findHeader($headers, 'Content-Type')[0] ?? 'text/plain') !== 1;
 
@@ -70,6 +57,7 @@ abstract class Part implements JsonSerializable
     {
         $clone = clone $this;
         $clone->name = $name;
+
         return $clone;
     }
 
@@ -85,10 +73,20 @@ abstract class Part implements JsonSerializable
             'headers' => $this->headers,
         ];
 
-        if ($this->name !== null) {
+        if (null !== $this->name) {
             $data['name'] = $this->name;
         }
 
         return $data;
+    }
+
+    /**
+     * @param array<array-key, non-empty-list<string>> $headers
+     */
+    protected function __construct(
+        array $headers,
+        protected ?string $name,
+    ) {
+        $this->setHeaders($headers);
     }
 }

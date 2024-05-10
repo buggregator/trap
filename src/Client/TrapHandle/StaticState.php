@@ -6,7 +6,9 @@ namespace Buggregator\Trap\Client\TrapHandle;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap\Client
+ *
  * @psalm-import-type SimpleStackTrace from StackTrace
  * @psalm-import-type StackTraceWithObjects from StackTrace
  */
@@ -15,15 +17,6 @@ final class StaticState
     /** @var array<array-key, mixed> */
     public array $dataContext = [];
 
-    /**
-     * @param SimpleStackTrace $stackTrace Simple stack trace without arguments and objects.
-     * @param StackTraceWithObjects $stackTraceWithObjects Stack trace without arguments but with objects.
-     */
-    private function __construct(
-        public array $stackTrace = [],
-        public array $stackTraceWithObjects = [],
-    ) {}
-
     private static ?StaticState $value = null;
 
     /**
@@ -31,14 +24,15 @@ final class StaticState
      * @param StackTraceWithObjects|null $stackTraceWithObjects
      */
     public static function new(
-        array $stackTrace = null,
-        array $stackTraceWithObjects = null,
+        ?array $stackTrace = null,
+        ?array $stackTraceWithObjects = null,
     ): self {
         $new = new self(
             $stackTrace ?? StackTrace::stackTrace(provideObjects: false),
             $stackTraceWithObjects ?? StackTrace::stackTrace(provideObjects: true),
         );
         self::setState($new);
+
         return $new;
     }
 
@@ -50,5 +44,15 @@ final class StaticState
     public static function getValue(): ?StaticState
     {
         return self::$value;
+    }
+
+    /**
+     * @param SimpleStackTrace $stackTrace simple stack trace without arguments and objects
+     * @param StackTraceWithObjects $stackTraceWithObjects stack trace without arguments but with objects
+     */
+    private function __construct(
+        public array $stackTrace = [],
+        public array $stackTraceWithObjects = [],
+    ) {
     }
 }

@@ -16,14 +16,6 @@ namespace Buggregator\Trap\Traffic\Message\Multipart;
 final class Field extends Part
 {
     /**
-     * @param array<array-key, non-empty-list<string>> $headers
-     */
-    public function __construct(array $headers, ?string $name = null, private string $value = '')
-    {
-        parent::__construct($headers, $name);
-    }
-
-    /**
      * @param FieldDataArray $data
      */
     public static function fromArray(array $data): self
@@ -32,7 +24,16 @@ final class Field extends Part
     }
 
     /**
+     * @param array<array-key, non-empty-list<string>> $headers
+     */
+    public function __construct(array $headers, ?string $name = null, private string $value = '')
+    {
+        parent::__construct($headers, $name);
+    }
+
+    /**
      * @return FieldDataArray
+     *
      * @psalm-suppress ImplementedReturnTypeMismatch
      */
     public function jsonSerialize(): array
@@ -51,6 +52,7 @@ final class Field extends Part
     {
         $clone = clone $this;
         $clone->value = $value;
+
         return $clone;
     }
 }

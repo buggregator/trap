@@ -12,6 +12,7 @@ use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class Resources implements Middleware
@@ -20,18 +21,18 @@ final class Resources implements Middleware
     {
         $path = $request->getUri()->getPath();
         // Shortcut only for favicon
-        if ($path === '/favicon.ico') {
+        if ('/favicon.ico' === $path) {
             $path = '/resources/favicon.ico';
         }
 
         if (\preg_match('#^/resources/([a-zA-Z0-9.\\-\\[\\]() _]+?\\.([a-zA-Z0-4]++))$#', $path, $matches)) {
-            $file = \sprintf("%s/resources/public/%s", Info::TRAP_ROOT, $matches[1]);
+            $file = \sprintf('%s/resources/public/%s', Info::TRAP_ROOT, $matches[1]);
 
-            if (!\is_file($file)) {
+            if (! \is_file($file)) {
                 return new Response(404);
             }
 
-            $type = match($matches[2]) {
+            $type = match ($matches[2]) {
                 'css' => 'text/css',
                 'js' => 'application/javascript',
                 'ico' => 'image/x-icon',

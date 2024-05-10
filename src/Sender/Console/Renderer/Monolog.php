@@ -18,11 +18,12 @@ final class Monolog implements Renderer
 {
     public function __construct(
         private readonly TemplateRenderer $renderer,
-    ) {}
+    ) {
+    }
 
     public function isSupport(Frame $frame): bool
     {
-        return $frame->type === ProtoType::Monolog;
+        return ProtoType::Monolog === $frame->type;
     }
 
     public function render(OutputInterface $output, Frame $frame): void
@@ -49,7 +50,7 @@ final class Monolog implements Renderer
         );
 
         // It can't be sent to HTML
-        if (!empty($payload['context'])) {
+        if (! empty($payload['context'])) {
             dump($payload['context']);
         }
     }

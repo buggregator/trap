@@ -4,29 +4,28 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Console\Renderer\Sentry;
 
-use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap\Sender\Console\Renderer
  */
 final class Exceptions
 {
     /**
-     * Render Exceptions block
+     * Render Exceptions block.
      */
     public static function render(OutputInterface $output, mixed $exceptions): void
     {
-        if (!\is_array($exceptions)) {
+        if (! \is_array($exceptions)) {
             return;
         }
 
         $exceptions = \array_filter(
             $exceptions,
-            static fn(mixed $exception): bool => \is_array($exception),
+            static fn (mixed $exception): bool => \is_array($exception),
         );
 
         if (\count($exceptions) === 0) {
@@ -63,21 +62,20 @@ final class Exceptions
      */
     private static function renderTrace(OutputInterface $output, array $frames, bool $verbose = false): void
     {
-        if ($frames === []) {
+        if ([] === $frames) {
             return;
         }
-        $getValue = static fn(array $frame, string $key, ?string $default = ''): string|int|float|bool|null =>
-        isset($frame[$key]) && \is_scalar($frame[$key]) ? $frame[$key] : $default;
+        $getValue = static fn (array $frame, string $key, ?string $default = ''): string|int|float|bool|null => isset($frame[$key]) && \is_scalar($frame[$key]) ? $frame[$key] : $default;
 
-        $i = \count($frames) ;
+        $i = \count($frames);
         $numPad = \strlen((string) ($i - 1)) + 2;
         // Skipped frames
         $vendorLines = [];
         $isFirst = true;
 
         foreach (\array_reverse($frames) as $frame) {
-            $i--;
-            if (!\is_array($frame)) {
+            --$i;
+            if (! \is_array($frame)) {
                 continue;
             }
 
@@ -88,12 +86,12 @@ final class Exceptions
             $class = empty($class) ? '' : $class . '::';
             $function = $getValue($frame, 'function');
 
-            $renderer = static fn() => $output->writeln(
+            $renderer = static fn () => $output->writeln(
                 \sprintf(
                     "<fg=gray>%s</><fg=white;options=bold>%s<fg=yellow>%s</>\n%s<fg=yellow>%s</><fg=gray>%s()</>",
                     \str_pad("#$i", $numPad, ' '),
                     $file,
-                    !$line ? '' : ":$line",
+                    ! $line ? '' : ":$line",
                     \str_repeat(' ', $numPad),
                     $class,
                     $function,
@@ -108,7 +106,7 @@ final class Exceptions
                 continue;
             }
 
-            if (!$verbose && \str_starts_with(\ltrim(\str_replace('\\', '/', $file), './'), 'vendor/')) {
+            if (! $verbose && \str_starts_with(\ltrim(\str_replace('\\', '/', $file), './'), 'vendor/')) {
                 $vendorLines[] = $renderer;
                 continue;
             }
@@ -121,7 +119,7 @@ final class Exceptions
                 ));
                 $vendorLines = [];
             }
-            \array_map(static fn(callable $renderer) => $renderer(), $vendorLines);
+            \array_map(static fn (callable $renderer) => $renderer(), $vendorLines);
             $vendorLines = [];
             $renderer();
         }
@@ -132,18 +130,18 @@ final class Exceptions
      */
     private static function renderCodeSnippet(OutputInterface $output, array $frame, int $padding = 0): void
     {
-        if (!isset($frame['context_line']) || !\is_string($frame['context_line'])) {
+        if (! isset($frame['context_line']) || ! \is_string($frame['context_line'])) {
             return;
         }
         $minPadding = 80;
-        $calcPadding = static fn(string $row): int => \strlen($row) - \strlen(\ltrim($row, ' '));
+        $calcPadding = static fn (string $row): int => \strlen($row) - \strlen(\ltrim($row, ' '));
         $content = [];
 
         try {
             $startLine = (int) $frame['lineno'];
             if (isset($frame['pre_context']) && \is_array($frame['pre_context'])) {
                 foreach ($frame['pre_context'] as $row) {
-                    if (!\is_string($row)) {
+                    if (! \is_string($row)) {
                         continue;
                     }
 
@@ -159,7 +157,7 @@ final class Exceptions
 
             if (isset($frame['post_context']) && \is_array($frame['post_context'])) {
                 foreach ($frame['post_context'] as $row) {
-                    if (!\is_string($row)) {
+                    if (! \is_string($row)) {
                         continue;
                     }
 

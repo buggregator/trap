@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Support;
 
 use Buggregator\Trap\Support\Caster\EnumValue;
-use Google\Protobuf\Internal\Descriptor as InternalDescriptor;
 use Google\Protobuf\Descriptor as PublicDescriptor;
+use Google\Protobuf\Internal\Descriptor as InternalDescriptor;
 use Google\Protobuf\Internal\DescriptorPool;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\MapField;
@@ -77,12 +77,14 @@ final class ProtobufCaster
         //     $result[Caster::PREFIX_VIRTUAL . 'value type'] = self::TYPES[$c->getValueType()];
         // }
         $result[Caster::PREFIX_VIRTUAL . 'values'] = \iterator_to_array($c);
+
         return $result;
     }
 
     public static function castEnum(EnumValue $c, array $a, Stub $stub, bool $isNested): array
     {
         $stub->class = $c->class;
+
         return [
             Caster::PREFIX_VIRTUAL . 'name' => $c->name,
             Caster::PREFIX_VIRTUAL . 'value' => $c->value,
@@ -117,26 +119,26 @@ final class ProtobufCaster
         $pub = $descriptor->getPublicDescriptor();
         $values = [];
 
-        for ($i = 0; $i < $pub->getFieldCount(); $i++) {
+        for ($i = 0; $pub->getFieldCount() > $i; ++$i) {
             /** @var \Google\Protobuf\Internal\FieldDescriptor $fd */
             $fd = $descriptor->getFieldByIndex($i);
             $value = $message->{$fd->getGetter()}();
 
             // Skip defaults
 
-            if ($value === null) {
+            if (null === $value) {
                 continue;
             }
 
-            if ($value === false && $fd->getType() === GPBType::BOOL) {
+            if (false === $value && $fd->getType() === GPBType::BOOL) {
                 continue;
             }
 
-            if ($value === '' && \in_array($fd->getType(), [GPBType::STRING, GPBType::BYTES], true)) {
+            if ('' === $value && \in_array($fd->getType(), [GPBType::STRING, GPBType::BYTES], true)) {
                 continue;
             }
 
-            if ($value === 0 && \in_array($fd->getType(), self::INT_TYPES, true)) {
+            if (0 === $value && \in_array($fd->getType(), self::INT_TYPES, true)) {
                 continue;
             }
 

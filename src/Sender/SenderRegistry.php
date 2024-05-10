@@ -24,13 +24,14 @@ final class SenderRegistry
 
     /**
      * @param non-empty-string[] $types
+     *
      * @return Sender[]
      */
     public function getSenders(array $types): array
     {
         $senders = [];
         foreach ($types as $type) {
-            if (!isset($this->senders[$type])) {
+            if (! isset($this->senders[$type])) {
                 throw new \InvalidArgumentException(\sprintf('Unknown sender type "%s"', $type));
             }
 

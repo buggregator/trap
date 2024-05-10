@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Frontend;
 
-use ArrayAccess;
 use Buggregator\Trap\Sender\Frontend\Event\Asset;
 
 /**
@@ -15,7 +14,7 @@ final class Event implements \JsonSerializable
     /**
      * @param non-empty-string $uuid
      * @param non-empty-string $type
-     * @param ArrayAccess<non-empty-string, Asset>|null $assets
+     * @param \ArrayAccess<non-empty-string, Asset>|null $assets
      */
     public function __construct(
         public readonly string $uuid,
@@ -23,8 +22,9 @@ final class Event implements \JsonSerializable
         public readonly array $payload,
         public readonly float $timestamp,
         public readonly ?string $projectId = null,
-        public readonly ?ArrayAccess $assets = null,
-    ) {}
+        public readonly ?\ArrayAccess $assets = null,
+    ) {
+    }
 
     public function jsonSerialize(): array
     {

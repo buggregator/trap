@@ -11,6 +11,7 @@ use Psr\Http\Message\ResponseInterface;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class Emitter
@@ -54,7 +55,7 @@ final class Emitter
             'HTTP/%s %d%s',
             $response->getProtocolVersion(),
             $response->getStatusCode(),
-            ($reasonPhrase ? ' ' . $reasonPhrase : '')
+            $reasonPhrase ? ' ' . $reasonPhrase : ''
         );
     }
 
@@ -64,7 +65,7 @@ final class Emitter
     private static function prepareHeaders(ResponseInterface $response): iterable
     {
         $headers = $response->getHeaders();
-        if (!$response->hasHeader('Content-Length') && $response->getStatusCode() >= 200) {
+        if (! $response->hasHeader('Content-Length') && $response->getStatusCode() >= 200) {
             if ($response->getBody()->getSize() !== null) {
                 $headers['Content-Length'] = [(string) $response->getBody()->getSize()];
             } else {
@@ -87,7 +88,7 @@ final class Emitter
 
     private static function emitBody(StreamClient $streamClient, ResponseInterface $response): void
     {
-        $chunked = !$response->hasHeader('Content-Length') && $response->getBody()->getSize() === null;
+        $chunked = ! $response->hasHeader('Content-Length') && $response->getBody()->getSize() === null;
 
         try {
             $body = StreamHelper::concurrentReadStream($response->getBody());
@@ -98,12 +99,12 @@ final class Emitter
         // Rewind stream if it's seekable.
         $body->isSeekable() and $body->rewind();
 
-        if (!$body->isReadable()) {
+        if (! $body->isReadable()) {
             return;
         }
 
-        while (!$body->eof()) {
-            \assert(self::$bufferSize > 0);
+        while (! $body->eof()) {
+            \assert(0 < self::$bufferSize);
             $string = $body->read(self::$bufferSize);
             if ($chunked) {
                 $string = \sprintf("%x\r\n%s\r\n", \strlen($string), $string);
@@ -112,7 +113,7 @@ final class Emitter
             $streamClient->sendData($string);
 
             unset($string);
-            Fiber::suspend();
+            \Fiber::suspend();
         }
 
         if ($chunked) {

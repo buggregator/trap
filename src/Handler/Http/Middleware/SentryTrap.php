@@ -7,13 +7,13 @@ namespace Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Handler\Http\Middleware\SentryTrap\EnvelopeParser;
 use Buggregator\Trap\Proto\Frame;
-use Fiber;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  *
  * @psalm-import-type SentryStoreMessage from Frame\Sentry\SentryStore
@@ -53,26 +53,25 @@ final class SentryTrap implements Middleware
     }
 
     /**
-     * @param ServerRequestInterface $request
-     * @return Response
      * @throws \Throwable
+     *
+     * @return Response
      */
     public function processEnvelope(ServerRequestInterface $request): ResponseInterface
     {
         $size = $request->getBody()->getSize();
-        if ($size === null || $size > self::MAX_BODY_SIZE) {
+        if (null === $size || self::MAX_BODY_SIZE < $size) {
             // Reject too big envelope
             return new Response(413);
         }
 
         $request->getBody()->rewind();
 
-        /** @var mixed $time */
         $time = $request->getAttribute('begin_at');
         $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
 
         $frame = EnvelopeParser::parse($request->getBody(), $time);
-        Fiber::suspend($frame);
+        \Fiber::suspend($frame);
 
         return new Response(200);
     }
@@ -80,7 +79,7 @@ final class SentryTrap implements Middleware
     private function processStore(ServerRequestInterface $request): ResponseInterface
     {
         $size = $request->getBody()->getSize();
-        if ($size === null || $size > self::MAX_BODY_SIZE) {
+        if (null === $size || self::MAX_BODY_SIZE < $size) {
             // Reject too big content
             return new Response(413);
         }
@@ -91,7 +90,7 @@ final class SentryTrap implements Middleware
         $time = $request->getAttribute('begin_at');
         $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
 
-        Fiber::suspend(
+        \Fiber::suspend(
             new Frame\Sentry\SentryStore(
                 message: $payload,
                 time: $time,

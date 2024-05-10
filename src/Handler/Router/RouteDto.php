@@ -14,5 +14,6 @@ final class RouteDto
     public function __construct(
         public \ReflectionMethod $method,
         public Route $route,
-    ) {}
+    ) {
+    }
 }

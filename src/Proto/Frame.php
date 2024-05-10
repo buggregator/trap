@@ -5,20 +5,21 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Proto;
 
 use Buggregator\Trap\ProtoType;
-use DateTimeImmutable;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator
  */
 abstract class Frame implements \Stringable, \JsonSerializable
 {
+    abstract public static function fromString(string $payload, \DateTimeImmutable $time): static;
+
     public function __construct(
         public readonly ProtoType $type,
-        public readonly DateTimeImmutable $time = new DateTimeImmutable(),
-    ) {}
-
-    abstract public static function fromString(string $payload, DateTimeImmutable $time): static;
+        public readonly \DateTimeImmutable $time = new \DateTimeImmutable(),
+    ) {
+    }
 
     /**
      * @return int<0, max>

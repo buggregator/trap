@@ -21,7 +21,7 @@ final class ConsoleSender implements Sender
 {
     public static function create(OutputInterface $output): self
     {
-        /** @psalm-suppress InternalMethod, InternalClass */
+        /* @psalm-suppress InternalMethod, InternalClass */
         Termwind::renderUsing($output);
 
         /** @psalm-suppress InternalClass */
@@ -45,7 +45,8 @@ final class ConsoleSender implements Sender
 
     public function __construct(
         private readonly FrameHandler $handler,
-    ) {}
+    ) {
+    }
 
     public function send(iterable $frames): void
     {

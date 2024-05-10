@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Traffic\Websocket;
 
-use Generator;
-
 /**
  * Read Websocket Frames from the Stream.
  *
@@ -16,19 +14,19 @@ final class StreamReader
     /**
      * @param iterable<array-key, string> $chunks
      *
-     * @return Generator<array-key, Frame, mixed, void> Returns the remaining content of the last chunk
+     * @return \Generator<array-key, Frame, mixed, void> Returns the remaining content of the last chunk
      */
-    public static function readFrames(iterable $chunks): Generator
+    public static function readFrames(iterable $chunks): \Generator
     {
         $parser = self::frameParser();
-        $reader = (static fn() => yield from $chunks)();
+        $reader = (static fn () => yield from $chunks)();
         $buffer = '';
         $isFirst = true;
         /** @var \Closure(int<1, max>): ?non-empty-string $read */
         $read = static function (int $len) use (&$buffer, $reader, &$isFirst): ?string {
             /** @var string $buffer */
             while (\strlen($buffer) < $len) {
-                if (!$reader->valid()) {
+                if (! $reader->valid()) {
                     return null;
                 }
                 $isFirst or $reader->next();
@@ -47,7 +45,7 @@ final class StreamReader
             if (\is_int($y)) {
                 // Parser requests more bytes
                 $r = $read($y);
-                if ($r === null) {
+                if (null === $r) {
                     break;
                 }
                 $parser->send($r);
@@ -62,15 +60,16 @@ final class StreamReader
 
     /**
      * @psalm-suppress InvalidReturnType
-     * @return Generator<int, Frame|int<1, max>, non-empty-string, null>
+     *
+     * @return \Generator<int, Frame|int<1, max>, non-empty-string, null>
      */
-    private static function frameParser(): Generator
+    private static function frameParser(): \Generator
     {
         while (true) {
             // Read first byte
             $c = \ord(yield 1);
             $fin = (bool) ($c & 128);
-            $opcode = Opcode::from($c & 0x0f);
+            $opcode = Opcode::from($c & 0x0F);
             $rsv1 = (bool) ($c & 64);
 
             // Read second byte
@@ -79,10 +78,10 @@ final class StreamReader
             $isMask = (bool) ($c & 128);
 
             // Parse length
-            if ($len === 126) {
+            if (126 === $len) {
                 /** @var int $len */
                 $len = \unpack('n', yield 2)[1];
-            } elseif ($len === 127) {
+            } elseif (127 === $len) {
                 /** @var int $len */
                 $len = \unpack('J', yield 8)[1];
             }
@@ -95,7 +94,7 @@ final class StreamReader
             // Apply mask
             if ($isMask) {
                 for ($i = 0; $i < $len; ++$i) {
-                    /** @psalm-suppress PossiblyNullArrayAccess, PossiblyNullArgument */
+                    /* @psalm-suppress PossiblyNullArrayAccess, PossiblyNullArgument */
                     $body[$i] = \chr(\ord($body[$i]) ^ \ord($mask[$i % 4]));
                 }
             }

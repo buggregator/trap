@@ -19,6 +19,7 @@ use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class EventAssets implements Middleware
@@ -39,7 +40,7 @@ final class EventAssets implements Middleware
 
         $handler = $this->router->match(Method::fromString($method), $path);
 
-        if ($handler === null) {
+        if (null === $handler) {
             return $next($request);
         }
 
@@ -63,8 +64,9 @@ final class EventAssets implements Middleware
         // Find event
         $event = $this->eventsStorage->get($eventId);
 
-        if ($event === null) {
+        if (null === $event) {
             $this->logger->debug('Get HTML for event `%s`. Event not found.', $eventId);
+
             return null;
         }
 
@@ -99,16 +101,18 @@ final class EventAssets implements Middleware
         // Find event
         $event = $this->eventsStorage->get($eventId);
 
-        if ($event === null) {
+        if (null === $event) {
             $this->logger->debug('Get attachment `%s` for event `%s`. Event not found.', $attachId, $eventId);
+
             return null;
         }
 
         // Find attachment
         $attachment = $event->assets[$attachId] ?? null;
 
-        if (!$attachment instanceof AttachedFile) {
+        if (! $attachment instanceof AttachedFile) {
             $this->logger->debug('Get attachment `%s` for event `%s`. Attached file not found.', $attachId, $eventId);
+
             return null;
         }
 
@@ -117,7 +121,7 @@ final class EventAssets implements Middleware
             [
                 'Content-Type' => $attachment->file->getClientMediaType(),
                 'Content-Disposition' => \sprintf(
-                    "attachment; filename=\"%s\"",
+                    'attachment; filename="%s"',
                     \rawurlencode($attachment->file->getClientFilename() ?? 'unnamed'),
                 ),
                 'Content-Length' => (string) $attachment->file->getSize(),

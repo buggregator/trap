@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Client\TrapHandle;
 
 /**
- *
  * @psalm-type StackTraceWithObjects = list<array{
  *        function?: string,
  *        line?: int,
@@ -59,7 +58,7 @@ final class StackTrace
             }
 
             // Convert absolute paths to relative ones
-            $cwdLen > 1 && isset($frame['file']) && \str_starts_with($frame['file'], $dir)
+            1 < $cwdLen && isset($frame['file']) && \str_starts_with($frame['file'], $dir)
             and $frame['file'] = '.' . \DIRECTORY_SEPARATOR . \substr($frame['file'], $cwdLen);
 
             $stack[] = $frame;

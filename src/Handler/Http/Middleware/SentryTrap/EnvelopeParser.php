@@ -7,12 +7,11 @@ namespace Buggregator\Trap\Handler\Http\Middleware\SentryTrap;
 use Buggregator\Trap\Proto\Frame\Sentry\EnvelopeItem;
 use Buggregator\Trap\Proto\Frame\Sentry\SentryEnvelope;
 use Buggregator\Trap\Support\StreamHelper;
-use DateTimeImmutable;
-use Fiber;
 use Psr\Http\Message\StreamInterface;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap\Handler\Http\Middleware
  */
 final class EnvelopeParser
@@ -22,20 +21,20 @@ final class EnvelopeParser
 
     public static function parse(
         StreamInterface $stream,
-        DateTimeImmutable $time = new DateTimeImmutable(),
+        \DateTimeImmutable $time = new \DateTimeImmutable(),
     ): SentryEnvelope {
         // Parse headers
         $headers = \json_decode(self::readLine($stream), true, 4, JSON_THROW_ON_ERROR);
 
         // Parse items
         $items = [];
-        do {
+        while (true) {
             try {
                 $items[] = self::parseItem($stream);
             } catch (\Throwable) {
                 break;
             }
-        } while (true);
+        }
 
         return new SentryEnvelope($headers, $items, $time);
     }
@@ -49,23 +48,22 @@ final class EnvelopeParser
         $itemHeader = \json_decode(self::readLine($stream), true, 4, JSON_THROW_ON_ERROR);
 
         $length = isset($itemHeader['length']) ? (int) $itemHeader['length'] : null;
-        $length >= 0 or throw new \RuntimeException('Invalid item length.');
+        0 <= $length or throw new \RuntimeException('Invalid item length.');
 
         $type = $itemHeader['type'] ?? null;
 
-        if ($length > ($type === 'attachment' ? self::MAX_BINARY_ITEM_SIZE : self::MAX_TEXT_ITEM_SIZE)) {
+        if ($length > ('attachment' === $type ? self::MAX_BINARY_ITEM_SIZE : self::MAX_TEXT_ITEM_SIZE)) {
             throw new \RuntimeException('Item is too big.');
         }
 
-        /** @var mixed $itemPayload */
         $itemPayload = match (true) {
             // Store attachments as a file stream
-            $type === 'attachment' => $length === null
+            'attachment' === $type => null === $length
                 ? StreamHelper::createFileStream()->write(self::readLine($stream))
                 : StreamHelper::createFileStream()->write(self::readBytes($stream, $length)),
 
             // Text items
-            default => $length === null
+            default => null === $length
                 ? \json_decode(self::readLine($stream), true, 512, JSON_THROW_ON_ERROR)
                 : \json_decode(self::readBytes($stream, $length), true, 512, JSON_THROW_ON_ERROR),
         };
@@ -75,7 +73,8 @@ final class EnvelopeParser
 
     /**
      * @param positive-int $possibleBytes Maximum number of bytes to read. If the read fragment is longer than this
-     *        an exception will be thrown. Default is 10MB
+     *                                    an exception will be thrown. Default is 10MB
+     *
      * @throws \Throwable
      */
     private static function readLine(StreamInterface $stream, int $possibleBytes = self::MAX_TEXT_ITEM_SIZE): string
@@ -83,10 +82,10 @@ final class EnvelopeParser
         $currentPos = $stream->tell();
         $relOffset = StreamHelper::strpos($stream, "\n");
         $size = $stream->getSize();
-        $offset = $relOffset === false ? $size : $currentPos + $relOffset;
+        $offset = false === $relOffset ? $size : $currentPos + $relOffset;
 
         // Validate offset
-        $offset === null and throw new \RuntimeException('Failed to detect line end.');
+        null === $offset and throw new \RuntimeException('Failed to detect line end.');
         $offset - $currentPos > $possibleBytes and throw new \RuntimeException('Line is too long.');
         $offset === $currentPos and throw new \RuntimeException('End of stream.');
 
@@ -98,33 +97,34 @@ final class EnvelopeParser
 
     /**
      * @param int<0, max> $length
+     *
      * @throws \Throwable
      */
     private static function readBytes(StreamInterface $stream, int $length): string
     {
-        if ($length === 0) {
+        if (0 === $length) {
             return '';
         }
 
         $currentPos = $stream->tell();
         $size = $stream->getSize();
 
-        $size !== null && $size - $currentPos < $length and throw new \RuntimeException('Not enough bytes to read.');
+        null !== $size && $size - $currentPos < $length and throw new \RuntimeException('Not enough bytes to read.');
 
         /** @var non-empty-string $result */
         $result = '';
-        do {
+        while (true) {
             $read = $stream->read($length);
-            $read === '' and throw new \RuntimeException('Failed to read bytes.');
+            '' === $read and throw new \RuntimeException('Failed to read bytes.');
 
             $result .= $read;
             $length -= \strlen($read);
-            if ($length === 0) {
+            if (0 === $length) {
                 break;
             }
 
-            Fiber::suspend();
-        } while (true);
+            \Fiber::suspend();
+        }
 
         return $result;
     }

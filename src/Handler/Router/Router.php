@@ -7,7 +7,6 @@ namespace Buggregator\Trap\Handler\Router;
 use Buggregator\Trap\Handler\Router\Attribute\AssertRoute as AssertAttribute;
 use Buggregator\Trap\Handler\Router\Attribute\Route as RouteAttribute;
 use Buggregator\Trap\Handler\Router\Exception\AssertRouteFailed;
-use Throwable;
 
 /**
  * @internal
@@ -17,19 +16,13 @@ final class Router
     /** @var array<class-string, self> */
     private static array $cache = [];
 
-    /** @var null|object Null for routes defined in static methods */
+    /** @var object|null Null for routes defined in static methods */
     private ?object $object = null;
-
-    /**
-     * @param array<non-empty-string, list<RouteDto>> $routes Indexed by {@see Method}: Method => RouteDto[]
-     */
-    private function __construct(
-        private readonly array $routes,
-    ) {}
 
     /**
      * @param array<RouteAttribute> $routes
      * @param array<AssertAttribute> $assertions
+     *
      * @throws AssertRouteFailed
      */
     public static function assert(array $routes, array $assertions): void
@@ -69,9 +62,9 @@ final class Router
                     $assertion->path,
                 ), 0, $e);
             }
-            $found = $handler !== null;
+            $found = null !== $handler;
             // Mustn't be matched
-            if ($assertion::class === Attribute\AssertRouteFail::class) {
+            if (Attribute\AssertRouteFail::class === $assertion::class) {
                 $found and $fails[] = \sprintf(
                     '> Shouldn\'t be matched -> %s `%s`. Parsed arguments: %s',
                     $assertion->method->value,
@@ -83,14 +76,14 @@ final class Router
             }
 
             // Must be matched
-            if ($assertion::class === Attribute\AssertRouteSuccess::class) {
+            if (Attribute\AssertRouteSuccess::class === $assertion::class) {
                 $found or $fails[] = \sprintf(
                     '> Should be matched -> %s `%s`.',
                     $assertion->method->value,
                     $assertion->path,
                 );
 
-                if (!$found || $assertion->args === null) {
+                if (! $found || null === $assertion->args) {
                     continue;
                 }
 
@@ -109,7 +102,7 @@ final class Router
             }
         }
 
-        if ($fails === []) {
+        if ([] === $fails) {
             return;
         }
 
@@ -118,26 +111,16 @@ final class Router
 
     /**
      * @param class-string|object $classOrObject Class name or object to create router for.
-     *        Specify an object to associate router with an object. It is important for routes defined in
-     *        non-static methods.
+     *                                           Specify an object to associate router with an object. It is important for routes defined in
+     *                                           non-static methods.
      *
      * @throws \Exception
      */
     public static function new(string|object $classOrObject): self
     {
-        return is_object($classOrObject)
+        return \is_object($classOrObject)
             ? self::newStatic($classOrObject::class)->withObject($classOrObject)
             : self::newStatic($classOrObject);
-    }
-
-    /**
-     * Associate router with an object.
-     */
-    private function withObject(object $object): self
-    {
-        $new = clone $this;
-        $new->object = $object;
-        return $new;
     }
 
     /**
@@ -179,9 +162,9 @@ final class Router
      *
      * @param class-string $class
      *
-     * @return list<RouteDto>
-     *
      * @throws \ReflectionException
+     *
+     * @return list<RouteDto>
      */
     private static function collectRoutes(string $class): array
     {
@@ -206,51 +189,9 @@ final class Router
     }
 
     /**
-     * Find a route for specified method and path.
-     *
-     * @return null|callable(mixed...): mixed Returns null if no route matches
-     *
-     * @throws \Exception
-     */
-    public function match(Method $method, string $path): ?callable
-    {
-        foreach ($this->routes[$method->value] as $route) {
-            $rr = $route->route;
-            /** @psalm-suppress ArgumentTypeCoercion */
-            $match = match ($rr::class) {
-                Attribute\StaticRoute::class => $path === (string) $rr->path,
-                Attribute\RegexpRoute::class => \preg_match((string) $rr->regexp, $path, $matches) === 1
-                    ? \array_filter($matches, '\is_string', \ARRAY_FILTER_USE_KEY)
-                    : false,
-                default => throw new \LogicException(\sprintf(
-                    'Route type `%s` is not supported.',
-                    $route::class,
-                )),
-            };
-
-            if ($match === false) {
-                continue;
-            }
-
-            // Prepare callable
-            $object = $this->object;
-            return match(true) {
-                \is_callable($match) => $match,
-                default => static fn(mixed ...$args): mixed => self::invoke(
-                    $route->method,
-                    $object,
-                    \array_merge($args, \is_array($match) ? $match : []),
-                )
-            };
-        }
-
-        return null;
-    }
-
-    /**
      * Invoke a method with specified arguments. The arguments will be filtered by parameter names.
      *
-     * @throws Throwable
+     * @throws \Throwable
      */
     private static function invoke(\ReflectionMethod $method, ?object $object, array $args): mixed
     {
@@ -262,7 +203,7 @@ final class Router
             foreach ($method->getParameters() as $param) {
                 $name = $param->getName();
                 if (isset($args[$name])) {
-                    /** @psalm-suppress MixedAssignment */
+                    /* @psalm-suppress MixedAssignment */
                     $filteredArgs[$name] = $args[$name];
                 }
             }
@@ -274,5 +215,67 @@ final class Router
     private static function doNothing(mixed ...$args): array
     {
         return $args;
+    }
+
+    /**
+     * Find a route for specified method and path.
+     *
+     * @throws \Exception
+     *
+     * @return callable(mixed...): mixed|null Returns null if no route matches
+     */
+    public function match(Method $method, string $path): ?callable
+    {
+        foreach ($this->routes[$method->value] as $route) {
+            $rr = $route->route;
+            /** @psalm-suppress ArgumentTypeCoercion */
+            $match = match ($rr::class) {
+                Attribute\StaticRoute::class => (string) $rr->path === $path,
+                Attribute\RegexpRoute::class => \preg_match((string) $rr->regexp, $path, $matches) === 1
+                    ? \array_filter($matches, '\is_string', \ARRAY_FILTER_USE_KEY)
+                    : false,
+                default => throw new \LogicException(\sprintf(
+                    'Route type `%s` is not supported.',
+                    $route::class,
+                )),
+            };
+
+            if (false === $match) {
+                continue;
+            }
+
+            // Prepare callable
+            $object = $this->object;
+
+            return match (true) {
+                \is_callable($match) => $match,
+                default => static fn (mixed ...$args): mixed => self::invoke(
+                    $route->method,
+                    $object,
+                    \array_merge($args, \is_array($match) ? $match : []),
+                )
+            };
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<non-empty-string, list<RouteDto>> $routes Indexed by {@see Method}: Method => RouteDto[]
+     */
+    private function __construct(
+        private readonly array $routes,
+    ) {
+    }
+
+    /**
+     * Associate router with an object.
+     */
+    private function withObject(object $object): self
+    {
+        $new = clone $this;
+        $new->object = $object;
+
+        return $new;
     }
 }

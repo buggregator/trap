@@ -16,6 +16,27 @@ trait Headers
     private array $headerNames = [];
 
     /**
+     * List of header values.
+     *
+     * @param array<array-key, list<string>> $headers
+     * @param non-empty-string $header
+     *
+     * @return list<string>
+     */
+    private static function findHeader(array $headers, string $header): array
+    {
+        $header = \strtr($header, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz');
+        $result = [];
+        foreach ($headers as $name => $values) {
+            if (\strtr((string) $name, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') === $header) {
+                $result = [...$result, ...$values];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * @return array<non-empty-string, list<string>>
      */
     public function getHeaders(): array
@@ -34,7 +55,7 @@ trait Headers
     public function getHeader(string $header): array
     {
         $header = \strtr($header, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz');
-        if (!isset($this->headerNames[$header])) {
+        if (! isset($this->headerNames[$header])) {
             return [];
         }
 
@@ -79,7 +100,7 @@ trait Headers
     public function withoutHeader(string $header): static
     {
         $normalized = \strtr($header, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz');
-        if (!isset($this->headerNames[$normalized])) {
+        if (! isset($this->headerNames[$normalized])) {
             return $this;
         }
 
@@ -143,9 +164,9 @@ trait Headers
             throw new \InvalidArgumentException('Header name must be an RFC 7230 compatible string');
         }
 
-        if (!\is_array($values)) {
+        if (! \is_array($values)) {
             // This is simple, just one value.
-            if ((!\is_numeric($values) && !\is_string($values)) || 1 !== \preg_match(
+            if ((! \is_numeric($values) && ! \is_string($values)) || 1 !== \preg_match(
                 "@^[ \t\x21-\x7E\x80-\xFF]*$@",
                 (string) $values,
             )) {
@@ -164,7 +185,7 @@ trait Headers
         // Assert Non empty array
         $returnValues = [];
         foreach ($values as $v) {
-            if ((!\is_numeric($v) && !\is_string($v)) || 1 !== \preg_match(
+            if ((! \is_numeric($v) && ! \is_string($v)) || 1 !== \preg_match(
                 "@^[ \t\x21-\x7E\x80-\xFF]*$@D",
                 (string) $v,
             )) {
@@ -175,25 +196,5 @@ trait Headers
         }
 
         return $returnValues;
-    }
-
-    /**
-     * List of header values.
-     *
-     * @param array<array-key, list<string>> $headers
-     * @param non-empty-string $header
-     *
-     * @return list<string>
-     */
-    private static function findHeader(array $headers, string $header): array
-    {
-        $header = \strtr($header, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz');
-        $result = [];
-        foreach ($headers as $name => $values) {
-            if (\strtr((string) $name, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') === $header) {
-                $result = [...$result, ...$values];
-            }
-        }
-        return $result;
     }
 }

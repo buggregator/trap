@@ -16,6 +16,7 @@ use Psr\Http\Message\ServerRequestInterface;
  * Upgrade the connection to a websocket and send a simple timer to the client.
  *
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class Websocket implements RequestHandler
@@ -23,15 +24,15 @@ final class Websocket implements RequestHandler
     public function handle(StreamClient $streamClient, ServerRequestInterface $request, callable $next): iterable
     {
         if (
-            !$request->hasHeader('Sec-WebSocket-Key')
+            ! $request->hasHeader('Sec-WebSocket-Key')
             || \preg_match('/\\bwebsocket\\b/i', $request->getHeaderLine('Upgrade')) !== 1
         ) {
             yield from $next($streamClient, $request);
+
             return;
         }
 
         // Get the time of the request
-        /** @var mixed $time */
         $time = $request->getAttribute('begin_at');
         $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
 
@@ -68,7 +69,7 @@ final class Websocket implements RequestHandler
             $timer->reset();
 
             $content = 'Elapsed: ' . (\time() - $time->getTimestamp()) . 's';
-            $response = \chr(129) . \chr(strlen($content)) . $content;
+            $response = \chr(129) . \chr(\strlen($content)) . $content;
 
             $stream->sendData($response);
         }

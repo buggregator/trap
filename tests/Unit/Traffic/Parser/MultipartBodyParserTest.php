@@ -17,7 +17,10 @@ final class MultipartBodyParserTest extends TestCase
 {
     use FiberTrait;
 
-    public function testParse(): void
+    /**
+     * @test
+     */
+    public function parse(): void
     {
         $body = $this->makeStream(
             <<<BODY
@@ -48,11 +51,15 @@ final class MultipartBodyParserTest extends TestCase
         $this->assertInstanceOf(Field::class, $result[1]);
     }
 
-    public function testWithFileAttach(): void
+    /**
+     * @test
+     */
+    public function with_file_attach(): void
     {
         $file1 = \file_get_contents(__DIR__ . '/../../../Stub/deburger.png');
         $file2 = \file_get_contents(__DIR__ . '/../../../Stub/buggregator.png');
-        $body = $this->makeStream(<<<BODY
+        $body = $this->makeStream(
+            <<<BODY
                 --Asrf456BGe4h\r
                 Content-Disposition: form-data; name="Authors"\r
                 \r
@@ -116,6 +123,7 @@ final class MultipartBodyParserTest extends TestCase
     {
         $stream = Stream::create($body);
         $stream->rewind();
+
         return $stream;
     }
 
@@ -126,6 +134,6 @@ final class MultipartBodyParserTest extends TestCase
      */
     private function parse(StreamInterface $body, string $boundary): iterable
     {
-        return $this->runInFiber(static fn() => Parser\Http::parseMultipartBody($body, $boundary));
+        return $this->runInFiber(static fn () => Parser\Http::parseMultipartBody($body, $boundary));
     }
 }

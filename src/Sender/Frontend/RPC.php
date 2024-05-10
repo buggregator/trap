@@ -28,7 +28,7 @@ final class RPC
     public function handleMessage(mixed $message): ?Message\Rpc
     {
         try {
-            if (!\is_array($message) || !\is_string($method = $message['method'] ?? null)) {
+            if (! \is_array($message) || ! \is_string($method = $message['method'] ?? null)) {
                 return null;
             }
 
@@ -37,6 +37,7 @@ final class RPC
             return $this->callMethod($method, $data);
         } catch (\Throwable $e) {
             $this->logger->exception($e);
+
             return null;
         }
     }
@@ -47,13 +48,14 @@ final class RPC
 
         $route = $this->router->match(Method::fromString($method), $path);
 
-        if ($route === null) {
+        if (null === $route) {
             $this->logger->error('RPC method `%s` not found.', $initMethod);
+
             return null;
         }
 
-        /** @var mixed $result */
         $result = $route(...$data);
-        return $result === null ? null : new Message\Rpc(data: $result);
+
+        return null === $result ? null : new Message\Rpc(data: $result);
     }
 }

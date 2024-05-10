@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Console\Support;
 
-use DateTimeInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap\Sender\Console
  */
 final class Common
@@ -17,7 +17,7 @@ final class Common
     {
         $parts = ["<fg=white;bg=blue;options=bold> $title </>"];
         foreach ($sub as $color => $value) {
-            if ($value === null) {
+            if (null === $value) {
                 continue;
             }
             $parts[] = \sprintf('<fg=white;bg=%s;options=bold> %s </>', \is_string($color) ? $color : 'gray', $value);
@@ -30,7 +30,7 @@ final class Common
     {
         $parts = ["<fg=white;options=bold># $title </>"];
         foreach ($sub as $color => $value) {
-            if ($value === '') {
+            if ('' === $value) {
                 continue;
             }
 
@@ -64,7 +64,7 @@ final class Common
         $maxHeaderLength = \max(
             0,
             ...\array_map(
-                static fn(string|int $key): int => \strlen((string) $key),
+                static fn (string|int $key): int => \strlen((string) $key),
                 \array_keys($data)
             ),
         );
@@ -88,7 +88,7 @@ final class Common
      */
     public static function renderTags(OutputInterface $output, array $tags): void
     {
-        if ($tags === []) {
+        if ([] === $tags) {
             return;
         }
 
@@ -98,12 +98,12 @@ final class Common
         foreach ($tags as $name => $value) {
             if (\is_string($name)) {
                 $currentLen = \strlen($name) + \strlen($value) + 5; // 4 paddings and 1 margin
-                $tag = \sprintf('<fg=white;bg=gray> %s:</><fg=white;bg=green;options=bold> %s </>', $name, $value, );
+                $tag = \sprintf('<fg=white;bg=gray> %s:</><fg=white;bg=green;options=bold> %s </>', $name, $value);
             } else {
                 $currentLen = \strlen($value) + 3; // 2 paddings and 1 margin
                 $tag = \sprintf('<fg=white;bg=green;options=bold> %s </>', $value);
             }
-            if ($lineLen === 0 || $lineLen + $currentLen < 80) {
+            if (0 === $lineLen || $lineLen + $currentLen < 80) {
                 $parts[] = $tag;
                 $lineLen += $currentLen;
             } else {
@@ -147,14 +147,14 @@ final class Common
     ): void {
         $i = 0;
         foreach (\is_array($value) ? $value : [$value] as $item) {
-            if ($i++ === 0) {
+            if (0 === $i++) {
                 $output->write(\sprintf('<fg=%s;options=bold>%s</>: ', $keyColor->value, $name));
             } else {
                 $output->write(\sprintf('<fg=%s>%s</>: ', $secondKeyColor->value, $name));
             }
 
             $item = match (true) {
-                $value instanceof DateTimeInterface => $value->format('u') === '000000'
+                $value instanceof \DateTimeInterface => $value->format('u') === '000000'
                     ? $value->format('Y-m-d H:i:s')
                     : $value->format('Y-m-d H:i:s.u'),
                 \is_scalar($value) || $value instanceof \Stringable => (string) $value,

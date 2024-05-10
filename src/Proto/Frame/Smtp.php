@@ -9,18 +9,28 @@ use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Support\Json;
 use Buggregator\Trap\Traffic\Message;
-use DateTimeImmutable;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator
+ *
  * @psalm-import-type TArrayData from Message\Smtp
  */
 final class Smtp extends Frame implements FilesCarrier
 {
+    public static function fromString(string $payload, \DateTimeImmutable $time): static
+    {
+        /** @var TArrayData $payload */
+        $payload = \json_decode($payload, true, \JSON_THROW_ON_ERROR);
+        $message = Message\Smtp::fromArray($payload);
+
+        return new self($message, $time);
+    }
+
     public function __construct(
         public readonly Message\Smtp $message,
-        DateTimeImmutable $time = new DateTimeImmutable(),
+        \DateTimeImmutable $time = new \DateTimeImmutable(),
     ) {
         parent::__construct(ProtoType::SMTP, $time);
     }
@@ -31,15 +41,6 @@ final class Smtp extends Frame implements FilesCarrier
     public function __toString(): string
     {
         return Json::encode($this->message);
-    }
-
-    public static function fromString(string $payload, DateTimeImmutable $time): static
-    {
-        /** @var TArrayData $payload */
-        $payload = \json_decode($payload, true, \JSON_THROW_ON_ERROR);
-        $message = Message\Smtp::fromArray($payload);
-
-        return new self($message, $time);
     }
 
     public function hasFiles(): bool

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Traffic\Websocket;
 
 /**
- * Opcode: 4 bits
+ * Opcode: 4 bits.
  *
  * Defines the interpretation of the "Payload data".  If an unknown opcode is received, the receiving endpoint MUST
  * Fail the WebSocket Connection.  The following values are defined.
@@ -18,9 +18,10 @@ namespace Buggregator\Trap\Traffic\Websocket;
  *  %xA denotes a pong
  *  %xB-F are reserved for further control frames
  *
- * @link https://datatracker.ietf.org/doc/html/rfc6455#section-5.2
+ * @see https://datatracker.ietf.org/doc/html/rfc6455#section-5.2
  *
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 enum Opcode: int

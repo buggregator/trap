@@ -7,20 +7,20 @@ namespace Buggregator\Trap\Traffic\Dispatcher;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Traffic\Dispatcher;
 use Buggregator\Trap\Traffic\StreamClient;
-use DateTimeImmutable;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class VarDumper implements Dispatcher
 {
     public function dispatch(StreamClient $stream): iterable
     {
-        while (!$stream->isFinished()) {
+        while (! $stream->isFinished()) {
             $line = \trim($stream->fetchLine());
 
-            if ($line === '') {
+            if ('' === $line) {
                 continue;
             }
 
@@ -28,7 +28,7 @@ final class VarDumper implements Dispatcher
         }
     }
 
-    public function detect(string $data, DateTimeImmutable $createdAt): ?bool
+    public function detect(string $data, \DateTimeImmutable $createdAt): ?bool
     {
         // Detect non-base64 symbols
         if (\preg_match_all('/[^a-zA-Z0-9\\/+=\\n]/', $data) !== 0) {

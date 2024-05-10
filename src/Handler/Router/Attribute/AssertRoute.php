@@ -14,5 +14,6 @@ abstract class AssertRoute
     public function __construct(
         public Method $method,
         public string $path,
-    ) {}
+    ) {
+    }
 }

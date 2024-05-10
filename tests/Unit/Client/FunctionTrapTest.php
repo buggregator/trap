@@ -10,8 +10,10 @@ final class FunctionTrapTest extends TestCase
 {
     /**
      * @runInSeparateProcess
+     *
+     * @test
      */
-    public function testLeak(): void
+    public function leak(): void
     {
         $object = new \stdClass();
         $ref = \WeakReference::create($object);

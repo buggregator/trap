@@ -20,7 +20,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * Run application
+ * Run application.
  *
  * @internal
  */
@@ -52,7 +52,8 @@ final class Run extends Command implements SignalableCommandInterface
     }
 
     /**
-     * Prepare port listeners
+     * Prepare port listeners.
+     *
      * @return SocketServer[]
      */
     public function getServers(Container $container): array
@@ -67,12 +68,61 @@ final class Run extends Command implements SignalableCommandInterface
                 \sprintf('Invalid port `%s`. It must be a number.', (string) $port),
             );
             $port = (int) $port;
-            $port > 0 && $port < 65536 or throw new \InvalidArgumentException(
+            0 < $port && 65536 > $port or throw new \InvalidArgumentException(
                 \sprintf('Invalid port `%s`. It must be in range 1-65535.', $port),
             );
             $servers[] = new SocketServer($port, $config->host, $config->type);
         }
+
         return $servers;
+    }
+
+    public function createRegistry(OutputInterface $output): Sender\SenderRegistry
+    {
+        $registry = new Sender\SenderRegistry();
+        $registry->register('console', Sender\ConsoleSender::create($output));
+        $registry->register('file', new Sender\FileSender());
+        $registry->register(
+            'server',
+            new Sender\RemoteSender(
+                host: '127.0.0.1',
+                port: 9099,
+            )
+        );
+
+        return $registry;
+    }
+
+    public function getSubscribedSignals(): array
+    {
+        $result = [];
+        \defined('SIGINT') and $result[] = \SIGINT;
+        \defined('SIGTERM') and $result[] = \SIGTERM;
+
+        return $result;
+    }
+
+    public function handleSignal(int $signal, int|false $previousExitCode = 0): int|false
+    {
+        if (\defined('SIGINT') && \SIGINT === $signal) {
+            if ($this->cancelled) {
+                // Force exit
+                $this->app?->destroy();
+
+                return $signal;
+            }
+
+            $this->app?->cancel();
+            $this->cancelled = true;
+        }
+
+        if (\defined('SIGTERM') && \SIGTERM === $signal) {
+            $this->app?->destroy();
+
+            return $signal;
+        }
+
+        return false;
     }
 
     protected function execute(
@@ -104,67 +154,20 @@ final class Run extends Command implements SignalableCommandInterface
                 'withFrontend' => $input->getOption('ui') !== false,
             ]);
 
-
             $this->app->run();
         } catch (\Throwable $e) {
             if ($output->isVerbose()) {
                 // Write colorful exception (title, message, stacktrace)
-                $output->writeln(\sprintf("<fg=red;options=bold>%s</>", $e::class));
+                $output->writeln(\sprintf('<fg=red;options=bold>%s</>', $e::class));
             }
 
-            $output->writeln(\sprintf("<fg=red>%s</>", $e->getMessage()));
+            $output->writeln(\sprintf('<fg=red>%s</>', $e->getMessage()));
 
             if ($output->isDebug()) {
-                $output->writeln(\sprintf("<fg=gray>%s</>", $e->getTraceAsString()));
+                $output->writeln(\sprintf('<fg=gray>%s</>', $e->getTraceAsString()));
             }
         }
 
         return Command::SUCCESS;
-    }
-
-    public function createRegistry(OutputInterface $output): Sender\SenderRegistry
-    {
-        $registry = new Sender\SenderRegistry();
-        $registry->register('console', Sender\ConsoleSender::create($output));
-        $registry->register('file', new Sender\FileSender());
-        $registry->register(
-            'server',
-            new Sender\RemoteSender(
-                host: '127.0.0.1',
-                port: 9099,
-            )
-        );
-
-        return $registry;
-    }
-
-    public function getSubscribedSignals(): array
-    {
-        $result = [];
-        \defined('SIGINT') and $result[] = \SIGINT;
-        \defined('SIGTERM') and $result[] = \SIGTERM;
-
-        return $result;
-    }
-
-    public function handleSignal(int $signal, int|false $previousExitCode = 0): int|false
-    {
-        if (\defined('SIGINT') && $signal === \SIGINT) {
-            if ($this->cancelled) {
-                // Force exit
-                $this->app?->destroy();
-                return $signal;
-            }
-
-            $this->app?->cancel();
-            $this->cancelled = true;
-        }
-
-        if (\defined('SIGTERM') && $signal === \SIGTERM) {
-            $this->app?->destroy();
-            return $signal;
-        }
-
-        return false;
     }
 }

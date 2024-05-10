@@ -14,7 +14,10 @@ use PHPUnit\Framework\TestCase;
 
 final class ConfigLoaderTest extends TestCase
 {
-    public function testSimpleHydration(): void
+    /**
+     * @test
+     */
+    public function simple_hydration(): void
     {
         $dto = new class() {
             #[XPath('/trap/container/@myBool')]
@@ -44,7 +47,10 @@ final class ConfigLoaderTest extends TestCase
         self::assertSame(42.0, $dto->myFloat);
     }
 
-    public function testNonExistingOptions(): void
+    /**
+     * @test
+     */
+    public function non_existing_options(): void
     {
         $dto = new class() {
             #[XPath('/trap/container/Nothing/@value')]
@@ -69,7 +75,10 @@ final class ConfigLoaderTest extends TestCase
         self::assertSame(3.14, $dto->none4);
     }
 
-    public function testAttributesOrder(): void
+    /**
+     * @test
+     */
+    public function attributes_order(): void
     {
         $dto = new class() {
             #[XPath('/test/@foo')]

@@ -22,7 +22,7 @@ namespace Buggregator\Trap\Traffic\Websocket;
  * :                     Payload Data continued ...                :
  * + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
  * |                     Payload Data continued ...                |
- * +---------------------------------------------------------------+
+ * +---------------------------------------------------------------+.
  *
  *   FIN:  1 bit
  *
@@ -105,19 +105,12 @@ namespace Buggregator\Trap\Traffic\Websocket;
  *      is equal to the payload length minus the length of the "Extension
  *      data".
  *
- * @link https://datatracker.ietf.org/doc/html/rfc6455#section-5.2
+ * @see https://datatracker.ietf.org/doc/html/rfc6455#section-5.2
  *
  * @internal
  */
 final class Frame implements \Stringable
 {
-    public function __construct(
-        public readonly string $content,
-        public readonly Opcode $opcode,
-        public readonly bool $fin = true,
-        public readonly bool $rsv1 = false,
-    ) {}
-
     public static function text(string $content): self
     {
         return new self($content, Opcode::Text);
@@ -138,6 +131,14 @@ final class Frame implements \Stringable
         return new self('', Opcode::Close);
     }
 
+    public function __construct(
+        public readonly string $content,
+        public readonly Opcode $opcode,
+        public readonly bool $fin = true,
+        public readonly bool $rsv1 = false,
+    ) {
+    }
+
     public function __toString(): string
     {
         $len = \strlen($this->content);
@@ -146,8 +147,8 @@ final class Frame implements \Stringable
             '%s%s%s',
             \chr(128 | ($this->rsv1 ? 64 : 0) | $this->opcode->value),
             match (true) {
-                $len < 126 => \chr($len),
-                $len < 65536 => \pack('Cn', 126, $len),
+                126 > $len => \chr($len),
+                65536 > $len => \pack('Cn', 126, $len),
                 default => \pack('CJ', 127, $len),
             },
             $this->content,

@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Traffic\Parser;
 
-use Buggregator\Trap\Traffic\StreamClient;
 use Buggregator\Trap\Support\StreamHelper;
 use Buggregator\Trap\Traffic\Message;
 use Buggregator\Trap\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
+use Buggregator\Trap\Traffic\StreamClient;
 use Psr\Http\Message\StreamInterface;
 
 /**
- * Todo: parse and decrypt `Content-Transfer-Encoding: base64`, `Content-Transfer-Encoding: 7bit`
+ * Todo: parse and decrypt `Content-Transfer-Encoding: base64`, `Content-Transfer-Encoding: 7bit`.
+ *
  * @internal
  */
 final class Smtp
@@ -53,8 +54,6 @@ final class Smtp
             ? $this->processMultipartForm($message, $fileStream)
             : $this->processSingleBody($message, $fileStream);
 
-
-
         return $message;
     }
 
@@ -62,7 +61,7 @@ final class Smtp
      * Flush stream data into PSR stream.
      * Note: there can be read more data than {@see $limit} bytes but write only {@see $limit} bytes.
      *
-     * @return int Number of bytes written to the stream.
+     * @return int number of bytes written to the stream
      */
     private function storeBody(
         StreamInterface $fileStream,
@@ -78,7 +77,7 @@ final class Smtp
             $written += \strlen($chunk);
 
             // Check the end of the message.
-            if (!$stream->hasData()) {
+            if (! $stream->hasData()) {
                 if (\strlen($chunk) < $endLen) {
                     $fileStream->seek(-$endLen, \SEEK_CUR);
                     $chunk = $fileStream->read($endLen);

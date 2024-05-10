@@ -19,6 +19,7 @@ final class VarDump
     public function map(VarDumperFrame $frame): Event
     {
         $payload = $this->parse($frame->dump);
+
         return new Event(
             uuid: Uuid::generate(),
             type: 'var-dump',
@@ -46,10 +47,10 @@ final class VarDump
         }
 
         if (
-            !\is_array($payload)
+            ! \is_array($payload)
             || \count($payload) < 2
-            || !$payload[0] instanceof Data
-            || !\is_array($payload[1])
+            || ! $payload[0] instanceof Data
+            || ! \is_array($payload[1])
         ) {
             throw new \RuntimeException('Invalid var-dumper payload.');
         }
@@ -57,10 +58,10 @@ final class VarDump
         return $payload;
     }
 
-    private function convertToPrimitive(Data $data): string|null
+    private function convertToPrimitive(Data $data): ?string
     {
         if (\in_array($data->getType(), ['string', 'boolean'])) {
-            /** @psalm-suppress PossiblyInvalidCast */
+            /* @psalm-suppress PossiblyInvalidCast */
             return (string) $data->getValue();
         }
 

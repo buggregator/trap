@@ -11,24 +11,24 @@ use Buggregator\Trap\Sender;
 use Buggregator\Trap\Support\Json;
 use Buggregator\Trap\Support\Timer;
 use Fiber;
-use RuntimeException;
 use Socket;
-use SplQueue;
 
 /**
  * @internal
  */
 abstract class SocketSender implements Sender, Processable
 {
-    private ?Socket $socket = null;
+    private ?\Socket $socket = null;
     /** @var Timer Reconnect timer */
     private Timer $timer;
 
     /** Current data transaction Fiber */
-    private ?Fiber $handler = null;
+    private ?\Fiber $handler = null;
 
-    /** @var SplQueue<iterable<array-key, Frame>> */
-    private SplQueue $queue;
+    /** @var \SplQueue<iterable<array-key, Frame>> */
+    private \SplQueue $queue;
+
+    abstract protected function makePackage(string $payload): string;
 
     public function __construct(
         private readonly string $host,
@@ -36,21 +36,16 @@ abstract class SocketSender implements Sender, Processable
         float $reconnectTimeout = 1.0,
         private readonly ?Logger $logger = null,
     ) {
-        $this->queue = new SplQueue();
+        $this->queue = new \SplQueue();
         $this->timer = (new Timer(
             beep: $reconnectTimeout,
-            condition: fn(): bool => $this->socket !== null,
+            condition: fn (): bool => null !== $this->socket,
         ))->stop();
-    }
-
-    public function __destruct()
-    {
-        $this->disconnect();
     }
 
     public function process(): void
     {
-        if ($this->handler !== null) {
+        if (null !== $this->handler) {
             try {
                 if ($this->handler->isTerminated()) {
                     $this->handler = null;
@@ -62,8 +57,8 @@ abstract class SocketSender implements Sender, Processable
                 $this->disconnect();
             }
         }
-        if ($this->handler === null && !$this->queue->isEmpty()) {
-            $this->handler = new Fiber([$this, 'sendNext']);
+        if (null === $this->handler && ! $this->queue->isEmpty()) {
+            $this->handler = new \Fiber([$this, 'sendNext']);
             $this->handler->start();
         }
     }
@@ -79,12 +74,12 @@ abstract class SocketSender implements Sender, Processable
         $lastBytes = \strlen($data);
         try {
             $this->connect();
-            while ($lastBytes > 0) {
+            while (0 < $lastBytes) {
                 $write = [$this->socket];
                 $read = $except = null;
                 $result = $this->checkError(\socket_select($read, $write, $except, 0, 0));
-                if ($result === 0) {
-                    Fiber::suspend();
+                if (0 === $result) {
+                    \Fiber::suspend();
                     continue;
                 }
 
@@ -97,15 +92,13 @@ abstract class SocketSender implements Sender, Processable
         }
     }
 
-    abstract protected function makePackage(string $payload): string;
-
     /**
      * @param iterable<array-key, Frame> $frames
      */
     protected function preparePayload(iterable $frames): string
     {
         return '[' . \implode(',', \array_map(
-            static fn(Frame $frame): string => Json::encode($frame),
+            static fn (Frame $frame): string => Json::encode($frame),
             \is_array($frames) ? $frames : \iterator_to_array($frames),
         )) . ']';
     }
@@ -115,18 +108,19 @@ abstract class SocketSender implements Sender, Processable
      */
     protected function connect(): void
     {
-        do {
-            if ($this->socket !== null) {
+        while (true) {
+            if (null !== $this->socket) {
                 return;
             }
 
             try {
-                $this->timer->isStopped() or throw new RuntimeException('wait for reconnect');
+                $this->timer->isStopped() or throw new \RuntimeException('wait for reconnect');
 
                 $this->logger?->info('Connecting to %s:%d', $this->host, $this->port);
                 $this->socket = $this->checkError(\socket_create(\AF_INET, \SOCK_STREAM, \SOL_TCP));
                 $this->checkError(\socket_connect($this->socket, $this->host, $this->port));
                 $this->checkError(\socket_set_nonblock($this->socket));
+
                 return;
             } catch (\Throwable $e) {
                 $this->logger?->info('SocketSender Connection error: %s', $e->getLine(), $e->getMessage());
@@ -134,13 +128,13 @@ abstract class SocketSender implements Sender, Processable
                 $this->socket = null;
                 $this->timer->continue()->wait()->stop();
             }
-        } while (true);
+        }
     }
 
     protected function disconnect(): void
     {
         try {
-            if ($this->socket !== null) {
+            if (null !== $this->socket) {
                 \socket_close($this->socket);
             }
         } catch (\Throwable) {
@@ -156,13 +150,20 @@ abstract class SocketSender implements Sender, Processable
      * @param T|false $value
      *
      * @psalm-assert !false $value
+     *
      * @return T
      */
     protected function checkError(mixed $value): mixed
     {
-        if ($value === false) {
+        if (false === $value) {
             throw new \RuntimeException('Socket error: reason: ' . \socket_strerror(\socket_last_error()));
         }
+
         return $value;
+    }
+
+    public function __destruct()
+    {
+        $this->disconnect();
     }
 }

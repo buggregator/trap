@@ -17,7 +17,8 @@ final class Plain implements Renderer
 {
     public function __construct(
         private readonly TemplateRenderer $renderer,
-    ) {}
+    ) {
+    }
 
     public function isSupport(Frame $frame): bool
     {

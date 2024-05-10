@@ -17,6 +17,7 @@ use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class Router implements Middleware
@@ -39,16 +40,15 @@ final class Router implements Middleware
 
             $handler = $this->router->match($method, $path);
 
-            if ($handler === null) {
+            if (null === $handler) {
                 return new Response(404);
             }
 
             try {
                 // Params
-                if ($method === Method::Get) {
+                if (Method::Get === $method) {
                     $params = $request->getQueryParams();
                 } else {
-                    /** @var mixed $params */
                     $params = Json::decode((string) $request->getBody());
                     \is_array($params) or $params = [];
                 }
@@ -56,7 +56,6 @@ final class Router implements Middleware
                 $params = [];
             }
 
-            /** @var mixed $message */
             $message = $handler(...$params);
 
             return new Response(

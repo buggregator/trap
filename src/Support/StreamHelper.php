@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Support;
 
-use Fiber;
 use Http\Message\Encoding\GzipDecodeStream;
 use Nyholm\Psr7\Stream;
 use Psr\Http\Message\ServerRequestInterface;
@@ -12,6 +11,7 @@ use Psr\Http\Message\StreamInterface;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class StreamHelper
@@ -29,13 +29,13 @@ final class StreamHelper
     {
         $caret = $stream->tell();
         $ssLen = \strlen($substr);
-        \assert($ssLen > 0);
+        \assert(0 < $ssLen);
         \assert($stream->isSeekable());
 
         $delta = 0;
         $result = false;
         $prefix = '';
-        while (!$stream->eof()) {
+        while (! $stream->eof()) {
             $read = $prefix . $stream->read(self::CHUNK_SIZE + $ssLen);
 
             $readLen = \strlen($read);
@@ -48,22 +48,22 @@ final class StreamHelper
                 break;
             }
 
-            $prefix = \substr($read, - $ssLen);
+            $prefix = \substr($read, -$ssLen);
             $delta += \strlen($read) - $ssLen;
 
             unset($read);
-            Fiber::suspend();
+            \Fiber::suspend();
         }
 
         $stream->seek($caret, \SEEK_SET);
 
-        \assert($result >= 0);
+        \assert(0 <= $result);
+
         return $result;
     }
 
     /**
-     *
-     * Write bytes from $from (current position) to $to (current position) until $boundary by chunks
+     * Write bytes from $from (current position) to $to (current position) until $boundary by chunks.
      *
      * @param non-empty-string $boundary
      *
@@ -72,7 +72,7 @@ final class StreamHelper
     public static function writeStreamUntil(StreamInterface $from, StreamInterface $to, string $boundary): int
     {
         $result = 0;
-        while (!$from->eof()) {
+        while (! $from->eof()) {
             $read = $from->read(self::WRITE_STREAM_CHUNK_SIZE);
             if (false !== ($pos = \strpos($read, $boundary))) {
                 $from->seek($pos - \strlen($read), \SEEK_CUR);
@@ -81,7 +81,7 @@ final class StreamHelper
                 $result += \strlen($read);
                 $to->write($read);
                 unset($read);
-                Fiber::suspend();
+                \Fiber::suspend();
                 break;
             }
 
@@ -89,23 +89,23 @@ final class StreamHelper
             $to->write($read);
 
             unset($read);
-            Fiber::suspend();
+            \Fiber::suspend();
         }
 
         return $result;
     }
 
     /**
-     * Write $bytes from $from (current position) to $to (current position) by chunks
+     * Write $bytes from $from (current position) to $to (current position) by chunks.
      *
      * @param positive-int $bytes
      */
     public static function writeStream(StreamInterface $from, StreamInterface $to, int $bytes): void
     {
         $written = 0;
-        while (!$from->eof() && $written < $bytes) {
+        while (! $from->eof() && $written < $bytes) {
             $diff = $bytes - $written;
-            $toRead = $diff > self::WRITE_STREAM_CHUNK_SIZE && (self::WRITE_STREAM_CHUNK_SIZE * 1.2 > $diff)
+            $toRead = self::WRITE_STREAM_CHUNK_SIZE < $diff && (self::WRITE_STREAM_CHUNK_SIZE * 1.2 > $diff)
                 ? $diff
                 : \min($diff, self::WRITE_STREAM_CHUNK_SIZE);
             $read = $from->read($toRead);
@@ -113,7 +113,7 @@ final class StreamHelper
             $written += \strlen($read);
 
             unset($read);
-            Fiber::suspend();
+            \Fiber::suspend();
         }
     }
 
@@ -138,11 +138,11 @@ final class StreamHelper
      *
      * TODO: implement
      *
-     * @throws \InvalidArgumentException If the stream is not seekable.
+     * @throws \InvalidArgumentException if the stream is not seekable
      */
     public static function concurrentReadStream(StreamInterface $stream): StreamInterface
     {
-        if (!$stream->isSeekable()) {
+        if (! $stream->isSeekable()) {
             throw new \InvalidArgumentException('Cannot read concurrently a non seekable stream.');
         }
 

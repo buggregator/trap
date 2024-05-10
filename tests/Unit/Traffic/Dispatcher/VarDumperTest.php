@@ -1,11 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Buggregator\Trap\Tests\Unit\Traffic\Dispatcher;
 
 use Buggregator\Trap\Test\Mock\StreamClientMock;
 use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Buggregator\Trap\Traffic\Dispatcher\VarDumper;
-use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -23,14 +24,20 @@ class VarDumperTest extends TestCase
         yield ["A B C\n", false];
     }
 
+    /**
+     * @test
+     */
     #[DataProvider('detectProvider')]
-    public function testDetect(string $data, ?bool $expected): void
+    public function detect(string $data, ?bool $expected): void
     {
         $dispatcher = new VarDumper();
-        $this->assertSame($expected, $dispatcher->detect($data, new DateTimeImmutable()));
+        $this->assertSame($expected, $dispatcher->detect($data, new \DateTimeImmutable()));
     }
 
-    public function testDispatchFramesTime(): void
+    /**
+     * @test
+     */
+    public function dispatch_frames_time(): void
     {
         $dispatcher = new VarDumper();
         $stream = StreamClientMock::createFromGenerator((function (): \Generator {

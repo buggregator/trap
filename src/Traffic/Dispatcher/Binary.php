@@ -8,10 +8,10 @@ use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Support\StreamHelper;
 use Buggregator\Trap\Traffic\Dispatcher;
 use Buggregator\Trap\Traffic\StreamClient;
-use DateTimeImmutable;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class Binary implements Dispatcher
@@ -26,7 +26,7 @@ final class Binary implements Dispatcher
         return [new Frame\Binary($fileStream, $stream->getCreatedAt())];
     }
 
-    public function detect(string $data, DateTimeImmutable $createdAt): ?bool
+    public function detect(string $data, \DateTimeImmutable $createdAt): ?bool
     {
         // Detect bin data
         if (\preg_match_all('/[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]/', $data) === 1) {

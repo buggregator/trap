@@ -23,12 +23,14 @@ final class Service
     public function __construct(
         private readonly Logger $logger,
         private readonly EventStorage $eventsStorage,
-    ) {}
+    ) {
+    }
 
     #[StaticRoute(Method::Get, 'api/version')]
     public function version(): Version
     {
         $this->debug('Get version');
+
         return new Version();
     }
 
@@ -42,6 +44,7 @@ final class Service
     {
         $this->debug('Delete event %s', $uuid);
         $this->eventsStorage->delete($uuid);
+
         return new Success();
     }
 
@@ -55,6 +58,7 @@ final class Service
     {
         $this->debug('Show event %s', $uuid);
         $event = $this->eventsStorage->get($uuid);
+
         return $event ?? new Success(status: false);
     }
 
@@ -69,6 +73,7 @@ final class Service
         $this->debug('Delete all events');
         if (empty($uuids)) {
             $this->eventsStorage->clear();
+
             return new Success();
         }
 
@@ -79,6 +84,7 @@ final class Service
             }
         } catch (\Throwable $e) {
             $this->logger->exception($e);
+
             return new Success(status: false);
         }
 
@@ -94,6 +100,7 @@ final class Service
     public function eventsList(): EventCollection
     {
         $this->debug('List all events');
+
         return new EventCollection(events: \iterator_to_array($this->eventsStorage->getIterator(), false));
     }
 
@@ -106,6 +113,7 @@ final class Service
     public function settings(): Settings
     {
         $this->debug('List settings');
+
         return new Settings();
     }
 

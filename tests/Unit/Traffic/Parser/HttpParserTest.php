@@ -15,7 +15,10 @@ class HttpParserTest extends TestCase
 {
     use FiberTrait;
 
-    public function testSimpleGet(): void
+    /**
+     * @test
+     */
+    public function simple_get(): void
     {
         $body = \str_split(
             <<<HTTP
@@ -52,10 +55,13 @@ class HttpParserTest extends TestCase
         ], $request->getCookieParams());
     }
 
-    /**\
+    /*\
      * Parer doesn't fail on wrong cookies
      */
-    public function testWrongCookie(): void
+    /**
+     * @test
+     */
+    public function wrong_cookie(): void
     {
         $body = \str_split(
             <<<HTTP
@@ -85,7 +91,10 @@ class HttpParserTest extends TestCase
         ], $request->getCookieParams());
     }
 
-    public function testPostUrlEncoded(): void
+    /**
+     * @test
+     */
+    public function post_url_encoded(): void
     {
         $body = \str_split(
             <<<HTTP
@@ -119,7 +128,10 @@ class HttpParserTest extends TestCase
         $this->assertSame(['foo' => 'bar', 'baz' => 'qux', 'quux' => 'corge grault'], $request->getParsedBody());
     }
 
-    public function testPostMultipartFormData(): void
+    /**
+     * @test
+     */
+    public function post_multipart_form_data(): void
     {
         $file1 = \file_get_contents(__DIR__ . '/../../../Stub/deburger.png');
         $file2 = \file_get_contents(__DIR__ . '/../../../Stub/buggregator.png');
@@ -173,7 +185,7 @@ class HttpParserTest extends TestCase
         ], $request->getParsedBody());
         // Uploaded files
         $this->assertCount(2, $files = $request->getUploadedFiles());
-        /** @var UploadedFileInterface[] $files */
+        /* @var UploadedFileInterface[] $files */
         $this->assertSame('deburger.png', $files['AttachedFile1'][0]->getClientFilename());
         $this->assertSame('image/png', $files['AttachedFile1'][0]->getClientMediaType());
         $this->assertSame($file1, $files['AttachedFile1'][0]->getStream()->__toString());
@@ -183,7 +195,10 @@ class HttpParserTest extends TestCase
         $this->assertSame($file2, $files['AttachedFile2'][0]->getStream()->__toString());
     }
 
-    public function testGzippedBody(): void
+    /**
+     * @test
+     */
+    public function gzipped_body(): void
     {
         $http = \file_get_contents(__DIR__ . '/../../../Stub/sentry.bin');
 
@@ -199,11 +214,13 @@ class HttpParserTest extends TestCase
             (static function () use ($body) {
                 if (\is_string($body)) {
                     yield $body;
+
                     return;
                 }
                 yield from $body;
             })()
         );
-        return $this->runInFiber(static fn() => (new Parser\Http)->parseStream($stream));
+
+        return $this->runInFiber(static fn () => (new Parser\Http())->parseStream($stream));
     }
 }

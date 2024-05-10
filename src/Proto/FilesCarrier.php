@@ -8,6 +8,7 @@ use Psr\Http\Message\UploadedFileInterface;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator
  */
 interface FilesCarrier

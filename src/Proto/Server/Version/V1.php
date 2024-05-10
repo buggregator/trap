@@ -7,11 +7,10 @@ namespace Buggregator\Trap\Proto\Server\Version;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Server\Request;
 use Buggregator\Trap\ProtoType;
-use InvalidArgumentException;
-use RuntimeException;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator
  */
 final class V1 implements PayloadDecoder
@@ -20,13 +19,13 @@ final class V1 implements PayloadDecoder
     {
         $startJson = \strpos($payload, '[');
 
-        if ($startJson === false) {
+        if (false === $startJson) {
             return false;
         }
 
         $totalSegments = \count(\explode('|', \substr($payload, 0, $startJson - 1)));
 
-        return $totalSegments === 3;
+        return 3 === $totalSegments;
     }
 
     public function decode(string $payload): Request
@@ -35,7 +34,7 @@ final class V1 implements PayloadDecoder
 
         $header = \explode('|', \substr($payload, 0, $startJson), 3);
         if (\count($header) !== 3) {
-            throw new InvalidArgumentException('Invalid data.');
+            throw new \InvalidArgumentException('Invalid data.');
         }
 
         /**
@@ -51,12 +50,12 @@ final class V1 implements PayloadDecoder
 
         // Protocol version
         if (\preg_match('/^\d++$/', $protocol) !== 1) {
-            throw new InvalidArgumentException('Invalid protocol.');
+            throw new \InvalidArgumentException('Invalid protocol.');
         }
 
         /** @var positive-int $protocol */
         $protocol = (int) $protocol;
-        \assert($protocol > 0);
+        \assert(0 < $protocol);
 
         // UUID
         $this->validateUuid($uuid);
@@ -68,8 +67,8 @@ final class V1 implements PayloadDecoder
             payload: $payload,
             payloadParser: function (string $payload): iterable {
                 $data = \json_decode($payload, true, 8, \JSON_THROW_ON_ERROR);
-                if (!\is_array($data)) {
-                    throw new RuntimeException('Decoded data must be array.');
+                if (! \is_array($data)) {
+                    throw new \RuntimeException('Decoded data must be array.');
                 }
 
                 return \array_map(
@@ -79,10 +78,10 @@ final class V1 implements PayloadDecoder
                         \assert(isset($item['time']) && \is_string($item['time']), 'Missing time.');
 
                         $payload = \base64_decode($item['data'], true);
-                        \assert($payload !== false, 'Invalid data.');
+                        \assert(false !== $payload, 'Invalid data.');
 
                         $date = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s.u', $item['time']);
-                        \assert($date !== false, 'Invalid date.');
+                        \assert(false !== $date, 'Invalid date.');
 
                         return match ($item['type']) {
                             ProtoType::SMTP->value => Frame\Smtp::fromString($payload, $date),
@@ -90,7 +89,7 @@ final class V1 implements PayloadDecoder
                             ProtoType::VarDumper->value => Frame\VarDumper::fromString($payload, $date),
                             ProtoType::HTTP->value => Frame\Http::fromString($payload, $date),
                             ProtoType::Sentry->value => Frame\Sentry::fromString($payload, $date),
-                            default => throw new RuntimeException('Invalid type.'),
+                            default => throw new \RuntimeException('Invalid type.'),
                         };
                     },
                     $data
@@ -105,7 +104,7 @@ final class V1 implements PayloadDecoder
     private function validateUuid(string $uuid): void
     {
         if (\preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $uuid) !== 1) {
-            throw new InvalidArgumentException('Invalid UUID.');
+            throw new \InvalidArgumentException('Invalid UUID.');
         }
     }
 }

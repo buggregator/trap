@@ -10,7 +10,10 @@ use PHPUnit\Framework\TestCase;
 
 class FileTest extends TestCase
 {
-    public function testGetters(): void
+    /**
+     * @test
+     */
+    public function getters(): void
     {
         $file = new File(['Foo' => 'Bar'], 'name', 'filename');
 
@@ -19,7 +22,10 @@ class FileTest extends TestCase
         $this->assertSame('Bar', $file->getHeaderLine('foo'));
     }
 
-    public function testWithHeader(): void
+    /**
+     * @test
+     */
+    public function with_header(): void
     {
         $file = new File(['Foo' => 'Bar'], 'name', 'filename');
         $new = $file->withHeader('foo', 'baz');
@@ -29,7 +35,10 @@ class FileTest extends TestCase
         $this->assertSame('baz', $new->getHeaderLine('foo'));
     }
 
-    public function testFromArray(): void
+    /**
+     * @test
+     */
+    public function from_array(): void
     {
         $field = File::fromArray([
             'headers' => ['Foo' => ['Bar', 'Baz'], 'Content-Type' => 'image/jpeg'],
@@ -44,7 +53,10 @@ class FileTest extends TestCase
         $this->assertSame(['Bar', 'Baz'], $field->getHeader('foo'));
     }
 
-    public function testSerializeAndUnserialize(): void
+    /**
+     * @test
+     */
+    public function serialize_and_unserialize(): void
     {
         $from = new File(['Foo' => ['Bar', 'Baz']], 'message', 'icon.ico');
         $stream = StreamHelper::createFileStream();

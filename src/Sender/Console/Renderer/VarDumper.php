@@ -8,8 +8,6 @@ use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Common;
-use DateTimeImmutable;
-use RuntimeException;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -27,7 +25,7 @@ final class VarDumper implements Renderer
 {
     public function isSupport(Frame $frame): bool
     {
-        return $frame->type === ProtoType::VarDumper;
+        return ProtoType::VarDumper === $frame->type;
     }
 
     public function render(OutputInterface $output, Frame $frame): void
@@ -38,7 +36,7 @@ final class VarDumper implements Renderer
 
         // Impossible to decode the message, give up.
         if (false === $payload) {
-            throw new RuntimeException("Unable to decode a message.");
+            throw new \RuntimeException('Unable to decode a message.');
         }
 
         static $describer = null;
@@ -51,10 +49,11 @@ final class VarDumper implements Renderer
 
     private function getDescriber(): DumpDescriptorInterface
     {
-        return new class implements DumpDescriptorInterface {
+        return new class() implements DumpDescriptorInterface {
             public function __construct(
                 private CliDumper $dumper = new CliDumper(),
-            ) {}
+            ) {
+            }
 
             /**
              * @psalm-suppress RiskyTruthyFalsyComparison, MixedArrayAccess, MixedArgument
@@ -66,7 +65,7 @@ final class VarDumper implements Renderer
                 $this->dumper->setColors($output->isDecorated());
 
                 $meta = [];
-                $meta['Time'] = (new DateTimeImmutable())->setTimestamp((int) $context['timestamp']);
+                $meta['Time'] = (new \DateTimeImmutable())->setTimestamp((int) $context['timestamp']);
 
                 try {
                     if (isset($context['source'])) {
@@ -102,7 +101,7 @@ final class VarDumper implements Renderer
                     // Do nothing.
                 }
 
-                /** @psalm-suppress InternalMethod, InternalClass */
+                /* @psalm-suppress InternalMethod, InternalClass */
                 Common::renderMetadata($output, $meta);
                 $output->writeln('');
 

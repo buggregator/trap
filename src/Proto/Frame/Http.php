@@ -8,7 +8,6 @@ use Buggregator\Trap\Proto\FilesCarrier;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Support\Json;
-use DateTimeImmutable;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\ServerRequestInterface;
@@ -16,6 +15,7 @@ use Psr\Http\Message\UploadedFileInterface as PsrUploadedFile;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator
  */
 final class Http extends Frame implements FilesCarrier
@@ -23,13 +23,45 @@ final class Http extends Frame implements FilesCarrier
     /** @var int<0, max> */
     private readonly int $cachedSize;
 
+    public static function fromString(string $payload, \DateTimeImmutable $time): static
+    {
+        $payload = \json_decode($payload, true, \JSON_THROW_ON_ERROR);
+
+        $request = new ServerRequest(
+            $payload['method'] ?? 'GET',
+            $payload['uri'] ?? '/',
+            (array) ($payload['headers'] ?? []),
+            $payload['body'] ?? '',
+            $payload['protocolVersion'] ?? '1.1',
+            $payload['serverParams'] ?? [],
+        );
+
+        return new self(
+            $request->withQueryParams($payload['queryParams'] ?? [])
+                ->withCookieParams($payload['cookies'] ?? [])
+                ->withUploadedFiles(
+                    \array_map(
+                        static fn (array $file) => new UploadedFile(
+                            $file['content'],
+                            $file['size'],
+                            \UPLOAD_ERR_OK,
+                            $file['clientFilename'],
+                            $file['clientMediaType'],
+                        ),
+                        $payload['uploadedFiles'] ?? []
+                    )
+                ),
+            $time
+        );
+    }
+
     public function __construct(
         public readonly ServerRequestInterface $request,
-        DateTimeImmutable $time = new DateTimeImmutable(),
+        \DateTimeImmutable $time = new \DateTimeImmutable(),
     ) {
         $this->cachedSize = \max(0, (int) $request->getBody()->getSize() + \array_reduce(
             \iterator_to_array($this->iterateUploadedFiles(), false),
-            static fn(int $carry, PsrUploadedFile $file): int => $carry + (int) $file->getSize(),
+            static fn (int $carry, PsrUploadedFile $file): int => $carry + (int) $file->getSize(),
             0,
         ));
         parent::__construct(type: ProtoType::HTTP, time: $time);
@@ -51,38 +83,6 @@ final class Http extends Frame implements FilesCarrier
             'protocolVersion' => $this->request->getProtocolVersion(),
             'uploadedFiles' => $this->request->getUploadedFiles(),
         ]);
-    }
-
-    public static function fromString(string $payload, DateTimeImmutable $time): static
-    {
-        $payload = \json_decode($payload, true, \JSON_THROW_ON_ERROR);
-
-        $request = new ServerRequest(
-            $payload['method'] ?? 'GET',
-            $payload['uri'] ?? '/',
-            (array) ($payload['headers'] ?? []),
-            $payload['body'] ?? '',
-            $payload['protocolVersion'] ?? '1.1',
-            $payload['serverParams'] ?? [],
-        );
-
-        return new self(
-            $request->withQueryParams($payload['queryParams'] ?? [])
-                ->withCookieParams($payload['cookies'] ?? [])
-                ->withUploadedFiles(
-                    \array_map(
-                        static fn(array $file) => new UploadedFile(
-                            $file['content'],
-                            $file['size'],
-                            \UPLOAD_ERR_OK,
-                            $file['clientFilename'],
-                            $file['clientMediaType'],
-                        ),
-                        $payload['uploadedFiles'] ?? []
-                    )
-                ),
-            $time
-        );
     }
 
     public function getSize(): int

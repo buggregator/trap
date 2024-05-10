@@ -14,10 +14,6 @@ use Buggregator\Trap\Service\Container;
  */
 final class Bootstrap
 {
-    private function __construct(
-        private Container $container,
-    ) {}
-
     public static function init(Container $container = new Container()): self
     {
         return new self($container);
@@ -47,12 +43,17 @@ final class Bootstrap
         ];
 
         // XML config file
-        $xml === null or $args['xml'] = $this->readXml($xml);
+        null === $xml or $args['xml'] = $this->readXml($xml);
 
         // Register bindings
         $this->container->bind(ConfigLoader::class, $args);
 
         return $this;
+    }
+
+    private function __construct(
+        private Container $container,
+    ) {
     }
 
     private function readXml(string $fileOrContent): string
@@ -63,7 +64,7 @@ final class Bootstrap
         } else {
             \file_exists($fileOrContent) or throw new \InvalidArgumentException('Config file not found.');
             $xml = \file_get_contents($fileOrContent);
-            $xml === false and throw new \RuntimeException('Failed to read config file.');
+            false === $xml and throw new \RuntimeException('Failed to read config file.');
         }
 
         // Validate Schema

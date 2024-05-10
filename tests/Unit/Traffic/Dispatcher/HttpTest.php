@@ -1,9 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Buggregator\Trap\Tests\Unit\Traffic\Dispatcher;
 
 use Buggregator\Trap\Traffic\Dispatcher\Http;
-use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -16,7 +17,7 @@ class HttpTest extends TestCase
     {
         yield ["GET /foo HTTP/1.1\r\n", true];
         yield ["GET /foo HTTP/1.1\r\nHost: 127.0.0.1:9912\r\nUser-Agent: Mozilla/5.0 (Windows NT 10", true];
-        yield ["GET /foo HTTP/1.1\r\nHost: 127.0.0.1:9912\r\n", true,];
+        yield ["GET /foo HTTP/1.1\r\nHost: 127.0.0.1:9912\r\n", true];
         yield ['POST /foo HT', null];
         yield ['GET /foo HTTP/1.1', null];
         yield ["BUGGREGATOR /foo HTTP/1.1\r\n", false];
@@ -49,10 +50,13 @@ class HttpTest extends TestCase
         HTTP, true];
     }
 
+    /**
+     * @test
+     */
     #[DataProvider('detectProvider')]
-    public function testDetect(string $data, ?bool $expected): void
+    public function detect(string $data, ?bool $expected): void
     {
         $dispatcher = new Http();
-        $this->assertSame($expected, $dispatcher->detect($data, new DateTimeImmutable()));
+        $this->assertSame($expected, $dispatcher->detect($data, new \DateTimeImmutable()));
     }
 }

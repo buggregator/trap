@@ -18,8 +18,10 @@ final class HttpTest extends TestCase
      * Test that the same body is emitted to multiple streams at the same time.
      *
      * @covers \Buggregator\Trap\Support\StreamHelper::concurrentReadStream()
+     *
+     * @test
      */
-    public function testConcurrentBodyReading(): void
+    public function concurrent_body_reading(): void
     {
         $this->markTestSkipped('This test is not working yet.');
         $content = <<<CONTENT
@@ -34,7 +36,7 @@ final class HttpTest extends TestCase
 
         $function = static function (string &$emittedData): \Generator {
             $i = 1;
-            while (++$i < 100) {
+            while (100 > ++$i) {
                 $emittedData .= yield '';
             }
         };

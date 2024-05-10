@@ -7,10 +7,10 @@ namespace Buggregator\Trap\Proto\Frame\Sentry;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Support\Json;
-use DateTimeImmutable;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator
  *
  * @psalm-type SentryStoreMessage=array{
@@ -47,11 +47,21 @@ final class SentryStore extends Frame\Sentry
     public const SENTRY_FRAME_TYPE = 'store';
 
     /**
+     * @psalm-assert SentryStoreMessage $data
+     *
+     * @param SentryStoreMessage $data
+     */
+    public static function fromArray(array $data, \DateTimeImmutable $time): static
+    {
+        return new self($data, $time);
+    }
+
+    /**
      * @param SentryStoreMessage $message
      */
     public function __construct(
         public readonly array $message,
-        DateTimeImmutable $time = new DateTimeImmutable(),
+        \DateTimeImmutable $time = new \DateTimeImmutable(),
     ) {
         parent::__construct(ProtoType::Sentry, $time);
     }
@@ -62,15 +72,5 @@ final class SentryStore extends Frame\Sentry
     public function __toString(): string
     {
         return Json::encode($this->message);
-    }
-
-    /**
-     * @psalm-assert SentryStoreMessage $data
-     *
-     * @param SentryStoreMessage $data
-     */
-    public static function fromArray(array $data, DateTimeImmutable $time): static
-    {
-        return new self($data, $time);
     }
 }

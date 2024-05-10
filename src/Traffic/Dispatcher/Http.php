@@ -12,12 +12,10 @@ use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Traffic\Dispatcher;
 use Buggregator\Trap\Traffic\Parser;
 use Buggregator\Trap\Traffic\StreamClient;
-use DateTimeImmutable;
-use Exception;
-use Generator;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
  */
 final class Http implements Dispatcher
@@ -26,6 +24,7 @@ final class Http implements Dispatcher
 
     /**
      * Pipeline of {@see RequestHandler}.
+     *
      * @var Pipeline<RequestHandler, iterable<array-key, Frame>>
      */
     private readonly Pipeline $pipeline;
@@ -33,7 +32,7 @@ final class Http implements Dispatcher
     /**
      * @param iterable<array-key, Middleware> $middlewares
      * @param array<array-key, RequestHandler> $handlers
-     * @param bool $silentMode Don't emit Frames on dispatch if set to true.
+     * @param bool $silentMode don't emit Frames on dispatch if set to true
      */
     public function __construct(
         iterable $middlewares = [],
@@ -49,7 +48,7 @@ final class Http implements Dispatcher
         // Build pipeline of handlers.
         $this->pipeline = Pipeline::build(
             $handlers,
-            /** @see RequestHandler::handle() */
+            /* @see RequestHandler::handle() */
             'handle',
             static function (): never { throw new \LogicException('No handler found for request.'); },
             'never',
@@ -57,7 +56,7 @@ final class Http implements Dispatcher
     }
 
     /**
-     * @throws Exception
+     * @throws \Exception
      */
     public function dispatch(StreamClient $stream): iterable
     {
@@ -77,9 +76,9 @@ final class Http implements Dispatcher
         }
     }
 
-    public function detect(string $data, DateTimeImmutable $createdAt): ?bool
+    public function detect(string $data, \DateTimeImmutable $createdAt): ?bool
     {
-        if (!\str_contains($data, "\r\n")) {
+        if (! \str_contains($data, "\r\n")) {
             return null;
         }
 

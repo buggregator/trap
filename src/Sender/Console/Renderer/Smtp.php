@@ -20,7 +20,7 @@ final class Smtp implements Renderer
 {
     public function isSupport(Frame $frame): bool
     {
-        return $frame->type === ProtoType::SMTP;
+        return ProtoType::SMTP === $frame->type;
     }
 
     public function render(OutputInterface $output, Frame $frame): void
@@ -44,7 +44,7 @@ final class Smtp implements Renderer
         // Text body
         $i = 0;
         foreach ($message->getMessages() as $text) {
-            Common::renderHeader3($output, sprintf('Body %s', ++$i > 1 ? $i : ''));
+            Common::renderHeader3($output, \sprintf('Body %s', 1 < ++$i ? $i : ''));
             if (\count($message->getMessages()) > 1) {
                 Common::renderHeaders($output, $text->getHeaders());
                 $output->writeln('');

@@ -6,9 +6,6 @@ namespace Buggregator\Trap\Socket;
 
 use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Traffic\StreamClient;
-use DateTimeImmutable;
-use Fiber;
-use Generator;
 use IteratorAggregate;
 
 /**
@@ -16,22 +13,15 @@ use IteratorAggregate;
  * Use {@see Server::$clientInflector} to wrap {@see Client} into {@see self}.
  *
  * @internal
+ *
  * @implements IteratorAggregate<int, string>
  */
-final class SocketStream implements IteratorAggregate, StreamClient
+final class SocketStream implements \IteratorAggregate, StreamClient
 {
     /** @var \SplQueue<string> */
     private \SplQueue $queue;
     private bool $disconnected = false;
-    private readonly DateTimeImmutable $createdAt;
-
-    private function __construct(
-        private Client $client,
-        public readonly int $clientId,
-    ) {
-        $this->queue = new \SplQueue();
-        $this->createdAt = new DateTimeImmutable();
-    }
+    private readonly \DateTimeImmutable $createdAt;
 
     public static function create(Client $client, int $id): self
     {
@@ -47,31 +37,32 @@ final class SocketStream implements IteratorAggregate, StreamClient
         return $self;
     }
 
-    public function getCreatedAt(): DateTimeImmutable
+    public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
     }
 
     public function hasData(): bool
     {
-        return !$this->queue->isEmpty();
+        return ! $this->queue->isEmpty();
     }
 
     public function waitData(?Timer $timer = null): void
     {
         $before = $this->queue->count();
         do {
-            Fiber::suspend();
-        } while (!$this->disconnected && $this->queue->count() === $before && $timer?->isReady() !== true);
+            \Fiber::suspend();
+        } while (! $this->disconnected && $this->queue->count() === $before && $timer?->isReady() !== true);
     }
 
     public function sendData(string $data): bool
     {
-        if ($data === '' || $this->isDisconnected()) {
+        if ('' === $data || $this->isDisconnected()) {
             return false;
         }
 
         $this->client->send($data);
+
         return true;
     }
 
@@ -97,18 +88,18 @@ final class SocketStream implements IteratorAggregate, StreamClient
     {
         $line = '';
 
-        while (!$this->isFinished()) {
-            while (!$this->queue->isEmpty() && !\str_contains($this->queue[0], "\n")) {
+        while (! $this->isFinished()) {
+            while (! $this->queue->isEmpty() && ! \str_contains($this->queue[0], "\n")) {
                 $line .= $this->queue->dequeue();
                 $this->waitData();
             }
 
             // Split chunk by EOL
-            if (!$this->queue->isEmpty()) {
+            if (! $this->queue->isEmpty()) {
                 $split = \explode("\n", $this->queue[0], 2);
                 $line .= $split[0] . "\n";
 
-                if (!isset($split[1]) || $split[1] === '') {
+                if (! isset($split[1]) || '' === $split[1]) {
                     $this->queue->dequeue();
                 } else {
                     $this->queue[0] = $split[1];
@@ -132,14 +123,22 @@ final class SocketStream implements IteratorAggregate, StreamClient
         return \implode('', [...$this->queue]);
     }
 
-    public function getIterator(): Generator
+    public function getIterator(): \Generator
     {
-        while (!$this->disconnected || !$this->queue->isEmpty()) {
+        while (! $this->disconnected || ! $this->queue->isEmpty()) {
             if ($this->queue->isEmpty()) {
-                Fiber::suspend();
+                \Fiber::suspend();
                 continue;
             }
             yield $this->queue->dequeue();
         }
+    }
+
+    private function __construct(
+        private Client $client,
+        public readonly int $clientId,
+    ) {
+        $this->queue = new \SplQueue();
+        $this->createdAt = new \DateTimeImmutable();
     }
 }

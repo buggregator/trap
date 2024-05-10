@@ -38,15 +38,17 @@ final class Container implements ContainerInterface, Destroyable
 
     /**
      * @template T of object
+     *
      * @param class-string<T> $id
-     * @param array $arguments Will be used if the object is created for the first time.
+     * @param array $arguments will be used if the object is created for the first time
+     *
      * @return T
      *
      * @psalm-suppress MoreSpecificImplementedParamType, InvalidReturnType
      */
     public function get(string $id, array $arguments = []): object
     {
-        /** @psalm-suppress InvalidReturnStatement */
+        /* @psalm-suppress InvalidReturnStatement */
         return $this->cache[$id] ??= $this->make($id, $arguments);
     }
 
@@ -62,12 +64,13 @@ final class Container implements ContainerInterface, Destroyable
 
     /**
      * @template T of object
+     *
      * @param T $service
      * @param class-string<T>|null $id
      */
     public function set(object $service, ?string $id = null): void
     {
-        \assert($id === null || $service instanceof $id, "Service must be instance of {$id}.");
+        \assert(null === $id || $service instanceof $id, "Service must be instance of {$id}.");
         $this->cache[$id ?? \get_class($service)] = $service;
     }
 
@@ -75,7 +78,9 @@ final class Container implements ContainerInterface, Destroyable
      * Create an object of the specified class without caching.
      *
      * @template T
+     *
      * @param class-string<T> $class
+     *
      * @return T
      */
     public function make(string $class, array $arguments = []): object
@@ -88,7 +93,7 @@ final class Container implements ContainerInterface, Destroyable
             try {
                 $result = $this->injector->make($class, \array_merge((array) $binding, $arguments));
             } catch (\Throwable $e) {
-                throw new class (previous: $e) extends \RuntimeException implements NotFoundExceptionInterface {};
+                throw new class(previous: $e) extends \RuntimeException implements NotFoundExceptionInterface {};
             }
         }
 
@@ -109,6 +114,7 @@ final class Container implements ContainerInterface, Destroyable
      * Declare a factory or predefined arguments for the specified class.
      *
      * @template T of object
+     *
      * @param class-string<T> $id
      * @param array|\Closure(Container): T $binding
      */

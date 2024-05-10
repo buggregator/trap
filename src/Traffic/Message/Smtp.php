@@ -6,10 +6,8 @@ namespace Buggregator\Trap\Traffic\Message;
 
 use Buggregator\Trap\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
-use Buggregator\Trap\Traffic\Message\Multipart\Part;
 use Buggregator\Trap\Traffic\Message\Smtp\Contact;
 use Buggregator\Trap\Traffic\Message\Smtp\MessageFormat;
-use JsonSerializable;
 use Psr\Http\Message\StreamInterface;
 
 /**
@@ -27,7 +25,7 @@ use Psr\Http\Message\StreamInterface;
  *
  * @internal
  */
-final class Smtp implements JsonSerializable
+final class Smtp implements \JsonSerializable
 {
     use Headers;
     use StreamBody;
@@ -37,17 +35,6 @@ final class Smtp implements JsonSerializable
 
     /** @var list<File> */
     private array $attachments = [];
-
-    /**
-     * @param array<non-empty-string, list<string>> $protocol
-     * @param array<array-key, scalar|list<non-empty-string>> $headers
-     */
-    private function __construct(
-        private readonly array $protocol,
-        array $headers,
-    ) {
-        $this->setHeaders($headers);
-    }
 
     /**
      * @param array<non-empty-string, list<string>> $protocol
@@ -107,6 +94,7 @@ final class Smtp implements JsonSerializable
     {
         $clone = clone $this;
         $clone->messages = $messages;
+
         return $clone;
     }
 
@@ -117,6 +105,7 @@ final class Smtp implements JsonSerializable
     {
         $clone = clone $this;
         $clone->attachments = $attachments;
+
         return $clone;
     }
 
@@ -187,6 +176,17 @@ final class Smtp implements JsonSerializable
         }
 
         return null;
+    }
+
+    /**
+     * @param array<non-empty-string, list<string>> $protocol
+     * @param array<array-key, scalar|list<non-empty-string>> $headers
+     */
+    private function __construct(
+        private readonly array $protocol,
+        array $headers,
+    ) {
+        $this->setHeaders($headers);
     }
 
     private function parseContact(string $line): Contact

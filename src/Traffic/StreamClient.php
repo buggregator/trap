@@ -5,37 +5,39 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Traffic;
 
 use Buggregator\Trap\Support\Timer;
-use DateTimeImmutable;
 use Generator;
 
 /**
  * Simple abstraction over a client two-way stream.
+ *
  * @internal
+ *
  * @psalm-internal Buggregator\Trap
+ *
  * @extends \IteratorAggregate<int, string>
  */
 interface StreamClient extends \IteratorAggregate
 {
-    public function getCreatedAt(): DateTimeImmutable;
+    public function getCreatedAt(): \DateTimeImmutable;
 
     public function hasData(): bool;
 
     public function waitData(?Timer $timer = null): void;
 
     /**
-     * @return bool Return {@see false} if data is empty or stream was closed.
+     * @return bool return {@see false} if data is empty or stream was closed
      */
     public function sendData(string $data): bool;
 
     public function disconnect(): void;
 
     /**
-     * @return bool Return {@see true} if stream was closed.
+     * @return bool return {@see true} if stream was closed
      */
     public function isDisconnected(): bool;
 
     /**
-     * @return bool Return {@see true} if there will be no more data.
+     * @return bool return {@see true} if there will be no more data
      */
     public function isFinished(): bool;
 
@@ -60,7 +62,7 @@ interface StreamClient extends \IteratorAggregate
      * Cleans cache.
      * Uses {@see Fiber} to wait for all data.
      *
-     * @return Generator<int, string, mixed, void>
+     * @return \Generator<int, string, mixed, void>
      */
-    public function getIterator(): Generator;
+    public function getIterator(): \Generator;
 }

@@ -12,7 +12,10 @@ use function PHPUnit\Framework\assertSame;
 
 final class SourceTest extends TestCase
 {
-    public function testHere(): void
+    /**
+     * @test
+     */
+    public function here(): void
     {
         $this->staticState();
 
@@ -21,11 +24,14 @@ final class SourceTest extends TestCase
         self::assertSame(__LINE__ - 4, $this->getContext()['line']);
     }
 
-    public function testOnDestruct(): void
+    /**
+     * @test
+     */
+    public function on_destruct(): void
     {
         $this->staticState();
 
-        new class {
+        new class() {
             public function __destruct()
             {
                 assertSame(\basename(__FILE__), (new Source())->getContext()['name']);

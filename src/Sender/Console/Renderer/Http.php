@@ -22,7 +22,7 @@ final class Http implements Renderer
 {
     public function isSupport(Frame $frame): bool
     {
-        return $frame->type === ProtoType::HTTP;
+        return ProtoType::HTTP === $frame->type;
     }
 
     public function render(OutputInterface $output, Frame $frame): void
@@ -92,14 +92,14 @@ final class Http implements Renderer
                         (string) $file->getClientFilename(),
                         $size,
                         (string) $file->getClientMediaType(),
-                        Field: \sprintf("%s[%s]", $name, $subName)
+                        Field: \sprintf('%s[%s]', $name, $subName)
                     );
                 }
             }
         }
 
         // Decoded Body block
-        if (!$hasParsedBody && !$hasFiles && $body->getSize() > 0) {
+        if (! $hasParsedBody && ! $hasFiles && $body->getSize() > 0) {
             $toRead = (int) \min(256, $body->getSize());
             Common::renderHeader3($output, \sprintf(
                 'Body (first %d bytes of %d)',

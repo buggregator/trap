@@ -17,12 +17,12 @@ trait FiberTrait
     {
         $fiber = new \Fiber($callback);
         $fiber->start();
-        do {
+        while (true) {
             if ($fiber->isTerminated()) {
                 return $fiber->getReturn();
             }
             $fiber->resume();
-        } while (true);
+        }
     }
 
     /**

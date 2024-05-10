@@ -7,4 +7,6 @@ namespace Buggregator\Trap\Service\Config;
 /**
  * @internal
  */
-interface ConfigAttribute {}
+interface ConfigAttribute
+{
+}

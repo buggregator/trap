@@ -21,11 +21,11 @@ $ruleSet = new DefaultSet([
     ],
     'native_function_invocation' => [
         'include' => [
-            NativeFunctionInvocationFixer::SET_INTERNAL
+            NativeFunctionInvocationFixer::SET_INTERNAL,
         ],
         'scope' => 'namespaced',
         'strict' => false,
-        'exclude' => ['@compiler_optimized']
+        'exclude' => ['@compiler_optimized'],
     ],
 ]);
 

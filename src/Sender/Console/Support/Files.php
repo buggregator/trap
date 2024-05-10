@@ -8,6 +8,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * @internal
+ *
  * @psalm-internal Buggregator\Trap\Sender\Console
  */
 final class Files
@@ -36,7 +37,7 @@ final class Files
     ): void {
         // File extension
         $dotPos = \strrpos($fileName, '.');
-        $ex = $dotPos === false || \strlen($fileName) - $dotPos > 4
+        $ex = false === $dotPos || \strlen($fileName) - $dotPos > 4
             ? '   '
             : \str_pad(\substr($fileName, $dotPos + 1), 3, ' ', \STR_PAD_BOTH);
 
@@ -49,7 +50,7 @@ final class Files
         // Additional info
         foreach ($additional as $key => $line) {
             $output->writeln(
-                \sprintf("<bg=black;fg=magenta> │   │</>  <fg=gray>%s</>", \is_string($key) ? "$key: $line" : $line),
+                \sprintf('<bg=black;fg=magenta> │   │</>  <fg=gray>%s</>', \is_string($key) ? "$key: $line" : $line),
             );
         }
         // File size
@@ -64,15 +65,15 @@ final class Files
      */
     public static function normalizeSize(?int $size): ?string
     {
-        if ($size === null) {
+        if (null === $size) {
             return null;
         }
 
         $units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
         $power = (int) \floor(\log($size, 1024));
-        $float = $power > 0 ? \round($size / (1024 ** $power), 2) : $size;
+        $float = 0 < $power ? \round($size / (1024 ** $power), 2) : $size;
 
-        \assert($power >= 0 && $power <= 5);
+        \assert(0 <= $power && 5 >= $power);
 
         return \sprintf('%s %s', \number_format($float, 2), $units[$power]);
     }

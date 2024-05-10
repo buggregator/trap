@@ -9,14 +9,13 @@ use Buggregator\Trap\Processable;
 use Buggregator\Trap\Proto\Buffer;
 use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Traffic\Dispatcher\Binary;
-use Fiber;
 
 /**
  * @internal
  */
 final class Inspector implements Processable
 {
-    /** @var Fiber[] */
+    /** @var \Fiber[] */
     private array $fibers = [];
     /** @var Dispatcher[] */
     private array $dispatchers;
@@ -31,7 +30,7 @@ final class Inspector implements Processable
 
     public function addStream(StreamClient $stream): void
     {
-        $this->fibers[] = new Fiber(fn() => $this->processStream($stream));
+        $this->fibers[] = new \Fiber(fn () => $this->processStream($stream));
     }
 
     public function process(): void
@@ -60,11 +59,11 @@ final class Inspector implements Processable
         do {
             foreach ($dispatchers as $key => $dispatcher) {
                 $result = $dispatcher->detect($stream->getData(), $stream->getCreatedAt());
-                if ($result === true) {
+                if (true === $result) {
                     $dispatchers = [$dispatcher];
                     break 2;
                 }
-                if ($result === false) {
+                if (false === $result) {
                     unset($dispatchers[$key]);
                 }
             }
@@ -78,7 +77,7 @@ final class Inspector implements Processable
             $stream->waitData(new Timer(0.1));
         } while (\count($dispatchers) > 0);
 
-        $dispatcher = $dispatchers === []
+        $dispatcher = [] === $dispatchers
             ? new Binary()
             : \reset($dispatchers);
 

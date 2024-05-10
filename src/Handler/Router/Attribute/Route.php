@@ -13,5 +13,6 @@ abstract class Route
 {
     public function __construct(
         public Method $method,
-    ) {}
+    ) {
+    }
 }

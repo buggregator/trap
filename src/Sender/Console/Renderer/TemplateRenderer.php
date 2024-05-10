@@ -15,11 +15,12 @@ final class TemplateRenderer
     public function __construct(
         private readonly HtmlRenderer $renderer,
         private readonly TemplateEngine $templateEngine,
-    ) {}
+    ) {
+    }
 
     public function render(string $template, array $data = []): void
     {
-        /** @psalm-suppress InternalMethod */
+        /* @psalm-suppress InternalMethod */
         $this->renderer->render(
             $this->templateEngine->render($template, $data),
             0,

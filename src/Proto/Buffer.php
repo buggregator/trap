@@ -27,7 +27,7 @@ final class Buffer
         public int $bufferSize,
         ?float $timer = null,
     ) {
-        $this->timer = $timer === null ? null : new Timer(beep: 0.1);
+        $this->timer = null === $timer ? null : new Timer(beep: 0.1);
         $this->timer?->stop();
     }
 

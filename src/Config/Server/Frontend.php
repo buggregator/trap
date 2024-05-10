@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Config\Server;
 
-use Buggregator\Trap\Service\Config\InputOption;
 use Buggregator\Trap\Service\Config\Env;
+use Buggregator\Trap\Service\Config\InputOption;
 use Buggregator\Trap\Service\Config\XPath;
 
 /**

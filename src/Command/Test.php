@@ -6,16 +6,13 @@ namespace Buggregator\Trap\Command;
 
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Logger;
-use DateTimeImmutable;
-use RuntimeException;
-use Socket;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * Run application
+ * Run application.
  *
  * @internal
  */
@@ -49,7 +46,6 @@ final class Test extends Command
         \usleep(100_000);
         $this->sendContent('90275024.png');
 
-
         return Command::SUCCESS;
     }
 
@@ -60,7 +56,7 @@ final class Test extends Command
 
         \trap(['foo' => 'bar']);
         \trap(123);
-        \trap(new DateTimeImmutable());
+        \trap(new \DateTimeImmutable());
 
         $message = (new \Buggregator\Trap\Test\Proto\Message())
             ->setId(123)
@@ -85,7 +81,7 @@ final class Test extends Command
             @\socket_connect($socket, $this->addr, $this->port);
             @\socket_write($socket, $message->serializeToString());
         } catch (\Throwable $e) {
-            $this->logger->exception($e, "Proto sending error", important: true);
+            $this->logger->exception($e, 'Proto sending error', important: true);
         } finally {
             if (isset($socket)) {
                 @\socket_close($socket);
@@ -180,7 +176,6 @@ final class Test extends Command
             $this->sendMailPackage($output, $socket, "QUIT\r\n", '221 ');
 
             \socket_close($socket);
-
         } catch (\Throwable $e) {
             $this->logger->exception($e, 'Mail protocol error', important: true);
         }
@@ -188,11 +183,11 @@ final class Test extends Command
 
     private function sendMailPackage(
         OutputInterface $output,
-        Socket $socket,
+        \Socket $socket,
         string $content,
         string $expectedResponsePrefix,
     ): void {
-        if ($content !== '') {
+        if ('' !== $content) {
             \socket_write($socket, $content);
             // print green "hello" string in raw console markup
             $output->write(
@@ -202,13 +197,14 @@ final class Test extends Command
             );
         }
 
-        if ($expectedResponsePrefix === '') {
+        if ('' === $expectedResponsePrefix) {
             return;
         }
         @\socket_recv($socket, $buf, 65536, 0);
         /** @var string|null $buf */
-        if ($buf === null) {
+        if (null === $buf) {
             $output->writeln('<error>Disconnected</>');
+
             return;
         }
 
@@ -223,7 +219,7 @@ final class Test extends Command
 
         $prefix = \substr($buf, 0, \strlen($expectedResponsePrefix));
         if ($prefix !== $expectedResponsePrefix) {
-            throw new RuntimeException("Invalid response `$buf`. Prefix `$expectedResponsePrefix` expected.");
+            throw new \RuntimeException("Invalid response `$buf`. Prefix `$expectedResponsePrefix` expected.");
         }
     }
 
@@ -237,15 +233,14 @@ final class Test extends Command
             @\socket_connect($socket, $this->addr, $this->port);
 
             $fp = @\fopen(Info::TRAP_ROOT . '/resources/payloads/' . $file, 'rb');
-            if ($fp === false) {
-                throw new RuntimeException('Cannot open file.');
+            if (false === $fp) {
+                throw new \RuntimeException('Cannot open file.');
             }
             @\flock($fp, LOCK_SH);
-            while (!\feof($fp)) {
+            while (! \feof($fp)) {
                 $read = \fread($fp, 4096);
                 @\socket_write($socket, $read);
             }
-
         } catch (\Throwable $e) {
             $this->logger->exception($e, "$file sending error", important: true);
         } finally {
