@@ -31,16 +31,18 @@ class Info
     public static function version(): string
     {
         $versionPath = self::TRAP_ROOT . '/src/version.json';
-        if (!file_exists($versionPath)) {
+        $versionContents = file_get_contents($versionPath);
+
+        if ($versionContents === false) {
             return self::VERSION;
         }
 
-        /** @var array $versionData */
-        $versionData = json_decode(file_get_contents($versionPath), true);
+        $versionData = json_decode($versionContents, true);
 
-        if (!isset($versionData['.']) || !is_string($versionData['.'])) {
+        if (!is_array($versionData) || !isset($versionData['.']) || !is_string($versionData['.'])) {
             return self::VERSION;
         }
+
         return $versionData['.'];
     }
 }
