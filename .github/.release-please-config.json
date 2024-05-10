@@ -44,6 +44,11 @@
             "hidden": true
         },
         {
+            "type": "tests",
+            "section": "Tests",
+            "hidden": true
+        },
+        {
             "type": "build",
             "section": "Build System",
             "hidden": true

@@ -34,6 +34,7 @@ export default {
                 'refactor', // Code refactoring
                 'ci',       // Continuous integration changes
                 'test',     // Adding missing tests
+                'tests',    // Adding missing tests
                 'revert',   // Revert to a previous commit
                 'build',    // Changes that affect the build system
                 'chore',    // Other changes that don't modify src or test files
