@@ -10,7 +10,6 @@ namespace Buggregator\Trap;
 class Info
 {
     public const NAME = 'Buggregator Trap';
-    public const VERSION = '1.7.0';
     public const LOGO_CLI_COLOR = <<<CONSOLE
         \e[44;97;1m                                    \e[0m
         \e[44;97;1m      ▄█▀                  ▀█▄      \e[0m
@@ -27,4 +26,23 @@ class Info
         CONSOLE;
 
     public const TRAP_ROOT = __DIR__ . '/..';
+    private const VERSION = 'experimental';
+
+    public static function version(): string
+    {
+        $versionPath = self::TRAP_ROOT . '/src/version.json';
+        $versionContents = file_get_contents($versionPath);
+
+        if ($versionContents === false) {
+            return self::VERSION;
+        }
+
+        $versionData = json_decode($versionContents, true);
+
+        if (!is_array($versionData) || !isset($versionData['.']) || !is_string($versionData['.'])) {
+            return self::VERSION;
+        }
+
+        return $versionData['.'];
+    }
 }

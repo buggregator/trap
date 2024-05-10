@@ -12,9 +12,12 @@ use JsonSerializable;
  */
 final class Version implements JsonSerializable
 {
-    public function __construct(
-        public readonly string $number = Info::VERSION,
-    ) {}
+    public readonly string $number;
+
+    public function __construct()
+    {
+        $this->number = Info::version();
+    }
 
     public function jsonSerialize(): array
     {
