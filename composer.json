@@ -1,11 +1,20 @@
 {
     "name": "buggregator/trap",
-    "type": "library",
-    "license": "BSD-3-Clause",
     "description": "A simple and powerful tool for debugging PHP applications.",
-    "homepage": "https://buggregator.dev/",
+    "license": "BSD-3-Clause",
+    "type": "library",
     "keywords": [
-        "debug", "cli", "console", "sentry", "smtp", "dump", "binary dump", "websockets", "server", "helper", "dev"
+        "debug",
+        "cli",
+        "console",
+        "sentry",
+        "smtp",
+        "dump",
+        "binary dump",
+        "websockets",
+        "server",
+        "helper",
+        "dev"
     ],
     "authors": [
         {
@@ -17,6 +26,49 @@
             "homepage": "https://github.com/butschster"
         }
     ],
+    "homepage": "https://buggregator.dev/",
+    "funding": [
+        {
+            "type": "github",
+            "url": "https://github.com/sponsors/buggregator"
+        },
+        {
+            "type": "patreon",
+            "url": "https://patreon.com/roxblnfk"
+        },
+        {
+            "type": "patreon",
+            "url": "https://patreon.com/butschster"
+        }
+    ],
+    "require": {
+        "php": ">=8.1",
+        "ext-sockets": "*",
+        "clue/stream-filter": "^1.6",
+        "nunomaduro/termwind": "^1.15 || ^2",
+        "nyholm/psr7": "^1.8",
+        "php-http/message": "^1.15",
+        "psr/container": "^1.1 || ^2.0",
+        "psr/http-message": "^1.1 || ^2",
+        "symfony/console": "^6.4 || ^7",
+        "symfony/var-dumper": "^6.3 || ^7",
+        "yiisoft/injector": "^1.2"
+    },
+    "require-dev": {
+        "dereuromark/composer-prefer-lowest": "^0.1.10",
+        "ergebnis/composer-normalize": "^2.42",
+        "friendsofphp/php-cs-fixer": "^3.54",
+        "google/protobuf": "^3.23",
+        "phpunit/phpunit": "^10.4",
+        "roxblnfk/unpoly": "^1.8.1",
+        "vimeo/psalm": "^5.11"
+    },
+    "suggest": {
+        "ext-simplexml": "To load trap.xml",
+        "roxblnfk/unpoly": "If you want to remove unnecessary PHP polyfills depend on PHP version."
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
     "autoload": {
         "psr-4": {
             "Buggregator\\Trap\\": "src/"
@@ -33,49 +85,11 @@
     "bin": [
         "bin/trap"
     ],
-    "funding": [
-        {
-            "type": "github",
-            "url": "https://github.com/sponsors/buggregator"
-        },
-        {
-            "type": "patreon",
-            "url": "https://patreon.com/roxblnfk"
-        },
-        {
-            "type": "patreon",
-            "url": "https://patreon.com/butschster"
-        }
-    ],
     "config": {
+        "allow-plugins": {
+            "ergebnis/composer-normalize": true
+        },
         "sort-packages": true
-    },
-    "minimum-stability": "dev",
-    "prefer-stable": true,
-    "require": {
-        "php": ">=8.1",
-        "ext-sockets": "*",
-        "clue/stream-filter": "^1.6",
-        "nunomaduro/termwind": "^1.15 || ^2",
-        "nyholm/psr7": "^1.8",
-        "php-http/message": "^1.15",
-        "psr/container": "^1.1 || ^2.0",
-        "psr/http-message": "^1.1 || ^2",
-        "symfony/console": "^6.4 || ^7",
-        "symfony/var-dumper": "^6.3 || ^7",
-        "yiisoft/injector": "^1.2"
-    },
-    "require-dev": {
-        "dereuromark/composer-prefer-lowest": "^0.1.10",
-        "friendsofphp/php-cs-fixer": "^3.54",
-        "google/protobuf": "^3.23",
-        "phpunit/phpunit": "^10.4",
-        "roxblnfk/unpoly": "^1.8.1",
-        "vimeo/psalm": "^5.11"
-    },
-    "suggest": {
-        "ext-simplexml": "To load trap.xml",
-        "roxblnfk/unpoly": "If you want to remove unnecessary PHP polyfills depend on PHP version."
     },
     "scripts": {
         "cs-check": "vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.php --dry-run",
