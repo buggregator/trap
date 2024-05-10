@@ -21,4 +21,4 @@ return (new Config())
             ->in([__DIR__ . '/src'])
             ->exclude(['Test/Proto/']),
     )
-    ->setCacheFile('.cache/.php-cs-fixer.cache');
+    ->setCacheFile(__DIR__ . '/.build/php-cs-fixer/php-cs-fixer.cache');
