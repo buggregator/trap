@@ -28,21 +28,31 @@ class Info
     public const TRAP_ROOT = __DIR__ . '/..';
     private const VERSION = 'experimental';
 
+    private static ?string $cachedVersion = null;
+
     public static function version(): string
     {
+        if (self::$cachedVersion !== null) {
+            return self::$cachedVersion;
+        }
+
         $versionPath = self::TRAP_ROOT . '/src/version.json';
         $versionContents = file_get_contents($versionPath);
 
         if ($versionContents === false) {
-            return self::VERSION;
+            self::$cachedVersion = self::VERSION;
+            return self::$cachedVersion;
         }
 
         $versionData = json_decode($versionContents, true);
 
         if (!is_array($versionData) || !isset($versionData['.']) || !is_string($versionData['.'])) {
-            return self::VERSION;
+            self::$cachedVersion = self::VERSION;
+            return self::$cachedVersion;
         }
 
-        return $versionData['.'];
+        self::$cachedVersion = $versionData['.'];
+
+        return self::$cachedVersion;
     }
 }
