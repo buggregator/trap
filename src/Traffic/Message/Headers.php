@@ -137,7 +137,7 @@ trait Headers
      * OWS          = *( SP / HTAB )
      * field-value  = *( ( %x21-7E / %x80-FF ) [ 1*( SP / HTAB ) ( %x21-7E / %x80-FF ) ] )
      *
-     * @see https://tools.ietf.org/html/rfc7230#section-3.2.4
+     * @link https://tools.ietf.org/html/rfc7230#section-3.2.4
      *
      * @psalm-assert non-empty-string $header
      *

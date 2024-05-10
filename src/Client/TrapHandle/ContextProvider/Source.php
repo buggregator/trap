@@ -16,8 +16,8 @@ use Twig\Template;
  * @author Nicolas Grekas <p@tchwork.com>
  * @author Maxime Steinhausser <maxime.steinhausser@gmail.com>
  *
- * @see https://github.com/symfony/var-dumper/blob/7.0/Dumper/ContextProvider/SourceContextProvider.php
- * @see https://github.com/symfony/var-dumper/blob/6.3/Dumper/ContextProvider/SourceContextProvider.php
+ * @link https://github.com/symfony/var-dumper/blob/7.0/Dumper/ContextProvider/SourceContextProvider.php
+ * @link https://github.com/symfony/var-dumper/blob/6.3/Dumper/ContextProvider/SourceContextProvider.php
  *
  * @psalm-suppress all
  *

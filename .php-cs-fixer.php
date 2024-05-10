@@ -19,18 +19,29 @@ return (new Config())
             'import_classes' => false,
         ],
         'phpdoc_align' => ['align' => 'left'],
-        'phpdoc_line_span' => ['const' => 'multi', 'property' => 'multi', 'method' => 'multi'],
+        'phpdoc_line_span' => [
+            'const' => 'multi',
+            'property' => 'multi',
+            'method' => 'multi',
+        ],
         'phpdoc_to_comment' => false,
         'single_line_comment_style' => ['comment_types' => ['hash']],
         'multiline_comment_opening_closing' => false,
         'yoda_style' => ['equal' => false, 'identical' => false, 'less_and_greater' => false],
+        'phpdoc_no_alias_tag' => [
+            'replacements' => [
+                'property-read' => 'property',
+                'property-write' => 'property',
+                'type' => 'var',
+            ],
+        ],
     ])
     ->setRiskyAllowed(true)
     ->setFinder(
         (new Finder())
             ->files()
             ->name('*.php')
-            ->in([__DIR__ . '/src'])
+            ->in([__DIR__.'/src'])
             ->exclude(['Test/Proto/']),
     )
     ->setCacheFile('.cache/.php-cs-fixer.cache')

@@ -105,7 +105,7 @@ namespace Buggregator\Trap\Traffic\Websocket;
  *      is equal to the payload length minus the length of the "Extension
  *      data".
  *
- * @see https://datatracker.ietf.org/doc/html/rfc6455#section-5.2
+ * @link https://datatracker.ietf.org/doc/html/rfc6455#section-5.2
  *
  * @internal
  */

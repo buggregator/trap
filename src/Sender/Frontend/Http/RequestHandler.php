@@ -14,8 +14,8 @@ use Psr\Http\Message\ServerRequestInterface;
 /**
  * Read about Sec-WebSocket-Extensions:
  *
- * @see https://datatracker.ietf.org/doc/html/rfc7692
- * @see https://www.igvita.com/2013/11/27/configuring-and-optimizing-websocket-compression/
+ * @link https://datatracker.ietf.org/doc/html/rfc7692
+ * @link https://www.igvita.com/2013/11/27/configuring-and-optimizing-websocket-compression/
  *
  * @internal
  *

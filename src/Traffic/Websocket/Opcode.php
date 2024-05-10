@@ -18,7 +18,7 @@ namespace Buggregator\Trap\Traffic\Websocket;
  *  %xA denotes a pong
  *  %xB-F are reserved for further control frames
  *
- * @see https://datatracker.ietf.org/doc/html/rfc6455#section-5.2
+ * @link https://datatracker.ietf.org/doc/html/rfc6455#section-5.2
  *
  * @internal
  *
