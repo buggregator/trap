@@ -26,19 +26,20 @@ class Info
         CONSOLE;
 
     public const TRAP_ROOT = __DIR__ . '/..';
+    private const VERSION = 'experimental';
 
     public static function version(): string
     {
         $versionPath = self::TRAP_ROOT . '/src/version.json';
         if (!file_exists($versionPath)) {
-            throw new \RuntimeException('Version file not found.');
+            return self::VERSION;
         }
 
         /** @var array $versionData */
         $versionData = json_decode(file_get_contents($versionPath), true);
 
         if (!isset($versionData['.']) || !is_string($versionData['.'])) {
-            throw new \RuntimeException('Version key not found or is not a string in JSON.');
+            return self::VERSION;
         }
         return $versionData['.'];
     }
