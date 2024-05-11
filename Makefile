@@ -5,6 +5,10 @@
 # https://docs.docker.com/compose/environment-variables/envvars/
 export DOCKER_BUILDKIT ?= 1
 
+# User ID and Group ID to use inside docker containers
+HOST_UID ?= $(shell id -u)
+HOST_GID ?= $(shell id -g)
+
 # Docker binary to use, when executing docker tasks
 DOCKER ?= docker
 
@@ -49,8 +53,9 @@ PHIVE_RUNNER ?= $(DOCKER_COMPOSE) run --rm --no-deps app
 
 EXPORT_VARS = '\
 	$${COMPOSE_PROJECT_NAME} \
-	$${COMPOSER_AUTH}'
-
+	$${COMPOSER_AUTH} \
+	$${HOST_UID} \
+	$${HOST_GID}'
 
 #
 # Self documenting Makefile code
@@ -170,8 +175,16 @@ update: ## Updates composer dependencies by running composer update command
 .PHONY: update
 
 phive: ## Installs dependencies with phive
-	$(APP_RUNNER) /usr/local/bin/phive install --trust-gpg-keys 0x033E5F8D801A2F8D
+	$(APP_RUNNER) /usr/local/bin/phive install --trust-gpg-keys 0xC00543248C87FB13,0x033E5F8D801A2F8D,0x2DF45277AEF09A2F
 .PHONY: phive
+
+phar:
+	$(APP_RUNNER) sh -c "git config --global --add safe.directory /app \
+		&& .phive/box validate \
+		&& .phive/box compile \
+		&& .phive/box info .build/phar/trap.phar \
+		&& .build/phar/trap.phar"
+.PHONY: phar
 
 #
 # Code Quality, Git, Linting
