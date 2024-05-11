@@ -253,7 +253,7 @@ lint-deps: ## Runs composer-require-checker – checks for dependencies that are
 .PHONY: lint-deps
 
 lint-composer: ## Normalize composer.json and composer.lock files
-	$(APP_COMPOSER) normalize
+	$(APP_RUNNER) .phive/composer-normalize normalize
 .PHONY: lint-composer
 
 lint-audit: ## Runs security checks for composer dependencies
@@ -289,4 +289,3 @@ test-cc: ## Run project php-unit and pest tests in coverage mode and build repor
 commit:
 	czg commit --config="./.github/.cz.config.js"
 .PHONY: commit
-
