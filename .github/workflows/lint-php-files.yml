@@ -18,10 +18,15 @@ name: 🧹 Fix PHP coding standards
 
 jobs:
   coding-standards:
-    runs-on: ubuntu-latest
     timeout-minutes: 4
+    runs-on: ${{ matrix.os }}
+    concurrency:
+      cancel-in-progress: true
+      group: coding-standards-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
     strategy:
       matrix:
+        os:
+          - ubuntu-latest
         php-version:
           - '8.2'
         dependencies:
