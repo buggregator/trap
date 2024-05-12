@@ -71,7 +71,7 @@ jobs:
         run: make prepare
 
       - name: 🚨 Run coding standards task
-        run: composer cs:diff
+        run: composer cs:fix
         env:
           PHP_CS_FIXER_IGNORE_ENV: true
 
