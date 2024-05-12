@@ -91,7 +91,7 @@ jobs:
         run: rm ${{ env.GPG_KEYS }}
 
       - name: 🏷️ Determine tag
-        run: "echo \"RELEASE_TAG=${GITHUB_REF#refs/tags/}\" >> $GITHUB_ENV"
+        run: 'echo RELEASE_TAG="${GITHUB_REF#refs/tags/}" >> "$GITHUB_ENV"'
 
       - name: 📤 Upload release assets
         uses: actions/github-script@v7.0.1
