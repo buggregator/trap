@@ -88,6 +88,12 @@
         "allow-plugins": {
             "ergebnis/composer-normalize": true
         },
+        "audit": {
+            "abandoned": "report"
+        },
+        "platform": {
+            "php": "8.1.27"
+        },
         "sort-packages": true
     },
     "scripts": {
