@@ -6,13 +6,13 @@ on:  # yamllint disable-line rule:truthy
       - 'src/**'
       - 'tests/**'
       - 'bin/trap'
-      - '.php-cs-fixer.php.dist'
+      - '.php-cs-fixer.dist.php'
   push:
     paths:
       - 'src/**'
       - 'tests/**'
       - 'bin/trap'
-      - '.php-cs-fixer.php.dist'
+      - '.php-cs-fixer.dist.php'
 
 name: 🔍 Static analysis
 
