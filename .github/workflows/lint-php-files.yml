@@ -85,5 +85,6 @@ jobs:
         with:
           commit_message: 'style(php-cs-fixer): lint php files and fix coding standards'
           branch: ${{ github.head_ref }}
+          commit_author: "github-actions <github-actions@users.noreply.github.com>"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
