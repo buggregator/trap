@@ -112,8 +112,8 @@
         "stan": "php vendor/bin/phpstan analyse --memory-limit=2G",
         "stan:baseline": "php vendor/bin/phpstan analyse --generate-baseline --memory-limit=2G --allow-empty-baseline",
         "stan:ci": "php vendor/bin/phpstan analyse --memory-limit=2G --error-format=github",
-        "test": "XDEBUG_MODE=coverage php vendor/bin/pest --exclude-group phpunit-only",
-        "test:cc": "XDEBUG_MODE=coverage php vendor/bin/pest --coverage --coverage-clover=.build/phpunit/logs/clover.xml --exclude-group phpunit-only",
-        "test:leak": "XDEBUG_MODE=coverage php vendor/bin/phpunit --group phpunit-only"
+        "test": "XDEBUG_MODE=coverage php vendor/bin/pest --exclude-group=phpunit-only --color=always",
+        "test:cc": "XDEBUG_MODE=coverage php vendor/bin/pest --coverage --coverage-clover=.build/phpunit/logs/clover.xml --exclude-group=phpunit-only --color=always",
+        "test:leak": "XDEBUG_MODE=coverage php vendor/bin/phpunit --group=phpunit-only --color=always --testsuite=Unit"
     }
 }
