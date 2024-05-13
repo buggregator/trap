@@ -16,7 +16,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     concurrency:
       cancel-in-progress: true
-      group: testing-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+      group: testing-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ matrix.php-version }}-${{ matrix.dependencies }}
     strategy:
       fail-fast: true
       matrix:
