@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="./vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         cacheResultFile=".build/phpunit/result.cache"
+         failOnWarning="true"
+         failOnRisky="true"
+         executionOrder="random"
+         stderr="true"
+         beStrictAboutOutputDuringTests="true"
+>
+    <extensions>
+        <bootstrap class="Ergebnis\PHPUnit\SlowTestDetector\Extension"/>
+    </extensions>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+    </testsuites>
+    <coverage>
+        <report>
+            <html outputDirectory=".build/coverage"/>
+            <text outputFile=".build/coverage.txt"/>
+            <clover outputFile=".build/logs/clover.xml"/>
+        </report>
+    </coverage>
+    <logging>
+        <junit outputFile=".build/report.junit.xml"/>
+    </logging>
+    <source>
+        <include>
+            <directory>src</directory>
+        </include>
+        <exclude>
+            <directory>tests</directory>
+            <directory>src/Test</directory>
+        </exclude>
+    </source>
+</phpunit>
