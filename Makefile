@@ -283,6 +283,10 @@ test-cc: ## Run project php-unit and pest tests in coverage mode and build repor
 	$(APP_COMPOSER) test:cc
 .PHONY: test-cc
 
+test-leak: ## Run project php-unit tests in memory leak detection mode
+	$(APP_COMPOSER) test:leak
+.PHONY: test-leak
+
 #
 # Release
 # ------------------------------------------------------------------------------------
