@@ -55,8 +55,5 @@ jobs:
         with:
           dependencies: ${{ matrix.dependencies }}
 
-      - name: 🐛 Check installed packages using roave/security-advisories
-        run: composer require --dev roave/security-advisories:dev-latest
-
       - name: 🐛 Check installed packages for security vulnerability advisories
         run: composer audit --ansi
