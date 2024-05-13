@@ -114,6 +114,6 @@
         "stan:ci": "php vendor/bin/phpstan analyse --memory-limit=2G --error-format=github",
         "test": "XDEBUG_MODE=coverage php vendor/bin/pest --exclude-group=phpunit-only --color=always",
         "test:cc": "XDEBUG_MODE=coverage php vendor/bin/pest --coverage --coverage-clover=.build/phpunit/logs/clover.xml --exclude-group=phpunit-only --color=always",
-        "test:leak": "XDEBUG_MODE=coverage php vendor/bin/phpunit --group=phpunit-only --color=always --testsuite=Unit"
+        "test:leak": "XDEBUG_MODE=coverage php vendor/bin/phpunit --group=phpunit-only --color=always --exclude-testsuite=Arch"
     }
 }
