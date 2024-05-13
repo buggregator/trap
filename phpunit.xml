@@ -1,17 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="./vendor/phpunit/phpunit/phpunit.xsd"
-         backupGlobals="false"
+         bootstrap="vendor/autoload.php"
          colors="true"
-         processIsolation="false"
          executionOrder="random"
          failOnRisky="true"
          failOnWarning="true"
-         stopOnFailure="false"
-         stopOnError="false"
          stderr="true"
-         cacheDirectory=".phpunit.cache"
-         resolveDependencies="true"
+         cacheResultFile=".build/phpunit/result.cache"
 >
     <testsuites>
         <testsuite name="Unit">
