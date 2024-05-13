@@ -1,18 +1,28 @@
 ---
 
-name: 🔐 Security analysis
-
 on:  # yamllint disable-line rule:truthy
   pull_request:
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'bin/trap'
+      - '.php-cs-fixer.dist.php'
   push:
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'bin/trap'
+      - '.php-cs-fixer.dist.php'
+
+name: 🔍 Static analysis
 
 jobs:
-  security-analysis:
+  static-analysis:
     timeout-minutes: 4
     runs-on: ${{ matrix.os }}
     concurrency:
       cancel-in-progress: true
-      group: security-analysis-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+      group: static-analysis-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
     strategy:
       fail-fast: true
       matrix:
@@ -30,7 +40,7 @@ jobs:
         uses: shivammathur/setup-php@2.30.4
         with:
           php-version: ${{ matrix.php-version }}
-          extensions: none, ctype, dom, json, mbstring, phar, simplexml, tokenizer, xml, xmlwriter, sockets
+          extensions: none, ctype, curl, dom, json, mbstring, phar, simplexml, tokenizer, xml, xmlwriter, sockets, opcache, pcntl, posix
           ini-values: error_reporting=E_ALL
           coverage: none
 
@@ -55,5 +65,5 @@ jobs:
         with:
           dependencies: ${{ matrix.dependencies }}
 
-      - name: 🐛 Check installed packages for security vulnerability advisories
-        run: composer audit --ansi
+      - name: 🔍 Run static analysis using psalm
+        run: composer psalm:ci
