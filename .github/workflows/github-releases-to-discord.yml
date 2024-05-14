@@ -1,4 +1,6 @@
-on:
+---
+
+on:  # yamllint disable-line rule:truthy
   release:
     types: [published]
 

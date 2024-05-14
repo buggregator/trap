@@ -58,9 +58,11 @@
         "dereuromark/composer-prefer-lowest": "^0.1.10",
         "friendsofphp/php-cs-fixer": "^3.54",
         "google/protobuf": "^3.23",
-        "phpunit/phpunit": "^10.4",
+        "pestphp/pest": "^2.34",
+        "phpunit/phpunit": "^10.5",
         "roxblnfk/unpoly": "^1.8.1",
-        "vimeo/psalm": "^5.11"
+        "vimeo/psalm": "^5.11",
+        "ergebnis/phpunit-slow-test-detector": "^2.14"
     },
     "suggest": {
         "ext-simplexml": "To load trap.xml",
@@ -86,7 +88,8 @@
     ],
     "config": {
         "allow-plugins": {
-            "ergebnis/composer-normalize": true
+            "ergebnis/composer-normalize": true,
+            "pestphp/pest-plugin": true
         },
         "audit": {
             "abandoned": "report"
@@ -109,7 +112,8 @@
         "stan": "php vendor/bin/phpstan analyse --memory-limit=2G",
         "stan:baseline": "php vendor/bin/phpstan analyse --generate-baseline --memory-limit=2G --allow-empty-baseline",
         "stan:ci": "php vendor/bin/phpstan analyse --memory-limit=2G --error-format=github",
-        "test": "XDEBUG_MODE=coverage php vendor/bin/phpunit",
-        "test:cc": "XDEBUG_MODE=coverage php vendor/bin/phpunit --coverage --coverage-clover=.build/phpunit/logs/clover.xml"
+        "test": "XDEBUG_MODE=coverage php vendor/bin/pest --exclude-group=phpunit-only --color=always",
+        "test:cc": "XDEBUG_MODE=coverage php vendor/bin/pest --coverage --coverage-clover=.build/phpunit/logs/clover.xml --exclude-group=phpunit-only --color=always",
+        "test:sep": "XDEBUG_MODE=coverage php vendor/bin/phpunit --group=phpunit-only --color=always --exclude-testsuite=Arch"
     }
 }

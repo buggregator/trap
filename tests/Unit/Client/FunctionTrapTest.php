@@ -10,6 +10,8 @@ final class FunctionTrapTest extends TestCase
 {
     /**
      * @runInSeparateProcess
+     *
+     * @group phpunit-only
      */
     public function testLeak(): void
     {
