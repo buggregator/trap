@@ -47,7 +47,7 @@ final class Test extends Command
         $this->sendContent('sentry-store-2.http'); // Sentry Store full
         $this->sendContent('sentry-envelope.http'); // Sentry envelope
         \usleep(100_000);
-        $this->sendContent('90275024.png');
+        $this->sendContent('logo.png');
 
 
         return Command::SUCCESS;
