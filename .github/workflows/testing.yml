@@ -132,5 +132,5 @@ jobs:
       - name: 🧪 Run unit tests using pestphp/pest
         run: composer test
 
-      - name: 🧪 Run "leak test" using phpunit/phpunit
-        run: composer test:leak
+      - name: 🧪 Run tests that require separate process using phpunit/phpunit
+        run: composer test:sep
