@@ -1,9 +1,9 @@
 <div align="center">
     <img alt="logo"
          src="https://github.com/buggregator/trap/blob/master/resources/payloads/logo.png?raw=true"
-         style="width: 3in"
+         style="width: 3in; display: block"
     />
-    <div>Revolutionize Your Debugging Experience with PHP</div>
+    <p align="center">Revolutionize Your Debugging Experience with PHP</p>
 </div>
 <h1 align="center">Buggregator Trap</h1>
 
