@@ -65,5 +65,8 @@ jobs:
         with:
           dependencies: ${{ matrix.dependencies }}
 
-      - name: 🔍 Run static analysis using psalm
+      - name: 🔍 Run static analysis using vimeo/psalm
         run: composer psalm:ci
+
+      - name: 🔍 Run static analysis using phpstan/phpstan
+        run: composer stan:ci

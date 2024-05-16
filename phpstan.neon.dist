@@ -1,0 +1,11 @@
+includes:
+    - phpstan-baseline.neon
+
+parameters:
+    level: 6
+    paths:
+        - bin/
+        - src/
+        - tests/
+        - .php-cs-fixer.dist.php
+    tmpDir: .build/phpstan/
