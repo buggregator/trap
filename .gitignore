@@ -1,4 +1,5 @@
 /.*/
+!/.phive/
 !/.github/
 /runtime/
 /vendor/
