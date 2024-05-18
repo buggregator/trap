@@ -28,21 +28,31 @@ class Info
     public const TRAP_ROOT = __DIR__ . '/..';
     private const VERSION = 'experimental';
 
+    /**
+     * Returns the version of the Trap.
+     *
+     * @return non-empty-string
+     */
     public static function version(): string
     {
-        $versionPath = self::TRAP_ROOT . '/src/version.json';
-        $versionContents = file_get_contents($versionPath);
+        /** @var non-empty-string|null $cache */
+        static $cache = null;
 
-        if ($versionContents === false) {
-            return self::VERSION;
+        if ($cache !== null) {
+            return $cache;
         }
 
-        $versionData = json_decode($versionContents, true);
+        $fileContent = \file_get_contents(self::TRAP_ROOT . '/resources/version.json');
 
-        if (!is_array($versionData) || !isset($versionData['.']) || !is_string($versionData['.'])) {
-            return self::VERSION;
+        if ($fileContent === false) {
+            return $cache = self::VERSION;
         }
 
-        return $versionData['.'];
+        /** @var mixed $version */
+        $version = \json_decode($fileContent, true)['.'] ?? null;
+
+        return $cache = \is_string($version) && $version !== ''
+            ? $version
+            : self::VERSION;
     }
 }
