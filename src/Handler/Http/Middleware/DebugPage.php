@@ -44,7 +44,7 @@ final class DebugPage implements Middleware
                         </div>
                     </body>
                     </html>
-                    HTML
+                    HTML,
             );
         }
 

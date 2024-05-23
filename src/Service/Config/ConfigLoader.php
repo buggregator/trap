@@ -83,7 +83,7 @@ final class ConfigLoader
                         'bool' => \filter_var($value, FILTER_VALIDATE_BOOLEAN),
                         'array' => match (true) {
                             \is_array($value) => $value,
-                            \is_string($value) => explode(',', $value),
+                            \is_string($value) => \explode(',', $value),
                             default => [$value],
                         },
                         default => $value,

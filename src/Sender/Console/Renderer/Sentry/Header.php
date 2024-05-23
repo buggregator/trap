@@ -15,16 +15,16 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 final class Header
 {
-    public static function renderMessageHeader(OutputInterface $output, array $message)
+    public static function renderMessageHeader(OutputInterface $output, array $message): void
     {
         // Collect metadata
         $meta = [];
         /** @var mixed $timeValue */
         $timeValue = $message['sent_at'] ?? $message['timestamp'] ?? 'now';
         try {
-            $time = new DateTimeImmutable(\is_numeric($timeValue) ? "@$timeValue" : (string) $timeValue);
+            $time = new \DateTimeImmutable(\is_numeric($timeValue) ? "@$timeValue" : (string) $timeValue);
         } catch (\Throwable) {
-            $time = new DateTimeImmutable();
+            $time = new \DateTimeImmutable();
         }
         $meta['Time'] = $time;
         isset($message['event_id']) and $meta['Event ID'] = $message['event_id'];

@@ -18,7 +18,7 @@ final class FunctionTrapTest extends TestCase
         $object = new \stdClass();
         $ref = \WeakReference::create($object);
 
-        \trap($object, $object);
+        trap($object, $object);
         unset($object);
 
         $this->assertNull($ref->get());

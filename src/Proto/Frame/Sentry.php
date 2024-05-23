@@ -18,7 +18,7 @@ use DateTimeImmutable;
  */
 abstract class Sentry extends Frame
 {
-    final public static function fromString(string $payload, DateTimeImmutable $time): static
+    final public static function fromString(string $payload, \DateTimeImmutable $time): static
     {
         static::class === self::class or throw new \LogicException(
             \sprintf('Factory method must be called from %s class.', self::class),

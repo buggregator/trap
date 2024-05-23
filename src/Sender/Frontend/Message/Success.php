@@ -9,7 +9,7 @@ use JsonSerializable;
 /**
  * @internal
  */
-final class Success implements JsonSerializable
+final class Success implements \JsonSerializable
 {
     public function __construct(
         public readonly int $code = 200,

@@ -25,7 +25,7 @@ final class Http extends Frame implements FilesCarrier
 
     public function __construct(
         public readonly ServerRequestInterface $request,
-        DateTimeImmutable $time = new DateTimeImmutable(),
+        \DateTimeImmutable $time = new \DateTimeImmutable(),
     ) {
         $this->cachedSize = \max(0, (int) $request->getBody()->getSize() + \array_reduce(
             \iterator_to_array($this->iterateUploadedFiles(), false),
@@ -35,25 +35,7 @@ final class Http extends Frame implements FilesCarrier
         parent::__construct(type: ProtoType::HTTP, time: $time);
     }
 
-    /**
-     * @throws \JsonException
-     */
-    public function __toString(): string
-    {
-        return Json::encode([
-            'headers' => $this->request->getHeaders(),
-            'method' => $this->request->getMethod(),
-            'uri' => (string) $this->request->getUri(),
-            'body' => (string) $this->request->getBody(),
-            'serverParams' => $this->request->getServerParams(),
-            'cookies' => $this->request->getCookieParams(),
-            'queryParams' => $this->request->getQueryParams(),
-            'protocolVersion' => $this->request->getProtocolVersion(),
-            'uploadedFiles' => $this->request->getUploadedFiles(),
-        ]);
-    }
-
-    public static function fromString(string $payload, DateTimeImmutable $time): static
+    public static function fromString(string $payload, \DateTimeImmutable $time): static
     {
         $payload = \json_decode($payload, true, \JSON_THROW_ON_ERROR);
 
@@ -78,10 +60,10 @@ final class Http extends Frame implements FilesCarrier
                             $file['clientFilename'],
                             $file['clientMediaType'],
                         ),
-                        $payload['uploadedFiles'] ?? []
-                    )
+                        $payload['uploadedFiles'] ?? [],
+                    ),
                 ),
-            $time
+            $time,
         );
     }
 
@@ -123,5 +105,23 @@ final class Http extends Frame implements FilesCarrier
         };
 
         return $generator($this->request->getUploadedFiles());
+    }
+
+    /**
+     * @throws \JsonException
+     */
+    public function __toString(): string
+    {
+        return Json::encode([
+            'headers' => $this->request->getHeaders(),
+            'method' => $this->request->getMethod(),
+            'uri' => (string) $this->request->getUri(),
+            'body' => (string) $this->request->getBody(),
+            'serverParams' => $this->request->getServerParams(),
+            'cookies' => $this->request->getCookieParams(),
+            'queryParams' => $this->request->getQueryParams(),
+            'protocolVersion' => $this->request->getProtocolVersion(),
+            'uploadedFiles' => $this->request->getUploadedFiles(),
+        ]);
     }
 }

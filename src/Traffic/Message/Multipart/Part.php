@@ -12,7 +12,7 @@ use RuntimeException;
 /**
  * @internal
  */
-abstract class Part implements JsonSerializable
+abstract class Part implements \JsonSerializable
 {
     use Headers;
 
@@ -37,9 +37,9 @@ abstract class Part implements JsonSerializable
          * @var string $contentDisposition
          */
         $contentDisposition = self::findHeader($headers, 'Content-Disposition')[0]
-            ?? throw new RuntimeException('Missing Content-Disposition header.');
+            ?? throw new \RuntimeException('Missing Content-Disposition header.');
         if ($contentDisposition === '') {
-            throw new RuntimeException('Missing Content-Disposition header, can\'t be empty');
+            throw new \RuntimeException('Missing Content-Disposition header, can\'t be empty');
         }
 
         // Get field name and file name

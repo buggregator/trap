@@ -27,7 +27,7 @@ use Psr\Http\Message\StreamInterface;
  *
  * @internal
  */
-final class Smtp implements JsonSerializable
+final class Smtp implements \JsonSerializable
 {
     use Headers;
     use StreamBody;

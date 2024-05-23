@@ -21,8 +21,8 @@ final class Smtp
     {
         $message = $frame->message;
 
-        /** @var ArrayAccess<non-empty-string, Event\Asset> $assets */
-        $assets = new ArrayObject();
+        /** @var \ArrayAccess<non-empty-string, Event\Asset> $assets */
+        $assets = new \ArrayObject();
 
         return new Event(
             uuid: $uuid = Uuid::generate(),

@@ -92,7 +92,7 @@ final class Http implements Renderer
                         (string) $file->getClientFilename(),
                         $size,
                         (string) $file->getClientMediaType(),
-                        Field: \sprintf("%s[%s]", $name, $subName)
+                        Field: \sprintf("%s[%s]", $name, $subName),
                     );
                 }
             }
@@ -104,7 +104,7 @@ final class Http implements Renderer
             Common::renderHeader3($output, \sprintf(
                 'Body (first %d bytes of %d)',
                 $toRead,
-                (int) $body->getSize()
+                (int) $body->getSize(),
             ));
             $body->rewind();
             $read = $body->read($toRead);

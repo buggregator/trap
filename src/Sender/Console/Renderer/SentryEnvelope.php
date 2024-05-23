@@ -42,7 +42,7 @@ final class SentryEnvelope implements Renderer
                 $this->renderItem($output, $item);
             } catch (\Throwable $e) {
                 $output->writeln(['<fg=red>Render error</>', $e->getMessage()]);
-                \trap($e);
+                trap($e);
             }
         }
     }

@@ -18,11 +18,12 @@ use Psr\Http\Message\StreamInterface;
 final class EnvelopeParser
 {
     private const MAX_TEXT_ITEM_SIZE = 1024 * 1024; // 1MB
+
     private const MAX_BINARY_ITEM_SIZE = 100 * 1024 * 1024; // 100MB
 
     public static function parse(
         StreamInterface $stream,
-        DateTimeImmutable $time = new DateTimeImmutable(),
+        \DateTimeImmutable $time = new \DateTimeImmutable(),
     ): SentryEnvelope {
         // Parse headers
         $headers = \json_decode(self::readLine($stream), true, 4, JSON_THROW_ON_ERROR);
@@ -123,7 +124,7 @@ final class EnvelopeParser
                 break;
             }
 
-            Fiber::suspend();
+            \Fiber::suspend();
         } while (true);
 
         return $result;

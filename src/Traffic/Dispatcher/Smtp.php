@@ -17,8 +17,11 @@ use DateTimeImmutable;
 final class Smtp implements Dispatcher
 {
     private const READY = 220;
+
     public const OK = 250;
+
     public const CLOSING = 221;
+
     public const START_MAIL_INPUT = 354;
 
     private Parser\Smtp $parser;
@@ -64,13 +67,13 @@ final class Smtp implements Dispatcher
         yield new Frame\Smtp($message, $stream->getCreatedAt());
     }
 
-    public function detect(string $data, DateTimeImmutable $createdAt): ?bool
+    public function detect(string $data, \DateTimeImmutable $createdAt): ?bool
     {
         if ($data !== '') {
             return false;
         }
 
-        $interval = $createdAt->diff(new DateTimeImmutable());
+        $interval = $createdAt->diff(new \DateTimeImmutable());
         return $interval->f > 0.5 ? true : null;
     }
 

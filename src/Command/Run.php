@@ -31,6 +31,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 final class Run extends Command implements SignalableCommandInterface
 {
     private ?Application $app = null;
+
     private bool $cancelled = false;
 
     public function configure(): void
@@ -73,6 +74,52 @@ final class Run extends Command implements SignalableCommandInterface
             $servers[] = new SocketServer($port, $config->host, $config->type);
         }
         return $servers;
+    }
+
+    public function createRegistry(OutputInterface $output): Sender\SenderRegistry
+    {
+        $registry = new Sender\SenderRegistry();
+        $registry->register('console', Sender\ConsoleSender::create($output));
+        $registry->register('file', new Sender\FileSender());
+        $registry->register(
+            'server',
+            new Sender\RemoteSender(
+                host: '127.0.0.1',
+                port: 9099,
+            ),
+        );
+
+        return $registry;
+    }
+
+    public function getSubscribedSignals(): array
+    {
+        $result = [];
+        \defined('SIGINT') and $result[] = \SIGINT;
+        \defined('SIGTERM') and $result[] = \SIGTERM;
+
+        return $result;
+    }
+
+    public function handleSignal(int $signal, int|false $previousExitCode = 0): int|false
+    {
+        if (\defined('SIGINT') && $signal === \SIGINT) {
+            if ($this->cancelled) {
+                // Force exit
+                $this->app?->destroy();
+                return $signal;
+            }
+
+            $this->app?->cancel();
+            $this->cancelled = true;
+        }
+
+        if (\defined('SIGTERM') && $signal === \SIGTERM) {
+            $this->app?->destroy();
+            return $signal;
+        }
+
+        return false;
     }
 
     protected function execute(
@@ -120,51 +167,5 @@ final class Run extends Command implements SignalableCommandInterface
         }
 
         return Command::SUCCESS;
-    }
-
-    public function createRegistry(OutputInterface $output): Sender\SenderRegistry
-    {
-        $registry = new Sender\SenderRegistry();
-        $registry->register('console', Sender\ConsoleSender::create($output));
-        $registry->register('file', new Sender\FileSender());
-        $registry->register(
-            'server',
-            new Sender\RemoteSender(
-                host: '127.0.0.1',
-                port: 9099,
-            )
-        );
-
-        return $registry;
-    }
-
-    public function getSubscribedSignals(): array
-    {
-        $result = [];
-        \defined('SIGINT') and $result[] = \SIGINT;
-        \defined('SIGTERM') and $result[] = \SIGTERM;
-
-        return $result;
-    }
-
-    public function handleSignal(int $signal, int|false $previousExitCode = 0): int|false
-    {
-        if (\defined('SIGINT') && $signal === \SIGINT) {
-            if ($this->cancelled) {
-                // Force exit
-                $this->app?->destroy();
-                return $signal;
-            }
-
-            $this->app?->cancel();
-            $this->cancelled = true;
-        }
-
-        if (\defined('SIGTERM') && $signal === \SIGTERM) {
-            $this->app?->destroy();
-            return $signal;
-        }
-
-        return false;
     }
 }

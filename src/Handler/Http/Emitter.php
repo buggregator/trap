@@ -54,7 +54,7 @@ final class Emitter
             'HTTP/%s %d%s',
             $response->getProtocolVersion(),
             $response->getStatusCode(),
-            ($reasonPhrase ? ' ' . $reasonPhrase : '')
+            ($reasonPhrase ? ' ' . $reasonPhrase : ''),
         );
     }
 
@@ -79,7 +79,7 @@ final class Emitter
                 yield \sprintf(
                     '%s: %s',
                     $name,
-                    $value
+                    $value,
                 );
             }
         }
@@ -112,7 +112,7 @@ final class Emitter
             $streamClient->sendData($string);
 
             unset($string);
-            Fiber::suspend();
+            \Fiber::suspend();
         }
 
         if ($chunked) {

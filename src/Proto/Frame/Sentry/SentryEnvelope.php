@@ -30,19 +30,9 @@ final class SentryEnvelope extends Frame\Sentry
     public function __construct(
         public readonly array $headers,
         public readonly array $items,
-        DateTimeImmutable $time = new DateTimeImmutable(),
+        \DateTimeImmutable $time = new \DateTimeImmutable(),
     ) {
         parent::__construct(ProtoType::Sentry, $time);
-    }
-
-    /**
-     * @throws \JsonException
-     */
-    public function __toString(): string
-    {
-        return Json::encode(
-            ['headers' => $this->headers, 'items' => $this->items],
-        );
     }
 
     /**
@@ -50,7 +40,7 @@ final class SentryEnvelope extends Frame\Sentry
      *
      * @param SentryEnvelopeMessage $data
      */
-    public static function fromArray(array $data, DateTimeImmutable $time): static
+    public static function fromArray(array $data, \DateTimeImmutable $time): static
     {
         $items = [];
         foreach ($data['items'] as $item) {
@@ -61,6 +51,16 @@ final class SentryEnvelope extends Frame\Sentry
             $data['headers'],
             $items,
             $time,
+        );
+    }
+
+    /**
+     * @throws \JsonException
+     */
+    public function __toString(): string
+    {
+        return Json::encode(
+            ['headers' => $this->headers, 'items' => $this->items],
         );
     }
 }

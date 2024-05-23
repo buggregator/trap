@@ -10,7 +10,7 @@ use JsonSerializable;
 /**
  * @internal
  */
-final class Connect implements JsonSerializable
+final class Connect implements \JsonSerializable
 {
     public function __construct(
         public readonly string $client,

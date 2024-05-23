@@ -27,7 +27,7 @@ final class SmtpParserTest extends TestCase
             SMTP, 10);
         $message = $this->parse($data);
 
-        $this->assertSame(\implode('', $data), (string)$message->getBody());
+        $this->assertSame(\implode('', $data), (string) $message->getBody());
         $this->assertCount(1, $message->getMessages());
         // Check headers
         $this->assertEquals([
@@ -100,7 +100,7 @@ final class SmtpParserTest extends TestCase
         $this->assertNull($message->getBcc()[1]->name);
         $this->assertSame('user2@company.tld', $message->getBcc()[1]->email);
 
-        $this->assertSame(\implode('', $data), (string)$message->getBody());
+        $this->assertSame(\implode('', $data), (string) $message->getBody());
         $this->assertCount(3, $message->getMessages());
         // Check headers
         $this->assertEquals([
@@ -158,9 +158,8 @@ final class SmtpParserTest extends TestCase
                     return;
                 }
                 yield from $body;
-            })()
+            })(),
         );
-        return $this->runInFiber(static fn() => (new Parser\Smtp)->parseStream($protocol, $stream));
+        return $this->runInFiber(static fn() => (new Parser\Smtp())->parseStream($protocol, $stream));
     }
-
 }

@@ -26,8 +26,8 @@ use Symfony\Component\VarDumper\Dumper\ServerDumper;
  */
 final class Dumper
 {
-    /** @var null|Closure(mixed, string|null, int): mixed */
-    private static ?Closure $handler = null;
+    /** @var null|\Closure(mixed, string|null, int): mixed */
+    private static ?\Closure $handler = null;
 
     public static function dump(mixed $var, string|int|null $label = null, int $depth = 0): mixed
     {
@@ -39,15 +39,15 @@ final class Dumper
      * @return null|callable(mixed, string|null, int): mixed
      * @psalm-suppress MixedInferredReturnType, MixedPropertyTypeCoercion, MismatchingDocblockReturnType
      */
-    public static function setHandler(callable $callable = null): ?Closure
+    public static function setHandler(callable $callable = null): ?\Closure
     {
         return ([$callable, self::$handler] = [self::$handler, $callable === null ? null : $callable(...)])[0];
     }
 
     /**
-     * @return Closure(mixed, string|null, int): mixed
+     * @return \Closure(mixed, string|null, int): mixed
      */
-    public static function setDumper(?DataDumperInterface $dumper = null): Closure
+    public static function setDumper(?DataDumperInterface $dumper = null): \Closure
     {
         if ($dumper === null) {
             return self::registerHandler();
@@ -73,12 +73,12 @@ final class Dumper
     }
 
     /**
-     * @return Closure(mixed, string|null, int): mixed
+     * @return \Closure(mixed, string|null, int): mixed
      *
      * @author Nicolas Grekas <p@tchwork.com>
      * @psalm-suppress RiskyTruthyFalsyComparison
      */
-    private static function registerHandler(): Closure
+    private static function registerHandler(): \Closure
     {
         $cloner = new VarCloner();
         /** @psalm-suppress InvalidArgument */
@@ -86,15 +86,15 @@ final class Dumper
 
         $format = $_SERVER['VAR_DUMPER_FORMAT'] ?? null;
         switch (true) {
-            case 'html' === $format:
+            case $format === 'html':
                 $dumper = new HtmlDumper();
                 break;
-            case 'cli' === $format:
+            case $format === 'cli':
                 $dumper = new CliDumper();
                 break;
-            case 'server' === $format:
-            case $format && 'tcp' === parse_url($format, \PHP_URL_SCHEME):
-                $host = 'server' === $format ? $_SERVER['VAR_DUMPER_SERVER'] ?? '127.0.0.1:9912' : $format;
+            case $format === 'server':
+            case $format && \parse_url($format, \PHP_URL_SCHEME) === 'tcp':
+                $host = $format === 'server' ? $_SERVER['VAR_DUMPER_SERVER'] ?? '127.0.0.1:9912' : $format;
                 $dumper = \in_array(\PHP_SAPI, ['cli', 'phpdbg'], true) ? new CliDumper() : new HtmlDumper();
                 $dumper = new ServerDumper($host, $dumper, self::getContextProviders());
                 break;

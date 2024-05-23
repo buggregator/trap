@@ -28,7 +28,7 @@ final class FrameHandler implements HandlerInterface
         $buffer = new BufferedOutput(
             $this->output->getVerbosity(),
             $this->output->isDecorated(),
-            $this->output->getFormatter()
+            $this->output->getFormatter(),
         );
 
         foreach ($this->renderers as $renderer) {

@@ -19,6 +19,10 @@ use Termwind\Termwind;
  */
 final class ConsoleSender implements Sender
 {
+    public function __construct(
+        private readonly FrameHandler $handler,
+    ) {}
+
     public static function create(OutputInterface $output): self
     {
         /** @psalm-suppress InternalMethod, InternalClass */
@@ -27,7 +31,7 @@ final class ConsoleSender implements Sender
         /** @psalm-suppress InternalClass */
         $templateRenderer = new TemplateRenderer(
             new HtmlRenderer(),
-            new TemplateEngine(Info::TRAP_ROOT . '/resources/templates')
+            new TemplateEngine(Info::TRAP_ROOT . '/resources/templates'),
         );
         // Configure renderer
         $renderer = new FrameHandler($output);
@@ -42,10 +46,6 @@ final class ConsoleSender implements Sender
 
         return new self($renderer);
     }
-
-    public function __construct(
-        private readonly FrameHandler $handler,
-    ) {}
 
     public function send(iterable $frames): void
     {

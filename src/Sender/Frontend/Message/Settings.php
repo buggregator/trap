@@ -10,7 +10,7 @@ use JsonSerializable;
 /**
  * @internal
  */
-final class Settings implements JsonSerializable
+final class Settings implements \JsonSerializable
 {
     public readonly string $number;
 

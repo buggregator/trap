@@ -18,9 +18,14 @@ final class Binary extends Frame
 {
     public function __construct(
         public readonly StreamInterface $stream,
-        DateTimeImmutable $time = new DateTimeImmutable(),
+        \DateTimeImmutable $time = new \DateTimeImmutable(),
     ) {
         parent::__construct(ProtoType::Binary, $time);
+    }
+
+    public static function fromString(string $payload, \DateTimeImmutable $time): never
+    {
+        throw new \RuntimeException('Binary data can not be restored from string.');
     }
 
     public function getSize(): int
@@ -36,10 +41,5 @@ final class Binary extends Frame
         return Json::encode([
             'size' => $this->getSize(),
         ]);
-    }
-
-    public static function fromString(string $payload, DateTimeImmutable $time): never
-    {
-        throw new \RuntimeException('Binary data can not be restored from string.');
     }
 }

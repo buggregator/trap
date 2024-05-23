@@ -13,5 +13,6 @@ use Buggregator\Trap\Proto\Server\Request;
 interface PayloadDecoder
 {
     public function isSupport(string $payload): bool;
+
     public function decode(string $payload): Request;
 }

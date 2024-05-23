@@ -27,7 +27,7 @@ class Base extends TestCase
                 $this->callback(static function (Data $data): bool {
                     static::$lastData = $data;
                     return true;
-                })
+                }),
             )
             ->willReturnArgument(1);
 

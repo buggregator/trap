@@ -29,7 +29,7 @@ final class Joke extends Command
         );
         $joke = \str_replace('%s', 'Buggregator', \base64_decode($jokes[\array_rand($jokes)]));
 
-        \trap($joke);
+        trap($joke);
 
         return Command::SUCCESS;
     }

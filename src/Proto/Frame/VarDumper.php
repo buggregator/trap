@@ -16,18 +16,18 @@ final class VarDumper extends Frame
 {
     public function __construct(
         public readonly string $dump,
-        DateTimeImmutable $time = new DateTimeImmutable()
+        \DateTimeImmutable $time = new \DateTimeImmutable(),
     ) {
         parent::__construct(ProtoType::VarDumper, $time);
+    }
+
+    public static function fromString(string $payload, \DateTimeImmutable $time): static
+    {
+        return new self($payload, $time);
     }
 
     public function __toString(): string
     {
         return $this->dump;
-    }
-
-    public static function fromString(string $payload, DateTimeImmutable $time): static
-    {
-        return new self($payload, $time);
     }
 }

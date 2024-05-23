@@ -16,9 +16,9 @@ final class StreamReader
     /**
      * @param iterable<array-key, string> $chunks
      *
-     * @return Generator<array-key, Frame, mixed, void> Returns the remaining content of the last chunk
+     * @return \Generator<array-key, Frame, mixed, void> Returns the remaining content of the last chunk
      */
-    public static function readFrames(iterable $chunks): Generator
+    public static function readFrames(iterable $chunks): \Generator
     {
         $parser = self::frameParser();
         $reader = (static fn() => yield from $chunks)();
@@ -62,9 +62,9 @@ final class StreamReader
 
     /**
      * @psalm-suppress InvalidReturnType
-     * @return Generator<int, Frame|int<1, max>, non-empty-string, null>
+     * @return \Generator<int, Frame|int<1, max>, non-empty-string, null>
      */
-    private static function frameParser(): Generator
+    private static function frameParser(): \Generator
     {
         while (true) {
             // Read first byte

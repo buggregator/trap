@@ -44,7 +44,7 @@ final class Smtp implements Renderer
         // Text body
         $i = 0;
         foreach ($message->getMessages() as $text) {
-            Common::renderHeader3($output, sprintf('Body %s', ++$i > 1 ? $i : ''));
+            Common::renderHeader3($output, \sprintf('Body %s', ++$i > 1 ? $i : ''));
             if (\count($message->getMessages()) > 1) {
                 Common::renderHeaders($output, $text->getHeaders());
                 $output->writeln('');

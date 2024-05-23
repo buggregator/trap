@@ -19,8 +19,8 @@ class FileSender implements Sender
         string $path = 'runtime',
     ) {
         $this->path = \rtrim($path, '/\\');
-        if (!\is_dir($path) && !mkdir($path, 0o777, true) && !is_dir($path)) {
-            throw new \RuntimeException(sprintf('Directory "%s" was not created', $path));
+        if (!\is_dir($path) && !\mkdir($path, 0o777, true) && !\is_dir($path)) {
+            throw new \RuntimeException(\sprintf('Directory "%s" was not created', $path));
         }
     }
 
@@ -34,7 +34,7 @@ class FileSender implements Sender
             ),
         ) . "\n";
 
-        $fileName = 'dump-' . (new DateTimeImmutable())->format('Y-m-d-H-i-s-v') . '.log';
+        $fileName = 'dump-' . (new \DateTimeImmutable())->format('Y-m-d-H-i-s-v') . '.log';
         \file_put_contents("{$this->path}/{$fileName}", $data, \FILE_APPEND);
     }
 }
