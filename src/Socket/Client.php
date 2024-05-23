@@ -23,7 +23,9 @@ final class Client implements Destroyable
     private string $readBuffer = '';
 
     private bool $toDisconnect = false;
+
     private \Closure $onPayload;
+
     private \Closure $onClose;
 
     /**
@@ -34,8 +36,18 @@ final class Client implements Destroyable
         private readonly int $payloadSize,
     ) {
         \socket_set_nonblock($this->socket);
-        $this->setOnPayload(fn(string $payload) => null);
-        $this->setOnClose(fn() => null);
+        $this->setOnPayload(static fn(string $payload) => null);
+        $this->setOnClose(static fn() => null);
+    }
+
+    /**
+     * @param positive-int $payloadSize Max payload size.
+     */
+    public static function init(
+        \Socket $socket,
+        int $payloadSize = 10485760,
+    ): self {
+        return new self($socket, $payloadSize);
     }
 
     public function destroy(): void
@@ -53,24 +65,9 @@ final class Client implements Destroyable
         $this->readBuffer = '';
     }
 
-    public function __destruct()
-    {
-        $this->destroy();
-    }
-
     public function disconnect(): void
     {
         $this->toDisconnect = true;
-    }
-
-    /**
-     * @param positive-int $payloadSize Max payload size.
-     */
-    public static function init(
-        \Socket $socket,
-        int $payloadSize = 10485760,
-    ): self {
-        return new self($socket, $payloadSize);
     }
 
     public function process(): void
@@ -106,11 +103,9 @@ final class Client implements Destroyable
 
                 throw new ClientDisconnected();
             }
-            Fiber::suspend();
+            \Fiber::suspend();
         } while (true);
     }
-
-    protected function onInit(): void {}
 
     /**
      * @param callable(string): void $callable If non-static callable, it will be bound to the current instance.
@@ -139,6 +134,13 @@ final class Client implements Destroyable
         $this->writeQueue[] = $payload;
     }
 
+    public function __destruct()
+    {
+        $this->destroy();
+    }
+
+    protected function onInit(): void {}
+
     /**
      * @param non-empty-string $payload
      */
@@ -153,7 +155,7 @@ final class Client implements Destroyable
             \socket_write($this->socket, $data);
             // Logger::debug('Respond %d bytes', $x);
         }
-        socket_set_nonblock($this->socket);
+        \socket_set_nonblock($this->socket);
 
         $this->writeQueue = [];
 
@@ -194,7 +196,7 @@ final class Client implements Destroyable
             }
 
             if ($data === '') {
-                Fiber::suspend();
+                \Fiber::suspend();
                 continue;
             }
 

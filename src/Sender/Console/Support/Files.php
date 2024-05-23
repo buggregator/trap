@@ -32,7 +32,7 @@ final class Files
         string $fileName,
         ?int $size,
         string $type,
-        string ...$additional
+        string ...$additional,
     ): void {
         // File extension
         $dotPos = \strrpos($fileName, '.');

@@ -15,10 +15,10 @@ abstract class Frame implements \Stringable, \JsonSerializable
 {
     public function __construct(
         public readonly ProtoType $type,
-        public readonly DateTimeImmutable $time = new DateTimeImmutable(),
+        public readonly \DateTimeImmutable $time = new \DateTimeImmutable(),
     ) {}
 
-    abstract public static function fromString(string $payload, DateTimeImmutable $time): static;
+    abstract public static function fromString(string $payload, \DateTimeImmutable $time): static;
 
     /**
      * @return int<0, max>

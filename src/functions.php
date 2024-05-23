@@ -29,7 +29,7 @@ try {
 /**
  * Register the var-dump caster for protobuf messages
  */
-if (\class_exists(AbstractCloner::class)) {
+if (class_exists(AbstractCloner::class)) {
     /** @psalm-suppress MixedAssignment */
     AbstractCloner::$defaultCasters[Message::class] ??= [ProtobufCaster::class, 'cast'];
     /** @psalm-suppress MixedAssignment */

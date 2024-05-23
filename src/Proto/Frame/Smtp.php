@@ -20,20 +20,12 @@ final class Smtp extends Frame implements FilesCarrier
 {
     public function __construct(
         public readonly Message\Smtp $message,
-        DateTimeImmutable $time = new DateTimeImmutable(),
+        \DateTimeImmutable $time = new \DateTimeImmutable(),
     ) {
         parent::__construct(ProtoType::SMTP, $time);
     }
 
-    /**
-     * @throws \JsonException
-     */
-    public function __toString(): string
-    {
-        return Json::encode($this->message);
-    }
-
-    public static function fromString(string $payload, DateTimeImmutable $time): static
+    public static function fromString(string $payload, \DateTimeImmutable $time): static
     {
         /** @var TArrayData $payload */
         $payload = \json_decode($payload, true, \JSON_THROW_ON_ERROR);
@@ -50,5 +42,13 @@ final class Smtp extends Frame implements FilesCarrier
     public function getFiles(): array
     {
         return $this->message->getAttachments();
+    }
+
+    /**
+     * @throws \JsonException
+     */
+    public function __toString(): string
+    {
+        return Json::encode($this->message);
     }
 }

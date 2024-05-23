@@ -67,7 +67,8 @@
         "phpstan/phpstan-strict-rules": "^1.5",
         "phpunit/phpunit": "^10.5",
         "roxblnfk/unpoly": "^1.8.1",
-        "vimeo/psalm": "^5.11"
+        "vimeo/psalm": "^5.11",
+        "wayofdev/cs-fixer-config": "^1.4"
     },
     "suggest": {
         "ext-simplexml": "To load trap.xml",

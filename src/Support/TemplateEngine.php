@@ -11,7 +11,7 @@ namespace Buggregator\Trap\Support;
 final class TemplateEngine
 {
     public function __construct(
-        private readonly string $templateDir
+        private readonly string $templateDir,
     ) {}
 
     public function render(string $template, array $data = []): string

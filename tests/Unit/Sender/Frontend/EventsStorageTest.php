@@ -55,7 +55,7 @@ class EventsStorageTest extends TestCase
         ?string $type = null,
         ?array $payload = null,
         ?float $timestamp = null,
-    ): Event{
+    ): Event {
         return new Event(
             uuid: $uuid ?? Uuid::uuid4(),
             type: $type ?? 'var-dump',

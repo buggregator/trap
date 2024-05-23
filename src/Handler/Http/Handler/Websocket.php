@@ -68,7 +68,7 @@ final class Websocket implements RequestHandler
             $timer->reset();
 
             $content = 'Elapsed: ' . (\time() - $time->getTimestamp()) . 's';
-            $response = \chr(129) . \chr(strlen($content)) . $content;
+            $response = \chr(129) . \chr(\strlen($content)) . $content;
 
             $stream->sendData($response);
         }

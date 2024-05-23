@@ -125,19 +125,51 @@ final class Router
      */
     public static function new(string|object $classOrObject): self
     {
-        return is_object($classOrObject)
+        return \is_object($classOrObject)
             ? self::newStatic($classOrObject::class)->withObject($classOrObject)
             : self::newStatic($classOrObject);
     }
 
     /**
-     * Associate router with an object.
+     * Find a route for specified method and path.
+     *
+     * @return null|callable(mixed...): mixed Returns null if no route matches
+     *
+     * @throws \Exception
      */
-    private function withObject(object $object): self
+    public function match(Method $method, string $path): ?callable
     {
-        $new = clone $this;
-        $new->object = $object;
-        return $new;
+        foreach ($this->routes[$method->value] as $route) {
+            $rr = $route->route;
+            /** @psalm-suppress ArgumentTypeCoercion */
+            $match = match ($rr::class) {
+                Attribute\StaticRoute::class => $path === (string) $rr->path,
+                Attribute\RegexpRoute::class => \preg_match((string) $rr->regexp, $path, $matches) === 1
+                    ? \array_filter($matches, '\is_string', \ARRAY_FILTER_USE_KEY)
+                    : false,
+                default => throw new \LogicException(\sprintf(
+                    'Route type `%s` is not supported.',
+                    $route::class,
+                )),
+            };
+
+            if ($match === false) {
+                continue;
+            }
+
+            // Prepare callable
+            $object = $this->object;
+            return match(true) {
+                \is_callable($match) => $match,
+                default => static fn(mixed ...$args): mixed => self::invoke(
+                    $route->method,
+                    $object,
+                    \array_merge($args, \is_array($match) ? $match : []),
+                ),
+            };
+        }
+
+        return null;
     }
 
     /**
@@ -206,51 +238,9 @@ final class Router
     }
 
     /**
-     * Find a route for specified method and path.
-     *
-     * @return null|callable(mixed...): mixed Returns null if no route matches
-     *
-     * @throws \Exception
-     */
-    public function match(Method $method, string $path): ?callable
-    {
-        foreach ($this->routes[$method->value] as $route) {
-            $rr = $route->route;
-            /** @psalm-suppress ArgumentTypeCoercion */
-            $match = match ($rr::class) {
-                Attribute\StaticRoute::class => $path === (string) $rr->path,
-                Attribute\RegexpRoute::class => \preg_match((string) $rr->regexp, $path, $matches) === 1
-                    ? \array_filter($matches, '\is_string', \ARRAY_FILTER_USE_KEY)
-                    : false,
-                default => throw new \LogicException(\sprintf(
-                    'Route type `%s` is not supported.',
-                    $route::class,
-                )),
-            };
-
-            if ($match === false) {
-                continue;
-            }
-
-            // Prepare callable
-            $object = $this->object;
-            return match(true) {
-                \is_callable($match) => $match,
-                default => static fn(mixed ...$args): mixed => self::invoke(
-                    $route->method,
-                    $object,
-                    \array_merge($args, \is_array($match) ? $match : []),
-                )
-            };
-        }
-
-        return null;
-    }
-
-    /**
      * Invoke a method with specified arguments. The arguments will be filtered by parameter names.
      *
-     * @throws Throwable
+     * @throws \Throwable
      */
     private static function invoke(\ReflectionMethod $method, ?object $object, array $args): mixed
     {
@@ -274,5 +264,15 @@ final class Router
     private static function doNothing(mixed ...$args): array
     {
         return $args;
+    }
+
+    /**
+     * Associate router with an object.
+     */
+    private function withObject(object $object): self
+    {
+        $new = clone $this;
+        $new->object = $object;
+        return $new;
     }
 }

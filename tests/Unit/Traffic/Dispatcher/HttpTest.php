@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Buggregator\Trap\Tests\Unit\Traffic\Dispatcher;
 
 use Buggregator\Trap\Traffic\Dispatcher\Http;
@@ -53,6 +55,6 @@ class HttpTest extends TestCase
     public function testDetect(string $data, ?bool $expected): void
     {
         $dispatcher = new Http();
-        $this->assertSame($expected, $dispatcher->detect($data, new DateTimeImmutable()));
+        $this->assertSame($expected, $dispatcher->detect($data, new \DateTimeImmutable()));
     }
 }

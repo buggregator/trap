@@ -15,6 +15,7 @@ use Throwable;
 final class Logger
 {
     private readonly bool $debug;
+
     private readonly bool $verbose;
 
     public function __construct(
@@ -49,7 +50,7 @@ final class Logger
         $this->echo("\033[31m" . \sprintf($message, ...$values) . "\033[0m\n");
     }
 
-    public function exception(Throwable $e, ?string $header = null, bool $important = false): void
+    public function exception(\Throwable $e, ?string $header = null, bool $important = false): void
     {
         $r = "----------------------\n";
         // Print bold yellow header if exists
@@ -64,7 +65,7 @@ final class Logger
         $r .= "Stack trace:\n";
         // Limit stacktrace to 5 lines
         $stack = \explode("\n", $e->getTraceAsString());
-        $r .= "\033[90m" . implode("\n", \array_slice($stack, 0, \min(5, \count($stack)))) . "\033[0m\n";
+        $r .= "\033[90m" . \implode("\n", \array_slice($stack, 0, \min(5, \count($stack)))) . "\033[0m\n";
         $r .= "\n";
         $this->echo($r, !$important);
     }

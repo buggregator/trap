@@ -52,7 +52,7 @@ class HttpParserTest extends TestCase
         ], $request->getCookieParams());
     }
 
-    /**\
+    /*\
      * Parer doesn't fail on wrong cookies
      */
     public function testWrongCookie(): void
@@ -202,8 +202,8 @@ class HttpParserTest extends TestCase
                     return;
                 }
                 yield from $body;
-            })()
+            })(),
         );
-        return $this->runInFiber(static fn() => (new Parser\Http)->parseStream($stream));
+        return $this->runInFiber(static fn() => (new Parser\Http())->parseStream($stream));
     }
 }

@@ -37,8 +37,8 @@ final class VarDumper implements Renderer
         $payload = @\unserialize(\base64_decode($frame->dump), ['allowed_classes' => [Data::class, Stub::class]]);
 
         // Impossible to decode the message, give up.
-        if (false === $payload) {
-            throw new RuntimeException("Unable to decode a message.");
+        if ($payload === false) {
+            throw new \RuntimeException("Unable to decode a message.");
         }
 
         static $describer = null;
@@ -51,7 +51,7 @@ final class VarDumper implements Renderer
 
     private function getDescriber(): DumpDescriptorInterface
     {
-        return new class implements DumpDescriptorInterface {
+        return new class() implements DumpDescriptorInterface {
             public function __construct(
                 private CliDumper $dumper = new CliDumper(),
             ) {}
@@ -66,7 +66,7 @@ final class VarDumper implements Renderer
                 $this->dumper->setColors($output->isDecorated());
 
                 $meta = [];
-                $meta['Time'] = (new DateTimeImmutable())->setTimestamp((int) $context['timestamp']);
+                $meta['Time'] = (new \DateTimeImmutable())->setTimestamp((int) $context['timestamp']);
 
                 try {
                     if (isset($context['source'])) {

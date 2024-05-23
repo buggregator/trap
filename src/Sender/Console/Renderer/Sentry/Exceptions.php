@@ -97,7 +97,7 @@ final class Exceptions
                     \str_repeat(' ', $numPad),
                     $class,
                     $function,
-                )
+                ),
             );
 
             if ($isFirst) {
@@ -179,8 +179,8 @@ final class Exceptions
                         $line === $contextLine ? 'red' : 'gray',
                         \str_pad((string) ($startLine + $line), $strPad, ' ', \STR_PAD_LEFT),
                         $line === $contextLine ? 'red' : 'blue',
-                        \substr($row, $minPadding)
-                    )
+                        \substr($row, $minPadding),
+                    ),
                 );
             }
             Common::hr($output, 'white', padding: $padding);

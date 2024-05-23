@@ -17,7 +17,7 @@ final class Request
      * @param non-empty-string $client Client version
      * @param non-empty-string $uuid Storage UUID
      * @param non-empty-string $payload raw payload
-     * @param Closure(non-empty-string): iterable $payloadParser
+     * @param \Closure(non-empty-string): iterable $payloadParser
      */
     public function __construct(
         public readonly int $protocol,

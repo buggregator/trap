@@ -15,10 +15,20 @@ use Symfony\Component\VarDumper\Caster\TraceStub;
 final class TrapHandle
 {
     private bool $haveToSend = true;
+
     private int $times = 0;
+
     private string $timesCounterKey = '';
+
     private int $depth = 0;
+
     private StaticState $staticState;
+
+    private function __construct(
+        private array $values,
+    ) {
+        $this->staticState = StaticState::new();
+    }
 
     public static function fromArray(array $array): self
     {
@@ -84,7 +94,7 @@ final class TrapHandle
         $this->timesCounterKey = \sha1(\serialize(
             $fullStack
                 ? $this->staticState->stackTrace
-                : $this->staticState->stackTrace[0]
+                : $this->staticState->stackTrace[0],
         ));
         return $this;
     }
@@ -126,7 +136,7 @@ final class TrapHandle
                 \sprintf(
                     'Value with key "%s" is not set.',
                     $key,
-                )
+                ),
             ),
         };
 
@@ -199,12 +209,6 @@ final class TrapHandle
         } finally {
             StaticState::setState($staticState);
         }
-    }
-
-    private function __construct(
-        private array $values,
-    ) {
-        $this->staticState = StaticState::new();
     }
 
     private function haveToSend(): bool

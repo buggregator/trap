@@ -1,7 +1,5 @@
 ---
 
-version: '3.9'
-
 services:
   app:
     image: wayofdev/php-dev:8.3-cli-alpine-latest

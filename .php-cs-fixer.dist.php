@@ -2,23 +2,21 @@
 
 declare(strict_types=1);
 
-use PhpCsFixer\Config;
-use PhpCsFixer\Finder;
+use WayOfDev\PhpCsFixer\Config\ConfigBuilder;
+use WayOfDev\PhpCsFixer\Config\RuleSets\ExtendedPERSet;
 
-return (new Config())
-    ->setRules([
-        '@PER-CS2.0' => true,
-        '@PHP81Migration' => true,
-        'new_with_parentheses' => [
-            'anonymous_class' => false,
-        ],
+require_once 'vendor/autoload.php';
+
+$config = ConfigBuilder::createFromRuleSet(new ExtendedPERSet())
+    ->inDir(__DIR__ . '/bin')
+    ->inDir(__DIR__ . '/src')
+    ->inDir(__DIR__ . '/tests')
+    ->exclude([
+        __DIR__ . '/src/Test/Proto',
     ])
-    ->setRiskyAllowed(true)
-    ->setFinder(
-        (new Finder())
-            ->files()
-            ->name('*.php')
-            ->in([__DIR__ . '/src'])
-            ->exclude(['Test/Proto/']),
-    )
-    ->setCacheFile(__DIR__ . '/.build/php-cs-fixer/php-cs-fixer.cache');
+    ->addFiles([__FILE__])
+    ->getConfig();
+
+$config->setCacheFile(__DIR__ . '/.build/php-cs-fixer/php-cs-fixer.cache');
+
+return $config;

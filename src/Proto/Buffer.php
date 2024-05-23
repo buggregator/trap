@@ -16,8 +16,10 @@ final class Buffer
 {
     /** @var Frame[] */
     private array $frames = [];
+
     /** @var int<0, max> Current payload size */
     private int $currentSize = 0;
+
     private ?Timer $timer;
 
     /**

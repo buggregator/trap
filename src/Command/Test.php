@@ -26,6 +26,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 final class Test extends Command
 {
     private string $addr = '127.0.0.1';
+
     private int $port = 9912;
 
     /** @psalm-suppress PropertyNotSetInConstructor */
@@ -58,9 +59,9 @@ final class Test extends Command
         $_SERVER['VAR_DUMPER_FORMAT'] = 'server';
         $_SERVER['VAR_DUMPER_SERVER'] = "$this->addr:$this->port";
 
-        \trap(['foo' => 'bar']);
-        \trap(123);
-        \trap(new DateTimeImmutable());
+        trap(['foo' => 'bar']);
+        trap(123);
+        trap(new \DateTimeImmutable());
 
         $message = (new \Buggregator\Trap\Test\Proto\Message())
             ->setId(123)
@@ -78,7 +79,7 @@ final class Test extends Command
             )
             ->setMapaMapa(['foo' => 'bar', 'baz' => 'qux', '2' => 'quuz', 'quux ff' => 'quuz'])
             ->setFoo(\Buggregator\Trap\Test\Proto\Message\Foo::BAR);
-        \trap(Nested: (object) ['msg' => $message]);
+        trap(Nested: (object) ['msg' => $message]);
 
         try {
             $socket = @\socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
@@ -188,7 +189,7 @@ final class Test extends Command
 
     private function sendMailPackage(
         OutputInterface $output,
-        Socket $socket,
+        \Socket $socket,
         string $content,
         string $expectedResponsePrefix,
     ): void {
@@ -215,7 +216,7 @@ final class Test extends Command
         $output->write(
             \sprintf(
                 "\e[33m< \"%s\"\e[0m",
-                \str_replace(["\r", "\n"], ["\e[32m\\r\e[33m", "\e[32m\\n\e[33m"], $buf)
+                \str_replace(["\r", "\n"], ["\e[32m\\r\e[33m", "\e[32m\\n\e[33m"], $buf),
             ),
             true,
             OutputInterface::OUTPUT_RAW,
@@ -223,7 +224,7 @@ final class Test extends Command
 
         $prefix = \substr($buf, 0, \strlen($expectedResponsePrefix));
         if ($prefix !== $expectedResponsePrefix) {
-            throw new RuntimeException("Invalid response `$buf`. Prefix `$expectedResponsePrefix` expected.");
+            throw new \RuntimeException("Invalid response `$buf`. Prefix `$expectedResponsePrefix` expected.");
         }
     }
 
@@ -238,7 +239,7 @@ final class Test extends Command
 
             $fp = @\fopen(Info::TRAP_ROOT . '/resources/payloads/' . $file, 'rb');
             if ($fp === false) {
-                throw new RuntimeException('Cannot open file.');
+                throw new \RuntimeException('Cannot open file.');
             }
             @\flock($fp, LOCK_SH);
             while (!\feof($fp)) {

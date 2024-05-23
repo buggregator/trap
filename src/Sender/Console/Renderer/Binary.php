@@ -81,7 +81,7 @@ final class Binary implements Renderer
         // Render body
         $stream = $frame->stream;
         $stream->rewind();
-        Fiber::suspend();
+        \Fiber::suspend();
 
         // Print header if needed
         if ($this->printBytes < $size) {
@@ -98,7 +98,7 @@ final class Binary implements Renderer
 
         $hexes = \array_map(
             static fn(string $byte): string => \str_pad($byte, 2, '0', \STR_PAD_LEFT),
-            \str_split(\bin2hex($read), 2)
+            \str_split(\bin2hex($read), 2),
         );
         $lines = \array_chunk($hexes, 16);
         $offset = 0;
@@ -113,7 +113,7 @@ final class Binary implements Renderer
                 \preg_replace(
                     \array_keys(self::BYTE_REPLACES),
                     \array_values(self::BYTE_REPLACES),
-                    \substr($read, $offset, 16)
+                    \substr($read, $offset, 16),
                 ),
             ));
             $offset += 16;

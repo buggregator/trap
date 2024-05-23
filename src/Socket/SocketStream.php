@@ -18,28 +18,30 @@ use IteratorAggregate;
  * @internal
  * @implements IteratorAggregate<int, string>
  */
-final class SocketStream implements IteratorAggregate, StreamClient
+final class SocketStream implements \IteratorAggregate, StreamClient
 {
     /** @var \SplQueue<string> */
     private \SplQueue $queue;
+
     private bool $disconnected = false;
-    private readonly DateTimeImmutable $createdAt;
+
+    private readonly \DateTimeImmutable $createdAt;
 
     private function __construct(
         private Client $client,
         public readonly int $clientId,
     ) {
         $this->queue = new \SplQueue();
-        $this->createdAt = new DateTimeImmutable();
+        $this->createdAt = new \DateTimeImmutable();
     }
 
     public static function create(Client $client, int $id): self
     {
         $self = new self($client, $id);
-        $client->setOnPayload(function (string $payload) use ($self): void {
+        $client->setOnPayload(static function (string $payload) use ($self): void {
             $self->queue->enqueue($payload);
         });
-        $client->setOnClose(function () use ($self): void {
+        $client->setOnClose(static function () use ($self): void {
             $self->disconnected = true;
             unset($self->client);
         });
@@ -47,7 +49,7 @@ final class SocketStream implements IteratorAggregate, StreamClient
         return $self;
     }
 
-    public function getCreatedAt(): DateTimeImmutable
+    public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
     }
@@ -61,7 +63,7 @@ final class SocketStream implements IteratorAggregate, StreamClient
     {
         $before = $this->queue->count();
         do {
-            Fiber::suspend();
+            \Fiber::suspend();
         } while (!$this->disconnected && $this->queue->count() === $before && $timer?->isReady() !== true);
     }
 
@@ -132,11 +134,11 @@ final class SocketStream implements IteratorAggregate, StreamClient
         return \implode('', [...$this->queue]);
     }
 
-    public function getIterator(): Generator
+    public function getIterator(): \Generator
     {
         while (!$this->disconnected || !$this->queue->isEmpty()) {
             if ($this->queue->isEmpty()) {
-                Fiber::suspend();
+                \Fiber::suspend();
                 continue;
             }
             yield $this->queue->dequeue();

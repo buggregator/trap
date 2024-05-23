@@ -13,7 +13,7 @@ use JsonException;
 final class Json
 {
     /**
-     * @throws JsonException
+     * @throws \JsonException
      */
     public static function encode(mixed $value): string
     {
@@ -24,7 +24,7 @@ final class Json
     }
 
     /**
-     * @throws JsonException
+     * @throws \JsonException
      */
     public static function decode(string $content): mixed
     {

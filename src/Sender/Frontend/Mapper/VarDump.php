@@ -41,7 +41,7 @@ final class VarDump
         $payload = @\unserialize(\base64_decode($message), ['allowed_classes' => [Data::class, Stub::class]]);
 
         // Impossible to decode the message, give up.
-        if (false === $payload) {
+        if ($payload === false) {
             throw new \RuntimeException('Unable to decode a message from var-dumper client.');
         }
 

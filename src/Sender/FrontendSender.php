@@ -14,6 +14,12 @@ use Buggregator\Trap\Sender\Frontend\ConnectionPool;
  */
 final class FrontendSender implements \Buggregator\Trap\Sender, Processable
 {
+    private function __construct(
+        private readonly ConnectionPool $connectionPool,
+        private readonly Frontend\EventStorage $framesStorage,
+        private readonly FrameHandler $handler,
+    ) {}
+
     public static function create(
         Logger $logger,
         ?Frontend\ConnectionPool $connectionPool = null,
@@ -27,12 +33,6 @@ final class FrontendSender implements \Buggregator\Trap\Sender, Processable
             new Frontend\FrameHandler($logger, $connectionPool, $eventStorage),
         );
     }
-
-    private function __construct(
-        private readonly ConnectionPool $connectionPool,
-        private readonly Frontend\EventStorage $framesStorage,
-        private readonly FrameHandler $handler,
-    ) {}
 
     /**
      * @param iterable<Frame> $frames

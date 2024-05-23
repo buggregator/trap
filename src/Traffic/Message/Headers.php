@@ -66,7 +66,7 @@ trait Headers
 
     public function withAddedHeader(string $header, string $value): static
     {
-        if ('' === $header) {
+        if ($header === '') {
             throw new \InvalidArgumentException('Header name must be an RFC 7230 compatible string');
         }
 
@@ -88,6 +88,26 @@ trait Headers
         unset($new->headers[$header], $new->headerNames[$normalized]);
 
         return $new;
+    }
+
+    /**
+     * List of header values.
+     *
+     * @param array<array-key, list<string>> $headers
+     * @param non-empty-string $header
+     *
+     * @return list<string>
+     */
+    private static function findHeader(array $headers, string $header): array
+    {
+        $header = \strtr($header, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz');
+        $result = [];
+        foreach ($headers as $name => $values) {
+            if (\strtr((string) $name, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') === $header) {
+                $result = [...$result, ...$values];
+            }
+        }
+        return $result;
     }
 
     /**
@@ -139,16 +159,16 @@ trait Headers
      */
     private function validateAndTrimHeader(string $header, mixed $values): array
     {
-        if (1 !== \preg_match("@^[!#$%&'*+.^_`|~0-9A-Za-z-]+$@D", $header)) {
+        if (\preg_match("@^[!#$%&'*+.^_`|~0-9A-Za-z-]+$@D", $header) !== 1) {
             throw new \InvalidArgumentException('Header name must be an RFC 7230 compatible string');
         }
 
         if (!\is_array($values)) {
             // This is simple, just one value.
-            if ((!\is_numeric($values) && !\is_string($values)) || 1 !== \preg_match(
+            if ((!\is_numeric($values) && !\is_string($values)) || \preg_match(
                 "@^[ \t\x21-\x7E\x80-\xFF]*$@",
                 (string) $values,
-            )) {
+            ) !== 1) {
                 throw new \InvalidArgumentException('Header values must be RFC 7230 compatible strings');
             }
 
@@ -157,17 +177,17 @@ trait Headers
 
         if (empty($values)) {
             throw new \InvalidArgumentException(
-                'Header values must be a string or an array of strings, empty array given'
+                'Header values must be a string or an array of strings, empty array given',
             );
         }
 
         // Assert Non empty array
         $returnValues = [];
         foreach ($values as $v) {
-            if ((!\is_numeric($v) && !\is_string($v)) || 1 !== \preg_match(
+            if ((!\is_numeric($v) && !\is_string($v)) || \preg_match(
                 "@^[ \t\x21-\x7E\x80-\xFF]*$@D",
                 (string) $v,
-            )) {
+            ) !== 1) {
                 throw new \InvalidArgumentException('Header values must be RFC 7230 compatible strings');
             }
 
@@ -175,25 +195,5 @@ trait Headers
         }
 
         return $returnValues;
-    }
-
-    /**
-     * List of header values.
-     *
-     * @param array<array-key, list<string>> $headers
-     * @param non-empty-string $header
-     *
-     * @return list<string>
-     */
-    private static function findHeader(array $headers, string $header): array
-    {
-        $header = \strtr($header, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz');
-        $result = [];
-        foreach ($headers as $name => $values) {
-            if (\strtr((string) $name, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') === $header) {
-                $result = [...$result, ...$values];
-            }
-        }
-        return $result;
     }
 }

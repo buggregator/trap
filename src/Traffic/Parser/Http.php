@@ -30,6 +30,104 @@ final class Http
         $this->factory = new Psr17Factory();
     }
 
+    /**
+     * Get text block before empty line
+     */
+    public static function getBlock(StreamClient $stream): string
+    {
+        $previous = $block = '';
+        while (!$stream->isFinished()) {
+            $line = $stream->fetchLine();
+            if ($line === "\r\n" && \str_ends_with($previous, "\r\n")) {
+                return \substr($block, 0, -2);
+            }
+            $previous = $line;
+            $block .= $line;
+        }
+
+        return $block;
+    }
+
+    /**
+     * @return array<array-key, non-empty-list<non-empty-string>>
+     */
+    public static function parseHeaders(string $headersBlock): array
+    {
+        $result = [];
+        foreach (\explode("\r\n", $headersBlock) as $line) {
+            [$name, $value] = \explode(':', $line, 2) + [1 => ''];
+            $name = \trim($name);
+            $value = \trim($value);
+            if ($name === '' || $value === '') {
+                continue;
+            }
+
+            $result[$name][] = $value;
+        }
+
+        return $result;
+    }
+
+    public static function parseUrlEncodedBody(ServerRequestInterface $request): ServerRequestInterface
+    {
+        if ($request->getBody()->getSize() > self::MAX_URL_ENCODED_BODY_SIZE) {
+            return $request;
+        }
+
+        $str = $request->getBody()->__toString();
+
+        try {
+            \parse_str($str, $parsed);
+            return $request->withParsedBody($parsed);
+        } catch (\Throwable) {
+            return $request;
+        }
+    }
+
+    /**
+     * @param non-empty-string $boundary
+     *
+     * @return iterable<Part>
+     */
+    public static function parseMultipartBody(StreamInterface $stream, string $boundary): iterable
+    {
+        $result = [];
+        $findBoundary = "--{$boundary}";
+        try {
+            while (false !== ($pos = StreamHelper::strpos($stream, $findBoundary))) {
+                $stream->seek($pos + \strlen($findBoundary), \SEEK_CUR);
+                $blockEnd = StreamHelper::strpos($stream, "\r\n\r\n");
+                // End of valid content
+                if ($blockEnd === false || $blockEnd - $pos <= 2) {
+                    break;
+                }
+                // Parse part headers
+                $headers = self::parseHeaders($stream->read($blockEnd - $pos + 2));
+
+                $part = Part::create($headers);
+
+                $stream->seek(2, \SEEK_CUR); // Skip \r\n
+                $findBoundary = "\r\n--{$boundary}";
+
+                if ($part instanceof File) {
+                    $fileStream = StreamHelper::createFileStream();
+                    $fileSize = StreamHelper::writeStreamUntil($stream, $fileStream, $findBoundary);
+                    $part->setStream($fileStream, $fileSize);
+                } elseif ($part instanceof Field) {
+                    $endOfContent = StreamHelper::strpos($stream, $findBoundary);
+                    $endOfContent !== false or throw new \RuntimeException('Missing end of content');
+
+                    $part = $part->withValue($endOfContent > 0 ? $stream->read($endOfContent) : '');
+                }
+                $result[] = $part;
+            }
+        } catch (\Throwable $e) {
+            // throw $e;
+        }
+
+        return $result;
+    }
+
     public function parseStream(StreamClient $stream): ServerRequestInterface
     {
         $firstLine = $stream->fetchLine();
@@ -95,24 +193,6 @@ final class Http
         }
 
         return $parts;
-    }
-
-    /**
-     * Get text block before empty line
-     */
-    public static function getBlock(StreamClient $stream): string
-    {
-        $previous = $block = '';
-        while (!$stream->isFinished()) {
-            $line = $stream->fetchLine();
-            if ($line === "\r\n" && \str_ends_with($previous, "\r\n")) {
-                return \substr($block, 0, -2);
-            }
-            $previous = $line;
-            $block .= $line;
-        }
-
-        return $block;
     }
 
     private function parseBody(StreamClient $stream, ServerRequestInterface $request): ServerRequestInterface
@@ -202,89 +282,9 @@ final class Http
             $fileStream->write($chunk);
             $written += \strlen($chunk);
             unset($chunk);
-            Fiber::suspend();
+            \Fiber::suspend();
         }
 
         return $fileStream;
-    }
-
-    /**
-     * @return array<array-key, non-empty-list<non-empty-string>>
-     */
-    public static function parseHeaders(string $headersBlock): array
-    {
-        $result = [];
-        foreach (\explode("\r\n", $headersBlock) as $line) {
-            [$name, $value] = \explode(':', $line, 2) + [1 => ''];
-            $name = \trim($name);
-            $value = \trim($value);
-            if ($name === '' || $value === '') {
-                continue;
-            }
-
-            $result[$name][] = $value;
-        }
-
-        return $result;
-    }
-
-    public static function parseUrlEncodedBody(ServerRequestInterface $request): ServerRequestInterface
-    {
-        if ($request->getBody()->getSize() > self::MAX_URL_ENCODED_BODY_SIZE) {
-            return $request;
-        }
-
-        $str = $request->getBody()->__toString();
-
-        try {
-            \parse_str($str, $parsed);
-            return $request->withParsedBody($parsed);
-        } catch (\Throwable) {
-            return $request;
-        }
-    }
-
-    /**
-     * @param non-empty-string $boundary
-     *
-     * @return iterable<Part>
-     */
-    public static function parseMultipartBody(StreamInterface $stream, string $boundary): iterable
-    {
-        $result = [];
-        $findBoundary = "--{$boundary}";
-        try {
-            while (false !== ($pos = StreamHelper::strpos($stream, $findBoundary))) {
-                $stream->seek($pos + \strlen($findBoundary), \SEEK_CUR);
-                $blockEnd = StreamHelper::strpos($stream, "\r\n\r\n");
-                // End of valid content
-                if ($blockEnd === false || $blockEnd - $pos <= 2) {
-                    break;
-                }
-                // Parse part headers
-                $headers = self::parseHeaders($stream->read($blockEnd - $pos + 2));
-
-                $part = Part::create($headers);
-
-                $stream->seek(2, \SEEK_CUR); // Skip \r\n
-                $findBoundary = "\r\n--{$boundary}";
-
-                if ($part instanceof File) {
-                    $fileStream = StreamHelper::createFileStream();
-                    $fileSize = StreamHelper::writeStreamUntil($stream, $fileStream, $findBoundary);
-                    $part->setStream($fileStream, $fileSize);
-                } elseif ($part instanceof Field) {
-                    $endOfContent = StreamHelper::strpos($stream, $findBoundary);
-                    $endOfContent !== false or throw new RuntimeException('Missing end of content');
-
-                    $part = $part->withValue($endOfContent > 0 ? $stream->read($endOfContent) : '');
-                }
-                $result[] = $part;
-            }
-        } catch (\Throwable $e) {
-            // throw $e;
-        }
-
-        return $result;
     }
 }

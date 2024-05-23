@@ -9,7 +9,7 @@ use JsonSerializable;
 /**
  * @internal
  */
-final class Rpc implements JsonSerializable
+final class Rpc implements \JsonSerializable
 {
     public function __construct(
         public readonly mixed $data,

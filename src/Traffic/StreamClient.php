@@ -16,7 +16,7 @@ use Generator;
  */
 interface StreamClient extends \IteratorAggregate
 {
-    public function getCreatedAt(): DateTimeImmutable;
+    public function getCreatedAt(): \DateTimeImmutable;
 
     public function hasData(): bool;
 
@@ -60,7 +60,7 @@ interface StreamClient extends \IteratorAggregate
      * Cleans cache.
      * Uses {@see Fiber} to wait for all data.
      *
-     * @return Generator<int, string, mixed, void>
+     * @return \Generator<int, string, mixed, void>
      */
-    public function getIterator(): Generator;
+    public function getIterator(): \Generator;
 }

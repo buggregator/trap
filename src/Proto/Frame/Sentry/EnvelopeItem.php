@@ -17,19 +17,19 @@ final class EnvelopeItem implements \Stringable, \JsonSerializable
         public readonly mixed $payload,
     ) {}
 
-    /**
-     * @throws \JsonException
-     */
-    public function __toString(): string
-    {
-        return Json::encode($this->jsonSerialize());
-    }
-
     public function jsonSerialize(): mixed
     {
         return [
             'headers' => $this->headers,
             'payload' => $this->payload,
         ];
+    }
+
+    /**
+     * @throws \JsonException
+     */
+    public function __toString(): string
+    {
+        return Json::encode($this->jsonSerialize());
     }
 }

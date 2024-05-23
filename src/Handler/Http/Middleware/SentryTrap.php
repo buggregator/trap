@@ -72,7 +72,7 @@ final class SentryTrap implements Middleware
         $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
 
         $frame = EnvelopeParser::parse($request->getBody(), $time);
-        Fiber::suspend($frame);
+        \Fiber::suspend($frame);
 
         return new Response(200);
     }
@@ -91,11 +91,11 @@ final class SentryTrap implements Middleware
         $time = $request->getAttribute('begin_at');
         $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
 
-        Fiber::suspend(
+        \Fiber::suspend(
             new Frame\Sentry\SentryStore(
                 message: $payload,
                 time: $time,
-            )
+            ),
         );
 
         return new Response(200);

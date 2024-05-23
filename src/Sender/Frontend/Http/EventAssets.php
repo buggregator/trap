@@ -90,7 +90,7 @@ final class EventAssets implements Middleware
         AssertSuccess(
             Method::Get,
             'api/smtp/0145a0e0-0b1a-4e4a-9b1a/attachment/0145a0e0-0b1a-4e4a-9b1a',
-            ['eventId' => '0145a0e0-0b1a-4e4a-9b1a', 'attachId' => '0145a0e0-0b1a-4e4a-9b1a']
+            ['eventId' => '0145a0e0-0b1a-4e4a-9b1a', 'attachId' => '0145a0e0-0b1a-4e4a-9b1a'],
         ),
         AssertFail(Method::Get, 'api/smtp/0145a0e0-0b1a-4e4a-9b1a/attachment/0145a0e0ZZZZzzzz')
     ]

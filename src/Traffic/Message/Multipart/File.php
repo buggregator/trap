@@ -21,6 +21,7 @@ use Psr\Http\Message\UploadedFileInterface;
 final class File extends Part implements UploadedFileInterface
 {
     private ?UploadedFileInterface $uploadedFile = null;
+
     /** @var non-negative-int|null  */
     private ?int $fileSize = null;
 

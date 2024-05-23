@@ -51,9 +51,19 @@ final class SentryStore extends Frame\Sentry
      */
     public function __construct(
         public readonly array $message,
-        DateTimeImmutable $time = new DateTimeImmutable(),
+        \DateTimeImmutable $time = new \DateTimeImmutable(),
     ) {
         parent::__construct(ProtoType::Sentry, $time);
+    }
+
+    /**
+     * @psalm-assert SentryStoreMessage $data
+     *
+     * @param SentryStoreMessage $data
+     */
+    public static function fromArray(array $data, \DateTimeImmutable $time): static
+    {
+        return new self($data, $time);
     }
 
     /**
@@ -62,15 +72,5 @@ final class SentryStore extends Frame\Sentry
     public function __toString(): string
     {
         return Json::encode($this->message);
-    }
-
-    /**
-     * @psalm-assert SentryStoreMessage $data
-     *
-     * @param SentryStoreMessage $data
-     */
-    public static function fromArray(array $data, DateTimeImmutable $time): static
-    {
-        return new self($data, $time);
     }
 }
