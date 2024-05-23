@@ -7,8 +7,6 @@ namespace Buggregator\Trap\Handler\Http\Middleware\SentryTrap;
 use Buggregator\Trap\Proto\Frame\Sentry\EnvelopeItem;
 use Buggregator\Trap\Proto\Frame\Sentry\SentryEnvelope;
 use Buggregator\Trap\Support\StreamHelper;
-use DateTimeImmutable;
-use Fiber;
 use Psr\Http\Message\StreamInterface;
 
 /**

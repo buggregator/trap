@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Traffic;
 
 use Buggregator\Trap\Proto\Frame;
-use DateTimeImmutable;
 
 /**
  * @internal

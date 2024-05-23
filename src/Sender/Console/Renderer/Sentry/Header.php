@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Console\Renderer\Sentry;
 
-use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Common;
-use DateTimeImmutable;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**

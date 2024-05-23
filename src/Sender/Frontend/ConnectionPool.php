@@ -15,11 +15,7 @@ use Buggregator\Trap\Traffic\StreamClient;
 use Buggregator\Trap\Traffic\Websocket\Frame;
 use Buggregator\Trap\Traffic\Websocket\Opcode;
 use Buggregator\Trap\Traffic\Websocket\StreamReader;
-use DateTimeImmutable;
-use Fiber;
 use IteratorAggregate;
-use JsonSerializable;
-use Traversable;
 
 /**
  * @internal

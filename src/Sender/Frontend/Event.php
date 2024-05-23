@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Frontend;
 
-use ArrayAccess;
 use Buggregator\Trap\Sender\Frontend\Event\Asset;
 
 /**

@@ -6,8 +6,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Test\Proto\Message;
 
-use UnexpectedValueException;
-
 /**
  * Protobuf type <code>stub.proto.Message.Foo</code>
  */

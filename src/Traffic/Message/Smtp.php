@@ -6,10 +6,8 @@ namespace Buggregator\Trap\Traffic\Message;
 
 use Buggregator\Trap\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
-use Buggregator\Trap\Traffic\Message\Multipart\Part;
 use Buggregator\Trap\Traffic\Message\Smtp\Contact;
 use Buggregator\Trap\Traffic\Message\Smtp\MessageFormat;
-use JsonSerializable;
 use Psr\Http\Message\StreamInterface;
 
 /**

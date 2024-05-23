@@ -7,7 +7,6 @@ namespace Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Handler\Http\Middleware\SentryTrap\EnvelopeParser;
 use Buggregator\Trap\Proto\Frame;
-use Fiber;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;

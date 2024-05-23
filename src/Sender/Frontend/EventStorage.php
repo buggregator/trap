@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender\Frontend;
 
 use Buggregator\Trap\Config\Server\Frontend\EventStorage as Config;
-use Countable;
 use IteratorAggregate;
 
 /**

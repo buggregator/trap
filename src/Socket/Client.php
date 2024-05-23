@@ -7,7 +7,6 @@ namespace Buggregator\Trap\Socket;
 use Buggregator\Trap\Destroyable;
 use Buggregator\Trap\Socket\Exception\ClientDisconnected;
 use Buggregator\Trap\Support\Timer;
-use Fiber;
 
 /**
  * Client state on the server side.

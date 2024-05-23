@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Proto\Server;
 
-use Closure;
-
 /**
  * @internal
  * @psalm-internal Buggregator

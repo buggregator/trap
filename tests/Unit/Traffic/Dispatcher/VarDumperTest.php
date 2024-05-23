@@ -7,7 +7,6 @@ namespace Buggregator\Trap\Tests\Unit\Traffic\Dispatcher;
 use Buggregator\Trap\Test\Mock\StreamClientMock;
 use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Buggregator\Trap\Traffic\Dispatcher\VarDumper;
-use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 

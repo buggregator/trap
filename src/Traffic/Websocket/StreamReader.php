@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Traffic\Websocket;
 
-use Generator;
-
 /**
  * Read Websocket Frames from the Stream.
  *
