@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender\Frontend\Message;
 
 use Buggregator\Trap\Info;
-use JsonSerializable;
 
 /**
  * @internal

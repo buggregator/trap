@@ -9,7 +9,6 @@ use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Buggregator\Trap\Sender\Console\Support\Files;
-use Fiber;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**

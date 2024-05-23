@@ -9,7 +9,6 @@ use Buggregator\Trap\Processable;
 use Buggregator\Trap\Proto\Buffer;
 use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Traffic\Dispatcher\Binary;
-use Fiber;
 
 /**
  * @internal

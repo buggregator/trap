@@ -5,9 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Traffic\Message\Multipart;
 
 use Buggregator\Trap\Traffic\Message\Headers;
-use JsonSerializable;
-use RuntimeExceptio;
-use RuntimeException;
 
 /**
  * @internal

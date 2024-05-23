@@ -7,10 +7,6 @@ namespace Buggregator\Trap\Test\Mock;
 use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Test\Mock\StreamClientMock\DisconnectCommand;
 use Buggregator\Trap\Traffic\StreamClient;
-use DateTimeImmutable;
-use DateTimeInterface;
-use Fiber;
-use Generator;
 
 /**
  * @internal

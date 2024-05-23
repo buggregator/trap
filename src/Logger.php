@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap;
 
 use Symfony\Component\Console\Output\OutputInterface;
-use Throwable;
 
 /**
  * Console color logger

@@ -6,7 +6,6 @@ namespace Buggregator\Trap\Sender;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Sender;
-use DateTimeImmutable;
 
 /**
  * @internal

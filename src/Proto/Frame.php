@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Proto;
 
 use Buggregator\Trap\ProtoType;
-use DateTimeImmutable;
 
 /**
  * @internal

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Console\Support;
 
-use DateTimeInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**

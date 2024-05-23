@@ -7,7 +7,6 @@ namespace Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Frame\Sentry\SentryEnvelope;
 use Buggregator\Trap\Proto\Frame\Sentry\SentryStore;
-use DateTimeImmutable;
 
 /**
  * @internal

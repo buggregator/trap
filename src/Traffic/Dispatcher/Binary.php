@@ -8,7 +8,6 @@ use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Support\StreamHelper;
 use Buggregator\Trap\Traffic\Dispatcher;
 use Buggregator\Trap\Traffic\StreamClient;
-use DateTimeImmutable;
 
 /**
  * @internal

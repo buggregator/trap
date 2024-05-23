@@ -11,9 +11,7 @@ use Buggregator\Trap\Sender;
 use Buggregator\Trap\Support\Json;
 use Buggregator\Trap\Support\Timer;
 use Fiber;
-use RuntimeException;
 use Socket;
-use SplQueue;
 
 /**
  * @internal

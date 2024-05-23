@@ -6,9 +6,6 @@ namespace Buggregator\Trap\Socket;
 
 use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Traffic\StreamClient;
-use DateTimeImmutable;
-use Fiber;
-use Generator;
 use IteratorAggregate;
 
 /**

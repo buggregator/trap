@@ -10,9 +10,6 @@ use Buggregator\Trap\Logger;
 use Buggregator\Trap\Processable;
 use Buggregator\Trap\Socket\Exception\ClientDisconnected;
 use Buggregator\Trap\Socket\Exception\ServerStopped;
-use Closure;
-use Fiber;
-use RuntimeException;
 use Socket;
 
 /**

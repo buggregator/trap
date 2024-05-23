@@ -6,9 +6,6 @@ namespace Buggregator\Trap\Command;
 
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Logger;
-use DateTimeImmutable;
-use RuntimeException;
-use Socket;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;

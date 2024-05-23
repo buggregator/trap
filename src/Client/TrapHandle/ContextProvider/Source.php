@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Client\TrapHandle\ContextProvider;
 
-use Buggregator\Trap\Client\TrapHandle\StackTrace;
 use Buggregator\Trap\Client\TrapHandle\StaticState;
 use Symfony\Component\HttpKernel\Debug\FileLinkFormatter;
 use Symfony\Component\VarDumper\Cloner\VarCloner;

@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Frontend\Mapper;
 
-use ArrayAccess;
-use ArrayObject;
 use Buggregator\Trap\Proto\Frame\Smtp as SmtpFrame;
 use Buggregator\Trap\Sender\Frontend\Event;
 use Buggregator\Trap\Support\Uuid;

@@ -7,7 +7,6 @@ namespace Buggregator\Trap\Handler\Router;
 use Buggregator\Trap\Handler\Router\Attribute\AssertRoute as AssertAttribute;
 use Buggregator\Trap\Handler\Router\Attribute\Route as RouteAttribute;
 use Buggregator\Trap\Handler\Router\Exception\AssertRouteFailed;
-use Throwable;
 
 /**
  * @internal

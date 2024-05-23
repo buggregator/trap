@@ -7,8 +7,6 @@ namespace Buggregator\Trap\Proto\Server\Version;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Server\Request;
 use Buggregator\Trap\ProtoType;
-use InvalidArgumentException;
-use RuntimeException;
 
 /**
  * @internal

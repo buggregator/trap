@@ -12,9 +12,6 @@ use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Traffic\Dispatcher;
 use Buggregator\Trap\Traffic\Parser;
 use Buggregator\Trap\Traffic\StreamClient;
-use DateTimeImmutable;
-use Exception;
-use Generator;
 
 /**
  * @internal

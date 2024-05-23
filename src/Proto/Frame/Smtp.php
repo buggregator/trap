@@ -9,7 +9,6 @@ use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Support\Json;
 use Buggregator\Trap\Traffic\Message;
-use DateTimeImmutable;
 
 /**
  * @internal

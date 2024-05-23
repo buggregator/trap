@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Proto\Server;
 
 use Buggregator\Trap\Proto\Server\Version\PayloadDecoder;
-use RuntimeException;
 
 /**
  * @internal
