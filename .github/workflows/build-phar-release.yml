@@ -79,13 +79,13 @@ jobs:
         run: gpg --version
 
       - name: 🔑 Decrypt keys.asc.gpg with gpg
-        run: gpg --batch --output ${{ env.GPG_KEYS }} --passphrase \"${{ secrets.GPG_DECRYPT_PASSPHRASE }}\" --yes --decrypt ${{ env.GPG_KEYS_ENCRYPTED }}
+        run: gpg --batch --output ${{ env.GPG_KEYS }} --passphrase "${{ secrets.GPG_DECRYPT_PASSPHRASE }}" --yes --decrypt ${{ env.GPG_KEYS_ENCRYPTED }}
 
       - name: 📥 Import keys from keys.asc with gpg
         run: gpg --batch --import ${{ env.GPG_KEYS }}
 
       - name: 🔐 Sign trap.phar with gpg
-        run: gpg --armor --local-user \"${{ secrets.GPG_LOCAL_USER }}\" --output ${{ env.TRAP_PHAR_SIGNATURE }} --passphrase \"${{ secrets.GPG_KEY_PASSPHRASE }}\" --pinentry-mode loopback --yes --detach-sig ${{ env.TRAP_PHAR }}
+        run: gpg --armor --local-user "${{ secrets.GPG_LOCAL_USER }}" --output ${{ env.TRAP_PHAR_SIGNATURE }} --passphrase "${{ secrets.GPG_KEY_PASSPHRASE }}" --pinentry-mode loopback --yes --detach-sig ${{ env.TRAP_PHAR }}
 
       - name: ❎ Remove decrypted keys.asc
         run: rm ${{ env.GPG_KEYS }}
