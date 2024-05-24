@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Command;
 
 use Buggregator\Trap\Application;
-use Buggregator\Trap\Config\SocketServer;
+use Buggregator\Trap\Bootstrap;
+use Buggregator\Trap\Config\Server\SocketServer;
+use Buggregator\Trap\Config\Server\TcpPorts;
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Sender;
+use Buggregator\Trap\Service\Container;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Command\SignalableCommandInterface;
@@ -28,58 +31,49 @@ use Symfony\Component\Console\Output\OutputInterface;
 final class Run extends Command implements SignalableCommandInterface
 {
     private ?Application $app = null;
+
     private bool $cancelled = false;
 
     public function configure(): void
     {
-        $this->addOption('port', 'p', InputOption::VALUE_OPTIONAL, 'Port to listen', 9912);
+        $this->addOption(
+            'port',
+            'p',
+            InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY,
+            'Port to listen',
+        );
         $this->addOption(
             'sender',
             's',
             InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY,
             'Senders',
-            ['console']
+            ['console'],
         );
         $this->addOption('ui', null, InputOption::VALUE_OPTIONAL, 'Enable WEB UI (experimental)', false);
     }
 
-    protected function execute(
-        InputInterface $input,
-        OutputInterface $output,
-    ): int {
-        try {
-            // Print intro
-            $output->writeln(\sprintf('<fg=yellow;options=bold>%s</> <info>v%s</>', Info::NAME, Info::VERSION));
-            $output->write(Info::LOGO_CLI_COLOR . "\n", true, OutputInterface::OUTPUT_RAW);
+    /**
+     * Prepare port listeners
+     * @return SocketServer[]
+     */
+    public function getServers(Container $container): array
+    {
+        $config = $container->get(TcpPorts::class);
 
-            $port = (int)$input->getOption('port') ?: 9912;
-            /** @var non-empty-string[] $senders */
-            $senders = (array)$input->getOption('sender');
-
-            $registry = $this->createRegistry($output);
-
-            $this->app = new Application(
-                [new SocketServer($port)],
-                new Logger($output),
-                senders: $registry->getSenders($senders),
-                withFrontend: $input->getOption('ui') !== false,
+        $servers = [];
+        $ports = $config->ports ?: [9912];
+        /** @var scalar $port */
+        foreach ($ports as $port) {
+            \is_numeric($port) or throw new \InvalidArgumentException(
+                \sprintf('Invalid port `%s`. It must be a number.', (string) $port),
             );
-
-            $this->app->run();
-        } catch (\Throwable $e) {
-            if ($output->isVerbose()) {
-                // Write colorful exception (title, message, stacktrace)
-                $output->writeln(\sprintf("<fg=red;options=bold>%s</>", $e::class));
-            }
-
-            $output->writeln(\sprintf("<fg=red>%s</>", $e->getMessage()));
-
-            if ($output->isDebug()) {
-                $output->writeln(\sprintf("<fg=gray>%s</>", $e->getTraceAsString()));
-            }
+            $port = (int) $port;
+            $port > 0 && $port < 65536 or throw new \InvalidArgumentException(
+                \sprintf('Invalid port `%s`. It must be in range 1-65535.', $port),
+            );
+            $servers[] = new SocketServer($port, $config->host, $config->type);
         }
-
-        return Command::SUCCESS;
+        return $servers;
     }
 
     public function createRegistry(OutputInterface $output): Sender\SenderRegistry
@@ -92,7 +86,7 @@ final class Run extends Command implements SignalableCommandInterface
             new Sender\RemoteSender(
                 host: '127.0.0.1',
                 port: 9099,
-            )
+            ),
         );
 
         return $registry;
@@ -126,5 +120,52 @@ final class Run extends Command implements SignalableCommandInterface
         }
 
         return false;
+    }
+
+    protected function execute(
+        InputInterface $input,
+        OutputInterface $output,
+    ): int {
+        try {
+            // Print intro
+            $output->writeln(\sprintf('<fg=yellow;options=bold>%s</> <info>v%s</>', Info::NAME, Info::version()));
+            $output->write(Info::LOGO_CLI_COLOR . "\n", true, OutputInterface::OUTPUT_RAW);
+
+            /** @var non-empty-string[] $senders */
+            $senders = (array) $input->getOption('sender');
+
+            $registry = $this->createRegistry($output);
+
+            $container = Bootstrap::init()->withConfig(
+                xml: \dirname(__DIR__, 2) . '/trap.xml',
+                inputOptions: $input->getOptions(),
+                inputArguments: $input->getArguments(),
+                environment: \getenv(),
+            )->finish();
+            $container->set($registry);
+            $container->set($input, InputInterface::class);
+            $container->set(new Logger($output));
+            $this->app = $container->get(Application::class, [
+                'map' => $this->getServers($container),
+                'senders' => $registry->getSenders($senders),
+                'withFrontend' => $input->getOption('ui') !== false,
+            ]);
+
+
+            $this->app->run();
+        } catch (\Throwable $e) {
+            if ($output->isVerbose()) {
+                // Write colorful exception (title, message, stacktrace)
+                $output->writeln(\sprintf("<fg=red;options=bold>%s</>", $e::class));
+            }
+
+            $output->writeln(\sprintf("<fg=red>%s</>", $e->getMessage()));
+
+            if ($output->isDebug()) {
+                $output->writeln(\sprintf("<fg=gray>%s</>", $e->getTraceAsString()));
+            }
+        }
+
+        return Command::SUCCESS;
     }
 }

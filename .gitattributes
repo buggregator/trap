@@ -1,12 +1,19 @@
 * text=auto
 
-/.github       export-ignore
-/tests         export-ignore
-/.*            export-ignore
-/phpunit.xml*  export-ignore
-/phpstan.*     export-ignore
-/psalm.*       export-ignore
-/infection.*   export-ignore
-/codecov.*     export-ignore
+.github                export-ignore
+.phive                 export-ignore
+tests                  export-ignore
+.*                     export-ignore
+box.json.dist          export-ignore
+composer.lock          export-ignore
+docker-compose.yaml    export-ignore
+Makefile               export-ignore
+phpunit.xml*           export-ignore
+phpstan.*              export-ignore
+psalm.*                export-ignore
+psalm-baseline.xml     export-ignore
+infection.*            export-ignore
+codecov.*              export-ignore
 
 *.http binary
+*.gpg binary

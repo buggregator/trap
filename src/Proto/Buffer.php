@@ -7,14 +7,19 @@ namespace Buggregator\Trap\Proto;
 use Buggregator\Trap\Support\Timer;
 
 /**
+ * A buffer that accumulates events and notifies when it is full.
+ * Overflow can occur due to a configured timeout or number of events.
+ *
  * @internal
  */
 final class Buffer
 {
     /** @var Frame[] */
     private array $frames = [];
+
     /** @var int<0, max> Current payload size */
     private int $currentSize = 0;
+
     private ?Timer $timer;
 
     /**

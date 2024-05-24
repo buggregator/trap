@@ -1,0 +1,22 @@
+{
+    "symbol-whitelist": [
+        "Buggregator\\Trap\\Test\\Proto\\Message_Foo",
+        "Buggregator\\Trap\\Test\\Proto\\Message_Header",
+        "Buggregator\\Trap\\Test\\Proto\\Message_Metadata",
+        "Google\\Protobuf\\Internal\\Descriptor",
+        "Google\\Protobuf\\Internal\\DescriptorPool",
+        "Google\\Protobuf\\Internal\\GPBType",
+        "Google\\Protobuf\\Internal\\GPBUtil",
+        "Google\\Protobuf\\Internal\\MapField",
+        "Google\\Protobuf\\Internal\\Message",
+        "Google\\Protobuf\\Internal\\RepeatedField",
+        "LIBXML_NOERROR",
+        "SIGINT",
+        "SIGTERM",
+        "simplexml_load_string",
+        "Symfony\\Component\\HttpFoundation\\Request",
+        "Symfony\\Component\\HttpFoundation\\RequestStack",
+        "Symfony\\Component\\HttpKernel\\Debug\\FileLinkFormatter",
+        "Twig\\Template"
+    ]
+}

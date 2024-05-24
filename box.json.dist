@@ -1,0 +1,22 @@
+{
+    "$schema": "https://raw.githubusercontent.com/box-project/box/main/res/schema.json",
+    "compactors": [
+        "KevinGH\\Box\\Compactor\\Json",
+        "KevinGH\\Box\\Compactor\\Php"
+    ],
+    "compression": "GZ",
+    "git": "git",
+    "directories": [
+        "resources",
+        "src",
+        "vendor"
+    ],
+    "files": [
+        "trap.xml",
+        "bin/trap",
+        "LICENSE.md",
+        "composer.json",
+        "composer.lock"
+    ],
+    "output": ".build/phar/trap.phar"
+}

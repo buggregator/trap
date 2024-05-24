@@ -7,7 +7,6 @@ namespace Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Handler\Http\Middleware\SentryTrap\EnvelopeParser;
 use Buggregator\Trap\Proto\Frame;
-use Fiber;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -15,6 +14,8 @@ use Psr\Http\Message\ServerRequestInterface;
 /**
  * @internal
  * @psalm-internal Buggregator\Trap
+ *
+ * @psalm-import-type SentryStoreMessage from Frame\Sentry\SentryStore
  */
 final class SentryTrap implements Middleware
 {
@@ -64,8 +65,13 @@ final class SentryTrap implements Middleware
         }
 
         $request->getBody()->rewind();
-        $frame = EnvelopeParser::parse($request->getBody(), $request->getAttribute('begin_at', null));
-        Fiber::suspend($frame);
+
+        /** @var mixed $time */
+        $time = $request->getAttribute('begin_at');
+        $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
+
+        $frame = EnvelopeParser::parse($request->getBody(), $time);
+        \Fiber::suspend($frame);
 
         return new Response(200);
     }
@@ -77,14 +83,18 @@ final class SentryTrap implements Middleware
             // Reject too big content
             return new Response(413);
         }
+        /** @var SentryStoreMessage $payload */
+        $payload = \json_decode((string) $request->getBody(), true, 96, \JSON_THROW_ON_ERROR);
 
-        $payload = \json_decode((string)$request->getBody(), true, 96, \JSON_THROW_ON_ERROR);
+        /** @psalm-suppress MixedAssignment */
+        $time = $request->getAttribute('begin_at');
+        $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
 
-        Fiber::suspend(
+        \Fiber::suspend(
             new Frame\Sentry\SentryStore(
                 message: $payload,
-                time: $request->getAttribute('begin_at', null),
-            )
+                time: $time,
+            ),
         );
 
         return new Response(200);

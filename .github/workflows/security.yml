@@ -1,65 +1,59 @@
-name: Security
+---
 
-on:
+name: 🔐 Security analysis
+
+on:  # yamllint disable-line rule:truthy
   pull_request:
-    paths-ignore:
-      - 'docs/**'
-      - 'bin/**'
-      - 'resources/**'
-      - 'README.md'
-      - 'CHANGELOG.md'
-      - '.gitignore'
-      - '.gitattributes'
-      - '.editorconfig'
-      - 'psalm.xml'
-
   push:
-    paths-ignore:
-      - 'docs/**'
-      - 'bin/**'
-      - 'resources/**'
-      - 'README.md'
-      - 'CHANGELOG.md'
-      - '.gitignore'
-      - '.gitattributes'
-      - '.editorconfig'
-      - 'psalm.xml'
 
 jobs:
-  security:
-    name: Security Checks (PHP ${{ matrix.php }}, OS ${{ matrix.os }})
+  security-analysis:
+    timeout-minutes: 4
     runs-on: ${{ matrix.os }}
+    concurrency:
+      cancel-in-progress: true
+      group: security-analysis-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
-        # Note: This workflow requires only the LATEST version of PHP
-        php: [ 8.2 ]
-        os: [ ubuntu-latest ]
+        os:
+          - ubuntu-latest
+        php-version:
+          - '8.2'
+        dependencies:
+          - locked
     steps:
-      - name: Set up PHP ${{ matrix.php }}
-        uses: shivammathur/setup-php@v2
+      - name: 📦 Check out the codebase
+        uses: actions/checkout@v4.1.5
+
+      - name: 🛠️ Setup PHP
+        uses: shivammathur/setup-php@2.30.4
         with:
-          php-version: ${{ matrix.php }}
-          extensions: dom, sockets, grpc, curl
+          php-version: ${{ matrix.php-version }}
+          extensions: none, ctype, dom, json, mbstring, phar, simplexml, tokenizer, xml, xmlwriter, sockets
+          ini-values: error_reporting=E_ALL
+          coverage: none
 
-      - name: Check Out Code
-        uses: actions/checkout@v4
+      - name: 🛠️ Setup problem matchers
+        run: echo "::add-matcher::${{ runner.tool_cache }}/php.json"
+
+      - name: 🤖 Validate composer.json and composer.lock
+        run: composer validate --ansi --strict
+
+      - name: 🔍 Get composer cache directory
+        uses: wayofdev/gh-actions/actions/composer/get-cache-directory@v3.1.0
+
+      - name: ♻️ Restore cached dependencies installed with composer
+        uses: actions/cache@v4.0.2
         with:
-          fetch-depth: 1
+          path: ${{ env.COMPOSER_CACHE_DIR }}
+          key: php-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-${{ hashFiles('composer.lock') }}
+          restore-keys: php-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-
 
-      - name: Get Composer Cache Directory
-        id: composer-cache
-        run: echo "::set-output name=dir::$(composer config cache-files-dir)"
-
-      - name: Cache Dependencies
-        uses: actions/cache@v3
+      - name: 📥 Install "${{ matrix.dependencies }}" dependencies
+        uses: wayofdev/gh-actions/actions/composer/install@v3.1.0
         with:
-          path: ${{ steps.composer-cache.outputs.dir }}
-          key: php-${{ matrix.php }}-${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: php-${{ matrix.php }}-${{ runner.os }}-composer-
+          dependencies: ${{ matrix.dependencies }}
 
-      - name: Install Composer Dependencies
-        run: composer install --prefer-dist --no-interaction
-
-      - name: Verify
-        run: composer require --dev roave/security-advisories:dev-latest
+      - name: 🐛 Check installed packages for security vulnerability advisories
+        run: composer audit --ansi

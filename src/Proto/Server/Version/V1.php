@@ -7,8 +7,6 @@ namespace Buggregator\Trap\Proto\Server\Version;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Server\Request;
 use Buggregator\Trap\ProtoType;
-use InvalidArgumentException;
-use RuntimeException;
 
 /**
  * @internal
@@ -35,7 +33,7 @@ final class V1 implements PayloadDecoder
 
         $header = \explode('|', \substr($payload, 0, $startJson), 3);
         if (\count($header) !== 3) {
-            throw new InvalidArgumentException('Invalid data.');
+            throw new \InvalidArgumentException('Invalid data.');
         }
 
         /**
@@ -51,11 +49,11 @@ final class V1 implements PayloadDecoder
 
         // Protocol version
         if (\preg_match('/^\d++$/', $protocol) !== 1) {
-            throw new InvalidArgumentException('Invalid protocol.');
+            throw new \InvalidArgumentException('Invalid protocol.');
         }
 
         /** @var positive-int $protocol */
-        $protocol = (int)$protocol;
+        $protocol = (int) $protocol;
         \assert($protocol > 0);
 
         // UUID
@@ -66,14 +64,14 @@ final class V1 implements PayloadDecoder
             client: $client,
             uuid: $uuid,
             payload: $payload,
-            payloadParser: function (string $payload): iterable {
+            payloadParser: static function (string $payload): iterable {
                 $data = \json_decode($payload, true, 8, \JSON_THROW_ON_ERROR);
                 if (!\is_array($data)) {
-                    throw new RuntimeException('Decoded data must be array.');
+                    throw new \RuntimeException('Decoded data must be array.');
                 }
 
                 return \array_map(
-                    function (array $item): Frame {
+                    static function (array $item): Frame {
                         \assert(isset($item['type']) && \is_string($item['data']), 'Missing type.');
                         \assert(isset($item['data']) && \is_string($item['data']), 'Missing data.');
                         \assert(isset($item['time']) && \is_string($item['time']), 'Missing time.');
@@ -91,10 +89,10 @@ final class V1 implements PayloadDecoder
                             ProtoType::HTTP->value => Frame\Http::fromString($payload, $date),
                             ProtoType::Sentry->value => Frame\Sentry::fromString($payload, $date),
                             ProtoType::Profiler->value => Frame\Profiler::fromString($payload, $date),
-                            default => throw new RuntimeException('Invalid type.'),
+                            default => throw new \RuntimeException('Invalid type.'),
                         };
                     },
-                    $data
+                    $data,
                 );
             },
         );
@@ -106,7 +104,7 @@ final class V1 implements PayloadDecoder
     private function validateUuid(string $uuid): void
     {
         if (\preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $uuid) !== 1) {
-            throw new InvalidArgumentException('Invalid UUID.');
+            throw new \InvalidArgumentException('Invalid UUID.');
         }
     }
 }

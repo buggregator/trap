@@ -22,9 +22,8 @@ final class Service
 {
     public function __construct(
         private readonly Logger $logger,
-        private readonly EventsStorage $eventsStorage,
-    ) {
-    }
+        private readonly EventStorage $eventsStorage,
+    ) {}
 
     #[StaticRoute(Method::Get, 'api/version')]
     public function version(): Version

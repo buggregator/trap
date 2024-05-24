@@ -7,7 +7,6 @@ namespace Buggregator\Trap\Traffic\Dispatcher;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Traffic\Dispatcher;
 use Buggregator\Trap\Traffic\StreamClient;
-use DateTimeImmutable;
 
 /**
  * @internal
@@ -27,13 +26,13 @@ final class Monolog implements Dispatcher
             }
 
             yield new Frame\Monolog(
-                (array)\json_decode($line, true, 512, JSON_THROW_ON_ERROR),
+                (array) \json_decode($line, true, 512, JSON_THROW_ON_ERROR),
                 $stream->getCreatedAt(),
             );
         }
     }
 
-    public function detect(string $data, DateTimeImmutable $createdAt): ?bool
+    public function detect(string $data, \DateTimeImmutable $createdAt): ?bool
     {
         return \str_starts_with($data, '{"message":');
     }

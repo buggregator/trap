@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Proto\Server;
 
 use Buggregator\Trap\Proto\Server\Version\PayloadDecoder;
-use RuntimeException;
 
 /**
  * @internal
@@ -20,7 +19,7 @@ final class Decoder
         private readonly array $payloadDecoders,
     ) {
         if (\count($payloadDecoders) === 0) {
-            throw new RuntimeException('Payload decoders must be not empty.');
+            throw new \RuntimeException('Payload decoders must be not empty.');
         }
 
         foreach ($payloadDecoders as $payloadDecoder) {
@@ -36,6 +35,6 @@ final class Decoder
             }
         }
 
-        throw new RuntimeException('Unsupported payload.');
+        throw new \RuntimeException('Unsupported payload.');
     }
 }

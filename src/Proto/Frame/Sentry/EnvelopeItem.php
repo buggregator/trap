@@ -15,7 +15,14 @@ final class EnvelopeItem implements \Stringable, \JsonSerializable
     public function __construct(
         public readonly array $headers,
         public readonly mixed $payload,
-    ) {
+    ) {}
+
+    public function jsonSerialize(): mixed
+    {
+        return [
+            'headers' => $this->headers,
+            'payload' => $this->payload,
+        ];
     }
 
     /**
@@ -24,13 +31,5 @@ final class EnvelopeItem implements \Stringable, \JsonSerializable
     public function __toString(): string
     {
         return Json::encode($this->jsonSerialize());
-    }
-
-    public function jsonSerialize(): mixed
-    {
-        return [
-            'headers' => $this->headers,
-            'payload' => $this->payload,
-        ];
     }
 }

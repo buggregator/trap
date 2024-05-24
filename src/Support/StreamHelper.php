@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Support;
 
-use Fiber;
 use Http\Message\Encoding\GzipDecodeStream;
 use Nyholm\Psr7\Stream;
 use Psr\Http\Message\ServerRequestInterface;
@@ -17,7 +16,9 @@ use Psr\Http\Message\StreamInterface;
 final class StreamHelper
 {
     private const CHUNK_SIZE = 1 * 1024 * 1024; // 1 Mb
+
     private const WRITE_STREAM_CHUNK_SIZE = 8 * 1024 * 1024; // 8 Mb
+
     private const MAX_FILE_MEMORY_SIZE = 4 * 1024 * 1024; // 4MB
 
     /**
@@ -52,7 +53,7 @@ final class StreamHelper
             $delta += \strlen($read) - $ssLen;
 
             unset($read);
-            Fiber::suspend();
+            \Fiber::suspend();
         }
 
         $stream->seek($caret, \SEEK_SET);
@@ -67,7 +68,7 @@ final class StreamHelper
      *
      * @param non-empty-string $boundary
      *
-     * @return int Bytes written
+     * @return int<0, max> Bytes written
      */
     public static function writeStreamUntil(StreamInterface $from, StreamInterface $to, string $boundary): int
     {
@@ -81,7 +82,7 @@ final class StreamHelper
                 $result += \strlen($read);
                 $to->write($read);
                 unset($read);
-                Fiber::suspend();
+                \Fiber::suspend();
                 break;
             }
 
@@ -89,7 +90,7 @@ final class StreamHelper
             $to->write($read);
 
             unset($read);
-            Fiber::suspend();
+            \Fiber::suspend();
         }
 
         return $result;
@@ -113,7 +114,7 @@ final class StreamHelper
             $written += \strlen($read);
 
             unset($read);
-            Fiber::suspend();
+            \Fiber::suspend();
         }
     }
 

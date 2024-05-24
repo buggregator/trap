@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Client\TrapHandle;
 
-use Closure;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Debug\FileLinkFormatter;
 use Symfony\Component\VarDumper\Caster\ReflectionCaster;
-use Symfony\Component\VarDumper\Cloner\DumperInterface;
 use Symfony\Component\VarDumper\Cloner\VarCloner;
 use Symfony\Component\VarDumper\Dumper\CliDumper;
 use Symfony\Component\VarDumper\Dumper\ContextProvider\CliContextProvider;
@@ -27,28 +25,28 @@ use Symfony\Component\VarDumper\Dumper\ServerDumper;
  */
 final class Dumper
 {
-    /** @var null|Closure(mixed, string|null, int): mixed */
-    private static ?Closure $handler = null;
+    /** @var null|\Closure(mixed, string|null, int): mixed */
+    private static ?\Closure $handler = null;
 
     public static function dump(mixed $var, string|int|null $label = null, int $depth = 0): mixed
     {
         /** @psalm-suppress RiskyTruthyFalsyComparison */
-        return (self::$handler ??= self::registerHandler())($var, empty($label) ? null : (string)$label, $depth);
+        return (self::$handler ??= self::registerHandler())($var, empty($label) ? null : (string) $label, $depth);
     }
 
     /**
      * @return null|callable(mixed, string|null, int): mixed
      * @psalm-suppress MixedInferredReturnType, MixedPropertyTypeCoercion, MismatchingDocblockReturnType
      */
-    public static function setHandler(callable $callable = null): ?Closure
+    public static function setHandler(callable $callable = null): ?\Closure
     {
         return ([$callable, self::$handler] = [self::$handler, $callable === null ? null : $callable(...)])[0];
     }
 
     /**
-     * @return Closure(mixed, string|null, int): mixed
+     * @return \Closure(mixed, string|null, int): mixed
      */
-    public static function setDumper(?DataDumperInterface $dumper = null): Closure
+    public static function setDumper(?DataDumperInterface $dumper = null): \Closure
     {
         if ($dumper === null) {
             return self::registerHandler();
@@ -58,24 +56,28 @@ final class Dumper
         /** @psalm-suppress InvalidArgument */
         $cloner->addCasters(ReflectionCaster::UNSET_CLOSURE_FILE_INFO);
 
-        return self::$handler = static function (mixed $var, string|null $label = null, int $depth = 0)
-            use ($cloner, $dumper): ?string {
-                $var = $cloner->cloneVar($var);
+        return self::$handler = static function (mixed $var, string|null $label = null, int $depth = 0) use ($cloner, $dumper): ?string {
+            $var = $cloner->cloneVar($var);
 
-                $label === null or $var = $var->withContext(['label' => $label]);
-                $depth > 0 and $var = $var->withMaxDepth($depth);
+            /** @var array<array-key, mixed> $context*/
+            $context = StaticState::getValue()?->dataContext ?? [];
 
-                return $dumper->dump($var);
-            };
+            /** @var string|null $label */
+            $label === null or $context['label'] = $label;
+            $context === [] or $var = $var->withContext($context);
+            $depth > 0 and $var = $var->withMaxDepth($depth);
+
+            return $dumper->dump($var);
+        };
     }
 
     /**
-     * @return Closure(mixed, string|null, int): mixed
+     * @return \Closure(mixed, string|null, int): mixed
      *
      * @author Nicolas Grekas <p@tchwork.com>
      * @psalm-suppress RiskyTruthyFalsyComparison
      */
-    private static function registerHandler(): Closure
+    private static function registerHandler(): \Closure
     {
         $cloner = new VarCloner();
         /** @psalm-suppress InvalidArgument */
@@ -83,15 +85,15 @@ final class Dumper
 
         $format = $_SERVER['VAR_DUMPER_FORMAT'] ?? null;
         switch (true) {
-            case 'html' === $format:
+            case $format === 'html':
                 $dumper = new HtmlDumper();
                 break;
-            case 'cli' === $format:
+            case $format === 'cli':
                 $dumper = new CliDumper();
                 break;
-            case 'server' === $format:
-            case $format && 'tcp' === parse_url($format, \PHP_URL_SCHEME):
-                $host = 'server' === $format ? $_SERVER['VAR_DUMPER_SERVER'] ?? '127.0.0.1:9912' : $format;
+            case $format === 'server':
+            case $format && \parse_url($format, \PHP_URL_SCHEME) === 'tcp':
+                $host = $format === 'server' ? $_SERVER['VAR_DUMPER_SERVER'] ?? '127.0.0.1:9912' : $format;
                 $dumper = \in_array(\PHP_SAPI, ['cli', 'phpdbg'], true) ? new CliDumper() : new HtmlDumper();
                 $dumper = new ServerDumper($host, $dumper, self::getContextProviders());
                 break;
@@ -129,8 +131,8 @@ final class Dumper
             : null;
 
         return $contextProviders + [
-                'cli' => new CliContextProvider(),
-                'source' => new ContextProvider\Source(null, null, $fileLinkFormatter),
-            ];
+            'cli' => new CliContextProvider(),
+            'source' => new ContextProvider\Source(null, null, $fileLinkFormatter),
+        ];
     }
 }

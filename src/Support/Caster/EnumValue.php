@@ -13,7 +13,5 @@ final class EnumValue
         public readonly string $class,
         public readonly string $name,
         public readonly int $value,
-    ) {
-    }
+    ) {}
 }
-

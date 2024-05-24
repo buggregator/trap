@@ -9,12 +9,15 @@ namespace Buggregator\Trap\Traffic\Message;
  */
 trait Headers
 {
-    /** @var array Map of all registered headers, as original name => array of values */
+    /** @var array<non-empty-string, non-empty-list<string>> Map of all registered headers */
     private array $headers = [];
 
-    /** @var array Map of lowercase header name => original name at registration */
+    /** @var array<non-empty-string, non-empty-string> Map of lowercase header name => original name at registration */
     private array $headerNames = [];
 
+    /**
+     * @return array<non-empty-string, list<string>>
+     */
     public function getHeaders(): array
     {
         return $this->headers;
@@ -26,7 +29,7 @@ trait Headers
     }
 
     /**
-     * @return string[]
+     * @return list<string>
      */
     public function getHeader(string $header): array
     {
@@ -45,9 +48,10 @@ trait Headers
         return \implode(', ', $this->getHeader($header));
     }
 
-    public function withHeader(string $header, $value): static
+    public function withHeader(string $header, mixed $value): static
     {
         $value = $this->validateAndTrimHeader($header, $value);
+        /** @var non-empty-string $normalized */
         $normalized = \strtr($header, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz');
 
         $new = clone $this;
@@ -62,7 +66,7 @@ trait Headers
 
     public function withAddedHeader(string $header, string $value): static
     {
-        if ('' === $header) {
+        if ($header === '') {
             throw new \InvalidArgumentException('Header name must be an RFC 7230 compatible string');
         }
 
@@ -87,6 +91,26 @@ trait Headers
     }
 
     /**
+     * List of header values.
+     *
+     * @param array<array-key, list<string>> $headers
+     * @param non-empty-string $header
+     *
+     * @return list<string>
+     */
+    private static function findHeader(array $headers, string $header): array
+    {
+        $header = \strtr($header, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz');
+        $result = [];
+        foreach ($headers as $name => $values) {
+            if (\strtr((string) $name, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') === $header) {
+                $result = [...$result, ...$values];
+            }
+        }
+        return $result;
+    }
+
+    /**
      * @param array<array-key, scalar|list<scalar>> $headers
      */
     private function setHeaders(array $headers): void
@@ -95,9 +119,11 @@ trait Headers
             if (\is_int($header)) {
                 // If a header name was set to a numeric string, PHP will cast the key to an int.
                 // We must cast it back to a string in order to comply with validation.
-                $header = (string)$header;
+                $header = (string) $header;
             }
+
             $value = $this->validateAndTrimHeader($header, $value);
+            /** @var non-empty-string $normalized */
             $normalized = \strtr($header, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz');
             if (isset($this->headerNames[$normalized])) {
                 $header = $this->headerNames[$normalized];
@@ -126,64 +152,48 @@ trait Headers
      * field-value  = *( ( %x21-7E / %x80-FF ) [ 1*( SP / HTAB ) ( %x21-7E / %x80-FF ) ] )
      *
      * @see https://tools.ietf.org/html/rfc7230#section-3.2.4
+     *
+     * @psalm-assert non-empty-string $header
+     *
+     * @return non-empty-list<string>
      */
-    private function validateAndTrimHeader(string $header, $values): array
+    private function validateAndTrimHeader(string $header, mixed $values): array
     {
-        if (1 !== \preg_match("@^[!#$%&'*+.^_`|~0-9A-Za-z-]+$@D", $header)) {
+        if (\preg_match("@^[!#$%&'*+.^_`|~0-9A-Za-z-]+$@D", $header) !== 1) {
             throw new \InvalidArgumentException('Header name must be an RFC 7230 compatible string');
         }
 
         if (!\is_array($values)) {
             // This is simple, just one value.
-            if ((!\is_numeric($values) && !\is_string($values)) || 1 !== \preg_match(
-                    "@^[ \t\x21-\x7E\x80-\xFF]*$@",
-                    (string)$values,
-                )) {
+            if ((!\is_numeric($values) && !\is_string($values)) || \preg_match(
+                "@^[ \t\x21-\x7E\x80-\xFF]*$@",
+                (string) $values,
+            ) !== 1) {
                 throw new \InvalidArgumentException('Header values must be RFC 7230 compatible strings');
             }
 
-            return [\trim((string)$values, " \t")];
+            return [\trim((string) $values, " \t")];
         }
 
         if (empty($values)) {
             throw new \InvalidArgumentException(
-                'Header values must be a string or an array of strings, empty array given'
+                'Header values must be a string or an array of strings, empty array given',
             );
         }
 
         // Assert Non empty array
         $returnValues = [];
         foreach ($values as $v) {
-            if ((!\is_numeric($v) && !\is_string($v)) || 1 !== \preg_match(
-                    "@^[ \t\x21-\x7E\x80-\xFF]*$@D",
-                    (string)$v,
-                )) {
+            if ((!\is_numeric($v) && !\is_string($v)) || \preg_match(
+                "@^[ \t\x21-\x7E\x80-\xFF]*$@D",
+                (string) $v,
+            ) !== 1) {
                 throw new \InvalidArgumentException('Header values must be RFC 7230 compatible strings');
             }
 
-            $returnValues[] = \trim((string)$v, " \t");
+            $returnValues[] = \trim((string) $v, " \t");
         }
 
         return $returnValues;
-    }
-
-    /**
-     * List of header values.
-     *
-     * @param array<string, list<non-empty-string>> $headers
-     * @param non-empty-string $header
-     *
-     * @return list<non-empty-string>
-     */
-    private static function findHeader(array $headers, string $header): array
-    {
-        $header = \strtr($header, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz');
-        $result = [];
-        foreach ($headers as $name => $values) {
-            if (\strtr($name, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') === $header) {
-                $result = [...$result, ...$values];
-            }
-        }
-        return $result;
     }
 }

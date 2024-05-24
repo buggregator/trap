@@ -1,0 +1,196 @@
+---
+
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+name: 🧹 Fix PHP coding standards
+
+jobs:
+  commit-linting:
+    timeout-minutes: 4
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: 📦 Check out the codebase
+        uses: actions/checkout@v4.1.6
+
+      - name: 🧐 Lint commits using "commitlint"
+        uses: wagoid/commitlint-github-action@v6.0.1
+        with:
+          configFile: ${{ github.workspace }}/.github/.commitlint.config.mjs
+          failOnWarnings: false
+          failOnErrors: false
+          helpURL: 'https://github.com/conventional-changelog/commitlint/#what-is-commitlint'
+
+  yaml-linting:
+    timeout-minutes: 4
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: 📦 Check out the codebase
+        uses: actions/checkout@v4.1.6
+
+      - name: 🧐 Lint YAML files
+        uses: ibiqlik/action-yamllint@v3.1.1
+        with:
+          config_file: .github/.yamllint.yaml
+          file_or_dir: '.'
+          strict: true
+
+  markdown-linting:
+    timeout-minutes: 4
+    runs-on: ubuntu-latest
+    concurrency:
+      cancel-in-progress: true
+      group: markdown-linting-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    steps:
+      - name: 📦 Check out the codebase
+        uses: actions/checkout@v4.1.6
+
+      - name: 🧐 Lint Markdown files
+        uses: DavidAnson/markdownlint-cli2-action@v16.0.0
+        with:
+          globs: |
+            **/*.md
+            !CHANGELOG.md
+
+  composer-linting:
+    timeout-minutes: 4
+    runs-on: ${{ matrix.os }}
+    concurrency:
+      cancel-in-progress: true
+      group: composer-linting-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+        php-version:
+          - '8.1'
+        dependencies:
+          - locked
+    permissions:
+      contents: write
+    steps:
+      - name: 🛠️ Setup PHP
+        uses: shivammathur/setup-php@2.30.4
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: none, ctype, dom, json, mbstring, phar, simplexml, tokenizer, xml, xmlwriter, phar, sockets
+          ini-values: error_reporting=E_ALL
+          coverage: none
+          tools: phive
+
+      - name: 📦 Check out the codebase
+        uses: actions/checkout@v4.1.6
+
+      - name: 🛠️ Setup problem matchers
+        run: |
+          echo "::add-matcher::${{ runner.tool_cache }}/php.json"
+
+      - name: 🤖 Validate composer.json and composer.lock
+        run: composer validate --ansi --strict
+
+      - name: 🔍 Get composer cache directory
+        uses: wayofdev/gh-actions/actions/composer/get-cache-directory@v3.1.0
+
+      - name: ♻️ Restore cached dependencies installed with composer
+        uses: actions/cache@v4.0.2
+        with:
+          path: ${{ env.COMPOSER_CACHE_DIR }}
+          key: php-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-${{ hashFiles('composer.lock') }}
+          restore-keys: php-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-
+
+      - name: 📥 Install "${{ matrix.dependencies }}" dependencies with composer
+        uses: wayofdev/gh-actions/actions/composer/install@v3.1.0
+        with:
+          dependencies: ${{ matrix.dependencies }}
+
+      - name: 📥 Install dependencies with phive
+        uses: wayofdev/gh-actions/actions/phive/install@v3.1.0
+        with:
+          phive-home: '.phive'
+          trust-gpg-keys: '0xC00543248C87FB13,0x033E5F8D801A2F8D,0x2DF45277AEF09A2F'
+
+      - name: 🔍 Run ergebnis/composer-normalize
+        run: .phive/composer-normalize --ansi --dry-run
+
+  coding-standards:
+    timeout-minutes: 4
+    runs-on: ${{ matrix.os }}
+    concurrency:
+      cancel-in-progress: true
+      group: coding-standards-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+        php-version:
+          - '8.1'
+        dependencies:
+          - locked
+    permissions:
+      contents: write
+    steps:
+      - name: ⚙️ Set git to use LF line endings
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: 🛠️ Setup PHP
+        uses: shivammathur/setup-php@2.30.4
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: none, ctype, dom, json, mbstring, phar, simplexml, tokenizer, xml, xmlwriter, sockets
+          ini-values: error_reporting=E_ALL
+          coverage: none
+
+      - name: 📦 Check out the codebase
+        uses: actions/checkout@v4.1.6
+
+      - name: 🛠️ Setup problem matchers
+        run: |
+          echo "::add-matcher::${{ runner.tool_cache }}/php.json"
+
+      - name: 🤖 Validate composer.json and composer.lock
+        run: composer validate --ansi --strict
+
+      - name: 🔍 Get composer cache directory
+        uses: wayofdev/gh-actions/actions/composer/get-cache-directory@v3.1.0
+
+      - name: ♻️ Restore cached dependencies installed with composer
+        uses: actions/cache@v4.0.2
+        with:
+          path: ${{ env.COMPOSER_CACHE_DIR }}
+          key: php-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-${{ hashFiles('composer.lock') }}
+          restore-keys: php-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-
+
+      - name: 📥 Install "${{ matrix.dependencies }}" dependencies with composer
+        uses: wayofdev/gh-actions/actions/composer/install@v3.1.0
+        with:
+          dependencies: ${{ matrix.dependencies }}
+
+      - name: 🛠️ Prepare environment
+        run: make prepare
+
+      - name: 🚨 Run coding standards task
+        run: composer cs:fix
+        env:
+          PHP_CS_FIXER_IGNORE_ENV: true
+
+      - name: 📤 Commit and push changed files back to GitHub
+        uses: stefanzweifel/git-auto-commit-action@v5.0.1
+        with:
+          commit_message: 'style(php-cs-fixer): lint php files and fix coding standards'
+          branch: ${{ github.head_ref }}
+          commit_author: 'github-actions <github-actions@users.noreply.github.com>'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

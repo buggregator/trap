@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Console\Support;
 
-use DateTimeInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -30,6 +29,10 @@ final class Common
     {
         $parts = ["<fg=white;options=bold># $title </>"];
         foreach ($sub as $color => $value) {
+            if ($value === '') {
+                continue;
+            }
+
             $color = \is_string($color) ? $color : 'gray';
             $parts[] = \sprintf('<fg=%s> %s </>', $color, $value);
         }
@@ -57,14 +60,20 @@ final class Common
      */
     public static function renderMetadata(OutputInterface $output, array $data): void
     {
-        $maxHeaderLength = \max(\array_map('strlen', \array_keys($data)));
+        $maxHeaderLength = \max(
+            0,
+            ...\array_map(
+                static fn(string|int $key): int => \strlen((string) $key),
+                \array_keys($data),
+            ),
+        );
 
         /** @var mixed $value */
         foreach ($data as $head => $value) {
             // Align headers to the right
             self::renderHeader(
                 $output,
-                \str_pad((string)$head, $maxHeaderLength, ' ', \STR_PAD_LEFT),
+                \str_pad((string) $head, $maxHeaderLength, ' ', \STR_PAD_LEFT),
                 $value,
                 keyColor: Color::White,
                 valueColor: Color::Gray,
@@ -88,7 +97,7 @@ final class Common
         foreach ($tags as $name => $value) {
             if (\is_string($name)) {
                 $currentLen = \strlen($name) + \strlen($value) + 5; // 4 paddings and 1 margin
-                $tag = \sprintf('<fg=white;bg=gray> %s:</><fg=white;bg=green;options=bold> %s </>', $name, $value,);
+                $tag = \sprintf('<fg=white;bg=gray> %s:</><fg=white;bg=green;options=bold> %s </>', $name, $value, );
             } else {
                 $currentLen = \strlen($value) + 3; // 2 paddings and 1 margin
                 $tag = \sprintf('<fg=white;bg=green;options=bold> %s </>', $value);
@@ -123,7 +132,7 @@ final class Common
     public static function renderHeaders(OutputInterface $output, array $headers): void
     {
         foreach ($headers as $head => $value) {
-            self::renderHeader($output, (string)$head, $value);
+            self::renderHeader($output, (string) $head, $value);
         }
     }
 
@@ -144,10 +153,10 @@ final class Common
             }
 
             $item = match (true) {
-                $value instanceof DateTimeInterface => $value->format('u') === '000000'
+                $value instanceof \DateTimeInterface => $value->format('u') === '000000'
                     ? $value->format('Y-m-d H:i:s')
                     : $value->format('Y-m-d H:i:s.u'),
-                \is_scalar($value) || $value instanceof \Stringable => (string)$value,
+                \is_scalar($value) || $value instanceof \Stringable => (string) $value,
                 default => \print_r($item, true),
             };
 

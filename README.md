@@ -1,13 +1,17 @@
-<div align="center">
-    <img alt="logo" src="https://github.com/buggregator/trap/assets/4152481/c53e7107-e1c5-48b9-9789-4a6bce9b903b" style="width: 3in" />
-    <div>Revolutionize Your Debugging Experience with PHP</div>
-</div>
+<p align="center">
+    <img alt="logo"
+         src="https://github.com/buggregator/trap/blob/master/resources/payloads/logo.png?raw=true"
+         style="width: 3in; display: block"
+    />
+</p>
+<p align="center">Revolutionize Your Debugging Experience with PHP</p>
 <h1 align="center">Buggregator Trap</h1>
 
 <div align="center">
 
 [![Twitter](https://img.shields.io/badge/-Follow-black?style=flat-square&logo=X)](https://twitter.com/buggregator)
 [![Discord](https://img.shields.io/discord/1172942458598985738?style=flat-square&logo=discord&color=0000ff)](https://discord.gg/qF3HpXhMEP)
+[![Support](https://img.shields.io/static/v1?style=flat-square&label=Support&message=%E2%9D%A4&logo=GitHub&color=%23fe0086)](https://patreon.com/roxblnfk)
 
 </div>
 
@@ -141,14 +145,27 @@ $responder->respond(trap($response)->return());
 
 ### Default port
 
-By default, the Trap server operates on port `9912`. However, if you wish to utilize a different port, you can easily
-make this adjustment using the `-p` option.
-
-For example, to switch to port 8000, you would use the following command:
+Trap automatically recognizes the type of traffic.
+Therefore, there is no need to open separate ports for different protocols.
+By default, it operates on port `9912`.
+However, if you wish to utilize a different port, you can easily make this adjustment using the `-p` option:
 
 ```bash
-vendor/bin/trap -p 8000
+vendor/bin/trap -p8000
 ```
+
+Sometimes, it's convenient to run Trap on the same ports that [Buggregator](https://github.com/buggregator/server)
+uses by default. Well, that's also possible:
+
+```bash
+vendor/bin/trap -p1025 -p9912 -p9913 -p8000 --ui=8080
+```
+
+Environment variables can also be used to set endpoints:
+
+- `TRAP_TCP_PORTS` - for TCP traffic: `9912,9913,1025,8000`
+- `TRAP_TCP_HOST` - for the TCP host (default: `127.0.0.1`)
+- `TRAP_UI_PORT` - for the web interface: `8080`
 
 ### Choosing Your Senders
 
@@ -168,7 +185,6 @@ For instance, to simultaneously use the console, file, and server senders, you w
 vendor/bin/trap -s console -s file -s server
 ```
 
-
 ## Contributing
 
 We believe in the power of community-driven development. Here's how you can contribute:
@@ -179,7 +195,7 @@ We believe in the power of community-driven development. Here's how you can cont
   issues labeled "help wanted" [here](https://github.com/buggregator/trap/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22).
 - **Documentation:** Help us improve our [guides and tutorials](https://github.com/buggregator/docs/tree/master/docs) for a smoother user experience.
 - **Community Support:** Join our [Discord](https://discord.gg/qF3HpXhMEP) and help others get the most out of Buggregator.
-- **Spread the Word:** Share your experience with Buggregator on social media and encourage others to contribute. 
+- **Spread the Word:** Share your experience with Buggregator on social media and encourage others to contribute.
 - **Donate:** Support our work by becoming a patron or making a one-time donation  
   [![roxblnfk](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Droxblnfk%26type%3Dpatrons&label=roxblnfk&style=flat-square)](https://patreon.com/roxblnfk)
   [![butschster](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Dbutschster%26type%3Dpatrons&label=butschster&style=flat-square)](https://patreon.com/butschster)
@@ -187,13 +203,9 @@ We believe in the power of community-driven development. Here's how you can cont
 **Remember, every great developer was once a beginner. Contributing to open source projects is a step in your journey to
 becoming a better developer. So, don't hesitate to jump in and start contributing!**
 
-
 ## License
 
 Buggregator Trap is open-sourced software licensed under the BSD-3 license.
-
-
-
 
 <!--
 

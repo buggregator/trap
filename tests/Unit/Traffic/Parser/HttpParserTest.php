@@ -52,6 +52,39 @@ class HttpParserTest extends TestCase
         ], $request->getCookieParams());
     }
 
+    /*\
+     * Parer doesn't fail on wrong cookies
+     */
+    public function testWrongCookie(): void
+    {
+        $body = \str_split(
+            <<<HTTP
+                GET /foo/bar?get=jet&foo=%20bar+ugar HTTP/1.1\r
+                Host: 127.0.0.1:9912\r
+                User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/113.0\r
+                Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8\r
+                Accept-Language: ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3\r
+                Accept-Encoding: gzip, deflate, br\r
+                Connection: keep-alive\r
+                Cookie: koa.sess; csrf-token.sig=X0fR\r
+                Upgrade-Insecure-Requests: 1\r
+                Sec-Fetch-User: ?1\r\n\r\n
+                HTTP,
+            50,
+        );
+
+        $request = $this->parseStream($body);
+
+        $this->assertSame('GET', $request->getMethod());
+        $this->assertSame('/foo/bar', $request->getUri()->getPath());
+        $this->assertSame('1.1', $request->getProtocolVersion());
+        $this->assertSame(['127.0.0.1:9912'], $request->getHeader('host'));
+        $this->assertSame(['ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3'], $request->getHeader('accept-language'));
+        $this->assertSame([
+            'csrf-token.sig' => 'X0fR',
+        ], $request->getCookieParams());
+    }
+
     public function testPostUrlEncoded(): void
     {
         $body = \str_split(
@@ -169,8 +202,8 @@ class HttpParserTest extends TestCase
                     return;
                 }
                 yield from $body;
-            })()
+            })(),
         );
-        return $this->runInFiber(static fn() => (new Parser\Http)->parseStream($stream));
+        return $this->runInFiber(static fn() => (new Parser\Http())->parseStream($stream));
     }
 }

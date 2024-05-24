@@ -7,10 +7,6 @@ namespace Buggregator\Trap\Test\Mock;
 use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Test\Mock\StreamClientMock\DisconnectCommand;
 use Buggregator\Trap\Traffic\StreamClient;
-use DateTimeImmutable;
-use DateTimeInterface;
-use Fiber;
-use Generator;
 
 /**
  * @internal
@@ -19,16 +15,17 @@ final class StreamClientMock implements StreamClient
 {
     /** @var \SplQueue<string> */
     private \SplQueue $queue;
+
     private bool $disconnected = false;
 
     private function __construct(
-        private readonly Generator $generator,
-        private readonly DateTimeInterface $createdAt = new DateTimeImmutable(),
+        private readonly \Generator $generator,
+        private readonly \DateTimeInterface $createdAt = new \DateTimeImmutable(),
     ) {
         $this->queue = new \SplQueue();
     }
 
-    public static function createFromGenerator(Generator $generator): StreamClient
+    public static function createFromGenerator(\Generator $generator): StreamClient
     {
         return new self($generator);
     }
@@ -42,7 +39,7 @@ final class StreamClientMock implements StreamClient
     {
         $before = $this->queue->count();
         do {
-            Fiber::suspend();
+            \Fiber::suspend();
             $this->fetchFromGenerator();
         } while (!$this->disconnected && $this->queue->count() === $before);
     }
@@ -122,16 +119,21 @@ final class StreamClientMock implements StreamClient
         return \implode('', [...$this->queue]);
     }
 
-    public function getIterator(): Generator
+    public function getIterator(): \Generator
     {
         while (!$this->isDisconnected() || !$this->queue->isEmpty()) {
             if ($this->queue->isEmpty()) {
                 $this->fetchFromGenerator();
-                Fiber::suspend();
+                \Fiber::suspend();
                 continue;
             }
             yield (string) $this->queue->dequeue();
         }
+    }
+
+    public function getCreatedAt(): \DateTimeImmutable
+    {
+        return $this->createdAt;
     }
 
     private function fetchFromGenerator(): void
@@ -146,10 +148,5 @@ final class StreamClientMock implements StreamClient
         }
 
         $this->generator->next();
-    }
-
-    public function getCreatedAt(): DateTimeImmutable
-    {
-        return $this->createdAt;
     }
 }

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Proto;
 
 use Buggregator\Trap\ProtoType;
-use DateTimeImmutable;
 
 /**
  * @internal
@@ -15,18 +14,17 @@ abstract class Frame implements \Stringable, \JsonSerializable
 {
     public function __construct(
         public readonly ProtoType $type,
-        public readonly DateTimeImmutable $time = new DateTimeImmutable(),
-    ) {
-    }
+        public readonly \DateTimeImmutable $time = new \DateTimeImmutable(),
+    ) {}
 
-    abstract public static function fromString(string $payload, DateTimeImmutable $time): static;
+    abstract public static function fromString(string $payload, \DateTimeImmutable $time): static;
 
     /**
      * @return int<0, max>
      */
     public function getSize(): int
     {
-        return \strlen((string)$this);
+        return \strlen((string) $this);
     }
 
     final public function jsonSerialize(): array

@@ -12,7 +12,7 @@ use Buggregator\Trap\Handler\Router\Method;
 use Buggregator\Trap\Handler\Router\Router as CommonRouter;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Sender\Frontend\Event\AttachedFile;
-use Buggregator\Trap\Sender\Frontend\EventsStorage;
+use Buggregator\Trap\Sender\Frontend\EventStorage;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -27,7 +27,7 @@ final class EventAssets implements Middleware
 
     public function __construct(
         private readonly Logger $logger,
-        private readonly EventsStorage $eventsStorage,
+        private readonly EventStorage $eventsStorage,
     ) {
         $this->router = CommonRouter::new($this);
     }
@@ -90,7 +90,7 @@ final class EventAssets implements Middleware
         AssertSuccess(
             Method::Get,
             'api/smtp/0145a0e0-0b1a-4e4a-9b1a/attachment/0145a0e0-0b1a-4e4a-9b1a',
-            ['eventId' => '0145a0e0-0b1a-4e4a-9b1a', 'attachId' => '0145a0e0-0b1a-4e4a-9b1a']
+            ['eventId' => '0145a0e0-0b1a-4e4a-9b1a', 'attachId' => '0145a0e0-0b1a-4e4a-9b1a'],
         ),
         AssertFail(Method::Get, 'api/smtp/0145a0e0-0b1a-4e4a-9b1a/attachment/0145a0e0ZZZZzzzz')
     ]
@@ -120,7 +120,7 @@ final class EventAssets implements Middleware
                     "attachment; filename=\"%s\"",
                     \rawurlencode($attachment->file->getClientFilename() ?? 'unnamed'),
                 ),
-                'Content-Length' => (string)$attachment->file->getSize(),
+                'Content-Length' => (string) $attachment->file->getSize(),
                 'Cache-Control' => 'no-cache',
             ],
             $attachment->file->getStream(),

@@ -4,19 +4,16 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Frontend\Message;
 
-use JsonSerializable;
-
 /**
  * @internal
  */
-final class Response implements JsonSerializable
+final class Response implements \JsonSerializable
 {
     public function __construct(
         public readonly string|int $id,
         public ?Rpc $rpc = null,
         public ?Connect $connect = null,
-    ) {
-    }
+    ) {}
 
     public function jsonSerialize(): array
     {

@@ -11,24 +11,23 @@ use Buggregator\Trap\Sender;
 use Buggregator\Trap\Support\Json;
 use Buggregator\Trap\Support\Timer;
 use Fiber;
-use RuntimeException;
 use Socket;
-use SplQueue;
 
 /**
  * @internal
  */
 abstract class SocketSender implements Sender, Processable
 {
-    private ?Socket $socket = null;
+    private ?\Socket $socket = null;
+
     /** @var Timer Reconnect timer */
     private Timer $timer;
 
     /** Current data transaction Fiber */
-    private ?Fiber $handler = null;
+    private ?\Fiber $handler = null;
 
-    /** @var SplQueue<iterable<array-key, Frame>> */
-    private SplQueue $queue;
+    /** @var \SplQueue<iterable<array-key, Frame>> */
+    private \SplQueue $queue;
 
     public function __construct(
         private readonly string $host,
@@ -36,16 +35,11 @@ abstract class SocketSender implements Sender, Processable
         float $reconnectTimeout = 1.0,
         private readonly ?Logger $logger = null,
     ) {
-        $this->queue = new SplQueue();
+        $this->queue = new \SplQueue();
         $this->timer = (new Timer(
             beep: $reconnectTimeout,
             condition: fn(): bool => $this->socket !== null,
         ))->stop();
-    }
-
-    public function __destruct()
-    {
-        $this->disconnect();
     }
 
     public function process(): void
@@ -63,7 +57,7 @@ abstract class SocketSender implements Sender, Processable
             }
         }
         if ($this->handler === null && !$this->queue->isEmpty()) {
-            $this->handler = new Fiber([$this, 'sendNext']);
+            $this->handler = new \Fiber([$this, 'sendNext']);
             $this->handler->start();
         }
     }
@@ -84,7 +78,7 @@ abstract class SocketSender implements Sender, Processable
                 $read = $except = null;
                 $result = $this->checkError(\socket_select($read, $write, $except, 0, 0));
                 if ($result === 0) {
-                    Fiber::suspend();
+                    \Fiber::suspend();
                     continue;
                 }
 
@@ -97,6 +91,11 @@ abstract class SocketSender implements Sender, Processable
         }
     }
 
+    public function __destruct()
+    {
+        $this->disconnect();
+    }
+
     abstract protected function makePackage(string $payload): string;
 
     /**
@@ -105,9 +104,9 @@ abstract class SocketSender implements Sender, Processable
     protected function preparePayload(iterable $frames): string
     {
         return '[' . \implode(',', \array_map(
-                static fn (Frame $frame): string => Json::encode($frame),
-                \is_array($frames) ? $frames : \iterator_to_array($frames),
-            )) . ']';
+            static fn(Frame $frame): string => Json::encode($frame),
+            \is_array($frames) ? $frames : \iterator_to_array($frames),
+        )) . ']';
     }
 
     /**
@@ -121,7 +120,7 @@ abstract class SocketSender implements Sender, Processable
             }
 
             try {
-                $this->timer->isStopped() or throw new RuntimeException('wait for reconnect');
+                $this->timer->isStopped() or throw new \RuntimeException('wait for reconnect');
 
                 $this->logger?->info('Connecting to %s:%d', $this->host, $this->port);
                 $this->socket = $this->checkError(\socket_create(\AF_INET, \SOCK_STREAM, \SOL_TCP));

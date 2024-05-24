@@ -21,7 +21,7 @@ trait StreamBody
 
     public function getBody(): StreamInterface
     {
-        if (null === $this->stream) {
+        if ($this->stream === null) {
             $this->stream = Stream::create('');
         }
 

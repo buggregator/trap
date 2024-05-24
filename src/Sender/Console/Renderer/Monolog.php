@@ -18,8 +18,7 @@ final class Monolog implements Renderer
 {
     public function __construct(
         private readonly TemplateRenderer $renderer,
-    ) {
-    }
+    ) {}
 
     public function isSupport(Frame $frame): bool
     {
@@ -35,7 +34,7 @@ final class Monolog implements Renderer
             'notice', 'info' => 'blue',
             'warning' => 'yellow',
             'critical', 'error', 'alert', 'emergency' => 'red',
-            default => 'gray'
+            default => 'gray',
         };
 
         $this->renderer->render(
@@ -46,7 +45,7 @@ final class Monolog implements Renderer
                 'level' => $payload['level_name'] ?? 'DEBUG',
                 'levelColor' => $levelColor,
                 'messages' => \explode("\n", $payload['message']),
-            ]
+            ],
         );
 
         // It can't be sent to HTML

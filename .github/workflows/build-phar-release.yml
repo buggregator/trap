@@ -1,0 +1,143 @@
+---
+
+on:  # yamllint disable-line rule:truthy
+  release:
+    types:
+      - published
+
+name: 📦 Build PHAR release
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    strategy:
+      matrix:
+        php-version:
+          - '8.2'
+        dependencies:
+          - locked
+    env:
+      TRAP_PHAR: ".build/phar/trap.phar"
+      TRAP_PHAR_SIGNATURE: ".build/phar/trap.phar.asc"
+      GPG_KEYS: ".build/phar/keys.asc"
+      GPG_KEYS_ENCRYPTED: ".github/phar/keys.asc.gpg"
+    steps:
+      - name: 📦 Check out the codebase
+        uses: actions/checkout@v4.1.5
+
+      - name: 🛠️ Setup PHP
+        uses: shivammathur/setup-php@2.30.4
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: none, ctype, dom, json, mbstring, phar, simplexml, tokenizer, xml, xmlwriter, sockets
+          ini-values: error_reporting=E_ALL
+          coverage: none
+          tools: phive
+
+      - name: 🛠️ Setup problem matchers
+        run: |
+          echo "::add-matcher::${{ runner.tool_cache }}/php.json"
+
+      - name: 🤖 Validate composer.json and composer.lock
+        run: composer validate --ansi --strict
+
+      - name: 🔍 Get composer cache directory
+        uses: wayofdev/gh-actions/actions/composer/get-cache-directory@v3.1.0
+
+      - name: ♻️ Restore cached dependencies installed with composer
+        uses: actions/cache@v4.0.2
+        with:
+          path: ${{ env.COMPOSER_CACHE_DIR }}
+          key: php-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-${{ hashFiles('composer.lock') }}
+          restore-keys: php-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-
+
+      - name: 📥 Install "${{ matrix.dependencies }}" dependencies with composer
+        uses: wayofdev/gh-actions/actions/composer/install@v3.1.0
+        with:
+          dependencies: ${{ matrix.dependencies }}
+
+      - name: 📥 Install dependencies with phive
+        uses: wayofdev/gh-actions/actions/phive/install@v3.1.0
+        with:
+          phive-home: '.phive'
+          trust-gpg-keys: '0xC00543248C87FB13,0x033E5F8D801A2F8D,0x2DF45277AEF09A2F'
+
+      - name: 🔍 Validate configuration for box-project/box
+        run: .phive/box validate box.json.dist --ansi
+
+      - name: 🤖 Compile trap.phar with box-project/box
+        run: .phive/box compile --ansi
+
+      - name: 💥 Show info about trap.phar with box-project/box
+        run: .phive/box info ${{ env.TRAP_PHAR }} --ansi
+
+      - name: 🤔 Run trap.phar help command
+        run: ${{ env.TRAP_PHAR }} --help
+
+      - name: 🔍 Show gpg version
+        run: gpg --version
+
+      - name: 🔑 Decrypt keys.asc.gpg with gpg
+        run: gpg --batch --output ${{ env.GPG_KEYS }} --passphrase "${{ secrets.GPG_DECRYPT_PASSPHRASE }}" --yes --decrypt ${{ env.GPG_KEYS_ENCRYPTED }}
+
+      - name: 📥 Import keys from keys.asc with gpg
+        run: gpg --batch --import ${{ env.GPG_KEYS }}
+
+      - name: 🔐 Sign trap.phar with gpg
+        run: gpg --armor --local-user "${{ secrets.GPG_LOCAL_USER }}" --output ${{ env.TRAP_PHAR_SIGNATURE }} --passphrase "${{ secrets.GPG_KEY_PASSPHRASE }}" --pinentry-mode loopback --yes --detach-sig ${{ env.TRAP_PHAR }}
+
+      - name: ❎ Remove decrypted keys.asc
+        run: rm ${{ env.GPG_KEYS }}
+
+      - name: 📤 Upload release assets
+        uses: actions/github-script@v7.0.1
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          script: |
+            const fs = require("fs");
+
+            const files = [
+              {
+                name: "trap.phar",
+                path: process.env.TRAP_PHAR,
+              },
+              {
+                name: "trap.phar.asc",
+                path: process.env.TRAP_PHAR_SIGNATURE,
+              },
+            ];
+
+            for (const file of files) {
+              try {
+                await github.rest.repos.uploadReleaseAsset({
+                  data: fs.readFileSync(file.path),
+                  name: file.name,
+                  origin: process.env.RELEASE_UPLOAD_URL,
+                  owner: context.repo.owner,
+                  release_id: process.env.RELEASE_ID,
+                  repo: context.repo.repo,
+                });
+              } catch (error) {
+                core.setFailed(error.message);
+              }
+            }
+
+  notify-discord:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: 📦 Check out the codebase
+        uses: actions/checkout@v4.1.5
+
+      - name: ✉️ Notify Discord about release
+        uses: SethCohen/github-releases-to-discord@v1.15.0
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          color: '2105893'
+          username: 'Buggregator Trap release'
+          avatar_url: 'https://cdn.discordapp.com/avatars/487431320314576937/bd64361e4ba6313d561d54e78c9e7171.png'
+          content: '||@here||'
+          footer_title: 'Changelog'
+          footer_icon_url: 'https://cdn.discordapp.com/avatars/487431320314576937/bd64361e4ba6313d561d54e78c9e7171.png'
+          footer_timestamp: true

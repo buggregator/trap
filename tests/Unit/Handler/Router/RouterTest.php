@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Buggregator\Trap\Tests\Unit\Handler\Router;
 
 use Buggregator\Trap\Handler\Router\Attribute\AssertRoute as AssertAttribute;
@@ -19,6 +21,21 @@ class RouterTest extends TestCase
         yield 'self' => [self::class];
         yield 'Frontend Service' => [\Buggregator\Trap\Sender\Frontend\Service::class];
         yield 'Frontend Event Assets' => [\Buggregator\Trap\Sender\Frontend\Http\EventAssets::class];
+    }
+
+    #[StaticRoute(Method::Get, '/public-static-static-route')]
+    public static function publicStaticStaticRoute(): string
+    {
+        return 'public-static-static-route-result';
+    }
+
+    #[AssertRouteSuccess(Method::Delete, '/item/f00', ['uuid' => 'f00'])]
+    #[AssertRouteSuccess(Method::Delete, '/item/fzzzzzzzzz', ['uuid' => 'f'])]
+    #[AssertRouteFail(Method::Get, '/item/f00')]
+    #[RegexpRoute(Method::Delete, '#^/item/(?<uuid>[a-f0-9-]++)#i')]
+    public static function publicStaticRegexpRoute(string $uuid): string
+    {
+        return $uuid;
     }
 
     /**
@@ -45,7 +62,7 @@ class RouterTest extends TestCase
             );
 
             Router::assert($routes, $asserts);
-            $this->assertTrue(true, (string)$method . ' passed');
+            $this->assertTrue(true, (string) $method . ' passed');
         }
     }
 
@@ -100,21 +117,6 @@ class RouterTest extends TestCase
     public function publicStaticRoute(): string
     {
         return 'public-static-route-result';
-    }
-
-    #[StaticRoute(Method::Get, '/public-static-static-route')]
-    public static function publicStaticStaticRoute(): string
-    {
-        return 'public-static-static-route-result';
-    }
-
-    #[AssertRouteSuccess(Method::Delete, '/item/f00', ['uuid' => 'f00'])]
-    #[AssertRouteSuccess(Method::Delete, '/item/fzzzzzzzzz', ['uuid' => 'f'])]
-    #[AssertRouteFail(Method::Get, '/item/f00')]
-    #[RegexpRoute(Method::Delete, '#^/item/(?<uuid>[a-f0-9-]++)#i')]
-    public static function publicStaticRegexpRoute(string $uuid): string
-    {
-        return $uuid;
     }
 
     #[AssertRouteSuccess(Method::Get, '/private-route')]

@@ -29,10 +29,13 @@ try {
 /**
  * Register the var-dump caster for protobuf messages
  */
-if (\class_exists(AbstractCloner::class)) {
+if (class_exists(AbstractCloner::class)) {
+    /** @psalm-suppress MixedAssignment */
     AbstractCloner::$defaultCasters[Message::class] ??= [ProtobufCaster::class, 'cast'];
+    /** @psalm-suppress MixedAssignment */
     AbstractCloner::$defaultCasters[RepeatedField::class] ??= [ProtobufCaster::class, 'castRepeated'];
+    /** @psalm-suppress MixedAssignment */
     AbstractCloner::$defaultCasters[MapField::class] ??= [ProtobufCaster::class, 'castMap'];
+    /** @psalm-suppress MixedAssignment */
     AbstractCloner::$defaultCasters[EnumValue::class] ??= [ProtobufCaster::class, 'castEnum'];
 }
-

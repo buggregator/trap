@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Support;
 
-use JsonException;
-
 /**
  * @internal
  * @psalm-internal Buggregator\Trap
@@ -13,7 +11,7 @@ use JsonException;
 final class Json
 {
     /**
-     * @throws JsonException
+     * @throws \JsonException
      */
     public static function encode(mixed $value): string
     {
@@ -24,7 +22,7 @@ final class Json
     }
 
     /**
-     * @throws JsonException
+     * @throws \JsonException
      */
     public static function decode(string $content): mixed
     {

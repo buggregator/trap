@@ -47,7 +47,7 @@ final class Http implements Renderer
 
         Common::renderMetadata($output, [
             'Time' => $frame->time,
-            'URI' => (string)$request->getUri(),
+            'URI' => (string) $request->getUri(),
         ]);
 
         if ($request->getQueryParams() !== []) {
@@ -84,12 +84,15 @@ final class Http implements Renderer
             foreach ($uploadedFiles as $name => $fileSet) {
                 $fileSet = \is_array($fileSet) ? $fileSet : [$fileSet];
                 foreach ($fileSet as $subName => $file) {
+                    /** @var int<0, max>|null $size */
+                    $size = $file->getSize();
+
                     Files::renderFile(
                         $output,
-                        (string)$file->getClientFilename(),
-                        $file->getSize(),
-                        (string)$file->getClientMediaType(),
-                        Field: \sprintf("%s[%s]", $name, $subName)
+                        (string) $file->getClientFilename(),
+                        $size,
+                        (string) $file->getClientMediaType(),
+                        Field: \sprintf("%s[%s]", $name, $subName),
                     );
                 }
             }
@@ -101,7 +104,7 @@ final class Http implements Renderer
             Common::renderHeader3($output, \sprintf(
                 'Body (first %d bytes of %d)',
                 $toRead,
-                (int) $body->getSize()
+                (int) $body->getSize(),
             ));
             $body->rewind();
             $read = $body->read($toRead);

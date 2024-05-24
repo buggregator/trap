@@ -7,8 +7,6 @@ namespace Buggregator\Trap\Handler\Http\Middleware\SentryTrap;
 use Buggregator\Trap\Proto\Frame\Sentry\EnvelopeItem;
 use Buggregator\Trap\Proto\Frame\Sentry\SentryEnvelope;
 use Buggregator\Trap\Support\StreamHelper;
-use DateTimeImmutable;
-use Fiber;
 use Psr\Http\Message\StreamInterface;
 
 /**
@@ -18,11 +16,12 @@ use Psr\Http\Message\StreamInterface;
 final class EnvelopeParser
 {
     private const MAX_TEXT_ITEM_SIZE = 1024 * 1024; // 1MB
+
     private const MAX_BINARY_ITEM_SIZE = 100 * 1024 * 1024; // 100MB
 
     public static function parse(
         StreamInterface $stream,
-        DateTimeImmutable $time = new DateTimeImmutable(),
+        \DateTimeImmutable $time = new \DateTimeImmutable(),
     ): SentryEnvelope {
         // Parse headers
         $headers = \json_decode(self::readLine($stream), true, 4, JSON_THROW_ON_ERROR);
@@ -48,7 +47,7 @@ final class EnvelopeParser
         // Parse item header
         $itemHeader = \json_decode(self::readLine($stream), true, 4, JSON_THROW_ON_ERROR);
 
-        $length = isset($itemHeader['length']) ? (int)$itemHeader['length'] : null;
+        $length = isset($itemHeader['length']) ? (int) $itemHeader['length'] : null;
         $length >= 0 or throw new \RuntimeException('Invalid item length.');
 
         $type = $itemHeader['type'] ?? null;
@@ -123,7 +122,7 @@ final class EnvelopeParser
                 break;
             }
 
-            Fiber::suspend();
+            \Fiber::suspend();
         } while (true);
 
         return $result;

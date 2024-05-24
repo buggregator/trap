@@ -8,7 +8,7 @@ use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Handler\Router\Method;
 use Buggregator\Trap\Handler\Router\Router as CommonRouter;
 use Buggregator\Trap\Logger;
-use Buggregator\Trap\Sender\Frontend\EventsStorage;
+use Buggregator\Trap\Sender\Frontend\EventStorage;
 use Buggregator\Trap\Sender\Frontend\Service;
 use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\Response;
@@ -25,7 +25,7 @@ final class Router implements Middleware
 
     public function __construct(
         private readonly Logger $logger,
-        EventsStorage $eventsStorage,
+        EventStorage $eventsStorage,
     ) {
         $service = new Service($logger, $eventsStorage);
         $this->router = CommonRouter::new($service);
@@ -49,7 +49,7 @@ final class Router implements Middleware
                     $params = $request->getQueryParams();
                 } else {
                     /** @var mixed $params */
-                    $params = Json::decode((string)$request->getBody());
+                    $params = Json::decode((string) $request->getBody());
                     \is_array($params) or $params = [];
                 }
             } catch (\Throwable) {

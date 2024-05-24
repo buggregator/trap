@@ -31,7 +31,8 @@ final class Websocket implements RequestHandler
         }
 
         // Get the time of the request
-        $time = $request->getAttribute('begin_at', null);
+        /** @var mixed $time */
+        $time = $request->getAttribute('begin_at');
         $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
 
         // Calculate the accept key for the handshake
@@ -67,7 +68,7 @@ final class Websocket implements RequestHandler
             $timer->reset();
 
             $content = 'Elapsed: ' . (\time() - $time->getTimestamp()) . 's';
-            $response = \chr(129) . \chr(strlen($content)) . $content;
+            $response = \chr(129) . \chr(\strlen($content)) . $content;
 
             $stream->sendData($response);
         }

@@ -23,8 +23,7 @@ final class RequestHandler implements RequestHandlernterace
 {
     public function __construct(
         private readonly Sender\Frontend\ConnectionPool $connectionPool,
-    ) {
-    }
+    ) {}
 
     public function handle(StreamClient $streamClient, ServerRequestInterface $request, callable $next): \Generator
     {

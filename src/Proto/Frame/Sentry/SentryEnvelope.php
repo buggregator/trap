@@ -7,11 +7,16 @@ namespace Buggregator\Trap\Proto\Frame\Sentry;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Support\Json;
-use DateTimeImmutable;
 
 /**
  * @internal
  * @psalm-internal Buggregator
+ *
+ * @psalm-type SentryEnvelopeMessage = array{
+ *     type: SentryEnvelope::SENTRY_FRAME_TYPE,
+ *     items: array<array-key, array{array<array-key, mixed>, mixed}>,
+ *     headers: array<string, string>
+ * }
  */
 final class SentryEnvelope extends Frame\Sentry
 {
@@ -24,22 +29,17 @@ final class SentryEnvelope extends Frame\Sentry
     public function __construct(
         public readonly array $headers,
         public readonly array $items,
-        DateTimeImmutable $time = new DateTimeImmutable(),
+        \DateTimeImmutable $time = new \DateTimeImmutable(),
     ) {
         parent::__construct(ProtoType::Sentry, $time);
     }
 
     /**
-     * @throws \JsonException
+     * @psalm-assert SentryEnvelopeMessage $data
+     *
+     * @param SentryEnvelopeMessage $data
      */
-    public function __toString(): string
-    {
-        return Json::encode(
-            ['headers' => $this->headers, 'items' => $this->items],
-        );
-    }
-
-    public static function fromArray(array $data, DateTimeImmutable $time): static
+    public static function fromArray(array $data, \DateTimeImmutable $time): static
     {
         $items = [];
         foreach ($data['items'] as $item) {
@@ -50,6 +50,16 @@ final class SentryEnvelope extends Frame\Sentry
             $data['headers'],
             $items,
             $time,
+        );
+    }
+
+    /**
+     * @throws \JsonException
+     */
+    public function __toString(): string
+    {
+        return Json::encode(
+            ['headers' => $this->headers, 'items' => $this->items],
         );
     }
 }

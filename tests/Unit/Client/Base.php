@@ -6,7 +6,6 @@ namespace Buggregator\Trap\Tests\Unit\Client;
 
 use Buggregator\Trap\Client\TrapHandle\Counter;
 use Buggregator\Trap\Client\TrapHandle\Dumper;
-use Closure;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\VarDumper\Cloner\Data;
 use Symfony\Component\VarDumper\Dumper\DataDumperInterface;
@@ -27,7 +26,7 @@ class Base extends TestCase
                 $this->callback(static function (Data $data): bool {
                     static::$lastData = $data;
                     return true;
-                })
+                }),
             )
             ->willReturnArgument(1);
 

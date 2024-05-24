@@ -36,13 +36,13 @@ final class SentryEnvelope implements Renderer
             ++$i;
             try {
                 $type = $item->headers['type'] ?? null;
-                Common::renderHeader2($output, "Item $i", green: $type);
+                Common::renderHeader2($output, "Item $i", green: (string) $type);
 
                 Header::renderMessageHeader($output, $item->payload);
                 $this->renderItem($output, $item);
             } catch (\Throwable $e) {
                 $output->writeln(['<fg=red>Render error</>', $e->getMessage()]);
-                \trap($e);
+                trap($e);
             }
         }
     }

@@ -7,7 +7,6 @@ namespace Buggregator\Trap\Traffic\Dispatcher;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Traffic\Dispatcher;
 use Buggregator\Trap\Traffic\StreamClient;
-use DateTimeImmutable;
 
 /**
  * @internal
@@ -28,7 +27,7 @@ final class VarDumper implements Dispatcher
         }
     }
 
-    public function detect(string $data, DateTimeImmutable $createdAt): ?bool
+    public function detect(string $data, \DateTimeImmutable $createdAt): ?bool
     {
         // Detect non-base64 symbols
         if (\preg_match_all('/[^a-zA-Z0-9\\/+=\\n]/', $data) !== 0) {

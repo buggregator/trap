@@ -1,7 +1,8 @@
 /.*/
+!/.phive/
 !/.github/
+!/.phar/
 /runtime/
 /vendor/
-/composer.lock
 /.env
 *.log

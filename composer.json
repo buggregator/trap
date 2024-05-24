@@ -1,11 +1,20 @@
 {
     "name": "buggregator/trap",
-    "type": "library",
-    "license": "BSD-3-Clause",
     "description": "A simple and powerful tool for debugging PHP applications.",
-    "homepage": "https://buggregator.dev/",
+    "license": "BSD-3-Clause",
+    "type": "library",
     "keywords": [
-        "debug", "cli", "console", "sentry", "smtp", "dump", "binary dump", "websockets", "server", "helper", "dev"
+        "debug",
+        "cli",
+        "console",
+        "sentry",
+        "smtp",
+        "dump",
+        "binary dump",
+        "websockets",
+        "server",
+        "helper",
+        "dev"
     ],
     "authors": [
         {
@@ -17,6 +26,57 @@
             "homepage": "https://github.com/butschster"
         }
     ],
+    "homepage": "https://buggregator.dev/",
+    "funding": [
+        {
+            "type": "github",
+            "url": "https://github.com/sponsors/buggregator"
+        },
+        {
+            "type": "patreon",
+            "url": "https://patreon.com/roxblnfk"
+        },
+        {
+            "type": "patreon",
+            "url": "https://patreon.com/butschster"
+        }
+    ],
+    "require": {
+        "php": ">=8.1",
+        "ext-filter": "*",
+        "ext-sockets": "*",
+        "clue/stream-filter": "^1.6",
+        "nunomaduro/termwind": "^1.15 || ^2",
+        "nyholm/psr7": "^1.8",
+        "php-http/message": "^1.15",
+        "psr/container": "^1.1 || ^2.0",
+        "psr/http-message": "^1.1 || ^2",
+        "symfony/console": "^6.4 || ^7",
+        "symfony/var-dumper": "^6.3 || ^7",
+        "yiisoft/injector": "^1.2"
+    },
+    "require-dev": {
+        "dereuromark/composer-prefer-lowest": "^0.1.10",
+        "ergebnis/phpunit-slow-test-detector": "^2.14",
+        "friendsofphp/php-cs-fixer": "^3.54",
+        "google/protobuf": "^3.23",
+        "pestphp/pest": "^2.34",
+        "phpstan/extension-installer": "^1.3",
+        "phpstan/phpstan": "^1.10",
+        "phpstan/phpstan-deprecation-rules": "^1.1",
+        "phpstan/phpstan-phpunit": "^1.3",
+        "phpstan/phpstan-strict-rules": "^1.5",
+        "phpunit/phpunit": "^10.5",
+        "roxblnfk/unpoly": "^1.8.1",
+        "vimeo/psalm": "^5.11",
+        "wayofdev/cs-fixer-config": "^1.4"
+    },
+    "suggest": {
+        "ext-simplexml": "To load trap.xml",
+        "roxblnfk/unpoly": "If you want to remove unnecessary PHP polyfills depend on PHP version."
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
     "autoload": {
         "psr-4": {
             "Buggregator\\Trap\\": "src/"
@@ -33,44 +93,35 @@
     "bin": [
         "bin/trap"
     ],
-    "funding": [
-        {
-            "type": "github",
-            "url": "https://github.com/sponsors/buggregator"
-        },
-        {
-            "type": "patreon",
-            "url": "https://patreon.com/roxblnfk"
-        },
-        {
-            "type": "patreon",
-            "url": "https://patreon.com/butschster"
-        }
-    ],
     "config": {
+        "allow-plugins": {
+            "ergebnis/composer-normalize": true,
+            "pestphp/pest-plugin": true,
+            "phpstan/extension-installer": true
+        },
+        "audit": {
+            "abandoned": "report"
+        },
+        "platform": {
+            "php": "8.1.27"
+        },
         "sort-packages": true
     },
-    "minimum-stability": "dev",
-    "prefer-stable": true,
-    "require": {
-        "php": ">=8.1",
-        "ext-sockets": "*",
-        "clue/stream-filter": "^1.6",
-        "nunomaduro/termwind": "^1.15 || ^2",
-        "nyholm/psr7": "^1.8",
-        "php-http/message": "^1.15",
-        "psr/http-message": "^1.1 || ^2",
-        "symfony/console": "^6.4 || ^7",
-        "symfony/var-dumper": "^6.3 || ^7"
-    },
-    "require-dev": {
-        "dereuromark/composer-prefer-lowest": "^0.1.10",
-        "google/protobuf": "^3.23",
-        "phpunit/phpunit": "^10.4",
-        "roxblnfk/unpoly": "^1.8.1",
-        "vimeo/psalm": "^5.11"
-    },
-    "suggest": {
-        "roxblnfk/unpoly": "If you want to remove unnecessary PHP polyfills depend on PHP version."
+    "scripts": {
+        "cs:diff": "php vendor/bin/php-cs-fixer fix --dry-run -v --diff",
+        "cs:fix": "php vendor/bin/php-cs-fixer fix -v",
+        "infect": "XDEBUG_MODE=coverage php vendor/bin/roave-infection-static-analysis-plugin --configuration=infection.json.dist",
+        "infect:ci": "XDEBUG_MODE=coverage php vendor/bin/roave-infection-static-analysis-plugin --ansi --configuration=infection.json.dist --logger-github --ignore-msi-with-no-mutations --only-covered",
+        "psalm": "php vendor/bin/psalm --show-info=true",
+        "psalm:baseline": "php vendor/bin/psalm --set-baseline=psalm-baseline.xml",
+        "psalm:ci": "php vendor/bin/psalm --output-format=github --shepherd --show-info=false --stats --threads=4",
+        "refactor": "php vendor/bin/rector process --config=rector.php",
+        "refactor:ci": "php vendor/bin/rector process --config=rector.php --dry-run --ansi",
+        "stan": "php vendor/bin/phpstan analyse --memory-limit=2G",
+        "stan:baseline": "php vendor/bin/phpstan analyse --generate-baseline --memory-limit=2G --allow-empty-baseline",
+        "stan:ci": "php vendor/bin/phpstan analyse --memory-limit=2G --error-format=github",
+        "test": "XDEBUG_MODE=coverage php vendor/bin/pest --exclude-group=phpunit-only --color=always",
+        "test:cc": "XDEBUG_MODE=coverage php vendor/bin/pest --coverage --coverage-clover=.build/phpunit/logs/clover.xml --exclude-group=phpunit-only --color=always",
+        "test:sep": "XDEBUG_MODE=coverage php vendor/bin/phpunit --group=phpunit-only --color=always --exclude-testsuite=Arch"
     }
 }

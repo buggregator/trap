@@ -29,13 +29,13 @@ final class Pipeline
     /**
      * @param iterable<TMiddleware> $middlewares
      * @param non-empty-string $method
-     * @param Closure(mixed...): TReturn $last
+     * @param \Closure(mixed...): TReturn $last
      * @param class-string<TReturn>|string $returnType
      */
     private function __construct(
         iterable $middlewares,
         private readonly string $method,
-        private readonly Closure $last,
+        private readonly \Closure $last,
         private readonly string $returnType = 'mixed',
     ) {
         // Reset keys

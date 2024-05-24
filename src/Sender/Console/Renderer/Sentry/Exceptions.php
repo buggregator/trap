@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Console\Renderer\Sentry;
 
-use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -39,7 +37,7 @@ final class Exceptions
             // Exception type
             $output->writeln(\sprintf(
                 '<fg=red;options=bold>%s</>',
-                isset($exception['type']) ? $exception['type'] : 'Exception',
+                $exception['type'] ?? 'Exception',
             ));
 
             isset($exception['value']) and $output->writeln($exception['value']);
@@ -70,7 +68,7 @@ final class Exceptions
         isset($frame[$key]) && \is_scalar($frame[$key]) ? $frame[$key] : $default;
 
         $i = \count($frames) ;
-        $numPad = \strlen((string)($i - 1)) + 2;
+        $numPad = \strlen((string) ($i - 1)) + 2;
         // Skipped frames
         $vendorLines = [];
         $isFirst = true;
@@ -97,7 +95,7 @@ final class Exceptions
                     \str_repeat(' ', $numPad),
                     $class,
                     $function,
-                )
+                ),
             );
 
             if ($isFirst) {
@@ -140,7 +138,7 @@ final class Exceptions
         $content = [];
 
         try {
-            $startLine = (int)$frame['lineno'];
+            $startLine = (int) $frame['lineno'];
             if (isset($frame['pre_context']) && \is_array($frame['pre_context'])) {
                 foreach ($frame['pre_context'] as $row) {
                     if (!\is_string($row)) {
@@ -169,7 +167,7 @@ final class Exceptions
             }
 
             Common::hr($output, 'white', padding: $padding);
-            $strPad = \strlen((string)($startLine + \count($content) - 1));
+            $strPad = \strlen((string) ($startLine + \count($content) - 1));
             $paddingStr = \str_repeat(' ', $padding);
             foreach ($content as $line => $row) {
                 $output->writeln(
@@ -177,10 +175,10 @@ final class Exceptions
                         '%s<fg=%s>%s</>▕<fg=%s;options=bold>%s</>',
                         $paddingStr,
                         $line === $contextLine ? 'red' : 'gray',
-                        \str_pad((string)($startLine + $line), $strPad, ' ', \STR_PAD_LEFT),
+                        \str_pad((string) ($startLine + $line), $strPad, ' ', \STR_PAD_LEFT),
                         $line === $contextLine ? 'red' : 'blue',
-                        \substr($row, $minPadding)
-                    )
+                        \substr($row, $minPadding),
+                    ),
                 );
             }
             Common::hr($output, 'white', padding: $padding);

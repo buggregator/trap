@@ -29,7 +29,7 @@ final class VarDump
                 ],
                 'context' => $payload[1],
             ],
-            timestamp: (float)$frame->time->format('U.u'),
+            timestamp: (float) $frame->time->format('U.u'),
         );
     }
 
@@ -41,7 +41,7 @@ final class VarDump
         $payload = @\unserialize(\base64_decode($message), ['allowed_classes' => [Data::class, Stub::class]]);
 
         // Impossible to decode the message, give up.
-        if (false === $payload) {
+        if ($payload === false) {
             throw new \RuntimeException('Unable to decode a message from var-dumper client.');
         }
 
@@ -61,7 +61,7 @@ final class VarDump
     {
         if (\in_array($data->getType(), ['string', 'boolean'])) {
             /** @psalm-suppress PossiblyInvalidCast */
-            return (string)$data->getValue();
+            return (string) $data->getValue();
         }
 
         return (new HtmlDumper())->dump($data, true);

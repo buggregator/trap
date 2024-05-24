@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Sender\Frontend;
 
-use Buggregator\Trap\Config\Frontend\Buffer as Config;
+use Buggregator\Trap\Config\Server\Frontend\EventStorage as Config;
 use Buggregator\Trap\Sender\Frontend\Event;
-use Buggregator\Trap\Sender\Frontend\EventsStorage;
+use Buggregator\Trap\Sender\Frontend\EventStorage;
 use Buggregator\Trap\Support\Uuid;
 use PHPUnit\Framework\TestCase;
 
@@ -14,8 +14,9 @@ class EventsStorageTest extends TestCase
 {
     public function testMaxEventsLimit(): void
     {
-        $config = new Config(2);
-        $storage = new EventsStorage($config);
+        $config = new Config();
+        $config->maxEvents = 2;
+        $storage = new EventStorage($config);
 
         $storage->add($e1 = $this->createEvent());
         $storage->add($e2 = $this->createEvent());
@@ -30,8 +31,9 @@ class EventsStorageTest extends TestCase
 
     public function testMaxEventsLimitWithSort(): void
     {
-        $config = new Config(2);
-        $storage = new EventsStorage($config);
+        $config = new Config();
+        $config->maxEvents = 2;
+        $storage = new EventStorage($config);
 
         $storage->add($e1 = $this->createEvent());
         $storage->add($e2 = $this->createEvent());
@@ -53,7 +55,7 @@ class EventsStorageTest extends TestCase
         ?string $type = null,
         ?array $payload = null,
         ?float $timestamp = null,
-    ): Event{
+    ): Event {
         return new Event(
             uuid: $uuid ?? Uuid::uuid4(),
             type: $type ?? 'var-dump',

@@ -1,0 +1,22 @@
+---
+
+services:
+  app:
+    image: wayofdev/php-dev:8.3-cli-alpine-latest
+    container_name: ${COMPOSE_PROJECT_NAME}-app
+    restart: on-failure
+    networks:
+      - default
+    volumes:
+      - ./:/app:rw
+      - ~/.composer:/.composer
+    env_file:
+      - .env
+    environment:
+      PHIVE_HOME: /app/.phive
+
+networks:
+  default:
+    name: project.${COMPOSE_PROJECT_NAME}
+
+...

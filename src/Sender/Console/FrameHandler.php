@@ -21,15 +21,14 @@ final class FrameHandler implements HandlerInterface
 
     public function __construct(
         private readonly OutputInterface $output,
-    ) {
-    }
+    ) {}
 
     public function handle(Frame $frame): void
     {
         $buffer = new BufferedOutput(
             $this->output->getVerbosity(),
             $this->output->isDecorated(),
-            $this->output->getFormatter()
+            $this->output->getFormatter(),
         );
 
         foreach ($this->renderers as $renderer) {

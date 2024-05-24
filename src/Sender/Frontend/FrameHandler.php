@@ -20,7 +20,7 @@ final class FrameHandler implements HandlerInterface
     public function __construct(
         private readonly Logger $logger,
         private readonly ConnectionPool $connectionPool,
-        private readonly EventsStorage $eventsStorage,
+        private readonly EventStorage $eventsStorage,
     ) {
         $this->frameMapper = new FrameMapper();
     }

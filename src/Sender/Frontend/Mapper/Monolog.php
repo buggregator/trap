@@ -19,7 +19,7 @@ final class Monolog
             uuid: Uuid::uuid4(),
             type: 'monolog',
             payload: $frame->message,
-            timestamp: (float)$frame->time->format('U.u'),
+            timestamp: (float) $frame->time->format('U.u'),
         );
     }
 }

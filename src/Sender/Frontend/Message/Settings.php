@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender\Frontend\Message;
 
 use Buggregator\Trap\Info;
-use JsonSerializable;
 
 /**
  * @internal
  */
-final class Settings implements JsonSerializable
+final class Settings implements \JsonSerializable
 {
-    public function __construct(
-        public readonly string $number = Info::VERSION,
-    ) {
+    public readonly string $number;
+
+    public function __construct()
+    {
+        $this->number = Info::version();
     }
 
     public function jsonSerialize(): array
@@ -22,9 +23,9 @@ final class Settings implements JsonSerializable
         return [
             'auth' => [
                 'enabled' => false,
-                'login_url' => '/auth/sso/login'
+                'login_url' => '/auth/sso/login',
             ],
-            'version' => Info::VERSION,
+            'version' => $this->number,
         ];
     }
 }

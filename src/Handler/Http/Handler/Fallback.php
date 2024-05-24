@@ -10,7 +10,6 @@ use Buggregator\Trap\Handler\Http\RequestHandler;
 use Buggregator\Trap\Handler\Pipeline;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Traffic\StreamClient;
-use DateTimeInterface;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -36,15 +35,16 @@ final class Fallback implements RequestHandler
             $middlewares,
             /** @see Middleware::handle() */
             'handle',
-            static fn (): ResponseInterface => new Response(404),
+            static fn(): ResponseInterface => new Response(404),
             ResponseInterface::class,
         );
     }
 
     public function handle(StreamClient $streamClient, ServerRequestInterface $request, callable $next): iterable
     {
-        $time = $request->getAttribute('begin_at', null);
-        $time = $time instanceof DateTimeInterface ? $time : new \DateTimeImmutable();
+        /** @var mixed $time */
+        $time = $request->getAttribute('begin_at');
+        $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
         $gotFrame = false;
 
         try {
@@ -68,13 +68,12 @@ final class Fallback implements RequestHandler
                         throw new \RuntimeException('Invalid response type.');
                     }
 
+                    HttpEmitter::emit($streamClient, $response);
                     break;
                 }
 
                 \Fiber::suspend();
             } while (true);
-
-            HttpEmitter::emit($streamClient, $response);
         } catch (\Throwable) {
             // Emit error response
             HttpEmitter::emit($streamClient, new Response(500));

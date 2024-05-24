@@ -4,35 +4,33 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Frontend;
 
-use Buggregator\Trap\Config\Frontend\Buffer as Config;
-use Countable;
+use Buggregator\Trap\Config\Server\Frontend\EventStorage as Config;
 use IteratorAggregate;
 
 /**
  * @internal
  * @implements IteratorAggregate<Event>
  */
-final class EventsStorage implements IteratorAggregate, Countable
-
+final class EventStorage implements \IteratorAggregate, \Countable
 {
     /**
      * Events. Will be sorted by timestamp in descending order when requested via the {@see getIterator()} method.
      * @var array<non-empty-string, Event>
      */
     private array $events = [];
+
     private bool $sorted = false;
 
     public function __construct(
         private readonly Config $config = new Config(),
-    ) {
-    }
+    ) {}
 
     public function add(Event $event): void
     {
         $this->events[$event->uuid] = $event;
         $this->sorted = false;
 
-        if (\count($this->events) > $this->config->maxSize) {
+        if (\count($this->events) > $this->config->maxEvents) {
             // find most old event and remove it
             $k = $event->uuid;
             $t = $event->timestamp;

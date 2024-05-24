@@ -4,17 +4,18 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap;
 
-use Buggregator\Trap\Config\SocketServer;
+use Buggregator\Trap\Config\Server\Frontend as FrontendConfig;
+use Buggregator\Trap\Config\Server\SocketServer;
 use Buggregator\Trap\Handler\Http\Handler\Websocket;
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Proto\Buffer;
+use Buggregator\Trap\Service\Container;
 use Buggregator\Trap\Service\FilesObserver\Filter\XHProf;
 use Buggregator\Trap\Socket\Client;
 use Buggregator\Trap\Socket\Server;
 use Buggregator\Trap\Socket\SocketStream;
 use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Traffic\Inspector;
-use Fiber;
 
 /**
  * @internal
@@ -27,27 +28,30 @@ final class Application implements Processable, Cancellable, Destroyable
     /** @var Server[] */
     private array $servers = [];
 
-    /** @var Fiber[] Any tasks in fibers */
+    /** @var \Fiber[] Any tasks in fibers */
     private array $fibers = [];
 
     private readonly Buffer $buffer;
+
     private bool $cancelled = false;
+
+    private readonly Logger $logger;
 
     /**
      * @param SocketServer[] $map
      * @param Sender[] $senders
      */
     public function __construct(
+        private readonly Container $container,
         array $map = [],
-        private readonly Logger $logger = new Logger(),
         private array $senders = [],
         bool $withFrontend = true,
     ) {
+        $this->logger = $this->container->get(Logger::class);
         $this->buffer = new Buffer(bufferSize: 10485760, timer: 0.1);
+        $this->container->set($this->buffer);
 
-        $inspector = new Inspector(
-            $this->buffer,
-            $this->logger,
+        $inspector = $container->make(Inspector::class, [
             // new Traffic\Dispatcher\WebSocket(),
             new Traffic\Dispatcher\VarDumper(),
             new Traffic\Dispatcher\Http(
@@ -61,7 +65,7 @@ final class Application implements Processable, Cancellable, Destroyable
             ),
             new Traffic\Dispatcher\Smtp(),
             new Traffic\Dispatcher\Monolog(),
-        );
+        ]);
         $this->processors[] = $inspector;
 
         $withFrontend and $this->configureFrontend(8000);
@@ -134,12 +138,12 @@ final class Application implements Processable, Cancellable, Destroyable
     public function cancel(): void
     {
         $this->cancelled = true;
-        $this->fibers[] = new Fiber(
-            function () {
+        $this->fibers[] = new \Fiber(
+            function (): void {
                 foreach ($this->servers as $server) {
                     $server->cancel();
                 }
-            }
+            },
         );
         foreach ($this->processors as $processor) {
             if ($processor instanceof Cancellable) {
@@ -149,44 +153,13 @@ final class Application implements Processable, Cancellable, Destroyable
     }
 
     /**
-     * @param Sender[] $senders
-     */
-    private function sendBuffer(array $senders = []): void
-    {
-        $data = $this->buffer->getAndClean();
-
-        foreach ($senders as $sender) {
-            $this->fibers[] = new Fiber(
-                static fn() => $sender->send($data)
-            );
-        }
-    }
-
-    private function createServer(SocketServer $config, Inspector $inspector): Server
-    {
-        $logger = $this->logger;
-        $clientInflector = static function (Client $client, int $id) use ($inspector, $logger): Client {
-            $logger->debug('Client %d connected', $id);
-            $inspector->addStream(SocketStream::create($client, $id));
-            return $client;
-        };
-
-        return Server::init(
-            $config->port,
-            payloadSize: 524_288,
-            clientInflector: $clientInflector,
-            logger: $this->logger,
-        );
-    }
-
-    /**
      * @param SocketServer $config
      * @param Inspector $inspector
-     * @return Fiber
+     * @return \Fiber
      */
-    public function prepareServerFiber(SocketServer $config, Inspector $inspector, Logger $logger): Fiber
+    public function prepareServerFiber(SocketServer $config, Inspector $inspector, Logger $logger): \Fiber
     {
-        return $this->fibers[] = new Fiber(function () use ($config, $inspector, $logger) {
+        return $this->fibers[] = new \Fiber(function () use ($config, $inspector, $logger): void {
             do {
                 try {
                     $this->processors[] = $this->servers[$config->port] = $this->createServer($config, $inspector);
@@ -206,11 +179,10 @@ final class Application implements Processable, Cancellable, Destroyable
     {
         $this->senders[] = $wsSender = Sender\FrontendSender::create($this->logger);
 
-        $inspector = new Inspector(
-            $this->buffer,
-            $this->logger,
+        $inspector = $this->container->make(Inspector::class, [
             new Traffic\Dispatcher\Http(
                 [
+                    new Sender\Frontend\Http\Cors(),
                     new Sender\Frontend\Http\StaticFiles(),
                     new Sender\Frontend\Http\EventAssets($this->logger, $wsSender->getEventStorage()),
                     new Sender\Frontend\Http\Router($this->logger, $wsSender->getEventStorage()),
@@ -218,11 +190,42 @@ final class Application implements Processable, Cancellable, Destroyable
                 [new Sender\Frontend\Http\RequestHandler($wsSender->getConnectionPool())],
                 silentMode: true,
             ),
-        );
+        ]);
         $this->processors[] = $inspector;
-
         $this->processors[] = $wsSender;
-        $this->prepareServerFiber(new SocketServer(port: $port), $inspector, $this->logger);
+        $config = $this->container->get(FrontendConfig::class);
+        $this->prepareServerFiber(new SocketServer(port: $config->port), $inspector, $this->logger);
+    }
+
+    /**
+     * @param Sender[] $senders
+     */
+    private function sendBuffer(array $senders = []): void
+    {
+        $data = $this->buffer->getAndClean();
+
+        foreach ($senders as $sender) {
+            $this->fibers[] = new \Fiber(
+                static fn() => $sender->send($data),
+            );
+        }
+    }
+
+    private function createServer(SocketServer $config, Inspector $inspector): Server
+    {
+        $logger = $this->logger;
+        $clientInflector = static function (Client $client, int $id) use ($inspector, $logger): Client {
+            $logger->debug('Client %d connected', $id);
+            $inspector->addStream(SocketStream::create($client, $id));
+            return $client;
+        };
+
+        return Server::init(
+            $config->port,
+            payloadSize: 524_288,
+            clientInflector: $clientInflector,
+            logger: $this->logger,
+        );
     }
 
     private function configureFileObserver()
