@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Buggregator\Trap\Client\TrapHandle;
+use Buggregator\Trap\Client\TrapHandle\StackTrace;
 use Buggregator\Trap\Support\Caster\EnumValue;
 use Buggregator\Trap\Support\Caster\ProtobufCaster;
 use Buggregator\Trap\Support\Caster\TickerCaster;
@@ -24,6 +25,8 @@ try {
         /** @psalm-suppress InternalMethod */
         return TrapHandle::fromArray($values);
     }
+
+    StackTrace::$facades['trap'] = true;
 } catch (\Throwable $e) {
     // do nothing
 }
@@ -62,6 +65,23 @@ try {
             $mem === $time and $time = \microtime(true);
         }
     }
+
+    StackTrace::$facades['tr'] = true;
+
+    /**
+     * Send values into Buggregator and die.
+     *
+     * When no arguments passed, it works like {@see tr()}.
+     *
+     * @param mixed ...$values
+     */
+    function td(mixed ...$values): never
+    {
+        \tr(...$values);
+        die;
+    }
+
+    StackTrace::$facades['td'] = true;
 } catch (\Throwable $e) {
     // do nothing
 }
