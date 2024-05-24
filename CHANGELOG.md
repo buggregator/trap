@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.4](https://github.com/buggregator/trap/compare/v1.7.3...v1.7.4) (2024-05-24)
+
+
+### Bug Fixes
+
+* release asset upload ([#99](https://github.com/buggregator/trap/issues/99)) ([b4616c5](https://github.com/buggregator/trap/commit/b4616c52056cd1803b2d3990178577537a694147))
+* suppress warnings if Closure::bind() is run with static callable ([3d72a7e](https://github.com/buggregator/trap/commit/3d72a7ef551bd2f21b0935826e8093a58da0b774))
+
 ## [1.7.3](https://github.com/buggregator/trap/compare/v1.7.2...v1.7.3) (2024-05-24)
 
 
