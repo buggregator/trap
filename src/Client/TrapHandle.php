@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Client;
 use Buggregator\Trap\Client\TrapHandle\Counter;
 use Buggregator\Trap\Client\TrapHandle\Dumper as VarDumper;
 use Buggregator\Trap\Client\TrapHandle\StaticState;
+use Buggregator\Trap\Support\Tick;
 use Symfony\Component\VarDumper\Caster\TraceStub;
 
 /**
@@ -33,6 +34,20 @@ final class TrapHandle
     public static function fromArray(array $array): self
     {
         return new self($array);
+    }
+
+    /**
+     * Create a new instance with a single value.
+     *
+     * @param int<0, max> $number The tick number.
+     * @param float $delta The time delta between the current and previous tick.
+     */
+    public static function fromTicker(int $number, float $delta, int $memory): self
+    {
+        $self = new self([]);
+        $self->values[] = new Tick($number, $delta, $memory, $self->staticState->stackTrace[0]);
+
+        return $self;
     }
 
     /**
