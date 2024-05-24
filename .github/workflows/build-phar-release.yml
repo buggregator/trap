@@ -21,7 +21,7 @@ jobs:
       TRAP_PHAR: ".build/phar/trap.phar"
       TRAP_PHAR_SIGNATURE: ".build/phar/trap.phar.asc"
       GPG_KEYS: ".build/phar/keys.asc"
-      GPG_KEYS_ENCRYPTED: "phar/keys.asc.gpg"
+      GPG_KEYS_ENCRYPTED: ".github/phar/keys.asc.gpg"
     steps:
       - name: 📦 Check out the codebase
         uses: actions/checkout@v4.1.5
