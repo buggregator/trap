@@ -42,7 +42,7 @@ jobs:
       - name: 🧐 Lint YAML files
         uses: ibiqlik/action-yamllint@v3.1.1
         with:
-          config_file: .yamllint.yaml
+          config_file: .github/.yamllint.yaml
           file_or_dir: '.'
           strict: true
 

@@ -36,6 +36,7 @@ ENVSUBST ?= $(BUILDER) envsubst
 YAML_LINT_RUNNER ?= $(DOCKER) run --rm $$(tty -s && echo "-it" || echo) \
 	-v $(PWD):/data \
 	cytopia/yamllint:latest \
+	-c ./.github/.yamllint.yaml \
 	-f colored .
 
 ACTION_LINT_RUNNER ?= $(DOCKER) run --rm $$(tty -s && echo "-it" || echo) \
