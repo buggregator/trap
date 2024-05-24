@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.5](https://github.com/buggregator/trap/compare/v1.7.4...v1.7.5) (2024-05-24)
+
+
+### Bug Fixes
+
+* fix environments in build-phar-release ([453e522](https://github.com/buggregator/trap/commit/453e522b6c49c6e9d54cd6256137c8f25925939f))
+
 ## [1.7.4](https://github.com/buggregator/trap/compare/v1.7.3...v1.7.4) (2024-05-24)
 
 
