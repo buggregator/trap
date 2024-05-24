@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.2](https://github.com/buggregator/trap/compare/v1.7.1...v1.7.2) (2024-05-24)
+
+
+### Bug Fixes
+
+* fixed path to keys.asc.gpg to sign phar ([7c80552](https://github.com/buggregator/trap/commit/7c80552635d0703e2cbd15bde3a76eedc5adcb08))
+
 ## [1.7.1](https://github.com/buggregator/trap/compare/v1.7.0...v1.7.1) (2024-05-24)
 
 
