@@ -136,9 +136,6 @@
     </PossiblyNullArgument>
   </file>
   <file src="src/Sender/Console/Renderer/Sentry/Header.php">
-    <MissingReturnType>
-      <code><![CDATA[renderMessageHeader]]></code>
-    </MissingReturnType>
     <MixedArgumentTypeCoercion>
       <code><![CDATA[$message]]></code>
       <code><![CDATA[$tags]]></code>
@@ -199,7 +196,7 @@
   </file>
   <file src="src/Sender/SocketSender.php">
     <MixedPropertyTypeCoercion>
-      <code><![CDATA[new SplQueue()]]></code>
+      <code><![CDATA[new \SplQueue()]]></code>
     </MixedPropertyTypeCoercion>
   </file>
   <file src="src/Socket/SocketStream.php">
