@@ -96,8 +96,8 @@ jobs:
         with:
           token: "${{ secrets.TRAP_RELEASE_TOKEN }}"
           files: |
-            ${{ process.env.TRAP_PHAR }}
-            ${{ process.env.TRAP_PHAR_SIGNATURE }}
+            ${{ env.TRAP_PHAR }}
+            ${{ env.TRAP_PHAR_SIGNATURE }}
 
   notify-discord:
     runs-on: ubuntu-latest
