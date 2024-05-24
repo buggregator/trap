@@ -19,7 +19,7 @@ jobs:
         uses: google-github-actions/release-please-action@v4
         id: release
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.TRAP_RELEASE_TOKEN }}
           config-file: .github/.release-please-config.json
           manifest-file: resources/version.json
           target-branch: master
