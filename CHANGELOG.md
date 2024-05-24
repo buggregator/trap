@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.3](https://github.com/buggregator/trap/compare/v1.7.2...v1.7.3) (2024-05-24)
+
+
+### Bug Fixes
+
+* remove unnecessary escape symbols from action file for phar building ([b6c628b](https://github.com/buggregator/trap/commit/b6c628b62f7a831a9ccca7c3b62a5834f2aa5453))
+
 ## [1.7.2](https://github.com/buggregator/trap/compare/v1.7.1...v1.7.2) (2024-05-24)
 
 
