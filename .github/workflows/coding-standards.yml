@@ -118,7 +118,7 @@ jobs:
         uses: wayofdev/gh-actions/actions/phive/install@v3.1.0
         with:
           phive-home: '.phive'
-          trust-gpg-keys: 0xC00543248C87FB13,0x033E5F8D801A2F8D
+          trust-gpg-keys: '0xC00543248C87FB13,0x033E5F8D801A2F8D,0x2DF45277AEF09A2F'
 
       - name: 🔍 Run ergebnis/composer-normalize
         run: .phive/composer-normalize --ansi --dry-run
