@@ -1,6 +1,7 @@
 /.*/
 !/.phive/
 !/.github/
+!/.phar/
 /runtime/
 /vendor/
 /.env

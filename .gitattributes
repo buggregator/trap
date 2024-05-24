@@ -17,3 +17,4 @@ infection.*            export-ignore
 codecov.*              export-ignore
 
 *.http binary
+*.gpg binary
