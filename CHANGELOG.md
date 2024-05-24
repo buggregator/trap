@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.1](https://github.com/buggregator/trap/compare/v1.7.0...v1.7.1) (2024-05-24)
+
+
+### Bug Fixes
+
+* update release-token ([#94](https://github.com/buggregator/trap/issues/94)) ([51f187b](https://github.com/buggregator/trap/commit/51f187b743941093a33d86daba2ba5c815dd62de))
+
 ## [1.7.0](https://github.com/buggregator/trap/compare/1.6.0...v1.7.0) (2024-05-24)
 
 
