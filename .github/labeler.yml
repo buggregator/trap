@@ -19,6 +19,6 @@
 
 "tests":
   - changed-files:
-      - any-glob-to-any-file: ['tests/**/*']
+      - any-glob-to-any-file: ['tests/**/*', 'phpunit*', 'psalm*']
 
 ...
