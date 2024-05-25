@@ -2,34 +2,34 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Support;
+namespace Buggregator\Trap\Support\Caster;
 
 /**
- * Data object representing a tick.
+ * Data object representing a trace.
  *
  * @see tr()
  * @internal
  */
-final class Tick
+final class Trace
 {
     /**
      * @param int<0, max> $number The tick number.
      * @param float $delta The time delta between the current and previous tick.
      * @param int $memory The memory usage.
-     * @param array{
-     *     function?: string,
+     * @param list<array{
+     *     function: non-empty-string,
      *     line?: int,
      *     file?: string,
      *     class?: class-string,
      *     type?: string,
      *     args?: list<mixed>
-     * } $line The stack trace line.
+     * }> $stack The stack trace.
      */
     public function __construct(
         public readonly int $number,
         public readonly float $delta,
         public readonly int $memory,
-        public readonly array $line,
+        public readonly array $stack,
     ) {
     }
 
@@ -48,15 +48,10 @@ final class Tick
         };
 
         return \sprintf(
-            "Tick #%d  %s  %sM",
+            "Trace #%d  %s  %sM",
             $this->number,
             $deltaStr,
-            \number_format(
-                $this->memory / 1024 / 1024,
-                2,
-                '.',
-                '_',
-            ),
+            \number_format($this->memory / 1024 / 1024, 2, '.', '_'),
         );
     }
 }

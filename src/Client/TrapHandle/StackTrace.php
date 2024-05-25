@@ -6,7 +6,7 @@ namespace Buggregator\Trap\Client\TrapHandle;
 
 /**
  * @psalm-type StackTraceWithObjects = list<array{
- *        function?: string,
+ *        function: non-empty-string,
  *        line?: int,
  *        file?: string,
  *        class?: class-string,
@@ -15,7 +15,7 @@ namespace Buggregator\Trap\Client\TrapHandle;
  *        args?: list<mixed>
  *    }>
  * @psalm-type SimpleStackTrace = list<array{
- *        function?: string,
+ *        function: non-empty-string,
  *        line?: int,
  *        file?: string,
  *        class?: class-string,

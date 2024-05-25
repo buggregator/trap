@@ -6,8 +6,9 @@ use Buggregator\Trap\Client\TrapHandle;
 use Buggregator\Trap\Client\TrapHandle\StackTrace;
 use Buggregator\Trap\Support\Caster\EnumValue;
 use Buggregator\Trap\Support\Caster\ProtobufCaster;
+use Buggregator\Trap\Support\Caster\Trace;
 use Buggregator\Trap\Support\Caster\TickerCaster;
-use Buggregator\Trap\Support\Tick;
+use Buggregator\Trap\Support\Caster\TraceFile;
 use Google\Protobuf\Internal\MapField;
 use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
@@ -42,8 +43,10 @@ try {
      */
     function tr(mixed ...$values): mixed
     {
+        /** @var int<0, max> $counter */
         static $counter = -1;
-        static $time = 0;
+        /** @var float $time */
+        static $time = 0.0;
 
         ++$counter;
 
@@ -99,5 +102,7 @@ if (class_exists(AbstractCloner::class)) {
     /** @psalm-suppress MixedAssignment */
     AbstractCloner::$defaultCasters[EnumValue::class] ??= [ProtobufCaster::class, 'castEnum'];
     /** @psalm-suppress MixedAssignment */
-    AbstractCloner::$defaultCasters[Tick::class] ??= [TickerCaster::class, 'cast'];
+    AbstractCloner::$defaultCasters[Trace::class] = [TickerCaster::class, 'cast'];
+    /** @psalm-suppress MixedAssignment */
+    AbstractCloner::$defaultCasters[TraceFile::class] = [TickerCaster::class, 'castLine'];
 }
