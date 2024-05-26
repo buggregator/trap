@@ -172,6 +172,11 @@ final class TrapHandle
         return $this;
     }
 
+    public function highlight(string $language): self
+    {
+        return $this->context(language: $language);
+    }
+
     public function __destruct()
     {
         $this->haveToSend() and $this->sendDump();
