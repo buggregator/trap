@@ -30,8 +30,7 @@ final class Trace
         public readonly float $delta,
         public readonly int $memory,
         public readonly array $stack,
-    ) {
-    }
+    ) {}
 
     public function __toString(): string
     {

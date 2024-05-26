@@ -21,8 +21,7 @@ final class TraceFile
      */
     public function __construct(
         public readonly array $line,
-    ) {
-    }
+    ) {}
 
     public function __toString(): string
     {

@@ -43,25 +43,25 @@ try {
      */
     function tr(mixed ...$values): mixed
     {
-        /** @var int<0, max> $counter */
+        /** @var int<-1, max> $counter */
         static $counter = -1;
         /** @var float $time */
         static $time = 0.0;
 
         ++$counter;
 
+        $previous = $time;
+        $mem = $time = \microtime(true);
         try {
             if ($values === []) {
-                $previous = $time;
-                $mem = $time = \microtime(true);
+                /** @psalm-suppress InternalMethod */
                 return TrapHandle::fromTicker(
                     $counter,
                     $counter === 0 ? 0 : $mem - $previous,
-                    memory_get_usage(),
+                    \memory_get_usage(),
                 )->return();
             }
 
-            $mem = $time = \microtime(true);
             /** @psalm-suppress InternalMethod */
             return TrapHandle::fromArray($values)->return();
         } finally {
@@ -92,7 +92,7 @@ try {
 /**
  * Register the var-dump caster for protobuf messages
  */
-if (class_exists(AbstractCloner::class)) {
+if (\class_exists(AbstractCloner::class)) {
     /** @psalm-suppress MixedAssignment */
     AbstractCloner::$defaultCasters[Message::class] ??= [ProtobufCaster::class, 'cast'];
     /** @psalm-suppress MixedAssignment */
