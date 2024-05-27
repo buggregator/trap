@@ -176,9 +176,16 @@ final class TrapHandle
      * Code syntax highlighting.
      *
      * Adds `language` data context to denote the passed data as source code.
-     * In this case, Buggragator will perform code highlighting.
+     * In this case, Buggregator will perform code highlighting.
      *
      * Note: it equals to `trap()->context(language: $syntax);`
+     *
+     * ```php
+     * trap(
+     *   index: $indexCode,
+     *   controller: $controllerCode,
+     * )->code('php');
+     * ```
      *
      * @param non-empty-string $syntax The name of the programming language
      */
