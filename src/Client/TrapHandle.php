@@ -172,9 +172,13 @@ final class TrapHandle
         return $this;
     }
 
-    public function highlight(string $language): self
+    /**
+     * Code highlighting.
+     * Will call the context method{@see context()} and pass the language parameter
+     */
+    public function code(string $syntax): self
     {
-        return $this->context(language: $language);
+        return $this->context(language: $syntax);
     }
 
     public function __destruct()

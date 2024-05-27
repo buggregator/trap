@@ -47,6 +47,13 @@ final class TrapTest extends Base
         self::assertSame(['foo' => 'new', 'bar' => 'bar-context'], self::$lastData->getContext());
     }
 
+    public function testCodeHighlight(): void
+    {
+        trap('test-value')->code('php');
+
+        self::assertSame(['language' => 'php'], self::$lastData->getContext());
+    }
+
     /**
      * Check the first line of dumped stacktrace string contains right file and line.
      */
