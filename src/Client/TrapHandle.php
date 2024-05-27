@@ -173,8 +173,14 @@ final class TrapHandle
     }
 
     /**
-     * Code highlighting.
-     * Will call the context method{@see context()} and pass the language parameter
+     * Code syntax highlighting.
+     *
+     * Adds `language` data context to denote the passed data as source code.
+     * In this case, Buggragator will perform code highlighting.
+     *
+     * Note: it equals to `trap()->context(language: $syntax);`
+     *
+     * @param non-empty-string $syntax The name of the programming language
      */
     public function code(string $syntax): self
     {
