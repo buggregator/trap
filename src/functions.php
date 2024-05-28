@@ -77,6 +77,8 @@ try {
      * When no arguments passed, it works like {@see tr()}.
      *
      * @param mixed ...$values
+     *
+     * @codeCoverageIgnore
      */
     function td(mixed ...$values): never
     {

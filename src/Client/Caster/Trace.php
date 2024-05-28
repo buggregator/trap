@@ -15,7 +15,7 @@ final class Trace
     /**
      * @param int<0, max> $number The tick number.
      * @param float $delta The time delta between the current and previous tick.
-     * @param int $memory The memory usage.
+     * @param int<0, max> $memory The memory usage.
      * @param list<array{
      *     function: non-empty-string,
      *     line?: int,
@@ -42,7 +42,7 @@ final class Trace
             $delta < 0.01 => \sprintf('+%.2fms', $delta * 1000),
             $delta < 1 => \sprintf('+%.1fms', ($delta * 1000)),
             $delta < 10 => \sprintf('+%.2fs', $delta),
-            $delta < 60 => \sprintf('+%.3fs', $delta),
+            $delta < 60 => \sprintf('+%.1fs', $delta),
             default => \sprintf('+%dm %ds', (int) $delta % 60, (int) $delta % 60),
         };
 
