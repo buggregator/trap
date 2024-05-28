@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Support\Caster;
+namespace Buggregator\Trap\Client\Caster;
 
 /**
  * @internal

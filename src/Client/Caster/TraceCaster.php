@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Support\Caster;
+namespace Buggregator\Trap\Client\Caster;
 
 use Symfony\Component\VarDumper\Caster\Caster;
 use Symfony\Component\VarDumper\Cloner\Stub;
@@ -10,7 +10,7 @@ use Symfony\Component\VarDumper\Cloner\Stub;
 /**
  * @internal
  */
-final class TickerCaster
+final class TraceCaster
 {
     public static function cast(Trace $tick, array $a, Stub $stub, bool $isNested): array
     {

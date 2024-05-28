@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
+use Buggregator\Trap\Client\Caster\EnumValue;
+use Buggregator\Trap\Client\Caster\ProtobufCaster;
+use Buggregator\Trap\Client\Caster\Trace;
+use Buggregator\Trap\Client\Caster\TraceCaster;
+use Buggregator\Trap\Client\Caster\TraceFile;
 use Buggregator\Trap\Client\TrapHandle;
 use Buggregator\Trap\Client\TrapHandle\StackTrace;
-use Buggregator\Trap\Support\Caster\EnumValue;
-use Buggregator\Trap\Support\Caster\ProtobufCaster;
-use Buggregator\Trap\Support\Caster\Trace;
-use Buggregator\Trap\Support\Caster\TickerCaster;
-use Buggregator\Trap\Support\Caster\TraceFile;
 use Google\Protobuf\Internal\MapField;
 use Google\Protobuf\Internal\Message;
 use Google\Protobuf\Internal\RepeatedField;
@@ -102,7 +102,7 @@ if (class_exists(AbstractCloner::class)) {
     /** @psalm-suppress MixedAssignment */
     AbstractCloner::$defaultCasters[EnumValue::class] ??= [ProtobufCaster::class, 'castEnum'];
     /** @psalm-suppress MixedAssignment */
-    AbstractCloner::$defaultCasters[Trace::class] = [TickerCaster::class, 'cast'];
+    AbstractCloner::$defaultCasters[Trace::class] = [TraceCaster::class, 'cast'];
     /** @psalm-suppress MixedAssignment */
-    AbstractCloner::$defaultCasters[TraceFile::class] = [TickerCaster::class, 'castLine'];
+    AbstractCloner::$defaultCasters[TraceFile::class] = [TraceCaster::class, 'castLine'];
 }
