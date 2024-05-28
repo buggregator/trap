@@ -204,7 +204,7 @@
       <code><![CDATA[new \SplQueue()]]></code>
     </MixedPropertyTypeCoercion>
   </file>
-  <file src="src/Support/ProtobufCaster.php">
+  <file src="src/Support/Caster/ProtobufCaster.php">
     <MixedArgument>
       <code><![CDATA[$ed->getClass()]]></code>
       <code><![CDATA[$value]]></code>
