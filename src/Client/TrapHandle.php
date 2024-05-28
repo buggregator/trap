@@ -41,6 +41,8 @@ final class TrapHandle
      *
      * @param int<0, max> $number The tick number.
      * @param float $delta The time delta between the current and previous tick.
+     *
+     * @internal
      */
     public static function fromTicker(int $number, float $delta, int $memory): self
     {
