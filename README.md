@@ -147,7 +147,7 @@ $responder->respond(trap($response)->return());
 > if they are not set.
 
 Also, there are a couple of shortcuts here:
-- 
+
 - `tr(...)` - equivalent to `trap(...)->return()`
 - `td(...)` - equivalent to `trap(...); die;`
 
