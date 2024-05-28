@@ -108,20 +108,35 @@
         "sort-packages": true
     },
     "scripts": {
-        "cs:diff": "php vendor/bin/php-cs-fixer fix --dry-run -v --diff",
-        "cs:fix": "php vendor/bin/php-cs-fixer fix -v",
-        "infect": "XDEBUG_MODE=coverage php vendor/bin/roave-infection-static-analysis-plugin --configuration=infection.json.dist",
-        "infect:ci": "XDEBUG_MODE=coverage php vendor/bin/roave-infection-static-analysis-plugin --ansi --configuration=infection.json.dist --logger-github --ignore-msi-with-no-mutations --only-covered",
-        "psalm": "php vendor/bin/psalm --show-info=true",
-        "psalm:baseline": "php vendor/bin/psalm --set-baseline=psalm-baseline.xml",
-        "psalm:ci": "php vendor/bin/psalm --output-format=github --shepherd --show-info=false --stats --threads=4",
-        "refactor": "php vendor/bin/rector process --config=rector.php",
-        "refactor:ci": "php vendor/bin/rector process --config=rector.php --dry-run --ansi",
-        "stan": "php vendor/bin/phpstan analyse --memory-limit=2G",
-        "stan:baseline": "php vendor/bin/phpstan analyse --generate-baseline --memory-limit=2G --allow-empty-baseline",
-        "stan:ci": "php vendor/bin/phpstan analyse --memory-limit=2G --error-format=github",
-        "test": "XDEBUG_MODE=coverage php vendor/bin/pest --exclude-group=phpunit-only --color=always",
-        "test:cc": "XDEBUG_MODE=coverage php vendor/bin/pest --coverage --coverage-clover=.build/phpunit/logs/clover.xml --exclude-group=phpunit-only --color=always",
-        "test:sep": "XDEBUG_MODE=coverage php vendor/bin/phpunit --group=phpunit-only --color=always --exclude-testsuite=Arch"
+        "cs:diff": "php-cs-fixer fix --dry-run -v --diff",
+        "cs:fix": "php-cs-fixer fix -v",
+        "infect": [
+            "@putenv XDEBUG_MODE=coverage",
+            "roave-infection-static-analysis-plugin --configuration=infection.json.dist"
+        ],
+        "infect:ci": [
+            "@putenv XDEBUG_MODE=coverage",
+            "roave-infection-static-analysis-plugin --ansi --configuration=infection.json.dist --logger-github --ignore-msi-with-no-mutations --only-covered"
+        ],
+        "psalm": "psalm --show-info=true",
+        "psalm:baseline": "psalm --set-baseline=psalm-baseline.xml",
+        "psalm:ci": "psalm --output-format=github --shepherd --show-info=false --stats --threads=4",
+        "refactor": "rector process --config=rector.php",
+        "refactor:ci": "rector process --config=rector.php --dry-run --ansi",
+        "stan": "phpstan analyse --memory-limit=2G",
+        "stan:baseline": "phpstan analyse --generate-baseline --memory-limit=2G --allow-empty-baseline",
+        "stan:ci": "phpstan analyse --memory-limit=2G --error-format=github",
+        "test": [
+            "@putenv XDEBUG_MODE=coverage",
+            "pest --exclude-group=phpunit-only --color=always"
+        ],
+        "test:cc": [
+            "@putenv XDEBUG_MODE=coverage",
+            "pest --coverage --coverage-clover=.build/phpunit/logs/clover.xml --exclude-group=phpunit-only --color=always"
+        ],
+        "test:sep": [
+            "@putenv XDEBUG_MODE=coverage",
+            "phpunit --group=phpunit-only --color=always --exclude-testsuite=Arch"
+        ]
     }
 }
