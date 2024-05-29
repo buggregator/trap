@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.8.0 (2024-05-29)
+
+## What's Changed
+* Add tr() and td() functions by @roxblnfk in https://github.com/buggregator/trap/pull/102
+* Add `trap()->code()` sugar by @lee-to in https://github.com/buggregator/trap/pull/103
+* Change release generation type to Github API by @lotyp in https://github.com/buggregator/trap/pull/106
+
+## New Contributors
+* @lee-to made their first contribution in https://github.com/buggregator/trap/pull/103
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/v1.7.5...v1.8.0
+
 ## [1.7.5](https://github.com/buggregator/trap/compare/v1.7.4...v1.7.5) (2024-05-24)
 
 
