@@ -11,7 +11,6 @@ use Buggregator\Trap\Processable;
 use Buggregator\Trap\Proto\Buffer;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Service\FilesObserver\Handler;
-use Yiisoft\Injector\Injector;
 
 /**
  * The service orchestrates the process of scanning files in directories.
