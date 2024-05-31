@@ -12,4 +12,5 @@ enum Type: string
 {
     case XHProf = 'XHProf';
     case XDebug = 'XDebug';
+    case SPX = 'SPX';
 }

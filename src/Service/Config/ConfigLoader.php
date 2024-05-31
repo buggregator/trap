@@ -59,7 +59,10 @@ final class ConfigLoader
 
                 /** @var mixed $value */
                 $value = match (true) {
-                    $attribute instanceof XPath => @$this->xml?->xpath($attribute->path)[$attribute->key],
+                    $attribute instanceof XPath => (static fn(?array $value, int $key): mixed => match (true) {
+                        \array_key_exists($key, $value) => $value[$key],
+                        default => null,
+                    })($this->xml?->xpath($attribute->path), $attribute->key),
                     $attribute instanceof Env => $this->env[$attribute->name] ?? null,
                     $attribute instanceof InputOption => $this->inputOptions[$attribute->name] ?? null,
                     $attribute instanceof InputArgument => $this->inputArguments[$attribute->name] ?? null,

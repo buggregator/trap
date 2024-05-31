@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Config\Server\Files;
 
 use Buggregator\Trap\Service\Config\PhpIni;
-use Buggregator\Trap\Service\FilesObserver\Filter\XHProf as Converter;
+use Buggregator\Trap\Service\FilesObserver\Converter\XHProf as Converter;
 
 /**
  * @internal

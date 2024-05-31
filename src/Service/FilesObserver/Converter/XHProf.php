@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Service\FilesObserver\Filter;
+namespace Buggregator\Trap\Service\FilesObserver\Converter;
 
+use Buggregator\Trap\Logger;
 use Buggregator\Trap\Proto\Frame\Profiler as ProfilerFrame;
 use Buggregator\Trap\Service\FilesObserver\FileInfo;
 use Buggregator\Trap\Service\FilesObserver\FrameConverter as FileFilterInterface;
@@ -13,6 +14,10 @@ use Buggregator\Trap\Service\FilesObserver\FrameConverter as FileFilterInterface
  */
 final class XHProf implements FileFilterInterface
 {
+    public function __construct(
+        private readonly Logger $logger,
+    ) {}
+
     public function validate(FileInfo $file): bool
     {
         return $file->getExtension() === 'xhprof';
@@ -40,8 +45,7 @@ final class XHProf implements FileFilterInterface
                 ),
             );
         } catch (\Throwable $e) {
-            // todo log
-            \var_dump($e->getMessage());
+            $this->logger->exception($e);
         }
     }
 
@@ -76,11 +80,11 @@ final class XHProf implements FileFilterInterface
                 'callee' => $callee,
                 'caller' => $caller,
                 'cost' => [
-                    'cpu' => (int) $value['cpu'],
-                    'ct' => (int) $value['ct'],
-                    'mu' => (int) $value['mu'],
-                    'pmu' => (int) $value['pmu'],
-                    'wt' => (int) $value['wt'],
+                    'cpu' => (int)$value['cpu'],
+                    'ct' => (int)$value['ct'],
+                    'mu' => (int)$value['mu'],
+                    'pmu' => (int)$value['pmu'],
+                    'wt' => (int)$value['wt'],
                 ],
             ];
 
