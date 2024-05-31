@@ -4,46 +4,57 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Service\FilesObserver;
 
-use Buggregator\Trap\Config\FilesObserver as Config;
+use Buggregator\Trap\Config\Server\Files\ObserverConfig as Config;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Service\Container;
 use Buggregator\Trap\Support\Timer;
 
 /**
+ * The handler is responsible for scanning files in a directory and converting them into frames.
+ * It does it in a loop with a given interval.
+ *
+ * @see Config
+ *
  * @internal
+ *
+ * @implements \IteratorAggregate<int, Frame>
  */
-final class Handler
+final class Handler implements \IteratorAggregate
 {
     private readonly Timer $timer;
 
     /** @var array<non-empty-string, FileInfo> */
     private array $cache = [];
 
+    /** @var non-empty-string */
     private readonly string $path;
 
     private FrameConverter $converter;
 
-    private function __construct(
+    public function __construct(
         Config $config,
         private readonly Logger $logger,
+        Container $container,
     ) {
+        $config->isValid() or throw new \InvalidArgumentException('Invalid configuration.');
+
         $this->path = $config->path;
-        $this->timer = new Timer($config->interval);
-        $this->converter = new ($config->converter)();
+        $this->timer = new Timer($config->scanInterval);
+        $this->converter = $container->make($config->converterClass, [$config]);
     }
 
     /**
-     * @return \Generator<int, Frame, mixed, void>
+     * @return \Traversable<int, Frame>
      */
-    public static function generate(Config $config, Logger $logger): \Generator
+    public function getIterator(): \Traversable
     {
-        $self = new self($config, $logger);
         do {
-            foreach ($self->syncFiles() as $info) {
-                yield from $self->converter->convert($info);
+            foreach ($this->syncFiles() as $info) {
+                yield from $this->converter->convert($info);
             }
 
-            $self->timer->wait()->reset();
+            $this->timer->wait()->reset();
         } while (true);
     }
 

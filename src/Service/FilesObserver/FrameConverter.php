@@ -19,7 +19,7 @@ interface FrameConverter
     public function validate(FileInfo $file): bool;
 
     /**
-     * @return iterable<ProfilerFrame>
+     * @return iterable<int, ProfilerFrame>
      */
     public function convert(FileInfo $file): iterable;
 }

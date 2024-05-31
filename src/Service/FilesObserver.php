@@ -5,14 +5,19 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Service;
 
 use Buggregator\Trap\Cancellable;
-use Buggregator\Trap\Config\FilesObserver as Config;
+use Buggregator\Trap\Config\Server\Files\ObserverConfig as Config;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Processable;
 use Buggregator\Trap\Proto\Buffer;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Service\FilesObserver\Handler;
+use Yiisoft\Injector\Injector;
 
 /**
+ * The service orchestrates the process of scanning files in directories.
+ *
+ * There are {@see Handler} instances for each configuration that are executed in fibers.
+ *
  * @internal
  */
 final class FilesObserver implements Processable, Cancellable
@@ -23,13 +28,18 @@ final class FilesObserver implements Processable, Cancellable
     private array $fibers = [];
 
     public function __construct(
+        private readonly Container $container,
         private readonly Logger $logger,
         private readonly Buffer $buffer,
         Config ...$configs,
     ) {
         foreach ($configs as $config) {
+            if (!$config->isValid()) {
+                continue;
+            }
+
             $this->fibers[] = new \Fiber(function () use ($config): void {
-                foreach (Handler::generate($config, $this->logger) as $frame) {
+                foreach ($this->container->make(Handler::class, [$config]) as $frame) {
                     $this->propagateFrame($frame);
                 }
             });

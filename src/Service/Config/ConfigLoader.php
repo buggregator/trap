@@ -63,6 +63,11 @@ final class ConfigLoader
                     $attribute instanceof Env => $this->env[$attribute->name] ?? null,
                     $attribute instanceof InputOption => $this->inputOptions[$attribute->name] ?? null,
                     $attribute instanceof InputArgument => $this->inputArguments[$attribute->name] ?? null,
+                    $attribute instanceof PhpIni => (static fn(string|false $value): ?string => match ($value) {
+                        // Option does not exist or set to null
+                        '', false => null,
+                        default => $value,
+                    })(\ini_get($attribute->option)),
                     default => null,
                 };
 

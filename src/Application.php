@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap;
 
+use Buggregator\Trap\Config\Server\Files\SPX as SPXFileConfig;
+use Buggregator\Trap\Config\Server\Files\XDebug as XDebugFileConfig;
+use Buggregator\Trap\Config\Server\Files\XHProf as XHProfFileConfig;
 use Buggregator\Trap\Config\Server\Frontend as FrontendConfig;
 use Buggregator\Trap\Config\Server\SocketServer;
 use Buggregator\Trap\Handler\Http\Handler\Websocket;
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Proto\Buffer;
 use Buggregator\Trap\Service\Container;
-use Buggregator\Trap\Service\FilesObserver\Filter\XHProf;
 use Buggregator\Trap\Socket\Client;
 use Buggregator\Trap\Socket\Server;
 use Buggregator\Trap\Socket\SocketStream;
@@ -230,19 +232,10 @@ final class Application implements Processable, Cancellable, Destroyable
 
     private function configureFileObserver(): void
     {
-        // todo add
-        // \ini_get('xdebug.output_dir'),
-
-        if (false !== ($path = \ini_get('xhprof.output_dir'))) {
-            $this->processors[] = new Service\FilesObserver(
-                $this->logger,
-                $this->buffer,
-                new Config\FilesObserver(
-                    path: $path,
-                    converter: XHProf::class,
-                    interval: 2.0,
-                ),
-            );
-        }
+        $this->processors[] = $this->container->make(Service\FilesObserver::class, [
+            $this->container->get(XHProfFileConfig::class),
+            $this->container->get(XDebugFileConfig::class),
+            $this->container->get(SPXFileConfig::class),
+        ]);
     }
 }
