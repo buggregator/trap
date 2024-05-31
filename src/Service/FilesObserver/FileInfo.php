@@ -14,8 +14,7 @@ final class FileInfo
         public readonly int $size,
         public readonly int $ctime,
         public readonly int $mtime,
-    ) {
-    }
+    ) {}
 
     public static function fromSplFileInfo(\SplFileInfo $fileInfo): self
     {
@@ -27,16 +26,6 @@ final class FileInfo
         );
     }
 
-    public function toArray(): array
-    {
-        return [
-            'path' => $this->path,
-            'size' => $this->size,
-            'ctime' => $this->ctime,
-            'mtime' => $this->mtime,
-        ];
-    }
-
     public static function fromArray(array $data): self
     {
         return new self(
@@ -45,6 +34,16 @@ final class FileInfo
             $data['ctime'],
             $data['mtime'],
         );
+    }
+
+    public function toArray(): array
+    {
+        return [
+            'path' => $this->path,
+            'size' => $this->size,
+            'ctime' => $this->ctime,
+            'mtime' => $this->mtime,
+        ];
     }
 
     public function getExtension(): string

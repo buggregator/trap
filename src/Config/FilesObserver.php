@@ -20,6 +20,5 @@ final class FilesObserver
         public readonly string $path,
         public readonly string $converter,
         public readonly float $interval = 5.0,
-    ) {
-    }
+    ) {}
 }

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Proto\Frame\Profiler;
 
 use Buggregator\Trap\Proto\Frame\Profiler\Type as PayloadType;
-use Buggregator\Trap\Service\FilesObserver\FileInfo;
 
 /**
  * @psalm-type Metadata = array{

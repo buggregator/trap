@@ -11,7 +11,6 @@ use Buggregator\Trap\Processable;
 use Buggregator\Trap\Proto\Buffer;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Service\FilesObserver\Handler;
-use Fiber;
 
 /**
  * @internal
@@ -19,7 +18,8 @@ use Fiber;
 final class FilesObserver implements Processable, Cancellable
 {
     private bool $cancelled = false;
-    /** @var Fiber[] */
+
+    /** @var \Fiber[] */
     private array $fibers = [];
 
     public function __construct(
@@ -28,7 +28,7 @@ final class FilesObserver implements Processable, Cancellable
         Config ...$configs,
     ) {
         foreach ($configs as $config) {
-            $this->fibers[] = new Fiber(function () use ($config) {
+            $this->fibers[] = new \Fiber(function () use ($config): void {
                 foreach (Handler::generate($config, $this->logger) as $frame) {
                     $this->propagateFrame($frame);
                 }

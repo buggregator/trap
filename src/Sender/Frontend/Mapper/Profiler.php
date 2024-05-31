@@ -18,7 +18,7 @@ final class Profiler
             uuid: Uuid::generate(),
             type: 'profiler',
             payload: $frame->payload->toArray(),
-            timestamp: (float)$frame->time->format('U.u'),
+            timestamp: (float) $frame->time->format('U.u'),
         );
     }
 }

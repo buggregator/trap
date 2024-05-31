@@ -15,9 +15,12 @@ use Buggregator\Trap\Support\Timer;
 final class Handler
 {
     private readonly Timer $timer;
+
     /** @var array<non-empty-string, FileInfo> */
     private array $cache = [];
+
     private readonly string $path;
+
     private FrameConverter $converter;
 
     private function __construct(

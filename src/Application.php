@@ -228,7 +228,7 @@ final class Application implements Processable, Cancellable, Destroyable
         );
     }
 
-    private function configureFileObserver()
+    private function configureFileObserver(): void
     {
         // todo add
         // \ini_get('xdebug.output_dir'),

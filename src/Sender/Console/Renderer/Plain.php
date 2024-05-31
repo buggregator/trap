@@ -31,6 +31,6 @@ final class Plain implements Renderer
         ]);
 
         Common::renderHeader2($output, 'Payload:');
-        $output->writeln((string)$frame);
+        $output->writeln((string) $frame);
     }
 }
