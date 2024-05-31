@@ -80,11 +80,11 @@ final class XHProf implements FileFilterInterface
                 'callee' => $callee,
                 'caller' => $caller,
                 'cost' => [
-                    'cpu' => (int)$value['cpu'],
-                    'ct' => (int)$value['ct'],
-                    'mu' => (int)$value['mu'],
-                    'pmu' => (int)$value['pmu'],
-                    'wt' => (int)$value['wt'],
+                    'cpu' => (int) $value['cpu'],
+                    'ct' => (int) $value['ct'],
+                    'mu' => (int) $value['mu'],
+                    'pmu' => (int) $value['pmu'],
+                    'wt' => (int) $value['wt'],
                 ],
             ];
 
