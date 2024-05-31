@@ -91,37 +91,13 @@ jobs:
         run: rm ${{ env.GPG_KEYS }}
 
       - name: 📤 Upload release assets
-        uses: actions/github-script@v7.0.1
+        uses: softprops/action-gh-release@v2.0.5
+        if: startsWith(github.ref, 'refs/tags/')
         with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
-          script: |
-            const fs = require("fs");
-
-            const files = [
-              {
-                name: "trap.phar",
-                path: process.env.TRAP_PHAR,
-              },
-              {
-                name: "trap.phar.asc",
-                path: process.env.TRAP_PHAR_SIGNATURE,
-              },
-            ];
-
-            for (const file of files) {
-              try {
-                await github.rest.repos.uploadReleaseAsset({
-                  data: fs.readFileSync(file.path),
-                  name: file.name,
-                  origin: process.env.RELEASE_UPLOAD_URL,
-                  owner: context.repo.owner,
-                  release_id: process.env.RELEASE_ID,
-                  repo: context.repo.repo,
-                });
-              } catch (error) {
-                core.setFailed(error.message);
-              }
-            }
+          token: "${{ secrets.TRAP_RELEASE_TOKEN }}"
+          files: |
+            ${{ env.TRAP_PHAR }}
+            ${{ env.TRAP_PHAR_SIGNATURE }}
 
   notify-discord:
     runs-on: ubuntu-latest

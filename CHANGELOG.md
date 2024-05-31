@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.8.0 (2024-05-29)
+
+## What's Changed
+* Add tr() and td() functions by @roxblnfk in https://github.com/buggregator/trap/pull/102
+* Add `trap()->code()` sugar by @lee-to in https://github.com/buggregator/trap/pull/103
+* Change release generation type to Github API by @lotyp in https://github.com/buggregator/trap/pull/106
+
+## New Contributors
+* @lee-to made their first contribution in https://github.com/buggregator/trap/pull/103
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/v1.7.5...v1.8.0
+
+## [1.7.5](https://github.com/buggregator/trap/compare/v1.7.4...v1.7.5) (2024-05-24)
+
+
+### Bug Fixes
+
+* fix environments in build-phar-release ([453e522](https://github.com/buggregator/trap/commit/453e522b6c49c6e9d54cd6256137c8f25925939f))
+
+## [1.7.4](https://github.com/buggregator/trap/compare/v1.7.3...v1.7.4) (2024-05-24)
+
+
+### Bug Fixes
+
+* release asset upload ([#99](https://github.com/buggregator/trap/issues/99)) ([b4616c5](https://github.com/buggregator/trap/commit/b4616c52056cd1803b2d3990178577537a694147))
+* suppress warnings if Closure::bind() is run with static callable ([3d72a7e](https://github.com/buggregator/trap/commit/3d72a7ef551bd2f21b0935826e8093a58da0b774))
+
 ## [1.7.3](https://github.com/buggregator/trap/compare/v1.7.2...v1.7.3) (2024-05-24)
 
 

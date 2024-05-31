@@ -131,10 +131,13 @@ Then just call the `trap()` function in your code:
 ```php
 // dump the current stack trace
 trap()->stackTrace();
+
 // dump a variable with a depth limit
 trap($var)->depth(4);
+
  // dump a named variables sequence
 trap($var, foo: $far, bar: $bar);
+
 // dump a variable and return it
 $responder->respond(trap($response)->return()); 
 ```
@@ -142,6 +145,27 @@ $responder->respond(trap($response)->return());
 > **Note**:
 > The `trap()` function configures `$_SERVER['REMOTE_ADDR']` and `$_SERVER['REMOTE_PORT']` automatically,
 > if they are not set.
+
+Also, there are a couple of shortcuts here:
+
+- `tr(...)` - equivalent to `trap(...)->return()`
+- `td(...)` - equivalent to `trap(...); die;`
+
+If called without arguments, they will display a short stack trace, used memory, and time between shortcut calls.
+
+```php
+function handle($input) {
+    tr(); // Trace #0  -.---  3.42M
+
+    $data = $this->prepareData($input);
+
+    tr(); // Trace #1  0.015ms  6.58M
+
+    $this->processor->process(tr(data: $data));
+
+    td(); // exit with output: Trace #2  1.15ms  7.73M
+}
+```
 
 ### Default port
 

@@ -112,7 +112,7 @@ final class Client implements Destroyable
      */
     public function setOnPayload(callable $callable): void
     {
-        $this->onPayload = \Closure::bind($callable(...), $this) ?? $callable(...);
+        $this->onPayload = @\Closure::bind($callable(...), $this) ?? $callable(...);
     }
 
     /**
@@ -121,7 +121,7 @@ final class Client implements Destroyable
      */
     public function setOnClose(callable $callable): void
     {
-        $this->onClose = \Closure::bind($callable(...), $this) ?? $callable(...);
+        $this->onClose = @\Closure::bind($callable(...), $this) ?? $callable(...);
     }
 
     public function send(string $payload): void

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Client;
 
+use Buggregator\Trap\Client\Caster\Trace;
 use Buggregator\Trap\Client\TrapHandle\Counter;
 use Buggregator\Trap\Client\TrapHandle\Dumper as VarDumper;
 use Buggregator\Trap\Client\TrapHandle\StaticState;
@@ -33,6 +34,22 @@ final class TrapHandle
     public static function fromArray(array $array): self
     {
         return new self($array);
+    }
+
+    /**
+     * Create a new instance with a single value.
+     *
+     * @param int<0, max> $number The tick number.
+     * @param float $delta The time delta between the current and previous tick.
+     *
+     * @internal
+     */
+    public static function fromTicker(int $number, float $delta, int $memory): self
+    {
+        $self = new self([]);
+        $self->values[] = new Trace($number, $delta, $memory, \array_slice($self->staticState->stackTrace, 0, 3));
+
+        return $self;
     }
 
     /**
@@ -170,6 +187,28 @@ final class TrapHandle
 
         $this->staticState->dataContext = \array_merge($this->staticState->dataContext, $values);
         return $this;
+    }
+
+    /**
+     * Code syntax highlighting.
+     *
+     * Adds `language` data context to denote the passed data as source code.
+     * In this case, Buggregator will perform code highlighting.
+     *
+     * Note: it equals to `trap()->context(language: $syntax);`
+     *
+     * ```php
+     * trap(
+     *   index: $indexCode,
+     *   controller: $controllerCode,
+     * )->code('php');
+     * ```
+     *
+     * @param non-empty-string $syntax The name of the programming language
+     */
+    public function code(string $syntax): self
+    {
+        return $this->context(language: $syntax);
     }
 
     public function __destruct()

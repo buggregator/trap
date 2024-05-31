@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Client\TrapHandle;
 
 /**
- *
  * @psalm-type StackTraceWithObjects = list<array{
- *        function?: string,
+ *        function: non-empty-string,
  *        line?: int,
  *        file?: string,
  *        class?: class-string,
@@ -16,7 +15,7 @@ namespace Buggregator\Trap\Client\TrapHandle;
  *        args?: list<mixed>
  *    }>
  * @psalm-type SimpleStackTrace = list<array{
- *        function?: string,
+ *        function: non-empty-string,
  *        line?: int,
  *        file?: string,
  *        class?: class-string,
@@ -26,6 +25,13 @@ namespace Buggregator\Trap\Client\TrapHandle;
  */
 final class StackTrace
 {
+    /**
+     * Functions like `dump()`, `trap()`, `tr()`, `td()`, etc.
+     *
+     * @var array<callable-string, mixed>
+     */
+    public static array $facades = [];
+
     /**
      * Returns a backtrace as an array.
      * Removes the internal frames and the first next frames after them.
@@ -46,16 +52,19 @@ final class StackTrace
                 ($provideObjects ? \DEBUG_BACKTRACE_PROVIDE_OBJECT : 0) | \DEBUG_BACKTRACE_IGNORE_ARGS,
             ) as $frame
         ) {
-            if (\str_starts_with($frame['class'] ?? '', 'Buggregator\\Trap\\Client\\')) {
+            $class = $frame['class'] ?? '';
+            if (\str_starts_with($class, 'Buggregator\\Trap\\Client\\')) {
                 $internal = true;
                 $stack = [];
                 continue;
             }
 
             if ($internal) {
-                // todo check the NoStackTrace attribute
-
-                $internal = false;
+                if ($class === '' && \array_key_exists($frame['function'], self::$facades)) {
+                    $stack = [];
+                } else {
+                    $internal = false;
+                }
             }
 
             // Convert absolute paths to relative ones

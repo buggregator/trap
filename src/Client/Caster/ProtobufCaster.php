@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Support;
+namespace Buggregator\Trap\Client\Caster;
 
-use Buggregator\Trap\Support\Caster\EnumValue;
-use Google\Protobuf\Internal\Descriptor as InternalDescriptor;
 use Google\Protobuf\Descriptor as PublicDescriptor;
+use Google\Protobuf\Internal\Descriptor as InternalDescriptor;
 use Google\Protobuf\Internal\DescriptorPool;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\MapField;
