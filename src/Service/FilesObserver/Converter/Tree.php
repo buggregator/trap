@@ -111,7 +111,6 @@ final class Tree implements \IteratorAggregate
         }
     }
 
-
     /**
      * Yield items deep-first.
      *
