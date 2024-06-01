@@ -4,18 +4,28 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Service\FilesObserver\Converter;
 
+use Buggregator\Trap\Config\Server\Files\XHProf as XHProfConfig;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Proto\Frame\Profiler as ProfilerFrame;
 use Buggregator\Trap\Service\FilesObserver\FileInfo;
 use Buggregator\Trap\Service\FilesObserver\FrameConverter as FileFilterInterface;
 
 /**
+ * @psalm-type RawData = array<non-empty-string, array{
+ *      ct: int<0, max>,
+ *      wt: int<0, max>,
+ *      cpu: int<0, max>,
+ *      mu: int<0, max>,
+ *      pmu: int<0, max>
+ *  }>
+ *
  * @internal
  */
 final class XHProf implements FileFilterInterface
 {
     public function __construct(
         private readonly Logger $logger,
+        private readonly XHProfConfig $config,
     ) {}
 
     public function validate(FileInfo $file): bool
@@ -39,6 +49,7 @@ final class XHProf implements FileFilterInterface
                     metadata: $metadata,
                     callsProvider: function () use ($file): array {
                         $content = \file_get_contents($file->path);
+                        /** @var RawData $data */
                         $data = \unserialize($content, ['allowed_classes' => false]);
                         return $this->dataToPayload($data);
                     },
@@ -49,6 +60,9 @@ final class XHProf implements FileFilterInterface
         }
     }
 
+    /**
+     * @param RawData $data
+     */
     private function dataToPayload(array $data): array
     {
         /** @var array<string, array<string, int>> $data */
@@ -60,119 +74,70 @@ final class XHProf implements FileFilterInterface
             'wt' => 0,
         ];
 
-        $edges = [];
-        /** @var array<string, array<string, int>> $parents */
-        $parents = [];
-        /** @var array<string, list<array>> $parents items with unknown caller */
-        $callerLess = [];
-        $i = 0;
-        \uasort($data, static function (array $a, array $b) {
-            return $b['wt'] <=> $a['wt'];
-        });
-        // $data = \array_reverse($data, true);
+        /** @var Tree<Edge> $tree */
+        $tree = new Tree();
+
+        // \uasort($data, static function (array $a, array $b) {
+        //     return $b['wt'] <=> $a['wt'];
+        // });
+
         foreach ($data as $key => $value) {
             [$caller, $callee] = \explode('==>', $key, 2) + [1 => null];
             if ($callee === null) {
                 [$caller, $callee] = [null, $caller];
             }
 
-            $edge = [
-                'callee' => $callee,
-                'caller' => $caller,
-                'cost' => [
-                    'cpu' => (int) $value['cpu'],
-                    'ct' => (int) $value['ct'],
-                    'mu' => (int) $value['mu'],
-                    'pmu' => (int) $value['pmu'],
-                    'wt' => (int) $value['wt'],
-                ],
-            ];
+            $edge = new Edge(
+                caller: $caller,
+                callee: $callee,
+                cost: Cost::fromArray($value),
+            );
 
-            // if (++$j > 10) {
-            //     print_r(\array_keys($parents));
-            //     print_r(\array_keys($edges));
-            //     die;
-            // }
+            $peaks['cpu'] = \max($peaks['cpu'], $edge->cost->cpu);
+            $peaks['ct'] = \max($peaks['ct'], $edge->cost->ct);
+            $peaks['mu'] = \max($peaks['mu'], $edge->cost->mu);
+            $peaks['pmu'] = \max($peaks['pmu'], $edge->cost->pmu);
+            $peaks['wt'] = \max($peaks['wt'], $edge->cost->wt);
 
-            if ($caller !== null && !\array_key_exists($caller, $parents) && $caller !== $callee) {
-                $callerLess[$caller][] = &$edge;
-                // echo "CALLER: $caller\n";
-                // echo "CALLEE: $callee\n";
-            } else {
-                // echo "CALLER: $callee\n";
-                $parents[$callee] = &$edge['cost'];
-                $edges['e' . ++$i] = &$edge;
-                if (\array_key_exists($callee, $callerLess)) {
-                    foreach ($callerLess[$callee] as $item) {
-                        $edges['a' . ++$i] = &$item;
-                        $parents[$item['callee']] = &$item['cost'];
-                        unset($item);
-                    }
-                    unset($callerLess[$callee]);
-                }
-            }
-
-            $peaks['cpu'] = \max($peaks['cpu'], $edge['cost']['cpu']);
-            $peaks['ct'] = \max($peaks['ct'], $edge['cost']['ct']);
-            $peaks['mu'] = \max($peaks['mu'], $edge['cost']['mu']);
-            $peaks['pmu'] = \max($peaks['pmu'], $edge['cost']['pmu']);
-            $peaks['wt'] = \max($peaks['wt'], $edge['cost']['wt']);
-
-            unset($edge);
+            $tree->addItem($edge, $edge->callee, $edge->caller);
         }
 
-        // Merge callerLess items
-        while ($callerLess !== []) {
-            $merged = 0;
-            foreach ($callerLess as $caller => $items) {
-                if (\array_key_exists($caller, $parents)) {
-                    foreach ($items as &$item) {
-                        $edges['c' . ++$i] = &$item;
-                        $parents[$item['callee']] = &$item['cost'];
-                        unset($item);
-                    }
-                    ++$merged;
-                    unset($callerLess[$caller]);
-                }
-            }
+        // Calc percentages and delta
+        /** @var Branch<Edge> $branch */
+        foreach ($tree->getIterator() as $branch) {
+            $cost = $branch->item->cost;
+            $cost->p_cpu = $peaks['cpu'] > 0 ? \round($cost->cpu / $peaks['cpu'] * 100, 3) : 0;
+            $cost->p_ct = $peaks['ct'] > 0 ? \round($cost->ct / $peaks['ct'] * 100, 3) : 0;
+            $cost->p_mu = $peaks['mu'] > 0 ? \round($cost->mu / $peaks['mu'] * 100, 3) : 0;
+            $cost->p_pmu = $peaks['pmu'] > 0 ? \round($cost->pmu / $peaks['pmu'] * 100, 3) : 0;
+            $cost->p_wt = $peaks['wt'] > 0 ? \round($cost->wt / $peaks['wt'] * 100, 3) : 0;
 
-            // Just merge all as is
-            if ($merged === 0) {
-                foreach ($callerLess as $items) {
-                    foreach ($items as &$item) {
-                        $edges['f' . ++$i] = &$item;
-                        $parents[$item['callee']] = &$item['cost'];
-                        unset($item);
-                    }
-                }
-
-                $callerLess = [];
+            if ($branch->parent !== null) {
+                $parentCost = $branch->parent->item->cost;
+                $cost->d_cpu = $cost->cpu - ($parentCost->cpu);
+                $cost->d_ct = $cost->ct - ($parentCost->ct);
+                $cost->d_mu = $cost->mu - ($parentCost->mu);
+                $cost->d_pmu = $cost->pmu - ($parentCost->pmu);
+                $cost->d_wt = $cost->wt - ($parentCost->wt);
             }
         }
-
-        // calc percentages and delta
-        foreach ($edges as &$value) {
-            $cost = &$value['cost'];
-            $cost['p_cpu'] = $peaks['cpu'] > 0 ? \round($cost['cpu'] / $peaks['cpu'] * 100, 2) : 0;
-            $cost['p_ct'] = $peaks['ct'] > 0 ? \round($cost['ct'] / $peaks['ct'] * 100, 2) : 0;
-            $cost['p_mu'] = $peaks['mu'] > 0 ? \round($cost['mu'] / $peaks['mu'] * 100, 2) : 0;
-            $cost['p_pmu'] = $peaks['pmu'] > 0 ? \round($cost['pmu'] / $peaks['pmu'] * 100, 2) : 0;
-            $cost['p_wt'] = $peaks['wt'] > 0 ? \round($cost['wt'] / $peaks['wt'] * 100, 2) : 0;
-
-            $caller = $value['caller'];
-            if ($caller !== null) {
-                $cost['d_cpu'] = $cost['cpu'] - ($parents[$caller]['cpu'] ?? 0);
-                $cost['d_ct'] = $cost['ct'] - ($parents[$caller]['ct'] ?? 0);
-                $cost['d_mu'] = $cost['mu'] - ($parents[$caller]['mu'] ?? 0);
-                $cost['d_pmu'] = $cost['pmu'] - ($parents[$caller]['pmu'] ?? 0);
-                $cost['d_wt'] = $cost['wt'] - ($parents[$caller]['wt'] ?? 0);
-            }
-            unset($value, $cost);
-        }
-        unset($parents);
 
         return [
-            'edges' => $edges,
+            'edges' => \iterator_to_array(match ($this->config->algorithm) {
+                // Deep-first
+                0 => $tree->getItemsSortedV0(null),
+                // Deep-first with sorting by WT
+                1 => $tree->getItemsSortedV0(
+                    static fn(Branch $a, Branch $b): int => $b->item->cost->wt <=> $a->item->cost->wt,
+                ),
+                // Level-by-level
+                2 => $tree->getItemsSortedV1(null),
+                // Level-by-level with sorting by WT
+                3 => $tree->getItemsSortedV1(
+                    static fn(Branch $a, Branch $b): int => $b->item->cost->wt <=> $a->item->cost->wt,
+                ),
+                default => throw new \LogicException('Unknown XHProf sorting algorithm.'),
+            }),
             'peaks' => $peaks,
         ];
     }
