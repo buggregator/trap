@@ -21,7 +21,7 @@ use Buggregator\Trap\Proto\Frame\Profiler\Type as PayloadType;
  * @internal
  * @psalm-internal Buggregator
  */
-class Payload implements \JsonSerializable
+final class Payload implements \JsonSerializable
 {
     /**
      * @param PayloadType $type
@@ -46,17 +46,25 @@ class Payload implements \JsonSerializable
         array $metadata,
         \Closure $callsProvider,
     ): self {
-        return new static($type, $metadata, $callsProvider);
+        return new self($type, $metadata, $callsProvider);
     }
 
+    /**
+     * @param array{type: non-empty-string}&Calls&Metadata $data
+     * @param PayloadType|null $type
+     */
     public static function fromArray(array $data, ?Type $type = null): static
     {
         $metadata = $data;
         unset($metadata['edges'], $metadata['peaks']);
-        return new static(
+
+        /** @var \Closure(): Calls $provider */
+        $provider = static fn(): array => $data;
+
+        return new self(
             $type ?? PayloadType::from($data['type']),
             $metadata,
-            static fn(): array => $data,
+            $provider,
         );
     }
 
@@ -76,6 +84,9 @@ class Payload implements \JsonSerializable
         return $this->metadata;
     }
 
+    /**
+     * @return array{type: non-empty-string}&Calls&Metadata
+     */
     public function toArray(): array
     {
         return ['type' => $this->type->value] + $this->getCalls() + $this->getMetadata();

@@ -47,11 +47,19 @@ final class StackTrace
         $cwdLen = \strlen($dir);
         $stack = [];
         $internal = false;
-        foreach (
-            \debug_backtrace(
-                ($provideObjects ? \DEBUG_BACKTRACE_PROVIDE_OBJECT : 0) | \DEBUG_BACKTRACE_IGNORE_ARGS,
-            ) as $frame
-        ) {
+
+        /** @var array{
+         *     function: non-empty-string,
+         *     line?: int,
+         *     file?: string,
+         *     class?: class-string,
+         *     type?: string,
+         *     object?: object,
+         *     args?: list<mixed>
+         * } $frame */
+        foreach (\debug_backtrace(
+            ($provideObjects ? \DEBUG_BACKTRACE_PROVIDE_OBJECT : 0) | \DEBUG_BACKTRACE_IGNORE_ARGS,
+        ) as $frame) {
             $class = $frame['class'] ?? '';
             if (\str_starts_with($class, 'Buggregator\\Trap\\Client\\')) {
                 $internal = true;

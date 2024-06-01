@@ -26,6 +26,7 @@ abstract class ObserverConfig
      */
     public function isValid(): bool
     {
+        /** @psalm-suppress RedundantCondition */
         return $this->path !== null && $this->converterClass !== null && $this->path !== ''
             && \is_a($this->converterClass, FrameConverter::class, true) && $this->scanInterval > 0.0;
     }

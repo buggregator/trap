@@ -54,11 +54,13 @@ try {
         $mem = $time = \microtime(true);
         try {
             if ($values === []) {
+                /** @var int<0, max> $memory */
+                $memory = \memory_get_usage();
                 /** @psalm-suppress InternalMethod */
                 return TrapHandle::fromTicker(
                     $counter,
                     $counter === 0 ? 0 : $mem - $previous,
-                    \memory_get_usage(),
+                    $memory,
                 )->return();
             }
 
@@ -95,16 +97,15 @@ try {
  * Register the var-dump caster for protobuf messages
  */
 if (\class_exists(AbstractCloner::class)) {
-    /** @psalm-suppress MixedAssignment */
-    AbstractCloner::$defaultCasters[Message::class] ??= [ProtobufCaster::class, 'cast'];
-    /** @psalm-suppress MixedAssignment */
-    AbstractCloner::$defaultCasters[RepeatedField::class] ??= [ProtobufCaster::class, 'castRepeated'];
-    /** @psalm-suppress MixedAssignment */
-    AbstractCloner::$defaultCasters[MapField::class] ??= [ProtobufCaster::class, 'castMap'];
-    /** @psalm-suppress MixedAssignment */
-    AbstractCloner::$defaultCasters[EnumValue::class] ??= [ProtobufCaster::class, 'castEnum'];
-    /** @psalm-suppress MixedAssignment */
-    AbstractCloner::$defaultCasters[Trace::class] = [TraceCaster::class, 'cast'];
-    /** @psalm-suppress MixedAssignment */
-    AbstractCloner::$defaultCasters[TraceFile::class] = [TraceCaster::class, 'castLine'];
+    /** @var array<class-string, callable> $casters */
+    $casters = &AbstractCloner::$defaultCasters;
+
+    $casters[Message::class] ??= [ProtobufCaster::class, 'cast'];
+    $casters[RepeatedField::class] ??= [ProtobufCaster::class, 'castRepeated'];
+    $casters[MapField::class] ??= [ProtobufCaster::class, 'castMap'];
+    $casters[EnumValue::class] ??= [ProtobufCaster::class, 'castEnum'];
+    $casters[Trace::class] = [TraceCaster::class, 'cast'];
+    $casters[TraceFile::class] = [TraceCaster::class, 'castLine'];
+
+    unset($casters);
 }

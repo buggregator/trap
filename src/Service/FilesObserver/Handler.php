@@ -69,7 +69,7 @@ final class Handler implements \IteratorAggregate
 
         foreach ($files as $info) {
             $path = $info->path;
-            if (!\is_string($path) || \array_key_exists($path, $this->cache)) {
+            if (\array_key_exists($path, $this->cache)) {
                 $newState[$path] = $this->cache[$path];
                 continue;
             }
@@ -102,7 +102,6 @@ final class Handler implements \IteratorAggregate
         } catch (\Throwable $e) {
             $this->logger->info('Failed to read files from path `%s`', $this->path);
             $this->logger->exception($e);
-            return [];
         }
     }
 }

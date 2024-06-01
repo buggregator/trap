@@ -9,6 +9,12 @@ namespace Buggregator\Trap\Service\FilesObserver;
  */
 final class FileInfo
 {
+    /**
+     * @param non-empty-string $path
+     * @param int<0, max> $size
+     * @param int<0, max> $ctime
+     * @param int<0, max> $mtime
+     */
     public function __construct(
         public readonly string $path,
         public readonly int $size,
@@ -18,6 +24,7 @@ final class FileInfo
 
     public static function fromSplFileInfo(\SplFileInfo $fileInfo): self
     {
+        /** @psalm-suppress ArgumentTypeCoercion */
         return new self(
             $fileInfo->getRealPath(),
             $fileInfo->getSize(),
@@ -26,6 +33,14 @@ final class FileInfo
         );
     }
 
+    /**
+     * @param array{
+     *     path: non-empty-string,
+     *     size: int<0, max>,
+     *     ctime: int<0, max>,
+     *     mtime: int<0, max>
+     * } $data
+     */
     public static function fromArray(array $data): self
     {
         return new self(

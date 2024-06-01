@@ -9,6 +9,9 @@ use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Support\Json;
 
 /**
+ * @psalm-import-type Calls from \Buggregator\Trap\Proto\Frame\Profiler\Payload
+ * @psalm-import-type Metadata from \Buggregator\Trap\Proto\Frame\Profiler\Payload
+ *
  * @internal
  * @psalm-internal Buggregator
  */
@@ -23,6 +26,7 @@ final class Profiler extends Frame
 
     public static function fromString(string $payload, \DateTimeImmutable $time): static
     {
+        /** @var array{type: non-empty-string}&Calls&Metadata $data */
         $data = Json::decode($payload);
 
         return new self(Frame\Profiler\Payload::fromArray($data), $time);
