@@ -59,8 +59,8 @@ final class HttpTest extends TestCase
         }
 
         // Check that the data is the same
-        $this->assertSame($data1, $data2);
-        $this->assertSame($content, $data1);
-        $this->assertSame($content, $data2);
+        self::assertSame($data1, $data2);
+        self::assertSame($content, $data1);
+        self::assertSame($content, $data2);
     }
 }

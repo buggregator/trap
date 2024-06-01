@@ -54,6 +54,6 @@ class HttpTest extends TestCase
     public function testDetect(string $data, ?bool $expected): void
     {
         $dispatcher = new Http();
-        $this->assertSame($expected, $dispatcher->detect($data, new \DateTimeImmutable()));
+        self::assertSame($expected, $dispatcher->detect($data, new \DateTimeImmutable()));
     }
 }

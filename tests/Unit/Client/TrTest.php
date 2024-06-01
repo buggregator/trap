@@ -51,27 +51,27 @@ final class TrTest extends Base
         tr($object, $object);
         unset($object);
 
-        $this->assertNull($ref->get());
+        self::assertNull($ref->get());
     }
 
     public function testReturn(): void
     {
-        $this->assertSame(42, tr(42));
-        $this->assertSame(42, tr(named: 42));
-        $this->assertSame(42, tr(42, 43));
-        $this->assertSame('foo', tr(...['0' => 'foo', 42 => 90]));
-        $this->assertNull(tr(null));
+        self::assertSame(42, tr(42));
+        self::assertSame(42, tr(named: 42));
+        self::assertSame(42, tr(42, 43));
+        self::assertSame('foo', tr(...['0' => 'foo', 42 => 90]));
+        self::assertNull(tr(null));
     }
 
     public function testReturnSendsDumpOnce(): void
     {
         $dumper = $this->getMockBuilder(DataDumperInterface::class)
             ->getMock();
-        $dumper->expects($this->once())
+        $dumper->expects(self::once())
             ->method('dump')
             ->willReturnArgument(1);
         Dumper::setDumper($dumper);
 
-        $this->assertSame(42, tr(42));
+        self::assertSame(42, tr(42));
     }
 }
