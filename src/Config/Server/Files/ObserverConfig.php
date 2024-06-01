@@ -11,10 +11,10 @@ use Buggregator\Trap\Service\FilesObserver\FrameConverter;
  */
 abstract class ObserverConfig
 {
-    /* @var non-empty-string|null $path */
+    /** @var non-empty-string|null */
     public ?string $path = null;
 
-    /** @var class-string<FrameConverter>|null $converter */
+    /** @var class-string<FrameConverter>|null */
     public ?string $converterClass = null;
 
     /** @var float Scan interval in seconds */

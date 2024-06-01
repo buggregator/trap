@@ -23,9 +23,9 @@ final class Tree implements \IteratorAggregate
     private array $lostChildren = [];
 
     /**
-     * @template-covariant T of object
+     * @template T of object
      *
-     * @param list<T> $edges
+     * @param array<array-key, T> $edges
      * @param callable(T): non-empty-string $getCurrent Get current node id
      * @param callable(T): (non-empty-string|null) $getParent Get parent node id
      *
@@ -33,25 +33,26 @@ final class Tree implements \IteratorAggregate
      */
     public static function fromEdgesList(array $edges, callable $getCurrent, callable $getParent): self
     {
+        /** @var self<T> $tree */
         $tree = new self();
 
         foreach ($edges as $edge) {
-            $current = $getCurrent($edge);
-            $parent = $getParent($edge);
+            $id = $getCurrent($edge);
+            $parentId = $getParent($edge);
 
-            $tree->addItem($edge, $current, $parent);
+            $tree->addItem($edge, $id, $parentId);
         }
 
         return $tree;
     }
 
     /**
-     * @param TItem $item
      * @param non-empty-string $id
      * @param non-empty-string|null $parentId
      */
     public function addItem(object $item, string $id, ?string $parentId): void
     {
+        /** @var TItem $item */
         $branch = new Branch($item, $id, $parentId);
         $this->all[$id] = $branch;
 
@@ -93,6 +94,7 @@ final class Tree implements \IteratorAggregate
     public function getItemsSortedV1(?callable $sorter): \Traversable
     {
         $level = 0;
+        /** @var array<int<0, max>, list<Branch<TItem>>> $queue */
         $queue = [$level => $this->root];
         processLevel:
         while ($queue[$level] !== []) {

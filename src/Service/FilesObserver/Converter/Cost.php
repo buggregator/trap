@@ -56,16 +56,16 @@ final class Cost implements \JsonSerializable
      *     cpu: int<0, max>,
      *     mu: int<0, max>,
      *     pmu: int<0, max>,
-     *     p_ct?: float<0, 100>,
-     *     p_wt?: float<0, 100>,
-     *     p_cpu?: float<0, 100>,
-     *     p_mu?: float<0, 100>,
-     *     p_pmu?: float<0, 100>,
-     *     d_ct?: int<0, max>,
-     *     d_wt?: int<0, max>,
-     *     d_cpu?: int<0, max>,
-     *     d_mu?: int<0, max>,
-     *     d_pmu?: int<0, max>
+     *     p_ct?: float,
+     *     p_wt?: float,
+     *     p_cpu?: float,
+     *     p_mu?: float,
+     *     p_pmu?: float,
+     *     d_ct?: int<min, max>,
+     *     d_wt?: int<min, max>,
+     *     d_cpu?: int<min, max>,
+     *     d_mu?: int<min, max>,
+     *     d_pmu?: int<min, max>
      * } $data
      */
     public static function fromArray(array $data): self
@@ -77,16 +77,16 @@ final class Cost implements \JsonSerializable
             $data['mu'],
             $data['pmu'],
         );
-        \array_key_exists('p_ct', $data) and $self->p_ct = $data['p_ct'];
-        \array_key_exists('p_wt', $data) and $self->p_wt = $data['p_wt'];
-        \array_key_exists('p_cpu', $data) and $self->p_cpu = $data['p_cpu'];
-        \array_key_exists('p_mu', $data) and $self->p_mu = $data['p_mu'];
-        \array_key_exists('p_pmu', $data) and $self->p_pmu = $data['p_pmu'];
-        \array_key_exists('d_ct', $data) and $self->d_ct = $data['d_ct'];
-        \array_key_exists('d_wt', $data) and $self->d_wt = $data['d_wt'];
-        \array_key_exists('d_cpu', $data) and $self->d_cpu = $data['d_cpu'];
-        \array_key_exists('d_mu', $data) and $self->d_mu = $data['d_mu'];
-        \array_key_exists('d_pmu', $data) and $self->d_pmu = $data['d_pmu'];
+        $self->p_ct = $data['p_ct'] ?? 0;
+        $self->p_wt = $data['p_wt'] ?? 0;
+        $self->p_cpu = $data['p_cpu'] ?? 0;
+        $self->p_mu = $data['p_mu'] ?? 0;
+        $self->p_pmu = $data['p_pmu'] ?? 0;
+        $self->d_ct = $data['d_ct'] ?? 0;
+        $self->d_wt = $data['d_wt'] ?? 0;
+        $self->d_cpu = $data['d_cpu'] ?? 0;
+        $self->d_mu = $data['d_mu'] ?? 0;
+        $self->d_pmu = $data['d_pmu'] ?? 0;
 
         return $self;
     }
@@ -98,16 +98,16 @@ final class Cost implements \JsonSerializable
      *     cpu: int<0, max>,
      *     mu: int<0, max>,
      *     pmu: int<0, max>,
-     *     p_ct: float<0, 100>,
-     *     p_wt: float<0, 100>,
-     *     p_cpu: float<0, 100>,
-     *     p_mu: float<0, 100>,
-     *     p_pmu: float<0, 100>,
-     *     d_ct: int<0, max>,
-     *     d_wt: int<0, max>,
-     *     d_cpu: int<0, max>,
-     *     d_mu: int<0, max>,
-     *     d_pmu: int<0, max>
+     *     p_ct: float,
+     *     p_wt: float,
+     *     p_cpu: float,
+     *     p_mu: float,
+     *     p_pmu: float,
+     *     d_ct: int<min, max>,
+     *     d_wt: int<min, max>,
+     *     d_cpu: int<min, max>,
+     *     d_mu: int<min, max>,
+     *     d_pmu: int<min, max>
      * }
      */
     public function jsonSerialize(): array

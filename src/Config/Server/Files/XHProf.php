@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Config\Server\Files;
 use Buggregator\Trap\Service\Config\Env;
 use Buggregator\Trap\Service\Config\PhpIni;
 use Buggregator\Trap\Service\FilesObserver\Converter\XHProf as Converter;
+use Buggregator\Trap\Service\FilesObserver\FrameConverter;
 
 /**
  * @internal
@@ -29,5 +30,6 @@ final class XHProf extends ObserverConfig
     #[PhpIni('xhprof.output_dir')]
     public ?string $path = null;
 
+    /** @var class-string<FrameConverter>|null */
     public ?string $converterClass = Converter::class;
 }
