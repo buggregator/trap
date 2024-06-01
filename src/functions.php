@@ -97,9 +97,13 @@ try {
  * Register the var-dump caster for protobuf messages
  */
 if (\class_exists(AbstractCloner::class)) {
-    /** @var array<class-string, callable> $casters */
+    /** @psalm-suppress UnsupportedPropertyReferenceUsage */
     $casters = &AbstractCloner::$defaultCasters;
-
+    /**
+     * Define var-dump related casters for protobuf messages and traces.
+     *
+     * @var array<non-empty-string, callable> $casters
+     */
     $casters[Message::class] ??= [ProtobufCaster::class, 'cast'];
     $casters[RepeatedField::class] ??= [ProtobufCaster::class, 'castRepeated'];
     $casters[MapField::class] ??= [ProtobufCaster::class, 'castMap'];
