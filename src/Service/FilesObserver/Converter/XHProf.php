@@ -19,6 +19,9 @@ use Buggregator\Trap\Service\FilesObserver\FrameConverter as FileFilterInterface
  *      pmu: int<0, max>
  *  }>
  *
+ * @psalm-import-type Metadata from \Buggregator\Trap\Proto\Frame\Profiler\Payload
+ * @psalm-import-type Calls from \Buggregator\Trap\Proto\Frame\Profiler\Payload
+ *
  * @internal
  */
 final class XHProf implements FileFilterInterface
@@ -33,16 +36,19 @@ final class XHProf implements FileFilterInterface
         return $file->getExtension() === 'xhprof';
     }
 
+    /**
+     * @return \Traversable<int, ProfilerFrame>
+     */
     public function convert(FileInfo $file): \Traversable
     {
         try {
+            /** @var Metadata $metadata */
             $metadata = [
                 'date' => $file->mtime,
                 'hostname' => \explode('.', $file->getName(), 2)[0],
                 'filename' => $file->getName(),
             ];
 
-            /** @psalm-suppress MixedArgumentTypeCoercion */
             yield new ProfilerFrame(
                 ProfilerFrame\Payload::new(
                     type: ProfilerFrame\Type::XHProf,
@@ -62,10 +68,10 @@ final class XHProf implements FileFilterInterface
 
     /**
      * @param RawData $data
+     * @return Calls
      */
     private function dataToPayload(array $data): array
     {
-        /** @var array<string, array<string, int>> $data */
         $peaks = [
             'cpu' => 0,
             'ct' => 0,
@@ -77,15 +83,13 @@ final class XHProf implements FileFilterInterface
         /** @var Tree<Edge> $tree */
         $tree = new Tree();
 
-        // \uasort($data, static function (array $a, array $b) {
-        //     return $b['wt'] <=> $a['wt'];
-        // });
-
         foreach ($data as $key => $value) {
-            [$caller, $callee] = \explode('==>', $key, 2) + [1 => null];
-            if ($callee === null) {
+            [$caller, $callee] = \explode('==>', $key, 2) + [1 => ''];
+            if ($callee === '') {
                 [$caller, $callee] = [null, $caller];
             }
+            $caller === '' and $caller = null;
+            \assert($callee !== '');
 
             $edge = new Edge(
                 caller: $caller,
@@ -102,8 +106,10 @@ final class XHProf implements FileFilterInterface
             $tree->addItem($edge, $edge->callee, $edge->caller);
         }
 
-        // Calc percentages and delta
-        /** @var Branch<Edge> $branch */
+        /**
+         * Calc percentages and delta
+         * @var Branch<Edge> $branch Needed for IDE
+         */
         foreach ($tree->getIterator() as $branch) {
             $cost = $branch->item->cost;
             $cost->p_cpu = $peaks['cpu'] > 0 ? \round($cost->cpu / $peaks['cpu'] * 100, 3) : 0;
@@ -114,11 +120,11 @@ final class XHProf implements FileFilterInterface
 
             if ($branch->parent !== null) {
                 $parentCost = $branch->parent->item->cost;
-                $cost->d_cpu = $cost->cpu - ($parentCost->cpu);
-                $cost->d_ct = $cost->ct - ($parentCost->ct);
-                $cost->d_mu = $cost->mu - ($parentCost->mu);
-                $cost->d_pmu = $cost->pmu - ($parentCost->pmu);
-                $cost->d_wt = $cost->wt - ($parentCost->wt);
+                $cost->d_cpu = $cost->cpu - $parentCost->cpu;
+                $cost->d_ct = $cost->ct - $parentCost->ct;
+                $cost->d_mu = $cost->mu - $parentCost->mu;
+                $cost->d_pmu = $cost->pmu - $parentCost->pmu;
+                $cost->d_wt = $cost->wt - $parentCost->wt;
             }
         }
 

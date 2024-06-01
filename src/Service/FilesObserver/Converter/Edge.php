@@ -9,6 +9,10 @@ namespace Buggregator\Trap\Service\FilesObserver\Converter;
  */
 final class Edge implements \JsonSerializable
 {
+    /**
+     * @param non-empty-string|null $caller
+     * @param non-empty-string $callee
+     */
     public function __construct(
         public readonly ?string $caller,
         public readonly string $callee,

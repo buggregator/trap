@@ -19,19 +19,19 @@ final class Cost implements \JsonSerializable
 
     public float $p_wt = 0;
 
-    /** @var int<0, max> */
+    /** @var int<min, max> */
     public int $d_cpu = 0;
 
-    /** @var int<0, max> */
+    /** @var int<min, max> */
     public int $d_ct = 0;
 
-    /** @var int<0, max> */
+    /** @var int<min, max> */
     public int $d_mu = 0;
 
-    /** @var int<0, max> */
+    /** @var int<min, max> */
     public int $d_pmu = 0;
 
-    /** @var int<0, max> */
+    /** @var int<min, max> */
     public int $d_wt = 0;
 
     /**
