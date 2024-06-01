@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap;
 
+use Buggregator\Trap\Config\Server\Files\SPX as SPXFileConfig;
+use Buggregator\Trap\Config\Server\Files\XDebug as XDebugFileConfig;
+use Buggregator\Trap\Config\Server\Files\XHProf as XHProfFileConfig;
 use Buggregator\Trap\Config\Server\Frontend as FrontendConfig;
 use Buggregator\Trap\Config\Server\SocketServer;
 use Buggregator\Trap\Handler\Http\Handler\Websocket;
@@ -68,6 +71,7 @@ final class Application implements Processable, Cancellable, Destroyable
         $this->processors[] = $inspector;
 
         $withFrontend and $this->configureFrontend(8000);
+        $this->configureFileObserver();
 
         foreach ($map as $config) {
             $this->prepareServerFiber($config, $inspector, $this->logger);
@@ -143,6 +147,11 @@ final class Application implements Processable, Cancellable, Destroyable
                 }
             },
         );
+        foreach ($this->processors as $processor) {
+            if ($processor instanceof Cancellable) {
+                $processor->cancel();
+            }
+        }
     }
 
     /**
@@ -219,5 +228,14 @@ final class Application implements Processable, Cancellable, Destroyable
             clientInflector: $clientInflector,
             logger: $this->logger,
         );
+    }
+
+    private function configureFileObserver(): void
+    {
+        $this->processors[] = $this->container->make(Service\FilesObserver::class, [
+            $this->container->get(XHProfFileConfig::class),
+            $this->container->get(XDebugFileConfig::class),
+            $this->container->get(SPXFileConfig::class),
+        ]);
     }
 }

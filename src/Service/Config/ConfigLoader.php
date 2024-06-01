@@ -59,10 +59,18 @@ final class ConfigLoader
 
                 /** @var mixed $value */
                 $value = match (true) {
-                    $attribute instanceof XPath => @$this->xml?->xpath($attribute->path)[$attribute->key],
+                    $attribute instanceof XPath => (static fn(array|false|null $value, int $key): mixed
+                        => \is_array($value) && \array_key_exists($key, $value)
+                            ? $value[$key]
+                            : null)($this->xml?->xpath($attribute->path), $attribute->key),
                     $attribute instanceof Env => $this->env[$attribute->name] ?? null,
                     $attribute instanceof InputOption => $this->inputOptions[$attribute->name] ?? null,
                     $attribute instanceof InputArgument => $this->inputArguments[$attribute->name] ?? null,
+                    $attribute instanceof PhpIni => (static fn(string|false $value): ?string => match ($value) {
+                        // Option does not exist or set to null
+                        '', false => null,
+                        default => $value,
+                    })(\ini_get($attribute->option)),
                     default => null,
                 };
 

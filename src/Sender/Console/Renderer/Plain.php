@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Sender\Console\Renderer;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Sender\Console\Renderer;
+use Buggregator\Trap\Sender\Console\Support\Common;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -15,10 +16,6 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 final class Plain implements Renderer
 {
-    public function __construct(
-        private readonly TemplateRenderer $renderer,
-    ) {}
-
     public function isSupport(Frame $frame): bool
     {
         return true;
@@ -26,13 +23,14 @@ final class Plain implements Renderer
 
     public function render(OutputInterface $output, Frame $frame): void
     {
-        $this->renderer->render(
-            'plain',
-            [
-                'date' => $frame->time->format('Y-m-d H:i:s.u'),
-                'channel' => \strtoupper($frame->type->value),
-                'body' => \htmlspecialchars((string) $frame),
-            ],
-        );
+        Common::renderHeader1($output, $frame->type->value);
+
+        Common::renderMetadata($output, [
+            'Time' => $frame->time->format('Y-m-d H:i:s.u'),
+            'Frame' => $frame::class,
+        ]);
+
+        Common::renderHeader2($output, 'Payload:');
+        $output->writeln((string) $frame);
     }
 }

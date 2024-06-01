@@ -41,6 +41,7 @@ final class TrapHandle
      *
      * @param int<0, max> $number The tick number.
      * @param float $delta The time delta between the current and previous tick.
+     * @param int<0, max> $memory The memory usage.
      *
      * @internal
      */

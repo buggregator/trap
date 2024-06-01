@@ -95,7 +95,9 @@ final class Run extends Command implements SignalableCommandInterface
     public function getSubscribedSignals(): array
     {
         $result = [];
+        /** @psalm-suppress MixedAssignment */
         \defined('SIGINT') and $result[] = \SIGINT;
+        /** @psalm-suppress MixedAssignment */
         \defined('SIGTERM') and $result[] = \SIGTERM;
 
         return $result;

@@ -222,18 +222,4 @@
       <code><![CDATA[getDescriptorByClassName]]></code>
     </MixedMethodCall>
   </file>
-  <file src="src/functions.php">
-    <MixedArrayAccess>
-      <code><![CDATA[AbstractCloner::$defaultCasters[EnumValue::class]]]></code>
-      <code><![CDATA[AbstractCloner::$defaultCasters[MapField::class]]]></code>
-      <code><![CDATA[AbstractCloner::$defaultCasters[Message::class]]]></code>
-      <code><![CDATA[AbstractCloner::$defaultCasters[RepeatedField::class]]]></code>
-    </MixedArrayAccess>
-    <MixedArrayAssignment>
-      <code><![CDATA[AbstractCloner::$defaultCasters[EnumValue::class]]]></code>
-      <code><![CDATA[AbstractCloner::$defaultCasters[MapField::class]]]></code>
-      <code><![CDATA[AbstractCloner::$defaultCasters[Message::class]]]></code>
-      <code><![CDATA[AbstractCloner::$defaultCasters[RepeatedField::class]]]></code>
-    </MixedArrayAssignment>
-  </file>
 </files>

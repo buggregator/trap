@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Frame\Sentry\SentryEnvelope;
 use Buggregator\Trap\Proto\Frame\Sentry\SentryStore;
+use Buggregator\Trap\Support\Json;
 
 /**
  * @internal
@@ -24,7 +25,7 @@ abstract class Sentry extends Frame
         );
 
         /** @var array{type: string, ...mixed} $data */
-        $data = \json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+        $data = Json::decode($payload);
 
         /** @psalm-suppress InvalidArgument */
         $result = match ($data['type']) {
