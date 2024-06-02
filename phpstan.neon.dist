@@ -6,6 +6,8 @@ parameters:
     paths:
         - bin/
         - src/
-        - tests/
         - .php-cs-fixer.dist.php
+    excludePaths:
+        analyse:
+            - src/Test/Proto/
     tmpDir: .build/phpstan/

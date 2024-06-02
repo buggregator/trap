@@ -22,11 +22,11 @@ class EventsStorageTest extends TestCase
         $storage->add($e2 = $this->createEvent());
         $storage->add($e3 = $this->createEvent());
 
-        $this->assertCount(2, $storage);
+        self::assertCount(2, $storage);
         // In an ordered event sequence of adding events, the first event should be removed
-        $this->assertNull($storage->get($e1->uuid));
-        $this->assertNotNull($storage->get($e2->uuid));
-        $this->assertNotNull($storage->get($e3->uuid));
+        self::assertNull($storage->get($e1->uuid));
+        self::assertNotNull($storage->get($e2->uuid));
+        self::assertNotNull($storage->get($e3->uuid));
     }
 
     public function testMaxEventsLimitWithSort(): void
@@ -39,15 +39,15 @@ class EventsStorageTest extends TestCase
         $storage->add($e2 = $this->createEvent());
         $storage->add($e3 = $this->createEvent(timestamp: \microtime(true) - 1));
 
-        $this->assertCount(2, $storage);
+        self::assertCount(2, $storage);
         // new event should be added in order of timestamp, and then the first event should be removed
-        $this->assertNull($storage->get($e3->uuid));
-        $this->assertNotNull($storage->get($e1->uuid));
-        $this->assertNotNull($storage->get($e2->uuid));
+        self::assertNull($storage->get($e3->uuid));
+        self::assertNotNull($storage->get($e1->uuid));
+        self::assertNotNull($storage->get($e2->uuid));
         // Check order of events
         $events = \iterator_to_array($storage->getIterator(), false);
-        $this->assertSame($e2->uuid, $events[0]->uuid);
-        $this->assertSame($e1->uuid, $events[1]->uuid);
+        self::assertSame($e2->uuid, $events[0]->uuid);
+        self::assertSame($e1->uuid, $events[1]->uuid);
     }
 
     private function createEvent(

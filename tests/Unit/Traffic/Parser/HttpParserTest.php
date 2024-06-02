@@ -39,12 +39,12 @@ class HttpParserTest extends TestCase
 
         $request = $this->parseStream($body);
 
-        $this->assertSame('GET', $request->getMethod());
-        $this->assertSame('/foo/bar', $request->getUri()->getPath());
-        $this->assertSame('1.1', $request->getProtocolVersion());
-        $this->assertSame(['127.0.0.1:9912'], $request->getHeader('host'));
-        $this->assertSame(['ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3'], $request->getHeader('accept-language'));
-        $this->assertSame([
+        self::assertSame('GET', $request->getMethod());
+        self::assertSame('/foo/bar', $request->getUri()->getPath());
+        self::assertSame('1.1', $request->getProtocolVersion());
+        self::assertSame(['127.0.0.1:9912'], $request->getHeader('host'));
+        self::assertSame(['ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3'], $request->getHeader('accept-language'));
+        self::assertSame([
             'koa.sess' => 'Ijo4NjQwMDAwMH0=',
             'koa.sess.sig' => 'liV7oStLo',
             'csrf-token' => 'Gmch9',
@@ -75,12 +75,12 @@ class HttpParserTest extends TestCase
 
         $request = $this->parseStream($body);
 
-        $this->assertSame('GET', $request->getMethod());
-        $this->assertSame('/foo/bar', $request->getUri()->getPath());
-        $this->assertSame('1.1', $request->getProtocolVersion());
-        $this->assertSame(['127.0.0.1:9912'], $request->getHeader('host'));
-        $this->assertSame(['ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3'], $request->getHeader('accept-language'));
-        $this->assertSame([
+        self::assertSame('GET', $request->getMethod());
+        self::assertSame('/foo/bar', $request->getUri()->getPath());
+        self::assertSame('1.1', $request->getProtocolVersion());
+        self::assertSame(['127.0.0.1:9912'], $request->getHeader('host'));
+        self::assertSame(['ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3'], $request->getHeader('accept-language'));
+        self::assertSame([
             'csrf-token.sig' => 'X0fR',
         ], $request->getCookieParams());
     }
@@ -111,12 +111,12 @@ class HttpParserTest extends TestCase
 
         $request = $this->parseStream($body);
 
-        $this->assertSame('POST', $request->getMethod());
-        $this->assertSame('/foo/bar', $request->getUri()->getPath());
-        $this->assertSame('1.1', $request->getProtocolVersion());
-        $this->assertSame(['foo.bar.com'], $request->getHeader('host'));
-        $this->assertSame('foo=bar&baz=qux&quux=corge+grault', $request->getBody()->__toString());
-        $this->assertSame(['foo' => 'bar', 'baz' => 'qux', 'quux' => 'corge grault'], $request->getParsedBody());
+        self::assertSame('POST', $request->getMethod());
+        self::assertSame('/foo/bar', $request->getUri()->getPath());
+        self::assertSame('1.1', $request->getProtocolVersion());
+        self::assertSame(['foo.bar.com'], $request->getHeader('host'));
+        self::assertSame('foo=bar&baz=qux&quux=corge+grault', $request->getBody()->__toString());
+        self::assertSame(['foo' => 'bar', 'baz' => 'qux', 'quux' => 'corge grault'], $request->getParsedBody());
     }
 
     public function testPostMultipartFormData(): void
@@ -161,26 +161,26 @@ class HttpParserTest extends TestCase
 
         $request = $this->parseStream($headers . $body);
 
-        $this->assertSame('POST', $request->getMethod());
-        $this->assertSame('/send-message.html', $request->getUri()->getPath());
-        $this->assertSame('1.1', $request->getProtocolVersion());
-        $this->assertSame(['webmail.example.com'], $request->getHeader('host'));
+        self::assertSame('POST', $request->getMethod());
+        self::assertSame('/send-message.html', $request->getUri()->getPath());
+        self::assertSame('1.1', $request->getProtocolVersion());
+        self::assertSame(['webmail.example.com'], $request->getHeader('host'));
         // POST data
-        $this->assertEquals([
+        self::assertEquals([
             'Authors' => '@roxblnfk and @butschster',
             'MessageTitle' => 'Hello guys! The Buggregator is a great tool!',
             'MessageText' => 'Do you know that Buggregator could be called Deburger? But we decided to name it Buggregator.',
         ], $request->getParsedBody());
         // Uploaded files
-        $this->assertCount(2, $files = $request->getUploadedFiles());
+        self::assertCount(2, $files = $request->getUploadedFiles());
         /** @var UploadedFileInterface[] $files */
-        $this->assertSame('deburger.png', $files['AttachedFile1'][0]->getClientFilename());
-        $this->assertSame('image/png', $files['AttachedFile1'][0]->getClientMediaType());
-        $this->assertSame($file1, $files['AttachedFile1'][0]->getStream()->__toString());
+        self::assertSame('deburger.png', $files['AttachedFile1'][0]->getClientFilename());
+        self::assertSame('image/png', $files['AttachedFile1'][0]->getClientMediaType());
+        self::assertSame($file1, $files['AttachedFile1'][0]->getStream()->__toString());
 
-        $this->assertSame('buggregator.png', $files['AttachedFile2'][0]->getClientFilename());
-        $this->assertSame('image/png', $files['AttachedFile2'][0]->getClientMediaType());
-        $this->assertSame($file2, $files['AttachedFile2'][0]->getStream()->__toString());
+        self::assertSame('buggregator.png', $files['AttachedFile2'][0]->getClientFilename());
+        self::assertSame('image/png', $files['AttachedFile2'][0]->getClientMediaType());
+        self::assertSame($file2, $files['AttachedFile2'][0]->getStream()->__toString());
     }
 
     public function testGzippedBody(): void

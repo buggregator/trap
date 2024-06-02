@@ -43,9 +43,9 @@ final class MultipartBodyParserTest extends TestCase
 
         $result = $this->parse($body, 'your-boundary');
 
-        $this->assertCount(2, $result);
-        $this->assertInstanceOf(Field::class, $result[0]);
-        $this->assertInstanceOf(Field::class, $result[1]);
+        self::assertCount(2, $result);
+        self::assertInstanceOf(Field::class, $result[0]);
+        self::assertInstanceOf(Field::class, $result[1]);
     }
 
     public function testWithFileAttach(): void
@@ -82,35 +82,35 @@ final class MultipartBodyParserTest extends TestCase
 
         $result = $this->parse($body, 'Asrf456BGe4h');
 
-        $this->assertCount(5, $result);
-        $this->assertInstanceOf(Field::class, $result[0]);
-        $this->assertInstanceOf(Field::class, $result[1]);
+        self::assertCount(5, $result);
+        self::assertInstanceOf(Field::class, $result[0]);
+        self::assertInstanceOf(Field::class, $result[1]);
 
         // POST data
-        $this->assertSame('Authors', $result[0]->getName());
-        $this->assertSame('@roxblnfk and @butschster', $result[0]->getValue());
-        $this->assertSame('MessageTitle', $result[1]->getName());
-        $this->assertSame('Hello guys! The Buggregator is a great tool!', $result[1]->getValue());
-        $this->assertSame('MessageText', $result[2]->getName());
-        $this->assertSame(
+        self::assertSame('Authors', $result[0]->getName());
+        self::assertSame('@roxblnfk and @butschster', $result[0]->getValue());
+        self::assertSame('MessageTitle', $result[1]->getName());
+        self::assertSame('Hello guys! The Buggregator is a great tool!', $result[1]->getValue());
+        self::assertSame('MessageText', $result[2]->getName());
+        self::assertSame(
             'Do you know that Buggregator could be called Deburger? But we decided to name it Buggregator.',
             $result[2]->getValue(),
         );
 
         $file = $result[3];
         // Uploaded files
-        $this->assertInstanceOf(File::class, $file);
-        $this->assertSame('AttachedFile1', $file->getName());
-        $this->assertSame('deburger.png', $file->getClientFilename());
-        $this->assertSame('image/png', $file->getClientMediaType());
-        $this->assertSame($file1, $file->getStream()->__toString());
+        self::assertInstanceOf(File::class, $file);
+        self::assertSame('AttachedFile1', $file->getName());
+        self::assertSame('deburger.png', $file->getClientFilename());
+        self::assertSame('image/png', $file->getClientMediaType());
+        self::assertSame($file1, $file->getStream()->__toString());
 
         $file = $result[4];
-        $this->assertInstanceOf(File::class, $file);
-        $this->assertSame('AttachedFile2', $file->getName());
-        $this->assertSame('buggregator.png', $file->getClientFilename());
-        $this->assertSame('image/png', $file->getClientMediaType());
-        $this->assertSame($file2, $file->getStream()->__toString());
+        self::assertInstanceOf(File::class, $file);
+        self::assertSame('AttachedFile2', $file->getName());
+        self::assertSame('buggregator.png', $file->getClientFilename());
+        self::assertSame('image/png', $file->getClientMediaType());
+        self::assertSame($file2, $file->getStream()->__toString());
     }
 
     private function makeStream(string $body): StreamInterface

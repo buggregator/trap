@@ -13,9 +13,9 @@ final class FieldTest extends TestCase
     {
         $field = new Field(['Foo' => 'Bar'], 'name', 'value');
 
-        $this->assertSame('name', $field->getName());
-        $this->assertSame('value', $field->getValue());
-        $this->assertSame('Bar', $field->getHeaderLine('foo'));
+        self::assertSame('name', $field->getName());
+        self::assertSame('value', $field->getValue());
+        self::assertSame('Bar', $field->getHeaderLine('foo'));
     }
 
     public function testWithHeader(): void
@@ -23,18 +23,18 @@ final class FieldTest extends TestCase
         $field = new Field(['Foo' => 'Bar'], 'name', 'value');
         $new = $field->withHeader('foo', 'baz');
 
-        $this->assertNotSame($field, $new);
-        $this->assertSame('Bar', $field->getHeaderLine('foo'));
-        $this->assertSame('baz', $new->getHeaderLine('foo'));
+        self::assertNotSame($field, $new);
+        self::assertSame('Bar', $field->getHeaderLine('foo'));
+        self::assertSame('baz', $new->getHeaderLine('foo'));
     }
 
     public function testFromArray(): void
     {
         $field = Field::fromArray(['headers' => ['Foo' => ['Bar', 'Baz']], 'value' => 'bar']);
 
-        $this->assertNull($field->getName());
-        $this->assertSame('bar', $field->getValue());
-        $this->assertSame(['Bar', 'Baz'], $field->getHeader('foo'));
+        self::assertNull($field->getName());
+        self::assertSame('bar', $field->getValue());
+        self::assertSame(['Bar', 'Baz'], $field->getHeader('foo'));
     }
 
     public function testSerializeAndUnserialize(): void
@@ -42,6 +42,6 @@ final class FieldTest extends TestCase
         $from = new Field(['Foo' => ['Bar', 'Baz']], 'message', 'foo bar baz');
         $to = Field::fromArray($from->jsonSerialize());
 
-        $this->assertEquals($from, $to);
+        self::assertEquals($from, $to);
     }
 }

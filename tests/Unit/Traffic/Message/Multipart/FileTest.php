@@ -14,9 +14,9 @@ class FileTest extends TestCase
     {
         $file = new File(['Foo' => 'Bar'], 'name', 'filename');
 
-        $this->assertSame('name', $file->getName());
-        $this->assertSame('filename', $file->getClientFilename());
-        $this->assertSame('Bar', $file->getHeaderLine('foo'));
+        self::assertSame('name', $file->getName());
+        self::assertSame('filename', $file->getClientFilename());
+        self::assertSame('Bar', $file->getHeaderLine('foo'));
     }
 
     public function testWithHeader(): void
@@ -24,9 +24,9 @@ class FileTest extends TestCase
         $file = new File(['Foo' => 'Bar'], 'name', 'filename');
         $new = $file->withHeader('foo', 'baz');
 
-        $this->assertNotSame($file, $new);
-        $this->assertSame('Bar', $file->getHeaderLine('foo'));
-        $this->assertSame('baz', $new->getHeaderLine('foo'));
+        self::assertNotSame($file, $new);
+        self::assertSame('Bar', $file->getHeaderLine('foo'));
+        self::assertSame('baz', $new->getHeaderLine('foo'));
     }
 
     public function testFromArray(): void
@@ -37,11 +37,11 @@ class FileTest extends TestCase
             'size' => 10,
         ]);
 
-        $this->assertNull($field->getName());
-        $this->assertSame(10, $field->getSize());
-        $this->assertSame('bar.jpg', $field->getClientFilename());
-        $this->assertSame('image/jpeg', $field->getClientMediaType());
-        $this->assertSame(['Bar', 'Baz'], $field->getHeader('foo'));
+        self::assertNull($field->getName());
+        self::assertSame(10, $field->getSize());
+        self::assertSame('bar.jpg', $field->getClientFilename());
+        self::assertSame('image/jpeg', $field->getClientMediaType());
+        self::assertSame(['Bar', 'Baz'], $field->getHeader('foo'));
     }
 
     public function testSerializeAndUnserialize(): void
@@ -53,9 +53,9 @@ class FileTest extends TestCase
 
         $to = File::fromArray($from->jsonSerialize());
 
-        $this->assertSame($from->getHeaders(), $to->getHeaders());
-        $this->assertSame($from->getSize(), $to->getSize());
-        $this->assertSame($from->getClientFilename(), $to->getClientFilename());
-        $this->assertSame($from->getClientMediaType(), $to->getClientMediaType());
+        self::assertSame($from->getHeaders(), $to->getHeaders());
+        self::assertSame($from->getSize(), $to->getSize());
+        self::assertSame($from->getClientFilename(), $to->getClientFilename());
+        self::assertSame($from->getClientMediaType(), $to->getClientMediaType());
     }
 }
