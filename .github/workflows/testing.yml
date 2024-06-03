@@ -129,11 +129,11 @@ jobs:
         with:
           dependencies: ${{ matrix.dependencies }}
 
-      - name: 🧪 Run unit tests using pestphp/pest
+      - name: 🧪 Run unit tests using phpunit/phpunit
         run: composer test
 
-      - name: 🧪 Run tests that require separate process using phpunit/phpunit
-        run: composer test:sep
+      - name: 🧪 Run arch tests using pestphp/pest
+        run: composer test:arch
 
   compile-phar:
     timeout-minutes: 4

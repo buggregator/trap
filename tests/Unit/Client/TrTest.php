@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Client;
 
 use Buggregator\Trap\Client\TrapHandle\Dumper;
-use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use Symfony\Component\VarDumper\Dumper\DataDumperInterface;
 
@@ -21,7 +20,6 @@ final class TrTest extends Base
      * Check the stacktrace contains three items and it begins with the right function name.
      */
     #[RunInSeparateProcess]
-    #[Group('phpunit-only')]
     public function testTrAsStackTrace(): void
     {
         tr();

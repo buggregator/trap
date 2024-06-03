@@ -128,15 +128,12 @@
         "stan:ci": "phpstan analyse --memory-limit=2G --error-format=github",
         "test": [
             "@putenv XDEBUG_MODE=coverage",
-            "pest --exclude-group=phpunit-only --color=always"
+            "phpunit --color=always"
         ],
+        "test:arch": "pest --color=always --configuration pest.xml.dist",
         "test:cc": [
             "@putenv XDEBUG_MODE=coverage",
-            "pest --coverage --coverage-clover=.build/phpunit/logs/clover.xml --exclude-group=phpunit-only --color=always"
-        ],
-        "test:sep": [
-            "@putenv XDEBUG_MODE=coverage",
-            "phpunit --group=phpunit-only --color=always --exclude-testsuite=Arch"
+            "phpunit --coverage-clover=.build/phpunit/logs/clover.xml --color=always"
         ]
     }
 }
