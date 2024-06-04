@@ -26,7 +26,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     concurrency:
       cancel-in-progress: true
-      group: static-analysis-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+      group: psalm-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
     strategy:
       fail-fast: true
       matrix:
@@ -77,7 +77,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     concurrency:
       cancel-in-progress: true
-      group: static-analysis-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+      group: phpstan-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
     strategy:
       fail-fast: true
       matrix:
