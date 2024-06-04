@@ -30,8 +30,6 @@ abstract class Part implements \JsonSerializable
     {
         /**
          * Check Content-Disposition header
-         *
-         * @var string $contentDisposition
          */
         $contentDisposition = self::findHeader($headers, 'Content-Disposition')[0]
             ?? throw new \RuntimeException('Missing Content-Disposition header.');
