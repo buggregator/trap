@@ -108,9 +108,15 @@ final class Http
                 $findBoundary = "\r\n--{$boundary}";
 
                 if ($part instanceof File) {
-                    $fileStream = StreamHelper::createFileStream();
-                    $fileSize = StreamHelper::writeStreamUntil($stream, $fileStream, $findBoundary);
-                    $part->setStream($fileStream, $fileSize);
+                    $writeFilters = [];
+                    if ($part->hasHeader('Content-Transfer-Encoding')) {
+                        $encoding = $part->getHeaderLine('Content-Transfer-Encoding');
+                        $encoding === 'base64' and $writeFilters[] = \Buggregator\Trap\Support\Stream\Base64DecodeFilter::FILTER_NAME;
+                    }
+
+                    $fileStream = StreamHelper::createFileStream(writeFilters: $writeFilters);
+                    StreamHelper::writeStreamUntil($stream, $fileStream, $findBoundary);
+                    $part->setStream($fileStream);
                 } elseif ($part instanceof Field) {
                     $endOfContent = StreamHelper::strpos($stream, $findBoundary);
                     $endOfContent !== false or throw new \RuntimeException('Missing end of content');
