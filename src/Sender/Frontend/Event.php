@@ -21,7 +21,7 @@ final class Event implements \JsonSerializable
         public readonly string $type,
         public readonly array $payload,
         public readonly float $timestamp,
-        public readonly ?string $projectId = null,
+        public readonly ?string $project = null,
         public readonly ?\ArrayAccess $assets = null,
     ) {}
 
@@ -32,7 +32,7 @@ final class Event implements \JsonSerializable
             'type' => $this->type,
             'payload' => $this->payload,
             'timestamp' => $this->timestamp,
-            'project_id' => $this->projectId,
+            'project' => $this->project,
         ];
     }
 }
