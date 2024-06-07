@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.9.0 (2024-06-04)
+
+## What's Changed
+* Make release tags without prefix `v` by @lotyp in https://github.com/buggregator/trap/pull/107
+* Add searching for XHProf local files by @roxblnfk in https://github.com/buggregator/trap/pull/111
+* CI: separate psalm and phpstan workflows by @roxblnfk in https://github.com/buggregator/trap/pull/113
+* CI: separate pest config and isolate pest from unit tests by @roxblnfk in https://github.com/buggregator/trap/pull/114
+* ci: add phpstan baseline by @lotyp in https://github.com/buggregator/trap/pull/115
+
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.8.0...1.9.0
+
 ## 1.8.0 (2024-05-29)
 
 ## What's Changed
