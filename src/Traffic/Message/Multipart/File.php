@@ -147,7 +147,7 @@ final class File extends Part implements UploadedFileInterface
             default => null,
         };
 
-        assert($result !== '');
+        \assert($result !== '');
         return $result;
     }
 
