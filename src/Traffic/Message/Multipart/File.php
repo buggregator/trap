@@ -118,6 +118,39 @@ final class File extends Part implements UploadedFileInterface
         return \explode(';', $this->getHeader('Content-Type')[0], 2)[0] ?? null;
     }
 
+    public function isEmbedded(): bool
+    {
+        return $this->getEmbeddingId() !== null;
+    }
+
+    /**
+     * Detect if the file is an embedding and return the embedding ID.
+     *
+     * @return non-empty-string|null
+     */
+    public function getEmbeddingId(): ?string
+    {
+        $result = match (true) {
+            // Content-Disposition is inline and name is present
+            \str_starts_with($this->getHeaderLine('Content-Disposition'), 'inline') && \preg_match(
+                '/name=(?:\"([^\"]++)\"|\'([^\']++)\'|([^;,\\s]++))/',
+                $this->getHeaderLine('Content-Disposition'),
+                $matches,
+            ) === 1 => $matches[1],
+
+            // Content-Type is image/* and has name
+            \str_starts_with($this->getHeaderLine('Content-Type'), 'image/') && \preg_match(
+                '/name=(?:\"([^\"]++)\"|\'([^\']++)\'|([^;,\\s]++))/',
+                $this->getHeaderLine('Content-Type'),
+                $matches,
+            ) === 1 => $matches[1],
+            default => null,
+        };
+
+        assert($result !== '');
+        return $result;
+    }
+
     private function getUploadedFile(): UploadedFileInterface
     {
         if (!isset($this->uploadedFile)) {

@@ -43,6 +43,14 @@ final class Smtp
     }
 
     /**
+     * @param non-empty-string $uuid UUID of the event
+     */
+    private static function assetLink(string $uuid, Event\Asset $asset): string
+    {
+        return "/api/smtp/$uuid/attachment/$asset->uuid";
+    }
+
+    /**
      * @return \ArrayAccess<non-empty-string, Event\Asset>
      */
     private static function fetchAssets(SmtpMessage $message): \ArrayAccess
@@ -58,38 +66,9 @@ final class Smtp
         return $assets;
     }
 
-    /**
-     * @param non-empty-string $uuid UUID of the event
-     */
-    private static function assetLink(string $uuid, Event\Asset $asset): string
-    {
-        return "/api/smtp/$uuid/attachment/$asset->uuid";
-    }
-
     private static function asset(File $attachment): Event\Asset
     {
-        /**
-         * Detect if the file is an embedded image
-         *
-         * @var non-empty-string|null $embedded
-         */
-        $embedded = match (true) {
-            // Content-Disposition is inline and name is present
-            \str_starts_with($attachment->getHeaderLine('Content-Disposition'), 'inline') && \preg_match(
-                '/name=(?:\"([^\"]++)\"|\'([^\']++)\'|([^;,\\s]++))/',
-                $attachment->getHeaderLine('Content-Disposition'),
-                $matches,
-            ) === 1 => $matches[1],
-
-            // Content-Type is image/* and has name
-            \str_starts_with($attachment->getHeaderLine('Content-Type'), 'image/') && \preg_match(
-                '/name=(?:\"([^\"]++)\"|\'([^\']++)\'|([^;,\\s]++))/',
-                $attachment->getHeaderLine('Content-Type'),
-                $matches,
-            ) === 1 => $matches[1],
-            default => null,
-        };
-
+        $embedded = $attachment->getEmbeddingId();
         return $embedded === null
             ? new Event\AttachedFile(
                 id: Uuid::generate(),

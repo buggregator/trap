@@ -52,10 +52,22 @@ final class Smtp implements Renderer
             $output->write($text->getValue(), true, OutputInterface::OUTPUT_NORMAL);
         }
 
+        /** @var list<\Buggregator\Trap\Traffic\Message\Multipart\File> $attachments */
+        /** @var list<\Buggregator\Trap\Traffic\Message\Multipart\File> $embeddings */
+        $attachments = $embeddings = [];
+        foreach ($message->getAttachments() as $attach) {
+            if ($attach->isEmbedded()) {
+                $embeddings[] = $attach;
+            } else {
+                $attachments[] = $attach;
+            }
+        }
+
         // Attachments
-        if (\count($message->getAttachments()) > 0) {
+        if ($attachments !== []) {
             Common::renderHeader3($output, 'Attached files');
-            foreach ($message->getAttachments() as $attach) {
+
+            foreach ($attachments as $attach) {
                 Files::renderFile(
                     $output,
                     $attach->getClientFilename() ?? '',
@@ -63,6 +75,24 @@ final class Smtp implements Renderer
                     $attach->getClientMediaType() ?? '',
                 );
             }
+            $output->writeln('');
+        }
+
+        // Embeddings
+        if ($embeddings !== []) {
+            Common::renderHeader3($output, 'Embedded files');
+
+            \Buggregator\Trap\Sender\Console\Support\Tables::renderMultiColumnTable(
+                $output,
+                '',
+                \array_map(static fn($attach) => [
+                    'CID' => $attach->getEmbeddingId(),
+                    'Name' => $attach->getClientFilename(),
+                    'Size' => Files::normalizeSize($attach->getSize()),
+                    'MIME' => $attach->getClientMediaType(),
+                ], $embeddings),
+                'compact',
+            );
             $output->writeln('');
         }
 
