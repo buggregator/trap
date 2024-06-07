@@ -1,0 +1,1 @@
+import{E as o}from"./BefdN0MI.js";const e=a=>({id:a.uuid,type:o.VAR_DUMP,labels:[o.VAR_DUMP],origin:{file:a.payload.context.source.file,name:a.payload.context.source.name,line_number:a.payload.context.source.line},serverName:"",date:a.timestamp?new Date(a.timestamp*1e3):null,payload:a.payload}),m=()=>({normalizeVarDumpEvent:e});export{m as u};
