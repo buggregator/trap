@@ -42,7 +42,7 @@ final class Files
             : \str_pad(\substr($fileName, $dotPos + 1), 3, ' ', \STR_PAD_BOTH);
 
         // File size
-        $sizeStr = Measure::memory($size) ?? 'unknown size';
+        $sizeStr = $size === null ? 'unknown size' : Measure::memory($size);
 
         // Header with top border
         $output->writeln("<bg=black;fg=magenta> ┌───┐</>  <info>$fileName</info>");

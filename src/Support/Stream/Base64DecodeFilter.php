@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Support\Stream;
 
 /**
+ * @psalm-suppress all
+ *
  * @internal
  * @psalm-internal Buggregator\Trap
+ *
  * @link https://www.php.net/manual/function.stream-filter-register.php
  */
 final class Base64DecodeFilter extends \php_user_filter
@@ -15,12 +18,18 @@ final class Base64DecodeFilter extends \php_user_filter
 
     private string $buffer = '';
 
+    /**
+     * @param resource $in
+     * @param resource $out
+     * @param int<0, max> $consumed
+     */
     public function filter($in, $out, &$consumed, bool $closing): int
     {
         // Buffer size
         $bs = \strlen($this->buffer);
 
         while ($bucket = \stream_bucket_make_writeable($in)) {
+            /** @var int<1, max> $len */
             $len = $bs + $bucket->datalen;
             $d = $len % 4;
 
@@ -43,7 +52,7 @@ final class Base64DecodeFilter extends \php_user_filter
             }
 
             // Decode part of the data
-            $bucket->data = \base64_decode($this->buffer . \substr($bucket->data, 0, -$d), true);
+            $bucket->data = \base64_decode($this->buffer . \substr($bucket->data, 0, -$d));
             $consumed += $bucket->datalen;
             $this->buffer = \substr($bucket->data, -$d);
 

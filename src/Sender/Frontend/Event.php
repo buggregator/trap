@@ -14,7 +14,7 @@ final class Event implements \JsonSerializable
     /**
      * @param non-empty-string $uuid
      * @param non-empty-string $type
-     * @param \ArrayAccess<non-empty-string, Asset>|null $assets
+     * @param \ArrayAccess<non-empty-string, Asset>&\Traversable<non-empty-string, Asset>|null $assets
      */
     public function __construct(
         public readonly string $uuid,

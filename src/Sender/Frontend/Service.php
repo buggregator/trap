@@ -76,7 +76,7 @@ final class Service
         }
 
         $attaches = [];
-        foreach ($event->assets as $attachment) {
+        foreach ($event->assets ?? [] as $attachment) {
             $attachment instanceof AttachedFile and $attaches[] = $attachment;
         }
 

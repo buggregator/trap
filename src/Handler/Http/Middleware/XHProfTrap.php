@@ -70,18 +70,17 @@ final class XHProfTrap implements Middleware
         /** @var XHProfMessage $payload */
         $payload = \json_decode((string) $request->getBody(), true, 96, \JSON_THROW_ON_ERROR);
 
+        \is_array($payload['profile'] ?? null) && \is_array($payload['tags'] ?? null)
+        or throw new \InvalidArgumentException('Invalid payload');
+
         $metadata = $payload;
         unset($metadata['profile'], $metadata['tags'], $metadata['date']);
 
-        isset($payload['profile'], $payload['tags'])
-            && \is_array($payload['profile'])
-            && \is_array($payload['tags'])
-            or throw new \InvalidArgumentException('Invalid payload');
-
-        /** @psalm-suppress MixedAssignment */
+        /** @var mixed $time */
         $time = $request->getAttribute('begin_at');
         $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
 
+        /** @psalm-suppress MixedArgumentTypeCoercion */
         \Fiber::suspend(
             new Frame\Profiler(
                 payload: Frame\Profiler\Payload::new(

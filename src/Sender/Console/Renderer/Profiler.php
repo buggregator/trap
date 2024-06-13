@@ -24,6 +24,9 @@ final class Profiler implements Renderer
         return $frame->type === ProtoType::Profiler;
     }
 
+    /**
+     * @psalm-suppress MixedAssignment
+     */
     public function render(OutputInterface $output, Frame $frame): void
     {
         \assert($frame instanceof Frame\Profiler);
@@ -37,11 +40,11 @@ final class Profiler implements Renderer
         $data = [];
         isset($metadata['date']) && \is_numeric($metadata['date'])
         and $data['Time'] = new \DateTimeImmutable('@' . $metadata['date']);
-        isset($metadata['app_name']) and $data['App name'] = $metadata['app_name'];
-        isset($metadata['hostname']) and $data['Hostname'] = $metadata['hostname'];
-        isset($metadata['filename']) and $data['File name'] = $metadata['filename'] . (
-            isset($metadata['filesize']) && \is_int($metadata['filesize'])
-                ? ' (' . Measure::memory($metadata['filesize']) . ')'
+        \is_string($m = $metadata['app_name'] ?? null) and $data['App name'] = $m;
+        \is_string($m = $metadata['hostname'] ?? null) and $data['Hostname'] = $m;
+        \is_string($m = $metadata['filename'] ?? null) and $data['File name'] = $m . (
+            \is_int($m = $metadata['filesize'] ?? null) && $m >= 0
+                ? ' (' . Measure::memory($m) . ')'
                 : ''
         );
         $data['Num edges'] = $profile->calls->count();

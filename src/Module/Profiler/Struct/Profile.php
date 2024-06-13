@@ -9,6 +9,7 @@ namespace Buggregator\Trap\Module\Profiler\Struct;
  *     app_name?: string,
  *     hostname?: string,
  *     filename?: string,
+ *     filesize?: int<0, max>,
  *     ...
  * }
  *
@@ -31,6 +32,8 @@ final class Profile implements \JsonSerializable
 {
     public Peaks $peaks;
 
+    public Tree $calls;
+
     /**
      * @param Metadata $metadata
      * @param array<non-empty-string, non-empty-string> $tags
@@ -40,9 +43,10 @@ final class Profile implements \JsonSerializable
         public \DateTimeInterface $date = new \DateTimeImmutable(),
         public array $metadata = [],
         public array $tags = [],
-        public Tree $calls = new Tree(),
+        ?Tree $calls = null,
         ?Peaks $peaks = null,
     ) {
+        $this->calls = $calls ?? new Tree();
         if ($peaks === null) {
             $this->peaks = new Peaks();
 
@@ -57,28 +61,32 @@ final class Profile implements \JsonSerializable
 
     /**
      * @param ProfileData $data
+     * @psalm-suppress all
      */
     public static function fromArray(array $data): self
     {
         $metadata = $data;
         unset($metadata['tags'], $metadata['peaks'], $metadata['total_edges'], $metadata['date']);
 
-        $self = new self(
+        return new self(
             date: new \DateTimeImmutable('@' . $data['date']),
             metadata: $metadata,
             tags: $data['tags'],
             // todo calls from edges
             peaks: Peaks::fromArray($data['peaks']),
         );
-
-        return $self;
     }
 
     /**
      * @return ProfileData
+     * @psalm-suppress all
      */
     public function jsonSerialize(): array
     {
+        /** @var array<non-empty-string, array> $edges */
+        $edges = \iterator_to_array($this->calls->getItemsSortedV1(
+            static fn(Branch $a, Branch $b): int => $b->item->cost->wt <=> $a->item->cost->wt,
+        ));
         return [
             'date' => $this->date->getTimestamp(),
             'app_name' => $this->metadata['app_name'] ?? '',
@@ -86,9 +94,7 @@ final class Profile implements \JsonSerializable
             'filename' => $this->metadata['filename'] ?? '',
             'tags' => $this->tags,
             'peaks' => $this->peaks,
-            'edges' => \iterator_to_array($this->calls->getItemsSortedV1(
-                static fn(Branch $a, Branch $b): int => $b->item->cost->wt <=> $a->item->cost->wt,
-            )),
+            'edges' => $edges,
             'total_edges' => $this->calls->count(),
         ];
     }

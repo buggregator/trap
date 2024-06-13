@@ -89,7 +89,7 @@ final class Smtp implements Renderer
                 \array_map(static fn($attach) => [
                     'CID' => $attach->getEmbeddingId(),
                     'Name' => $attach->getClientFilename(),
-                    'Size' => Measure::memory($attach->getSize()),
+                    'Size' => $attach->getSize() === null ? 'unknown size' : Measure::memory($attach->getSize()),
                     'MIME' => $attach->getClientMediaType(),
                 ], $embeddings),
                 'compact',

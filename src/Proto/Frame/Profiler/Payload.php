@@ -45,15 +45,21 @@ final class Payload implements \JsonSerializable
     }
 
     /**
-     * @param array{type: non-empty-string}&ProfileData $data
+     * @param array{type: non-empty-string}|ProfileData $data
      */
     public static function fromArray(array $data, ?PayloadType $type = null): static
     {
-        /** @var \Closure(): Profile $provider */
+        /**
+         * @var \Closure(): Profile $provider
+         * @psalm-suppress all
+         */
         $provider = static fn(): Profile => Profile::fromArray($data);
 
+        /** @psalm-suppress all */
+        $type ??= PayloadType::from($data['type']);
+
         return new self(
-            $type ?? PayloadType::from($data['type']),
+            $type,
             $provider,
         );
     }
@@ -64,7 +70,7 @@ final class Payload implements \JsonSerializable
     }
 
     /**
-     * @return array{type: non-empty-string}&ProfileData
+     * @return array{type: non-empty-string}|ProfileData
      */
     public function toArray(): array
     {
@@ -72,7 +78,7 @@ final class Payload implements \JsonSerializable
     }
 
     /**
-     * @return array{type: non-empty-string}&ProfileData
+     * @return array{type: non-empty-string}|ProfileData
      */
     public function jsonSerialize(): array
     {

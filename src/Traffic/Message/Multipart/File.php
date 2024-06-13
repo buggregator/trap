@@ -115,7 +115,7 @@ final class File extends Part implements UploadedFileInterface
 
     public function getClientMediaType(): ?string
     {
-        return \explode(';', $this->getHeader('Content-Type')[0], 2)[0] ?? null;
+        return \explode(';', $this->getHeader('Content-Type')[0] ?? '', 2)[0] ?? null;
     }
 
     public function isEmbedded(): bool

@@ -51,11 +51,11 @@ final class Smtp
     }
 
     /**
-     * @return \ArrayAccess<non-empty-string, Event\Asset>
+     * @return \ArrayObject<non-empty-string, Event\Asset>
      */
-    private static function fetchAssets(SmtpMessage $message): \ArrayAccess
+    private static function fetchAssets(SmtpMessage $message): \ArrayObject
     {
-        /** @var \ArrayAccess<non-empty-string, Event\Asset> $assets */
+        /** @var \ArrayObject<non-empty-string, Event\Asset> $assets */
         $assets = new \ArrayObject();
 
         foreach ($message->getAttachments() as $attachment) {
@@ -83,9 +83,9 @@ final class Smtp
 
     /**
      * @param non-empty-string $uuid
-     * @param \ArrayAccess<non-empty-string, Event\Asset> $assets
+     * @param \ArrayAccess<non-empty-string, Event\Asset>&\Traversable<non-empty-string, Event\Asset> $assets
      */
-    private static function html(string $uuid, SmtpMessage $message, \ArrayAccess $assets): string
+    private static function html(string $uuid, SmtpMessage $message, \ArrayAccess&\Traversable $assets): string
     {
         $result = $message->getMessage(MessageFormat::Html)?->getValue() ?? '';
 

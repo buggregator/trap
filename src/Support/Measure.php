@@ -11,15 +11,11 @@ namespace Buggregator\Trap\Support;
 final class Measure
 {
     /**
-     * @param int<0, max>|null $size
-     * @return non-empty-string|null
+     * @param int<0, max> $size
+     * @return non-empty-string
      */
-    public static function memory(?int $size): ?string
+    public static function memory(int $size): string
     {
-        if ($size === null) {
-            return null;
-        }
-
         $units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
         $power = (int) \floor(\log($size, 1024));
         $float = $power > 0 ? \round($size / (1024 ** $power), 2) : $size;

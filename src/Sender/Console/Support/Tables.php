@@ -44,7 +44,7 @@ final class Tables
     }
 
     /**
-     * @param array<array-key, array<array-key, scalar>> $data
+     * @param array<array-key, array<array-key, scalar|null>> $data
      * @param 'default'|'borderless'|'compact'|'symfony-style-guide'|'box'|'box-double' $style
      */
     public static function renderMultiColumnTable(
