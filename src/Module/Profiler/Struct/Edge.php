@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Service\FilesObserver\Converter;
+namespace Buggregator\Trap\Module\Profiler\Struct;
 
 /**
  * @internal

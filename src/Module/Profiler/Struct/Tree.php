@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Service\FilesObserver\Converter;
+namespace Buggregator\Trap\Module\Profiler\Struct;
 
 /**
  * @template-covariant TItem of object
@@ -11,7 +11,7 @@ namespace Buggregator\Trap\Service\FilesObserver\Converter;
  *
  * @internal
  */
-final class Tree implements \IteratorAggregate
+final class Tree implements \IteratorAggregate, \Countable
 {
     /** @var array<non-empty-string, Branch<TItem>> */
     private array $root = [];
@@ -85,6 +85,16 @@ final class Tree implements \IteratorAggregate
     }
 
     /**
+     * @return \Traversable<TItem>
+     */
+    public function iterateAll(): \Traversable
+    {
+        foreach ($this->all as $branch) {
+            yield $branch->item;
+        }
+    }
+
+    /**
      * Yield items by the level in the hierarchy with custom sorting in level scope
      *
      * @param callable(Branch<TItem>, Branch<TItem>): int $sorter
@@ -141,5 +151,13 @@ final class Tree implements \IteratorAggregate
         }
 
         unset($this->all, $this->root, $this->lostChildren);
+    }
+
+    /**
+     * @return int<0, max>
+     */
+    public function count(): int
+    {
+        return \count($this->all);
     }
 }

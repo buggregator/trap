@@ -29,13 +29,18 @@ final class Profiler implements Renderer
         $subtitle = $frame->payload->type->value;
         Common::renderHeader1($output, 'PROFILER', $subtitle);
 
-        $metadata = $frame->payload->getMetadata();
+        $profile = $frame->payload->getProfile();
+        $metadata = $profile->metadata;
+
         $data = [];
         isset($metadata['date']) && \is_numeric($metadata['date'])
         and $data['Time'] = new \DateTimeImmutable('@' . $metadata['date']);
+        isset($metadata['app_name']) and $data['App name'] = $metadata['app_name'];
         isset($metadata['hostname']) and $data['Hostname'] = $metadata['hostname'];
         isset($metadata['filename']) and $data['File name'] = $metadata['filename'];
+        $data['Num edges'] = $profile->calls->count();
 
         Common::renderMetadata($output, $data);
+        Common::renderTags($output, $profile->tags);
     }
 }
