@@ -81,6 +81,7 @@ final class Run extends Command implements SignalableCommandInterface
         $registry = new Sender\SenderRegistry();
         $registry->register('console', Sender\ConsoleSender::create($output));
         $registry->register('file', new Sender\FileSender());
+        $registry->register('raw', new Sender\RawFileSender());
         $registry->register(
             'server',
             new Sender\RemoteSender(

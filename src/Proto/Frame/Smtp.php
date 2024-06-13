@@ -9,13 +9,14 @@ use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Support\Json;
 use Buggregator\Trap\Traffic\Message;
+use Psr\Http\Message\StreamInterface;
 
 /**
  * @internal
  * @psalm-internal Buggregator
  * @psalm-import-type TArrayData from Message\Smtp
  */
-final class Smtp extends Frame implements FilesCarrier
+final class Smtp extends Frame implements FilesCarrier, \Buggregator\Trap\Proto\StreamCarrier
 {
     public function __construct(
         public readonly Message\Smtp $message,
@@ -49,5 +50,10 @@ final class Smtp extends Frame implements FilesCarrier
     public function __toString(): string
     {
         return Json::encode($this->message);
+    }
+
+    public function getStream(): StreamInterface
+    {
+        return $this->message->getBody();
     }
 }

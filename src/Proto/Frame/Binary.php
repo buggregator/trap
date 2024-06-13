@@ -13,7 +13,7 @@ use Psr\Http\Message\StreamInterface;
  * @internal
  * @psalm-internal Buggregator
  */
-final class Binary extends Frame
+final class Binary extends Frame implements \Buggregator\Trap\Proto\StreamCarrier
 {
     public function __construct(
         public readonly StreamInterface $stream,
@@ -40,5 +40,10 @@ final class Binary extends Frame
         return Json::encode([
             'size' => $this->getSize(),
         ]);
+    }
+
+    public function getStream(): StreamInterface
+    {
+        return $this->stream;
     }
 }
