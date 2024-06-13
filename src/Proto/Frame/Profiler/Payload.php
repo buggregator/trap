@@ -29,8 +29,7 @@ final class Payload implements \JsonSerializable
     private function __construct(
         public readonly PayloadType $type,
         private readonly \Closure $callsProvider,
-    ) {
-    }
+    ) {}
 
     /**
      * @param PayloadType $type

@@ -14,13 +14,13 @@ namespace Buggregator\Trap\Module\Profiler\Struct;
 final class Tree implements \IteratorAggregate, \Countable
 {
     /** @var array<non-empty-string, Branch<TItem>> */
-    private array $root = [];
+    public array $root = [];
 
     /** @var array<non-empty-string, Branch<TItem>> */
-    private array $all = [];
+    public array $all = [];
 
     /** @var array<non-empty-string, Branch<TItem>> */
-    private array $lostChildren = [];
+    public array $lostChildren = [];
 
     /**
      * @template T of object
@@ -95,6 +95,14 @@ final class Tree implements \IteratorAggregate, \Countable
     }
 
     /**
+     * @return \Traversable<Branch<TItem>>
+     */
+    public function iterateLostChildren(): \Traversable
+    {
+        yield from $this->lostChildren;
+    }
+
+    /**
      * Yield items by the level in the hierarchy with custom sorting in level scope
      *
      * @param callable(Branch<TItem>, Branch<TItem>): int $sorter
@@ -144,6 +152,14 @@ final class Tree implements \IteratorAggregate, \Countable
         }
     }
 
+    /**
+     * @return int<0, max>
+     */
+    public function count(): int
+    {
+        return \count($this->all);
+    }
+
     public function __destruct()
     {
         foreach ($this->all as $branch) {
@@ -151,13 +167,5 @@ final class Tree implements \IteratorAggregate, \Countable
         }
 
         unset($this->all, $this->root, $this->lostChildren);
-    }
-
-    /**
-     * @return int<0, max>
-     */
-    public function count(): int
-    {
-        return \count($this->all);
     }
 }

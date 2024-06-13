@@ -35,6 +35,9 @@ final class Test extends Command
     ): int {
         $this->logger = new Logger($output);
 
+        // XHProf
+        $this->sendContent('yii-xhprof.http');
+
         $this->dump();
         \usleep(100_000);
         $this->mail($output, true);

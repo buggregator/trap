@@ -44,16 +44,16 @@ final class Smtp extends Frame implements FilesCarrier, \Buggregator\Trap\Proto\
         return $this->message->getAttachments();
     }
 
+    public function getStream(): StreamInterface
+    {
+        return $this->message->getBody();
+    }
+
     /**
      * @throws \JsonException
      */
     public function __toString(): string
     {
         return Json::encode($this->message);
-    }
-
-    public function getStream(): StreamInterface
-    {
-        return $this->message->getBody();
     }
 }

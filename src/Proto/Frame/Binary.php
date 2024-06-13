@@ -32,6 +32,11 @@ final class Binary extends Frame implements \Buggregator\Trap\Proto\StreamCarrie
         return (int) $this->stream->getSize();
     }
 
+    public function getStream(): StreamInterface
+    {
+        return $this->stream;
+    }
+
     /**
      * @throws \JsonException
      */
@@ -40,10 +45,5 @@ final class Binary extends Frame implements \Buggregator\Trap\Proto\StreamCarrie
         return Json::encode([
             'size' => $this->getSize(),
         ]);
-    }
-
-    public function getStream(): StreamInterface
-    {
-        return $this->stream;
     }
 }

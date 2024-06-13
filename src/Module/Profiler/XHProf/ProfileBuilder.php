@@ -58,6 +58,8 @@ final class ProfileBuilder
         /** @var Tree<Edge> $tree */
         $tree = new Tree();
 
+        unset($data['value']);
+
         foreach (\array_reverse($data, true) as $key => $value) {
             [$caller, $callee] = \explode('==>', $key, 2) + [1 => ''];
             if ($callee === '') {
@@ -75,6 +77,25 @@ final class ProfileBuilder
             $peaks->update($edge->cost);
             $tree->addItem($edge, $edge->callee, $edge->caller);
         }
+
+        // Add parents for lost children
+        $lostParents = [];
+        /** @var Branch<Edge> $branch */
+        foreach ($tree->iterateLostChildren() as $branch) {
+            \assert($branch->item->caller !== null);
+            ($lostParents[$branch->item->caller] ??= new Peaks())
+                ->add($branch->item->cost);
+        }
+        /** @var array<non-empty-string, Peaks> $lostParents */
+        foreach ($lostParents as $key => $peak) {
+            $edge = new Edge(
+                caller: null,
+                callee: $key,
+                cost: $peak->toCost(),
+            );
+            $tree->addItem($edge, $edge->callee, $edge->caller);
+        }
+        unset($lostParents);
 
         /**
          * Calc percentages and delta

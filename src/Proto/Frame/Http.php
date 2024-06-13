@@ -107,6 +107,11 @@ final class Http extends Frame implements FilesCarrier, \Buggregator\Trap\Proto\
         return $generator($this->request->getUploadedFiles());
     }
 
+    public function getStream(): StreamInterface
+    {
+        return $this->request->getBody();
+    }
+
     /**
      * @throws \JsonException
      */
@@ -123,10 +128,5 @@ final class Http extends Frame implements FilesCarrier, \Buggregator\Trap\Proto\
             'protocolVersion' => $this->request->getProtocolVersion(),
             'uploadedFiles' => $this->request->getUploadedFiles(),
         ]);
-    }
-
-    public function getStream(): StreamInterface
-    {
-        return $this->request->getBody();
     }
 }

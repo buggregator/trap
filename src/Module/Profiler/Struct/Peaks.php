@@ -74,12 +74,25 @@ final class Peaks implements \JsonSerializable
         ];
     }
 
-    public function update(Cost $item): void
+    public function update(Cost $cost): void
     {
-        $this->ct = \max($this->ct, $item->ct);
-        $this->wt = \max($this->wt, $item->wt);
-        $this->cpu = \max($this->cpu, $item->cpu);
-        $this->mu = \max($this->mu, $item->mu);
-        $this->pmu = \max($this->pmu, $item->pmu);
+        $this->ct = \max($this->ct, $cost->ct);
+        $this->wt = \max($this->wt, $cost->wt);
+        $this->cpu = \max($this->cpu, $cost->cpu);
+        $this->mu = \max($this->mu, $cost->mu);
+        $this->pmu = \max($this->pmu, $cost->pmu);
+    }
+
+    public function toCost(): Cost
+    {
+        return new Cost($this->ct, $this->wt, $this->cpu, $this->mu, $this->pmu);
+    }
+
+    public function add(Cost $cost): void
+    {
+        $this->wt += $cost->wt;
+        $this->cpu += $cost->cpu;
+        $this->mu = \max($this->mu, $cost->mu);
+        $this->pmu = \max($this->pmu, $cost->pmu);
     }
 }
