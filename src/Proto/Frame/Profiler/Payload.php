@@ -22,6 +22,8 @@ use Buggregator\Trap\Proto\Frame\Profiler\Type as PayloadType;
  */
 final class Payload implements \JsonSerializable
 {
+    private ?Profile $profile = null;
+
     /**
      * @param PayloadType $type
      * @param \Closure(): Profile $callsProvider
@@ -58,7 +60,7 @@ final class Payload implements \JsonSerializable
 
     public function getProfile(): Profile
     {
-        return ($this->callsProvider)();
+        return $this->profile ??= ($this->callsProvider)();
     }
 
     /**

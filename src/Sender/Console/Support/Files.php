@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Console\Support;
 
+use Buggregator\Trap\Support\Measure;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -41,7 +42,7 @@ final class Files
             : \str_pad(\substr($fileName, $dotPos + 1), 3, ' ', \STR_PAD_BOTH);
 
         // File size
-        $sizeStr = self::normalizeSize($size) ?? 'unknown size';
+        $sizeStr = Measure::memory($size) ?? 'unknown size';
 
         // Header with top border
         $output->writeln("<bg=black;fg=magenta> ┌───┐</>  <info>$fileName</info>");
@@ -57,23 +58,5 @@ final class Files
 
         // MIME type
         $output->writeln("<bg=black;fg=magenta> └───┘</>  <fg=gray>$type</>");
-    }
-
-    /**
-     * @param int<0, max>|null $size
-     */
-    public static function normalizeSize(?int $size): ?string
-    {
-        if ($size === null) {
-            return null;
-        }
-
-        $units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
-        $power = (int) \floor(\log($size, 1024));
-        $float = $power > 0 ? \round($size / (1024 ** $power), 2) : $size;
-
-        \assert($power >= 0 && $power <= 5);
-
-        return \sprintf('%s %s', \number_format($float, 2), $units[$power]);
     }
 }

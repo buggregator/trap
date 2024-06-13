@@ -8,7 +8,7 @@ use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Common;
-use Buggregator\Trap\Sender\Console\Support\Files;
+use Buggregator\Trap\Support\Measure;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -70,7 +70,7 @@ final class Binary implements Renderer
         $size = $frame->getSize();
         Common::renderMetadata($output, [
             'Time' => $frame->time,
-            'Size' => Files::normalizeSize($size) . ($size > 1024 ? \sprintf(' (%d bytes)', $size) : ''),
+            'Size' => Measure::memory($size) . ($size > 1024 ? \sprintf(' (%d bytes)', $size) : ''),
         ]);
 
         if ($size === 0) {

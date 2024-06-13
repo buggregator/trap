@@ -52,6 +52,7 @@ final class XHProf implements FileFilterInterface
                             metadata: [
                                 'hostname' => \gethostname(),
                                 'filename' => $file->getName(),
+                                'filesize' => $file->size,
                             ],
                             calls: $data,
                         );

@@ -58,6 +58,7 @@ final class ProfileBuilder
         /** @var Tree<Edge> $tree */
         $tree = new Tree();
 
+        !\array_key_exists('main()', $data) && \array_key_exists('value', $data) and $data['main()'] = $data['value'];
         unset($data['value']);
 
         foreach (\array_reverse($data, true) as $key => $value) {

@@ -9,6 +9,7 @@ use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Buggregator\Trap\Sender\Console\Support\Files;
+use Buggregator\Trap\Support\Measure;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -88,7 +89,7 @@ final class Smtp implements Renderer
                 \array_map(static fn($attach) => [
                     'CID' => $attach->getEmbeddingId(),
                     'Name' => $attach->getClientFilename(),
-                    'Size' => Files::normalizeSize($attach->getSize()),
+                    'Size' => Measure::memory($attach->getSize()),
                     'MIME' => $attach->getClientMediaType(),
                 ], $embeddings),
                 'compact',
