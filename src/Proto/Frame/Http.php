@@ -11,13 +11,14 @@ use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UploadedFileInterface as PsrUploadedFile;
 
 /**
  * @internal
  * @psalm-internal Buggregator
  */
-final class Http extends Frame implements FilesCarrier
+final class Http extends Frame implements FilesCarrier, \Buggregator\Trap\Proto\StreamCarrier
 {
     /** @var int<0, max> */
     private readonly int $cachedSize;
@@ -104,6 +105,11 @@ final class Http extends Frame implements FilesCarrier
         };
 
         return $generator($this->request->getUploadedFiles());
+    }
+
+    public function getStream(): StreamInterface
+    {
+        return $this->request->getBody();
     }
 
     /**

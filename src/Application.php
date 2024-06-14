@@ -58,10 +58,11 @@ final class Application implements Processable, Cancellable, Destroyable
             new Traffic\Dispatcher\VarDumper(),
             new Traffic\Dispatcher\Http(
                 [
-                    new Middleware\Resources(),
-                    new Middleware\DebugPage(),
-                    new Middleware\RayRequestDump(),
-                    new Middleware\SentryTrap(),
+                    $this->container->get(Middleware\Resources::class),
+                    $this->container->get(Middleware\DebugPage::class),
+                    $this->container->get(Middleware\RayRequestDump::class),
+                    $this->container->get(Middleware\SentryTrap::class),
+                    $this->container->get(Middleware\XHProfTrap::class),
                 ],
                 [new Websocket()],
             ),

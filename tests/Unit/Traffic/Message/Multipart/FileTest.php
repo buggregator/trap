@@ -6,10 +6,24 @@ namespace Buggregator\Trap\Tests\Unit\Traffic\Message\Multipart;
 
 use Buggregator\Trap\Support\StreamHelper;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class FileTest extends TestCase
 {
+    public static function provideEmbeddings(): iterable
+    {
+        yield [['Content-Type' => 'image/jpeg'], null];
+        yield [['Content-Type' => 'image/jpeg', 'Content-Disposition' => 'inline; filename="foo.jpg"'], null];
+        yield [['Content-Type' => 'image/jpeg', 'Content-Disposition' => 'inline; filename="foo.jpg"; id="bar"'], null];
+        yield [['Content-Type' => 'image/png; name="embedding-name"; id="bar"'], 'embedding-name'];
+        yield [['Content-Type' => 'image/png; a-name=test; name=embedding-name; b-name=test'], 'embedding-name'];
+        yield [['Content-Type' => 'image/png; name=\'embedding-name\''], 'embedding-name'];
+        yield [['Content-Disposition' => 'inline; name="embedding-name"'], 'embedding-name'];
+        yield [['Content-Disposition' => 'inline; ; a-name="a"; name=embedding; file-name=3'], 'embedding'];
+        yield [['Content-Disposition' => 'inline; name=\'embedding-1\''], 'embedding-1'];
+    }
+
     public function testGetters(): void
     {
         $file = new File(['Foo' => 'Bar'], 'name', 'filename');
@@ -27,6 +41,16 @@ class FileTest extends TestCase
         self::assertNotSame($file, $new);
         self::assertSame('Bar', $file->getHeaderLine('foo'));
         self::assertSame('baz', $new->getHeaderLine('foo'));
+    }
+
+    #[DataProvider('provideEmbeddings')]
+    public function testEmbeddingId(array $headers, ?string $result): void
+    {
+        $field = File::fromArray([
+            'headers' => $headers,
+        ]);
+
+        self::assertSame($result, $field->getEmbeddingId());
     }
 
     public function testFromArray(): void

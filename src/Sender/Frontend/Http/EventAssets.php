@@ -12,6 +12,7 @@ use Buggregator\Trap\Handler\Router\Method;
 use Buggregator\Trap\Handler\Router\Router as CommonRouter;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Sender\Frontend\Event\AttachedFile;
+use Buggregator\Trap\Sender\Frontend\Event\EmbeddedFile;
 use Buggregator\Trap\Sender\Frontend\EventStorage;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
@@ -107,23 +108,35 @@ final class EventAssets implements Middleware
         // Find attachment
         $attachment = $event->assets[$attachId] ?? null;
 
-        if (!$attachment instanceof AttachedFile) {
-            $this->logger->debug('Get attachment `%s` for event `%s`. Attached file not found.', $attachId, $eventId);
-            return null;
+        if ($attachment instanceof AttachedFile) {
+            return new Response(
+                200,
+                [
+                    'Content-Type' => $attachment->file->getClientMediaType(),
+                    'Content-Disposition' => \sprintf(
+                        "attachment; filename=\"%s\"",
+                        \rawurlencode($attachment->file->getClientFilename() ?? 'unnamed'),
+                    ),
+                    'Content-Length' => (string) $attachment->file->getSize(),
+                    'Cache-Control' => 'no-cache',
+                ],
+                $attachment->file->getStream(),
+            );
         }
 
-        return new Response(
-            200,
-            [
-                'Content-Type' => $attachment->file->getClientMediaType(),
-                'Content-Disposition' => \sprintf(
-                    "attachment; filename=\"%s\"",
-                    \rawurlencode($attachment->file->getClientFilename() ?? 'unnamed'),
-                ),
-                'Content-Length' => (string) $attachment->file->getSize(),
-                'Cache-Control' => 'no-cache',
-            ],
-            $attachment->file->getStream(),
-        );
+        if ($attachment instanceof EmbeddedFile) {
+            return new Response(
+                200,
+                [
+                    'Content-Type' => $attachment->file->getClientMediaType(),
+                    'Content-Length' => (string) $attachment->file->getSize(),
+                    'Cache-Control' => 'no-cache',
+                ],
+                $attachment->file->getStream(),
+            );
+        }
+
+        $this->logger->debug('Get attachment `%s` for event `%s`. Attached file not found.', $attachId, $eventId);
+        return null;
     }
 }

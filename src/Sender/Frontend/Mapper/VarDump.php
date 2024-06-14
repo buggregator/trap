@@ -18,18 +18,34 @@ final class VarDump
 {
     public function map(VarDumperFrame $frame): Event
     {
-        $payload = $this->parse($frame->dump);
+        $parsed = $this->parse($frame->dump);
+
+        $dataContext = $parsed[0]->getContext();
+
+        $payload = [
+            'type' => $parsed[0]->getType(),
+            'value' => $this->convertToPrimitive($parsed[0]),
+            'label' => $dataContext['label'] ?? null,
+        ];
+
+        if (\array_key_exists('language', $dataContext) && \is_string($dataContext['language'])) {
+            $payload['type'] = 'code';
+            $payload['language'] = $dataContext['language'];
+        }
+
+        $project = \array_key_exists('project', $dataContext) && \is_scalar($dataContext['project'])
+            ? (string) $dataContext['project']
+            : null;
+
         return new Event(
             uuid: Uuid::generate(),
             type: 'var-dump',
             payload: [
-                'payload' => [
-                    'type' => $payload[0]->getType(),
-                    'value' => $this->convertToPrimitive($payload[0]),
-                ],
-                'context' => $payload[1],
+                'payload' => $payload,
+                'context' => $parsed[1],
             ],
             timestamp: (float) $frame->time->format('U.u'),
+            project: $project,
         );
     }
 
@@ -38,7 +54,7 @@ final class VarDump
      */
     private function parse(string $message): array
     {
-        $payload = @\unserialize(\base64_decode($message), ['allowed_classes' => [Data::class, Stub::class]]);
+        $payload = @\unserialize(\base64_decode($message, true), ['allowed_classes' => [Data::class, Stub::class]]);
 
         // Impossible to decode the message, give up.
         if ($payload === false) {
@@ -59,7 +75,7 @@ final class VarDump
 
     private function convertToPrimitive(Data $data): string|null
     {
-        if (\in_array($data->getType(), ['string', 'boolean'])) {
+        if (\in_array($data->getType(), ['string', 'boolean'], true)) {
             /** @psalm-suppress PossiblyInvalidCast */
             return (string) $data->getValue();
         }

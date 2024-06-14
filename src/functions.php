@@ -113,3 +113,8 @@ if (\class_exists(AbstractCloner::class)) {
 
     unset($casters);
 }
+
+\stream_filter_register(
+    \Buggregator\Trap\Support\Stream\Base64DecodeFilter::FILTER_NAME,
+    \Buggregator\Trap\Support\Stream\Base64DecodeFilter::class,
+);

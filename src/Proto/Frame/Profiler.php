@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Proto\Frame;
 
+use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Support\Json;
 
 /**
- * @psalm-import-type Calls from \Buggregator\Trap\Proto\Frame\Profiler\Payload
- * @psalm-import-type Metadata from \Buggregator\Trap\Proto\Frame\Profiler\Payload
+ * @psalm-import-type ProfileData from Profile
  *
  * @internal
  * @psalm-internal Buggregator
@@ -26,7 +26,7 @@ final class Profiler extends Frame
 
     public static function fromString(string $payload, \DateTimeImmutable $time): static
     {
-        /** @var array{type: non-empty-string}&Calls&Metadata $data */
+        /** @var array{type: non-empty-string}|ProfileData $data */
         $data = Json::decode($payload);
 
         return new self(Frame\Profiler\Payload::fromArray($data), $time);

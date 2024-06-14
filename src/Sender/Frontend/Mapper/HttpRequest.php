@@ -19,7 +19,7 @@ final class HttpRequest
         $request = $frame->request;
 
         $uri = \ltrim($request->getUri()->getPath(), '/');
-        /** @var \ArrayAccess<non-empty-string, Event\Asset> $assets */
+        /** @var \ArrayObject<non-empty-string, Event\Asset> $assets */
         $assets = new \ArrayObject();
 
         return new Event(
