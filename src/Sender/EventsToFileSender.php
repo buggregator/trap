@@ -8,9 +8,12 @@ use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Sender;
 
 /**
+ * Store event groups to files.
+ * JSON format is used for serialization of each event.
+ *
  * @internal
  */
-class FileSender implements Sender
+class EventsToFileSender implements Sender
 {
     private readonly string $path;
 

@@ -10,14 +10,17 @@ use Buggregator\Trap\Support\StreamHelper;
 use Nyholm\Psr7\Stream;
 
 /**
+ * Sends event body stream to file if possible.
+ * It creates a new file for each frame.
+ *
  * @internal
  */
-class RawFileSender implements Sender
+class BodyToFileSender implements Sender
 {
     private readonly string $path;
 
     public function __construct(
-        string $path = 'runtime/raw',
+        string $path = 'runtime/body',
     ) {
         $this->path = \rtrim($path, '/\\');
         if (!\is_dir($path) && !\mkdir($path, 0o777, true) && !\is_dir($path)) {
