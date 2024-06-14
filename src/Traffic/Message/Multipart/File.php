@@ -130,20 +130,23 @@ final class File extends Part implements UploadedFileInterface
      */
     public function getEmbeddingId(): ?string
     {
+        $matches = [];
         $result = match (true) {
             // Content-Disposition is inline and name is present
             \str_starts_with($this->getHeaderLine('Content-Disposition'), 'inline') && \preg_match(
-                '/name=(?:\"([^\"]++)\"|\'([^\']++)\'|([^;,\\s]++))/',
+                '/(?:\\s|^|;|,)name=(?:\"([^\"]++)\"|\'([^\']++)\'|([^;,\\s]++))/',
                 $this->getHeaderLine('Content-Disposition'),
                 $matches,
-            ) === 1 => $matches[1],
+                PREG_UNMATCHED_AS_NULL,
+            ) === 1 => $matches[1] ?? $matches[2] ?? $matches[3],
 
             // Content-Type is image/* and has name
             \str_starts_with($this->getHeaderLine('Content-Type'), 'image/') && \preg_match(
-                '/name=(?:\"([^\"]++)\"|\'([^\']++)\'|([^;,\\s]++))/',
+                '/(?:\\s|^|;|,)name=(?:\"([^\"]++)\"|\'([^\']++)\'|([^;,\\s]++))/',
                 $this->getHeaderLine('Content-Type'),
                 $matches,
-            ) === 1 => $matches[1],
+                PREG_UNMATCHED_AS_NULL,
+            ) === 1 => $matches[1] ?? $matches[2] ?? $matches[3],
             default => null,
         };
 

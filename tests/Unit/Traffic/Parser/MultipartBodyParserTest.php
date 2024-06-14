@@ -113,6 +113,52 @@ final class MultipartBodyParserTest extends TestCase
         self::assertSame($file2, $file->getStream()->__toString());
     }
 
+    public function testBase64Encoded(): void
+    {
+        $file1 = \file_get_contents(__DIR__ . '/../../../Stub/deburger.png');
+        $file2 = \file_get_contents(__DIR__ . '/../../../Stub/buggregator.png');
+
+        $encoded1 = \base64_encode($file1);
+        $encoded2 = \base64_encode($file2);
+        $body = $this->makeStream(
+            <<<BODY
+                --Asrf456BGe4h\r
+                Content-Type: image/png; name=4486bda9ad8b1f422deaf6a750194668@trap\r
+                Content-Transfer-Encoding: base64\r
+                Content-Disposition: inline; filename=logo-embeddable\r
+                \r
+                $encoded1\r
+                --Asrf456BGe4h\r
+                Content-Disposition: inline; name="AttachedFile2"; filename=logo-embeddable\r
+                Content-Transfer-Encoding: base64\r
+                Content-Type: image/png\r
+                \r
+                $encoded2\r
+                --Asrf456BGe4h--\r\n\r\n
+                BODY,
+        );
+
+        $result = $this->parse($body, 'Asrf456BGe4h');
+
+        self::assertCount(2, $result);
+        $file = $result[0];
+        // Uploaded files
+        self::assertInstanceOf(File::class, $file);
+        self::assertNull($file->getName());
+        self::assertSame('logo-embeddable', $file->getClientFilename());
+        self::assertSame('image/png', $file->getClientMediaType());
+        self::assertSame('4486bda9ad8b1f422deaf6a750194668@trap', $file->getEmbeddingId());
+        self::assertSame($file1, $file->getStream()->__toString());
+
+        $file = $result[1];
+        self::assertInstanceOf(File::class, $file);
+        self::assertSame('AttachedFile2', $file->getName());
+        self::assertSame('logo-embeddable', $file->getClientFilename());
+        self::assertSame('image/png', $file->getClientMediaType());
+        self::assertSame('AttachedFile2', $file->getEmbeddingId());
+        self::assertSame($file2, $file->getStream()->__toString());
+    }
+
     private function makeStream(string $body): StreamInterface
     {
         $stream = Stream::create($body);

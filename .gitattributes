@@ -6,7 +6,7 @@ tests                  export-ignore
 .*                     export-ignore
 box.json.dist          export-ignore
 composer.lock          export-ignore
-composer-require-*      export-ignore
+composer-require-*     export-ignore
 docker-compose.yaml    export-ignore
 Makefile               export-ignore
 phpunit.xml*           export-ignore
