@@ -71,7 +71,7 @@ final class Application implements Processable, Cancellable, Destroyable
         ]);
         $this->processors[] = $inspector;
 
-        $withFrontend and $this->configureFrontend(8000);
+        $withFrontend and $this->configureFrontend();
         $this->configureFileObserver();
 
         foreach ($map as $config) {
@@ -175,27 +175,22 @@ final class Application implements Processable, Cancellable, Destroyable
         });
     }
 
-    /**
-     * @param int<1, 65535> $port
-     */
-    public function configureFrontend(int $port): void
+    public function configureFrontend(): void
     {
-        $this->senders[] = $wsSender = Sender\FrontendSender::create($this->logger);
+        $this->processors[] = $this->senders[] = $wsSender = Sender\FrontendSender::create($this->logger);
+        $this->container->set($wsSender->getEventStorage(), Sender\Frontend\EventStorage::class);
 
+        // Separated port
         $inspector = $this->container->make(Inspector::class, [
             new Traffic\Dispatcher\Http(
                 [
-                    new Sender\Frontend\Http\Cors(),
-                    new Sender\Frontend\Http\StaticFiles(),
-                    new Sender\Frontend\Http\EventAssets($this->logger, $wsSender->getEventStorage()),
-                    new Sender\Frontend\Http\Router($this->logger, $wsSender->getEventStorage()),
+                    new Sender\Frontend\Http\Pipeline($this->logger, $wsSender),
                 ],
                 [new Sender\Frontend\Http\RequestHandler($wsSender->getConnectionPool())],
                 silentMode: true,
             ),
         ]);
         $this->processors[] = $inspector;
-        $this->processors[] = $wsSender;
         $config = $this->container->get(FrontendConfig::class);
         $this->prepareServerFiber(new SocketServer(port: $config->port), $inspector, $this->logger);
     }
