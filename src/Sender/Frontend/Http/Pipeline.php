@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Sender\Frontend\Http;
 
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Handler\Pipeline as MiddlewaresPipeline;
+use Buggregator\Trap\Info;
 use Buggregator\Trap\Logger;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
@@ -19,6 +20,8 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 final class Pipeline implements Middleware
 {
+    public const FRONTEND_HEADER = 'X-Trap-Frontend';
+
     /** @var MiddlewaresPipeline<Middleware, ResponseInterface> */
     private MiddlewaresPipeline $pipeline;
 
@@ -48,6 +51,6 @@ final class Pipeline implements Middleware
 
         return $response->getStatusCode() === 404
             ? $next($request)
-            : $response;
+            : $response->withHeader(self::FRONTEND_HEADER, Info::version());
     }
 }

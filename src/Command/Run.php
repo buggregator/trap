@@ -32,6 +32,8 @@ final class Run extends Command implements SignalableCommandInterface
 {
     private ?Application $app = null;
 
+    private Logger $logger;
+
     private bool $cancelled = false;
 
     public function configure(): void
@@ -129,6 +131,7 @@ final class Run extends Command implements SignalableCommandInterface
         InputInterface $input,
         OutputInterface $output,
     ): int {
+        $this->logger = new Logger($output);
         try {
             // Print intro
             $output->writeln(\sprintf('<fg=yellow;options=bold>%s</> <info>v%s</>', Info::NAME, Info::version()));
@@ -147,7 +150,7 @@ final class Run extends Command implements SignalableCommandInterface
             )->finish();
             $container->set($registry);
             $container->set($input, InputInterface::class);
-            $container->set(new Logger($output));
+            $container->set($this->logger);
             $this->app = $container->get(Application::class, [
                 'map' => $this->getServers($container),
                 'senders' => $registry->getSenders($senders),
@@ -157,16 +160,9 @@ final class Run extends Command implements SignalableCommandInterface
 
             $this->app->run();
         } catch (\Throwable $e) {
-            if ($output->isVerbose()) {
-                // Write colorful exception (title, message, stacktrace)
-                $output->writeln(\sprintf("<fg=red;options=bold>%s</>", $e::class));
-            }
-
-            $output->writeln(\sprintf("<fg=red>%s</>", $e->getMessage()));
-
-            if ($output->isDebug()) {
-                $output->writeln(\sprintf("<fg=gray>%s</>", $e->getTraceAsString()));
-            }
+            do {
+                $this->logger->exception($e);
+            } while ($e = $e->getPrevious());
         }
 
         return Command::SUCCESS;
