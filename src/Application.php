@@ -55,7 +55,7 @@ final class Application implements Processable, Cancellable, Destroyable
 
         // Frontend
         $feConfig = $this->container->get(FrontendConfig::class);
-        $feSeparated = $withFrontend && !\in_array(
+        $feSeparated = !\in_array(
             $feConfig->port,
             \array_map(static fn(SocketServer $item): ?int => $item->type === 'tcp' ? $item->port : null, $map, ),
             true,
@@ -80,7 +80,8 @@ final class Application implements Processable, Cancellable, Destroyable
         ]);
         $this->processors[] = $inspector;
 
-        if (!$feSeparated) {
+
+        if ($withFrontend && !$feSeparated) {
             $inspectorWithFrontend = $container->make(Inspector::class, [
                 new Traffic\Dispatcher\VarDumper(),
                 new Traffic\Dispatcher\Http(
@@ -103,7 +104,7 @@ final class Application implements Processable, Cancellable, Destroyable
         $this->configureFileObserver();
 
         foreach ($map as $config) {
-            !$feSeparated && $config->type === 'tcp' && $config->port === $feConfig->port
+            $withFrontend && !$feSeparated && $config->type === 'tcp' && $config->port === $feConfig->port
                 ? $this->prepareServerFiber($config, $inspectorWithFrontend, $this->logger)
                 : $this->prepareServerFiber($config, $inspector, $this->logger);
         }
