@@ -10,6 +10,11 @@
     <issueHandlers>
         <RedundantConditionGivenDocblockType errorLevel="suppress"/>
         <RedundantCastGivenDocblockType errorLevel="suppress"/>
+        <PropertyNotSetInConstructor errorLevel="suppress">
+            <errorLevel type="suppress">
+                <directory name="src/Command"/>
+            </errorLevel>
+        </PropertyNotSetInConstructor>
     </issueHandlers>
     <projectFiles>
         <directory name="src"/>

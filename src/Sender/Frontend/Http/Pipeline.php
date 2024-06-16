@@ -30,6 +30,7 @@ final class Pipeline implements Middleware
         \Buggregator\Trap\Sender\FrontendSender $wsSender,
     ) {
         // Build pipeline of handlers.
+        /** @var MiddlewaresPipeline<Middleware, ResponseInterface> */
         $this->pipeline = MiddlewaresPipeline::build(
             [
                 new Cors(),

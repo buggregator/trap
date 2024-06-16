@@ -82,7 +82,9 @@ final class Fallback implements RequestHandler
             $streamClient->disconnect();
         }
 
-        if (isset($response) && $response->hasHeader(FrontendPipeline::FRONTEND_HEADER)) {
+        /** @var mixed $response */
+        $response ??= null;
+        if ($response instanceof ResponseInterface && $response->hasHeader(FrontendPipeline::FRONTEND_HEADER)) {
             return;
         }
 
