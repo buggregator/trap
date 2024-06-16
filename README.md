@@ -48,7 +48,7 @@ And that's it. Trap is [ready to go](#usage).
 Buggregator Trap provides a toolkit for use in your code. Firstly, just having Buggregator Trap in your
 package enhances the capabilities of Symfony Var-Dumper.
 
-If you've already worked with google/protobuf, you probably know how unpleasant it can be.
+If you've already worked with `google/protobuf`, you probably know how unpleasant it can be.
 Now let's compare the dumps of protobuf-message: on the left (with trap) and on the right (without trap).
 
 ![trap-proto-diff](https://github.com/buggregator/trap/assets/4152481/30662429-809e-422a-83c6-61d7d2788b18)
@@ -171,18 +171,11 @@ function handle($input) {
 
 Trap automatically recognizes the type of traffic.
 Therefore, there is no need to open separate ports for different protocols.
-By default, it operates on port `9912`.
+By default, it operates on the same ports as the Buggregator Server: `9912`, `9913`, `1025`, and `8000`.
 However, if you wish to utilize a different port, you can easily make this adjustment using the `-p` option:
 
 ```bash
-vendor/bin/trap -p8000
-```
-
-Sometimes, it's convenient to run Trap on the same ports that [Buggregator](https://github.com/buggregator/server)
-uses by default. Well, that's also possible:
-
-```bash
-vendor/bin/trap -p1025 -p9912 -p9913 -p8000 --ui=8080
+vendor/bin/trap -p9912 --ui=8000
 ```
 
 Environment variables can also be used to set endpoints:
