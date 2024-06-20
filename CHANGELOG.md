@@ -4,6 +4,8 @@
 
 ## What's Changed
 * Change the discord badge to static by @roxblnfk in https://github.com/buggregator/trap/pull/118
+* Complex update: frontend v1.18; XHProf web endpoint; "file-body" sender by @roxblnfk in https://github.com/buggregator/trap/pull/117
+* Add ability to process HTTP events and UI on the same port by @roxblnfk in https://github.com/buggregator/trap/pull/123
 * Fix docs and ports option by @roxblnfk in https://github.com/buggregator/trap/pull/124
 
 
