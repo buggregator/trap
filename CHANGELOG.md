@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.10.0 (2024-06-20)
+
+## What's Changed
+* Change the discord badge to static by @roxblnfk in https://github.com/buggregator/trap/pull/118
+* Fix docs and ports option by @roxblnfk in https://github.com/buggregator/trap/pull/124
+
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.9.0...1.10.0
+
 ## 1.9.0 (2024-06-04)
 
 ## What's Changed
