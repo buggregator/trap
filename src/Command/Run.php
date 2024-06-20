@@ -63,7 +63,7 @@ final class Run extends Command implements SignalableCommandInterface
         $config = $container->get(TcpPorts::class);
 
         $servers = [];
-        $ports = $config->ports ?: [1025, 8000, 9912, 9913];
+        $ports = $config->ports;
         /** @var scalar $port */
         foreach ($ports as $port) {
             \is_numeric($port) or throw new \InvalidArgumentException(
