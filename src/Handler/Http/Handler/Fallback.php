@@ -9,6 +9,7 @@ use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Handler\Http\RequestHandler;
 use Buggregator\Trap\Handler\Pipeline;
 use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Sender\Frontend\Http\Pipeline as FrontendPipeline;
 use Buggregator\Trap\Traffic\StreamClient;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
@@ -79,6 +80,12 @@ final class Fallback implements RequestHandler
             HttpEmitter::emit($streamClient, new Response(500));
         } finally {
             $streamClient->disconnect();
+        }
+
+        /** @var mixed $response */
+        $response ??= null;
+        if ($response instanceof ResponseInterface && $response->hasHeader(FrontendPipeline::FRONTEND_HEADER)) {
+            return;
         }
 
         if (!$gotFrame) {
