@@ -17,9 +17,13 @@
 
 <br />
 
-**Buggregator Trap** is a minified version of the [Buggregator Server](https://github.com/buggregator/server)
-in the form of a terminal application and a set of utilities to assist with debugging.
-The package is designed to enhance the debugging experience in conjunction with the Buggregator Server.
+**Trap** is a package designed to enhance the debugging experience in conjunction with the Buggregator Server.  
+Trap includes:
+
+- A set of functions for direct interaction with any Buggregator server.
+- Extensions for Symfony VarDumper that become active immediately after installing Trap.
+- A minimized version of the [Buggregator Server](https://github.com/buggregator/server) that does not require Docker
+  and is intended solely for local use.
 
 - [Installation](#installation)
 - [Overview](#overview)
@@ -42,6 +46,25 @@ composer require --dev buggregator/trap -W
 [![Total Downloads](https://img.shields.io/packagist/dt/buggregator/trap.svg?style=flat-square)](https://packagist.org/packages/buggregator/trap)
 
 And that's it. Trap is [ready to go](#usage).
+
+### Phar
+
+Sometimes your project may conflict with Trap's dependencies, or you might be interested in using only the local
+server (e.g., for analyzing local profiler files).
+In this case, consider installing Trap as a Phar (a self-contained PHP executable).
+Using wget:
+
+```bash
+wget https://github.com/buggregator/trap/releases/latest/download/trap.phar
+chmod +x trap.phar
+./trap.phar --version
+```
+
+Using [Phive](https://phar.io/):
+
+```bash
+phive install buggregator/trap
+```
 
 ## Overview
 
