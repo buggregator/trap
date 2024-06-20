@@ -42,4 +42,27 @@ final class Tables
             }
         })($data)])->render();
     }
+
+    /**
+     * @param array<array-key, array<array-key, scalar|null>> $data
+     * @param 'default'|'borderless'|'compact'|'symfony-style-guide'|'box'|'box-double' $style
+     */
+    public static function renderMultiColumnTable(
+        OutputInterface $output,
+        string $title,
+        array $data,
+        string $style = 'default',
+    ): void {
+        $table = (new Table($output))->setHeaderTitle($title);
+        if ($data === []) {
+            $table->setRows([['<fg=green> There is no data </>']])->render();
+            return;
+        }
+
+        $headers = \array_keys($data[0]);
+        $table->setHeaders($headers)
+            ->setStyle($style)
+            ->setRows($data)
+            ->render();
+    }
 }

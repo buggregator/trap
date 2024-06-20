@@ -128,9 +128,31 @@ final class StreamHelper
         return $request->withBody($stream);
     }
 
-    public static function createFileStream(): StreamInterface
+    /**
+     * @param array<non-empty-string|int, mixed> $readFilters filter name => filter options
+     * @param array<non-empty-string|int, mixed> $writeFilters filter name => filter options
+     *
+     * @psalm-suppress UnusedFunctionCall
+     */
+    public static function createFileStream(array $readFilters = [], array $writeFilters = []): StreamInterface
     {
-        return Stream::create(\fopen('php://temp/maxmemory:' . self::MAX_FILE_MEMORY_SIZE, 'w+b'));
+        $stream = \fopen('php://temp/maxmemory:' . self::MAX_FILE_MEMORY_SIZE, 'w+b');
+
+        /** @var mixed $options */
+        foreach ($readFilters as $filter => $options) {
+            \is_string($filter)
+                ? \stream_filter_append($stream, $filter, \STREAM_FILTER_READ, $options)
+                : \stream_filter_append($stream, (string) $options, \STREAM_FILTER_READ);
+        }
+
+        /** @var mixed $options */
+        foreach ($writeFilters as $filter => $options) {
+            \is_string($filter)
+                ? \stream_filter_append($stream, $filter, \STREAM_FILTER_WRITE, $options)
+                : \stream_filter_append($stream, (string) $options, \STREAM_FILTER_WRITE);
+        }
+
+        return Stream::create($stream);
     }
 
     /**

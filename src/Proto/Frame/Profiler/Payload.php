@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Proto\Frame\Profiler;
 
+use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Proto\Frame\Profiler\Type as PayloadType;
 
 /**
@@ -13,87 +14,71 @@ use Buggregator\Trap\Proto\Frame\Profiler\Type as PayloadType;
  *     filename?: non-empty-string,
  *     ...
  * }
- * @psalm-type Calls = array{
- *     edges: array,
- *     peaks: array
- * }
+ *
+ * @psalm-import-type ProfileData from Profile
  *
  * @internal
  * @psalm-internal Buggregator
  */
 final class Payload implements \JsonSerializable
 {
+    private ?Profile $profile = null;
+
     /**
      * @param PayloadType $type
-     * @param Metadata $metadata
-     * @param \Closure(): Calls $callsProvider
+     * @param \Closure(): Profile $callsProvider
      */
     private function __construct(
         public readonly PayloadType $type,
-        private array $metadata,
-        private \Closure $callsProvider,
-    ) {
-        $this->metadata['type'] = $type->value;
-    }
+        private readonly \Closure $callsProvider,
+    ) {}
 
     /**
      * @param PayloadType $type
-     * @param Metadata $metadata
-     * @param \Closure(): Calls $callsProvider
+     * @param \Closure(): Profile $callsProvider
      */
     public static function new(
         PayloadType $type,
-        array $metadata,
         \Closure $callsProvider,
     ): self {
-        return new self($type, $metadata, $callsProvider);
+        return new self($type, $callsProvider);
     }
 
     /**
-     * @param array{type: non-empty-string}&Calls&Metadata $data
-     * @param PayloadType|null $type
+     * @param array{type: non-empty-string}|ProfileData $data
      */
-    public static function fromArray(array $data, ?Type $type = null): static
+    public static function fromArray(array $data, ?PayloadType $type = null): static
     {
-        $metadata = $data;
-        unset($metadata['edges'], $metadata['peaks']);
+        /**
+         * @var \Closure(): Profile $provider
+         * @psalm-suppress all
+         */
+        $provider = static fn(): Profile => Profile::fromArray($data);
 
-        /** @var \Closure(): Calls $provider */
-        $provider = static fn(): array => $data;
+        /** @psalm-suppress all */
+        $type ??= PayloadType::from($data['type']);
 
         return new self(
-            $type ?? PayloadType::from($data['type']),
-            $metadata,
+            $type,
             $provider,
         );
     }
 
-    /**
-     * @return Calls
-     */
-    public function getCalls(): array
+    public function getProfile(): Profile
     {
-        return ($this->callsProvider)();
+        return $this->profile ??= ($this->callsProvider)();
     }
 
     /**
-     * @return Metadata
-     */
-    public function getMetadata(): array
-    {
-        return $this->metadata;
-    }
-
-    /**
-     * @return array{type: non-empty-string}&Calls&Metadata
+     * @return array{type: non-empty-string}|ProfileData
      */
     public function toArray(): array
     {
-        return ['type' => $this->type->value] + $this->getCalls() + $this->getMetadata();
+        return ['type' => $this->type->value] + $this->getProfile()->jsonSerialize();
     }
 
     /**
-     * @return array{type: non-empty-string}&Calls&Metadata
+     * @return array{type: non-empty-string}|ProfileData
      */
     public function jsonSerialize(): array
     {
