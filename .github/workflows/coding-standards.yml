@@ -4,9 +4,6 @@ on:  # yamllint disable-line rule:truthy
   pull_request:
     branches:
       - master
-  push:
-    branches:
-      - master
 
 name: 🧹 Fix PHP coding standards
 
@@ -26,7 +23,7 @@ jobs:
         with:
           configFile: ${{ github.workspace }}/.github/.commitlint.config.mjs
           failOnWarnings: false
-          failOnErrors: false
+          failOnErrors: true
           helpURL: 'https://github.com/conventional-changelog/commitlint/#what-is-commitlint'
 
   yaml-linting:
