@@ -25,11 +25,13 @@ Trap includes:
 - A minimized version of the [Buggregator Server](https://github.com/buggregator/server) that does not require Docker
   and is intended solely for local use.
 
-- [Installation](#installation)
-- [Overview](#overview)
-- [Usage](#usage)
-- [Contributing](#contributing)
-- [License](#license)
+**Table of content:**
+
+* [Installation](#installation)
+* [Overview](#overview)
+* [Usage](#usage)
+* [Contributing](#contributing)
+* [License](#license)
 
 ## Installation
 
