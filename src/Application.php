@@ -86,14 +86,14 @@ final class Application implements Processable, Cancellable, Destroyable
                 new Traffic\Dispatcher\VarDumper(),
                 new Traffic\Dispatcher\Http(
                     [
-                        $this->container->get(Sender\Frontend\Http\Pipeline::class),
+                        $this->container->get(Module\Frontend\Http\Pipeline::class),
                         $this->container->get(Middleware\Resources::class),
                         $this->container->get(Middleware\DebugPage::class),
                         $this->container->get(Middleware\RayRequestDump::class),
                         $this->container->get(Middleware\SentryTrap::class),
                         $this->container->get(Middleware\XHProfTrap::class),
                     ],
-                    [$this->container->get(Sender\Frontend\Http\RequestHandler::class)],
+                    [$this->container->get(Module\Frontend\Http\RequestHandler::class)],
                 ),
                 new Traffic\Dispatcher\Smtp(),
                 new Traffic\Dispatcher\Monolog(),
@@ -220,8 +220,8 @@ final class Application implements Processable, Cancellable, Destroyable
         // Separated port
         $inspector = $this->container->make(Inspector::class, [
             new Traffic\Dispatcher\Http(
-                [$this->container->get(Sender\Frontend\Http\Pipeline::class)],
-                [$this->container->get(Sender\Frontend\Http\RequestHandler::class)],
+                [$this->container->get(Module\Frontend\Http\Pipeline::class)],
+                [$this->container->get(Module\Frontend\Http\RequestHandler::class)],
                 silentMode: true,
             ),
         ]);

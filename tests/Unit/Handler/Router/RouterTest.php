@@ -19,8 +19,8 @@ class RouterTest extends TestCase
     public static function routedClassesProvider(): iterable
     {
         yield 'self' => [self::class];
-        yield 'Frontend Service' => [\Buggregator\Trap\Sender\Frontend\Service::class];
-        yield 'Frontend Event Assets' => [\Buggregator\Trap\Sender\Frontend\Http\EventAssets::class];
+        yield 'Frontend Service' => [\Buggregator\Trap\Module\Frontend\Service::class];
+        yield 'Frontend Event Assets' => [\Buggregator\Trap\Module\Frontend\Http\EventAssets::class];
     }
 
     #[StaticRoute(Method::Get, '/public-static-static-route')]

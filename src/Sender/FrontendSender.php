@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender;
 
 use Buggregator\Trap\Logger;
+use Buggregator\Trap\Module\Frontend;
 use Buggregator\Trap\Processable;
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Sender\Frontend\ConnectionPool;
 
 /**
  * @internal
@@ -15,7 +15,7 @@ use Buggregator\Trap\Sender\Frontend\ConnectionPool;
 final class FrontendSender implements \Buggregator\Trap\Sender, Processable
 {
     private function __construct(
-        private readonly ConnectionPool $connectionPool,
+        private readonly Frontend\ConnectionPool $connectionPool,
         private readonly Frontend\EventStorage $framesStorage,
         private readonly FrameHandler $handler,
     ) {}
@@ -45,7 +45,7 @@ final class FrontendSender implements \Buggregator\Trap\Sender, Processable
         }
     }
 
-    public function getConnectionPool(): ConnectionPool
+    public function getConnectionPool(): Frontend\ConnectionPool
     {
         return $this->connectionPool;
     }
