@@ -61,7 +61,7 @@ class RouterTest extends TestCase
                 $asserts,
             );
 
-            Router::assert($routes, $asserts);
+            Router::assert($method, $routes, $asserts);
             self::assertTrue(true, (string) $method . ' passed');
         }
     }
