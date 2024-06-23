@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.10.1 (2024-06-23)
+
+## What's Changed
+* Better HTTP/SMTP Multipart parsing by @roxblnfk in https://github.com/buggregator/trap/pull/128
+
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.10.0...1.10.1
+
 ## 1.10.0 (2024-06-20)
 
 ## What's Changed
