@@ -224,7 +224,7 @@ final class Http
         $contentType = $request->getHeaderLine('Content-Type');
         return match (true) {
             $contentType === 'application/x-www-form-urlencoded' => self::parseUrlEncodedBody($request),
-            \str_contains($contentType, 'multipart/form-data') => $this->processMultipartForm($request),
+            \str_contains($contentType, 'multipart/') => $this->processMultipartForm($request),
             default => $request,
         };
     }
