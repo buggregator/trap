@@ -27,11 +27,11 @@ Trap includes:
 
 **Table of content:**
 
-* [Installation](#installation)
-* [Overview](#overview)
-* [Usage](#usage)
-* [Contributing](#contributing)
-* [License](#license)
+- [Installation](#installation)
+- [Overview](#overview)
+- [Usage](#usage)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Installation
 

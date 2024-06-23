@@ -32,7 +32,7 @@ final class Smtp
         $message = Message\Smtp::create($protocol, headers: $headers);
 
         // Defaults
-        $boundary = "\r\n.\r\n";
+        $endOfStream = ["\r\n.\r\n"];
         $isMultipart = false;
 
         // Check the message is multipart.
@@ -41,10 +41,11 @@ final class Smtp
             && \preg_match('/boundary="?([^"\\s;]++)"?/', $contentType, $matches) === 1
         ) {
             $isMultipart = true;
-            $boundary = "\r\n--{$matches[1]}--\r\n\r\n";
+            $endOfStream = ["\r\n--{$matches[1]}--\r\n\r\n"];
+            $endOfStream[] = $endOfStream[0] . ".\r\n";
         }
 
-        $stored = $this->storeBody($fileStream, $stream, $boundary);
+        $stored = $this->storeBody($fileStream, $stream, $endOfStream);
         $message = $message->withBody($fileStream);
         // Message's body must be seeked to the beginning of the body.
         $fileStream->seek(-$stored, \SEEK_CUR);
@@ -62,16 +63,19 @@ final class Smtp
      * Flush stream data into PSR stream.
      * Note: there can be read more data than {@see $limit} bytes but write only {@see $limit} bytes.
      *
-     * @return int Number of bytes written to the stream.
+     * @param non-empty-array<non-empty-string> $endings
+     *
+     * @return int<0, max> Number of bytes written to the stream.
      */
     private function storeBody(
         StreamInterface $fileStream,
         StreamClient $stream,
-        string $end = "\r\n.\r\n",
+        array $endings = ["\r\n.\r\n"],
     ): int {
         $written = 0;
-        $endLen = \strlen($end);
+        $endLen = \min(\array_map('\strlen', $endings));
 
+        /** @var string $chunk */
         foreach ($stream->getIterator() as $chunk) {
             // Write chunk to the file stream.
             $fileStream->write($chunk);
@@ -83,8 +87,11 @@ final class Smtp
                     $fileStream->seek(-$endLen, \SEEK_CUR);
                     $chunk = $fileStream->read($endLen);
                 }
-                if (\str_ends_with($chunk, $end)) {
-                    return $written;
+
+                foreach ($endings as $end) {
+                    if (\str_ends_with($chunk, $end)) {
+                        return $written;
+                    }
                 }
             }
 

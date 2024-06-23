@@ -9,6 +9,7 @@ use Buggregator\Trap\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
 use Buggregator\Trap\Traffic\Message\Multipart\Part;
 use Buggregator\Trap\Traffic\Parser;
+use Buggregator\Trap\Traffic\Parser\MultipartType;
 use Nyholm\Psr7\Stream;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\StreamInterface;
@@ -159,6 +160,51 @@ final class MultipartBodyParserTest extends TestCase
         self::assertSame($file2, $file->getStream()->__toString());
     }
 
+    /**
+     * Simple multipart/mixed message without nested parts.
+     */
+    public function testMultipartMixed(): void
+    {
+        $body = $this->makeStream(
+            <<<BODY
+                --40ugHb8e\r
+                Content-Type: text/plain; charset=utf-8\r
+                Content-Transfer-Encoding: quoted-printable\r
+                \r
+                Test Body\r
+                --40ugHb8e\r
+                Content-Type: text/plain; name=test.txt\r
+                Content-Transfer-Encoding: base64\r
+                Content-Disposition: attachment; name=test.txt; filename=test.txt\r
+                \r
+                c2RnCg==\r
+                --40ugHb8e--\r
+                \r
+                .\r
+
+                BODY,
+        );
+
+        $result = $this->parse($body, '40ugHb8e', MultipartType::Mixed);
+
+
+        self::assertCount(2, $result);
+        // Field
+        $file = $result[0];
+        self::assertInstanceOf(Field::class, $file);
+        self::assertNull($file->getName());
+        self::assertSame('Test Body', $file->getValue());
+
+        // Attached file
+        $file = $result[1];
+        self::assertInstanceOf(File::class, $file);
+        self::assertSame('test.txt', $file->getName());
+        self::assertSame('test.txt', $file->getClientFilename());
+        self::assertSame('text/plain', $file->getClientMediaType());
+        self::assertNull($file->getEmbeddingId());
+        self::assertSame("sdg\n", $file->getStream()->__toString());
+    }
+
     private function makeStream(string $body): StreamInterface
     {
         $stream = Stream::create($body);
@@ -171,8 +217,11 @@ final class MultipartBodyParserTest extends TestCase
      *
      * @return iterable<Part>
      */
-    private function parse(StreamInterface $body, string $boundary): iterable
-    {
+    private function parse(
+        StreamInterface $body,
+        string $boundary,
+        MultipartType $type = MultipartType::FormData,
+    ): iterable {
         return $this->runInFiber(static fn() => Parser\Http::parseMultipartBody($body, $boundary));
     }
 }
