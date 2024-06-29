@@ -17,6 +17,6 @@ final class EventStorage
      * The maximum number of events that can be stored in the buffer.
      * @var int<1, max>
      */
-    #[XPath('/trap/frontend/EventStorage@maxEvents')]
+    #[XPath('/trap/frontend/EventStorage/@maxEvents')]
     public int $maxEvents = 200;
 }
