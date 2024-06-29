@@ -208,7 +208,7 @@ final class Application implements Processable, Cancellable, Destroyable
 
     public function configureFrontend(bool $separated): void
     {
-        $this->processors[] = $this->senders[] = $wsSender = Sender\FrontendSender::create($this->logger);
+        $this->processors[] = $this->senders[] = $wsSender = $this->container->get(Sender\FrontendSender::class);
         $this->container->set($wsSender);
         $this->container->set($wsSender->getEventStorage());
         $this->container->set($wsSender->getConnectionPool());

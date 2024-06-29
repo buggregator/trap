@@ -25,9 +25,8 @@ final class Router implements Middleware
 
     public function __construct(
         private readonly Logger $logger,
-        EventStorage $eventsStorage,
+        Service $service,
     ) {
-        $service = new Service($logger, $eventsStorage);
         $this->router = CommonRouter::new($service);
     }
 

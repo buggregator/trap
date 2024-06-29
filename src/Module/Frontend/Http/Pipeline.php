@@ -28,6 +28,7 @@ final class Pipeline implements Middleware
     public function __construct(
         Logger $logger,
         \Buggregator\Trap\Sender\FrontendSender $wsSender,
+        Router $router,
     ) {
         // Build pipeline of handlers.
         /** @var MiddlewaresPipeline<Middleware, ResponseInterface> */
@@ -36,7 +37,7 @@ final class Pipeline implements Middleware
                 new Cors(),
                 new StaticFiles(),
                 new EventAssets($logger, $wsSender->getEventStorage()),
-                new Router($logger, $wsSender->getEventStorage()),
+                $router,
             ],
             /** @see Middleware::handle() */
             'handle',

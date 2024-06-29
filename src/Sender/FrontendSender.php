@@ -14,25 +14,11 @@ use Buggregator\Trap\Proto\Frame;
  */
 final class FrontendSender implements \Buggregator\Trap\Sender, Processable
 {
-    private function __construct(
+    public function __construct(
         private readonly Frontend\ConnectionPool $connectionPool,
         private readonly Frontend\EventStorage $framesStorage,
-        private readonly FrameHandler $handler,
+        private readonly Frontend\FrameHandler $handler,
     ) {}
-
-    public static function create(
-        Logger $logger,
-        ?Frontend\ConnectionPool $connectionPool = null,
-        ?Frontend\EventStorage $eventStorage = null,
-    ): self {
-        $eventStorage ??= new Frontend\EventStorage();
-        $connectionPool ??= new Frontend\ConnectionPool($logger, new Frontend\RPC($logger, $eventStorage));
-        return new self(
-            $connectionPool,
-            $eventStorage,
-            new Frontend\FrameHandler($logger, $connectionPool, $eventStorage),
-        );
-    }
 
     /**
      * @param iterable<Frame> $frames
