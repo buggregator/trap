@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\Struct;
 
+use Buggregator\Trap\Support\Uuid;
+
 /**
  * @psalm-type Metadata = array{
  *     app_name?: string,
@@ -34,6 +36,9 @@ final class Profile implements \JsonSerializable
 
     public Tree $calls;
 
+    /** @var non-empty-string some leaked bs required for Frontend */
+    public string $uuid;
+
     /**
      * @param Metadata $metadata
      * @param array<non-empty-string, non-empty-string> $tags
@@ -46,6 +51,7 @@ final class Profile implements \JsonSerializable
         ?Tree $calls = null,
         ?Peaks $peaks = null,
     ) {
+        $this->uuid = Uuid::uuid4();
         $this->calls = $calls ?? new Tree();
         if ($peaks === null) {
             $this->peaks = new Peaks();
@@ -92,6 +98,7 @@ final class Profile implements \JsonSerializable
             'app_name' => $this->metadata['app_name'] ?? '',
             'hostname' => $this->metadata['hostname'] ?? '',
             'filename' => $this->metadata['filename'] ?? '',
+            'profile_uuid' => $this->uuid,
             'tags' => $this->tags,
             'peaks' => $this->peaks,
             'edges' => $edges,

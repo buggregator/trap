@@ -16,14 +16,19 @@ use Buggregator\Trap\Module\Frontend\Message\EventCollection;
 use Buggregator\Trap\Module\Frontend\Message\Settings;
 use Buggregator\Trap\Module\Frontend\Message\Success;
 use Buggregator\Trap\Module\Frontend\Message\Version;
+use Buggregator\Trap\Module\Frontend\Module\Profiler\ApiController;
+use Buggregator\Trap\Module\Frontend\Module\Profiler\Mapper;
 
 /**
  * @internal
  */
 final class Service
 {
+    use ApiController;
+
     public function __construct(
         private readonly Logger $logger,
+        private readonly Mapper $mapper,
         private readonly EventStorage $eventsStorage,
     ) {}
 
