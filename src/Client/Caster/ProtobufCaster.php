@@ -55,8 +55,10 @@ final class ProtobufCaster
 
     public static function cast(Message $c, array $a, Stub $stub, bool $isNested): array
     {
+        /** @var DescriptorPool $pool */
+        $pool = DescriptorPool::getGeneratedPool();
         /** @var PublicDescriptor|InternalDescriptor $descriptor */
-        $descriptor = DescriptorPool::getGeneratedPool()->getDescriptorByClassName($c::class);
+        $descriptor = $pool->getDescriptorByClassName($c::class);
 
         return self::castMessage($c, $descriptor);
     }

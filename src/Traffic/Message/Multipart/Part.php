@@ -28,10 +28,11 @@ abstract class Part implements \JsonSerializable
      */
     public static function create(array $headers): Part
     {
-        $contentDisposition = self::findHeader($headers, 'Content-Disposition')[0] ?? null;
+        $contentDisposition = self::findHeader($headers, 'Content-Disposition')[0] ?? '';
 
         $name = $fileName = null;
-        if ((string) $contentDisposition !== '') {
+
+        if ($contentDisposition !== '') {
             // Get field name and file name
             $name = \preg_match('/\bname=(?:(?<a>[^" ;,]++)|"(?<b>[^"]++)")/', $contentDisposition, $matches) === 1
                 ? ($matches['a'] ?: $matches['b'])

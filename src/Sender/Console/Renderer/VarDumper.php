@@ -32,26 +32,23 @@ final class VarDumper implements Renderer
     {
         \assert($frame instanceof Frame\VarDumper);
 
-        $payload = @\unserialize(\base64_decode($frame->dump), ['allowed_classes' => [Data::class, Stub::class]]);
+        /** @var array{Data, array}|false $payload */
+        $payload = @\unserialize(\base64_decode($frame->dump, true), ['allowed_classes' => [Data::class, Stub::class]]);
 
         // Impossible to decode the message, give up.
-        if ($payload === false) {
-            throw new \RuntimeException("Unable to decode a message.");
-        }
-
-        static $describer = null;
-        $describer ??= $this->getDescriber();
+        $payload === false and throw new \RuntimeException("Unable to decode the message.");
 
         [$data, $context] = $payload;
-
-        $describer->describe(new SymfonyStyle(new ArrayInput([]), $output), $data, $context, 0);
+        $this
+            ->getDescriber($output)
+            ->describe(new SymfonyStyle(new ArrayInput([]), $output), $data, $context, 0);
     }
 
-    private function getDescriber(): DumpDescriptorInterface
+    private function getDescriber(OutputInterface $output): DumpDescriptorInterface
     {
-        return new class() implements DumpDescriptorInterface {
+        return new class(new CliDumper($output)) implements DumpDescriptorInterface {
             public function __construct(
-                private CliDumper $dumper = new CliDumper(),
+                private readonly CliDumper $dumper,
             ) {}
 
             /**
@@ -72,8 +69,8 @@ final class VarDumper implements Renderer
                         \assert(\is_array($source));
 
                         $sourceInfo = \sprintf('%s:%d', $source['name'], $source['line']);
-                        if ($fileLink = $source['file_link'] ?? null) {
-                            $sourceInfo = \sprintf('<href=%s>%s</>', $fileLink, $sourceInfo);
+                        if (isset($source['file_link'])) {
+                            $sourceInfo = \sprintf('<href=%s>%s</>', $source['file_link'], $sourceInfo);
                             $meta['Source'] = $sourceInfo;
                         }
 

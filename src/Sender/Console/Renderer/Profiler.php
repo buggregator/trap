@@ -61,9 +61,9 @@ final class Profiler implements Renderer
         Tables::renderKeyValueTable($output, 'Peak values', [
             'Memory usage' => Measure::memory($peaks->mu),
             'Peak memory usage' => Measure::memory($peaks->pmu),
-            'Wall time' => $peaks->wt,
-            'CPU time' => $peaks->cpu,
-            'Calls count' => $peaks->ct,
+            'Wall time' => (string) $peaks->wt,
+            'CPU time' => (string) $peaks->cpu,
+            'Calls count' => (string) $peaks->ct,
         ]);
     }
 }

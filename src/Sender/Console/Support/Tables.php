@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Console\Support;
 
-use Buggregator\Trap\Support\Json;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Terminal;
@@ -15,6 +14,9 @@ use Symfony\Component\Console\Terminal;
  */
 final class Tables
 {
+    /**
+     * @param array<string, string> $data
+     */
     public static function renderKeyValueTable(OutputInterface $output, string $title, array $data): void
     {
         $table = (new Table($output))->setHeaderTitle($title);
@@ -27,10 +29,8 @@ final class Tables
         $valueLength = \max(1, (new Terminal())->getWidth() - 7 - $keyLength);
 
         $table->setRows([...(static function (array $data) use ($valueLength): iterable {
+            /** @var array<string, string> $data */
             foreach ($data as $key => $value) {
-                if (!\is_string($value)) {
-                    $value = Json::encode($value);
-                }
                 $values = \strlen($value) > $valueLength
                     ? \str_split($value, $valueLength)
                     : [$value];
