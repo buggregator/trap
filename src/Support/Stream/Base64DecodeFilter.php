@@ -52,7 +52,7 @@ final class Base64DecodeFilter extends \php_user_filter
             }
 
             // Decode part of the data
-            $bucket->data = \base64_decode($this->buffer . \substr($bucket->data, 0, -$d));
+            $bucket->data = \base64_decode($this->buffer . \substr($bucket->data, 0, -$d), true);
             $consumed += $bucket->datalen;
             $this->buffer = \substr($bucket->data, -$d);
 

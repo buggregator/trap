@@ -64,7 +64,8 @@ final class Exceptions
         if ($frames === []) {
             return;
         }
-        $getValue = static fn(array $frame, string $key, ?string $default = ''): string|int|float|bool|null =>
+
+        $getValue = static fn(array $frame, string $key, string $default = ''): string|int|float|bool =>
         isset($frame[$key]) && \is_scalar($frame[$key]) ? $frame[$key] : $default;
 
         $i = \count($frames) ;
@@ -80,7 +81,7 @@ final class Exceptions
             }
 
             $file = $getValue($frame, 'filename');
-            $line = $getValue($frame, 'lineno', null);
+            $line = $getValue($frame, 'lineno');
             $class = $getValue($frame, 'class');
             /** @psalm-suppress RiskyTruthyFalsyComparison */
             $class = empty($class) ? '' : $class . '::';
@@ -90,11 +91,11 @@ final class Exceptions
                 \sprintf(
                     "<fg=gray>%s</><fg=white;options=bold>%s<fg=yellow>%s</>\n%s<fg=yellow>%s</><fg=gray>%s()</>",
                     \str_pad("#$i", $numPad, ' '),
-                    $file,
-                    !$line ? '' : ":$line",
+                    (string) $file,
+                    $line !== '' ? ":$line": '',
                     \str_repeat(' ', $numPad),
                     $class,
-                    $function,
+                    (string) $function,
                 ),
             );
 

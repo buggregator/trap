@@ -92,11 +92,6 @@
       <code><![CDATA[\strpos($payload, '[')]]></code>
     </PossiblyFalseOperand>
   </file>
-  <file src="src/Sender/Console/Renderer/Binary.php">
-    <PossiblyNullOperand>
-      <code><![CDATA[Files::normalizeSize($size)]]></code>
-    </PossiblyNullOperand>
-  </file>
   <file src="src/Sender/Console/Renderer/Http.php">
     <MixedArgumentTypeCoercion>
       <code><![CDATA[$request->getCookieParams()]]></code>
@@ -113,11 +108,8 @@
     <ArgumentTypeCoercion>
       <code><![CDATA[$file]]></code>
       <code><![CDATA[$file]]></code>
-      <code><![CDATA[$function]]></code>
     </ArgumentTypeCoercion>
-    <MissingClosureReturnType>
-      <code><![CDATA[static fn() => $output->writeln(]]></code>
-    </MissingClosureReturnType>
+    <MissingClosureReturnType/>
     <MixedArgument>
       <code><![CDATA[$exception['type'] ?? 'Exception']]></code>
       <code><![CDATA[$exception['value']]]></code>
@@ -129,11 +121,6 @@
     <PossiblyInvalidArgument>
       <code><![CDATA[\str_replace('\\', '/', $file)]]></code>
     </PossiblyInvalidArgument>
-    <PossiblyNullArgument>
-      <code><![CDATA[$file]]></code>
-      <code><![CDATA[$file]]></code>
-      <code><![CDATA[$function]]></code>
-    </PossiblyNullArgument>
   </file>
   <file src="src/Sender/Console/Renderer/Sentry/Header.php">
     <MixedArgumentTypeCoercion>
@@ -161,37 +148,17 @@
     </MixedAssignment>
   </file>
   <file src="src/Sender/Console/Renderer/VarDumper.php">
-    <MixedArgument>
-      <code><![CDATA[$context]]></code>
-      <code><![CDATA[$data]]></code>
-    </MixedArgument>
-    <MixedArrayAccess>
-      <code><![CDATA[$context]]></code>
-      <code><![CDATA[$data]]></code>
-    </MixedArrayAccess>
     <MixedAssignment>
       <code><![CDATA[$controller]]></code>
-      <code><![CDATA[$describer]]></code>
-      <code><![CDATA[$fileLink]]></code>
       <code><![CDATA[$meta['Command']]]></code>
       <code><![CDATA[$meta['File']]]></code>
       <code><![CDATA[$meta['Method']]]></code>
       <code><![CDATA[$meta['URI']]]></code>
-      <code><![CDATA[$payload]]></code>
-      <code><![CDATA[[$data, $context]]]></code>
     </MixedAssignment>
-    <MixedMethodCall>
-      <code><![CDATA[describe]]></code>
-    </MixedMethodCall>
   </file>
   <file src="src/Sender/Console/Support/Common.php">
     <MixedAssignment>
       <code><![CDATA[$item]]></code>
-    </MixedAssignment>
-  </file>
-  <file src="src/Sender/Console/Support/Tables.php">
-    <MixedAssignment>
-      <code><![CDATA[$value]]></code>
     </MixedAssignment>
   </file>
   <file src="src/Sender/SocketSender.php">
@@ -218,8 +185,5 @@
       <code><![CDATA[$value]]></code>
       <code><![CDATA[$values[$fd->getName()]]]></code>
     </MixedAssignment>
-    <MixedMethodCall>
-      <code><![CDATA[getDescriptorByClassName]]></code>
-    </MixedMethodCall>
   </file>
 </files>

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Traffic\Parser;
 
+use Buggregator\Trap\Support\Stream\Base64DecodeFilter;
 use Buggregator\Trap\Support\StreamHelper;
 use Buggregator\Trap\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
@@ -111,7 +112,9 @@ final class Http
                     $writeFilters = [];
                     if ($part->hasHeader('Content-Transfer-Encoding')) {
                         $encoding = $part->getHeaderLine('Content-Transfer-Encoding');
-                        $encoding === 'base64' and $writeFilters[] = \Buggregator\Trap\Support\Stream\Base64DecodeFilter::FILTER_NAME;
+                        if ($encoding === 'base64') {
+                            $writeFilters[] = Base64DecodeFilter::FILTER_NAME;
+                        }
                     }
 
                     $fileStream = StreamHelper::createFileStream(writeFilters: $writeFilters);

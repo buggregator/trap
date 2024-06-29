@@ -15,6 +15,9 @@ use Symfony\Component\Console\Terminal;
  */
 final class Tables
 {
+    /**
+     * @param array<string, string> $data
+     */
     public static function renderKeyValueTable(OutputInterface $output, string $title, array $data): void
     {
         $table = (new Table($output))->setHeaderTitle($title);
@@ -27,10 +30,10 @@ final class Tables
         $valueLength = \max(1, (new Terminal())->getWidth() - 7 - $keyLength);
 
         $table->setRows([...(static function (array $data) use ($valueLength): iterable {
+            /**
+             * @var array<string, string> $data
+             */
             foreach ($data as $key => $value) {
-                if (!\is_string($value)) {
-                    $value = Json::encode($value);
-                }
                 $values = \strlen($value) > $valueLength
                     ? \str_split($value, $valueLength)
                     : [$value];
