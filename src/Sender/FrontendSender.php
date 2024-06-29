@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender;
 
-use Buggregator\Trap\Logger;
 use Buggregator\Trap\Module\Frontend;
 use Buggregator\Trap\Processable;
 use Buggregator\Trap\Proto\Frame;

@@ -131,6 +131,69 @@ final class Router
     }
 
     /**
+     * Convert query parameter to the specified type.
+     */
+    public static function convertQueryParam(
+        \ReflectionParameter $param,
+        array $params,
+    ): mixed {
+        $name = $param->getName();
+        $type = $param->getType();
+
+        $queryName = $queryParam->name ?? $name;
+        if (!isset($params[$queryName])) {
+            $param->isDefaultValueAvailable() or throw new \InvalidArgumentException(\sprintf(
+                'Query parameter `%s` is required.',
+                $queryName,
+            ));
+
+            return $param->getDefaultValue();
+        }
+
+        $value = $params[$queryName];
+        if ($type === null) {
+            return $value;
+        }
+
+        foreach (($type instanceof \ReflectionUnionType ? $type->getTypes() : [$type]) as $t) {
+            $typeString = \ltrim($t?->getName() ?? '', '?');
+            switch (true) {
+                case $typeString === 'mixed':
+                    return $value;
+                case $typeString === 'array':
+                    return (array) $value;
+                case $typeString === 'int':
+                    return (int) (\is_array($value)
+                        ? throw new \InvalidArgumentException(
+                            \sprintf(
+                                'Query parameter `%s` must be an integer, array given.',
+                                $queryName,
+                            ),
+                        )
+                        : $value);
+                case $typeString === 'string':
+                    return (string) (\is_array($value)
+                        ? throw new \InvalidArgumentException(
+                            \sprintf(
+                                'Query parameter `%s` must be a string, array given.',
+                                $queryName,
+                            ),
+                        )
+                        : $value);
+                default:
+                    continue 2;
+            }
+        }
+
+        throw new \InvalidArgumentException(\sprintf(
+            'Query parameter `%s` must be of type `%s`, `%s` given.',
+            $queryName,
+            $type,
+            \gettype($value),
+        ));
+    }
+
+    /**
      * Find a route for specified method and path.
      *
      * @param \ReflectionMethod|null $mock Mock method to use instead of the real one. The real method will be used
@@ -180,7 +243,7 @@ final class Router
                         $object,
                         \array_merge($args, \is_array($match) ? $match : []),
                         $get,
-                    )
+                    ),
                 ),
             };
         }
@@ -289,69 +352,6 @@ final class Router
         }
 
         return $filteredArgs;
-    }
-
-    /**
-     * Convert query parameter to the specified type.
-     */
-    public static function convertQueryParam(
-        \ReflectionParameter $param,
-        array $params,
-    ): mixed {
-        $name = $param->getName();
-        $type = $param->getType();
-
-        $queryName = $queryParam->name ?? $name;
-        if (!isset($params[$queryName])) {
-            $param->isDefaultValueAvailable() or throw new \InvalidArgumentException(\sprintf(
-                'Query parameter `%s` is required.',
-                $queryName,
-            ));
-
-            return $param->getDefaultValue();
-        }
-
-        $value = $params[$queryName];
-        if ($type === null) {
-            return $value;
-        }
-
-        foreach (($type instanceof \ReflectionUnionType ? $type->getTypes() : [$type]) as $t) {
-            $typeString = \ltrim($t?->getName() ?? '', '?');
-            switch (true) {
-                case $typeString === 'mixed':
-                    return $value;
-                case $typeString === 'array':
-                    return (array) $value;
-                case $typeString === 'int':
-                    return (int) (\is_array($value)
-                        ? throw new \InvalidArgumentException(
-                            \sprintf(
-                                'Query parameter `%s` must be an integer, array given.',
-                                $queryName,
-                            )
-                        )
-                        : $value);
-                case $typeString === 'string':
-                    return (string) (\is_array($value)
-                        ? throw new \InvalidArgumentException(
-                            \sprintf(
-                                'Query parameter `%s` must be a string, array given.',
-                                $queryName,
-                            )
-                        )
-                        : $value);
-                default:
-                    continue 2;
-            }
-        }
-
-        throw new \InvalidArgumentException(\sprintf(
-            'Query parameter `%s` must be of type `%s`, `%s` given.',
-            $queryName,
-            $type,
-            \gettype($value),
-        ));
     }
 
     private static function doNothing(mixed ...$args): array

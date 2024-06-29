@@ -8,7 +8,6 @@ use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Handler\Router\Method;
 use Buggregator\Trap\Handler\Router\Router as CommonRouter;
 use Buggregator\Trap\Logger;
-use Buggregator\Trap\Module\Frontend\EventStorage;
 use Buggregator\Trap\Module\Frontend\Service;
 use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\Response;

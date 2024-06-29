@@ -9,11 +9,21 @@ namespace Buggregator\Trap\Module\Frontend\Module\Profiler\Message;
  */
 final class TopFunctions implements \JsonSerializable
 {
+    /**
+     * @param list<TopFunctions\Func> $functions
+     */
     public function __construct(
+        private readonly array $functions,
+        private readonly \Buggregator\Trap\Module\Profiler\Struct\Peaks $overallTotals,
+        private readonly TopFunctions\Schema $schema,
     ) {}
 
     public function jsonSerialize(): array
     {
-        return [];
+        return [
+            'functions' => $this->functions,
+            'overall_totals' => $this->overallTotals,
+            'schema' => $this->schema,
+        ];
     }
 }

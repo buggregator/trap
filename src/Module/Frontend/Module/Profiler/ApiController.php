@@ -16,7 +16,9 @@ use Buggregator\Trap\Proto\Frame\Profiler\Payload as ProfilerPayload;
 trait ApiController
 {
     private readonly Mapper $mapper;
+
     private readonly Logger $logger;
+
     private readonly EventStorage $eventsStorage;
 
     #[RegexpRoute(Method::Get, '#^api/profiler/(?<uuid>[a-f0-9-]++)/top$#i')]
@@ -27,7 +29,7 @@ trait ApiController
             [
                 'uuid' => '0190402f-7eb2-7287-82a8-897a0091f58e',
                 'metric' => 'excl_wt',
-            ]
+            ],
         ),
     ]
     public function profilerTop(string $uuid, #[QueryParam] string $metric = ''): Message\TopFunctions
@@ -47,7 +49,7 @@ trait ApiController
         AssertSuccess(
             Method::Get,
             'api/profiler/0190402f-7eb2-7287-82a8-897a0091f58e/call-graph',
-            ['uuid' => '0190402f-7eb2-7287-82a8-897a0091f58e']
+            ['uuid' => '0190402f-7eb2-7287-82a8-897a0091f58e'],
         ),
     ]
     public function profilerCallGraph(string $uuid): Message\CallGraph
@@ -65,7 +67,7 @@ trait ApiController
         AssertSuccess(
             Method::Get,
             'api/profiler/0190402f-7eb2-7287-82a8-897a0091f58e/flame-chart',
-            ['uuid' => '0190402f-7eb2-7287-82a8-897a0091f58e']
+            ['uuid' => '0190402f-7eb2-7287-82a8-897a0091f58e'],
         ),
     ]
     public function profilerFlameChart(string $uuid): Message\FlameChart

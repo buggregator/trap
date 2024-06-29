@@ -34,6 +34,7 @@ final class Profile implements \JsonSerializable
 {
     public Peaks $peaks;
 
+    /** @var Tree<Edge> */
     public Tree $calls;
 
     /** @var non-empty-string some leaked bs required for Frontend */
@@ -42,7 +43,7 @@ final class Profile implements \JsonSerializable
     /**
      * @param Metadata $metadata
      * @param array<non-empty-string, non-empty-string> $tags
-     * @param Tree<Edge> $calls
+     * @param Tree<Edge>|null $calls
      */
     public function __construct(
         public \DateTimeInterface $date = new \DateTimeImmutable(),
