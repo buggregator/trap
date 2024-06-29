@@ -92,7 +92,7 @@ final class Exceptions
                     "<fg=gray>%s</><fg=white;options=bold>%s<fg=yellow>%s</>\n%s<fg=yellow>%s</><fg=gray>%s()</>",
                     \str_pad("#$i", $numPad, ' '),
                     (string) $file,
-                    $line !== '' ? ":$line": '',
+                    $line !== '' ? ":$line" : '',
                     \str_repeat(' ', $numPad),
                     $class,
                     (string) $function,

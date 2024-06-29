@@ -23,8 +23,6 @@ use Symfony\Component\VarDumper\Dumper\CliDumper;
  */
 final class VarDumper implements Renderer
 {
-    private static ?DumpDescriptorInterface $describer = null;
-
     public function isSupport(Frame $frame): bool
     {
         return $frame->type === ProtoType::VarDumper;
@@ -41,15 +39,16 @@ final class VarDumper implements Renderer
         $payload === false and throw new \RuntimeException("Unable to decode the message.");
 
         [$data, $context] = $payload;
-
-        self::$describer->describe(new SymfonyStyle(new ArrayInput([]), $output), $data, $context, 0);
+        $this
+            ->getDescriber($output)
+            ->describe(new SymfonyStyle(new ArrayInput([]), $output), $data, $context, 0);
     }
 
-    private function getDescriber(): DumpDescriptorInterface
+    private function getDescriber(OutputInterface $output): DumpDescriptorInterface
     {
-        return new class() implements DumpDescriptorInterface {
+        return new class(new CliDumper($output)) implements DumpDescriptorInterface {
             public function __construct(
-                private readonly CliDumper $dumper = new CliDumper(),
+                private readonly CliDumper $dumper,
             ) {}
 
             /**
