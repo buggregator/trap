@@ -34,17 +34,11 @@ final class VarDumper implements Renderer
     {
         \assert($frame instanceof Frame\VarDumper);
 
-        /**
-         * @var list{Data, array}|false $payload
-         */
-        $payload = @\unserialize(\base64_decode($frame->dump), ['allowed_classes' => [Data::class, Stub::class]]);
+        /** @var array{Data, array}|false $payload */
+        $payload = @\unserialize(\base64_decode($frame->dump, true), ['allowed_classes' => [Data::class, Stub::class]]);
 
         // Impossible to decode the message, give up.
-        if ($payload === false) {
-            throw new \RuntimeException("Unable to decode a message.");
-        }
-
-        self::$describer ??= $this->getDescriber();
+        $payload === false and throw new \RuntimeException("Unable to decode the message.");
 
         [$data, $context] = $payload;
 

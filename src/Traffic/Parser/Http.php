@@ -112,9 +112,7 @@ final class Http
                     $writeFilters = [];
                     if ($part->hasHeader('Content-Transfer-Encoding')) {
                         $encoding = $part->getHeaderLine('Content-Transfer-Encoding');
-                        if ($encoding === 'base64') {
-                            $writeFilters[] = Base64DecodeFilter::FILTER_NAME;
-                        }
+                        $encoding === 'base64' and $writeFilters[] = Base64DecodeFilter::FILTER_NAME;
                     }
 
                     $fileStream = StreamHelper::createFileStream(writeFilters: $writeFilters);

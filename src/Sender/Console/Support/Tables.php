@@ -30,9 +30,7 @@ final class Tables
         $valueLength = \max(1, (new Terminal())->getWidth() - 7 - $keyLength);
 
         $table->setRows([...(static function (array $data) use ($valueLength): iterable {
-            /**
-             * @var array<string, string> $data
-             */
+            /** @var array<string, string> $data */
             foreach ($data as $key => $value) {
                 $values = \strlen($value) > $valueLength
                     ? \str_split($value, $valueLength)
