@@ -55,6 +55,6 @@ final class TraceCaster
 
         $line['type'] ??= "::";
 
-        return \sprintf('%s%s%s()', $line['class'], $line['type'], $line['function']);
+        return "{$line['class']}{$line['type']}{$line['function']}()";
     }
 }

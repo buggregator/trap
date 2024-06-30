@@ -6,6 +6,7 @@ use Rector\CodeQuality\Rector\ClassMethod\InlineArrayReturnAssignRector;
 use Rector\CodeQuality\Rector\Expression\InlineIfToExplicitIfRector;
 use Rector\CodeQuality\Rector\Identical\FlipTypeControlToUseExclusiveTypeRector;
 use Rector\CodeQuality\Rector\LogicalAnd\LogicalToBooleanRector;
+use Rector\CodingStyle\Rector\Encapsed\EncapsedStringsToSprintfRector;
 use Rector\CodingStyle\Rector\PostInc\PostIncDecToPreIncDecRector;
 use Rector\Config\RectorConfig;
 use Rector\Php81\Rector\FuncCall\NullToStrictStringFuncCallArgRector;
@@ -25,7 +26,7 @@ return RectorConfig::configure()
         __DIR__ . '/phpstan-baseline.neon',
     ])
     ->withImportNames(importNames: true, importDocBlockNames: true, importShortClasses: false, removeUnusedImports: true)
-    ->withPhpVersion(PhpVersion::PHP_82)
+    ->withPhpVersion(PhpVersion::PHP_81)
     ->withPhpSets(php81: true)
     ->withPreparedSets(
         deadCode: false,
@@ -37,7 +38,7 @@ return RectorConfig::configure()
         instanceOf: true,
         earlyReturn: true,
         strictBooleans: true,
-        carbon: true,
+        carbon: false,
         rectorPreset: true,
     )->withSkip([
         InlineArrayReturnAssignRector::class,
@@ -48,4 +49,5 @@ return RectorConfig::configure()
         FlipTypeControlToUseExclusiveTypeRector::class,
         DisallowedEmptyRuleFixerRector::class,
         NullToStrictStringFuncCallArgRector::class,
+        EncapsedStringsToSprintfRector::class,
     ]);
