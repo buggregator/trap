@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Client\TrapHandle;
 
+use Buggregator\Trap\Client\TrapHandle\ContextProvider\Source;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Debug\FileLinkFormatter;
@@ -92,7 +93,7 @@ final class Dumper
                 $dumper = new CliDumper();
                 break;
             case $format === 'server':
-            case $format && \parse_url($format, \PHP_URL_SCHEME) === 'tcp':
+            case $format && \parse_url((string) $format, \PHP_URL_SCHEME) === 'tcp':
                 $host = $format === 'server' ? $_SERVER['VAR_DUMPER_SERVER'] ?? '127.0.0.1:9912' : $format;
                 $dumper = \in_array(\PHP_SAPI, ['cli', 'phpdbg'], true) ? new CliDumper() : new HtmlDumper();
                 $dumper = new ServerDumper($host, $dumper, self::getContextProviders());
@@ -132,7 +133,7 @@ final class Dumper
 
         return $contextProviders + [
             'cli' => new CliContextProvider(),
-            'source' => new ContextProvider\Source(null, null, $fileLinkFormatter),
+            'source' => new Source(null, null, $fileLinkFormatter),
         ];
     }
 }
