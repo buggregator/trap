@@ -23,7 +23,7 @@ final class TrapHandle
 
     private int $depth = 0;
 
-    private StaticState $staticState;
+    private readonly StaticState $staticState;
 
     private function __construct(
         private array $values,
@@ -139,7 +139,7 @@ final class TrapHandle
      */
     public function return(int|string $key = 0): mixed
     {
-        if (\count($this->values) === 0) {
+        if ($this->values === []) {
             throw new \InvalidArgumentException('No values to return.');
         }
 
@@ -176,8 +176,6 @@ final class TrapHandle
      * ```php
      * trap()->context(['foo bar', => 42, 'baz' => 69]);
      * ```
-     *
-     * @param mixed ...$values
      */
     public function context(mixed ...$values): self
     {

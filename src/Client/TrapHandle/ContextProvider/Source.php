@@ -27,24 +27,10 @@ use Twig\Template;
  */
 final class Source implements ContextProviderInterface
 {
-    private int $limit;
-
-    private ?string $charset;
-
-    private ?string $projectDir;
-
-    private ?FileLinkFormatter $fileLinkFormatter;
-
     /**
      * @psalm-suppress UndefinedClass
      */
-    public function __construct(string $charset = null, string $projectDir = null, FileLinkFormatter $fileLinkFormatter = null, int $limit = 9)
-    {
-        $this->charset = $charset;
-        $this->projectDir = $projectDir;
-        $this->fileLinkFormatter = $fileLinkFormatter;
-        $this->limit = $limit;
-    }
+    public function __construct(private readonly ?string $charset = null, private ?string $projectDir = null, private readonly ?FileLinkFormatter $fileLinkFormatter = null, private readonly int $limit = 9) {}
 
     public function getContext(): ?array
     {
@@ -80,7 +66,7 @@ final class Source implements ContextProviderInterface
                             $file = \method_exists($template, 'getSourceContext') ? $template->getSourceContext()->getPath() : null;
 
                             if ($src) {
-                                $src = \explode("\n", $src);
+                                $src = \explode("\n", (string) $src);
                                 $fileExcerpt = [];
 
                                 for ($i = \max($line - 3, 1), $max = \min($line + 3, \count($src)); $i <= $max; ++$i) {
@@ -90,9 +76,11 @@ final class Source implements ContextProviderInterface
                                 $fileExcerpt = '<ol start="' . \max($line - 3, 1) . '">' . \implode("\n", $fileExcerpt) . '</ol>';
                             }
                         }
+
                         break;
                     }
                 }
+
                 break;
             }
         }
@@ -107,8 +95,8 @@ final class Source implements ContextProviderInterface
 
         if ($this->projectDir !== null) {
             $context['project_dir'] = $this->projectDir;
-            if (\str_starts_with($file, $this->projectDir)) {
-                $context['file_relative'] = \ltrim(\substr($file, \strlen($this->projectDir)), \DIRECTORY_SEPARATOR);
+            if (\str_starts_with((string) $file, $this->projectDir)) {
+                $context['file_relative'] = \ltrim(\substr((string) $file, \strlen($this->projectDir)), \DIRECTORY_SEPARATOR);
             }
         }
 
@@ -123,7 +111,7 @@ final class Source implements ContextProviderInterface
     {
         $html = '';
 
-        $dumper = new HtmlDumper(static function ($line) use (&$html): void { $html .= $line; }, $this->charset);
+        $dumper = new HtmlDumper(static function (string $line) use (&$html): void { $html .= $line; }, $this->charset);
         $dumper->setDumpHeader('');
         $dumper->setDumpBoundaries('', '');
 

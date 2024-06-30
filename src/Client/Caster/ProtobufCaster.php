@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Client\Caster;
 
+use Google\Protobuf\Internal\FieldDescriptor;
+use Google\Protobuf\Internal\EnumDescriptor;
+use Google\Protobuf\Internal\EnumValueDescriptorProto;
 use Google\Protobuf\Descriptor as PublicDescriptor;
 use Google\Protobuf\Internal\Descriptor as InternalDescriptor;
 use Google\Protobuf\Internal\DescriptorPool;
@@ -118,7 +121,7 @@ final class ProtobufCaster
         $values = [];
 
         for ($i = 0; $i < $pub->getFieldCount(); $i++) {
-            /** @var \Google\Protobuf\Internal\FieldDescriptor $fd */
+            /** @var FieldDescriptor $fd */
             $fd = $descriptor->getFieldByIndex($i);
             $value = $message->{$fd->getGetter()}();
 
@@ -150,9 +153,9 @@ final class ProtobufCaster
 
             // Wrap ENUM
             if ($fd->getType() === GPBType::ENUM) {
-                /** @var \Google\Protobuf\Internal\EnumDescriptor $ed */
+                /** @var EnumDescriptor $ed */
                 $ed = $fd->getEnumType();
-                /** @var \Google\Protobuf\Internal\EnumValueDescriptorProto $v */
+                /** @var EnumValueDescriptorProto $v */
                 $v = $ed->getValueByNumber($value);
 
                 $values[$fd->getName()] = new EnumValue(
