@@ -8,6 +8,7 @@ use Rector\CodeQuality\Rector\Identical\FlipTypeControlToUseExclusiveTypeRector;
 use Rector\CodeQuality\Rector\LogicalAnd\LogicalToBooleanRector;
 use Rector\CodingStyle\Rector\PostInc\PostIncDecToPreIncDecRector;
 use Rector\Config\RectorConfig;
+use Rector\Php81\Rector\FuncCall\NullToStrictStringFuncCallArgRector;
 use Rector\Strict\Rector\Empty_\DisallowedEmptyRuleFixerRector;
 use Rector\TypeDeclaration\Rector\BooleanAnd\BinaryOpNullableToInstanceofRector;
 use Rector\ValueObject\PhpVersion;
@@ -46,4 +47,5 @@ return RectorConfig::configure()
         BinaryOpNullableToInstanceofRector::class,
         FlipTypeControlToUseExclusiveTypeRector::class,
         DisallowedEmptyRuleFixerRector::class,
+        NullToStrictStringFuncCallArgRector::class,
     ]);

@@ -93,7 +93,7 @@ final class Dumper
                 $dumper = new CliDumper();
                 break;
             case $format === 'server':
-            case $format && \parse_url((string) $format, \PHP_URL_SCHEME) === 'tcp':
+            case $format && \parse_url($format, \PHP_URL_SCHEME) === 'tcp':
                 $host = $format === 'server' ? $_SERVER['VAR_DUMPER_SERVER'] ?? '127.0.0.1:9912' : $format;
                 $dumper = \in_array(\PHP_SAPI, ['cli', 'phpdbg'], true) ? new CliDumper() : new HtmlDumper();
                 $dumper = new ServerDumper($host, $dumper, self::getContextProviders());
