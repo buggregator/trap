@@ -48,7 +48,7 @@ final class Mapper
                 'mu' => static fn(Branch $a, Branch $b): int => $b->item->cost->mu <=> $a->item->cost->mu,
                 'pmu' => static fn(Branch $a, Branch $b): int => $b->item->cost->pmu <=> $a->item->cost->pmu,
                 default => static fn(Branch $a, Branch $b): int => $b->item->cost->wt <=> $a->item->cost->wt,
-            }
+            },
         );
 
         foreach ($topBranches as $branch) {

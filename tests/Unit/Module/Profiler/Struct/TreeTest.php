@@ -32,14 +32,14 @@ class TreeTest extends TestCase
             static fn(Edge $edge) => $edge->caller,
         );
 
-        $result = $tree->top($top, static fn(Branch $a,Branch $b) => $b->item->cost->wt <=> $a->item->cost->wt);
+        $result = $tree->top($top, static fn(Branch $a, Branch $b) => $b->item->cost->wt <=> $a->item->cost->wt);
 
         self::assertCount(\min($top, \count($edges)), $result);
 
-        $topUnoptimized = \array_map(static fn (Edge $e) => $e->cost->wt, $edges);
+        $topUnoptimized = \array_map(static fn(Edge $e) => $e->cost->wt, $edges);
         \rsort($topUnoptimized);
         $topUnoptimized = \array_slice($topUnoptimized, 0, $top);
-        $topVals = \array_map(static fn (Branch $b) => $b->item->cost->wt, $result);
+        $topVals = \array_map(static fn(Branch $b) => $b->item->cost->wt, $result);
         self::assertSame($topUnoptimized, $topVals);
     }
 
@@ -53,9 +53,10 @@ class TreeTest extends TestCase
         for ($i = 0; $i < $multiplier; $i++) {
             for ($j = 0; $j <= $i; $j++) {
                 $result[] = new Edge(
-                    $i === 0 ? null : 'item-' . ($i - 1) . "-$j", "item-$i-$j",
+                    $i === 0 ? null : 'item-' . ($i - 1) . "-$j",
+                    "item-$i-$j",
                     new Cost(
-                        ct: (int) $i**$i,
+                        ct: (int) $i ** $i,
                         wt: ($multiplier - $i) * 1000 + $j,
                         cpu: ($multiplier - $i) * 10,
                         mu: (int) $i * 1000,

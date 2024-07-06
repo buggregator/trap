@@ -59,7 +59,7 @@ trait ApiController
         string $uuid,
         #[QueryParam] float $threshold = 1,
         #[QueryParam] float $percentage = 15,
-        #[QueryParam] string $metric = 'wt'
+        #[QueryParam] string $metric = 'wt',
     ): Message\CallGraph {
         $event = $this->eventsStorage->get($uuid) ?? throw new \RuntimeException('Event not found.');
 
