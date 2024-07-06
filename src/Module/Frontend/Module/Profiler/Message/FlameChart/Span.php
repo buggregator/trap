@@ -20,22 +20,20 @@ final class Span implements \JsonSerializable
         public readonly float $duration,
         public readonly Cost $cost,
         public readonly string $type = 'task',
-        public readonly string $color = '#000000',
+        public readonly string $color = '#aaaaaa',
         public array $children = [],
     ) {}
 
     public function jsonSerialize(): array
     {
         return [
-            'data' => [
-                'name' => $this->name,
-                'start' => $this->start,
-                'duration' => $this->duration,
-                'cost' => $this->cost,
-                'type' => $this->type,
-                'color' => $this->color,
-                'children' => $this->children,
-            ],
+            'name' => $this->name,
+            'start' => $this->start,
+            'duration' => $this->duration,
+            'cost' => $this->cost,
+            'type' => $this->type,
+            'color' => $this->color,
+            'children' => $this->children,
         ];
     }
 }

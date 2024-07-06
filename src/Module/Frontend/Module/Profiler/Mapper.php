@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend\Module\Profiler;
 
-use Buggregator\Trap\Handler\Router\Attribute\QueryParam;
 use Buggregator\Trap\Module\Frontend\Event;
 use Buggregator\Trap\Module\Frontend\Module\Profiler\Message\CallGraph;
 use Buggregator\Trap\Module\Frontend\Module\Profiler\Message\FlameChart;
 use Buggregator\Trap\Module\Frontend\Module\Profiler\Message\TopFunctions;
 use Buggregator\Trap\Module\Profiler\Struct\Branch;
+use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Proto\Frame\Profiler\Payload as ProfilerPayload;
 
 /**
@@ -146,6 +146,36 @@ final class Mapper
      */
     public function flameChart(Event $event): FlameChart
     {
-        return new FlameChart();
+        $profile = $event->payload->getProfile();
+        /** @var Branch<Edge> $r */
+        $r = \reset($profile->calls->root);
+        $root = new FlameChart\Span(
+            name: $r->item->callee,
+            start: 0,
+            duration: $r->item->cost->wt / 1000,
+            cost: $r->item->cost,
+        );
+        /** @var array<array{Branch<Edge>, FlameChart\Span}> $queue */
+        $queue = [[$r, $root]];
+
+        /** @var array{Branch<Edge>, FlameChart\Span} $item */
+        while ($item = \array_shift($queue)) {
+            [$branch, $span] = $item;
+            $s = $span->start;
+            foreach ($branch->children as $child) {
+                $d = $child->item->cost->wt / 1000;
+                $childSpan = new FlameChart\Span(
+                    name: $child->item->callee,
+                    start: $s,
+                    duration: $d,
+                    cost: $child->item->cost,
+                );
+                $s += $d;
+                $span->children[] = $childSpan;
+                $queue[] = [$child, $childSpan];
+            }
+        }
+
+        return new FlameChart($root);
     }
 }

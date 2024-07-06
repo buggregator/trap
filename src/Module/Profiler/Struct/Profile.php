@@ -90,10 +90,6 @@ final class Profile implements \JsonSerializable
      */
     public function jsonSerialize(): array
     {
-        /** @var array<non-empty-string, array> $edges */
-        $edges = \iterator_to_array($this->calls->getItemsSortedV1(
-            static fn(Branch $a, Branch $b): int => $b->item->cost->wt <=> $a->item->cost->wt,
-        ));
         return [
             'date' => $this->date->getTimestamp(),
             'app_name' => $this->metadata['app_name'] ?? '',
@@ -102,7 +98,6 @@ final class Profile implements \JsonSerializable
             'profile_uuid' => $this->uuid,
             'tags' => $this->tags,
             'peaks' => $this->peaks,
-            'edges' => $edges,
             'total_edges' => $this->calls->count(),
         ];
     }
