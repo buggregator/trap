@@ -32,7 +32,7 @@ trait ApiController
             ],
         ),
     ]
-    public function profilerTop(string $uuid, #[QueryParam] string $metric = ''): Message\TopFunctions
+    public function profilerTop(string $uuid, #[QueryParam] string $metric = 'wt'): Message\TopFunctions
     {
         $event = $this->eventsStorage->get($uuid) ?? throw new \RuntimeException('Event not found.');
 
@@ -66,7 +66,7 @@ trait ApiController
         $event?->payload instanceof ProfilerPayload or throw new \RuntimeException('Invalid payload type.');
         /** @var Event<ProfilerPayload> $event */
 
-        return $this->mapper->callGraph($event);
+        return $this->mapper->callGraph($event, $threshold, $percentage, $metric);
     }
 
     #[RegexpRoute(Method::Get, '#^api/profiler/(?<uuid>[a-f0-9-]++)/flame-chart$#i')]

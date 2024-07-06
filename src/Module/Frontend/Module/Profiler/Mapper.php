@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend\Module\Profiler;
 
+use Buggregator\Trap\Handler\Router\Attribute\QueryParam;
 use Buggregator\Trap\Module\Frontend\Event;
 use Buggregator\Trap\Module\Frontend\Module\Profiler\Message\CallGraph;
 use Buggregator\Trap\Module\Frontend\Module\Profiler\Message\FlameChart;
@@ -122,9 +123,22 @@ final class Mapper
     /**
      * @param Event<ProfilerPayload> $event
      */
-    public function callGraph(Event $event): CallGraph
-    {
-        return new CallGraph();
+    public function callGraph(
+        Event $event,
+        float $threshold = 1,
+        float $percentage = 15,
+        string $metric = 'wt',
+    ): CallGraph {
+        return new CallGraph(
+            toolbar: new CallGraph\Toolbar([
+                new CallGraph\Button('CPU', 'cpu', 'CPU time (ms)'),
+                new CallGraph\Button('Wall time', 'wt', 'Wall time (ms)'),
+                new CallGraph\Button('Memory', 'mu', 'Memory usage (bytes)'),
+                new CallGraph\Button('Peak memory', 'pmu', 'Peak memory usage (bytes)'),
+            ]),
+            nodes: [],
+            edges: [],
+        );
     }
 
     /**
