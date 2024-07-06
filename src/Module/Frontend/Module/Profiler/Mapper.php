@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Frontend\Event;
 use Buggregator\Trap\Module\Frontend\Module\Profiler\Message\CallGraph;
 use Buggregator\Trap\Module\Frontend\Module\Profiler\Message\FlameChart;
 use Buggregator\Trap\Module\Frontend\Module\Profiler\Message\TopFunctions;
+use Buggregator\Trap\Module\Profiler\Struct\Branch;
 use Buggregator\Trap\Proto\Frame\Profiler\Payload as ProfilerPayload;
 
 /**
@@ -38,8 +39,18 @@ final class Mapper
 
         // Get top
         $top = [];
-        foreach ($profile->calls->all as $branch) {
-            // todo: limit with 100 and sort
+        $topBranches = $profile->calls->top(
+            100,
+            match ($metric) {
+                'ct' => static fn(Branch $a, Branch $b): int => $b->item->cost->ct <=> $a->item->cost->ct,
+                'cpu' => static fn(Branch $a, Branch $b): int => $b->item->cost->cpu <=> $a->item->cost->cpu,
+                'mu' => static fn(Branch $a, Branch $b): int => $b->item->cost->mu <=> $a->item->cost->mu,
+                'pmu' => static fn(Branch $a, Branch $b): int => $b->item->cost->pmu <=> $a->item->cost->pmu,
+                default => static fn(Branch $a, Branch $b): int => $b->item->cost->wt <=> $a->item->cost->wt,
+            }
+        );
+
+        foreach ($topBranches as $branch) {
             $top[] = TopFunctions\Func::fromEdge($branch->item);
         }
 
