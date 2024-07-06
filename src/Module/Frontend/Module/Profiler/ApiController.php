@@ -46,12 +46,21 @@ trait ApiController
     #[
         AssertSuccess(
             Method::Get,
-            'api/profiler/0190402f-7eb2-7287-82a8-897a0091f58e/call-graph',
-            ['uuid' => '0190402f-7eb2-7287-82a8-897a0091f58e'],
+            'api/profiler/0190402f-7eb2-7287-82a8-897a0091f58e/call-graph?threshold=1.1&percentage=15.1&metric=wt',
+            [
+                'uuid' => '0190402f-7eb2-7287-82a8-897a0091f58e',
+                'threshold' => 1.1,
+                'percentage' => 15.1,
+                'metric' => 'wt',
+            ],
         ),
     ]
-    public function profilerCallGraph(string $uuid): Message\CallGraph
-    {
+    public function profilerCallGraph(
+        string $uuid,
+        #[QueryParam] float $threshold = 1,
+        #[QueryParam] float $percentage = 15,
+        #[QueryParam] string $metric = 'wt'
+    ): Message\CallGraph {
         $event = $this->eventsStorage->get($uuid) ?? throw new \RuntimeException('Event not found.');
 
         $event?->payload instanceof ProfilerPayload or throw new \RuntimeException('Invalid payload type.');

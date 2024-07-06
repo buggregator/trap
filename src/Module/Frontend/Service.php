@@ -90,7 +90,7 @@ final class Service
 
     #[StaticRoute(Method::Delete, 'api/events')]
     #[
-        AssertFail(Method::Delete, '/api/events'),
+        AssertSuccess(Method::Delete, '/api/events'),
         AssertFail(Method::Delete, 'api/events/'),
         AssertFail(Method::Delete, 'api/event'),
     ]
@@ -117,9 +117,9 @@ final class Service
 
     #[StaticRoute(Method::Get, 'api/events')]
     #[
+        AssertSuccess(Method::Get, '/api/events'),
         AssertFail(Method::Get, 'api/event'),
         AssertFail(Method::Post, 'api/events'),
-        AssertFail(Method::Get, '/api/events'),
     ]
     public function eventsList(): EventCollection
     {
@@ -131,7 +131,7 @@ final class Service
     #[
         AssertFail(Method::Get, 'api/setting'),
         AssertFail(Method::Post, 'api/settings'),
-        AssertFail(Method::Get, '/api/settings'),
+        AssertSuccess(Method::Get, '/api/settings'),
     ]
     public function settings(): Settings
     {

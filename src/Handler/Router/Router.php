@@ -171,6 +171,15 @@ final class Router
                             ),
                         )
                         : $value);
+                case $typeString === 'float':
+                    return (float) (\is_array($value)
+                        ? throw new \InvalidArgumentException(
+                            \sprintf(
+                                'Query parameter `%s` must be an integer, array given.',
+                                $queryName,
+                            ),
+                        )
+                        : $value);
                 case $typeString === 'string':
                     return (string) (\is_array($value)
                         ? throw new \InvalidArgumentException(
