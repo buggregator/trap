@@ -36,12 +36,10 @@ trait ApiController
     {
         $event = $this->eventsStorage->get($uuid) ?? throw new \RuntimeException('Event not found.');
 
-        \error_log($metric);
-
         $event->payload instanceof ProfilerPayload or throw new \RuntimeException('Invalid payload type.');
         /** @var Event<ProfilerPayload> $event */
 
-        return $this->mapper->topFunctions($event);
+        return $this->mapper->topFunctions($event, $metric);
     }
 
     #[RegexpRoute(Method::Get, '#^api/profiler/(?<uuid>[a-f0-9-]++)/call-graph$#i')]

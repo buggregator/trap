@@ -206,7 +206,7 @@ final class Router
     public function match(Method $method, string $uri, ?\ReflectionMethod $mock = null): ?callable
     {
         $components = \parse_url($uri);
-        $path = $components['path'] ?? '';
+        $path = \ltrim($components['path'] ?? '', '/');
         $query = $components['query'] ?? '';
 
         foreach ($this->routes[$method->value] as $route) {

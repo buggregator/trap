@@ -35,10 +35,9 @@ final class EventAssets implements Middleware
 
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
-        $path = \trim($request->getUri()->getPath(), '/');
         $method = $request->getMethod();
 
-        $handler = $this->router->match(Method::fromString($method), $path);
+        $handler = $this->router->match(Method::fromString($method), (string) $request->getUri());
 
         if ($handler === null) {
             return $next($request);

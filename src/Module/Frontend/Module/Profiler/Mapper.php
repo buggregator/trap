@@ -32,7 +32,7 @@ final class Mapper
     /**
      * @param Event<ProfilerPayload> $event
      */
-    public function topFunctions(Event $event): TopFunctions
+    public function topFunctions(Event $event, string $metric): TopFunctions
     {
         $profile = $event->payload->getProfile();
 
