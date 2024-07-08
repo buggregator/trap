@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Client\TrapHandle;
 
-use Buggregator\Trap\Client\TrapHandle\ContextProvider\Source;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Debug\FileLinkFormatter;
@@ -133,7 +132,7 @@ final class Dumper
 
         return $contextProviders + [
             'cli' => new CliContextProvider(),
-            'source' => new Source(null, null, $fileLinkFormatter),
+            'source' => new ContextProvider\Source(null, null, $fileLinkFormatter),
         ];
     }
 }

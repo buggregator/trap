@@ -26,7 +26,7 @@ return RectorConfig::configure()
     ->withPHPStanConfigs([
         __DIR__ . '/phpstan-baseline.neon',
     ])
-    ->withImportNames(importNames: true, importDocBlockNames: true, importShortClasses: false, removeUnusedImports: true)
+    ->withImportNames(importNames: false, importDocBlockNames: true, importShortClasses: false, removeUnusedImports: true)
     ->withPhpVersion(PhpVersion::PHP_81)
     ->withPhpSets(php81: true)
     ->withPreparedSets(
