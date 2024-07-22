@@ -14,7 +14,7 @@ $config = ConfigBuilder::createFromRuleSet(new ExtendedPERSet())
     ->exclude([
         __DIR__ . '/src/Test/Proto',
     ])
-    ->addFiles([__FILE__])
+    ->addFiles([__FILE__, __DIR__ . '/rector.php'])
     ->getConfig();
 
 $config->setCacheFile(__DIR__ . '/.build/php-cs-fixer/php-cs-fixer.cache');

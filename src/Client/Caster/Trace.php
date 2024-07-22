@@ -10,7 +10,7 @@ namespace Buggregator\Trap\Client\Caster;
  * @see tr()
  * @internal
  */
-final class Trace
+final class Trace implements \Stringable
 {
     /**
      * @param int<0, max> $number The tick number.

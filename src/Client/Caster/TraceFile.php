@@ -7,7 +7,7 @@ namespace Buggregator\Trap\Client\Caster;
 /**
  * @internal
  */
-final class TraceFile
+final class TraceFile implements \Stringable
 {
     /**
      * @param array{
