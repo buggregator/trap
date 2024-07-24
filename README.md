@@ -251,6 +251,8 @@ Buggregator Trap is open-sourced software licensed under the BSD-3 license.
 
 <!--
 
+[![Contributors](https://contrib.rocks/image?repo=buggregator/trap)](https://github.com/buggregator/trap/graphs/contributors)
+
 Quality badges:
 
 [![Tests Status](https://img.shields.io/github/actions/workflow/status/buggregator/trap/testing.yml?label=tests&style=flat-square)](https://github.com/buggregator/trap/actions/workflows/testing.yml?query=workflow%3Atesting%3Amaster)
