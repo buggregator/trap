@@ -48,7 +48,7 @@ final class Server implements Processable, Cancellable, Destroyable
 
         \socket_set_nonblock($this->socket);
 
-        $logger->status('Application', 'Server started on 127.0.0.1:%s', $port);
+        $logger->status('App', 'Server started on 127.0.0.1:%s', $port);
     }
 
     /**
@@ -96,7 +96,7 @@ final class Server implements Processable, Cancellable, Destroyable
             $this->lastAccept = \microtime(true);
             $client = null;
             try {
-                /** @psalm-suppress MixedArgument */
+                /** @var \Socket $socket */
                 $client = Client::init($socket, $this->payloadSize, $this->acceptPeriod);
                 $key = (int) \array_key_last($this->clients) + 1;
                 $this->clients[$key] = $client;
