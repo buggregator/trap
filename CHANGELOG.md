@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.10.2 (2024-09-24)
+
+## What's Changed
+* Fix Psalm issues by @Kaspiman in https://github.com/buggregator/trap/pull/131
+* Add Rector to CI by @Kaspiman in https://github.com/buggregator/trap/pull/133
+* Separate polling intervals for sockets by @roxblnfk in https://github.com/buggregator/trap/pull/140
+
+## New Contributors
+* @Kaspiman made their first contribution in https://github.com/buggregator/trap/pull/131
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.10.1...1.10.2
+
 ## 1.10.1 (2024-06-23)
 
 ## What's Changed
