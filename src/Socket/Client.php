@@ -27,13 +27,17 @@ final class Client implements Destroyable
 
     private \Closure $onClose;
 
+    private Timer $selectTimer;
+
     /**
      * @param positive-int $payloadSize
      */
     private function __construct(
         private readonly \Socket $socket,
         private readonly int $payloadSize,
+        float $selectPeriod,
     ) {
+        $this->selectTimer = new Timer($selectPeriod);
         \socket_set_nonblock($this->socket);
         $this->setOnPayload(static fn(string $payload) => null);
         $this->setOnClose(static fn() => null);
@@ -41,12 +45,18 @@ final class Client implements Destroyable
 
     /**
      * @param positive-int $payloadSize Max payload size.
+     * @param float $selectPeriod Time to wait between socket_select() calls in seconds.
      */
     public static function init(
         \Socket $socket,
         int $payloadSize = 10485760,
+        float $selectPeriod = .001,
     ): self {
-        return new self($socket, $payloadSize);
+        return new self(
+            socket: $socket,
+            payloadSize: $payloadSize,
+            selectPeriod: $selectPeriod,
+        );
     }
 
     public function destroy(): void
@@ -103,6 +113,7 @@ final class Client implements Destroyable
                 throw new ClientDisconnected();
             }
             \Fiber::suspend();
+            $this->selectTimer->reset()->wait();
         } while (true);
     }
 

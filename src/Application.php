@@ -256,6 +256,7 @@ final class Application implements Processable, Cancellable, Destroyable
         return Server::init(
             $config->port,
             payloadSize: 524_288,
+            acceptPeriod: .001,
             clientInflector: $clientInflector,
             logger: $this->logger,
         );

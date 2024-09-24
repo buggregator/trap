@@ -87,26 +87,27 @@ final class Exceptions
             $class = empty($class) ? '' : $class . '::';
             $function = $getValue($frame, 'function');
 
-            $renderer = static fn() => $output->writeln(
-                \sprintf(
-                    "<fg=gray>%s</><fg=white;options=bold>%s<fg=yellow>%s</>\n%s<fg=yellow>%s</><fg=gray>%s()</>",
-                    \str_pad("#$i", $numPad, ' '),
-                    (string) $file,
-                    $line !== '' ? ":$line" : '',
-                    \str_repeat(' ', $numPad),
-                    $class,
-                    (string) $function,
-                ),
+            $renderedLine = \sprintf(
+                "<fg=gray>%s</><fg=white;options=bold>%s<fg=yellow>%s</>\n%s<fg=yellow>%s</><fg=gray>%s()</>",
+                \str_pad("#$i", $numPad, ' '),
+                (string) $file,
+                $line !== '' ? ":$line" : '',
+                \str_repeat(' ', $numPad),
+                $class,
+                (string) $function,
             );
 
             if ($isFirst) {
                 $isFirst = false;
                 $output->writeln('Stacktrace:');
-                $renderer();
+                $output->writeln($renderedLine);
                 self::renderCodeSnippet($output, $frame, padding: $numPad);
                 continue;
             }
 
+            $renderer = static function () use ($output, $renderedLine): void {
+                $output->writeln($renderedLine);
+            };
             if (!$verbose && \str_starts_with(\ltrim(\str_replace('\\', '/', $file), './'), 'vendor/')) {
                 $vendorLines[] = $renderer;
                 continue;
