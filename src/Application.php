@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap;
 
+use Buggregator\Trap\Config\Server\App;
 use Buggregator\Trap\Config\Server\Files\SPX as SPXFileConfig;
 use Buggregator\Trap\Config\Server\Files\XDebug as XDebugFileConfig;
 use Buggregator\Trap\Config\Server\Files\XHProf as XHProfFileConfig;
@@ -113,8 +114,11 @@ final class Application implements Processable, Cancellable, Destroyable
     /**
      * @param positive-int $sleep Sleep time in microseconds
      */
-    public function run(int $sleep = 50): void
+    public function run(): void
     {
+        /** @var App $config */
+        $config = $this->container->get(App::class);
+        $sleep = \max(50, $config->mainLoopInterval);
         foreach ($this->senders as $sender) {
             \assert($sender instanceof Sender);
             if ($sender instanceof Processable) {
