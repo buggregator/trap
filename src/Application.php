@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap;
 
+use Buggregator\Trap\Config\Server\App;
 use Buggregator\Trap\Config\Server\Files\SPX as SPXFileConfig;
 use Buggregator\Trap\Config\Server\Files\XDebug as XDebugFileConfig;
 use Buggregator\Trap\Config\Server\Files\XHProf as XHProfFileConfig;
 use Buggregator\Trap\Config\Server\Frontend as FrontendConfig;
 use Buggregator\Trap\Config\Server\SocketServer;
+use Buggregator\Trap\Config\Server\TcpPorts;
 use Buggregator\Trap\Handler\Http\Handler\Websocket;
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Proto\Buffer;
@@ -113,8 +115,11 @@ final class Application implements Processable, Cancellable, Destroyable
     /**
      * @param positive-int $sleep Sleep time in microseconds
      */
-    public function run(int $sleep = 50): void
+    public function run(): void
     {
+        /** @var App $config */
+        $config = $this->container->get(App::class);
+        $sleep = \max(50, $config->mainLoopInterval);
         foreach ($this->senders as $sender) {
             \assert($sender instanceof Sender);
             if ($sender instanceof Processable) {
@@ -191,7 +196,7 @@ final class Application implements Processable, Cancellable, Destroyable
      * @param Inspector $inspector
      * @return \Fiber
      */
-    public function prepareServerFiber(SocketServer $config, Inspector $inspector, Logger $logger): \Fiber
+    private function prepareServerFiber(SocketServer $config, Inspector $inspector, Logger $logger): \Fiber
     {
         return $this->fibers[] = new \Fiber(function () use ($config, $inspector, $logger): void {
             do {
@@ -206,7 +211,7 @@ final class Application implements Processable, Cancellable, Destroyable
         });
     }
 
-    public function configureFrontend(bool $separated): void
+    private function configureFrontend(bool $separated): void
     {
         $this->processors[] = $this->senders[] = $wsSender = Sender\FrontendSender::create($this->logger);
         $this->container->set($wsSender);
@@ -226,8 +231,14 @@ final class Application implements Processable, Cancellable, Destroyable
             ),
         ]);
         $this->processors[] = $inspector;
+        /** @var TcpPorts $tcpConfig */
+        $tcpConfig = $this->container->get(TcpPorts::class);
         $config = $this->container->get(FrontendConfig::class);
-        $this->prepareServerFiber(new SocketServer(port: $config->port), $inspector, $this->logger);
+        $this->prepareServerFiber(
+            new SocketServer(port: $config->port, pollingInterval: $tcpConfig->pollingInterval),
+            $inspector,
+            $this->logger,
+        );
     }
 
     /**
@@ -256,7 +267,7 @@ final class Application implements Processable, Cancellable, Destroyable
         return Server::init(
             $config->port,
             payloadSize: 524_288,
-            acceptPeriod: .001,
+            acceptPeriod: \max(50, $config->pollingInterval) / 1e6,
             clientInflector: $clientInflector,
             logger: $this->logger,
         );
