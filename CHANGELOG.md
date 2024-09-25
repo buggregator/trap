@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.11.0 (2024-09-25)
+
+## What's Changed
+* Add config for main loop interval and socket polling interval by @roxblnfk in https://github.com/buggregator/trap/pull/141
+
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.10.2...1.11.0
+
 ## 1.10.2 (2024-09-24)
 
 ## What's Changed
