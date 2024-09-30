@@ -47,6 +47,44 @@ final class Tree implements \IteratorAggregate, \Countable
     }
 
     /**
+     * Get the top N branches by a custom sorting.
+     *
+     * @param int<1, max> $limit
+     * @param callable(Branch<TItem>, Branch<TItem>): int $sorter
+     *
+     * @return list<Branch>
+     */
+    public function top(int $limit, callable $sorter): array
+    {
+        // Get N branches and sort it
+        $all = \array_values($this->all);
+        $result = \array_slice($all, 0, $limit);
+        \usort($result, $sorter);
+
+        // Compare next item with the last of the top
+        // and resort the top one by one
+        $end = \array_key_last($result);
+        $next = $limit - 1;
+
+        while (++$next < \count($all)) {
+            if ($sorter($all[$next], $result[$end]) > 0) {
+                continue;
+            }
+
+            // Add the next item to the top
+            $result[$end] = $all[$next];
+
+            // Sort
+            $current = $end;
+            while (--$current >= 0 && $sorter($result[$current], $result[$current + 1]) > 0) {
+                [$result[$current], $result[$current + 1]] = [$result[$current + 1], $result[$current]];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * @param non-empty-string $id
      * @param non-empty-string|null $parentId
      */
