@@ -13,7 +13,6 @@ use Buggregator\Trap\Support\Uuid;
 final class RemoteSender extends SocketSender
 {
     private string $uuid;
-
     private readonly string $clientVersion;
 
     public function __construct(

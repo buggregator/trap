@@ -34,7 +34,6 @@ final class ProtobufCaster
         GPBType::SINT32,
         GPBType::SINT64,
     ];
-
     private const TYPES = [
         GPBType::DOUBLE => 'double',
         GPBType::FLOAT => 'float',

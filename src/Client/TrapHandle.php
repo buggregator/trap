@@ -16,13 +16,9 @@ use Symfony\Component\VarDumper\Caster\TraceStub;
 final class TrapHandle
 {
     private bool $haveToSend = true;
-
     private int $times = 0;
-
     private string $timesCounterKey = '';
-
     private int $depth = 0;
-
     private readonly StaticState $staticState;
 
     private function __construct(

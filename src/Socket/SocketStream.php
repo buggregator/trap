@@ -21,7 +21,6 @@ final class SocketStream implements \IteratorAggregate, StreamClient
     private \SplQueue $queue;
 
     private bool $disconnected = false;
-
     private readonly \DateTimeImmutable $createdAt;
 
     private function __construct(

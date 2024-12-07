@@ -36,9 +36,7 @@ final class Application implements Processable, Cancellable, Destroyable
     private array $fibers = [];
 
     private readonly Buffer $buffer;
-
     private bool $cancelled = false;
-
     private readonly Logger $logger;
 
     /**
@@ -112,9 +110,6 @@ final class Application implements Processable, Cancellable, Destroyable
         }
     }
 
-    /**
-     * @param positive-int $sleep Sleep time in microseconds
-     */
     public function run(): void
     {
         /** @var App $config */
@@ -191,11 +186,6 @@ final class Application implements Processable, Cancellable, Destroyable
         }
     }
 
-    /**
-     * @param SocketServer $config
-     * @param Inspector $inspector
-     * @return \Fiber
-     */
     private function prepareServerFiber(SocketServer $config, Inspector $inspector, Logger $logger): \Fiber
     {
         return $this->fibers[] = new \Fiber(function () use ($config, $inspector, $logger): void {
