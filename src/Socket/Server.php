@@ -88,7 +88,7 @@ final class Server implements Processable, Cancellable, Destroyable
     public function process(): void
     {
         // /** @psalm-suppress PossiblyInvalidArgument */
-        while (match(true) {
+        while (match (true) {
             $this->cancelled,
             \microtime(true) - $this->lastAccept <= $this->acceptPeriod => false,
             default => false !== ($socket = \socket_accept($this->socket)),

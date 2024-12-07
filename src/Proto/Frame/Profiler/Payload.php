@@ -25,7 +25,6 @@ final class Payload implements \JsonSerializable
     private ?Profile $profile = null;
 
     /**
-     * @param PayloadType $type
      * @param \Closure(): Profile $callsProvider
      */
     private function __construct(
@@ -34,7 +33,6 @@ final class Payload implements \JsonSerializable
     ) {}
 
     /**
-     * @param PayloadType $type
      * @param \Closure(): Profile $callsProvider
      */
     public static function new(

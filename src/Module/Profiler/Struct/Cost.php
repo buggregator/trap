@@ -10,13 +10,9 @@ namespace Buggregator\Trap\Module\Profiler\Struct;
 final class Cost implements \JsonSerializable
 {
     public float $p_cpu = 0;
-
     public float $p_ct = 0;
-
     public float $p_mu = 0;
-
     public float $p_pmu = 0;
-
     public float $p_wt = 0;
 
     /** @var int<min, max> */

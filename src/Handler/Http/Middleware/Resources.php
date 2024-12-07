@@ -31,7 +31,7 @@ final class Resources implements Middleware
                 return new Response(404);
             }
 
-            $type = match($matches[2]) {
+            $type = match ($matches[2]) {
                 'css' => 'text/css',
                 'js' => 'application/javascript',
                 'ico' => 'image/x-icon',

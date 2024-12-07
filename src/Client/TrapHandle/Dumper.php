@@ -38,7 +38,7 @@ final class Dumper
      * @return null|callable(mixed, string|null, int): mixed
      * @psalm-suppress MixedInferredReturnType, MixedPropertyTypeCoercion, MismatchingDocblockReturnType
      */
-    public static function setHandler(callable $callable = null): ?\Closure
+    public static function setHandler(?callable $callable = null): ?\Closure
     {
         return ([$callable, self::$handler] = [self::$handler, $callable === null ? null : $callable(...)])[0];
     }

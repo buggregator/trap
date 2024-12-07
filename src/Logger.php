@@ -14,7 +14,6 @@ use Symfony\Component\Console\Output\OutputInterface;
 final class Logger
 {
     private readonly bool $debug;
-
     private readonly bool $verbose;
 
     public function __construct(

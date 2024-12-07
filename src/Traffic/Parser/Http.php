@@ -181,8 +181,6 @@ final class Http
     }
 
     /**
-     * @param string $line
-     *
      * @return array{non-empty-string, non-empty-string, non-empty-string}
      */
     private function parseFirstLine(string $line): array

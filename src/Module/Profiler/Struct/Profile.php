@@ -31,7 +31,6 @@ namespace Buggregator\Trap\Module\Profiler\Struct;
 final class Profile implements \JsonSerializable
 {
     public Peaks $peaks;
-
     public Tree $calls;
 
     /**

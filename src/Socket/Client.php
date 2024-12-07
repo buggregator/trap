@@ -18,15 +18,10 @@ final class Client implements Destroyable
     /** @var string[] */
     private array $writeQueue = [];
 
-    /** @var string */
     private string $readBuffer = '';
-
     private bool $toDisconnect = false;
-
     private \Closure $onPayload;
-
     private \Closure $onClose;
-
     private Timer $selectTimer;
 
     /**
