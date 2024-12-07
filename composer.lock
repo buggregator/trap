@@ -5767,16 +5767,16 @@
         },
         {
             "name": "spiral/code-style",
-            "version": "v2.2.0",
+            "version": "v2.2.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spiral/code-style.git",
-                "reference": "672d982dc52191616aa167b75414816922935604"
+                "reference": "e1372d893e3ad8d400733620c99af3418490bed0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spiral/code-style/zipball/672d982dc52191616aa167b75414816922935604",
-                "reference": "672d982dc52191616aa167b75414816922935604",
+                "url": "https://api.github.com/repos/spiral/code-style/zipball/e1372d893e3ad8d400733620c99af3418490bed0",
+                "reference": "e1372d893e3ad8d400733620c99af3418490bed0",
                 "shasum": ""
             },
             "require": {
@@ -5811,7 +5811,7 @@
             "description": "Code style and static analysis tools rulesets collection",
             "homepage": "https://github.com/spiral/code-style",
             "support": {
-                "source": "https://github.com/spiral/code-style/tree/v2.2.0"
+                "source": "https://github.com/spiral/code-style/tree/v2.2.1"
             },
             "funding": [
                 {
@@ -5819,7 +5819,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-10-23T14:13:49+00:00"
+            "time": "2024-12-07T20:55:03+00:00"
         },
         {
             "name": "symfony/event-dispatcher",
