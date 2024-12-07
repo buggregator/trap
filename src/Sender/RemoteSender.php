@@ -16,7 +16,7 @@ final class RemoteSender extends SocketSender
     private readonly string $clientVersion;
 
     public function __construct(
-        string $uuid = null,
+        ?string $uuid = null,
         string $host = '127.0.0.1',
         int $port = 9912,
     ) {
