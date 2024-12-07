@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.11.1 (2024-12-07)
+
+## What's Changed
+* Resolve PHP 8.4 deprecations by @roxblnfk in https://github.com/buggregator/trap/pull/144
+
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.11.0...1.11.1
+
 ## 1.11.0 (2024-09-25)
 
 ## What's Changed
