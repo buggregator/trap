@@ -52,7 +52,6 @@ final class SentryTrap implements Middleware
     }
 
     /**
-     * @param ServerRequestInterface $request
      * @return Response
      * @throws \Throwable
      */

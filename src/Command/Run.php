@@ -31,9 +31,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 final class Run extends Command implements SignalableCommandInterface
 {
     private ?Application $app = null;
-
     private Logger $logger;
-
     private bool $cancelled = false;
 
     public function configure(): void
