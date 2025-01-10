@@ -241,7 +241,7 @@ final class Router
 
             // Prepare callable
             $object = $this->object;
-            return match(true) {
+            return match (true) {
                 \is_callable($match) => $match,
                 default => static fn(mixed ...$args): mixed => ($mock ?? $route->method)->invokeArgs(
                     ($mock ?? $route->method)->isStatic()

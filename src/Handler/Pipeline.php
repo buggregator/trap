@@ -66,8 +66,6 @@ final class Pipeline
     }
 
     /**
-     * @param mixed ...$arguments
-     *
      * @return TReturn
      *
      * @throws \Exception

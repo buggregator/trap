@@ -10,7 +10,6 @@ namespace Buggregator\Trap;
 class Info
 {
     public const NAME = 'Buggregator Trap';
-
     public const LOGO_CLI_COLOR = <<<CONSOLE
         \e[44;97;1m                                    \e[0m
         \e[44;97;1m      ▄█▀                  ▀█▄      \e[0m
@@ -25,9 +24,7 @@ class Info
         \e[44;97;1m      ▀█▄                  ▄█▀      \e[0m
         \e[44;97;1m                                    \e[0m
         CONSOLE;
-
     public const TRAP_ROOT = __DIR__ . '/..';
-
     private const VERSION = 'experimental';
 
     /**

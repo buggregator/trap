@@ -13,7 +13,6 @@ use Fiber;
 final class Timer
 {
     private float $start;
-
     private bool $stop = false;
 
     /**

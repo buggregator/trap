@@ -41,7 +41,7 @@ final class StaticFiles implements Middleware
 
             $headers = [];
 
-            $type = match($matches[2]) {
+            $type = match ($matches[2]) {
                 'css' => 'text/css',
                 'html' => 'text/html',
                 'txt' => 'text/plain',

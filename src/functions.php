@@ -19,7 +19,6 @@ try {
      * Configure VarDumper to dump values to the local server.
      * If there are no values - dump stack trace.
      *
-     * @param mixed ...$values
      */
     function trap(mixed ...$values): TrapHandle
     {
@@ -39,7 +38,6 @@ try {
      * When arguments are passed it equals to {@see trap()} with `->return()` method call.
      * When no arguments passed, it calculates ticks, time between the last `tr()` call and memory usage.
      *
-     * @param mixed ...$values
      */
     function tr(mixed ...$values): mixed
     {
@@ -77,8 +75,6 @@ try {
      * Send values into Buggregator and die.
      *
      * When no arguments passed, it works like {@see tr()}.
-     *
-     * @param mixed ...$values
      *
      * @codeCoverageIgnore
      */

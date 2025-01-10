@@ -16,11 +16,8 @@ use Buggregator\Trap\Traffic\Parser;
 final class Smtp implements Dispatcher
 {
     private const READY = 220;
-
     public const OK = 250;
-
     public const CLOSING = 221;
-
     public const START_MAIL_INPUT = 354;
 
     private Parser\Smtp $parser;

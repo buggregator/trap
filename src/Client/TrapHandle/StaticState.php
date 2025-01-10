@@ -31,8 +31,8 @@ final class StaticState
      * @param StackTraceWithObjects|null $stackTraceWithObjects
      */
     public static function new(
-        array $stackTrace = null,
-        array $stackTraceWithObjects = null,
+        ?array $stackTrace = null,
+        ?array $stackTraceWithObjects = null,
     ): self {
         $new = new self(
             $stackTrace ?? StackTrace::stackTrace(provideObjects: false),

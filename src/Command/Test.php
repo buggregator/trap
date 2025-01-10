@@ -23,7 +23,6 @@ use Symfony\Component\Console\Output\OutputInterface;
 final class Test extends Command
 {
     private string $addr = '127.0.0.1';
-
     private int $port = 9912;
 
     /** @psalm-suppress PropertyNotSetInConstructor */

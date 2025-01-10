@@ -25,9 +25,6 @@ final class Request
         private readonly \Closure $payloadParser,
     ) {}
 
-    /**
-     * @return iterable
-     */
     public function getParsedPayload(): iterable
     {
         return ($this->payloadParser)($this->payload);

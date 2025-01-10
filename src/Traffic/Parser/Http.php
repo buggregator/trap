@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Traffic\Parser;
 
+use Buggregator\Trap\Support\Stream\Base64DecodeFilter;
 use Buggregator\Trap\Support\StreamHelper;
 use Buggregator\Trap\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
@@ -111,7 +112,7 @@ final class Http
                     $writeFilters = [];
                     if ($part->hasHeader('Content-Transfer-Encoding')) {
                         $encoding = $part->getHeaderLine('Content-Transfer-Encoding');
-                        $encoding === 'base64' and $writeFilters[] = \Buggregator\Trap\Support\Stream\Base64DecodeFilter::FILTER_NAME;
+                        $encoding === 'base64' and $writeFilters[] = Base64DecodeFilter::FILTER_NAME;
                     }
 
                     $fileStream = StreamHelper::createFileStream(writeFilters: $writeFilters);
@@ -180,8 +181,6 @@ final class Http
     }
 
     /**
-     * @param string $line
-     *
      * @return array{non-empty-string, non-empty-string, non-empty-string}
      */
     private function parseFirstLine(string $line): array
@@ -224,7 +223,7 @@ final class Http
         $contentType = $request->getHeaderLine('Content-Type');
         return match (true) {
             $contentType === 'application/x-www-form-urlencoded' => self::parseUrlEncodedBody($request),
-            \str_contains($contentType, 'multipart/form-data') => $this->processMultipartForm($request),
+            \str_contains($contentType, 'multipart/') => $this->processMultipartForm($request),
             default => $request,
         };
     }

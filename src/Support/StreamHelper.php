@@ -16,9 +16,7 @@ use Psr\Http\Message\StreamInterface;
 final class StreamHelper
 {
     private const CHUNK_SIZE = 1 * 1024 * 1024; // 1 Mb
-
     private const WRITE_STREAM_CHUNK_SIZE = 8 * 1024 * 1024; // 8 Mb
-
     private const MAX_FILE_MEMORY_SIZE = 4 * 1024 * 1024; // 4MB
 
     /**

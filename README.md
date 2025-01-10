@@ -27,11 +27,11 @@ Trap includes:
 
 **Table of content:**
 
-* [Installation](#installation)
-* [Overview](#overview)
-* [Usage](#usage)
-* [Contributing](#contributing)
-* [License](#license)
+- [Installation](#installation)
+- [Overview](#overview)
+- [Usage](#usage)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Installation
 
@@ -250,6 +250,8 @@ becoming a better developer. So, don't hesitate to jump in and start contributin
 Buggregator Trap is open-sourced software licensed under the BSD-3 license.
 
 <!--
+
+[![Contributors](https://contrib.rocks/image?repo=buggregator/trap)](https://github.com/buggregator/trap/graphs/contributors)
 
 Quality badges:
 

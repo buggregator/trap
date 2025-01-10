@@ -35,9 +35,6 @@ final class FrontendSender implements \Buggregator\Trap\Sender, Processable
         return $this->connectionPool;
     }
 
-    /**
-     * @return Frontend\EventStorage
-     */
     public function getEventStorage(): Frontend\EventStorage
     {
         return $this->framesStorage;

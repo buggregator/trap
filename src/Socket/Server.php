@@ -10,7 +10,6 @@ use Buggregator\Trap\Logger;
 use Buggregator\Trap\Processable;
 use Buggregator\Trap\Socket\Exception\ClientDisconnected;
 use Buggregator\Trap\Socket\Exception\ServerStopped;
-use Socket;
 
 /**
  * @internal
@@ -27,13 +26,18 @@ final class Server implements Processable, Cancellable, Destroyable
 
     private bool $cancelled = false;
 
+    /** Timestamp with microseconds when last socket_accept() was called */
+    private float $lastAccept = 0;
+
     /**
      * @param null|\Closure(Client, int $id): void $clientInflector
      * @param positive-int $payloadSize Max payload size.
+     * @param float $acceptPeriod Time to wait between socket_accept() calls in seconds.
      */
     private function __construct(
         int $port,
         private readonly int $payloadSize,
+        private readonly float $acceptPeriod,
         private readonly ?\Closure $clientInflector,
         private readonly Logger $logger,
     ) {
@@ -44,21 +48,23 @@ final class Server implements Processable, Cancellable, Destroyable
 
         \socket_set_nonblock($this->socket);
 
-        $logger->status('Application', 'Server started on 127.0.0.1:%s', $port);
+        $logger->status('App', 'Server started on 127.0.0.1:%s', $port);
     }
 
     /**
      * @param int<1, 65535> $port
      * @param positive-int $payloadSize Max payload size.
+     * @param float $acceptPeriod Time to wait between socket_accept() calls in seconds.
      * @param null|\Closure(Client, int $id): void $clientInflector
      */
     public static function init(
         int $port = 9912,
         int $payloadSize = 10485760,
+        float $acceptPeriod = .001,
         ?\Closure $clientInflector = null,
         Logger $logger = new Logger(),
     ): self {
-        return new self($port, $payloadSize, $clientInflector, $logger);
+        return new self($port, $payloadSize, $acceptPeriod, $clientInflector, $logger);
     }
 
     public function destroy(): void
@@ -82,11 +88,16 @@ final class Server implements Processable, Cancellable, Destroyable
     public function process(): void
     {
         // /** @psalm-suppress PossiblyInvalidArgument */
-        while (!$this->cancelled and false !== ($socket = \socket_accept($this->socket))) {
+        while (match (true) {
+            $this->cancelled,
+            \microtime(true) - $this->lastAccept <= $this->acceptPeriod => false,
+            default => false !== ($socket = \socket_accept($this->socket)),
+        }) {
+            $this->lastAccept = \microtime(true);
             $client = null;
             try {
-                /** @psalm-suppress MixedArgument */
-                $client = Client::init($socket, $this->payloadSize);
+                /** @var \Socket $socket */
+                $client = Client::init($socket, $this->payloadSize, $this->acceptPeriod);
                 $key = (int) \array_key_last($this->clients) + 1;
                 $this->clients[$key] = $client;
                 $this->clientInflector !== null and ($this->clientInflector)($client, $key);

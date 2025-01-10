@@ -16,7 +16,7 @@ final class ConfigLoaderTest extends TestCase
 {
     public function testSimpleHydration(): void
     {
-        $dto = new class() {
+        $dto = new class {
             #[XPath('/trap/container/@myBool')]
             public bool $myBool;
 
@@ -49,7 +49,7 @@ final class ConfigLoaderTest extends TestCase
 
     public function testNonExistingOptions(): void
     {
-        $dto = new class() {
+        $dto = new class {
             #[XPath('/trap/container/Nothing/@value')]
             public float $none1 = 3.14;
 
@@ -77,7 +77,7 @@ final class ConfigLoaderTest extends TestCase
 
     public function testAttributesOrder(): void
     {
-        $dto = new class() {
+        $dto = new class {
             #[XPath('/test/@foo')]
             #[InputArgument('test')]
             #[InputOption('test')]

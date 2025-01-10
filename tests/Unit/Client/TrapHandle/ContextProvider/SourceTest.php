@@ -25,7 +25,7 @@ final class SourceTest extends TestCase
     {
         $this->staticState();
 
-        new class() {
+        new class {
             public function __destruct()
             {
                 assertSame(\basename(__FILE__), (new Source())->getContext()['name']);

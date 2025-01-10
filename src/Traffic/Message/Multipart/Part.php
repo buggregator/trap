@@ -28,26 +28,24 @@ abstract class Part implements \JsonSerializable
      */
     public static function create(array $headers): Part
     {
-        /**
-         * Check Content-Disposition header
-         *
-         * @var string $contentDisposition
-         */
-        $contentDisposition = self::findHeader($headers, 'Content-Disposition')[0]
-            ?? throw new \RuntimeException('Missing Content-Disposition header.');
-        if ($contentDisposition === '') {
-            throw new \RuntimeException('Missing Content-Disposition header, can\'t be empty');
+        $contentDisposition = self::findHeader($headers, 'Content-Disposition')[0] ?? '';
+
+        $name = $fileName = null;
+
+        if ($contentDisposition !== '') {
+            // Get field name and file name
+            $name = \preg_match('/\bname=(?:(?<a>[^" ;,]++)|"(?<b>[^"]++)")/', $contentDisposition, $matches) === 1
+                ? ($matches['a'] ?: $matches['b'])
+                : null;
+
+            // Decode file name
+            $fileName = \preg_match(
+                '/\bfilename=(?:(?<a>[^" ;,]++)|"(?<b>[^"]++)")/',
+                $contentDisposition,
+                $matches,
+            ) === 1 ? ($matches['a'] ?: $matches['b']) : null;
         }
 
-        // Get field name and file name
-        $name = \preg_match('/\bname=(?:(?<a>[^" ;,]++)|"(?<b>[^"]++)")/', $contentDisposition, $matches) === 1
-            ? ($matches['a'] ?: $matches['b'])
-            : null;
-
-        // Decode file name
-        $fileName = \preg_match('/\bfilename=(?:(?<a>[^" ;,]++)|"(?<b>[^"]++)")/', $contentDisposition, $matches) === 1
-            ? ($matches['a'] ?: $matches['b'])
-            : null;
         $fileName = $fileName !== null ? \html_entity_decode($fileName) : null;
         $isFile = (string) $fileName !== ''
             || \preg_match('/text\\/.++/', self::findHeader($headers, 'Content-Type')[0] ?? 'text/plain') !== 1;

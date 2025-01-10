@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Client\Caster;
 
+use Google\Protobuf\Internal\FieldDescriptor;
+use Google\Protobuf\Internal\EnumDescriptor;
+use Google\Protobuf\Internal\EnumValueDescriptorProto;
 use Google\Protobuf\Descriptor as PublicDescriptor;
 use Google\Protobuf\Internal\Descriptor as InternalDescriptor;
 use Google\Protobuf\Internal\DescriptorPool;
@@ -31,7 +34,6 @@ final class ProtobufCaster
         GPBType::SINT32,
         GPBType::SINT64,
     ];
-
     private const TYPES = [
         GPBType::DOUBLE => 'double',
         GPBType::FLOAT => 'float',
@@ -55,8 +57,10 @@ final class ProtobufCaster
 
     public static function cast(Message $c, array $a, Stub $stub, bool $isNested): array
     {
+        /** @var DescriptorPool $pool */
+        $pool = DescriptorPool::getGeneratedPool();
         /** @var PublicDescriptor|InternalDescriptor $descriptor */
-        $descriptor = DescriptorPool::getGeneratedPool()->getDescriptorByClassName($c::class);
+        $descriptor = $pool->getDescriptorByClassName($c::class);
 
         return self::castMessage($c, $descriptor);
     }
@@ -118,7 +122,7 @@ final class ProtobufCaster
         $values = [];
 
         for ($i = 0; $i < $pub->getFieldCount(); $i++) {
-            /** @var \Google\Protobuf\Internal\FieldDescriptor $fd */
+            /** @var FieldDescriptor $fd */
             $fd = $descriptor->getFieldByIndex($i);
             $value = $message->{$fd->getGetter()}();
 
@@ -150,9 +154,9 @@ final class ProtobufCaster
 
             // Wrap ENUM
             if ($fd->getType() === GPBType::ENUM) {
-                /** @var \Google\Protobuf\Internal\EnumDescriptor $ed */
+                /** @var EnumDescriptor $ed */
                 $ed = $fd->getEnumType();
-                /** @var \Google\Protobuf\Internal\EnumValueDescriptorProto $v */
+                /** @var EnumValueDescriptorProto $v */
                 $v = $ed->getValueByNumber($value);
 
                 $values[$fd->getName()] = new EnumValue(
