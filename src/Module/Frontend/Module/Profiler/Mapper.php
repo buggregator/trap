@@ -18,7 +18,6 @@ use Buggregator\Trap\Proto\Frame\Profiler\Payload as ProfilerPayload;
 final class Mapper
 {
     /**
-     * @param \Buggregator\Trap\Proto\Frame\Profiler $frame
      * @return Event<ProfilerPayload>
      */
     public function frameToEvent(\Buggregator\Trap\Proto\Frame\Profiler $frame): Event

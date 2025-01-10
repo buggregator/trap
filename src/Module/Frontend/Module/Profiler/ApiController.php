@@ -16,9 +16,7 @@ use Buggregator\Trap\Proto\Frame\Profiler\Payload as ProfilerPayload;
 trait ApiController
 {
     private readonly Mapper $mapper;
-
     private readonly Logger $logger;
-
     private readonly EventStorage $eventsStorage;
 
     #[RegexpRoute(Method::Get, '#^api/profiler/(?<uuid>[a-f0-9-]++)/top$#i')]
