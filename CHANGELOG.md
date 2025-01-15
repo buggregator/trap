@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.12.0 (2025-01-15)
+
+## What's Changed
+* Expose command `trap --version` by @roxblnfk in https://github.com/buggregator/trap/pull/147
+* Support custom listening hosts by @roxblnfk in https://github.com/buggregator/trap/pull/148
+
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.11.1...1.12.0
+
 ## 1.11.1 (2024-12-07)
 
 ## What's Changed
