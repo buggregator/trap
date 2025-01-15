@@ -37,7 +37,7 @@ final class Http extends Frame implements FilesCarrier, \Buggregator\Trap\Proto\
 
     public static function fromString(string $payload, \DateTimeImmutable $time): static
     {
-        $payload = \json_decode($payload, true, \JSON_THROW_ON_ERROR);
+        $payload = \json_decode($payload, true, 64, \JSON_THROW_ON_ERROR);
 
         $request = new ServerRequest(
             $payload['method'] ?? 'GET',

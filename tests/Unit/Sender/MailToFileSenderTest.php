@@ -16,14 +16,6 @@ final class MailToFileSenderTest extends TestCase
 {
     private array $cleanupFolders = [];
 
-    protected function tearDown(): void
-    {
-        foreach ($this->cleanupFolders as $folder) {
-            \array_map('unlink', glob("$folder/*.*"));
-            \rmdir($folder);
-        }
-    }
-
     public function testForSmtp(): void
     {
         $this->cleanupFolders[] = $root = \sys_get_temp_dir() . DIRECTORY_SEPARATOR . \uniqid('trap_mail_');
@@ -48,11 +40,19 @@ final class MailToFileSenderTest extends TestCase
         $this->assertRecipient("$root/user2@company.tld");
     }
 
+    protected function tearDown(): void
+    {
+        foreach ($this->cleanupFolders as $folder) {
+            \array_map('unlink', \glob("$folder/*.*"));
+            \rmdir($folder);
+        }
+    }
+
     private function assertRecipient(string $folder): void
     {
         self::assertTrue(\file_exists($folder));
         self::assertTrue(\is_dir($folder));
-        $files = glob("$folder/*.json");
+        $files = \glob("$folder/*.json");
         self::assertCount(1, $files);
         $arr = \json_decode(\file_get_contents($files[0]), true, \JSON_THROW_ON_ERROR);
         self::assertArrayHasKey('protocol', $arr);

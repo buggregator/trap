@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Sender;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Sender;
+use Buggregator\Trap\Support\FileSystem;
 
 /**
  * Store event groups to files.
@@ -21,9 +22,7 @@ class EventsToFileSender implements Sender
         string $path = 'runtime',
     ) {
         $this->path = \rtrim($path, '/\\');
-        if (!\is_dir($path) && !\mkdir($path, 0o777, true) && !\is_dir($path)) {
-            throw new \RuntimeException(\sprintf('Directory "%s" was not created', $path));
-        }
+        FileSystem::mkdir($path);
     }
 
     public function send(iterable $frames): void
