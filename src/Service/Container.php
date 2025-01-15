@@ -37,7 +37,7 @@ final class Container implements ContainerInterface, Destroyable
     }
 
     /**
-     * @template T of object
+     * @template T
      * @param class-string<T> $id
      * @param array $arguments Will be used if the object is created for the first time.
      * @return T

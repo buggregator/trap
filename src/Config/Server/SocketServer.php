@@ -18,7 +18,7 @@ final class SocketServer
     public function __construct(
         public readonly int $port,
         public readonly string $host = '127.0.0.1',
-        public readonly string $type = 'tcp',
+        public readonly string $protocol = 'tcp',
         public int $pollingInterval = 1_000,
     ) {}
 }
