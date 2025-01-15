@@ -12,6 +12,8 @@ final class SocketServer
 {
     /**
      * @param int<1, 65535> $port
+     * @param non-empty-string $host
+     * @param non-empty-string $protocol
      * @param int<50, max> $pollingInterval Time to wait between socket_accept() and socket_select() calls
      *        in microseconds.
      */
