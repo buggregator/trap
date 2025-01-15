@@ -8,7 +8,6 @@ use Buggregator\Trap\Info;
 use Buggregator\Trap\Proto\Frame\Smtp as SmtpFrame;
 use Buggregator\Trap\Sender\MailToFileSender;
 use Buggregator\Trap\Traffic\Message\Smtp as SmtpMessage;
-use DirectoryIterator;
 use PHPUnit\Framework\TestCase;
 
 /**

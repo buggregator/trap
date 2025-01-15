@@ -27,9 +27,9 @@ final class Smtp extends Frame implements FilesCarrier, \Buggregator\Trap\Proto\
 
     public static function fromString(string $payload, \DateTimeImmutable $time): static
     {
-        $payload = \json_decode($payload, true, 64, \JSON_THROW_ON_ERROR);
-        /** @var TArrayData $payload */
-        $message = Message\Smtp::fromArray($payload);
+        /** @var TArrayData $data */
+        $data = \json_decode($payload, true, 64, \JSON_THROW_ON_ERROR);
+        $message = Message\Smtp::fromArray($data);
 
         return new self($message, $time);
     }

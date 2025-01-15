@@ -50,10 +50,11 @@ class MailToFileSender implements Sender
     /**
      * Get normalized email address for file or directory name.
      *
-     * @param null|non-empty-string $email
+     * @return null|non-empty-string
      */
     private static function normalizeEmail(?string $email): ?string
     {
-        return \trim($email) === '' ? null : \str_replace('@', '[at]', $email);
+        $email = \str_replace('@', '[at]', \trim((string) $email));
+        return $email === '' ? null : $email;
     }
 }
