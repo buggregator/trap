@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender;
 
 use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Proto\StreamCarrier;
 use Buggregator\Trap\Sender;
 use Buggregator\Trap\Support\FileSystem;
 use Buggregator\Trap\Support\StreamHelper;
@@ -34,7 +35,7 @@ class BodyToFileSender implements Sender
 
         /** @var Frame $frame */
         foreach ($frames as $frame) {
-            if (!$frame instanceof \Buggregator\Trap\Proto\StreamCarrier) {
+            if (!$frame instanceof StreamCarrier) {
                 continue;
             }
 

@@ -32,16 +32,27 @@ class MailToFileSender implements Sender
             }
 
             foreach ($frame->message->getBcc() as $bcc) {
-                if ($bcc->email === null) {
+                $email = self::normalizeEmail($bcc->email);
+                if ($email === null) {
                     continue;
                 }
 
-                $path = $this->path . DIRECTORY_SEPARATOR . $bcc->email;
+                $path = $this->path . DIRECTORY_SEPARATOR . $email;
                 FileSystem::mkdir($path);
-                $filepath = \sprintf("%s/%s.json", $path, \date('Y-m-d-H-i-s-v'));
+                $filepath = \sprintf("%s/%s.json", $path, $frame->time->format('Y-m-d-H-i-s-v'));
                 \assert(!\file_exists($filepath));
                 \file_put_contents($filepath, \json_encode($frame->message, \JSON_THROW_ON_ERROR));
             }
         }
+    }
+
+    /**
+     * Get normalized email address for file or directory name.
+     *
+     * @param null|non-empty-string $email
+     */
+    private static function normalizeEmail(?string $email): ?string
+    {
+        return \trim($email) === '' ? null : \str_replace('@', '[at]', $email);
     }
 }
