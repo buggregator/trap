@@ -221,10 +221,10 @@ sender options include:
 By default, the Trap server is set to display dumps in the console. However, you can easily select your preferred
 senders using the `-s` option.
 
-For instance, to simultaneously use the console, file, and server senders, you would input:
+For instance, to simultaneously use the console and file senders, you would input:
 
 ```bash
-vendor/bin/trap -s console -s file -s server
+vendor/bin/trap -sconsole -sfile
 ```
 
 ## Contributing
