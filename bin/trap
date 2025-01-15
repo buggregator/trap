@@ -4,6 +4,7 @@
 declare(strict_types=1);
 
 use Buggregator\Trap\Command;
+use Buggregator\Trap\Info;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\CommandLoader\FactoryCommandLoader;
 
@@ -50,5 +51,7 @@ if ('cli' !== PHP_SAPI) {
         ]),
     );
     $application->setDefaultCommand(Command\Run::getDefaultName(), false);
+    $application->setName(Info::NAME);
+    $application->setVersion(Info::version());
     $application->run();
 })();
