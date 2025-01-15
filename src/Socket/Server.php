@@ -30,41 +30,56 @@ final class Server implements Processable, Cancellable, Destroyable
     private float $lastAccept = 0;
 
     /**
-     * @param null|\Closure(Client, int $id): void $clientInflector
+     * @param non-empty-string $protocol
+     * @param non-empty-string $address
+     * @param int<1, 65535> $port
+     * @param null|\Closure(Client, int $id): mixed $clientInflector
      * @param positive-int $payloadSize Max payload size.
      * @param float $acceptPeriod Time to wait between socket_accept() calls in seconds.
      */
     private function __construct(
+        string $protocol,
+        string $address,
         int $port,
         private readonly int $payloadSize,
         private readonly float $acceptPeriod,
         private readonly ?\Closure $clientInflector,
         private readonly Logger $logger,
     ) {
-        $this->socket = @\socket_create_listen($port) ?: throw new \RuntimeException('Socket create failed.');
+        $this->socket = \socket_create(\AF_INET, \SOCK_STREAM, \getprotobyname($protocol))
+            ?: throw new \RuntimeException('Socket create failed.');
+        @\socket_set_nonblock($this->socket)
+            ?: throw new \RuntimeException('Socket set nonblock failed.');
+        @\socket_bind($this->socket, $address, $port)
+            ?: throw new \RuntimeException('Socket bind failed.');
 
         /** @link https://github.com/buggregator/trap/pull/14 */
         // \socket_set_option($this->socket, \SOL_SOCKET, \SO_LINGER, ['l_linger' => 0, 'l_onoff' => 1]);
 
-        \socket_set_nonblock($this->socket);
+        @\socket_listen($this->socket, \SOMAXCONN)
+            ?: throw new \RuntimeException('Socket listen failed.');
 
-        $logger->status('App', 'Server started on 127.0.0.1:%s', $port);
+        $logger->status('App', 'Server started on %s:%s', $address, $port);
     }
 
     /**
+     * @param non-empty-string $protocol
+     * @param non-empty-string $address
      * @param int<1, 65535> $port
      * @param positive-int $payloadSize Max payload size.
      * @param float $acceptPeriod Time to wait between socket_accept() calls in seconds.
-     * @param null|\Closure(Client, int $id): void $clientInflector
+     * @param null|\Closure(Client, int $id): mixed $clientInflector
      */
     public static function init(
-        int $port = 9912,
+        string $protocol,
+        string $address,
+        int $port,
         int $payloadSize = 10485760,
         float $acceptPeriod = .001,
         ?\Closure $clientInflector = null,
         Logger $logger = new Logger(),
     ): self {
-        return new self($port, $payloadSize, $acceptPeriod, $clientInflector, $logger);
+        return new self($protocol, $address, $port, $payloadSize, $acceptPeriod, $clientInflector, $logger);
     }
 
     public function destroy(): void

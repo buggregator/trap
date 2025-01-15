@@ -18,4 +18,9 @@ final class Frontend
     #[InputOption('ui')]
     #[XPath('/trap/frontend/@port')]
     public int $port = 8000;
+
+    /** @var non-empty-string */
+    #[Env('TRAP_UI_HOST')]
+    #[XPath('/trap/frontend/@host')]
+    public string $host = '127.0.0.1';
 }
