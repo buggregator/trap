@@ -36,6 +36,20 @@ final class SmtpTest extends TestCase
                 new Smtp\Contact('John', 'jdoe@one.test'),
             ],
         ];
+
+        yield [
+            ['"Mary Smith: Personal Account" <smith@home.example>'],
+            [
+                new Smtp\Contact('Mary Smith: Personal Account', 'smith@home.example'),
+            ],
+        ];
+
+        yield [
+            ['" Mary Smith: Personal Account " <smith@home.example>'],
+            [
+                new Smtp\Contact(' Mary Smith: Personal Account ', 'smith@home.example'),
+            ],
+        ];
     }
 
     /**

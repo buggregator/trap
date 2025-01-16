@@ -191,7 +191,7 @@ final class Smtp implements \JsonSerializable
     {
         if (\preg_match('/^\s*(?<name>.*)\s*<(?<email>.*)>\s*$/', $line, $matches) === 1) {
             return new Contact(
-                $matches['name'] ? \trim($matches['name']) : null,
+                $matches['name'] ? \trim(\trim($matches['name']), '"') : null,
                 $matches['email'] ? \trim($matches['email']) : null,
             );
         }
