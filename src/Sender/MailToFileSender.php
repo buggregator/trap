@@ -33,10 +33,8 @@ class MailToFileSender implements Sender
                 continue;
             }
 
-            foreach ($this->collectUniqueEmails($frame->message) as $email) {
-                $email = self::normalizeEmail($email);
-
-                $path = $this->path . DIRECTORY_SEPARATOR . $email;
+            foreach (self::fetchDirectories($frame->message) as $dirName) {
+                $path = $this->path . DIRECTORY_SEPARATOR . $dirName;
                 FileSystem::mkdir($path);
                 $filepath = \sprintf("%s/%s.json", $path, $frame->time->format('Y-m-d-H-i-s-v'));
 
@@ -53,24 +51,22 @@ class MailToFileSender implements Sender
      */
     private static function normalizeEmail(string $email): string
     {
-        return \str_replace('@', '[at]', \trim($email));
+        return \preg_replace(['/[^a-z0-9.\\- @]/i', '/@/', '/\s+/'], ['!', '[at]', '_'], $email);
     }
 
     /**
      * @return list<non-empty-string>
      */
-    private function collectUniqueEmails(Message\Smtp $message): array
+    private static function fetchDirectories(Message\Smtp $message): array
     {
-        $fn = static fn(Contact $c) => $c->email;
-
-        return \array_unique(
+        return
             \array_filter(
-                \array_merge(
-                    \array_map($fn, $message->getBcc()),
-                    \array_map($fn, $message->getTo()),
+                \array_unique(
+                    \array_map(
+                        static fn(Contact $c) => self::normalizeEmail($c->email),
+                        \array_merge($message->getBcc(), $message->getTo()),
+                    ),
                 ),
-                static fn(string $email): bool => false !== \filter_var($email, \FILTER_VALIDATE_EMAIL)
-            ),
-        );
+            );
     }
 }
