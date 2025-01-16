@@ -189,10 +189,16 @@ final class Smtp implements \JsonSerializable
 
     private function parseContact(string $line): Contact
     {
-        if (\preg_match('/^\s*(?<name>.*)\s*<(?<email>.*)>\s*$/', $line, $matches) === 1) {
+        if (\preg_match('/^\s*+(?<name>.*?)\s*<(?<email>.*)>\s*$/', $line, $matches) === 1) {
+            $name = match (true) {
+                \preg_match('/^".*?"$/', $matches['name']) === 1 => \str_replace('\\"', '"', \substr($matches['name'], 1, -1)),
+                $matches['name'] === '' => null,
+                default => $matches['name'],
+            };
+
             return new Contact(
-                $matches['name'] ? \trim(\trim($matches['name']), '"') : null,
-                $matches['email'] ? \trim($matches['email']) : null,
+                $name,
+                $matches['email'] === '' ? null : \trim($matches['email']),
             );
         }
 
