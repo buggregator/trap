@@ -141,7 +141,7 @@ final class Smtp implements \JsonSerializable
      */
     public function getTo(): array
     {
-        return \array_map([$this, 'parseContact'], $this->getHeader('To'));
+        return $this->normalizeAddressList($this->getHeader('To'));
     }
 
     /**
@@ -149,7 +149,7 @@ final class Smtp implements \JsonSerializable
      */
     public function getCc(): array
     {
-        return \array_map([$this, 'parseContact'], $this->getHeader('Cc'));
+        return $this->normalizeAddressList($this->getHeader('Cc'));
     }
 
     /**
@@ -160,7 +160,7 @@ final class Smtp implements \JsonSerializable
      */
     public function getBcc(): array
     {
-        return \array_map([$this, 'parseContact'], $this->protocol['BCC'] ?? []);
+        return $this->normalizeAddressList($this->protocol['BCC'] ?? []);
     }
 
     /**
@@ -168,7 +168,7 @@ final class Smtp implements \JsonSerializable
      */
     public function getReplyTo(): array
     {
-        return \array_map([$this, 'parseContact'], $this->getHeader('Reply-To'));
+        return $this->normalizeAddressList($this->getHeader('Reply-To'));
     }
 
     public function getSubject(): string
@@ -190,9 +190,36 @@ final class Smtp implements \JsonSerializable
     private function parseContact(string $line): Contact
     {
         if (\preg_match('/^\s*(?<name>.*)\s*<(?<email>.*)>\s*$/', $line, $matches) === 1) {
-            return new Contact($matches['name'] ?: null, $matches['email'] ?: null);
+            return new Contact(
+                $matches['name'] ? \trim($matches['name']) : null,
+                $matches['email'] ? \trim($matches['email']) : null,
+            );
         }
 
         return new Contact(null, $line);
+    }
+
+    /**
+     * @return array<Contact>
+     */
+    private function parseDestinationAddress(string $line): array
+    {
+        // if this is a group recipient
+        if (\preg_match('/^[^"]+:(.*);$/', $line, $matches) === 1) {
+            $line = $matches[1];
+        }
+
+        $emailList = \array_map('trim', \explode(',', $line));
+        return \array_map([$this, 'parseContact'], $emailList);
+    }
+
+    /**
+     * @return array<Contact>
+     */
+    private function normalizeAddressList(array $param): array
+    {
+        return \array_merge(
+            ...\array_map([$this, 'parseDestinationAddress'], $param),
+        );
     }
 }

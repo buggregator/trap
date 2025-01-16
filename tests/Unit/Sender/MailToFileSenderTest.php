@@ -28,15 +28,15 @@ final class MailToFileSenderTest extends TestCase
                 'BCC' => [
                     '<user1@company.tld>',
                     '<user2@company.tld>',
-                    '', // must be ignored
                 ],
             ],
             headers: [
                 'From' => ['Some User <someusername@somecompany.ru>'],
                 'To' => [
                     'User1 <user1@company.tld>',
-                    'User3 <user3@company.tld>',
+                    'user2@company.tld',
                     'User without email', // no email
+                    'User3 <user3@inline.com>, User4 <user4@inline.com>, user5@inline.com',
                 ],
                 'Subject' => ['Very important theme'],
                 'Content-Type' => ['text/plain'],
@@ -48,7 +48,9 @@ final class MailToFileSenderTest extends TestCase
 
         $this->assertRecipient("$root/user1[at]company.tld");
         $this->assertRecipient("$root/user2[at]company.tld");
-        $this->assertRecipient("$root/user3[at]company.tld");
+        $this->assertRecipient("$root/user3[at]inline.com");
+        $this->assertRecipient("$root/user4[at]inline.com");
+        $this->assertRecipient("$root/user5[at]inline.com");
     }
 
     protected function tearDown(): void
