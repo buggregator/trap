@@ -217,6 +217,11 @@ sender options include:
 - `console`: This option displays dumps directly in the console.
 - `server`: With this choice, dumps are sent to a remote Buggregator server.
 - `file`: This allows for dumps to be stored in a file for future reference.
+- `mail-to-file`: Only for SMTP. Creates folder for each recipient in `To:` header and dump message to json file. Useful for testing.
+    If you send mail `To: foo@example.com, bar@example2.org` the following folders will be created:
+    - `runtime/mail/foo[at]example.com`
+    - `runtime/mail/bar[at]example2.org`
+  
 
 By default, the Trap server is set to display dumps in the console. However, you can easily select your preferred
 senders using the `-s` option.
