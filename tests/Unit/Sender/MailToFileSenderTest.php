@@ -46,11 +46,11 @@ final class MailToFileSenderTest extends TestCase
         $sender = new MailToFileSender($root);
         $sender->send([$frame]);
 
-        $this->assertRecipient("$root/user1[at]company.tld");
-        $this->assertRecipient("$root/user2[at]company.tld");
-        $this->assertRecipient("$root/user3[at]inline.com");
-        $this->assertRecipient("$root/user4[at]inline.com");
-        $this->assertRecipient("$root/user5[at]inline.com");
+        $this->assertRecipient("$root/user1@company.tld");
+        $this->assertRecipient("$root/user2@company.tld");
+        $this->assertRecipient("$root/user3@inline.com");
+        $this->assertRecipient("$root/user4@inline.com");
+        $this->assertRecipient("$root/user5@inline.com");
     }
 
     protected function tearDown(): void

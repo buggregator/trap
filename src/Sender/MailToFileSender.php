@@ -51,7 +51,11 @@ class MailToFileSender implements Sender
      */
     private static function normalizeEmail(string $email): string
     {
-        return \preg_replace(['/[^a-z0-9.\\- @]/i', '/@/', '/\s+/'], ['!', '[at]', '_'], $email);
+        return \preg_replace(
+            ['/[^a-z0-9.\\- @]/i', '/\s+/'],
+            ['!', '_'],
+            $email,
+        );
     }
 
     /**

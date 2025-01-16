@@ -214,14 +214,13 @@ Environment variables can also be used to set endpoints:
 Buggregator Trap provides a variety of "senders" that dictate where the dumps will be sent. Currently, the available
 sender options include:
 
-- `console`: This option displays dumps directly in the console.
-- `server`: With this choice, dumps are sent to a remote Buggregator server.
-- `file`: This allows for dumps to be stored in a file for future reference.
-- `mail-to-file`: Only for SMTP. Creates folder for each recipient in `To:` header and dump message to json file. Useful for testing.
-    If you send mail `To: foo@example.com, bar@example2.org` the following folders will be created:
-    - `runtime/mail/foo[at]example.com`
-    - `runtime/mail/bar[at]example2.org`
-  
+- `console`: Shows dumps directly in the console.
+- `server`: Sends dumps to a remote Buggregator server.
+- `file`: Saves dumps in a file for later use.
+- `mail-to-file`: Creates a folder for each recipient and saves each message as a JSON file. Useful for testing mails.
+If you send a mail `To: foo@example.com, bar@example2.org`, the following folders will be created:
+  - `runtime/mail/foo@example.com`
+  - `runtime/mail/bar@example2.org`
 
 By default, the Trap server is set to display dumps in the console. However, you can easily select your preferred
 senders using the `-s` option.
