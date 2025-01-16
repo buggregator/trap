@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Sender;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Frame\Smtp;
 use Buggregator\Trap\Sender;
+use Buggregator\Trap\Support\FileSystem;
 
 /**
  * @internal
@@ -17,12 +18,9 @@ class MailToFileSender implements Sender
 
     public function __construct(
         string $path = 'runtime/mail',
-    )
-    {
+    ) {
         $this->path = \rtrim($path, '/\\');
-        if (!\is_dir($path) && !\mkdir($path, 0o777, true) && !\is_dir($path)) {
-            throw new \RuntimeException(\sprintf('Directory "%s" was not created', $path));
-        }
+        FileSystem::mkdir($path);
     }
 
     public function send(iterable $frames): void
@@ -34,18 +32,29 @@ class MailToFileSender implements Sender
             }
 
             foreach ($frame->message->getBcc() as $bcc) {
-                if (null === $bcc->email) {
+                $email = self::normalizeEmail($bcc->email);
+                if ($email === null) {
                     continue;
                 }
 
-                $path = $this->path . DIRECTORY_SEPARATOR . $bcc->email;
-                if (!\is_dir($path) && !\mkdir($path, 0o777, true) && !\is_dir($path)) {
-                    throw new \RuntimeException(\sprintf('Directory "%s" was not created', $path));
-                }
-                $filepath = \sprintf("%s/%s.json", $path, \date('Y-m-d-H-i-s-v'));
+                $path = $this->path . DIRECTORY_SEPARATOR . $email;
+                FileSystem::mkdir($path);
+                $filepath = \sprintf("%s/%s.json", $path, $frame->time->format('Y-m-d-H-i-s-v'));
+
                 \assert(!\file_exists($filepath));
                 \file_put_contents($filepath, \json_encode($frame->message, \JSON_THROW_ON_ERROR));
             }
         }
+    }
+
+    /**
+     * Get normalized email address for file or directory name.
+     *
+     * @return null|non-empty-string
+     */
+    private static function normalizeEmail(?string $email): ?string
+    {
+        $email = \str_replace('@', '[at]', \trim((string) $email));
+        return $email === '' ? null : $email;
     }
 }
