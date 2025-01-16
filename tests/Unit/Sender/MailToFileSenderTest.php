@@ -25,11 +25,19 @@ final class MailToFileSenderTest extends TestCase
         $message = SmtpMessage::create(
             protocol: [
                 'FROM' => ['<someusername@foo.bar>'],
-                'BCC' => ['<user1@company.tld>', '<user2@company.tld>'],
+                'BCC' => [
+                    '<user1@company.tld>',
+                    '<user2@company.tld>',
+                    '', // must be ignored
+                ],
             ],
             headers: [
                 'From' => ['Some User <someusername@somecompany.ru>'],
-                'To' => ['User1 <user1@company.tld>'],
+                'To' => [
+                    'User1 <user1@company.tld>',
+                    'User3 <user3@company.tld>',
+                    'User without email', // no email
+                ],
                 'Subject' => ['Very important theme'],
                 'Content-Type' => ['text/plain'],
             ],
@@ -38,15 +46,24 @@ final class MailToFileSenderTest extends TestCase
         $sender = new MailToFileSender($root);
         $sender->send([$frame]);
 
-        $this->assertRecipient("$root/user1@company.tld");
-        $this->assertRecipient("$root/user2@company.tld");
+        $this->assertRecipient("$root/user1[at]company.tld");
+        $this->assertRecipient("$root/user2[at]company.tld");
+        $this->assertRecipient("$root/user3[at]company.tld");
+    }
+
+    protected function tearDown(): void
+    {
+        foreach ($this->cleanupFolders as $folder) {
+            \array_map('unlink', \glob("$folder/*/*.*"));
+            \array_map('rmdir', \glob("$folder/*"));
+            \rmdir($folder);
+        }
     }
 
     private function assertRecipient(string $folder): void
     {
         self::assertDirectoryExists($folder);
         $files = \glob(\str_replace('[', '[[]', "$folder/*.json"));
-        $files = glob("$folder/*.json");
         self::assertCount(1, $files);
         $arr = \json_decode(\file_get_contents($files[0]), true, \JSON_THROW_ON_ERROR);
         self::assertArrayHasKey('protocol', $arr);

@@ -8,6 +8,8 @@ use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Frame\Smtp;
 use Buggregator\Trap\Sender;
 use Buggregator\Trap\Support\FileSystem;
+use Buggregator\Trap\Traffic\Message;
+use Buggregator\Trap\Traffic\Message\Smtp\Contact;
 
 /**
  * @internal
@@ -31,11 +33,8 @@ class MailToFileSender implements Sender
                 continue;
             }
 
-            foreach ($frame->message->getBcc() as $bcc) {
-                $email = self::normalizeEmail($bcc->email);
-                if ($email === null) {
-                    continue;
-                }
+            foreach ($this->collectUniqueEmails($frame->message) as $email) {
+                $email = self::normalizeEmail($email);
 
                 $path = $this->path . DIRECTORY_SEPARATOR . $email;
                 FileSystem::mkdir($path);
@@ -50,11 +49,28 @@ class MailToFileSender implements Sender
     /**
      * Get normalized email address for file or directory name.
      *
-     * @return null|non-empty-string
+     * @return non-empty-string
      */
-    private static function normalizeEmail(?string $email): ?string
+    private static function normalizeEmail(string $email): string
     {
-        $email = \str_replace('@', '[at]', \trim((string) $email));
-        return $email === '' ? null : $email;
+        return \str_replace('@', '[at]', \trim($email));
+    }
+
+    /**
+     * @return list<non-empty-string>
+     */
+    private function collectUniqueEmails(Message\Smtp $message): array
+    {
+        $fn = static fn(Contact $c) => $c->email;
+
+        return \array_unique(
+            \array_filter(
+                \array_merge(
+                    \array_map($fn, $message->getBcc()),
+                    \array_map($fn, $message->getTo()),
+                ),
+                static fn(string $email): bool => false !== \filter_var($email, \FILTER_VALIDATE_EMAIL)
+            ),
+        );
     }
 }
