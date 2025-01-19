@@ -8,8 +8,10 @@ use Buggregator\Trap\Test\Mock\StreamClientMock;
 use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Buggregator\Trap\Traffic\Message;
 use Buggregator\Trap\Traffic\Parser;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
+#[CoversClass(Parser\Smtp::class)]
 final class SmtpParserTest extends TestCase
 {
     use FiberTrait;
