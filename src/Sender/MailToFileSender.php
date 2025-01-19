@@ -47,15 +47,17 @@ class MailToFileSender implements Sender
     /**
      * Get normalized email address for file or directory name.
      *
-     * @return non-empty-string
+     * @return non-empty-string|null
      */
-    private static function normalizeEmail(string $email): string
+    private static function normalizeEmail(?string $email): ?string
     {
-        return \preg_replace(
+        $normalized = \preg_replace(
             ['/[^a-z0-9.\\- @]/i', '/\s+/'],
             ['!', '_'],
-            $email,
+            (string) $email,
         );
+
+        return $normalized === '' ? null : $normalized;
     }
 
     /**
@@ -63,14 +65,14 @@ class MailToFileSender implements Sender
      */
     private static function fetchDirectories(Message\Smtp $message): array
     {
-        return
-            \array_filter(
-                \array_unique(
-                    \array_map(
-                        static fn(Contact $c) => self::normalizeEmail($c->email),
-                        \array_merge($message->getBcc(), $message->getTo()),
-                    ),
+        return \array_values(\array_filter(
+            \array_unique(
+                \array_map(
+                    static fn(Contact $c): ?string => self::normalizeEmail($c->email),
+                    \array_merge($message->getBcc(), $message->getTo()),
                 ),
-            );
+            ),
+            static fn(?string $dir): bool => $dir !== null,
+        ));
     }
 }
