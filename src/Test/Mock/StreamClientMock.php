@@ -15,8 +15,8 @@ final class StreamClientMock implements StreamClient
 {
     /** @var \SplQueue<string> */
     private \SplQueue $queue;
-    private string $sendBuffer = '';
 
+    private string $sendBuffer = '';
     private bool $disconnected = false;
 
     private function __construct(

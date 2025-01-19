@@ -18,9 +18,9 @@ class SmtpTest extends TestCase
 
     public function testDispatchOneMail(): void
     {
-        $stream = StreamClientMock::createFromGenerator($this->mailMe());
+        $stream = StreamClientMock::createFromGenerator($this->mailMe(quit: true));
 
-        $this->runInFiber(static function () use ($stream) {
+        $this->runInFiber(static function () use ($stream): void {
             foreach ((new Smtp())->dispatch($stream) as $frame) {
                 self::assertInstanceOf(SmtpFrame::class, $frame);
                 self::assertSame('Test email', $frame->message->getSubject());
@@ -43,7 +43,7 @@ class SmtpTest extends TestCase
             $this->mailMe('Test email 3'),
         ));
 
-        $this->runInFiber(static function () use ($stream) {
+        $this->runInFiber(static function () use ($stream): void {
             $i = 1;
             foreach ((new Smtp())->dispatch($stream) as $frame) {
                 self::assertInstanceOf(SmtpFrame::class, $frame);
@@ -58,7 +58,7 @@ class SmtpTest extends TestCase
         });
     }
 
-    private function mailMe(string $subject = 'Test email'): \Generator
+    private function mailMe(string $subject = 'Test email', bool $quit = false): \Generator
     {
         yield "EHLO\r\n";
         yield "MAIL FROM: <someusername@foo.bar>\r\n";
@@ -72,6 +72,8 @@ class SmtpTest extends TestCase
         yield "\r\n";
         yield "Hello, this is a test email.\r\n";
         yield ".\r\n";
-        yield "QUIT\r\n";
+        if ($quit) {
+            yield "QUIT\r\n";
+        }
     }
 }

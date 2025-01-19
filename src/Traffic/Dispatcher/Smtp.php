@@ -27,15 +27,18 @@ final class Smtp implements Dispatcher
         $this->parser = new Parser\Smtp();
     }
 
+    // todo support Auth https://www.rfc-editor.org/rfc/rfc4954
     public function dispatch(StreamClient $stream): iterable
     {
         $stream->sendData($this->createResponse(self::READY, 'mailamie'));
         $protocol = [];
-        $message = null;
         while (!$stream->isFinished()) {
-            $response = $stream->fetchLine();
-            if (\preg_match('/^(?:EHLO|HELO)/', $response)) {
+            $response = \ltrim($stream->fetchLine(), ' ');
+            if (\str_starts_with($response, 'NOOP')) {
                 $stream->sendData($this->createResponse(self::OK));
+            } elseif (\preg_match('/^(?:EHLO|HELO|RSET)/', $response)) {
+                $stream->sendData($this->createResponse(self::OK));
+                $protocol = [];
             } elseif (\preg_match('/^MAIL FROM:\s*<(.*)>/', $response, $matches)) {
                 /** @var array{0: non-empty-string, 1: string} $matches */
                 $protocol['FROM'][] = $matches[1];
@@ -46,12 +49,18 @@ final class Smtp implements Dispatcher
                 $stream->sendData($this->createResponse(self::OK));
             } elseif (\str_starts_with($response, 'QUIT')) {
                 $stream->sendData($this->createResponse(self::CLOSING));
-                yield new Frame\Smtp($message, $stream->getCreatedAt());
+                $stream->disconnect();
+                return;
+            } elseif (\str_starts_with($response, 'RSET')) {
+                $stream->sendData($this->createResponse(self::OK));
                 $protocol = [];
             } elseif (\str_starts_with($response, 'DATA')) {
                 $stream->sendData($this->createResponse(self::START_MAIL_INPUT));
                 $message = $this->parser->parseStream($protocol, $stream);
                 $stream->sendData($this->createResponse(self::OK));
+                yield new Frame\Smtp($message, $stream->getCreatedAt());
+                $protocol = [];
+                unset($message);
             }
         }
     }
