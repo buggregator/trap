@@ -36,7 +36,7 @@ final class MailToFileSenderTest extends TestCase
                     'User1 <user1@company.tld>',
                     'user2@company.tld',
                     'User without email', // no email
-                    'User3 <user3@inline.com>, User4 <user4@inline.com>, user5@inline.com',
+                    'User3 <user3@inline.com>, User4 <user4@inline.com>, us_er_5@inline.com',
                 ],
                 'Subject' => ['Very important theme'],
                 'Content-Type' => ['text/plain'],
@@ -50,7 +50,7 @@ final class MailToFileSenderTest extends TestCase
         $this->assertRecipient("$root/user2@company.tld");
         $this->assertRecipient("$root/user3@inline.com");
         $this->assertRecipient("$root/user4@inline.com");
-        $this->assertRecipient("$root/user5@inline.com");
+        $this->assertRecipient("$root/us_er_5@inline.com");
     }
 
     protected function tearDown(): void
