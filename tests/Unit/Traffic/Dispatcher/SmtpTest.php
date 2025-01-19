@@ -21,13 +21,42 @@ class SmtpTest extends TestCase
         $stream = StreamClientMock::createFromGenerator($this->mailMe(quit: true));
 
         $this->runInFiber(static function () use ($stream): void {
+            $cnt = 0;
             foreach ((new Smtp())->dispatch($stream) as $frame) {
                 self::assertInstanceOf(SmtpFrame::class, $frame);
                 self::assertSame('Test email', $frame->message->getSubject());
-                return;
+                ++$cnt;
             }
 
-            self::fail('No frame was yielded.');
+            self::assertSame(1, $cnt, 'Only one frame should be yielded.');
+        });
+    }
+
+    public function testDispatchOneMailWithRset(): void
+    {
+        $stream = StreamClientMock::createFromGenerator((function (\Generator ...$generators) {
+            yield "EHLO\r\n";
+            yield "MAIL FROM: <someusername@foo.bar>\r\n";
+            yield "RCPT TO: <user10@company.tld>\r\n";
+            yield "RCPT TO: <user22@company.tld>\r\n";
+            yield "RSET\r\n";
+            yield from $this->mailMe('Test email');
+        })());
+
+        $this->runInFiber(static function () use ($stream): void {
+            $cnt = 0;
+            foreach ((new Smtp())->dispatch($stream) as $frame) {
+                self::assertInstanceOf(SmtpFrame::class, $frame);
+                self::assertSame("Test email", $frame->message->getSubject());
+                self::assertSame(
+                    ['user1@company.tld', 'user2@company.tld'],
+                    $frame->message->getProtocol()['BCC'],
+                    'RSET should clear the buffered data.',
+                );
+                ++$cnt;
+            }
+
+            self::assertSame(1, $cnt, 'Only one frame should be yielded.');
         });
     }
 
@@ -64,6 +93,7 @@ class SmtpTest extends TestCase
         yield "MAIL FROM: <someusername@foo.bar>\r\n";
         yield "RCPT TO: <user1@company.tld>\r\n";
         yield "RCPT TO: <user2@company.tld>\r\n";
+        yield "NOOP\r\n";
         yield "DATA\r\n";
         yield "From: sender@example.com\r\n";
         yield "To: recipient@example.com\r\n";
@@ -72,6 +102,7 @@ class SmtpTest extends TestCase
         yield "\r\n";
         yield "Hello, this is a test email.\r\n";
         yield ".\r\n";
+        yield "NOOP\r\n";
         if ($quit) {
             yield "QUIT\r\n";
         }

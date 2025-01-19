@@ -51,9 +51,6 @@ final class Smtp implements Dispatcher
                 $stream->sendData($this->createResponse(self::CLOSING));
                 $stream->disconnect();
                 return;
-            } elseif (\str_starts_with($response, 'RSET')) {
-                $stream->sendData($this->createResponse(self::OK));
-                $protocol = [];
             } elseif (\str_starts_with($response, 'DATA')) {
                 $stream->sendData($this->createResponse(self::START_MAIL_INPUT));
                 $message = $this->parser->parseStream($protocol, $stream);
