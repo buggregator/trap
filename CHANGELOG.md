@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.13.1 (2025-01-19)
+
+## What's Changed
+* Allow `_` in email names in MailToFileSender by @gam6itko in https://github.com/buggregator/trap/pull/155
+
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.13.0...1.13.1
+
 ## 1.13.0 (2025-01-19)
 
 ## What's Changed
