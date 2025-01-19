@@ -31,7 +31,6 @@ final class Smtp implements Dispatcher
     {
         $stream->sendData($this->createResponse(self::READY, 'mailamie'));
         $protocol = [];
-
         $message = null;
         while (!$stream->isFinished()) {
             $response = $stream->fetchLine();
@@ -47,20 +46,14 @@ final class Smtp implements Dispatcher
                 $stream->sendData($this->createResponse(self::OK));
             } elseif (\str_starts_with($response, 'QUIT')) {
                 $stream->sendData($this->createResponse(self::CLOSING));
-                $stream->disconnect();
+                yield new Frame\Smtp($message, $stream->getCreatedAt());
+                $protocol = [];
             } elseif (\str_starts_with($response, 'DATA')) {
                 $stream->sendData($this->createResponse(self::START_MAIL_INPUT));
-
                 $message = $this->parser->parseStream($protocol, $stream);
                 $stream->sendData($this->createResponse(self::OK));
             }
         }
-
-        if ($message === null) {
-            return;
-        }
-
-        yield new Frame\Smtp($message, $stream->getCreatedAt());
     }
 
     public function detect(string $data, \DateTimeImmutable $createdAt): ?bool

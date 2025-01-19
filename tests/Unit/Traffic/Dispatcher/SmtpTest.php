@@ -31,6 +31,33 @@ class SmtpTest extends TestCase
         });
     }
 
+    public function testDispatchMultipleMails(): void
+    {
+        $stream = StreamClientMock::createFromGenerator((static function (\Generator ...$generators) {
+            foreach ($generators as $generator) {
+                yield from $generator;
+            }
+        })(
+            $this->mailMe('Test email 1'),
+            $this->mailMe('Test email 2'),
+            $this->mailMe('Test email 3'),
+        ));
+
+        $this->runInFiber(static function () use ($stream) {
+            $i = 1;
+            foreach ((new Smtp())->dispatch($stream) as $frame) {
+                self::assertInstanceOf(SmtpFrame::class, $frame);
+                self::assertSame("Test email $i", $frame->message->getSubject());
+
+                if (++$i === 3) {
+                    return;
+                }
+            }
+
+            self::fail('No frame was yielded.');
+        });
+    }
+
     private function mailMe(string $subject = 'Test email'): \Generator
     {
         yield "EHLO\r\n";
