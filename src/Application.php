@@ -57,7 +57,7 @@ final class Application implements Processable, Cancellable, Destroyable
         $feConfig = $this->container->get(FrontendConfig::class);
         $feSeparated = !\in_array(
             $feConfig->port,
-            \array_map(static fn(SocketServer $item): ?int => $item->type === 'tcp' ? $item->port : null, $map, ),
+            \array_map(static fn(SocketServer $item): ?int => $item->protocol === 'tcp' ? $item->port : null, $map),
             true,
         );
         $withFrontend and $this->configureFrontend($feSeparated);
@@ -104,7 +104,7 @@ final class Application implements Processable, Cancellable, Destroyable
         $this->configureFileObserver();
 
         foreach ($map as $config) {
-            $withFrontend && !$feSeparated && $config->type === 'tcp' && $config->port === $feConfig->port
+            $withFrontend && !$feSeparated && $config->protocol === 'tcp' && $config->port === $feConfig->port
                 ? $this->prepareServerFiber($config, $inspectorWithFrontend, $this->logger)
                 : $this->prepareServerFiber($config, $inspector, $this->logger);
         }
@@ -225,7 +225,7 @@ final class Application implements Processable, Cancellable, Destroyable
         $tcpConfig = $this->container->get(TcpPorts::class);
         $config = $this->container->get(FrontendConfig::class);
         $this->prepareServerFiber(
-            new SocketServer(port: $config->port, pollingInterval: $tcpConfig->pollingInterval),
+            new SocketServer(port: $config->port, host: $config->host, pollingInterval: $tcpConfig->pollingInterval),
             $inspector,
             $this->logger,
         );
@@ -255,6 +255,8 @@ final class Application implements Processable, Cancellable, Destroyable
         };
 
         return Server::init(
+            $config->protocol,
+            $config->host,
             $config->port,
             payloadSize: 524_288,
             acceptPeriod: \max(50, $config->pollingInterval) / 1e6,

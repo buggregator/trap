@@ -16,6 +16,7 @@ final class StreamClientMock implements StreamClient
     /** @var \SplQueue<string> */
     private \SplQueue $queue;
 
+    private string $sendBuffer = '';
     private bool $disconnected = false;
 
     private function __construct(
@@ -23,6 +24,9 @@ final class StreamClientMock implements StreamClient
         private readonly \DateTimeInterface $createdAt = new \DateTimeImmutable(),
     ) {
         $this->queue = new \SplQueue();
+        // init the Generator
+        $value = (string) $this->generator->current();
+        $value === '' or $this->queue->enqueue($value);
     }
 
     public static function createFromGenerator(\Generator $generator): StreamClient
@@ -51,7 +55,7 @@ final class StreamClientMock implements StreamClient
         }
 
         $this->fetchFromGenerator();
-        $this->generator->send($data);
+        $this->sendBuffer .= $data;
 
         return true;
     }
@@ -141,12 +145,8 @@ final class StreamClientMock implements StreamClient
         if ($this->isFinished()) {
             return;
         }
-        $value = (string) $this->generator->current();
-
-        if ($value !== '') {
-            $this->queue->enqueue($value);
-        }
-
-        $this->generator->next();
+        [$toSend, $this->sendBuffer] = [$this->sendBuffer, ''];
+        $value = (string) $this->generator->send($toSend);
+        $value === '' or $this->queue->enqueue($value);
     }
 }

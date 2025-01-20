@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender;
 
 use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Proto\StreamCarrier;
 use Buggregator\Trap\Sender;
+use Buggregator\Trap\Support\FileSystem;
 use Buggregator\Trap\Support\StreamHelper;
 use Nyholm\Psr7\Stream;
 
@@ -23,9 +25,7 @@ class BodyToFileSender implements Sender
         string $path = 'runtime/body',
     ) {
         $this->path = \rtrim($path, '/\\');
-        if (!\is_dir($path) && !\mkdir($path, 0o777, true) && !\is_dir($path)) {
-            throw new \RuntimeException(\sprintf('Directory "%s" was not created', $path));
-        }
+        FileSystem::mkdir($path);
     }
 
     public function send(iterable $frames): void
@@ -35,7 +35,7 @@ class BodyToFileSender implements Sender
 
         /** @var Frame $frame */
         foreach ($frames as $frame) {
-            if (!$frame instanceof \Buggregator\Trap\Proto\StreamCarrier) {
+            if (!$frame instanceof StreamCarrier) {
                 continue;
             }
 

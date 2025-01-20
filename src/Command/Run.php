@@ -72,7 +72,7 @@ final class Run extends Command implements SignalableCommandInterface
             $port > 0 && $port < 65536 or throw new \InvalidArgumentException(
                 \sprintf('Invalid port `%s`. It must be in range 1-65535.', $port),
             );
-            $servers[] = new SocketServer($port, $config->host, $config->type, $config->pollingInterval);
+            $servers[] = new SocketServer($port, $config->host, $config->protocol, $config->pollingInterval);
         }
         return $servers;
     }
@@ -83,6 +83,7 @@ final class Run extends Command implements SignalableCommandInterface
         $registry->register('console', Sender\ConsoleSender::create($output));
         $registry->register('file', new Sender\EventsToFileSender());
         $registry->register('file-body', new Sender\BodyToFileSender());
+        $registry->register('mail-to-file', new Sender\MailToFileSender());
         $registry->register(
             'server',
             new Sender\RemoteSender(

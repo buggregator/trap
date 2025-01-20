@@ -214,17 +214,21 @@ Environment variables can also be used to set endpoints:
 Buggregator Trap provides a variety of "senders" that dictate where the dumps will be sent. Currently, the available
 sender options include:
 
-- `console`: This option displays dumps directly in the console.
-- `server`: With this choice, dumps are sent to a remote Buggregator server.
-- `file`: This allows for dumps to be stored in a file for future reference.
+- `console`: Shows dumps directly in the console.
+- `server`: Sends dumps to a remote Buggregator server.
+- `file`: Saves dumps in a file for later use.
+- `mail-to-file`: Creates a folder for each recipient and saves each message as a JSON file. Useful for testing mails.
+If you send a mail `To: foo@example.com, bar@example2.org`, the following folders will be created:
+  - `runtime/mail/foo@example.com`
+  - `runtime/mail/bar@example2.org`
 
 By default, the Trap server is set to display dumps in the console. However, you can easily select your preferred
 senders using the `-s` option.
 
-For instance, to simultaneously use the console, file, and server senders, you would input:
+For instance, to simultaneously use the console and file senders, you would input:
 
 ```bash
-vendor/bin/trap -s console -s file -s server
+vendor/bin/trap -sconsole -sfile
 ```
 
 ## Contributing
@@ -238,9 +242,7 @@ We believe in the power of community-driven development. Here's how you can cont
 - **Documentation:** Help us improve our [guides and tutorials](https://github.com/buggregator/docs/tree/master/docs) for a smoother user experience.
 - **Community Support:** Join our [Discord](https://discord.gg/qF3HpXhMEP) and help others get the most out of Buggregator.
 - **Spread the Word:** Share your experience with Buggregator on social media and encourage others to contribute.
-- **Donate:** Support our work by becoming a patron or making a one-time donation  
-  [![roxblnfk](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Droxblnfk%26type%3Dpatrons&label=roxblnfk&style=flat-square)](https://patreon.com/roxblnfk)
-  [![butschster](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Dbutschster%26type%3Dpatrons&label=butschster&style=flat-square)](https://patreon.com/butschster)
+- **Donate:** Support our work by [becoming a patron](https://patreon.com/roxblnfk) or making a [one-time donation](https://patreon.com/roxblnfk).
 
 **Remember, every great developer was once a beginner. Contributing to open source projects is a step in your journey to
 becoming a better developer. So, don't hesitate to jump in and start contributing!**

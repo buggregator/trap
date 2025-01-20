@@ -133,7 +133,7 @@ final class Smtp implements \JsonSerializable
     {
         $addrs = \array_unique(\array_merge((array) ($this->protocol['FROM'] ?? []), $this->getHeader('From')));
 
-        return \array_map([$this, 'parseContact'], $addrs);
+        return \array_map(self::parseContact(...), $addrs);
     }
 
     /**
@@ -141,7 +141,7 @@ final class Smtp implements \JsonSerializable
      */
     public function getTo(): array
     {
-        return \array_map([$this, 'parseContact'], $this->getHeader('To'));
+        return self::normalizeAddressList($this->getHeader('To'));
     }
 
     /**
@@ -149,7 +149,7 @@ final class Smtp implements \JsonSerializable
      */
     public function getCc(): array
     {
-        return \array_map([$this, 'parseContact'], $this->getHeader('Cc'));
+        return self::normalizeAddressList($this->getHeader('Cc'));
     }
 
     /**
@@ -160,7 +160,7 @@ final class Smtp implements \JsonSerializable
      */
     public function getBcc(): array
     {
-        return \array_map([$this, 'parseContact'], $this->protocol['BCC'] ?? []);
+        return self::normalizeAddressList($this->protocol['BCC'] ?? []);
     }
 
     /**
@@ -168,7 +168,7 @@ final class Smtp implements \JsonSerializable
      */
     public function getReplyTo(): array
     {
-        return \array_map([$this, 'parseContact'], $this->getHeader('Reply-To'));
+        return self::normalizeAddressList($this->getHeader('Reply-To'));
     }
 
     public function getSubject(): string
@@ -187,12 +187,46 @@ final class Smtp implements \JsonSerializable
         return null;
     }
 
-    private function parseContact(string $line): Contact
+    private static function parseContact(string $line): Contact
     {
-        if (\preg_match('/^\s*(?<name>.*)\s*<(?<email>.*)>\s*$/', $line, $matches) === 1) {
-            return new Contact($matches['name'] ?: null, $matches['email'] ?: null);
+        if (\preg_match('/^\s*+(?<name>.*?)\s*<(?<email>.*)>\s*$/', $line, $matches) === 1) {
+            $name = match (true) {
+                \preg_match('/^".*?"$/', $matches['name']) === 1 => \str_replace('\\"', '"', \substr($matches['name'], 1, -1)),
+                $matches['name'] === '' => null,
+                default => $matches['name'],
+            };
+
+            return new Contact(
+                $name,
+                $matches['email'] === '' ? null : \trim($matches['email']),
+            );
         }
 
         return new Contact(null, $line);
+    }
+
+    /**
+     * @return list<Contact>
+     */
+    private static function parseDestinationAddress(string $line): array
+    {
+        // if this is a group recipient
+        if (\preg_match('/^[^"]+:(.*);$/', $line, $matches) === 1) {
+            $line = $matches[1];
+        }
+
+        $emailList = \array_map(\trim(...), \explode(',', $line));
+        return \array_map(self::parseContact(...), $emailList);
+    }
+
+    /**
+     * @param list<string> $param
+     * @return list<Contact>
+     */
+    private static function normalizeAddressList(array $param): array
+    {
+        return \array_merge(
+            ...\array_map(self::parseDestinationAddress(...), $param),
+        );
     }
 }

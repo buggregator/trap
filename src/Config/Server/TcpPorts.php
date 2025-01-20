@@ -32,7 +32,10 @@ final class TcpPorts
     #[Env('TRAP_TCP_HOST')]
     public string $host = '127.0.0.1';
 
-    public string $type = 'tcp';
+    /**
+     * @var non-empty-string
+     */
+    public string $protocol = 'tcp';
 
     /**
      * Time to wait between socket_accept() and socket_select() calls in microseconds.
