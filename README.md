@@ -24,6 +24,7 @@ Trap includes:
 - Extensions for Symfony VarDumper that become active immediately after installing Trap.
 - A minimized version of the [Buggregator Server](https://github.com/buggregator/server) that does not require Docker
   and is intended solely for local use.
+- Use PHPStorm? Consider using Trap with the [Buggregator Plugin](https://github.com/buggregator/phpstorm-plugin) for a seamless debugging experience.
 
 **Table of content:**
 
