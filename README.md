@@ -242,9 +242,7 @@ We believe in the power of community-driven development. Here's how you can cont
 - **Documentation:** Help us improve our [guides and tutorials](https://github.com/buggregator/docs/tree/master/docs) for a smoother user experience.
 - **Community Support:** Join our [Discord](https://discord.gg/qF3HpXhMEP) and help others get the most out of Buggregator.
 - **Spread the Word:** Share your experience with Buggregator on social media and encourage others to contribute.
-- **Donate:** Support our work by becoming a patron or making a one-time donation  
-  [![roxblnfk](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Droxblnfk%26type%3Dpatrons&label=roxblnfk&style=flat-square)](https://patreon.com/roxblnfk)
-  [![butschster](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Dbutschster%26type%3Dpatrons&label=butschster&style=flat-square)](https://patreon.com/butschster)
+- **Donate:** Support our work by [becoming a patron](https://patreon.com/roxblnfk) or making a [one-time donation](https://patreon.com/roxblnfk).
 
 **Remember, every great developer was once a beginner. Contributing to open source projects is a step in your journey to
 becoming a better developer. So, don't hesitate to jump in and start contributing!**
