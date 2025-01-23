@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.13.3 (2025-01-23)
+
+## What's Changed
+* SMTP: improve parsing of multiline headers ( by @roxblnfk in https://github.com/buggregator/trap/pull/160
+
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.13.2...1.13.3
+
 ## 1.13.2 (2025-01-23)
 
 ## What's Changed
