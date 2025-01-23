@@ -4,35 +4,20 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender;
 
-use Buggregator\Trap\Logger;
+use Buggregator\Trap\Module\Frontend;
 use Buggregator\Trap\Processable;
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Sender\Frontend\ConnectionPool;
 
 /**
  * @internal
  */
 final class FrontendSender implements \Buggregator\Trap\Sender, Processable
 {
-    private function __construct(
-        private readonly ConnectionPool $connectionPool,
+    public function __construct(
+        private readonly Frontend\ConnectionPool $connectionPool,
         private readonly Frontend\EventStorage $framesStorage,
-        private readonly FrameHandler $handler,
+        private readonly Frontend\FrameHandler $handler,
     ) {}
-
-    public static function create(
-        Logger $logger,
-        ?Frontend\ConnectionPool $connectionPool = null,
-        ?Frontend\EventStorage $eventStorage = null,
-    ): self {
-        $eventStorage ??= new Frontend\EventStorage();
-        $connectionPool ??= new Frontend\ConnectionPool($logger, new Frontend\RPC($logger, $eventStorage));
-        return new self(
-            $connectionPool,
-            $eventStorage,
-            new Frontend\FrameHandler($logger, $connectionPool, $eventStorage),
-        );
-    }
 
     /**
      * @param iterable<Frame> $frames
@@ -45,7 +30,7 @@ final class FrontendSender implements \Buggregator\Trap\Sender, Processable
         }
     }
 
-    public function getConnectionPool(): ConnectionPool
+    public function getConnectionPool(): Frontend\ConnectionPool
     {
         return $this->connectionPool;
     }
