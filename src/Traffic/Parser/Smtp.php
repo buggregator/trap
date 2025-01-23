@@ -18,12 +18,52 @@ use Psr\Http\Message\StreamInterface;
 final class Smtp
 {
     /**
+     * @return array<array-key, non-empty-list<non-empty-string>>
+     */
+    public static function parseHeaders(string $headersBlock): array
+    {
+        $result = [];
+        $name = null;
+        $value = '';
+        foreach (\explode("\r\n", $headersBlock) as $line) {
+            // Skip empty lines
+            if ($line === '') {
+                continue;
+            }
+
+            // Append to the previous header
+            if ($line[0] === ' ' || $line[0] === "\t") {
+                if ($name === null) {
+                    continue;
+                }
+
+                $value .= $line;
+                continue;
+            }
+
+            // Store previous header
+            $name === null or $value === '' or $result[$name][] = $value;
+
+            // New header
+            [$name, $value] = \explode(':', $line, 2) + [1 => ''];
+            $name = \trim($name);
+            $value = \ltrim($value);
+            $name === '' || $value === '' and $name = null;
+        }
+
+        // Store last header
+        $name === null or $value === '' or $result[$name][] = $value;
+
+        return $result;
+    }
+
+    /**
      * @param array<non-empty-string, list<string>> $protocol
      */
     public function parseStream(array $protocol, StreamClient $stream): Message\Smtp
     {
         $headerBlock = Http::getBlock($stream);
-        $headers = Http::parseHeaders($headerBlock);
+        $headers = self::parseHeaders($headerBlock);
         $fileStream = StreamHelper::createFileStream();
         // Store read headers to the file stream.
         $fileStream->write($headerBlock . "\r\n\r\n");
@@ -53,8 +93,6 @@ final class Smtp
         $message = $isMultipart
             ? $this->processMultipartForm($message, $fileStream)
             : $this->processSingleBody($message, $fileStream);
-
-
 
         return $message;
     }

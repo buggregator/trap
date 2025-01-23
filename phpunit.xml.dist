@@ -8,6 +8,8 @@
          failOnRisky="true"
          executionOrder="random"
          stderr="true"
+         displayDetailsOnTestsThatTriggerWarnings="true"
+         displayDetailsOnTestsThatTriggerDeprecations="true"
          beStrictAboutOutputDuringTests="true"
 >
     <extensions>
