@@ -14,7 +14,9 @@
         "websockets",
         "server",
         "helper",
-        "dev"
+        "dev",
+        "fibers",
+        "dumper"
     ],
     "authors": [
         {
@@ -29,16 +31,12 @@
     "homepage": "https://buggregator.dev/",
     "funding": [
         {
-            "type": "github",
-            "url": "https://github.com/sponsors/buggregator"
-        },
-        {
             "type": "patreon",
             "url": "https://patreon.com/roxblnfk"
         },
         {
-            "type": "patreon",
-            "url": "https://patreon.com/butschster"
+            "type": "boosty",
+            "url": "https://boosty.to/roxblnfk"
         }
     ],
     "require": {

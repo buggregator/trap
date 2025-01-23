@@ -14,12 +14,16 @@ final class SenderRegistry
     /** @var array<non-empty-string, Sender> */
     private array $senders = [];
 
+    /** @var array<non-empty-string, \Closure(): Sender> */
+    private array $factory = [];
+
     /**
      * @param non-empty-string $name
+     * @param callable(): Sender $factory
      */
-    public function register(string $name, Sender $sender): void
+    public function register(string $name, callable $factory): void
     {
-        $this->senders[$name] = $sender;
+        $this->factory[$name] = $factory(...);
     }
 
     /**
@@ -30,11 +34,9 @@ final class SenderRegistry
     {
         $senders = [];
         foreach ($types as $type) {
-            if (!isset($this->senders[$type])) {
-                throw new \InvalidArgumentException(\sprintf('Unknown sender type "%s"', $type));
-            }
-
-            $senders[] = $this->senders[$type];
+            $senders[] = $this->senders[$type] ?? ($this->factory[$type] ?? throw new \InvalidArgumentException(
+                "Unknown sender type `{$type}`.",
+            ))();
         }
 
         return $senders;
