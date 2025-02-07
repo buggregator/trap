@@ -80,17 +80,11 @@ final class Run extends Command implements SignalableCommandInterface
     public function createRegistry(OutputInterface $output): Sender\SenderRegistry
     {
         $registry = new Sender\SenderRegistry();
-        $registry->register('console', Sender\ConsoleSender::create($output));
-        $registry->register('file', new Sender\EventsToFileSender());
-        $registry->register('file-body', new Sender\BodyToFileSender());
-        $registry->register('mail-to-file', new Sender\MailToFileSender());
-        $registry->register(
-            'server',
-            new Sender\RemoteSender(
-                host: '127.0.0.1',
-                port: 9099,
-            ),
-        );
+        $registry->register('console', static fn(): Sender => Sender\ConsoleSender::create($output));
+        $registry->register('file', static fn(): Sender => new Sender\EventsToFileSender());
+        $registry->register('file-body', static fn(): Sender => new Sender\BodyToFileSender());
+        $registry->register('mail-to-file', static fn(): Sender => new Sender\MailToFileSender());
+        $registry->register('server', static fn(): Sender => new Sender\RemoteSender(host: '127.0.0.1', port: 9099));
 
         return $registry;
     }

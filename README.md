@@ -24,6 +24,7 @@ Trap includes:
 - Extensions for Symfony VarDumper that become active immediately after installing Trap.
 - A minimized version of the [Buggregator Server](https://github.com/buggregator/server) that does not require Docker
   and is intended solely for local use.
+- Use PHPStorm? Consider using Trap with the [Buggregator Plugin](https://github.com/buggregator/phpstorm-plugin) for a seamless debugging experience.
 
 **Table of content:**
 
@@ -235,17 +236,18 @@ vendor/bin/trap -sconsole -sfile
 
 We believe in the power of community-driven development. Here's how you can contribute:
 
-- **Report Bugs:** Encounter a glitch? Let us know on our [issue tracker](https://github.com/buggregator/trap/issues).
-- **Feature Suggestions:** Have ideas to improve the Buggregator Trap? [Create a feature request](https://github.com/buggregator/trap/issues)!
-- **Code Contributions:** Submit a pull request to help us improve the Buggregator Trap codebase. You can find a list of
-  issues labeled "help wanted" [here](https://github.com/buggregator/trap/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22).
-- **Documentation:** Help us improve our [guides and tutorials](https://github.com/buggregator/docs/tree/master/docs) for a smoother user experience.
-- **Community Support:** Join our [Discord](https://discord.gg/qF3HpXhMEP) and help others get the most out of Buggregator.
-- **Spread the Word:** Share your experience with Buggregator on social media and encourage others to contribute.
-- **Donate:** Support our work by [becoming a patron](https://patreon.com/roxblnfk) or making a [one-time donation](https://patreon.com/roxblnfk).
-
-**Remember, every great developer was once a beginner. Contributing to open source projects is a step in your journey to
-becoming a better developer. So, don't hesitate to jump in and start contributing!**
+- Share your experience:  
+  - If you find a bug or have a feature request, please [create an issue](https://github.com/buggregator/trap/issues).
+  - Help others by answering questions on [Discord](https://discord.gg/qF3HpXhMEP) or asking your own.
+  - Share the love and tell others about Buggregator.
+- Write code:  
+  - If you want to fix a bug or add a feature, let us know in the issue tracker.
+    [There are issues](https://github.com/buggregator/trap/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22) labeled "help wanted" that are a good place to start.
+  - Have good documentation writing skills? We'd love your help improving our [docs](https://github.com/buggregator/docs/tree/master/docs).
+- Sponsor us:  
+  - If you use Buggregator in a commercial setting, consider [becoming a sponsor](https://patreon.com/roxblnfk) to help us maintain and improve the project.
+  - You also can promote a specific feature or bug fix.
+    We mark sponsored tasks with the honorary label [`SPONSORED`](https://github.com/buggregator/trap/issues?q=label%3ASPONSORED).
 
 ## License
 
