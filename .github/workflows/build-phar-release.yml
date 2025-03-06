@@ -24,10 +24,10 @@ jobs:
       GPG_KEYS_ENCRYPTED: ".github/phar/keys.asc.gpg"
     steps:
       - name: 📦 Check out the codebase
-        uses: actions/checkout@v4.1.5
+        uses: actions/checkout@v4
 
       - name: 🛠️ Setup PHP
-        uses: shivammathur/setup-php@2.30.4
+        uses: shivammathur/setup-php@2.32.0
         with:
           php-version: ${{ matrix.php-version }}
           extensions: none, ctype, dom, json, mbstring, phar, simplexml, tokenizer, xml, xmlwriter, sockets
@@ -43,22 +43,22 @@ jobs:
         run: composer validate --ansi --strict
 
       - name: 🔍 Get composer cache directory
-        uses: wayofdev/gh-actions/actions/composer/get-cache-directory@v3.1.0
+        uses: wayofdev/gh-actions/actions/composer/get-cache-directory@v3.2.0
 
       - name: ♻️ Restore cached dependencies installed with composer
-        uses: actions/cache@v4.0.2
+        uses: actions/cache@v4
         with:
           path: ${{ env.COMPOSER_CACHE_DIR }}
           key: php-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-${{ hashFiles('composer.lock') }}
           restore-keys: php-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-
 
       - name: 📥 Install "${{ matrix.dependencies }}" dependencies with composer
-        uses: wayofdev/gh-actions/actions/composer/install@v3.1.0
+        uses: wayofdev/gh-actions/actions/composer/install@v3.2.0
         with:
           dependencies: ${{ matrix.dependencies }}
 
       - name: 📥 Install dependencies with phive
-        uses: wayofdev/gh-actions/actions/phive/install@v3.1.0
+        uses: wayofdev/gh-actions/actions/phive/install@v3.2.0
         with:
           phive-home: '.phive'
           trust-gpg-keys: '0xC00543248C87FB13,0x033E5F8D801A2F8D,0x2DF45277AEF09A2F'
@@ -91,7 +91,7 @@ jobs:
         run: rm ${{ env.GPG_KEYS }}
 
       - name: 📤 Upload release assets
-        uses: softprops/action-gh-release@v2.0.5
+        uses: softprops/action-gh-release@v2.2.1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           token: "${{ secrets.TRAP_RELEASE_TOKEN }}"
@@ -104,7 +104,7 @@ jobs:
     timeout-minutes: 4
     steps:
       - name: 📦 Check out the codebase
-        uses: actions/checkout@v4.1.5
+        uses: actions/checkout@v4
 
       - name: ✉️ Notify Discord about release
         uses: SethCohen/github-releases-to-discord@v1.15.0
