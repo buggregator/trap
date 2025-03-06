@@ -91,7 +91,7 @@ jobs:
         run: rm ${{ env.GPG_KEYS }}
 
       - name: 📤 Upload release assets
-        uses: softprops/action-gh-release@v2.0.5
+        uses: softprops/action-gh-release@v2.2.1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           token: "${{ secrets.TRAP_RELEASE_TOKEN }}"
