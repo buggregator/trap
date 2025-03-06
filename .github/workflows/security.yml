@@ -24,7 +24,7 @@ jobs:
           - locked
     steps:
       - name: 📦 Check out the codebase
-        uses: actions/checkout@v4.1.5
+        uses: actions/checkout@v4
 
       - name: 🛠️ Setup PHP
         uses: shivammathur/setup-php@2.30.4
@@ -44,7 +44,7 @@ jobs:
         uses: wayofdev/gh-actions/actions/composer/get-cache-directory@v3.1.0
 
       - name: ♻️ Restore cached dependencies installed with composer
-        uses: actions/cache@v4.0.2
+        uses: actions/cache@v4
         with:
           path: ${{ env.COMPOSER_CACHE_DIR }}
           key: php-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-${{ hashFiles('composer.lock') }}

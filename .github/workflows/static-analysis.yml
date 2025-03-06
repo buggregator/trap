@@ -38,7 +38,7 @@ jobs:
           - locked
     steps:
       - name: 📦 Check out the codebase
-        uses: actions/checkout@v4.1.5
+        uses: actions/checkout@v4
 
       - name: 🛠️ Setup PHP
         uses: shivammathur/setup-php@2.30.4
@@ -89,7 +89,7 @@ jobs:
           - locked
     steps:
       - name: 📦 Check out the codebase
-        uses: actions/checkout@v4.1.5
+        uses: actions/checkout@v4
 
       - name: 🛠️ Setup PHP
         uses: shivammathur/setup-php@2.30.4
