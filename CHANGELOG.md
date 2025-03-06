@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.13.4 (2025-03-06)
+
+## What's Changed
+* Use _ENV to get VAR_DUMPER envs by @roxblnfk in https://github.com/buggregator/trap/pull/163
+
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.13.3...1.13.4
+
 ## 1.13.3 (2025-01-23)
 
 ## What's Changed
