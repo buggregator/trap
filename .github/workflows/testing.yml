@@ -86,11 +86,13 @@ jobs:
           - '8.1'
           - '8.2'
           - '8.3'
-          - '8.4'
         dependencies:
           - lowest
           - locked
           - highest
+        include:
+          - php-version: '8.4'
+            dependencies: highest
     steps:
       - name: 📦 Check out the codebase
         uses: actions/checkout@v4
