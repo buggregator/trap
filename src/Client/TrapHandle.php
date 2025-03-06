@@ -220,9 +220,9 @@ final class TrapHandle
         try {
             // Set default values if not set
             if (!isset($_SERVER['VAR_DUMPER_FORMAT'], $_SERVER['VAR_DUMPER_SERVER'])) {
-                $_SERVER['VAR_DUMPER_FORMAT'] = 'server';
+                $_SERVER['VAR_DUMPER_FORMAT'] = $_ENV['VAR_DUMPER_FORMAT'] ?? 'server';
                 // todo use the config file in the future
-                $_SERVER['VAR_DUMPER_SERVER'] = '127.0.0.1:9912';
+                $_SERVER['VAR_DUMPER_SERVER'] = $_ENV['VAR_DUMPER_SERVER'] ?? '127.0.0.1:9912';
             }
 
             // Dump single value
