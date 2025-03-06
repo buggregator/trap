@@ -32,10 +32,10 @@ jobs:
           - locked
     steps:
       - name: 📦 Check out the codebase
-        uses: actions/checkout@v4.1.7
+        uses: actions/checkout@v4
 
       - name: 🛠️ Setup PHP
-        uses: shivammathur/setup-php@2.30.4
+        uses: shivammathur/setup-php@2.32.0
         with:
           php-version: ${{ matrix.php-version }}
           extensions: none, ctype, curl, dom, json, mbstring, phar, simplexml, tokenizer, xml, xmlwriter, sockets, opcache, pcntl, posix
