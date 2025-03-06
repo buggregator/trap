@@ -1,5 +1,103 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<files psalm-version="5.24.0@462c80e31c34e58cc4f750c656be3927e80e550e">
+<files psalm-version="6.5.0@38fc8444edf0cebc9205296ee6e30e906ade783b">
+  <file src="src/Client/Caster/ProtobufCaster.php">
+    <MixedArgument>
+      <code><![CDATA[$ed->getClass()]]></code>
+      <code><![CDATA[$value]]></code>
+      <code><![CDATA[$value]]></code>
+    </MixedArgument>
+    <MixedArrayOffset>
+      <code><![CDATA[$values[$fd->getName()]]]></code>
+      <code><![CDATA[$values[$fd->getName()]]]></code>
+    </MixedArrayOffset>
+    <MixedAssignment>
+      <code><![CDATA[$value]]></code>
+      <code><![CDATA[$values[$fd->getName()]]]></code>
+    </MixedAssignment>
+  </file>
+  <file src="src/Command/Joke.php">
+    <PossiblyFalseArgument>
+      <code><![CDATA[$jokes]]></code>
+    </PossiblyFalseArgument>
+    <PossiblyInvalidArrayAccess>
+      <code><![CDATA[$jokes[\array_rand($jokes)]]]></code>
+    </PossiblyInvalidArrayAccess>
+  </file>
+  <file src="src/Command/Test.php">
+    <PossiblyFalseArgument>
+      <code><![CDATA[$read]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[$socket]]></code>
+      <code><![CDATA[\file_get_contents(Info::TRAP_ROOT . '/resources/public/favicon.ico')]]></code>
+    </PossiblyFalseArgument>
+  </file>
+  <file src="src/Handler/Http/Handler/Fallback.php">
+    <MixedAssignment>
+      <code><![CDATA[$response]]></code>
+    </MixedAssignment>
+  </file>
+  <file src="src/Handler/Http/Middleware/Resources.php">
+    <PossiblyFalseArgument>
+      <code><![CDATA[\file_get_contents($file)]]></code>
+    </PossiblyFalseArgument>
+  </file>
   <file src="src/Handler/Http/Middleware/SentryTrap/EnvelopeParser.php">
     <ArgumentTypeCoercion>
       <code><![CDATA[$offset - $currentPos]]></code>
@@ -19,9 +117,6 @@
     </MixedAssignment>
   </file>
   <file src="src/Handler/Pipeline.php">
-    <MixedInferredReturnType>
-      <code><![CDATA[TReturn]]></code>
-    </MixedInferredReturnType>
     <MixedMethodCall>
       <code><![CDATA[$this->method]]></code>
     </MixedMethodCall>
@@ -92,11 +187,30 @@
       <code><![CDATA[\strpos($payload, '[')]]></code>
     </PossiblyFalseOperand>
   </file>
+  <file src="src/Sender/BodyToFileSender.php">
+    <PossiblyFalseArgument>
+      <code><![CDATA[$fd]]></code>
+      <code><![CDATA[$fd]]></code>
+      <code><![CDATA[$fd]]></code>
+    </PossiblyFalseArgument>
+  </file>
+  <file src="src/Sender/Console/Renderer/Binary.php">
+    <PossiblyNullArgument>
+      <code><![CDATA[\preg_replace(
+                    \array_keys(self::BYTE_REPLACES),
+                    \array_values(self::BYTE_REPLACES),
+                    \substr($read, $offset, 16),
+                )]]></code>
+    </PossiblyNullArgument>
+  </file>
   <file src="src/Sender/Console/Renderer/Http.php">
     <MixedArgumentTypeCoercion>
       <code><![CDATA[$request->getCookieParams()]]></code>
       <code><![CDATA[$request->getQueryParams()]]></code>
     </MixedArgumentTypeCoercion>
+    <PossiblyNullArgument>
+      <code><![CDATA[$read]]></code>
+    </PossiblyNullArgument>
   </file>
   <file src="src/Sender/Console/Renderer/Monolog.php">
     <MixedArgument>
@@ -107,9 +221,7 @@
   <file src="src/Sender/Console/Renderer/Sentry/Exceptions.php">
     <ArgumentTypeCoercion>
       <code><![CDATA[$file]]></code>
-      <code><![CDATA[$file]]></code>
     </ArgumentTypeCoercion>
-    <MissingClosureReturnType/>
     <MixedArgument>
       <code><![CDATA[$exception['type'] ?? 'Exception']]></code>
       <code><![CDATA[$exception['value']]]></code>
@@ -155,35 +267,81 @@
       <code><![CDATA[$meta['Method']]]></code>
       <code><![CDATA[$meta['URI']]]></code>
     </MixedAssignment>
+    <PossiblyFalseArgument>
+      <code><![CDATA[\base64_decode($frame->dump, true)]]></code>
+    </PossiblyFalseArgument>
   </file>
   <file src="src/Sender/Console/Support/Common.php">
     <MixedAssignment>
       <code><![CDATA[$item]]></code>
     </MixedAssignment>
   </file>
+  <file src="src/Sender/Frontend/Http/StaticFiles.php">
+    <PossiblyFalseArgument>
+      <code><![CDATA[$cacheContent[$file]]]></code>
+      <code><![CDATA[$cacheContent[$file]]]></code>
+      <code><![CDATA[$cacheContent[$file]]]></code>
+    </PossiblyFalseArgument>
+  </file>
+  <file src="src/Sender/Frontend/Mapper/VarDump.php">
+    <PossiblyFalseArgument>
+      <code><![CDATA[\base64_decode($message, true)]]></code>
+    </PossiblyFalseArgument>
+  </file>
   <file src="src/Sender/SocketSender.php">
     <MixedPropertyTypeCoercion>
       <code><![CDATA[new \SplQueue()]]></code>
     </MixedPropertyTypeCoercion>
+  </file>
+  <file src="src/Service/FilesObserver/Converter/XHProf.php">
+    <InvalidArgument>
+      <code><![CDATA[[
+                                'hostname' => \gethostname(),
+                                'filename' => $file->getName(),
+                                'filesize' => $file->size,
+                            ]]]></code>
+    </InvalidArgument>
+    <PossiblyFalseArgument>
+      <code><![CDATA[$content]]></code>
+    </PossiblyFalseArgument>
+  </file>
+  <file src="src/Socket/Server.php">
+    <PossiblyFalseArgument>
+      <code><![CDATA[\getprotobyname($protocol)]]></code>
+    </PossiblyFalseArgument>
   </file>
   <file src="src/Socket/SocketStream.php">
     <MixedPropertyTypeCoercion>
       <code><![CDATA[new \SplQueue()]]></code>
     </MixedPropertyTypeCoercion>
   </file>
-  <file src="src/Client/Caster/ProtobufCaster.php">
-    <MixedArgument>
-      <code><![CDATA[$ed->getClass()]]></code>
-      <code><![CDATA[$value]]></code>
-      <code><![CDATA[$value]]></code>
-    </MixedArgument>
-    <MixedArrayOffset>
-      <code><![CDATA[$values[$fd->getName()]]]></code>
-      <code><![CDATA[$values[$fd->getName()]]]></code>
-    </MixedArrayOffset>
-    <MixedAssignment>
-      <code><![CDATA[$value]]></code>
-      <code><![CDATA[$values[$fd->getName()]]]></code>
-    </MixedAssignment>
+  <file src="src/Support/StreamHelper.php">
+    <PossiblyFalseArgument>
+      <code><![CDATA[$stream]]></code>
+      <code><![CDATA[$stream]]></code>
+      <code><![CDATA[$stream]]></code>
+      <code><![CDATA[$stream]]></code>
+      <code><![CDATA[$stream]]></code>
+    </PossiblyFalseArgument>
+  </file>
+  <file src="src/Support/TemplateEngine.php">
+    <FalsableReturnStatement>
+      <code><![CDATA[\ob_get_clean()]]></code>
+    </FalsableReturnStatement>
+    <InvalidFalsableReturnType>
+      <code><![CDATA[string]]></code>
+    </InvalidFalsableReturnType>
+  </file>
+  <file src="src/Traffic/Websocket/StreamReader.php">
+    <InvalidReturnType>
+      <code><![CDATA[\Generator<array-key, Frame, mixed, void>]]></code>
+    </InvalidReturnType>
+    <PossiblyInvalidArrayAccess>
+      <code><![CDATA[\unpack('J', yield 8)[1]]]></code>
+      <code><![CDATA[\unpack('n', yield 2)[1]]]></code>
+    </PossiblyInvalidArrayAccess>
+    <PossiblyNullOperand>
+      <code><![CDATA[$reader->current()]]></code>
+    </PossiblyNullOperand>
   </file>
 </files>
