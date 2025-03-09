@@ -19,7 +19,7 @@ final class Tree implements \IteratorAggregate, \Countable
     /** @var array<non-empty-string, Branch<TItem>> */
     public array $all = [];
 
-    /** @var array<non-empty-string, Branch<TItem>> */
+    /** @var list<Branch<TItem>> */
     public array $lostChildren = [];
 
     /**
@@ -88,26 +88,38 @@ final class Tree implements \IteratorAggregate, \Countable
      * @param non-empty-string $id
      * @param non-empty-string|null $parentId
      */
-    public function addItem(object $item, string $id, ?string $parentId): void
+    public function addItem(object $item, string $id, ?string $parentId, bool $prepend = false): void
     {
         /** @var TItem $item */
         $branch = new Branch($item, $id, $parentId);
-        $this->all[$id] = $branch;
+        $this->all = $prepend
+            ? [$id => $branch, ...$this->all]
+            : [...$this->all, $id => $branch];
 
         if ($parentId === null) {
             $this->root[$id] = $branch;
         } else {
             $branch->parent = $this->all[$parentId] ?? null;
 
-            $branch->parent === null
-                ? $this->lostChildren[$id] = $branch
-                : $branch->parent->children[] = $branch;
+            // $branch->parent === null
+            //     ? $this->lostChildren[$id] = $branch
+            //     : $branch->parent->children[] = $branch;
+
+            if ($branch->parent === null) {
+                $prepend
+                    ? \array_unshift($this->lostChildren, $branch)
+                    : $this->lostChildren[] = $branch;
+            } else {
+                $prepend
+                    ? \array_unshift($branch->parent->children, $branch)
+                    : $branch->parent->children[] = $branch;
+            }
         }
 
-        foreach ($this->lostChildren as $lostChild) {
+        foreach ($this->lostChildren as $lk => $lostChild) {
             if ($lostChild->parentId === $id) {
                 $branch->children[] = $lostChild;
-                unset($this->lostChildren[$lostChild->id]);
+                unset($this->lostChildren[$lk]);
             }
         }
     }

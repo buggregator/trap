@@ -58,45 +58,50 @@ final class ProfileBuilder
         /** @var Tree<Edge> $tree */
         $tree = new Tree();
 
-        !\array_key_exists('main()', $data) && \array_key_exists('value', $data) and $data['main()'] = $data['value'];
-        unset($data['value']);
+        // Normalize root
+        if (!\array_key_exists('main()', $data) && \array_key_exists('value', $data)) {
+            $data['main()'] = $data['value'];
+            unset($data['value']);
+        }
 
+        // Convert all the items to edges
         foreach (\array_reverse($data, true) as $key => $value) {
-            [$caller, $callee] = \explode('==>', $key, 2) + [1 => ''];
-            if ($callee === '') {
-                [$caller, $callee] = [null, $caller];
+            [$callerId, $calleeId] = \explode('==>', $key, 2) + [1 => ''];
+            if ($calleeId === '') {
+                [$callerId, $calleeId] = [null, $callerId];
             }
-            $caller === '' and $caller = null;
-            \assert($callee !== '');
+            $callerId === '' and $callerId = null;
+            $calleeId === '' and throw new \RuntimeException('Invalid XHProf format.');
 
             $edge = new Edge(
-                caller: $caller,
-                callee: $callee,
+                caller: $callerId === null ? null : \explode('@', $callerId, 2)[0],
+                callee: \explode('@', $calleeId, 2)[0],
                 cost: Cost::fromArray($value),
             );
 
             $peaks->update($edge->cost);
-            $tree->addItem($edge, $edge->callee, $edge->caller);
+            $tree->addItem($edge, $calleeId, $callerId, prepend: true);
         }
 
-        // Add parents for lost children
-        $lostParents = [];
-        /** @var Branch<Edge> $branch */
-        foreach ($tree->iterateLostChildren() as $branch) {
-            \assert($branch->item->caller !== null);
-            ($lostParents[$branch->item->caller] ??= new Peaks())
-                ->add($branch->item->cost);
-        }
-        /** @var array<non-empty-string, Peaks> $lostParents */
-        foreach ($lostParents as $key => $peak) {
-            $edge = new Edge(
-                caller: null,
-                callee: $key,
-                cost: $peak->toCost(),
-            );
-            $tree->addItem($edge, $edge->callee, $edge->caller);
-        }
-        unset($lostParents);
+        // todo: do we need it?
+        // // Add parents for lost children
+        // $lostParents = [];
+        // /** @var Branch<Edge> $branch */
+        // foreach ($tree->iterateLostChildren() as $branch) {
+        //     \assert($branch->item->caller !== null);
+        //     ($lostParents[$branch->item->caller] ??= new Peaks())
+        //         ->add($branch->item->cost);
+        // }
+        // /** @var array<non-empty-string, Peaks> $lostParents */
+        // foreach ($lostParents as $key => $peak) {
+        //     $edge = new Edge(
+        //         caller: null,
+        //         callee: $key,
+        //         cost: $peak->toCost(),
+        //     );
+        //     $tree->addItem($edge, $edge->callee, $edge->caller, prepend: true);
+        // }
+        // unset($lostParents);
 
         /**
          * Calc percentages and delta

@@ -13,7 +13,37 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(ProfileBuilder::class)]
 class ProfileBuilderTest extends TestCase
 {
-    private const STUB = [
+    /**
+     * Result from this code:
+     *
+     * ```
+     *  function bar($x) {
+     *      if ($x > 0) {
+     *          bar($x - 1);
+     *      }
+     *  }
+     *
+     *  function foo() {
+     *      for ($idx = 0; $idx < 2; $idx++) {
+     *          bar($idx);
+     *          $x = strlen("abc");
+     *      }
+     *  }
+     *
+     *  // start profiling
+     *  xhprof_enable();
+     *
+     *  // run program
+     *  foo();
+     *
+     *  // stop profiler
+     *  $xhprof_data = xhprof_disable();
+     *
+     *  // display raw xhprof data for the profiler run
+     *  print_r($xhprof_data);
+     * ```
+     */
+    public const STUB = [
         'foo==>bar' => [
             'ct' => 2,          # number of calls to bar() from foo()
             'wt' => 37,         # time in bar() when called from foo()
