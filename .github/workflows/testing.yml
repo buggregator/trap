@@ -31,10 +31,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 🛠️ Setup PHP
-        uses: shivammathur/setup-php@2.32.0
+        uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-version }}
-          extensions: none, ctype, curl, dom, json, mbstring, phar, simplexml, tokenizer, xml, xmlwriter, sockets, opcache, pcntl, posix
           ini-values: error_reporting=E_ALL
           coverage: xdebug
 
@@ -46,20 +45,10 @@ jobs:
       - name: 🤖 Validate composer.json and composer.lock
         run: composer validate --ansi --strict
 
-      - name: 🔍 Get composer cache directory
-        uses: wayofdev/gh-actions/actions/composer/get-cache-directory@v3.2.0
-
-      - name: ♻️ Restore cached dependencies installed with composer
-        uses: actions/cache@v4
+      - name: 📥 Install dependencies with composer
+        uses: ramsey/composer-install@v3
         with:
-          path: ${{ env.COMPOSER_CACHE_DIR }}
-          key: php-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-${{ hashFiles('composer.lock') }}
-          restore-keys: php-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-
-
-      - name: 📥 Install "${{ matrix.dependencies }}" dependencies
-        uses: wayofdev/gh-actions/actions/composer/install@v3.2.0
-        with:
-          dependencies: ${{ matrix.dependencies }}
+          dependency-versions: ${{ matrix.dependencies }}
 
       - name: 🧪 Collect code coverage with Xdebug and pestphp/pest
         run: composer test:cc
@@ -98,10 +87,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 🛠️ Setup PHP
-        uses: shivammathur/setup-php@2.32.0
+        uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-version }}
-          extensions: none, ctype, curl, dom, json, mbstring, phar, simplexml, tokenizer, xml, xmlwriter, sockets, opcache, pcntl, posix
           ini-values: error_reporting=E_ALL
           coverage: xdebug
 
@@ -113,24 +101,10 @@ jobs:
       - name: 🤖 Validate composer.json and composer.lock
         run: composer validate --ansi --strict
 
-      - name: 🔍 Get composer cache directory
-        uses: wayofdev/gh-actions/actions/composer/get-cache-directory@v3.2.0
-
-      - name: ♻️ Restore cached dependencies installed with composer
-        uses: actions/cache@v4
+      - name: 📥 Install dependencies with composer
+        uses: ramsey/composer-install@v3
         with:
-          path: ${{ env.COMPOSER_CACHE_DIR }}
-          key: php-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-${{ hashFiles('composer.lock') }}
-          restore-keys: php-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-
-
-      - name: ⚙️ Remove platform configuration with composer
-        if: matrix.dependencies != 'locked'
-        run: composer config platform.php --ansi --unset
-
-      - name: 📥 Install "${{ matrix.dependencies }}" dependencies
-        uses: wayofdev/gh-actions/actions/composer/install@v3.2.0
-        with:
-          dependencies: ${{ matrix.dependencies }}
+          dependency-versions: ${{ matrix.dependencies }}
 
       - name: 🧪 Run unit tests using phpunit/phpunit
         run: composer test

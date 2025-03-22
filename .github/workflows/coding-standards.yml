@@ -81,13 +81,13 @@ jobs:
       contents: write
     steps:
       - name: 🛠️ Setup PHP
-        uses: shivammathur/setup-php@2.32.0
+        uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-version }}
-          extensions: none, ctype, dom, json, mbstring, phar, simplexml, tokenizer, xml, xmlwriter, phar, sockets
+          extensions: sockets
           ini-values: error_reporting=E_ALL
           coverage: none
-          tools: phive
+          tools: composer, phive
 
       - name: 📦 Check out the codebase
         uses: actions/checkout@v4
@@ -99,20 +99,10 @@ jobs:
       - name: 🤖 Validate composer.json and composer.lock
         run: composer validate --ansi --strict
 
-      - name: 🔍 Get composer cache directory
-        uses: wayofdev/gh-actions/actions/composer/get-cache-directory@v3.2.0
-
-      - name: ♻️ Restore cached dependencies installed with composer
-        uses: actions/cache@v4
+      - name: 📥 Install dependencies with composer
+        uses: ramsey/composer-install@v3
         with:
-          path: ${{ env.COMPOSER_CACHE_DIR }}
-          key: php-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-${{ hashFiles('composer.lock') }}
-          restore-keys: php-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-
-
-      - name: 📥 Install "${{ matrix.dependencies }}" dependencies with composer
-        uses: wayofdev/gh-actions/actions/composer/install@v3.2.0
-        with:
-          dependencies: ${{ matrix.dependencies }}
+          dependency-versions: ${{ matrix.dependencies }}
 
       - name: 📥 Install dependencies with phive
         uses: wayofdev/gh-actions/actions/phive/install@v3.2.0
