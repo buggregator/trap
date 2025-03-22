@@ -8,7 +8,7 @@ on:  # yamllint disable-line rule:truthy
     branches:
       - master
 
-name: 🧹 Fix PHP coding standards
+name: 🧹 Coding standards
 
 jobs:
   commit-linting:
