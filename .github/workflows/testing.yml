@@ -2,7 +2,7 @@
 
 name: 🧪 Unit testing
 
-on:  # yamllint disable-line rule:truthy
+on: # yamllint disable-line rule:truthy
   pull_request:
     branches:
       - master
@@ -21,9 +21,9 @@ jobs:
       fail-fast: true
       matrix:
         os:
-          - ubuntu-latest
+          - 'ubuntu-latest'
         php-version:
-          - '8.2'
+          - '8.4'
         dependencies:
           - locked
     steps:
@@ -70,7 +70,7 @@ jobs:
       fail-fast: true
       matrix:
         os:
-          - ubuntu-latest
+          - 'ubuntu-latest'
         php-version:
           - '8.1'
           - '8.2'
@@ -90,7 +90,6 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-version }}
-          extensions: none, ctype, curl, dom, json, mbstring, phar, simplexml, tokenizer, xml, xmlwriter, sockets, opcache, pcntl, posix
           ini-values: error_reporting=E_ALL
           coverage: xdebug
 
