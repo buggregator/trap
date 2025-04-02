@@ -196,7 +196,7 @@ hooks: ## Install git hooks from pre-commit-config
 	pre-commit autoupdate
 .PHONY: hooks
 
-lint: lint-yaml lint-actions lint-md lint-php lint-stan lint-composer lint-audit ## Runs all linting commands
+lint: lint-yaml lint-actions lint-md lint-php lint-composer lint-audit ## Runs all linting commands
 .PHONY: lint
 
 lint-yaml: ## Lints yaml files inside project
@@ -222,18 +222,6 @@ lint-php: prepare ## Fixes code to follow coding standards using php-cs-fixer
 lint-diff: prepare ## Runs php-cs-fixer in dry-run mode and shows diff which will by applied
 	$(APP_COMPOSER) cs:diff
 .PHONY: lint-diff
-
-lint-stan: ## Runs phpstan – static analysis tool
-	$(APP_COMPOSER) stan
-.PHONY: lint-stan
-
-lint-stan-ci: ## Runs phpstan – static analysis tool with github output (CI mode)
-	$(APP_COMPOSER) stan:ci
-.PHONY: lint-stan-ci
-
-lint-stan-baseline: ## Runs phpstan to update its baseline
-	$(APP_COMPOSER) stan:baseline
-.PHONY: lint-stan-baseline
 
 lint-psalm: ## Runs vimeo/psalm – static analysis tool
 	$(APP_COMPOSER) psalm
