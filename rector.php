@@ -24,9 +24,6 @@ return RectorConfig::configure()
         __DIR__ . '/src/Client',
     ])
     ->withSkipPath('src/Client/TrapHandle/ContextProvider/Source.php')
-    ->withPHPStanConfigs([
-        __DIR__ . '/phpstan-baseline.neon',
-    ])
     ->withImportNames(importNames: false, importDocBlockNames: true, importShortClasses: false, removeUnusedImports: true)
     ->withPhpVersion(PhpVersion::PHP_81)
     ->withPhpSets(php81: true)
