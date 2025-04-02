@@ -81,6 +81,7 @@ try {
     function td(mixed ...$values): never
     {
         tr(...$values);
+        /** @psalm-suppress ForbiddenCode */
         die;
     }
 

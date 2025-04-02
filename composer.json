@@ -112,7 +112,7 @@
             "@putenv XDEBUG_MODE=coverage",
             "roave-infection-static-analysis-plugin --ansi --configuration=infection.json.dist --logger-github --ignore-msi-with-no-mutations --only-covered"
         ],
-        "psalm": "psalm --show-info=true",
+        "psalm": "psalm",
         "psalm:baseline": "psalm --set-baseline=psalm-baseline.xml",
         "psalm:ci": "psalm --output-format=github --shepherd --show-info=false --stats --threads=4",
         "refactor": "rector process --config=rector.php",
