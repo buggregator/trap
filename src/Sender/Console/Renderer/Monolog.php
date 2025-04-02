@@ -47,10 +47,5 @@ final class Monolog implements Renderer
                 'messages' => \explode("\n", $payload['message']),
             ],
         );
-
-        // It can't be sent to HTML
-        if (!empty($payload['context'])) {
-            dump($payload['context']);
-        }
     }
 }
