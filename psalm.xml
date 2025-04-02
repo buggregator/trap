@@ -25,4 +25,12 @@
             <directory name="tests"/>
         </ignoreFiles>
     </projectFiles>
+    <forbiddenFunctions>
+        <function name="dd"/>
+        <function name="exit"/>
+        <function name="die"/>
+        <function name="var_dump"/>
+        <function name="echo"/>
+        <function name="print"/>
+    </forbiddenFunctions>
 </psalm>

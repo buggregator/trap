@@ -11,55 +11,6 @@ on: # yamllint disable-line rule:truthy
       - master
 
 jobs:
-  code-coverage:
-    timeout-minutes: 4
-    runs-on: ${{ matrix.os }}
-    concurrency:
-      cancel-in-progress: true
-      group: code-coverage-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ matrix.php-version }}-${{ matrix.dependencies }}
-    strategy:
-      fail-fast: true
-      matrix:
-        os:
-          - 'ubuntu-latest'
-        php-version:
-          - '8.4'
-        dependencies:
-          - locked
-    steps:
-      - name: 📦 Check out the codebase
-        uses: actions/checkout@v4
-
-      - name: 🛠️ Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: ${{ matrix.php-version }}
-          ini-values: error_reporting=E_ALL
-          coverage: xdebug
-
-      - name: 🛠️ Setup problem matchers
-        run: |
-          echo "::add-matcher::${{ runner.tool_cache }}/php.json"
-          echo "::add-matcher::${{ runner.tool_cache }}/phpunit.json"
-
-      - name: 🤖 Validate composer.json and composer.lock
-        run: composer validate --ansi --strict
-
-      - name: 📥 Install dependencies with composer
-        uses: ramsey/composer-install@v3
-        with:
-          dependency-versions: ${{ matrix.dependencies }}
-
-      - name: 🧪 Collect code coverage with Xdebug and pestphp/pest
-        run: composer test:cc
-
-      - name: 📤 Upload code coverage report to Codecov
-        uses: codecov/codecov-action@v4.3.0
-        with:
-          files: .build/phpunit/logs/clover.xml
-          token: ${{ secrets.CODECOV_TOKEN }}
-          verbose: true
-
   testing:
     timeout-minutes: 4
     runs-on: ${{ matrix.os }}
@@ -70,18 +21,59 @@ jobs:
       fail-fast: true
       matrix:
         os:
-          - 'ubuntu-latest'
+          - ubuntu-latest
         php-version:
-          - '8.1'
-          - '8.2'
-          - '8.3'
+          - 8.1
+          - 8.2
+          - 8.3
         dependencies:
           - lowest
           - locked
           - highest
         include:
-          - php-version: '8.4'
+          - php-version: 8.4
             dependencies: highest
+    steps:
+      - name: 📦 Check out the codebase
+        uses: actions/checkout@v4
+
+      - name: 🛠️ Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          ini-values: error_reporting=E_ALL
+
+      - name: 🛠️ Setup problem matchers
+        run: |
+          echo "::add-matcher::${{ runner.tool_cache }}/php.json"
+          echo "::add-matcher::${{ runner.tool_cache }}/phpunit.json"
+
+      - name: 🤖 Validate composer.json and composer.lock
+        run: composer validate --ansi --strict
+
+      - name: 📥 Install dependencies with composer
+        uses: ramsey/composer-install@v3
+        with:
+          dependency-versions: ${{ matrix.dependencies }}
+
+      - name: 🧪 Run tests
+        run: composer test
+
+  code-coverage:
+    timeout-minutes: 4
+    runs-on: ${{ matrix.os }}
+    concurrency:
+      cancel-in-progress: true
+      group: code-coverage-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ matrix.php-version }}-${{ matrix.dependencies }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os:
+          - ubuntu-latest
+        php-version:
+          - 8.1
+        dependencies:
+          - locked
     steps:
       - name: 📦 Check out the codebase
         uses: actions/checkout@v4
@@ -106,11 +98,15 @@ jobs:
         with:
           dependency-versions: ${{ matrix.dependencies }}
 
-      - name: 🧪 Run unit tests using phpunit/phpunit
-        run: composer test
+      - name: 🧪 Collect code coverage with Xdebug and PhpUnit
+        run: composer test:cc
 
-      - name: 🧪 Run arch tests using pestphp/pest
-        run: composer test:arch
+      - name: 📤 Upload code coverage report to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: runtime/phpunit/logs/clover.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
 
   compile-phar:
     timeout-minutes: 4

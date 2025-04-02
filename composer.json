@@ -57,16 +57,11 @@
         "dereuromark/composer-prefer-lowest": "^0.1.10",
         "ergebnis/phpunit-slow-test-detector": "^2.14",
         "google/protobuf": "^3.25 || ^4.30",
-        "pestphp/pest": "^2.34",
-        "phpstan/extension-installer": "^1.3",
-        "phpstan/phpstan": "^1.11",
-        "phpstan/phpstan-deprecation-rules": "^1.1",
-        "phpstan/phpstan-phpunit": "^1.3",
-        "phpstan/phpstan-strict-rules": "^1.5",
         "phpunit/phpunit": "^10.5.10",
         "rector/rector": "^1.1",
         "roxblnfk/unpoly": "^1.8.1",
         "spiral/code-style": "^2.2.2",
+        "ta-tikoma/phpunit-architecture-test": "^0.8.4",
         "vimeo/psalm": "^6.5"
     },
     "suggest": {
@@ -94,9 +89,7 @@
     "config": {
         "allow-plugins": {
             "ergebnis/composer-normalize": true,
-            "infection/extension-installer": true,
-            "pestphp/pest-plugin": true,
-            "phpstan/extension-installer": true
+            "infection/extension-installer": true
         },
         "audit": {
             "abandoned": "report"
@@ -117,22 +110,17 @@
             "@putenv XDEBUG_MODE=coverage",
             "roave-infection-static-analysis-plugin --ansi --configuration=infection.json.dist --logger-github --ignore-msi-with-no-mutations --only-covered"
         ],
-        "psalm": "psalm --show-info=true",
+        "psalm": "psalm",
         "psalm:baseline": "psalm --set-baseline=psalm-baseline.xml",
         "psalm:ci": "psalm --output-format=github --shepherd --show-info=false --stats --threads=4",
         "refactor": "rector process --config=rector.php",
         "refactor:ci": "rector process --config=rector.php --dry-run --ansi",
-        "stan": "phpstan analyse --memory-limit=2G",
-        "stan:baseline": "phpstan analyse --generate-baseline --memory-limit=2G --allow-empty-baseline",
-        "stan:ci": "phpstan analyse --memory-limit=2G --error-format=github",
-        "test": [
-            "@putenv XDEBUG_MODE=coverage",
-            "phpunit --color=always"
-        ],
-        "test:arch": "pest --color=always --configuration pest.xml.dist",
+        "test": "phpunit --color=always --testdox",
+        "test:unit": "phpunit --color=always --testsuite=Unit",
+        "test:arch": "phpunit --color=always --testsuite=Arch",
         "test:cc": [
             "@putenv XDEBUG_MODE=coverage",
-            "phpunit --coverage-clover=.build/phpunit/logs/clover.xml --color=always"
+            "phpunit --coverage-clover=runtime/phpunit/logs/clover.xml --color=always"
         ]
     }
 }
