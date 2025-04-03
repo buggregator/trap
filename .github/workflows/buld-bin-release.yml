@@ -72,7 +72,7 @@ jobs:
         with:
           root-directory: dist
           format: "tar.gz"
-          name: trap-${{ env.VERSION }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}.tar.gz
+          name: trap-${{ env.VERSION }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}
 
       - name: 📤 Upload release assets
         uses: softprops/action-gh-release@v2
@@ -80,7 +80,7 @@ jobs:
         with:
           token: "${{ secrets.TRAP_RELEASE_TOKEN }}"
           files: |
-            ./dist/trap-${{ env.VERSION }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}.tar.gz
+            ./trap-${{ env.VERSION }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}.tar.gz
 
   build-windows:
     runs-on: windows-latest
@@ -153,7 +153,7 @@ jobs:
         with:
           root-directory: dist
           format: "tar.gz"
-          name: trap-${{ env.VERSION }}-windows-amd64.tar.gz
+          name: trap-${{ env.VERSION }}-windows-amd64
 
       - name: 📤 Upload release assets
         uses: softprops/action-gh-release@v2
@@ -161,4 +161,4 @@ jobs:
         with:
           token: "${{ secrets.TRAP_RELEASE_TOKEN }}"
           files: |
-            ./dist/trap-${{ env.VERSION }}-windows-amd64.tar.gz
+            ./trap-${{ env.VERSION }}-windows-amd64.tar.gz
