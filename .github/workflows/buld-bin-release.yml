@@ -64,7 +64,7 @@ jobs:
         run: |
           mkdir -p dist
           container_id=$(docker create trap-builder-${{ matrix.platform.os }}-${{ matrix.platform.arch }}:latest)
-          docker cp $container_id:/.output/trap ./dist/trap-${{ env.VERSION }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}
+          docker cp $container_id:/.output/trap ./dist/trap
           docker rm $container_id
 
       - name: Zip output
@@ -143,7 +143,7 @@ jobs:
       - name: Combine micro.sfx with the PHAR
         run: |
           New-Item -Path "dist" -ItemType Directory -Force
-          .build\bin\spc.exe micro:combine .build\phar\trap.phar --output=dist\trap-${{ env.VERSION }}-windows-amd64.exe
+          .build\bin\spc.exe micro:combine .build\phar\trap.phar --output=dist\trap.exe
 
       - name: Zip output
         run: zip -qq -r trap-${{ env.VERSION }}-windows-amd64.zip .
