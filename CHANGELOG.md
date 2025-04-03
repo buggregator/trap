@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.13.10 (2025-04-03)
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.13.9...1.13.10
+
 ## 1.13.9 (2025-04-03)
 
 **Full Changelog**: https://github.com/buggregator/trap/compare/1.13.8...1.13.9
