@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.13.6 (2025-04-03)
+
+## What's Changed
+* Maintenance by @roxblnfk in https://github.com/buggregator/trap/pull/170
+
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.13.5...1.13.6
+
 ## 1.13.5 (2025-03-22)
 
 ## What's Changed
