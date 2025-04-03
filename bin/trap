@@ -8,9 +8,9 @@ use Buggregator\Trap\Info;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\CommandLoader\FactoryCommandLoader;
 
-if ('cli' !== PHP_SAPI) {
-    throw new Exception('This script must be run from the command line.');
-}
+// if ('cli' !== PHP_SAPI) {
+//     throw new Exception('This script must be run from the command line.');
+// }
 
 (static function () {
     $cwd = \getcwd();

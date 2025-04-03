@@ -8,6 +8,7 @@ box.json.dist          export-ignore
 composer.lock          export-ignore
 composer-require-*     export-ignore
 docker-compose.yaml    export-ignore
+Dockerfile             export-ignore
 Makefile               export-ignore
 phpunit.xml*           export-ignore
 psalm.*                export-ignore
