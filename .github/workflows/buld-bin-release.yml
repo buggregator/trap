@@ -68,8 +68,11 @@ jobs:
           docker rm $container_id
 
       - name: Zip output
-        run: zip -qq -r trap-${{ env.VERSION }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}.zip .
-        working-directory: 'dist'
+        uses: ksm2/archive-action@v1
+        with:
+          root-directory: dist
+          format: "tar.gz"
+          name: trap-${{ env.VERSION }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}
 
       - name: 📤 Upload release assets
         uses: softprops/action-gh-release@v2
@@ -146,8 +149,14 @@ jobs:
           .build\bin\spc.exe micro:combine .build\phar\trap.phar --output=dist\trap.exe
 
       - name: Zip output
-        run: zip -qq -r trap-${{ env.VERSION }}-windows-amd64.zip .
-        working-directory: 'dist'
+        uses: ksm2/archive-action@v1
+        with:
+          root-directory: dist
+          format: "tar.gz"
+          name: trap-${{ env.VERSION }}-windows-amd64
+
+#        run: zip -qq -r trap-${{ env.VERSION }}-windows-amd64.zip .
+#        working-directory: 'dist'
 
       - name: 📤 Upload release assets
         uses: softprops/action-gh-release@v2
