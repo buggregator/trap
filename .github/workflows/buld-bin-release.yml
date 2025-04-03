@@ -72,7 +72,7 @@ jobs:
         with:
           root-directory: dist
           format: "tar.gz"
-          name: trap-${{ env.VERSION }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}
+          name: trap-${{ env.VERSION }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}.tar.gz
 
       - name: 📤 Upload release assets
         uses: softprops/action-gh-release@v2
@@ -153,7 +153,7 @@ jobs:
         with:
           root-directory: dist
           format: "tar.gz"
-          name: trap-${{ env.VERSION }}-windows-amd64
+          name: trap-${{ env.VERSION }}-windows-amd64.tar.gz
 
       - name: 📤 Upload release assets
         uses: softprops/action-gh-release@v2
