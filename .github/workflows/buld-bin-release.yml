@@ -113,9 +113,11 @@ jobs:
       - name: Create build directories
         run: New-Item -Path ".build\phar", ".build\bin" -ItemType Directory -Force
 
-      - name: Download box tool
+      - name: Download box tool and composer
         run: |
           Invoke-WebRequest -Uri "https://github.com/box-project/box/releases/download/4.6.6/box.phar" -OutFile ".build/bin/box.phar"
+          Invoke-WebRequest -Uri "https://getcomposer.org/installer" -OutFile ".build/bin/composer-setup.php"
+          php .build/bin/composer-setup.php --install-dir=.build/bin --filename=composer.phar
 
       - name: Download SPC for Windows
         run: |
@@ -138,7 +140,7 @@ jobs:
 
       - name: Build PHAR file
         run: |
-          php .build/bin/box.phar compile -v
+          php .build/bin/box.phar compile -v --composer-bin=".build/bin/composer.phar"
 
       - name: Combine micro.sfx with the PHAR
         run: |
