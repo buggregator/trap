@@ -1,0 +1,1 @@
+import{E as t}from"./BmkTCIb-.js";const n=o=>{var a,l;const e=((l=(a=o.payload)==null?void 0:a.context)==null?void 0:l.source)||null;return{id:o.uuid,type:t.MONOLOG,labels:[t.MONOLOG],origin:e,serverName:"",date:o.timestamp?new Date(o.timestamp*1e3):null,payload:o.payload}},s=()=>({normalizeMonologEvent:n});export{s as u};
