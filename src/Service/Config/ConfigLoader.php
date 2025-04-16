@@ -58,10 +58,7 @@ final class ConfigLoader
 
                 /** @var mixed $value */
                 $value = match (true) {
-                    $attribute instanceof XPath => (static fn(array|false|null $value, int $key): mixed
-                        => \is_array($value) && \array_key_exists($key, $value)
-                            ? $value[$key]
-                            : null)($this->xml?->xpath($attribute->path), $attribute->key),
+                    $attribute instanceof XPath => $this->getXPath($attribute),
                     $attribute instanceof Env => $this->env[$attribute->name] ?? null,
                     $attribute instanceof InputOption => $this->inputOptions[$attribute->name] ?? null,
                     $attribute instanceof InputArgument => $this->inputArguments[$attribute->name] ?? null,
@@ -107,5 +104,14 @@ final class ConfigLoader
                 $this->logger->exception($e, important: true);
             }
         }
+    }
+
+    private function getXPath(XPath $attribute): mixed
+    {
+        $value = $this->xml?->xpath($attribute->path);
+
+        return \is_array($value) && \array_key_exists($attribute->key, $value)
+            ? $value[$attribute->key]
+            : null;
     }
 }
