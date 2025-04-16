@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.13.13 (2025-04-16)
+
+## What's Changed
+* Build binaries for macos by @roxblnfk in https://github.com/buggregator/trap/pull/180
+
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.13.12...1.13.13
+
 ## 1.13.12 (2025-04-03)
 
 **Full Changelog**: https://github.com/buggregator/trap/compare/1.13.11...1.13.12
