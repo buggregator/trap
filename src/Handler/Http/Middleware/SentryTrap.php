@@ -55,7 +55,7 @@ final class SentryTrap implements Middleware
      * @return Response
      * @throws \Throwable
      */
-    public function processEnvelope(ServerRequestInterface $request): ResponseInterface
+    private function processEnvelope(ServerRequestInterface $request): ResponseInterface
     {
         $size = $request->getBody()->getSize();
         if ($size === null || $size > self::MAX_BODY_SIZE) {
