@@ -21,31 +21,53 @@ use Psr\Http\Message\StreamInterface;
 #[CoversClass(SentryTrap::class)]
 final class SentryTrapTest extends TestCase
 {
-    private function request(
-        string $method = 'POST',
-        string $uri = '/api/test',
-        array $headers = [],
-        string|array|null $body = null,
-        array $attributes = [],
-    ): ServerRequestInterface {
-        $request = new ServerRequest($method, $uri);
+    public static function provideSentryStoreRequests(): Generator
+    {
+        yield 'with sentry auth header' => [
+            ['X-Sentry-Auth' => 'Sentry sentry_key=test'],
+            '/api/sentry/store/',
+            true,
+        ];
 
-        foreach ($headers as $name => $value) {
-            $request = $request->withHeader($name, $value);
-        }
+        yield 'with buggregator event header' => [
+            ['X-Buggregator-Event' => 'sentry'],
+            '/api/sentry/store/',
+            true,
+        ];
 
-        if ($body !== null) {
-            $bodyStream = is_array($body)
-                ? Stream::create(json_encode($body))
-                : Stream::create($body);
-            $request = $request->withBody($bodyStream);
-        }
+        yield 'with sentry user info' => [
+            [],
+            'https://sentry:password@example.com/api/sentry/store/',
+            false,
+        ];
+    }
 
-        foreach ($attributes as $name => $value) {
-            $request = $request->withAttribute($name, $value);
-        }
+    public static function provideNonSentryRequests(): Generator
+    {
+        yield 'envelope without content type' => [
+            ['Content-Type' => 'application/json'],
+            '/api/sentry/envelope/'
+        ];
 
-        return $request;
+        yield 'store without identifiers' => [
+            [],
+            '/api/sentry/store/'
+        ];
+    }
+
+    public static function provideSentryEnvelopeRequests(): Generator
+    {
+        yield [
+            '/api/sentry/envelope/',
+            ['Content-Type' => 'application/x-sentry-envelope'],
+            "{\"event_id\":\"test123\"}\n{\"type\":\"event\"}\n{\"message\":\"test\"}"
+        ];
+
+        yield [
+            '/api/1/envelope/',
+            ['Content-Type' => 'application/x-sentry-envelope'],
+            "{\"event_id\":\"test123\"}\n{\"type\":\"event\"}\n{\"message\":\"test\"}"
+        ];
     }
 
     public function testHandlePassesThroughNonSentryRequests(): void
@@ -63,15 +85,15 @@ final class SentryTrapTest extends TestCase
         self::assertSame($expectedResponse, $result);
     }
 
-    public function testHandleProcessesEnvelopeRequest(): void
+    #[DataProvider('provideSentryEnvelopeRequests')]
+    public function testHandleProcessesEnvelopeRequest(
+        string $uri,
+        array $headers,
+        string $envelopeData,
+    ): void
     {
         // Arrange
-        $envelopeData = "{\"event_id\":\"test123\"}\n{\"type\":\"event\"}\n{\"message\":\"test\"}";
-        $request = $this->request(
-            uri: '/api/sentry/envelope/',
-            headers: ['Content-Type' => 'application/x-sentry-envelope'],
-            body: $envelopeData
-        );
+        $request = $this->request(uri: $uri, headers: $headers, body: $envelopeData);
 
         // Act
         [$response, $frames] = $this->handleInFiber($request);
@@ -109,27 +131,6 @@ final class SentryTrapTest extends TestCase
         self::assertSame($storeData, $frames[0]->message);
     }
 
-    public static function provideSentryStoreRequests(): Generator
-    {
-        yield 'with sentry auth header' => [
-            ['X-Sentry-Auth' => 'Sentry sentry_key=test'],
-            '/api/sentry/store/',
-            true,
-        ];
-
-        yield 'with buggregator event header' => [
-            ['X-Buggregator-Event' => 'sentry'],
-            '/api/sentry/store/',
-            true,
-        ];
-
-        yield 'with sentry user info' => [
-            [],
-            'https://sentry:password@example.com/api/sentry/store/',
-            false,
-        ];
-    }
-
     #[DataProvider('provideNonSentryRequests')]
     public function testHandleRejectsNonSentryRequests(array $headers, string $uri): void
     {
@@ -144,19 +145,6 @@ final class SentryTrapTest extends TestCase
 
         // Assert
         self::assertSame($expectedResponse, $result);
-    }
-
-    public static function provideNonSentryRequests(): Generator
-    {
-        yield 'envelope without content type' => [
-            ['Content-Type' => 'application/json'],
-            '/api/sentry/envelope/'
-        ];
-
-        yield 'store without identifiers' => [
-            [],
-            '/api/sentry/store/'
-        ];
     }
 
     public function testHandleReturns400ForInvalidJson(): void
@@ -277,5 +265,32 @@ final class SentryTrapTest extends TestCase
                 $frames[] = $frame;
             }
         } while (true);
+    }
+
+    private function request(
+        string $method = 'POST',
+        string $uri = '/api/test',
+        array $headers = [],
+        string|array|null $body = null,
+        array $attributes = [],
+    ): ServerRequestInterface {
+        $request = new ServerRequest($method, $uri);
+
+        foreach ($headers as $name => $value) {
+            $request = $request->withHeader($name, $value);
+        }
+
+        if ($body !== null) {
+            $bodyStream = is_array($body)
+                ? Stream::create(json_encode($body))
+                : Stream::create($body);
+            $request = $request->withBody($bodyStream);
+        }
+
+        foreach ($attributes as $name => $value) {
+            $request = $request->withAttribute($name, $value);
+        }
+
+        return $request;
     }
 }

@@ -26,7 +26,7 @@ final class SentryTrap implements Middleware
         try {
             // Detect Sentry envelope
             if ($request->getHeaderLine('Content-Type') === 'application/x-sentry-envelope'
-                && \str_ends_with($request->getUri()->getPath(), '/envelope/')
+                && \str_contains($request->getUri()->getPath(), '/envelope/')
             ) {
                 return $this->processEnvelope($request);
             }
