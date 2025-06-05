@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.13.14 (2025-06-05)
+
+## What's Changed
+* Fix sentry envelope detection by @roxblnfk in https://github.com/buggregator/trap/pull/183
+
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.13.13...1.13.14
+
 ## 1.13.13 (2025-04-16)
 
 ## What's Changed
