@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap;
 
+use Boson\ApplicationPollerInterface;
+use Boson\Bridge\Static\FilesystemStaticAdapter;
+use Boson\WebView\Event\WebViewRequest;
+use Boson\WebView\WebView;
+use Boson\WebView\WebViewCreateInfo;
+use Boson\Window\Window;
+use Boson\Window\WindowCreateInfo;
 use Buggregator\Trap\Config\Server\App;
 use Buggregator\Trap\Config\Server\Files\SPX as SPXFileConfig;
 use Buggregator\Trap\Config\Server\Files\XDebug as XDebugFileConfig;
@@ -38,6 +45,7 @@ final class Application implements Processable, Cancellable, Destroyable
     private readonly Buffer $buffer;
     private bool $cancelled = false;
     private readonly Logger $logger;
+    private \Boson\Application $app;
 
     /**
      * @param SocketServer[] $map
@@ -49,6 +57,31 @@ final class Application implements Processable, Cancellable, Destroyable
         private array $senders = [],
         bool $withFrontend = true,
     ) {
+        $this->app = new \Boson\Application(
+            new \Boson\ApplicationCreateInfo(
+                schemes: ['http'],
+                // debug: false,
+                window: new WindowCreateInfo(webview: new WebViewCreateInfo(contextMenu: true)),
+            )
+        );
+        $static = new FilesystemStaticAdapter(['resources/frontend']);
+        $this->app->on(function (WebViewRequest $e) use ($static): void {
+            $e->response = $static->lookup($e->request);
+        });
+        $this->app->webview->url = 'http://localhost:8000/index.html';
+        $this->app->run();
+        $this->processors[] = new class ($this->app->poller) implements Processable {
+            public function __construct(
+                private readonly ApplicationPollerInterface $poller,
+            ) {}
+
+            public function process(): void
+            {
+                $this->poller->next();
+            }
+        };
+
+
         $this->logger = $this->container->get(Logger::class);
         $this->buffer = new Buffer(bufferSize: 10485760, timer: 0.1);
         $this->container->set($this->buffer);
@@ -124,7 +157,7 @@ final class Application implements Processable, Cancellable, Destroyable
 
         while (true) {
             $this->process($this->senders);
-            \usleep($sleep);
+            // \usleep($sleep);
         }
     }
 
