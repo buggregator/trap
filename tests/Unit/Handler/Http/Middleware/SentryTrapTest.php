@@ -8,7 +8,6 @@ use Buggregator\Trap\Handler\Http\Middleware\SentryTrap;
 use Buggregator\Trap\Proto\Frame\Sentry;
 use Buggregator\Trap\Proto\Frame\Sentry\SentryEnvelope;
 use Buggregator\Trap\Proto\Frame\Sentry\SentryStore;
-use Generator;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
@@ -21,7 +20,7 @@ use Psr\Http\Message\StreamInterface;
 #[CoversClass(SentryTrap::class)]
 final class SentryTrapTest extends TestCase
 {
-    public static function provideSentryStoreRequests(): Generator
+    public static function provideSentryStoreRequests(): \Generator
     {
         yield 'with sentry auth header' => [
             ['X-Sentry-Auth' => 'Sentry sentry_key=test'],
@@ -42,31 +41,31 @@ final class SentryTrapTest extends TestCase
         ];
     }
 
-    public static function provideNonSentryRequests(): Generator
+    public static function provideNonSentryRequests(): \Generator
     {
         yield 'envelope without content type' => [
             ['Content-Type' => 'application/json'],
-            '/api/sentry/envelope/'
+            '/api/sentry/envelope/',
         ];
 
         yield 'store without identifiers' => [
             [],
-            '/api/sentry/store/'
+            '/api/sentry/store/',
         ];
     }
 
-    public static function provideSentryEnvelopeRequests(): Generator
+    public static function provideSentryEnvelopeRequests(): \Generator
     {
         yield [
             '/api/sentry/envelope/',
             ['Content-Type' => 'application/x-sentry-envelope'],
-            "{\"event_id\":\"test123\"}\n{\"type\":\"event\"}\n{\"message\":\"test\"}"
+            "{\"event_id\":\"test123\"}\n{\"type\":\"event\"}\n{\"message\":\"test\"}",
         ];
 
         yield [
             '/api/1/envelope/',
             ['Content-Type' => 'application/x-sentry-envelope'],
-            "{\"event_id\":\"test123\"}\n{\"type\":\"event\"}\n{\"message\":\"test\"}"
+            "{\"event_id\":\"test123\"}\n{\"type\":\"event\"}\n{\"message\":\"test\"}",
         ];
     }
 
@@ -90,8 +89,7 @@ final class SentryTrapTest extends TestCase
         string $uri,
         array $headers,
         string $envelopeData,
-    ): void
-    {
+    ): void {
         // Arrange
         $request = $this->request(uri: $uri, headers: $headers, body: $envelopeData);
 
@@ -115,7 +113,7 @@ final class SentryTrapTest extends TestCase
         $request = $this->request(
             uri: $uri,
             headers: $headers,
-            body: $storeData
+            body: $storeData,
         );
 
         // Act
@@ -153,7 +151,7 @@ final class SentryTrapTest extends TestCase
         $request = $this->request(
             uri: '/api/sentry/store/',
             headers: ['X-Sentry-Auth' => 'test'],
-            body: 'invalid json'
+            body: 'invalid json',
         );
 
         // Act
@@ -172,7 +170,7 @@ final class SentryTrapTest extends TestCase
 
         $request = $this->request(
             uri: '/api/sentry/envelope/',
-            headers: ['Content-Type' => 'application/x-sentry-envelope']
+            headers: ['Content-Type' => 'application/x-sentry-envelope'],
         )->withBody($body);
 
         // Act
@@ -191,7 +189,7 @@ final class SentryTrapTest extends TestCase
 
         $request = $this->request(
             uri: '/api/sentry/store/',
-            headers: ['X-Sentry-Auth' => 'test']
+            headers: ['X-Sentry-Auth' => 'test'],
         )->withBody($body);
 
         // Act
@@ -215,7 +213,7 @@ final class SentryTrapTest extends TestCase
             uri: '/api/sentry/store/',
             headers: ['X-Sentry-Auth' => 'test'],
             body: $storeData,
-            attributes: ['begin_at' => $customTime]
+            attributes: ['begin_at' => $customTime],
         );
 
         // Act
@@ -281,8 +279,8 @@ final class SentryTrapTest extends TestCase
         }
 
         if ($body !== null) {
-            $bodyStream = is_array($body)
-                ? Stream::create(json_encode($body))
+            $bodyStream = \is_array($body)
+                ? Stream::create(\json_encode($body))
                 : Stream::create($body);
             $request = $request->withBody($bodyStream);
         }
