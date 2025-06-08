@@ -36,7 +36,7 @@ final class Header
             isset($context['os']) and $meta['OS'] = \implode(' ', (array) $context['os']);
         }
         $headersList = \array_map(
-            fn(mixed $value): string => \is_scalar($value) ? (string) $value : Json::encode($value),
+            static fn(mixed $value): string => \is_scalar($value) ? (string) $value : Json::encode($value),
             (array) $message['sdk'],
         );
         isset($message['sdk']) and $meta['SDK'] = \implode(' ', $headersList);
