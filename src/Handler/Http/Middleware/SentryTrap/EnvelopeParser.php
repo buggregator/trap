@@ -23,7 +23,7 @@ final class EnvelopeParser
         \DateTimeImmutable $time = new \DateTimeImmutable(),
     ): SentryEnvelope {
         // Parse headers
-        $headers = \json_decode(self::readLine($stream), true, 4, JSON_THROW_ON_ERROR);
+        $headers = \json_decode(self::readLine($stream), true, 32, JSON_THROW_ON_ERROR);
 
         // Parse items
         $items = [];
