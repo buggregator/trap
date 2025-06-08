@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.13.15 (2025-06-08)
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.13.14...1.13.15
+
 ## 1.13.14 (2025-06-05)
 
 ## What's Changed
