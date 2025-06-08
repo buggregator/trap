@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender\Console\Renderer\Sentry;
 
 use Buggregator\Trap\Sender\Console\Support\Common;
+use Buggregator\Trap\Support\Json;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -34,7 +35,11 @@ final class Header
             isset($context['runtime']) and $meta['Runtime'] = \implode(' ', (array) $context['runtime']);
             isset($context['os']) and $meta['OS'] = \implode(' ', (array) $context['os']);
         }
-        isset($message['sdk']) and $meta['SDK'] = \implode(' ', (array) $message['sdk']);
+        $headersList = \array_map(
+            static fn(mixed $value): string => \is_scalar($value) ? (string) $value : Json::encode($value),
+            (array) $message['sdk'],
+        );
+        isset($message['sdk']) and $meta['SDK'] = \implode(' ', $headersList);
 
         Common::renderMetadata($output, $meta);
 
