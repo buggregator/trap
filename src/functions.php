@@ -11,7 +11,8 @@ use Buggregator\Trap\Client\TrapHandle;
 use Buggregator\Trap\Client\TrapHandle\StackTrace;
 use Google\Protobuf\Internal\MapField;
 use Google\Protobuf\Internal\Message;
-use Google\Protobuf\Internal\RepeatedField;
+use Google\Protobuf\Internal\RepeatedField as InternalRepeatedField;
+use Google\Protobuf\RepeatedField;
 use Symfony\Component\VarDumper\Cloner\AbstractCloner;
 
 try {
@@ -102,6 +103,7 @@ if (\class_exists(AbstractCloner::class)) {
      * @var array<non-empty-string, callable> $casters
      */
     $casters[Message::class] ??= [ProtobufCaster::class, 'cast'];
+    $casters[InternalRepeatedField::class] ??= [ProtobufCaster::class, 'castRepeated'];
     $casters[RepeatedField::class] ??= [ProtobufCaster::class, 'castRepeated'];
     $casters[MapField::class] ??= [ProtobufCaster::class, 'castMap'];
     $casters[EnumValue::class] ??= [ProtobufCaster::class, 'castEnum'];
