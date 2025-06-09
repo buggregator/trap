@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.13.16 (2025-06-09)
+
+## What's Changed
+* Add casters for new public protobuf RepeatedField DTO by @roxblnfk in https://github.com/buggregator/trap/pull/187
+
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.13.15...1.13.16
+
 ## 1.13.15 (2025-06-08)
 
 **Full Changelog**: https://github.com/buggregator/trap/compare/1.13.14...1.13.15
