@@ -1,1 +1,0 @@
-import{E as p}from"./BefdN0MI.js";const t=a=>({id:a.uuid,type:p.HTTP_DUMP,labels:[p.HTTP_DUMP],origin:{uri:a.payload.request.uri},serverName:a.payload.host,date:a.timestamp?new Date(a.timestamp*1e3):null,payload:a.payload}),s=()=>({normalizeHttpDumpEvent:t});export{s as u};
