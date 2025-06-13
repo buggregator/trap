@@ -39,6 +39,39 @@ We follow the **Conventional Commits** specification to ensure a clean changelog
 | `build`    | Changes affecting build process or dependencies                          |
 | `ci`       | CI configuration changes                                                 |
 
+## 📌 Examples commit messages for Buggregator Trap
+
+#### `feat`
+feat(ui): added JSON log viewer in a separate tab
+
+#### `fix`
+fix(worker): fixed memory leak when parsing large payloads
+
+#### `docs`
+docs: added instructions for running in Docker
+
+#### `refactor`
+refactor(core): moved syslog message handler to a separate module
+
+#### `test`
+test: added tests for Telegram webhook integration
+
+#### `chore`
+chore(deps): updated react dependency to v18.3
+
+#### `perf`
+perf(parser): improved Sentry message parsing performance by caching regex
+
+---
+
+## ⚠️ Breaking Changes
+
+If your commit introduces a **breaking change**, be sure to specify it:
+
+feat(source): removed support for deprecated Graylog format
+
+BREAKING CHANGE: Graylog v1 is no longer supported
+
 ## 📌 A Personal Note
 
 🍺 Just to avoid repeating ourselves in DMs — here’s a bit of context about our open source.
