@@ -25,43 +25,65 @@ We follow the **Conventional Commits** specification to ensure a clean changelog
 **Format:**
 
 ### ✅ Supported Types
-
-| Type       | Purpose                                                                  |
-|------------|--------------------------------------------------------------------------|
-| `feat`     | Adding a new feature (e.g., support for a new log source)                |
-| `fix`      | Fixing a bug                                                              |
-| `docs`     | Documentation updates                                                    |
-| `style`    | Code style changes (spaces, formatting, etc.)                            |
-| `refactor` | Code refactoring that doesn't change functionality                        |
-| `test`     | Adding or updating tests                                                 |
-| `chore`    | Maintenance tasks (updating deps, CI config, etc.)                       |
-| `perf`     | Performance improvements                                                 |
-| `build`    | Changes affecting build process or dependencies                          |
-| `ci`       | CI configuration changes                                                 |
+| Type        | Purpose                                                                  |
+|-------------|---------------------------------------------------------------------------|
+| `feat`      | New feature                                                               |
+| `fix`       | Bug fix                                                                   |
+| `perf`      | Performance improvement                                                   |
+| `docs`      | Documentation changes                                                     |
+| `style`     | Code style update (formatting, missing semi colons, etc)                 |
+| `deps`      | Dependency updates                                                        |
+| `refactor`  | Code refactoring                                                          |
+| `ci`        | Continuous integration changes                                            |
+| `test`      | Adding missing tests                                                      |
+| `tests`     | Adding missing tests                                                      |
+| `revert`    | Revert to a previous commit                                               |
+| `build`     | Changes that affect the build system                                      |
+| `chore`     | Other changes that don't modify src or test files                         |
+| `security`  | Security improvements                                                     |
 
 ## 📌 Examples commit messages for Buggregator Trap
-
 #### `feat`
 feat(ui): added JSON log viewer in a separate tab
 
 #### `fix`
 fix(worker): fixed memory leak when parsing large payloads
 
+#### `perf`
+perf(parser): improved Sentry message parsing performance by caching regex
+
 #### `docs`
 docs: added instructions for running in Docker
+
+#### `style`
+style(ui): fixed indentation and removed unused CSS classes
+
+#### `deps`
+deps: bumped @buggregator/logger to 2.4.1
 
 #### `refactor`
 refactor(core): moved syslog message handler to a separate module
 
+#### `ci`
+ci(github): added build matrix for multiple Node.js versions
+
 #### `test`
 test: added tests for Telegram webhook integration
+
+#### `tests`
+tests(worker): added edge case tests for malformed input
+
+#### `revert`
+revert: revert "feat(ui): added JSON log viewer in a separate tab"
+
+#### `build`
+build: switched to esbuild for faster development builds
 
 #### `chore`
 chore(deps): updated react dependency to v18.3
 
-#### `perf`
-perf(parser): improved Sentry message parsing performance by caching regex
-
+#### `security`
+security: patched log4js to fix prototype pollution vulnerability
 ---
 
 ## ⚠️ Breaking Changes
