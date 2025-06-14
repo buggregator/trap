@@ -84,6 +84,7 @@ chore(deps): updated react dependency to v18.3
 
 #### `security`
 security: patched log4js to fix prototype pollution vulnerability
+
 ---
 
 ## ⚠️ Breaking Changes
