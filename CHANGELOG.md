@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.13.17 (2025-06-15)
+
+## What's Changed
+* Add CONTRIBUTING.md by @DimaTiunov in https://github.com/buggregator/trap/pull/189
+
+## New Contributors
+* @DimaTiunov made their first contribution in https://github.com/buggregator/trap/pull/189
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.13.16...1.13.17
+
 ## 1.13.16 (2025-06-09)
 
 ## What's Changed
