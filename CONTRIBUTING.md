@@ -95,35 +95,6 @@ feat(source): removed support for deprecated Graylog format
 
 BREAKING CHANGE: Graylog v1 is no longer supported
 
-## 📌 A Personal Note
-
-🍺 Just to avoid repeating ourselves in DMs — here’s a bit of context about our open source.
-
-We (the devs behind Buggregator, Trap, RoadRunner, Cycle ORM, and more) work on both pet projects and serious open source tools. We don't have funding, money, or marketing (yet!), but we have experience, passion, and a strong desire to grow the PHP/Go ecosystem.
-
-> We don’t have money, but we have experience.  
-> And if you find a way to monetize it — we’ll be business partners.
-
-We’re always happy to see people join us who:
-- want to **level up** through real-world projects;
-- are tired of formal "jobs" and want to build something cool;
-- would like to get **reviews from maintainers of Spiral, Yii, Cycle ORM, RoadRunner**;
-- are curious about working with **LLMs, automation, build systems, CI, DevOps, architecture, and performance**.
-
----
-
-## 🧠 What Are These Projects?
-
-- **Trap** — a web server/log trap with UI and worker (this repo).
-- **Buggregator** — a full-featured log center built on RoadRunner.
-- **Cycle ORM** — a modern ORM without magic.
-- **dload** — a binary downloader optimized for "vibe-coding".
-- **Spiral, Yii** — contributions to frameworks (you’ll see why "it's not just Laravel that's bad").
-- **RoadRunner** — high-performance PHP process manager written in Go.
-- Also: CLI tools, dev utilities, landing pages, comics, videos — even Temporal (just kidding, Vlad promised us cash).
-
-We don’t do "dailies", but we respect each other’s time. Join in as your time and energy allow — we’ve got tasks for every skill level and ambition.
-
 ## 🙏 Thank You
 
 We truly appreciate any contribution. Even just reporting a bug or suggesting an improvement is a huge help 🙌
