@@ -1,100 +1,65 @@
-# Contributing to the Buggregator Trap Project
+# Contributing to Buggregator Trap
 
-Hi there! 👋  
-Thanks for your interest in contributing to [buggregator/trap](https://github.com/buggregator/trap).
+## How to Contribute
 
-Please read this guide before opening an issue or submitting a pull request.
+1. Fork the repository
+2. Create a branch: `git checkout -b feat/my-feature`
+3. Make changes and write tests
+4. Commit using [Conventional Commits](https://www.conventionalcommits.org/)
+5. Submit a pull request
 
-## 📋 How to Contribute
+## Code Structure
 
-1. Fork the repository.
-2. Create a new branch from `main`:  
-   `git checkout -b feat/my-new-feature`
-3. Make your code changes.
-4. Write or update tests if needed.
-5. Make sure the code is properly formatted and passes all checks.
-6. Commit using [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) (see below).
-7. Submit a pull request.
+**Client Code** (`src/Client/`): Public API that follows semantic versioning. Changes here affect how developers use the library.
 
----
+**Server Code** (everything else): Internal code marked with `@internal`. Not subject to semver - breaking changes are allowed.
 
-## 🧾 Commit Message Guidelines
+## Versioning
 
-We follow the **Conventional Commits** specification to ensure a clean changelog and readable commit history.
+We use semantic versioning for the **Client API only**:
 
-**Format:**
+- **Minor version** for:
+  - New Client API features
+  - New CLI flags
+  - New protocol support
+  - New interface features
+  - New mechanics
 
-### ✅ Supported Types
-| Type        | Purpose                                                                  |
-|-------------|---------------------------------------------------------------------------|
-| `feat`      | New feature                                                               |
-| `fix`       | Bug fix                                                                   |
-| `perf`      | Performance improvement                                                   |
-| `docs`      | Documentation changes                                                     |
-| `style`     | Code style update (formatting, missing semi colons, etc)                 |
-| `deps`      | Dependency updates                                                        |
-| `refactor`  | Code refactoring                                                          |
-| `ci`        | Continuous integration changes                                            |
-| `test`      | Adding missing tests                                                      |
-| `tests`     | Adding missing tests                                                      |
-| `revert`    | Revert to a previous commit                                               |
-| `build`     | Changes that affect the build system                                      |
-| `chore`     | Other changes that don't modify src or test files                         |
-| `security`  | Security improvements                                                     |
+- **Patch version** for:
+  - Bug fixes
+  - Internal improvements
+  - Documentation updates
 
-## 📌 Examples commit messages for Buggregator Trap
-#### `feat`
-feat(ui): added JSON log viewer in a separate tab
+Breaking changes to server code (`@internal`) don't need major version bumps.
 
-#### `fix`
-fix(worker): fixed memory leak when parsing large payloads
+## Code Style
 
-#### `perf`
-perf(parser): improved Sentry message parsing performance by caching regex
+We use extended PER 2.0 code style. You can run `composer cs:fix` to fix code style automatically. Don't worry about following the style perfectly - our GitHub CI will fix it automatically.
 
-#### `docs`
-docs: added instructions for running in Docker
+## Commit Guidelines
 
-#### `style`
-style(ui): fixed indentation and removed unused CSS classes
+Use [Conventional Commits](https://www.conventionalcommits.org/) format:
 
-#### `deps`
-deps: bumped @buggregator/logger to 2.4.1
+| Type              | Purpose                           |
+|-------------------|-----------------------------------|
+| `feat`            | New feature                       |
+| `fix`             | Bug fix                           |
+| `perf`            | Performance improvement           |
+| `docs`            | Documentation                     |
+| `style`           | Code formatting                   |
+| `deps`            | Dependencies                      |
+| `refactor`        | Code refactoring                  |
+| `ci`              | CI changes                        |
+| `test` or `tests` | Tests                             |
+| `revert`          | Revert commit                     |
+| `build`           | Build system                      |
+| `chore`           | Other changes                     |
+| `security`        | Security improvements             |
 
-#### `refactor`
-refactor(core): moved syslog message handler to a separate module
-
-#### `ci`
-ci(github): added build matrix for multiple Node.js versions
-
-#### `test`
-test: added tests for Telegram webhook integration
-
-#### `tests`
-tests(worker): added edge case tests for malformed input
-
-#### `revert`
-revert: revert "feat(ui): added JSON log viewer in a separate tab"
-
-#### `build`
-build: switched to esbuild for faster development builds
-
-#### `chore`
-chore(deps): updated react dependency to v18.3
-
-#### `security`
-security: patched log4js to fix prototype pollution vulnerability
-
----
-
-## ⚠️ Breaking Changes
-
-If your commit introduces a **breaking change**, be sure to specify it:
-
-feat(source): removed support for deprecated Graylog format
-
-BREAKING CHANGE: Graylog v1 is no longer supported
-
-## 🙏 Thank You
-
-We truly appreciate any contribution. Even just reporting a bug or suggesting an improvement is a huge help 🙌
+**Examples:**
+```
+feat(client): add depth() method to TrapHandle
+fix(server): resolve memory leak in parser
+perf(client): optimize dumper performance
+docs: update installation instructions
+```
