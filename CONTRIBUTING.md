@@ -24,7 +24,7 @@ We use semantic versioning for the **Client API only**:
   - New protocol support
   - New interface features
   - New mechanics
-
+  
 - **Patch version** for:
   - Bug fixes
   - Internal improvements
@@ -37,6 +37,8 @@ Breaking changes to server code (`@internal`) don't need major version bumps.
 We use extended PER 2.0 code style. You can run `composer cs:fix` to fix code style automatically. Don't worry about following the style perfectly - our GitHub CI will fix it automatically.
 
 ## Commit Guidelines
+
+**Important:** Choose commit prefixes carefully! We use automatic releases that look at commit prefixes to decide the next version number.
 
 Use [Conventional Commits](https://www.conventionalcommits.org/) format:
 
@@ -57,7 +59,8 @@ Use [Conventional Commits](https://www.conventionalcommits.org/) format:
 | `security`        | Security improvements             |
 
 **Examples:**
-```
+
+```markdown
 feat(client): add depth() method to TrapHandle
 fix(server): resolve memory leak in parser
 perf(client): optimize dumper performance
