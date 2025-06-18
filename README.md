@@ -50,6 +50,14 @@ composer require --dev buggregator/trap -W
 
 And that's it. Trap is [ready to go](#usage).
 
+### Binary
+
+If you prefer to use Trap as a binary, you can install it globally using [Dload](https://github.com/php-internal/dload):
+
+```bash
+dload get trap
+```
+
 ### Phar
 
 Sometimes your project may conflict with Trap's dependencies, or you might be interested in using only the local
