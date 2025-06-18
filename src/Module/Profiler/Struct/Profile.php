@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\Struct;
 
+use Buggregator\Trap\Support\Uuid;
+
 /**
  * @psalm-type Metadata = array{
  *     app_name?: string,
@@ -31,12 +33,17 @@ namespace Buggregator\Trap\Module\Profiler\Struct;
 final class Profile implements \JsonSerializable
 {
     public Peaks $peaks;
+
+    /** @var Tree<Edge> */
     public Tree $calls;
+
+    /** @var non-empty-string some leaked bs required for Frontend */
+    public string $uuid;
 
     /**
      * @param Metadata $metadata
      * @param array<non-empty-string, non-empty-string> $tags
-     * @param Tree<Edge> $calls
+     * @param Tree<Edge>|null $calls
      */
     public function __construct(
         public \DateTimeInterface $date = new \DateTimeImmutable(),
@@ -45,6 +52,7 @@ final class Profile implements \JsonSerializable
         ?Tree $calls = null,
         ?Peaks $peaks = null,
     ) {
+        $this->uuid = Uuid::uuid4();
         $this->calls = $calls ?? new Tree();
         if ($peaks === null) {
             $this->peaks = new Peaks();
@@ -82,18 +90,14 @@ final class Profile implements \JsonSerializable
      */
     public function jsonSerialize(): array
     {
-        /** @var array<non-empty-string, array> $edges */
-        $edges = \iterator_to_array($this->calls->getItemsSortedV1(
-            static fn(Branch $a, Branch $b): int => $b->item->cost->wt <=> $a->item->cost->wt,
-        ));
         return [
             'date' => $this->date->getTimestamp(),
             'app_name' => $this->metadata['app_name'] ?? '',
             'hostname' => $this->metadata['hostname'] ?? '',
             'filename' => $this->metadata['filename'] ?? '',
+            'profile_uuid' => $this->uuid,
             'tags' => $this->tags,
             'peaks' => $this->peaks,
-            'edges' => $edges,
             'total_edges' => $this->calls->count(),
         ];
     }
