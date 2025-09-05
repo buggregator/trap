@@ -220,9 +220,9 @@ final class TrapHandle
         try {
             // Set default values if not set
             if (!isset($_SERVER['VAR_DUMPER_FORMAT'], $_SERVER['VAR_DUMPER_SERVER'])) {
-                $_SERVER['VAR_DUMPER_FORMAT'] = $_ENV['VAR_DUMPER_FORMAT'] ?? 'server';
+                $_SERVER['VAR_DUMPER_FORMAT'] = $this->getEnvValue('VAR_DUMPER_FORMAT', 'server');
                 // todo use the config file in the future
-                $_SERVER['VAR_DUMPER_SERVER'] = $_ENV['VAR_DUMPER_SERVER'] ?? '127.0.0.1:9912';
+                $_SERVER['VAR_DUMPER_SERVER'] = $this->getEnvValue('VAR_DUMPER_SERVER', '127.0.0.1:9912');
             }
 
             // Dump single value
@@ -243,6 +243,25 @@ final class TrapHandle
         } finally {
             StaticState::setState($staticState);
         }
+    }
+
+    private function getEnvValue(string $name, string $default): string
+    {
+        if (\array_key_exists($name, $_ENV)) {
+            return $_ENV[$name];
+        }
+
+        $value = getenv($name, true);
+        if ($value !== false) {
+            return $value;
+        }
+
+        $value = getenv($name);
+        if ($value !== false) {
+            return $value;
+        }
+
+        return $default;
     }
 
     private function haveToSend(): bool
