@@ -251,12 +251,12 @@ final class TrapHandle
             return $_ENV[$name];
         }
 
-        $value = getenv($name, true);
+        $value = \getenv($name, true);
         if ($value !== false) {
             return $value;
         }
 
-        $value = getenv($name);
+        $value = \getenv($name);
         if ($value !== false) {
             return $value;
         }

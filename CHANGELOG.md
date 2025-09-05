@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.13.17 (2025-09-05)
+
+## What's Changed
+* Add CONTRIBUTING.md by @DimaTiunov in https://github.com/buggregator/trap/pull/189
+* Use `getenv()` for getting environment variable values by @vjik in https://github.com/buggregator/trap/pull/193
+
+## New Contributors
+* @DimaTiunov made their first contribution in https://github.com/buggregator/trap/pull/189
+* @vjik made their first contribution in https://github.com/buggregator/trap/pull/193
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.13.16...1.13.17
+
 ## 1.13.16 (2025-06-09)
 
 ## What's Changed
