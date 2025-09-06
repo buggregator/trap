@@ -19,7 +19,7 @@ final class Tree implements \IteratorAggregate, \Countable
     /** @var array<non-empty-string, Branch<TItem>> */
     public array $all = [];
 
-    /** @var array<non-empty-string, Branch<TItem>> */
+    /** @var list<Branch<TItem>> */
     public array $lostChildren = [];
 
     /**
@@ -47,29 +47,79 @@ final class Tree implements \IteratorAggregate, \Countable
     }
 
     /**
+     * Get the top N branches by a custom sorting.
+     *
+     * @param int<1, max> $limit
+     * @param callable(Branch<TItem>, Branch<TItem>): int $sorter
+     *
+     * @return list<Branch>
+     */
+    public function top(int $limit, callable $sorter): array
+    {
+        // Get N branches and sort it
+        $all = \array_values($this->all);
+        $result = \array_slice($all, 0, $limit);
+        \usort($result, $sorter);
+
+        // Compare next item with the last of the top
+        // and resort the top one by one
+        $end = \array_key_last($result);
+        $next = $limit - 1;
+
+        while (++$next < \count($all)) {
+            if ($sorter($all[$next], $result[$end]) > 0) {
+                continue;
+            }
+
+            // Add the next item to the top
+            $result[$end] = $all[$next];
+
+            // Sort
+            $current = $end;
+            while (--$current >= 0 && $sorter($result[$current], $result[$current + 1]) > 0) {
+                [$result[$current], $result[$current + 1]] = [$result[$current + 1], $result[$current]];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * @param non-empty-string $id
      * @param non-empty-string|null $parentId
      */
-    public function addItem(object $item, string $id, ?string $parentId): void
+    public function addItem(object $item, string $id, ?string $parentId, bool $prepend = false): void
     {
         /** @var TItem $item */
         $branch = new Branch($item, $id, $parentId);
-        $this->all[$id] = $branch;
+        $this->all = $prepend
+            ? [$id => $branch, ...$this->all]
+            : [...$this->all, $id => $branch];
 
         if ($parentId === null) {
             $this->root[$id] = $branch;
         } else {
             $branch->parent = $this->all[$parentId] ?? null;
 
-            $branch->parent === null
-                ? $this->lostChildren[$id] = $branch
-                : $branch->parent->children[] = $branch;
+            // $branch->parent === null
+            //     ? $this->lostChildren[$id] = $branch
+            //     : $branch->parent->children[] = $branch;
+
+            if ($branch->parent === null) {
+                $prepend
+                    ? \array_unshift($this->lostChildren, $branch)
+                    : $this->lostChildren[] = $branch;
+            } else {
+                $prepend
+                    ? \array_unshift($branch->parent->children, $branch)
+                    : $branch->parent->children[] = $branch;
+            }
         }
 
-        foreach ($this->lostChildren as $lostChild) {
+        foreach ($this->lostChildren as $lk => $lostChild) {
             if ($lostChild->parentId === $id) {
                 $branch->children[] = $lostChild;
-                unset($this->lostChildren[$lostChild->id]);
+                unset($this->lostChildren[$lk]);
             }
         }
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Handler\Router;
 
 use Buggregator\Trap\Handler\Router\Attribute\AssertRoute as AssertAttribute;
+use Buggregator\Trap\Handler\Router\Attribute\QueryParam as RouteQueryParam;
 use Buggregator\Trap\Handler\Router\Attribute\Route as RouteAttribute;
 use Buggregator\Trap\Handler\Router\Exception\AssertRouteFailed;
 
@@ -31,10 +32,9 @@ final class Router
      * @param array<AssertAttribute> $assertions
      * @throws AssertRouteFailed
      */
-    public static function assert(array $routes, array $assertions): void
+    public static function assert(\ReflectionMethod $method, array $routes, array $assertions): void
     {
         $index = \array_fill_keys(\array_column(Method::cases(), 'value'), []);
-        $reflection = new \ReflectionMethod(self::class, 'doNothing');
         foreach ($routes as $route) {
             $route instanceof RouteAttribute or throw new \InvalidArgumentException(\sprintf(
                 'Routes expected to be `%s` instances, `%s` given.',
@@ -43,7 +43,7 @@ final class Router
             ));
 
             $index[$route->method->value][] = new RouteDto(
-                method: $reflection,
+                method: $method,
                 route: $route,
             );
         }
@@ -52,6 +52,7 @@ final class Router
 
         /** @var list<non-empty-string> $fails */
         $fails = [];
+        $mockMethod = new \ReflectionMethod(self::class, 'doNothing');
         foreach ($assertions as $assertion) {
             $assertion instanceof AssertAttribute or throw new \InvalidArgumentException(\sprintf(
                 'Assertions expected to be `%s` instances, `%s` given.',
@@ -60,7 +61,7 @@ final class Router
             ));
 
             try {
-                $handler = $self->match($assertion->method, $assertion->path);
+                $handler = $self->match($assertion->method, $assertion->path, $mockMethod);
             } catch (\Throwable $e) {
                 throw new AssertRouteFailed(\sprintf(
                     '> Failed to match route -> %s `%s`.',
@@ -130,14 +131,93 @@ final class Router
     }
 
     /**
+     * Convert query parameter to the specified type.
+     */
+    public static function convertQueryParam(
+        \ReflectionParameter $param,
+        array $params,
+    ): mixed {
+        $name = $param->getName();
+        $type = $param->getType();
+
+        $queryName = $queryParam->name ?? $name;
+        if (!isset($params[$queryName])) {
+            $param->isDefaultValueAvailable() or throw new \InvalidArgumentException(\sprintf(
+                'Query parameter `%s` is required.',
+                $queryName,
+            ));
+
+            return $param->getDefaultValue();
+        }
+
+        $value = $params[$queryName];
+        if ($type === null) {
+            return $value;
+        }
+
+        foreach (($type instanceof \ReflectionUnionType ? $type->getTypes() : [$type]) as $t) {
+            $typeString = \ltrim($t?->getName() ?? '', '?');
+            switch (true) {
+                case $typeString === 'mixed':
+                    return $value;
+                case $typeString === 'array':
+                    return (array) $value;
+                case $typeString === 'int':
+                    return (int) (\is_array($value)
+                        ? throw new \InvalidArgumentException(
+                            \sprintf(
+                                'Query parameter `%s` must be an integer, array given.',
+                                $queryName,
+                            ),
+                        )
+                        : $value);
+                case $typeString === 'float':
+                    return (float) (\is_array($value)
+                        ? throw new \InvalidArgumentException(
+                            \sprintf(
+                                'Query parameter `%s` must be an integer, array given.',
+                                $queryName,
+                            ),
+                        )
+                        : $value);
+                case $typeString === 'string':
+                    return (string) (\is_array($value)
+                        ? throw new \InvalidArgumentException(
+                            \sprintf(
+                                'Query parameter `%s` must be a string, array given.',
+                                $queryName,
+                            ),
+                        )
+                        : $value);
+                default:
+                    continue 2;
+            }
+        }
+
+        throw new \InvalidArgumentException(\sprintf(
+            'Query parameter `%s` must be of type `%s`, `%s` given.',
+            $queryName,
+            $type,
+            \gettype($value),
+        ));
+    }
+
+    /**
      * Find a route for specified method and path.
+     *
+     * @param \ReflectionMethod|null $mock Mock method to use instead of the real one. The real method will be used
+     *        for arguments resolution.
      *
      * @return null|callable(mixed...): mixed Returns null if no route matches
      *
      * @throws \Exception
      */
-    public function match(Method $method, string $path): ?callable
+    public function match(Method $method, string $uri, ?\ReflectionMethod $mock = null): ?callable
     {
+        $components = \parse_url($uri);
+        $path = \ltrim($components['path'] ?? '', '/');
+        $query = $components['query'] ?? '';
+
         foreach ($this->routes[$method->value] as $route) {
             $rr = $route->route;
             /** @psalm-suppress ArgumentTypeCoercion */
@@ -156,14 +236,23 @@ final class Router
                 continue;
             }
 
+            $get = [];
+            \parse_str($query, $get);
+
             // Prepare callable
             $object = $this->object;
             return match (true) {
                 \is_callable($match) => $match,
-                default => static fn(mixed ...$args): mixed => self::invoke(
-                    $route->method,
-                    $object,
-                    \array_merge($args, \is_array($match) ? $match : []),
+                default => static fn(mixed ...$args): mixed => ($mock ?? $route->method)->invokeArgs(
+                    ($mock ?? $route->method)->isStatic()
+                        ? null
+                        : $object,
+                    self::resolveArguments(
+                        $route->method,
+                        $object,
+                        \array_merge($args, \is_array($match) ? $match : []),
+                        $get,
+                    ),
                 ),
             };
         }
@@ -237,12 +326,19 @@ final class Router
     }
 
     /**
-     * Invoke a method with specified arguments. The arguments will be filtered by parameter names.
+     * Resolve arguments for the route method.
+     *
+     * @param array<non-empty-string, mixed> $args Arguments for the URI path
+     * @param array<array-key, mixed> $params Query parameters (GET)
      *
      * @throws \Throwable
      */
-    private static function invoke(\ReflectionMethod $method, ?object $object, array $args): mixed
-    {
+    private static function resolveArguments(
+        \ReflectionMethod $method,
+        ?object $object,
+        array $args,
+        array $params,
+    ): array {
         if ($method->isVariadic()) {
             $filteredArgs = $args;
         } else {
@@ -250,6 +346,13 @@ final class Router
             $filteredArgs = [];
             foreach ($method->getParameters() as $param) {
                 $name = $param->getName();
+
+                /** @var null|RouteQueryParam $queryParam */
+                $queryParam = ($param->getAttributes(RouteQueryParam::class)[0] ?? null)?->newInstance();
+                if ($queryParam !== null) {
+                    $filteredArgs[$name] = self::convertQueryParam($param, $params);
+                    continue;
+                }
                 if (isset($args[$name])) {
                     /** @psalm-suppress MixedAssignment */
                     $filteredArgs[$name] = $args[$name];
@@ -257,7 +360,7 @@ final class Router
             }
         }
 
-        return $method->invokeArgs($method->isStatic() ? null : $object, $filteredArgs);
+        return $filteredArgs;
     }
 
     private static function doNothing(mixed ...$args): array
