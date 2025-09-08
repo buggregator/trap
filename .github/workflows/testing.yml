@@ -35,7 +35,7 @@ jobs:
             dependencies: highest
     steps:
       - name: 📦 Check out the codebase
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🛠️ Setup PHP
         uses: shivammathur/setup-php@v2
@@ -76,7 +76,7 @@ jobs:
           - locked
     steps:
       - name: 📦 Check out the codebase
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🛠️ Setup PHP
         uses: shivammathur/setup-php@v2
@@ -128,7 +128,7 @@ jobs:
       TRAP_PHAR_SIGNATURE: ".build/phar/trap.phar.asc"
     steps:
       - name: 📦 Check out the codebase
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
