@@ -15,11 +15,10 @@ use Buggregator\Trap\Traffic\StreamClient;
 use Buggregator\Trap\Traffic\Websocket\Frame;
 use Buggregator\Trap\Traffic\Websocket\Opcode;
 use Buggregator\Trap\Traffic\Websocket\StreamReader;
-use IteratorAggregate;
 
 /**
  * @internal
- * @implements IteratorAggregate<StreamClient>
+ * @implements \IteratorAggregate<StreamClient>
  */
 final class ConnectionPool implements \IteratorAggregate, Processable
 {

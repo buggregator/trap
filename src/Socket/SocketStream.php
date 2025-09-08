@@ -6,14 +6,13 @@ namespace Buggregator\Trap\Socket;
 
 use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Traffic\StreamClient;
-use IteratorAggregate;
 
 /**
  * Simple abstraction over {@see Client} to make it easier to work with.
  * Use {@see Server::$clientInflector} to wrap {@see Client} into {@see self}.
  *
  * @internal
- * @implements IteratorAggregate<int, string>
+ * @implements \IteratorAggregate<int, string>
  */
 final class SocketStream implements \IteratorAggregate, StreamClient
 {
