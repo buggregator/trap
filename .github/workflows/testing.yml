@@ -35,18 +35,13 @@ jobs:
             dependencies: highest
     steps:
       - name: 📦 Check out the codebase
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🛠️ Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-version }}
           ini-values: error_reporting=E_ALL
-
-      - name: 🛠️ Setup problem matchers
-        run: |
-          echo "::add-matcher::${{ runner.tool_cache }}/php.json"
-          echo "::add-matcher::${{ runner.tool_cache }}/phpunit.json"
 
       - name: 🤖 Validate composer.json and composer.lock
         run: composer validate --ansi --strict
@@ -76,7 +71,7 @@ jobs:
           - locked
     steps:
       - name: 📦 Check out the codebase
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🛠️ Setup PHP
         uses: shivammathur/setup-php@v2
@@ -84,11 +79,6 @@ jobs:
           php-version: ${{ matrix.php-version }}
           ini-values: error_reporting=E_ALL
           coverage: xdebug
-
-      - name: 🛠️ Setup problem matchers
-        run: |
-          echo "::add-matcher::${{ runner.tool_cache }}/php.json"
-          echo "::add-matcher::${{ runner.tool_cache }}/phpunit.json"
 
       - name: 🤖 Validate composer.json and composer.lock
         run: composer validate --ansi --strict
@@ -128,7 +118,7 @@ jobs:
       TRAP_PHAR_SIGNATURE: ".build/phar/trap.phar.asc"
     steps:
       - name: 📦 Check out the codebase
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -139,10 +129,6 @@ jobs:
           ini-values: 'error_reporting=E_ALL, memory_limit=-1, phar.readonly=0'
           tools: composer, box
           coverage: none
-
-      - name: 🛠️ Setup problem matchers
-        run: |
-          echo "::add-matcher::${{ runner.tool_cache }}/php.json"
 
       - name: 📥 Install dependencies with composer
         uses: ramsey/composer-install@v3

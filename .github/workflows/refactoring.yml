@@ -32,7 +32,7 @@ jobs:
           - locked
     steps:
       - name: 📦 Check out the codebase
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🛠️ Setup PHP
         uses: shivammathur/setup-php@v2
@@ -40,9 +40,6 @@ jobs:
           php-version: ${{ matrix.php-version }}
           ini-values: error_reporting=E_ALL
           coverage: none
-
-      - name: 🛠️ Setup problem matchers
-        run: echo "::add-matcher::${{ runner.tool_cache }}/php.json"
 
       - name: 🤖 Validate composer.json and composer.lock
         run: composer validate --ansi --strict

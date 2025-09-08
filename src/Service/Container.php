@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Service;
 
-use Buggregator\Trap\Destroyable;
 use Buggregator\Trap\Service\Config\ConfigLoader;
+use Internal\Destroy\Destroyable;
 use Psr\Container\ContainerInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use Yiisoft\Injector\Injector;

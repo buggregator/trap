@@ -44,6 +44,7 @@
         "ext-filter": "*",
         "ext-sockets": "*",
         "clue/stream-filter": "^1.6",
+        "internal/destroy": "^1.0",
         "nunomaduro/termwind": "^1.15.1 || ^2",
         "nyholm/psr7": "^1.8",
         "php-http/message": "^1.15",
