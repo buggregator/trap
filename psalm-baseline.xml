@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <files psalm-version="6.5.0@38fc8444edf0cebc9205296ee6e30e906ade783b">
   <file src="src/Client/Caster/ProtobufCaster.php">
+    <DeprecatedClass>
+      <code><![CDATA[RepeatedField]]></code>
+    </DeprecatedClass>
+    <InvalidArgument>
+      <code><![CDATA[$c]]></code>
+    </InvalidArgument>
     <MixedArgument>
       <code><![CDATA[$ed->getClass()]]></code>
       <code><![CDATA[$value]]></code>
@@ -14,6 +20,14 @@
       <code><![CDATA[$value]]></code>
       <code><![CDATA[$values[$fd->getName()]]]></code>
     </MixedAssignment>
+  </file>
+  <file src="src/Client/TrapHandle.php">
+    <LessSpecificReturnStatement>
+      <code><![CDATA[$_ENV[$name]]]></code>
+    </LessSpecificReturnStatement>
+    <MoreSpecificReturnType>
+      <code><![CDATA[string]]></code>
+    </MoreSpecificReturnType>
   </file>
   <file src="src/Command/Joke.php">
     <PossiblyFalseArgument>
@@ -214,9 +228,12 @@
   </file>
   <file src="src/Sender/Console/Renderer/Monolog.php">
     <MixedArgument>
-      <code><![CDATA[$payload['level_name']]]></code>
-      <code><![CDATA[$payload['message']]]></code>
+      <code><![CDATA[$level]]></code>
+      <code><![CDATA[$payload['message'] ?? '']]></code>
     </MixedArgument>
+    <MixedAssignment>
+      <code><![CDATA[$level]]></code>
+    </MixedAssignment>
   </file>
   <file src="src/Sender/Console/Renderer/Sentry/Exceptions.php">
     <ArgumentTypeCoercion>
@@ -240,7 +257,6 @@
       <code><![CDATA[$tags]]></code>
       <code><![CDATA[(array) $context['os']]]></code>
       <code><![CDATA[(array) $context['runtime']]]></code>
-      <code><![CDATA[(array) $message['sdk']]]></code>
     </MixedArgumentTypeCoercion>
     <MixedAssignment>
       <code><![CDATA[$meta['Event ID']]]></code>
@@ -343,5 +359,10 @@
     <PossiblyNullOperand>
       <code><![CDATA[$reader->current()]]></code>
     </PossiblyNullOperand>
+  </file>
+  <file src="src/functions.php">
+    <DeprecatedClass>
+      <code><![CDATA[InternalRepeatedField::class]]></code>
+    </DeprecatedClass>
   </file>
 </files>
