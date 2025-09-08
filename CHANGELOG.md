@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.13.18 (2025-09-08)
+
+## What's Changed
+* Use `internal/destroy` by @roxblnfk in https://github.com/buggregator/trap/pull/194
+* Remove termwind by @roxblnfk in https://github.com/buggregator/trap/pull/196
+
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.13.17...1.13.18
+
 ## 1.13.17 (2025-09-05)
 
 ## What's Changed
