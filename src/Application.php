@@ -20,6 +20,7 @@ use Buggregator\Trap\Socket\Server;
 use Buggregator\Trap\Socket\SocketStream;
 use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Traffic\Inspector;
+use Internal\Destroy\Destroyable;
 
 /**
  * @internal

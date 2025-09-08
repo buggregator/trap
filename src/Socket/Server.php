@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Socket;
 
 use Buggregator\Trap\Cancellable;
-use Buggregator\Trap\Destroyable;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Processable;
 use Buggregator\Trap\Socket\Exception\ClientDisconnected;
 use Buggregator\Trap\Socket\Exception\ServerStopped;
+use Internal\Destroy\Destroyable;
 
 /**
  * @internal
