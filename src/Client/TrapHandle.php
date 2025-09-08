@@ -11,7 +11,7 @@ use Buggregator\Trap\Client\TrapHandle\StaticState;
 use Symfony\Component\VarDumper\Caster\TraceStub;
 
 /**
- * @internal
+ * @api
  */
 final class TrapHandle
 {
@@ -27,6 +27,9 @@ final class TrapHandle
         $this->staticState = StaticState::new();
     }
 
+    /**
+     * @internal
+     */
     public static function fromArray(array $array): self
     {
         return new self($array);
