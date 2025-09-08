@@ -36,10 +36,6 @@ jobs:
           coverage: none
           tools: composer, box
 
-      - name: 🛠️ Setup problem matchers
-        run: |
-          echo "::add-matcher::${{ runner.tool_cache }}/php.json"
-
       - name: 🤖 Validate composer.json and composer.lock
         run: composer validate --ansi --strict
 

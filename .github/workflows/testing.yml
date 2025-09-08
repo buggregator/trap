@@ -43,11 +43,6 @@ jobs:
           php-version: ${{ matrix.php-version }}
           ini-values: error_reporting=E_ALL
 
-      - name: 🛠️ Setup problem matchers
-        run: |
-          echo "::add-matcher::${{ runner.tool_cache }}/php.json"
-          echo "::add-matcher::${{ runner.tool_cache }}/phpunit.json"
-
       - name: 🤖 Validate composer.json and composer.lock
         run: composer validate --ansi --strict
 
@@ -84,11 +79,6 @@ jobs:
           php-version: ${{ matrix.php-version }}
           ini-values: error_reporting=E_ALL
           coverage: xdebug
-
-      - name: 🛠️ Setup problem matchers
-        run: |
-          echo "::add-matcher::${{ runner.tool_cache }}/php.json"
-          echo "::add-matcher::${{ runner.tool_cache }}/phpunit.json"
 
       - name: 🤖 Validate composer.json and composer.lock
         run: composer validate --ansi --strict
@@ -139,10 +129,6 @@ jobs:
           ini-values: 'error_reporting=E_ALL, memory_limit=-1, phar.readonly=0'
           tools: composer, box
           coverage: none
-
-      - name: 🛠️ Setup problem matchers
-        run: |
-          echo "::add-matcher::${{ runner.tool_cache }}/php.json"
 
       - name: 📥 Install dependencies with composer
         uses: ramsey/composer-install@v3
