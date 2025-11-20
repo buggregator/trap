@@ -16,6 +16,24 @@ use PHPUnit\Framework\TestCase;
  */
 class FrameTest extends TestCase
 {
+    public static function payloadSizesProvider(): \Generator
+    {
+        // Small payloads (0-125 bytes)
+        yield 'Empty payload' => [0];
+        yield 'Small payload (10 bytes)' => [10];
+        yield 'Small payload (125 bytes)' => [125];
+
+        // Medium payloads (126-65535 bytes)
+        yield 'Medium payload (126 bytes)' => [126];
+        yield 'Medium payload (1000 bytes)' => [1000];
+        yield 'Medium payload (65535 bytes)' => [65535];
+
+        // Large payloads (65536+ bytes)
+        yield 'Large payload (65536 bytes)' => [65536];
+        yield 'Large payload (100000 bytes)' => [100000];
+        // Note: Testing with very large payloads (GB+) would require too much memory
+    }
+
     /**
      * Test that frames with different payload sizes are packed correctly.
      *
@@ -113,23 +131,5 @@ class FrameTest extends TestCase
         $this->assertSame($originalFrame->content, $unpackedFrame->content, 'Content should survive round-trip');
         $this->assertSame($originalFrame->opcode, $unpackedFrame->opcode, 'Opcode should survive round-trip');
         $this->assertSame($originalFrame->fin, $unpackedFrame->fin, 'FIN should survive round-trip');
-    }
-
-    public static function payloadSizesProvider(): \Generator
-    {
-        // Small payloads (0-125 bytes)
-        yield 'Empty payload' => [0];
-        yield 'Small payload (10 bytes)' => [10];
-        yield 'Small payload (125 bytes)' => [125];
-
-        // Medium payloads (126-65535 bytes)
-        yield 'Medium payload (126 bytes)' => [126];
-        yield 'Medium payload (1000 bytes)' => [1000];
-        yield 'Medium payload (65535 bytes)' => [65535];
-
-        // Large payloads (65536+ bytes)
-        yield 'Large payload (65536 bytes)' => [65536];
-        yield 'Large payload (100000 bytes)' => [100000];
-        // Note: Testing with very large payloads (GB+) would require too much memory
     }
 }
