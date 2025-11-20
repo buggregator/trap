@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.14.0 (2025-11-20)
+
+## What's Changed
+* Use empty senders list by @roxblnfk in https://github.com/buggregator/trap/pull/200
+* Fix WS frame packing for large packets by @roxblnfk in https://github.com/buggregator/trap/pull/202
+
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.13.18...1.14.0
+
 ## 1.13.18 (2025-09-08)
 
 ## What's Changed
