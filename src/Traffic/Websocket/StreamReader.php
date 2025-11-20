@@ -81,8 +81,10 @@ final class StreamReader
                 /** @var int $len */
                 $len = \unpack('n', yield 2)[1];
             } elseif ($len === 127) {
+                // Unpack 64-bit length as two 32-bit integers in network byte order (big-endian)
+                $parts = \unpack('N2', yield 8);
                 /** @var int $len */
-                $len = \unpack('J', yield 8)[1];
+                $len = ($parts[1] << 32) | $parts[2];
             }
 
             // Read mask
