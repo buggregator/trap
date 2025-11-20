@@ -22,6 +22,21 @@ use Symfony\Component\Console\Output\OutputInterface;
 /**
  * Run application
  *
+ * Examples:
+ *
+ * ```
+ *  # Run with default ports and console sender
+ *  trap run
+ *
+ *  # Run with UI on port 8080, listen default ports, and use console sender
+ *  trap run --ui=8080
+ *
+ *  # Run with UI, disable console sender
+ *  trap run --ui=8080 -s
+ *  # Equals to
+ *  trap run --ui=8080 --sender=""
+ * ```
+ *
  * @internal
  */
 #[AsCommand(
@@ -147,7 +162,7 @@ final class Run extends Command implements SignalableCommandInterface
             $container->set($this->logger);
             $this->app = $container->get(Application::class, [
                 'map' => $this->getServers($container),
-                'senders' => $registry->getSenders($senders),
+                'senders' => $registry->getSenders(\array_filter($senders)),
                 'withFrontend' => $input->getOption('ui') !== false,
             ]);
 
