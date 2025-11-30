@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.15.0 (2025-11-30)
+
+## What's Changed
+* Update dependencies by @roxblnfk in https://github.com/buggregator/trap/pull/208
+
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.14.0...1.15.0
+
 ## 1.14.0 (2025-11-20)
 
 ## What's Changed
