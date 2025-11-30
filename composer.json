@@ -31,10 +31,6 @@
     "homepage": "https://buggregator.dev/",
     "funding": [
         {
-            "type": "patreon",
-            "url": "https://patreon.com/roxblnfk"
-        },
-        {
             "type": "boosty",
             "url": "https://boosty.to/roxblnfk"
         }
@@ -49,8 +45,8 @@
         "php-http/message": "^1.15",
         "psr/container": "^1.1 || ^2.0",
         "psr/http-message": "^1.1 || ^2",
-        "symfony/console": "^6.4 || ^7",
-        "symfony/var-dumper": "^6.3 || ^7",
+        "symfony/console": "^6.4 || ^7 || ^8",
+        "symfony/var-dumper": "^6.3 || ^7 || ^8",
         "yiisoft/injector": "^1.2"
     },
     "require-dev": {
@@ -61,7 +57,7 @@
         "rector/rector": "^1.1",
         "roxblnfk/unpoly": "^1.8.1",
         "spiral/code-style": "^2.2.2",
-        "ta-tikoma/phpunit-architecture-test": "^0.8.4",
+        "ta-tikoma/phpunit-architecture-test": "^0.8.5",
         "vimeo/psalm": "^6.5"
     },
     "suggest": {
