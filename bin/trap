@@ -45,12 +45,12 @@ use Symfony\Component\Console\CommandLoader\FactoryCommandLoader;
     $application = new Application();
     $application->setCommandLoader(
         new FactoryCommandLoader([
-            Command\Run::getDefaultName() => static fn() => new Command\Run(),
-            Command\Joke::getDefaultName() => static fn() => new Command\Joke(),
-            Command\Test::getDefaultName() => static fn() => new Command\Test(),
+            'run' => static fn(): Command\Run => new Command\Run(),
+            'joke' => static fn(): Command\Joke => new Command\Joke(),
+            'test' => static fn(): Command\Test => new Command\Test(),
         ]),
     );
-    $application->setDefaultCommand(Command\Run::getDefaultName(), false);
+    $application->setDefaultCommand('run', false);
     $application->setName(Info::NAME);
     $application->setVersion(Info::version());
     $application->run();
