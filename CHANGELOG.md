@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.15.1 (2025-12-27)
+
+## What's Changed
+* Fix Symfony 8 compatibility by @roxblnfk in https://github.com/buggregator/trap/pull/210
+
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.15.0...1.15.1
+
 ## 1.15.0 (2025-11-30)
 
 ## What's Changed
