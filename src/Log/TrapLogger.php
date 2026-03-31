@@ -20,6 +20,9 @@ use Psr\Log\AbstractLogger;
  */
 final class TrapLogger extends AbstractLogger
 {
+    private const ASYNC_WRITE_RETRY_COUNT = 3;
+    private const ASYNC_WRITE_RETRY_DELAY_MICROSECONDS = 5_000;
+
     public function __construct(
         private string $host = '127.0.0.1',
         private int $port = 9913,
@@ -82,6 +85,8 @@ final class TrapLogger extends AbstractLogger
             return false;
         }
 
+        @\stream_set_timeout($stream, (int) $this->connectTimeout, (int) ($this->connectTimeout * 1000000 % 1000000));
+
         try {
             $payload .= "\n";
             $offset = 0;
@@ -133,11 +138,26 @@ final class TrapLogger extends AbstractLogger
             $length = \strlen($payload);
 
             while ($offset < $length) {
-                $write = [$stream];
-                $read = [];
-                $except = [];
+                $isWritable = false;
 
-                if (@\stream_select($read, $write, $except, 0, 0) !== 1) {
+                for ($attempt = 0; $attempt < self::ASYNC_WRITE_RETRY_COUNT; $attempt++) {
+                    $write = [$stream];
+                    $read = [];
+                    $except = [];
+
+                    $result = @\stream_select($read, $write, $except, 0, self::ASYNC_WRITE_RETRY_DELAY_MICROSECONDS);
+
+                    if ($result === 1) {
+                        $isWritable = true;
+                        break;
+                    }
+
+                    if ($result === false) {
+                        return false;
+                    }
+                }
+
+                if (!$isWritable) {
                     return false;
                 }
 

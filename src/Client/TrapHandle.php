@@ -48,7 +48,13 @@ final class TrapHandle
     {
         if (self::$logger === null) {
             $host = self::getEnvValue('TRAP_MONOLOG_HOST', '127.0.0.1');
-            $port = (int) self::getEnvValue('TRAP_MONOLOG_PORT', '9913');
+            $port = self::getEnvValue('TRAP_MONOLOG_PORT', '9913');
+
+            $port = \is_numeric($port) ? (int) $port : 9913;
+
+            if ($port < 1 || $port > 65535) {
+                $port = 9913;
+            }
 
             self::$logger = new TrapLogger(
                 host: $host,

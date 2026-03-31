@@ -21,22 +21,55 @@ final class TrapLoggerTest extends Base
         self::assertSame($logger1, $logger2);
     }
 
-    public function testLoggerCanWriteInfo(): void
+    public function testLoggerSendsToServer(): void
     {
-        $logger = new TrapLogger(host: '127.0.0.1', port: 1);
+        $server = \stream_socket_server('tcp://127.0.0.1:0', $errorCode, $errorMessage);
+        self::assertNotFalse($server);
 
-        $logger->info('Hello {name}', ['name' => 'Trap']);
+        try {
+            $address = \stream_socket_get_name($server, false);
+            self::assertIsString($address);
 
-        self::assertTrue(true);
+            [, $port] = \explode(':', $address);
+
+            $logger = new TrapLogger(host: '127.0.0.1', port: (int) $port);
+            $logger->info('Hello {name}', ['name' => 'Trap']);
+
+            $client = @\stream_socket_accept($server, 1);
+            self::assertNotFalse($client);
+
+            $line = \stream_get_line($client, 8192, "\n");
+            self::assertNotFalse($line);
+
+            $payload = \json_decode($line, true);
+
+            self::assertSame('Hello Trap', $payload['message']);
+            self::assertSame('INFO', $payload['level_name']);
+            self::assertSame(['name' => 'Trap'], $payload['context']);
+        } finally {
+            if (\is_resource($client ?? null)) {
+                \fclose($client);
+            }
+            \fclose($server);
+        }
     }
 
-    public function testLoggerCanWriteError(): void
+    public function testLoggerFallsBackToDefaultPort(): void
     {
-        $logger = new TrapLogger(host: '127.0.0.1', port: 1);
+        \putenv('TRAP_MONOLOG_PORT=invalid');
 
-        $logger->error('Something went wrong: {error}', ['error' => 'boom']);
+        $logger = TrapHandle::logger();
 
-        self::assertTrue(true);
+        self::assertInstanceOf(TrapLogger::class, $logger);
+        self::assertSame(9913, $this->getLoggerPort($logger));
+
+        $this->resetTrapLogger();
+        \putenv('TRAP_MONOLOG_PORT=70000');
+
+        $logger = TrapHandle::logger();
+
+        self::assertInstanceOf(TrapLogger::class, $logger);
+        self::assertSame(9913, $this->getLoggerPort($logger));
     }
 
     public function testFallbackLineIsTextFormatted(): void
@@ -69,5 +102,34 @@ final class TrapLoggerTest extends Base
         $this->expectExceptionMessage('Invalid log level "invalid".');
 
         $logger->log('invalid', 'Bad level');
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->resetTrapLogger();
+        \putenv('TRAP_MONOLOG_PORT');
+    }
+
+    protected function tearDown(): void
+    {
+        $this->resetTrapLogger();
+        \putenv('TRAP_MONOLOG_PORT');
+        parent::tearDown();
+    }
+
+    private function resetTrapLogger(): void
+    {
+        $reflection = new \ReflectionClass(TrapHandle::class);
+        $logger = $reflection->getProperty('logger');
+        $logger->setValue(null, null);
+    }
+
+    private function getLoggerPort(TrapLogger $logger): int
+    {
+        $reflection = new \ReflectionClass($logger);
+        $port = $reflection->getProperty('port');
+
+        return $port->getValue($logger);
     }
 }
