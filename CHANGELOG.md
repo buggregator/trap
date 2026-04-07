@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.15.2 (2026-04-07)
+
+## What's Changed
+* Add Awesome PHP badge to README by @roxblnfk in https://github.com/buggregator/trap/pull/192
+* fix(socket): handle partial writes for large WebSocket payloads by @Copilot in https://github.com/buggregator/trap/pull/213
+
+## New Contributors
+* @Copilot made their first contribution in https://github.com/buggregator/trap/pull/213
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.15.1...1.15.2
+
 ## 1.15.1 (2025-12-27)
 
 ## What's Changed
