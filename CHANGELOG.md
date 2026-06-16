@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.16.0 (2026-06-16)
+
+## What's Changed
+* feat: add PSR-3 Trap logger with STDERR fallback by @petrdobr in https://github.com/buggregator/trap/pull/212
+
+## New Contributors
+* @petrdobr made their first contribution in https://github.com/buggregator/trap/pull/212
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.15.2...1.16.0
+
 ## 1.15.2 (2026-04-07)
 
 ## What's Changed
