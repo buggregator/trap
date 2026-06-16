@@ -46,7 +46,7 @@
         "php-http/message": "^1.15",
         "psr/container": "^1.1 || ^2.0",
         "psr/http-message": "^1.1 || ^2",
-        "psr/log": "^1 || ^2 || ^3",
+        "psr/log": "^2 || ^3",
         "symfony/console": "^6.4 || ^7 || ^8",
         "symfony/var-dumper": "^6.3 || ^7 || ^8",
         "yiisoft/injector": "^1.2"

@@ -23,6 +23,9 @@ final class TrapLogger extends AbstractLogger
     private const ASYNC_WRITE_RETRY_COUNT = 3;
     private const ASYNC_WRITE_RETRY_DELAY_MICROSECONDS = 5_000;
 
+    /**
+     * @param non-empty-string $channel
+     */
     public function __construct(
         private string $host = '127.0.0.1',
         private int $port = 9913,
@@ -85,7 +88,12 @@ final class TrapLogger extends AbstractLogger
             return false;
         }
 
-        @\stream_set_timeout($stream, (int) $this->connectTimeout, (int) ($this->connectTimeout * 1000000 % 1000000));
+        $timeoutMicroseconds = (int) ($this->connectTimeout * 1_000_000.0);
+        @\stream_set_timeout(
+            $stream,
+            \intdiv($timeoutMicroseconds, 1_000_000),
+            $timeoutMicroseconds % 1_000_000,
+        );
 
         try {
             $payload .= "\n";

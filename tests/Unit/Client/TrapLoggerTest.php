@@ -21,6 +21,28 @@ final class TrapLoggerTest extends Base
         self::assertSame($logger1, $logger2);
     }
 
+    public function testLoggerUsesDefaultChannel(): void
+    {
+        $logger = TrapHandle::logger();
+
+        self::assertInstanceOf(TrapLogger::class, $logger);
+        self::assertSame('trap', $this->getLoggerChannel($logger));
+    }
+
+    public function testLoggerUsesProvidedChannel(): void
+    {
+        $logger = TrapHandle::logger('app');
+
+        self::assertInstanceOf(TrapLogger::class, $logger);
+        self::assertSame('app', $this->getLoggerChannel($logger));
+    }
+
+    public function testLoggerCachesInstancePerChannel(): void
+    {
+        self::assertSame(TrapHandle::logger('app'), TrapHandle::logger('app'));
+        self::assertNotSame(TrapHandle::logger('app'), TrapHandle::logger('worker'));
+    }
+
     public function testLoggerSendsToServer(): void
     {
         $server = \stream_socket_server('tcp://127.0.0.1:0', $errorCode, $errorMessage);
@@ -121,8 +143,8 @@ final class TrapLoggerTest extends Base
     private function resetTrapLogger(): void
     {
         $reflection = new \ReflectionClass(TrapHandle::class);
-        $logger = $reflection->getProperty('logger');
-        $logger->setValue(null, null);
+        $loggers = $reflection->getProperty('loggers');
+        $loggers->setValue(null, []);
     }
 
     private function getLoggerPort(TrapLogger $logger): int
@@ -131,5 +153,13 @@ final class TrapLoggerTest extends Base
         $port = $reflection->getProperty('port');
 
         return $port->getValue($logger);
+    }
+
+    private function getLoggerChannel(TrapLogger $logger): string
+    {
+        $reflection = new \ReflectionClass($logger);
+        $channel = $reflection->getProperty('channel');
+
+        return $channel->getValue($logger);
     }
 }

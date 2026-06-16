@@ -22,7 +22,9 @@ final class TrapHandle
     private string $timesCounterKey = '';
     private int $depth = 0;
     private readonly StaticState $staticState;
-    private static ?TrapLogger $logger = null;
+
+    /** @var array<string, TrapLogger> */
+    private static array $loggers = [];
 
     private function __construct(
         private array $values,
@@ -43,26 +45,33 @@ final class TrapHandle
      *
      * Uses TRAP_MONOLOG_HOST and TRAP_MONOLOG_PORT env variables,
      * falling back to 127.0.0.1:9913.
+     *
+     * @param non-empty-string $channel Monolog channel name the records will be tagged with.
      */
-    public static function logger(): LoggerInterface
+    public static function logger(string $channel = 'trap'): LoggerInterface
     {
-        if (self::$logger === null) {
-            $host = self::getEnvValue('TRAP_MONOLOG_HOST', '127.0.0.1');
-            $port = self::getEnvValue('TRAP_MONOLOG_PORT', '9913');
+        return self::$loggers[$channel] ??= self::createLogger($channel);
+    }
 
-            $port = \is_numeric($port) ? (int) $port : 9913;
+    /**
+     * @param non-empty-string $channel
+     */
+    private static function createLogger(string $channel): TrapLogger
+    {
+        $host = self::getEnvValue('TRAP_MONOLOG_HOST', '127.0.0.1');
+        $port = self::getEnvValue('TRAP_MONOLOG_PORT', '9913');
 
-            if ($port < 1 || $port > 65535) {
-                $port = 9913;
-            }
+        $port = \is_numeric($port) ? (int) $port : 9913;
 
-            self::$logger = new TrapLogger(
-                host: $host,
-                port: $port,
-            );
+        if ($port < 1 || $port > 65535) {
+            $port = 9913;
         }
 
-        return self::$logger;
+        return new TrapLogger(
+            host: $host,
+            port: $port,
+            channel: $channel,
+        );
     }
 
     /**
