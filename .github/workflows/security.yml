@@ -42,4 +42,4 @@ jobs:
           dependency-versions: ${{ matrix.dependencies }}
 
       - name: 🐛 Check installed packages for security vulnerability advisories
-        run: composer audit --ansi
+        run: composer audit --ansi --no-dev
