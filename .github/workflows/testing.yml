@@ -18,7 +18,7 @@ jobs:
       cancel-in-progress: true
       group: testing-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ matrix.php-version }}-${{ matrix.dependencies }}
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         os:
           - ubuntu-latest
@@ -27,14 +27,11 @@ jobs:
           - 8.2
           - 8.3
           - 8.4
+          - 8.5
         dependencies:
-          - lowest
+          # - lowest
           - locked
           - highest
-        include:
-          - php-version: 8.5
-            os: ubuntu-latest
-            dependencies: highest
     steps:
       - name: 📦 Check out the codebase
         uses: actions/checkout@v6
@@ -64,7 +61,7 @@ jobs:
       cancel-in-progress: true
       group: code-coverage-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ matrix.php-version }}-${{ matrix.dependencies }}
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         os:
           - ubuntu-latest
