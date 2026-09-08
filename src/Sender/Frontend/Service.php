@@ -58,8 +58,8 @@ final class Service
 
     #[RegexpRoute(Method::Get, '#^api/smtp/(?<uuid>[a-f0-9-]++)/attachments$#i')]
     #[AssertSuccess(Method::Get, 'api/smtp/018ff30e-a452-7316-b60f-a2d1c3fe16ab/attachments', [
-            'uuid' => '018ff30e-a452-7316-b60f-a2d1c3fe16ab',
-        ]),]
+        'uuid' => '018ff30e-a452-7316-b60f-a2d1c3fe16ab',
+    ]),]
     public function smtpAttachments(string $uuid): Attachments|Success
     {
         $this->debug('Show SMTP %s attachments', $uuid);
