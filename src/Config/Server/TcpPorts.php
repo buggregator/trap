@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Config\Server;
 
-use Buggregator\Trap\Service\Config\Env;
-use Buggregator\Trap\Service\Config\InputOption;
+use Buggregator\Trap\Application\Config\Internal\Attribute\Env;
+use Buggregator\Trap\Application\Config\Internal\Attribute\InflectableConfig;
+use Buggregator\Trap\Application\Config\Internal\Attribute\InputOption;
 
 /**
  * Config is a projection of plain TCP ports configuration via ENV and CLI
@@ -13,6 +14,7 @@ use Buggregator\Trap\Service\Config\InputOption;
  * @internal
  * @psalm-internal Buggregator\Trap
  */
+#[InflectableConfig]
 final class TcpPorts
 {
     /**

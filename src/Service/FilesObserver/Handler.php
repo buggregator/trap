@@ -7,7 +7,7 @@ namespace Buggregator\Trap\Service\FilesObserver;
 use Buggregator\Trap\Config\Server\Files\ObserverConfig as Config;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Service\Container;
+use Internal\Container\Container;
 use Buggregator\Trap\Support\Timer;
 
 /**

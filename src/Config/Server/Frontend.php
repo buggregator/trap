@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Config\Server;
 
-use Buggregator\Trap\Service\Config\InputOption;
-use Buggregator\Trap\Service\Config\Env;
-use Buggregator\Trap\Service\Config\XPath;
+use Buggregator\Trap\Application\Config\Internal\Attribute\Env;
+use Buggregator\Trap\Application\Config\Internal\Attribute\InflectableConfig;
+use Buggregator\Trap\Application\Config\Internal\Attribute\InputOption;
+use Buggregator\Trap\Application\Config\Internal\Attribute\XPath;
 
 /**
  * @internal
  */
+#[InflectableConfig]
 final class Frontend
 {
     /** @var int<1, 65535> */

@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Config\Server\Files;
 
-use Buggregator\Trap\Service\Config\Env;
-use Buggregator\Trap\Service\Config\PhpIni;
+use Buggregator\Trap\Application\Config\Internal\Attribute\Env;
+use Buggregator\Trap\Application\Config\Internal\Attribute\InflectableConfig;
+use Buggregator\Trap\Application\Config\Internal\Attribute\PhpIni;
 use Buggregator\Trap\Service\FilesObserver\Converter\XHProf as Converter;
 use Buggregator\Trap\Service\FilesObserver\FrameConverter;
 
 /**
  * @internal
  */
+#[InflectableConfig]
 final class XHProf extends ObserverConfig
 {
     /**
