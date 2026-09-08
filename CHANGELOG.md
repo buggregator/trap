@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.16.1 (2026-09-08)
+
+## What's Changed
+* refactor: replace the in-tree DI container with internal/container by @roxblnfk in https://github.com/buggregator/trap/pull/218
+
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.16.0...1.16.1
+
 ## 1.16.0 (2026-06-16)
 
 ## What's Changed
