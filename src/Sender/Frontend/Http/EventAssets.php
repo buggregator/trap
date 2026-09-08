@@ -54,11 +54,9 @@ final class EventAssets implements Middleware
      * @param non-empty-string $eventId
      */
     #[RegexpRoute(Method::Get, '#^api/smtp/(?<eventId>[a-f0-9-]++)/html#')]
-    #[
-        AssertSuccess(Method::Get, 'api/smtp/0145a0e0-0b1a-4e4a-9b1a/html', ['eventId' => '0145a0e0-0b1a-4e4a-9b1a']),
+    #[AssertSuccess(Method::Get, 'api/smtp/0145a0e0-0b1a-4e4a-9b1a/html', ['eventId' => '0145a0e0-0b1a-4e4a-9b1a']),
         AssertSuccess(Method::Get, 'api/smtp/0145a0e0-0b1a-4e4a-9b1a/html/', ['eventId' => '0145a0e0-0b1a-4e4a-9b1a']),
-        AssertFail(Method::Get, 'api/smtp/foo-bar-baz/html')
-    ]
+        AssertFail(Method::Get, 'api/smtp/foo-bar-baz/html')]
     public function smtpHtml(string $eventId): ?Response
     {
         // Find event
@@ -87,14 +85,12 @@ final class EventAssets implements Middleware
      * @param non-empty-string $attachId
      */
     #[RegexpRoute(Method::Get, '#^api/smtp/(?<eventId>[a-f0-9-]++)/attachment/(?<attachId>[a-f0-9-]++)$#')]
-    #[
-        AssertSuccess(
-            Method::Get,
-            'api/smtp/0145a0e0-0b1a-4e4a-9b1a/attachment/0145a0e0-0b1a-4e4a-9b1a',
-            ['eventId' => '0145a0e0-0b1a-4e4a-9b1a', 'attachId' => '0145a0e0-0b1a-4e4a-9b1a'],
-        ),
-        AssertFail(Method::Get, 'api/smtp/0145a0e0-0b1a-4e4a-9b1a/attachment/0145a0e0ZZZZzzzz')
-    ]
+    #[AssertSuccess(
+        Method::Get,
+        'api/smtp/0145a0e0-0b1a-4e4a-9b1a/attachment/0145a0e0-0b1a-4e4a-9b1a',
+        ['eventId' => '0145a0e0-0b1a-4e4a-9b1a', 'attachId' => '0145a0e0-0b1a-4e4a-9b1a'],
+    ),
+        AssertFail(Method::Get, 'api/smtp/0145a0e0-0b1a-4e4a-9b1a/attachment/0145a0e0ZZZZzzzz')]
     public function attachment(string $eventId, string $attachId): ?Response
     {
         // Find event

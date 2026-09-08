@@ -48,7 +48,9 @@ final class Http implements Dispatcher
             $handlers,
             /** @see RequestHandler::handle() */
             'handle',
-            static function (): never { throw new \LogicException('No handler found for request.'); },
+            static function (): never {
+                throw new \LogicException('No handler found for request.');
+            },
             'never',
         );
     }
