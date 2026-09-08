@@ -54,27 +54,6 @@ final class TrapHandle
     }
 
     /**
-     * @param non-empty-string $channel
-     */
-    private static function createLogger(string $channel): TrapLogger
-    {
-        $host = self::getEnvValue('TRAP_MONOLOG_HOST', '127.0.0.1');
-        $port = self::getEnvValue('TRAP_MONOLOG_PORT', '9913');
-
-        $port = \is_numeric($port) ? (int) $port : 9913;
-
-        if ($port < 1 || $port > 65535) {
-            $port = 9913;
-        }
-
-        return new TrapLogger(
-            host: $host,
-            port: $port,
-            channel: $channel,
-        );
-    }
-
-    /**
      * Create a new instance with a single value.
      *
      * @param int<0, max> $number The tick number.
@@ -251,6 +230,27 @@ final class TrapHandle
     public function __destruct()
     {
         $this->haveToSend() and $this->sendDump();
+    }
+
+    /**
+     * @param non-empty-string $channel
+     */
+    private static function createLogger(string $channel): TrapLogger
+    {
+        $host = self::getEnvValue('TRAP_MONOLOG_HOST', '127.0.0.1');
+        $port = self::getEnvValue('TRAP_MONOLOG_PORT', '9913');
+
+        $port = \is_numeric($port) ? (int) $port : 9913;
+
+        if ($port < 1 || $port > 65535) {
+            $port = 9913;
+        }
+
+        return new TrapLogger(
+            host: $host,
+            port: $port,
+            channel: $channel,
+        );
     }
 
     private static function getEnvValue(string $name, string $default): string

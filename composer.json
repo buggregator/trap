@@ -20,11 +20,11 @@
     ],
     "authors": [
         {
-            "name": "Aleksei Gagarin (roxblnfk)",
+            "name": "Aleksei Gagarin",
             "homepage": "https://github.com/roxblnfk"
         },
         {
-            "name": "Pavel Buchnev (butschster)",
+            "name": "Pavel Buchnev",
             "homepage": "https://github.com/butschster"
         }
     ],
@@ -41,6 +41,7 @@
         "ext-filter": "*",
         "ext-sockets": "*",
         "clue/stream-filter": "^1.6",
+        "internal/container": "^1.1",
         "internal/destroy": "^1.0",
         "nyholm/psr7": "^1.8",
         "php-http/message": "^1.15",
@@ -48,13 +49,12 @@
         "psr/http-message": "^1.1 || ^2",
         "psr/log": "^2 || ^3",
         "symfony/console": "^6.4 || ^7 || ^8",
-        "symfony/var-dumper": "^6.3 || ^7 || ^8",
-        "yiisoft/injector": "^1.2"
+        "symfony/var-dumper": "^6.3 || ^7 || ^8"
     },
     "require-dev": {
         "dereuromark/composer-prefer-lowest": "^0.1.10",
         "ergebnis/phpunit-slow-test-detector": "^2.14",
-        "google/protobuf": "^3.25 || ^4.30",
+        "google/protobuf": "^3.25 || ^4.30 || ^v5.36.1",
         "phpunit/phpunit": "^10.5.10",
         "rector/rector": "^1.1",
         "roxblnfk/unpoly": "^1.8.1",

@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Config\Server;
 
-use Buggregator\Trap\Service\Config\Env;
+use Buggregator\Trap\Application\Config\Internal\Attribute\Env;
+use Buggregator\Trap\Application\Config\Internal\Attribute\InflectableConfig;
 
 /**
  * Common configuration for the application
@@ -12,6 +13,7 @@ use Buggregator\Trap\Service\Config\Env;
  * @internal
  * @psalm-internal Buggregator\Trap
  */
+#[InflectableConfig]
 final class App
 {
     /**

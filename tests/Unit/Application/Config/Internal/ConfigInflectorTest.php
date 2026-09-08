@@ -2,21 +2,22 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Tests\Unit\Service\Config;
+namespace Buggregator\Trap\Tests\Unit\Application\Config\Internal;
 
-use Buggregator\Trap\Bootstrap;
-use Buggregator\Trap\Service\Config\ConfigLoader;
-use Buggregator\Trap\Service\Config\Env;
-use Buggregator\Trap\Service\Config\InputArgument;
-use Buggregator\Trap\Service\Config\InputOption;
-use Buggregator\Trap\Service\Config\XPath;
+use Buggregator\Trap\Application\Config\Internal\Attribute\Env;
+use Buggregator\Trap\Application\Config\Internal\Attribute\InflectableConfig;
+use Buggregator\Trap\Application\Config\Internal\Attribute\InputArgument;
+use Buggregator\Trap\Application\Config\Internal\Attribute\InputOption;
+use Buggregator\Trap\Application\Config\Internal\Attribute\XPath;
+use Buggregator\Trap\Application\Config\Internal\ConfigInflector;
+use Internal\Container\ObjectContainer;
 use PHPUnit\Framework\TestCase;
 
-final class ConfigLoaderTest extends TestCase
+final class ConfigInflectorTest extends TestCase
 {
     public function testSimpleHydration(): void
     {
-        $dto = new class {
+        $dto = new #[InflectableConfig] class {
             #[XPath('/trap/container/@myBool')]
             public bool $myBool;
 
@@ -39,7 +40,7 @@ final class ConfigLoaderTest extends TestCase
             </trap>
             XML;
 
-        $this->createConfigLoader(xml: $xml)->hidrate($dto);
+        $this->inflect($dto, xml: $xml);
 
         self::assertTrue($dto->myBool);
         self::assertSame(200, $dto->myInt);
@@ -49,7 +50,7 @@ final class ConfigLoaderTest extends TestCase
 
     public function testNonExistingOptions(): void
     {
-        $dto = new class {
+        $dto = new #[InflectableConfig] class {
             #[XPath('/trap/container/Nothing/@value')]
             public float $none1 = 3.14;
 
@@ -67,7 +68,7 @@ final class ConfigLoaderTest extends TestCase
             <trap my-string="foo-bar"> </trap>
             XML;
 
-        $this->createConfigLoader(xml: $xml)->hidrate($dto);
+        $this->inflect($dto, xml: $xml);
 
         self::assertSame(3.14, $dto->none1);
         self::assertSame(3.14, $dto->none2);
@@ -77,7 +78,7 @@ final class ConfigLoaderTest extends TestCase
 
     public function testAttributesOrder(): void
     {
-        $dto = new class {
+        $dto = new #[InflectableConfig] class {
             #[XPath('/test/@foo')]
             #[InputArgument('test')]
             #[InputOption('test')]
@@ -102,24 +103,21 @@ final class ConfigLoaderTest extends TestCase
             </test>
             XML;
 
-        $this
-            ->createConfigLoader(xml: $xml, opts: ['test' => 13], args: ['test' => 69], env: ['test' => 0])
-            ->hidrate($dto);
+        $this->inflect($dto, xml: $xml, opts: ['test' => 13], args: ['test' => 69], env: ['test' => 0]);
 
         self::assertSame(42, $dto->int1);
         self::assertSame(0, $dto->int2);
         self::assertSame(69, $dto->int3);
     }
 
-    private function createConfigLoader(
+    private function inflect(
+        object $config,
         ?string $xml = null,
         array $opts = [],
         array $args = [],
         array $env = [],
-    ): ConfigLoader {
-        return Bootstrap::init()
-            ->withConfig($xml, $opts, $args, $env)
-            ->finish()
-            ->get(ConfigLoader::class);
+    ): void {
+        (new ConfigInflector(env: $env, inputArguments: $args, inputOptions: $opts, xml: $xml))
+            ->inflect($config, new ObjectContainer());
     }
 }

@@ -35,11 +35,9 @@ final class Service
     }
 
     #[RegexpRoute(Method::Delete, '#^api/event/(?<uuid>[a-f0-9-]++)$#i')]
-    #[
-        AssertSuccess(Method::Delete, 'api/event/0145a0e0-0b1a-4e4a-9b1a', ['uuid' => '0145a0e0-0b1a-4e4a-9b1a']),
+    #[AssertSuccess(Method::Delete, 'api/event/0145a0e0-0b1a-4e4a-9b1a', ['uuid' => '0145a0e0-0b1a-4e4a-9b1a']),
         AssertFail(Method::Delete, 'api/event/foo-bar-baz'),
-        AssertFail(Method::Delete, 'api/event/'),
-    ]
+        AssertFail(Method::Delete, 'api/event/'),]
     public function eventDelete(string $uuid): Success
     {
         $this->debug('Delete event %s', $uuid);
@@ -48,11 +46,9 @@ final class Service
     }
 
     #[RegexpRoute(Method::Get, '#^api/event/(?<uuid>[a-f0-9-]++)$#i')]
-    #[
-        AssertSuccess(Method::Get, 'api/event/0145a0e0-0b1a-4e4a-9b1a', ['uuid' => '0145a0e0-0b1a-4e4a-9b1a']),
+    #[AssertSuccess(Method::Get, 'api/event/0145a0e0-0b1a-4e4a-9b1a', ['uuid' => '0145a0e0-0b1a-4e4a-9b1a']),
         AssertFail(Method::Get, 'api/event/foo-bar-baz'),
-        AssertFail(Method::Get, 'api/event/'),
-    ]
+        AssertFail(Method::Get, 'api/event/'),]
     public function eventShow(string $uuid): Event|Success
     {
         $this->debug('Show event %s', $uuid);
@@ -61,11 +57,9 @@ final class Service
     }
 
     #[RegexpRoute(Method::Get, '#^api/smtp/(?<uuid>[a-f0-9-]++)/attachments$#i')]
-    #[
-        AssertSuccess(Method::Get, 'api/smtp/018ff30e-a452-7316-b60f-a2d1c3fe16ab/attachments', [
-            'uuid' => '018ff30e-a452-7316-b60f-a2d1c3fe16ab',
-        ]),
-    ]
+    #[AssertSuccess(Method::Get, 'api/smtp/018ff30e-a452-7316-b60f-a2d1c3fe16ab/attachments', [
+        'uuid' => '018ff30e-a452-7316-b60f-a2d1c3fe16ab',
+    ]),]
     public function smtpAttachments(string $uuid): Attachments|Success
     {
         $this->debug('Show SMTP %s attachments', $uuid);
@@ -84,11 +78,9 @@ final class Service
     }
 
     #[StaticRoute(Method::Delete, 'api/events')]
-    #[
-        AssertFail(Method::Delete, '/api/events'),
+    #[AssertFail(Method::Delete, '/api/events'),
         AssertFail(Method::Delete, 'api/events/'),
-        AssertFail(Method::Delete, 'api/event'),
-    ]
+        AssertFail(Method::Delete, 'api/event'),]
     public function eventsDelete(array $uuids = []): Success
     {
         $this->debug('Delete all events');
@@ -111,11 +103,9 @@ final class Service
     }
 
     #[StaticRoute(Method::Get, 'api/events')]
-    #[
-        AssertFail(Method::Get, 'api/event'),
+    #[AssertFail(Method::Get, 'api/event'),
         AssertFail(Method::Post, 'api/events'),
-        AssertFail(Method::Get, '/api/events'),
-    ]
+        AssertFail(Method::Get, '/api/events'),]
     public function eventsList(): EventCollection
     {
         $this->debug('List all events');
@@ -123,11 +113,9 @@ final class Service
     }
 
     #[StaticRoute(Method::Get, 'api/settings')]
-    #[
-        AssertFail(Method::Get, 'api/setting'),
+    #[AssertFail(Method::Get, 'api/setting'),
         AssertFail(Method::Post, 'api/settings'),
-        AssertFail(Method::Get, '/api/settings'),
-    ]
+        AssertFail(Method::Get, '/api/settings'),]
     public function settings(): Settings
     {
         $this->debug('List settings');

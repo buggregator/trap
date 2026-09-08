@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap;
 
-use Buggregator\Trap\Service\Config\ConfigLoader;
-use Buggregator\Trap\Service\Container;
+use Buggregator\Trap\Application\Config\Internal\ConfigInflector;
+use Internal\Container\Container;
+use Internal\Container\ObjectContainer;
 
 /**
  * Build the container based on the configuration.
@@ -15,10 +16,10 @@ use Buggregator\Trap\Service\Container;
 final class Bootstrap
 {
     private function __construct(
-        private Container $container,
+        private ObjectContainer $container,
     ) {}
 
-    public static function init(Container $container = new Container()): self
+    public static function init(ObjectContainer $container = new ObjectContainer()): self
     {
         return new self($container);
     }
@@ -49,8 +50,9 @@ final class Bootstrap
         // XML config file
         $xml === null or $args['xml'] = $this->readXml($xml);
 
-        // Register bindings
-        $this->container->bind(ConfigLoader::class, $args);
+        // Register config hydration as an inflector: every object produced by the container passes
+        // through it, and inflectable config classes get their properties filled from the sources above.
+        $this->container->addInflector($this->container->make(ConfigInflector::class, $args));
 
         return $this;
     }
