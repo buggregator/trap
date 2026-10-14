@@ -28,7 +28,7 @@ final class SentryEnvelopeTest
 
     public function testRendersEventItem(): void
     {
-        $output = $this->render(new SentryEnvelopeFrame(['event_id' => 'abc', 'sdk' => ['name' => 'sentry.php']], [
+        $output = $this->render(new SentryEnvelopeFrame(['event_id' => 'abc'], [
             new EnvelopeItem(['type' => 'event'], [
                 'event_id' => 'abc',
                 'server_name' => 'web-1',
@@ -42,8 +42,8 @@ final class SentryEnvelopeTest
 
     public function testRendersAttachmentItemHeader(): void
     {
-        $output = $this->render(new SentryEnvelopeFrame(['event_id' => 'abc', 'sdk' => ['name' => 'sentry.php']], [
-            new EnvelopeItem(['type' => 'event'], ['event_id' => 'abc', 'sdk' => ['name' => 'sentry.php']]),
+        $output = $this->render(new SentryEnvelopeFrame(['event_id' => 'abc'], [
+            new EnvelopeItem(['type' => 'event'], ['event_id' => 'abc']),
             new EnvelopeItem(
                 ['type' => 'attachment', 'length' => 11, 'filename' => 'report.txt', 'content_type' => 'text/plain'],
                 Stream::create('hello world'),
