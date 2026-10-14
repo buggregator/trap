@@ -53,7 +53,7 @@ final class Dumper
         }
 
         $cloner = new VarCloner();
-        /** @psalm-suppress InvalidArgument */
+        /** @psalm-suppress InvalidArgument, InternalClass ReflectionCaster is internal since symfony/var-dumper 7 */
         $cloner->addCasters(ReflectionCaster::UNSET_CLOSURE_FILE_INFO);
 
         return self::$handler = static function (mixed $var, string|null $label = null, int $depth = 0) use ($cloner, $dumper): ?string {
@@ -80,7 +80,7 @@ final class Dumper
     private static function registerHandler(): \Closure
     {
         $cloner = new VarCloner();
-        /** @psalm-suppress InvalidArgument */
+        /** @psalm-suppress InvalidArgument, InternalClass ReflectionCaster is internal since symfony/var-dumper 7 */
         $cloner->addCasters(ReflectionCaster::UNSET_CLOSURE_FILE_INFO);
 
         $format = $_SERVER['VAR_DUMPER_FORMAT'] ?? null;
