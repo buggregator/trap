@@ -31,6 +31,20 @@ final class BodyToFileSenderTest
         Assert::same(\file_get_contents($files[0]), 'Hello, body!');
     }
 
+    public function testWritesEachBodyOfBatchToOwnFile(): void
+    {
+        $sender = new BodyToFileSender(self::ROOT . '/body');
+
+        self::sendInFiber($sender, 'First body', '', 'Second body');
+
+        $files = \glob(\str_replace('[', '[[]', self::ROOT . '/body/*.log'));
+        Assert::count($files, 2);
+        Assert::string($files[0])->endsWith('[0].log');
+        Assert::same(\file_get_contents($files[0]), 'First body');
+        Assert::string($files[1])->endsWith('[1].log');
+        Assert::same(\file_get_contents($files[1]), 'Second body');
+    }
+
     public function testThrowsWhenFileIsNotCreated(): never
     {
         $sender = new BodyToFileSender(self::ROOT . '/body');
@@ -62,9 +76,10 @@ final class BodyToFileSenderTest
         \is_dir(self::ROOT) and \rmdir(self::ROOT);
     }
 
-    private static function sendInFiber(BodyToFileSender $sender, string $body): void
+    private static function sendInFiber(BodyToFileSender $sender, string ...$bodies): void
     {
-        $fiber = new \Fiber(static fn() => $sender->send([new Binary(Stream::create($body))]));
+        $frames = \array_map(static fn(string $body): Binary => new Binary(Stream::create($body)), $bodies);
+        $fiber = new \Fiber(static fn() => $sender->send($frames));
         $fiber->start();
         while (!$fiber->isTerminated()) {
             $fiber->resume();

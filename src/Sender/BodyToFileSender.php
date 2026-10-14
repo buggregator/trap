@@ -51,7 +51,7 @@ class BodyToFileSender implements Sender
             $stream->rewind();
 
             // Create file descriptor
-            $fName = \sprintf($fileName, $i);
+            $fName = \sprintf($fileName, $i++);
             $fd = \fopen("{$this->path}/{$fName}", 'wb');
             $fd === false and throw new \RuntimeException(\sprintf('File "%s" was not created', $fName));
             try {
