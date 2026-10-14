@@ -177,8 +177,10 @@ final class Run extends Command implements SignalableCommandInterface
             $this->app->run();
         } catch (\Throwable $e) {
             do {
-                $this->logger->exception($e);
+                $this->logger->exception($e, important: true);
             } while ($e = $e->getPrevious());
+
+            return Command::FAILURE;
         }
 
         return Command::SUCCESS;
