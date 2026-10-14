@@ -36,6 +36,11 @@ final class Monolog implements Dispatcher
     #[\Override]
     public function detect(string $data, \DateTimeImmutable $createdAt): ?bool
     {
-        return \str_starts_with($data, '{"message":');
+        $prefix = '{"message":';
+        if (\strlen($data) < \strlen($prefix) && \substr($prefix, 0, \strlen($data)) === $data) {
+            return null;
+        }
+
+        return \str_starts_with($data, $prefix);
     }
 }

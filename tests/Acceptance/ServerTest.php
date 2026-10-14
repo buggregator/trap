@@ -9,7 +9,6 @@ use Buggregator\Trap\Tests\Acceptance\Support\TrapProcess;
 use Testo\Assert;
 use Testo\Lifecycle\AfterTest;
 use Testo\Lifecycle\BeforeTest;
-use Testo\Skip;
 use Testo\Test;
 
 /**
@@ -181,7 +180,6 @@ final class ServerTest
      * before the first record does. Writing right after connecting races with the server
      * and fails about every other run the same way.
      */
-    #[Skip('Bug #238: a Monolog record that arrives after the connection is accepted is dumped as binary, see src/Traffic/Dispatcher/Monolog.php:37')]
     public function testMonologRecordIsCaptured(): void
     {
         $trap = $this->startTrap('monolog');
