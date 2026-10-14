@@ -17,16 +17,18 @@ use Buggregator\Trap\Traffic\StreamClient;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
-use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
 use Symfony\Component\Console\Output\BufferedOutput;
+use Testo\Assert;
+use Testo\Codecov\Covers;
+use Testo\Data\DataProvider;
+use Testo\Test;
 
-#[CoversClass(OtlpTrap::class)]
-final class OtlpTrapTest extends TestCase
+#[Covers(OtlpTrap::class)]
+#[Test]
+final class OtlpTrapTest
 {
     private const PAYLOAD = '{"resourceSpans":[{"scopeSpans":[{"spans":[{"traceId":"5b8efff798038103d269b633813fc60c",'
         . '"spanId":"eee19b7ec3c1b174","name":"test","kind":1,"startTimeUnixNano":"1","endTimeUnixNano":"2"}]}]}]}';
@@ -82,18 +84,18 @@ final class OtlpTrapTest extends TestCase
     {
         [$result, $frames] = $this->handleInFiber($this->request(body: $body, contentType: $contentType));
 
-        self::assertSame(200, $result->getStatusCode());
-        self::assertSame($response, (string) $result->getBody());
-        self::assertTrue($result->hasHeader(Fallback::NO_DUMP_HEADER));
-        self::assertSame([], $frames);
+        Assert::same($result->getStatusCode(), 200);
+        Assert::same((string) $result->getBody(), $response);
+        Assert::true($result->hasHeader(Fallback::NO_DUMP_HEADER));
+        Assert::same($frames, []);
     }
 
     public function testRejectsJsonListWith400(): void
     {
         [$response, $frames] = $this->handleInFiber($this->request(body: '[1,2]'));
 
-        self::assertSame(400, $response->getStatusCode());
-        self::assertSame([], $frames);
+        Assert::same($response->getStatusCode(), 400);
+        Assert::same($frames, []);
     }
 
     #[DataProvider('provideDroppedSignals')]
@@ -110,12 +112,12 @@ final class OtlpTrapTest extends TestCase
         [$response, $frames] = $this->handleInFiber($request, $middleware);
         $this->handleInFiber($request, $middleware);
 
-        self::assertSame(200, $response->getStatusCode());
-        self::assertSame($contentType, $response->getHeaderLine('Content-Type'));
-        self::assertSame($body, (string) $response->getBody());
-        self::assertTrue($response->hasHeader(Fallback::NO_DUMP_HEADER));
-        self::assertSame([], $frames);
-        self::assertSame(1, \substr_count($output->fetch(), "OTLP: $signal are not supported yet"));
+        Assert::same($response->getStatusCode(), 200);
+        Assert::same($response->getHeaderLine('Content-Type'), $contentType);
+        Assert::same((string) $response->getBody(), $body);
+        Assert::true($response->hasHeader(Fallback::NO_DUMP_HEADER));
+        Assert::same($frames, []);
+        Assert::same(\substr_count($output->fetch(), "OTLP: $signal are not supported yet"), 1);
     }
 
     #[DataProvider('provideRejectedRequests')]
@@ -126,9 +128,9 @@ final class OtlpTrapTest extends TestCase
 
         [$response] = $this->handleInFiber($this->request(body: $body, contentType: $contentType), $middleware);
 
-        self::assertSame($status, $response->getStatusCode());
-        self::assertTrue($response->hasHeader(Fallback::NO_DUMP_HEADER));
-        self::assertSame(1, \substr_count($output->fetch(), "OTLP: traces request rejected with $status: "));
+        Assert::same($response->getStatusCode(), $status);
+        Assert::true($response->hasHeader(Fallback::NO_DUMP_HEADER));
+        Assert::same(\substr_count($output->fetch(), "OTLP: traces request rejected with $status: "), 1);
     }
 
     public function testRejectionReportEscapesReceivedText(): void
@@ -150,7 +152,7 @@ final class OtlpTrapTest extends TestCase
 
         $this->handleInFiber($request, $middleware);
 
-        self::assertSame("OTLP: traces request rejected with 400: <fg=foo>bad</>?[31m\n", $output->fetch());
+        Assert::same($output->fetch(), "OTLP: traces request rejected with 400: <fg=foo>bad</>?[31m\n");
     }
 
     #[DataProvider('providePassedThroughRequests')]
@@ -164,7 +166,7 @@ final class OtlpTrapTest extends TestCase
 
         $result = (new OtlpTrap())->handle($request, static fn(): ResponseInterface => $expected);
 
-        self::assertSame($expected, $result);
+        Assert::same($result, $expected);
     }
 
     #[DataProvider('provideTracesPaths')]
@@ -175,13 +177,13 @@ final class OtlpTrapTest extends TestCase
 
         [$response, $frames] = $this->handleInFiber($request);
 
-        self::assertSame(200, $response->getStatusCode());
-        self::assertSame('application/json', $response->getHeaderLine('Content-Type'));
-        self::assertSame('{}', (string) $response->getBody());
-        self::assertCount(1, $frames);
-        self::assertInstanceOf(OtlpTraces::class, $frames[0]);
-        self::assertSame(1, $frames[0]->countSpans());
-        self::assertEquals($time, $frames[0]->time);
+        Assert::same($response->getStatusCode(), 200);
+        Assert::same($response->getHeaderLine('Content-Type'), 'application/json');
+        Assert::same((string) $response->getBody(), '{}');
+        Assert::count($frames, 1);
+        Assert::instanceOf($frames[0], OtlpTraces::class);
+        Assert::same($frames[0]->countSpans(), 1);
+        Assert::equals($frames[0]->time, $time);
     }
 
     public function testAcceptsContentTypeWithParameters(): void
@@ -190,8 +192,8 @@ final class OtlpTrapTest extends TestCase
 
         [$response, $frames] = $this->handleInFiber($request);
 
-        self::assertSame(200, $response->getStatusCode());
-        self::assertCount(1, $frames);
+        Assert::same($response->getStatusCode(), 200);
+        Assert::count($frames, 1);
     }
 
     public function testAcceptsGzipBody(): void
@@ -200,9 +202,9 @@ final class OtlpTrapTest extends TestCase
 
         [$response, $frames] = $this->handleInFiber($request);
 
-        self::assertSame(200, $response->getStatusCode());
-        self::assertCount(1, $frames);
-        self::assertSame('test', $frames[0]->resourceSpans[0]->scopeSpans[0]->spans[0]->name);
+        Assert::same($response->getStatusCode(), 200);
+        Assert::count($frames, 1);
+        Assert::same($frames[0]->resourceSpans[0]->scopeSpans[0]->spans[0]->name, 'test');
     }
 
     public function testAcceptsBodyAlreadyInflatedByHttpParser(): void
@@ -211,8 +213,8 @@ final class OtlpTrapTest extends TestCase
 
         [$response, $frames] = $this->handleInFiber($request);
 
-        self::assertSame(200, $response->getStatusCode());
-        self::assertCount(1, $frames);
+        Assert::same($response->getStatusCode(), 200);
+        Assert::count($frames, 1);
     }
 
     public function testAcceptsFixtureFromOpenTelemetryPhpExporter(): void
@@ -221,8 +223,8 @@ final class OtlpTrapTest extends TestCase
 
         [$response, $frames] = $this->handleInFiber($request);
 
-        self::assertSame(200, $response->getStatusCode());
-        self::assertSame(4, $frames[0]->countSpans());
+        Assert::same($response->getStatusCode(), 200);
+        Assert::same($frames[0]->countSpans(), 4);
     }
 
     public function testRejectsMalformedJsonWith400(): void
@@ -231,9 +233,9 @@ final class OtlpTrapTest extends TestCase
 
         [$response, $frames] = $this->handleInFiber($request);
 
-        self::assertSame(400, $response->getStatusCode());
-        self::assertSame(3, \json_decode((string) $response->getBody(), true)['code']);
-        self::assertSame([], $frames);
+        Assert::same($response->getStatusCode(), 400);
+        Assert::same(\json_decode((string) $response->getBody(), true)['code'], 3);
+        Assert::same($frames, []);
     }
 
     public function testRejectsInvalidSpanWith400(): void
@@ -242,9 +244,9 @@ final class OtlpTrapTest extends TestCase
 
         [$response, $frames] = $this->handleInFiber($request);
 
-        self::assertSame(400, $response->getStatusCode());
-        self::assertStringContainsString('traceId', (string) $response->getBody());
-        self::assertSame([], $frames);
+        Assert::same($response->getStatusCode(), 400);
+        Assert::string((string) $response->getBody())->contains('traceId');
+        Assert::same($frames, []);
     }
 
     public function testRejectsBrokenGzipWith400(): void
@@ -253,20 +255,20 @@ final class OtlpTrapTest extends TestCase
 
         [$response, $frames] = $this->handleInFiber($request);
 
-        self::assertSame(400, $response->getStatusCode());
-        self::assertSame([], $frames);
+        Assert::same($response->getStatusCode(), 400);
+        Assert::same($frames, []);
     }
 
     public function testRejectsOversizedBodyWith413(): void
     {
-        $body = $this->createMock(StreamInterface::class);
-        $body->method('getSize')->willReturn(11 * 1024 * 1024);
+        $body = \Mockery::mock(StreamInterface::class)->shouldIgnoreMissing();
+        $body->shouldReceive('getSize')->andReturn(11 * 1024 * 1024);
         $request = $this->request()->withBody($body);
 
         [$response, $frames] = $this->handleInFiber($request);
 
-        self::assertSame(413, $response->getStatusCode());
-        self::assertSame([], $frames);
+        Assert::same($response->getStatusCode(), 413);
+        Assert::same($frames, []);
     }
 
     /**
@@ -298,8 +300,8 @@ final class OtlpTrapTest extends TestCase
         $stderr = \stream_get_contents($pipes[2]);
         \proc_close($process);
 
-        self::assertSame($status, $stdout);
-        self::assertSame('', $stderr);
+        Assert::same($stdout, $status);
+        Assert::same($stderr, '');
     }
 
     public function testRejectsOversizedDecompressedBodyWith413(): void
@@ -308,33 +310,33 @@ final class OtlpTrapTest extends TestCase
 
         [$response, $frames] = $this->handleInFiber($request);
 
-        self::assertSame(413, $response->getStatusCode());
-        self::assertSame([], $frames);
+        Assert::same($response->getStatusCode(), 413);
+        Assert::same($frames, []);
     }
 
     public function testRejectsUnknownBodySizeWith413(): void
     {
-        $body = $this->createMock(StreamInterface::class);
-        $body->method('getSize')->willReturn(null);
+        $body = \Mockery::mock(StreamInterface::class)->shouldIgnoreMissing();
+        $body->shouldReceive('getSize')->andReturn(null);
         $request = $this->request()->withBody($body);
 
         [$response] = $this->handleInFiber($request);
 
-        self::assertSame(413, $response->getStatusCode());
+        Assert::same($response->getStatusCode(), 413);
     }
 
     public function testRegistersProtobufDecoderWhenPackagesAreInstalled(): void
     {
-        self::assertTrue(ProtobufTracesDecoder::isAvailable(), 'The dev dependencies include the protobuf packages.');
+        Assert::true(ProtobufTracesDecoder::isAvailable(), 'The dev dependencies include the protobuf packages.');
         $request = $this->request(body: self::protobufFixture(), contentType: 'application/x-protobuf');
 
         [$response, $frames] = $this->handleInFiber($request);
 
-        self::assertSame(200, $response->getStatusCode());
-        self::assertSame('application/x-protobuf', $response->getHeaderLine('Content-Type'));
-        self::assertSame('', (string) $response->getBody());
-        self::assertCount(1, $frames);
-        self::assertSame(4, $frames[0]->countSpans());
+        Assert::same($response->getStatusCode(), 200);
+        Assert::same($response->getHeaderLine('Content-Type'), 'application/x-protobuf');
+        Assert::same((string) $response->getBody(), '');
+        Assert::count($frames, 1);
+        Assert::same($frames[0]->countSpans(), 4);
     }
 
     public function testAcceptsGzipProtobufBody(): void
@@ -347,8 +349,8 @@ final class OtlpTrapTest extends TestCase
 
         [$response, $frames] = $this->handleInFiber($request);
 
-        self::assertSame(200, $response->getStatusCode());
-        self::assertSame(4, $frames[0]->countSpans());
+        Assert::same($response->getStatusCode(), 200);
+        Assert::same($frames[0]->countSpans(), 4);
     }
 
     public function testRejectsMalformedProtobufWith400(): void
@@ -357,24 +359,24 @@ final class OtlpTrapTest extends TestCase
 
         [$response, $frames] = $this->handleInFiber($request);
 
-        self::assertSame(400, $response->getStatusCode());
-        self::assertSame('application/x-protobuf', $response->getHeaderLine('Content-Type'));
+        Assert::same($response->getStatusCode(), 400);
+        Assert::same($response->getHeaderLine('Content-Type'), 'application/x-protobuf');
         [$code, $message] = self::decodeStatus((string) $response->getBody());
-        self::assertSame(3, $code);
-        self::assertStringStartsWith('Invalid protobuf message', $message);
-        self::assertSame([], $frames);
+        Assert::same($code, 3);
+        Assert::string($message)->startsWith('Invalid protobuf message');
+        Assert::same($frames, []);
     }
 
     public function testProtobufStatusOfOversizedBody(): void
     {
-        $body = $this->createMock(StreamInterface::class);
-        $body->method('getSize')->willReturn(11 * 1024 * 1024);
+        $body = \Mockery::mock(StreamInterface::class)->shouldIgnoreMissing();
+        $body->shouldReceive('getSize')->andReturn(11 * 1024 * 1024);
         $request = $this->request(contentType: 'application/x-protobuf')->withBody($body);
 
         [$response] = $this->handleInFiber($request);
 
-        self::assertSame(413, $response->getStatusCode());
-        self::assertSame([8, 'Request body is too large.'], self::decodeStatus((string) $response->getBody()));
+        Assert::same($response->getStatusCode(), 413);
+        Assert::same(self::decodeStatus((string) $response->getBody()), [8, 'Request body is too large.']);
     }
 
     public function testRejectsTooManySpansWith413(): void
@@ -390,18 +392,12 @@ final class OtlpTrapTest extends TestCase
         [$jsonResponse, $jsonFrames] = $this->handleInFiber($jsonRequest, $middleware);
         [$protobufResponse, $protobufFrames] = $this->handleInFiber($protobufRequest, $middleware);
 
-        self::assertSame(413, $jsonResponse->getStatusCode());
-        self::assertSame(
-            ['code' => 8, 'message' => 'Too many spans in one request, the limit is 3.'],
-            \json_decode((string) $jsonResponse->getBody(), true),
-        );
-        self::assertTrue($jsonResponse->hasHeader(Fallback::NO_DUMP_HEADER));
-        self::assertSame(413, $protobufResponse->getStatusCode());
-        self::assertSame(
-            [8, 'Too many spans in one request, the limit is 3.'],
-            self::decodeStatus((string) $protobufResponse->getBody()),
-        );
-        self::assertSame([], [...$jsonFrames, ...$protobufFrames]);
+        Assert::same($jsonResponse->getStatusCode(), 413);
+        Assert::same(\json_decode((string) $jsonResponse->getBody(), true), ['code' => 8, 'message' => 'Too many spans in one request, the limit is 3.']);
+        Assert::true($jsonResponse->hasHeader(Fallback::NO_DUMP_HEADER));
+        Assert::same($protobufResponse->getStatusCode(), 413);
+        Assert::same(self::decodeStatus((string) $protobufResponse->getBody()), [8, 'Too many spans in one request, the limit is 3.']);
+        Assert::same([...$jsonFrames, ...$protobufFrames], []);
     }
 
     public function testProtobufStatusEncodesLongMessages(): void
@@ -422,7 +418,7 @@ final class OtlpTrapTest extends TestCase
 
         [$response] = $this->handleInFiber($request, $middleware);
 
-        self::assertSame([3, \str_repeat('x', 200)], self::decodeStatus((string) $response->getBody()));
+        Assert::same(self::decodeStatus((string) $response->getBody()), [3, \str_repeat('x', 200)]);
     }
 
     public function testJsonOnlyModeRejectsProtobufWith415AndReportsOnce(): void
@@ -434,11 +430,11 @@ final class OtlpTrapTest extends TestCase
         [$first, $frames] = $this->handleInFiber($request, $middleware);
         [$second] = $this->handleInFiber($request, $middleware);
 
-        self::assertSame(415, $first->getStatusCode());
-        self::assertSame(415, $second->getStatusCode());
-        self::assertSame(12, self::decodeStatus((string) $first->getBody())[0]);
-        self::assertSame([], $frames);
-        self::assertSame(1, \substr_count($output->fetch(), 'composer require open-telemetry/gen-otlp-protobuf'));
+        Assert::same($first->getStatusCode(), 415);
+        Assert::same($second->getStatusCode(), 415);
+        Assert::same(self::decodeStatus((string) $first->getBody())[0], 12);
+        Assert::same($frames, []);
+        Assert::same(\substr_count($output->fetch(), 'composer require open-telemetry/gen-otlp-protobuf'), 1);
     }
 
     public function testJsonOnlyModeAcceptsJson(): void
@@ -447,9 +443,9 @@ final class OtlpTrapTest extends TestCase
 
         [$response, $frames] = $this->handleInFiber($this->request(body: self::PAYLOAD), $middleware);
 
-        self::assertSame(200, $response->getStatusCode());
-        self::assertSame('{}', (string) $response->getBody());
-        self::assertCount(1, $frames);
+        Assert::same($response->getStatusCode(), 200);
+        Assert::same((string) $response->getBody(), '{}');
+        Assert::count($frames, 1);
     }
 
     public function testProtobufOnlyModeRejectsJsonWith415(): void
@@ -458,17 +454,17 @@ final class OtlpTrapTest extends TestCase
 
         [$response, $frames] = $this->handleInFiber($this->request(body: self::PAYLOAD), $middleware);
 
-        self::assertSame(415, $response->getStatusCode());
-        self::assertStringContainsString('application/json', (string) $response->getBody());
-        self::assertTrue($response->hasHeader(Fallback::NO_DUMP_HEADER));
-        self::assertSame([], $frames);
+        Assert::same($response->getStatusCode(), 415);
+        Assert::string((string) $response->getBody())->contains('application/json');
+        Assert::true($response->hasHeader(Fallback::NO_DUMP_HEADER));
+        Assert::same($frames, []);
     }
 
     public function testFormPostedToLogsPathIsDumpedAsHttp(): void
     {
         $request = $this->request(uri: '/api/v1/logs', body: 'a=1', contentType: 'application/x-www-form-urlencoded');
-        $client = $this->createMock(StreamClient::class);
-        $client->method('sendData')->willReturn(true);
+        $client = \Mockery::mock(StreamClient::class)->shouldIgnoreMissing();
+        $client->shouldReceive('sendData')->andReturn(true);
 
         $frames = (new Fallback([new OtlpTrap()]))->handle($client, $request, static fn(): array => []);
         $fiber = new \Fiber(static fn(): array => \iterator_to_array($frames, false));
@@ -477,8 +473,8 @@ final class OtlpTrapTest extends TestCase
             $fiber->resume();
         }
 
-        self::assertCount(1, $fiber->getReturn());
-        self::assertInstanceOf(Frame\Http::class, $fiber->getReturn()[0]);
+        Assert::count($fiber->getReturn(), 1);
+        Assert::instanceOf($fiber->getReturn()[0], Frame\Http::class);
     }
 
     /**
@@ -512,7 +508,7 @@ final class OtlpTrapTest extends TestCase
                 $message = \substr($bytes, $offset, $length);
                 $offset += $length;
             } else {
-                self::fail("Unexpected tag $tag.");
+                Assert::fail("Unexpected tag $tag.");
             }
         }
 

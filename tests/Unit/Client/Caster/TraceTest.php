@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Client\Caster;
 
 use Buggregator\Trap\Client\Caster\Trace;
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Data\DataProvider;
+use Testo\Test;
 
-final class TraceTest extends TestCase
+#[Test]
+final class TraceTest
 {
     public static function provideToString(): iterable
     {
@@ -53,6 +55,6 @@ final class TraceTest extends TestCase
             ],
         );
 
-        self::assertSame($result, (string) $trace);
+        Assert::same((string) $trace, $result);
     }
 }

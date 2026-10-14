@@ -27,6 +27,7 @@ abstract class Frame implements \Stringable, \JsonSerializable
         return \strlen((string) $this);
     }
 
+    #[\Override]
     final public function jsonSerialize(): array
     {
         return [

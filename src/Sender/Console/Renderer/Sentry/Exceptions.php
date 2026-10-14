@@ -37,15 +37,16 @@ final class Exceptions
             // Exception type
             $output->writeln(\sprintf(
                 '<fg=red;options=bold>%s</>',
-                $exception['type'] ?? 'Exception',
+                (string) ($exception['type'] ?? 'Exception'),
             ));
 
-            isset($exception['value']) and $output->writeln($exception['value']);
+            isset($exception['value']) and $output->writeln((string) $exception['value']);
 
             $output->writeln('');
 
             try {
                 // Stacktrace
+                /** @var mixed $stacktrace */
                 $stacktrace = $exception['stacktrace']['frames'] ?? null;
                 \is_array($stacktrace) and self::renderTrace($output, $stacktrace);
             } catch (\Throwable $e) {
@@ -56,8 +57,6 @@ final class Exceptions
 
     /**
      * Renders the trace of the exception.
-     *
-     * @psalm-suppress RiskyTruthyFalsyComparison
      */
     private static function renderTrace(OutputInterface $output, array $frames, bool $verbose = false): void
     {
@@ -83,8 +82,7 @@ final class Exceptions
             $file = $getValue($frame, 'filename');
             $line = $getValue($frame, 'lineno');
             $class = $getValue($frame, 'class');
-            /** @psalm-suppress RiskyTruthyFalsyComparison */
-            $class = empty($class) ? '' : $class . '::';
+            $class = empty($class) ? '' : (string) $class . '::';
             $function = $getValue($frame, 'function');
 
             $renderedLine = \sprintf(
@@ -108,7 +106,7 @@ final class Exceptions
             $renderer = static function () use ($output, $renderedLine): void {
                 $output->writeln($renderedLine);
             };
-            if (!$verbose && \str_starts_with(\ltrim(\str_replace('\\', '/', $file), './'), 'vendor/')) {
+            if (!$verbose && \str_starts_with(\ltrim(\str_replace('\\', '/', (string) $file), './'), 'vendor/')) {
                 $vendorLines[] = $renderer;
                 continue;
             }
@@ -158,6 +156,7 @@ final class Exceptions
             $contextLine = \array_key_last($content);
 
             if (isset($frame['post_context']) && \is_array($frame['post_context'])) {
+                /** @var mixed $row */
                 foreach ($frame['post_context'] as $row) {
                     if (!\is_string($row)) {
                         continue;

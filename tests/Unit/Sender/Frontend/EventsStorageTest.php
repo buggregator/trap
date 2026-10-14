@@ -8,9 +8,11 @@ use Buggregator\Trap\Config\Server\Frontend\EventStorage as Config;
 use Buggregator\Trap\Sender\Frontend\Event;
 use Buggregator\Trap\Sender\Frontend\EventStorage;
 use Buggregator\Trap\Support\Uuid;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Test;
 
-class EventsStorageTest extends TestCase
+#[Test]
+final class EventsStorageTest
 {
     public function testMaxEventsLimit(): void
     {
@@ -22,11 +24,11 @@ class EventsStorageTest extends TestCase
         $storage->add($e2 = $this->createEvent());
         $storage->add($e3 = $this->createEvent());
 
-        self::assertCount(2, $storage);
+        Assert::count($storage, 2);
         // In an ordered event sequence of adding events, the first event should be removed
-        self::assertNull($storage->get($e1->uuid));
-        self::assertNotNull($storage->get($e2->uuid));
-        self::assertNotNull($storage->get($e3->uuid));
+        Assert::null($storage->get($e1->uuid));
+        Assert::notNull($storage->get($e2->uuid));
+        Assert::notNull($storage->get($e3->uuid));
     }
 
     public function testMaxEventsLimitWithSort(): void
@@ -39,15 +41,15 @@ class EventsStorageTest extends TestCase
         $storage->add($e2 = $this->createEvent());
         $storage->add($e3 = $this->createEvent(timestamp: \microtime(true) - 1));
 
-        self::assertCount(2, $storage);
+        Assert::count($storage, 2);
         // new event should be added in order of timestamp, and then the first event should be removed
-        self::assertNull($storage->get($e3->uuid));
-        self::assertNotNull($storage->get($e1->uuid));
-        self::assertNotNull($storage->get($e2->uuid));
+        Assert::null($storage->get($e3->uuid));
+        Assert::notNull($storage->get($e1->uuid));
+        Assert::notNull($storage->get($e2->uuid));
         // Check order of events
         $events = \iterator_to_array($storage->getIterator(), false);
-        self::assertSame($e2->uuid, $events[0]->uuid);
-        self::assertSame($e1->uuid, $events[1]->uuid);
+        Assert::same($events[0]->uuid, $e2->uuid);
+        Assert::same($events[1]->uuid, $e1->uuid);
     }
 
     private function createEvent(

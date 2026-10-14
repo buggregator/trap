@@ -15,6 +15,7 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 final class DebugPage implements Middleware
 {
+    #[\Override]
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
         if (\str_ends_with($request->getUri()->getPath(), '_debug')) {

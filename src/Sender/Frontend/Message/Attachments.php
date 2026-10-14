@@ -33,6 +33,7 @@ final class Attachments implements \JsonSerializable
         }
     }
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [

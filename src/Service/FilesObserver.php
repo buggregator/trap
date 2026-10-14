@@ -39,13 +39,14 @@ final class FilesObserver implements Processable, Cancellable
             }
 
             $this->fibers[] = new \Fiber(function () use ($config): void {
-                foreach ($this->container->make(Handler::class, [$config]) as $frame) {
+                foreach ($this->container->make(Handler::class, ['config' => $config]) as $frame) {
                     $this->propagateFrame($frame);
                 }
             });
         }
     }
 
+    #[\Override]
     public function process(): void
     {
         if ($this->cancelled) {
@@ -66,6 +67,7 @@ final class FilesObserver implements Processable, Cancellable
         }
     }
 
+    #[\Override]
     public function cancel(): void
     {
         $this->cancelled = true;

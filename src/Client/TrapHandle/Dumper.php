@@ -36,7 +36,7 @@ final class Dumper
 
     /**
      * @return null|callable(mixed, string|null, int): mixed
-     * @psalm-suppress MixedInferredReturnType, MixedPropertyTypeCoercion, MismatchingDocblockReturnType
+     * @psalm-suppress MixedPropertyTypeCoercion, MismatchingDocblockReturnType
      */
     public static function setHandler(?callable $callable = null): ?\Closure
     {
@@ -53,7 +53,7 @@ final class Dumper
         }
 
         $cloner = new VarCloner();
-        /** @psalm-suppress InvalidArgument */
+        /** @psalm-suppress InvalidArgument, InternalClass ReflectionCaster is internal since symfony/var-dumper 7 */
         $cloner->addCasters(ReflectionCaster::UNSET_CLOSURE_FILE_INFO);
 
         return self::$handler = static function (mixed $var, string|null $label = null, int $depth = 0) use ($cloner, $dumper): ?string {
@@ -80,7 +80,7 @@ final class Dumper
     private static function registerHandler(): \Closure
     {
         $cloner = new VarCloner();
-        /** @psalm-suppress InvalidArgument */
+        /** @psalm-suppress InvalidArgument, InternalClass ReflectionCaster is internal since symfony/var-dumper 7 */
         $cloner->addCasters(ReflectionCaster::UNSET_CLOSURE_FILE_INFO);
 
         $format = $_SERVER['VAR_DUMPER_FORMAT'] ?? null;
@@ -120,7 +120,6 @@ final class Dumper
 
         if (!\in_array(\PHP_SAPI, ['cli', 'phpdbg'], true) && \class_exists(Request::class)) {
             $requestStack = new RequestStack();
-            /** @psalm-suppress MixedMethodCall */
             $requestStack->push(Request::createFromGlobals());
             $contextProviders['request'] = new RequestContextProvider($requestStack);
         }

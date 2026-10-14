@@ -3,13 +3,15 @@
 declare(strict_types=1);
 
 use Buggregator\Trap\Info;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Test;
 
-final class InfoTest extends TestCase
+#[Test]
+final class InfoTest
 {
     public function testVersionIsVersion(): void
     {
-        self::assertMatchesRegularExpression('/^\d+\.\d+\.\d+/', $v1 = Info::version());
-        self::assertSame($v1, Info::version());
+        Assert::string($v1 = Info::version())->matchesRegex('/^\d+\.\d+\.\d+/');
+        Assert::same(Info::version(), $v1);
     }
 }

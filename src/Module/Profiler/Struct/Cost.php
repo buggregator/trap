@@ -106,6 +106,7 @@ final class Cost implements \JsonSerializable
      *     d_pmu: int<min, max>
      * }
      */
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [

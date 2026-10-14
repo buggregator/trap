@@ -33,6 +33,7 @@ final class EventAssets implements Middleware
         $this->router = CommonRouter::new($this);
     }
 
+    #[\Override]
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
         $path = \trim($request->getUri()->getPath(), '/');

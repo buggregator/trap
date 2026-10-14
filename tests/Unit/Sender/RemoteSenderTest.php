@@ -6,15 +6,18 @@ namespace Buggregator\Trap\Tests\Unit\Sender;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Sender\RemoteSender;
-use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Codecov\Covers;
+use Testo\Lifecycle\AfterTest;
+use Testo\Test;
 
-#[CoversClass(RemoteSender::class)]
-final class RemoteSenderTest extends TestCase
+#[Covers(RemoteSender::class)]
+#[Test]
+final class RemoteSenderTest
 {
     private const UUID = '018f3f6a-7b1c-4d2e-9f3a-5b6c7d8e9f00';
 
-    /** @var resource */
+    /** @var resource|null */
     private $server;
 
     public function testSendsOnlyNonOtlpFrames(): void
@@ -28,11 +31,11 @@ final class RemoteSenderTest extends TestCase
         ]);
         $package = $this->receive($sender);
 
-        self::assertStringStartsWith('1|', $package);
+        Assert::string($package)->startsWith('1|');
         [, , $uuid, $payload] = \explode('|', \rtrim($package, "\n"), 4);
-        self::assertSame(self::UUID, $uuid);
+        Assert::same($uuid, self::UUID);
         $frames = \json_decode($payload, true, 512, \JSON_THROW_ON_ERROR);
-        self::assertSame(['monolog', 'monolog'], \array_column($frames, 'type'));
+        Assert::same(\array_column($frames, 'type'), ['monolog', 'monolog']);
     }
 
     public function testSendsNothingForOnlyOtlpFrames(): void
@@ -47,20 +50,22 @@ final class RemoteSenderTest extends TestCase
 
         // The first package on the wire is the one sent after the OTLP-only batch.
         $frames = \json_decode(\explode('|', \rtrim($package, "\n"), 4)[3], true, 512, \JSON_THROW_ON_ERROR);
-        self::assertCount(1, $frames);
-        self::assertSame('monolog', $frames[0]['type']);
-        self::assertSame(1, \substr_count($package, "\n"));
+        Assert::count($frames, 1);
+        Assert::same($frames[0]['type'], 'monolog');
+        Assert::same(\substr_count($package, "\n"), 1);
     }
 
+    #[AfterTest]
     protected function tearDown(): void
     {
         isset($this->server) and \fclose($this->server);
+        $this->server = null;
     }
 
     private function createSender(): RemoteSender
     {
         $server = \stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
-        $server !== false or self::fail("Cannot listen: $error");
+        $server !== false or Assert::fail("Cannot listen: $error");
         $this->server = $server;
         $port = (int) \substr((string) \strrchr((string) \stream_socket_get_name($server, false), ':'), 1);
 
@@ -71,7 +76,7 @@ final class RemoteSenderTest extends TestCase
     {
         $sender->process();
         $client = \stream_socket_accept($this->server, 5);
-        $client !== false or self::fail('The sender did not connect.');
+        $client !== false or Assert::fail('The sender did not connect.');
         \stream_set_blocking($client, false);
 
         $data = '';

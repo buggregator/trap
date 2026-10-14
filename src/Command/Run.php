@@ -50,6 +50,7 @@ final class Run extends Command implements SignalableCommandInterface
     private Logger $logger;
     private bool $cancelled = false;
 
+    #[\Override]
     public function configure(): void
     {
         $this->addOption(
@@ -108,6 +109,7 @@ final class Run extends Command implements SignalableCommandInterface
         return $registry;
     }
 
+    #[\Override]
     public function getSubscribedSignals(): array
     {
         $result = [];
@@ -119,6 +121,7 @@ final class Run extends Command implements SignalableCommandInterface
         return $result;
     }
 
+    #[\Override]
     public function handleSignal(int $signal, int|false $previousExitCode = 0): int|false
     {
         if (\defined('SIGINT') && $signal === \SIGINT) {
@@ -140,6 +143,7 @@ final class Run extends Command implements SignalableCommandInterface
         return false;
     }
 
+    #[\Override]
     protected function execute(
         InputInterface $input,
         OutputInterface $output,

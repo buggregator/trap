@@ -19,11 +19,13 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 final class SentryEnvelope implements Renderer
 {
+    #[\Override]
     public function isSupport(Frame $frame): bool
     {
         return $frame->type === ProtoType::Sentry && $frame instanceof Frame\Sentry\SentryEnvelope;
     }
 
+    #[\Override]
     public function render(OutputInterface $output, Frame $frame): void
     {
         \assert($frame instanceof Frame\Sentry\SentryEnvelope);
@@ -35,9 +37,10 @@ final class SentryEnvelope implements Renderer
         foreach ($frame->items as $item) {
             ++$i;
             try {
-                $type = $item->headers['type'] ?? null;
-                Common::renderHeader2($output, "Item $i", green: (string) $type);
+                $type = (string) ($item->headers['type'] ?? null);
+                Common::renderHeader2($output, "Item $i", green: $type);
 
+                /** @psalm-suppress MixedArgument Bug #242: non-array payloads (attachments) fail here and are rendered as a render error */
                 Header::renderMessageHeader($output, $item->payload);
                 $this->renderItem($output, $item);
             } catch (\Throwable $e) {
@@ -49,7 +52,7 @@ final class SentryEnvelope implements Renderer
 
     private function renderItem(OutputInterface $output, Frame\Sentry\EnvelopeItem $data): void
     {
-        if (isset($data->payload['exceptions'])) {
+        if (\is_array($data->payload) && isset($data->payload['exceptions'])) {
             Exceptions::render($output, $data->payload['exceptions']);
             return;
         }

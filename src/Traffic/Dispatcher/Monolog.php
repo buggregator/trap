@@ -17,6 +17,7 @@ final class Monolog implements Dispatcher
     /**
      * @throws \JsonException
      */
+    #[\Override]
     public function dispatch(StreamClient $stream): iterable
     {
         while (!$stream->isFinished()) {
@@ -32,6 +33,7 @@ final class Monolog implements Dispatcher
         }
     }
 
+    #[\Override]
     public function detect(string $data, \DateTimeImmutable $createdAt): ?bool
     {
         return \str_starts_with($data, '{"message":');

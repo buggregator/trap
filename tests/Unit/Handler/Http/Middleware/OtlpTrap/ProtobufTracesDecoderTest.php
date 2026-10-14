@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Handler\Http\Middleware\OtlpTrap;
 
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\JsonTracesDecoder;
-use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\ProtobufTracesDecoder;
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\LimitExceededException;
+use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\ProtobufTracesDecoder;
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\SpanKind;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\StatusCode;
@@ -17,11 +17,15 @@ use Opentelemetry\Proto\Common\V1\KeyValueList;
 use Opentelemetry\Proto\Trace\V1\ResourceSpans;
 use Opentelemetry\Proto\Trace\V1\ScopeSpans;
 use Opentelemetry\Proto\Trace\V1\Span;
-use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Assert\ExpectException;
+use Testo\Codecov\Covers;
+use Testo\Expect;
+use Testo\Test;
 
-#[CoversClass(ProtobufTracesDecoder::class)]
-final class ProtobufTracesDecoderTest extends TestCase
+#[Covers(ProtobufTracesDecoder::class)]
+#[Test]
+final class ProtobufTracesDecoderTest
 {
     public function testDecodesFixtureFromOpenTelemetryPhpExporter(): void
     {
@@ -29,12 +33,12 @@ final class ProtobufTracesDecoderTest extends TestCase
 
         $frame = (new ProtobufTracesDecoder())->decode($payload, new \DateTimeImmutable());
 
-        self::assertSame(4, $frame->countSpans());
+        Assert::same($frame->countSpans(), 4);
         $resource = $frame->resourceSpans[0];
-        self::assertSame('e2e-app', $resource->getServiceName());
-        self::assertSame('https://opentelemetry.io/schemas/1.38.0', $resource->schemaUrl);
-        self::assertSame('e2e.scope', $resource->scopeSpans[0]->scopeName);
-        self::assertSame('1.2.3', $resource->scopeSpans[0]->scopeVersion);
+        Assert::same($resource->getServiceName(), 'e2e-app');
+        Assert::same($resource->schemaUrl, 'https://opentelemetry.io/schemas/1.38.0');
+        Assert::same($resource->scopeSpans[0]->scopeName, 'e2e.scope');
+        Assert::same($resource->scopeSpans[0]->scopeVersion, '1.2.3');
 
         $spans = [];
         foreach ($frame->iterateSpans() as [, , $span]) {
@@ -42,26 +46,26 @@ final class ProtobufTracesDecoderTest extends TestCase
         }
 
         $root = $spans['GET /orders'];
-        self::assertSame('4ab192eff5d209acee56f11cd2bf1937', $root->traceId);
-        self::assertSame('17cf00fe7807d9cf', $root->spanId);
-        self::assertNull($root->parentSpanId);
-        self::assertSame(SpanKind::Server, $root->kind);
-        self::assertSame(StatusCode::Ok, $root->status->code);
-        self::assertSame([
+        Assert::same($root->traceId, '4ab192eff5d209acee56f11cd2bf1937');
+        Assert::same($root->spanId, '17cf00fe7807d9cf');
+        Assert::null($root->parentSpanId);
+        Assert::same($root->kind, SpanKind::Server);
+        Assert::same($root->status->code, StatusCode::Ok);
+        Assert::same($root->attributes, [
             'http.request.method' => 'GET',
             'http.response.status_code' => 200,
             'server.ratio' => 0.75,
             'feature.enabled' => true,
             'order.ids' => [1, 2, 3],
-        ], $root->attributes);
+        ]);
 
         $db = $spans['db.query'];
-        self::assertSame('17cf00fe7807d9cf', $db->parentSpanId);
-        self::assertSame(SpanKind::Client, $db->kind);
-        self::assertSame(StatusCode::Error, $db->status->code);
-        self::assertSame('Connection lost', $db->status->message);
-        self::assertSame('RuntimeException', $db->events[0]->attributes['exception.type']);
-        self::assertSame($spans['render']->spanId, $spans['template.load']->parentSpanId);
+        Assert::same($db->parentSpanId, '17cf00fe7807d9cf');
+        Assert::same($db->kind, SpanKind::Client);
+        Assert::same($db->status->code, StatusCode::Error);
+        Assert::same($db->status->message, 'Connection lost');
+        Assert::same($db->events[0]->attributes['exception.type'], 'RuntimeException');
+        Assert::same($spans['template.load']->parentSpanId, $spans['render']->spanId);
     }
 
     public function testDecodesNestedAndBinaryValues(): void
@@ -87,11 +91,11 @@ final class ProtobufTracesDecoderTest extends TestCase
         $frame = (new ProtobufTracesDecoder())->decode($request->serializeToString(), new \DateTimeImmutable());
         $decoded = $frame->resourceSpans[0]->scopeSpans[0]->spans[0];
 
-        self::assertSame('5b8efff798038103d269b633813fc60c', $decoded->traceId);
-        self::assertSame('eee19b7ec3c1b174', $decoded->spanId);
-        self::assertSame(SpanKind::Unspecified, $decoded->kind);
-        self::assertSame(500, $decoded->getDuration());
-        self::assertEquals(['bytes' => 'AQID', 'kvlist' => new \ArrayObject(['deep' => 1.5])], $decoded->attributes);
+        Assert::same($decoded->traceId, '5b8efff798038103d269b633813fc60c');
+        Assert::same($decoded->spanId, 'eee19b7ec3c1b174');
+        Assert::same($decoded->kind, SpanKind::Unspecified);
+        Assert::same($decoded->getDuration(), 500);
+        Assert::equals($decoded->attributes, ['bytes' => 'AQID', 'kvlist' => new \ArrayObject(['deep' => 1.5])]);
     }
 
     public function testCountsSpansOfAllScopesAgainstLimit(): void
@@ -109,16 +113,15 @@ final class ProtobufTracesDecoderTest extends TestCase
         ])->serializeToString();
 
         $frame = (new ProtobufTracesDecoder(new JsonTracesDecoder(8)))->decode($payload, new \DateTimeImmutable());
-        self::assertSame(8, $frame->countSpans());
+        Assert::same($frame->countSpans(), 8);
 
-        $this->expectException(LimitExceededException::class);
+        Expect::exception(LimitExceededException::class);
         (new ProtobufTracesDecoder(new JsonTracesDecoder(7)))->decode($payload, new \DateTimeImmutable());
     }
 
+    #[ExpectException(\InvalidArgumentException::class)]
     public function testRejectsMalformedMessage(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
-
         (new ProtobufTracesDecoder())->decode("\x0a\xff\xff\xff", new \DateTimeImmutable());
     }
 
@@ -126,8 +129,8 @@ final class ProtobufTracesDecoderTest extends TestCase
     {
         $response = (new ProtobufTracesDecoder())->createSuccessResponse();
 
-        self::assertSame(200, $response->getStatusCode());
-        self::assertSame('application/x-protobuf', $response->getHeaderLine('Content-Type'));
-        self::assertSame('', (string) $response->getBody());
+        Assert::same($response->getStatusCode(), 200);
+        Assert::same($response->getHeaderLine('Content-Type'), 'application/x-protobuf');
+        Assert::same((string) $response->getBody(), '');
     }
 }

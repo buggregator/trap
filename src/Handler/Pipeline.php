@@ -81,6 +81,10 @@ final class Pipeline
         $next = $this->next();
         $arguments[] = $next;
 
+        /**
+         * @psalm-suppress MixedMethodCall The middleware method is called by its configured name
+         * @var TReturn
+         */
         return $middleware->{$this->method}(...$arguments);
     }
 

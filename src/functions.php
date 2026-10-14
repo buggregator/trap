@@ -103,6 +103,7 @@ if (\class_exists(AbstractCloner::class)) {
      * @var array<non-empty-string, callable> $casters
      */
     $casters[Message::class] ??= [ProtobufCaster::class, 'cast'];
+    /** @psalm-suppress DeprecatedClass The internal name is the real class in google/protobuf 3.x */
     $casters[InternalRepeatedField::class] ??= [ProtobufCaster::class, 'castRepeated'];
     $casters[RepeatedField::class] ??= [ProtobufCaster::class, 'castRepeated'];
     $casters[MapField::class] ??= [ProtobufCaster::class, 'castMap'];

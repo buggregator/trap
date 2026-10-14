@@ -6,9 +6,17 @@ namespace Buggregator\Trap\Tests\Unit\Client;
 
 use Buggregator\Trap\Client\TrapHandle;
 use Buggregator\Trap\Log\TrapLogger;
+use Buggregator\Trap\Tests\Unit\Client\Stub\CaptureFilter;
 use Psr\Log\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
+use Testo\Assert;
+use Testo\Codecov\Covers;
+use Testo\Expect;
+use Testo\Lifecycle\AfterTest;
+use Testo\Lifecycle\BeforeTest;
+use Testo\Test;
 
+#[Test]
 final class TrapLoggerTest extends Base
 {
     public function testLoggerReturnsSameInstance(): void
@@ -16,41 +24,41 @@ final class TrapLoggerTest extends Base
         $logger1 = TrapHandle::logger();
         $logger2 = TrapHandle::logger();
 
-        self::assertInstanceOf(LoggerInterface::class, $logger1);
-        self::assertInstanceOf(TrapLogger::class, $logger1);
-        self::assertSame($logger1, $logger2);
+        Assert::instanceOf($logger1, LoggerInterface::class);
+        Assert::instanceOf($logger1, TrapLogger::class);
+        Assert::same($logger2, $logger1);
     }
 
     public function testLoggerUsesDefaultChannel(): void
     {
         $logger = TrapHandle::logger();
 
-        self::assertInstanceOf(TrapLogger::class, $logger);
-        self::assertSame('trap', $this->getLoggerChannel($logger));
+        Assert::instanceOf($logger, TrapLogger::class);
+        Assert::same($this->getLoggerChannel($logger), 'trap');
     }
 
     public function testLoggerUsesProvidedChannel(): void
     {
         $logger = TrapHandle::logger('app');
 
-        self::assertInstanceOf(TrapLogger::class, $logger);
-        self::assertSame('app', $this->getLoggerChannel($logger));
+        Assert::instanceOf($logger, TrapLogger::class);
+        Assert::same($this->getLoggerChannel($logger), 'app');
     }
 
     public function testLoggerCachesInstancePerChannel(): void
     {
-        self::assertSame(TrapHandle::logger('app'), TrapHandle::logger('app'));
-        self::assertNotSame(TrapHandle::logger('app'), TrapHandle::logger('worker'));
+        Assert::same(TrapHandle::logger('app'), TrapHandle::logger('app'));
+        Assert::notSame(TrapHandle::logger('worker'), TrapHandle::logger('app'));
     }
 
     public function testLoggerSendsToServer(): void
     {
         $server = \stream_socket_server('tcp://127.0.0.1:0', $errorCode, $errorMessage);
-        self::assertNotFalse($server);
+        Assert::notSame($server, false);
 
         try {
             $address = \stream_socket_get_name($server, false);
-            self::assertIsString($address);
+            Assert::string($address);
 
             [, $port] = \explode(':', $address);
 
@@ -58,16 +66,16 @@ final class TrapLoggerTest extends Base
             $logger->info('Hello {name}', ['name' => 'Trap']);
 
             $client = @\stream_socket_accept($server, 1);
-            self::assertNotFalse($client);
+            Assert::notSame($client, false);
 
             $line = \stream_get_line($client, 8192, "\n");
-            self::assertNotFalse($line);
+            Assert::notSame($line, false);
 
             $payload = \json_decode($line, true);
 
-            self::assertSame('Hello Trap', $payload['message']);
-            self::assertSame('INFO', $payload['level_name']);
-            self::assertSame(['name' => 'Trap'], $payload['context']);
+            Assert::same($payload['message'], 'Hello Trap');
+            Assert::same($payload['level_name'], 'INFO');
+            Assert::same($payload['context'], ['name' => 'Trap']);
         } finally {
             if (\is_resource($client ?? null)) {
                 \fclose($client);
@@ -82,16 +90,16 @@ final class TrapLoggerTest extends Base
 
         $logger = TrapHandle::logger();
 
-        self::assertInstanceOf(TrapLogger::class, $logger);
-        self::assertSame(9913, $this->getLoggerPort($logger));
+        Assert::instanceOf($logger, TrapLogger::class);
+        Assert::same($this->getLoggerPort($logger), 9913);
 
         $this->resetTrapLogger();
         \putenv('TRAP_MONOLOG_PORT=70000');
 
         $logger = TrapHandle::logger();
 
-        self::assertInstanceOf(TrapLogger::class, $logger);
-        self::assertSame(9913, $this->getLoggerPort($logger));
+        Assert::instanceOf($logger, TrapLogger::class);
+        Assert::same($this->getLoggerPort($logger), 9913);
     }
 
     public function testFallbackLineIsTextFormatted(): void
@@ -111,21 +119,105 @@ final class TrapLoggerTest extends Base
 
         $line = $formatFallbackLine->invoke($logger, $record);
 
-        self::assertStringStartsWith('[', $line);
-        self::assertStringContainsString('trap.ERROR: Something went wrong: boom', $line);
-        self::assertStringContainsString('{"error":"boom"}', $line);
+        Assert::string($line)->startsWith('[')->contains('trap.ERROR: Something went wrong: boom')->contains('{"error":"boom"}');
     }
 
     public function testInvalidLevelThrowsException(): void
     {
         $logger = new TrapLogger(host: '127.0.0.1', port: 1);
 
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Invalid log level "invalid".');
+        Expect::exception(InvalidArgumentException::class)->withMessageContaining('Invalid log level "invalid".');
 
         $logger->log('invalid', 'Bad level');
     }
 
+    #[Covers(TrapLogger::class)]
+    public function testInterpolatesObjectsAndArrays(): void
+    {
+        $server = $this->startServer();
+
+        try {
+            $logger = new TrapLogger(host: '127.0.0.1', port: $this->serverPort($server));
+            $logger->info('User {user} has {roles}', ['user' => new \stdClass(), 'roles' => ['admin', 'dev']]);
+
+            $payload = $this->receivePayload($server);
+
+            Assert::same($payload['message'], 'User stdClass has ["admin","dev"]');
+        } finally {
+            \fclose($server);
+        }
+    }
+
+    #[Covers(TrapLogger::class)]
+    public function testFallsBackToStderrWhenServerIsUnreachable(): void
+    {
+        $logger = new TrapLogger(host: '127.0.0.1', port: $this->freePort());
+
+        $output = $this->captureStderr(static fn() => $logger->error('Lost {what}', ['what' => 'link']));
+
+        Assert::string($output)->contains('trap.ERROR: Lost link {"what":"link"}');
+    }
+
+    #[Covers(TrapLogger::class)]
+    public function testFallsBackToStderrWhenRecordIsNotJsonEncodable(): void
+    {
+        $server = $this->startServer();
+
+        try {
+            $logger = new TrapLogger(host: '127.0.0.1', port: $this->serverPort($server));
+
+            $output = $this->captureStderr(static fn() => $logger->warning('Got {bad}', ['bad' => ["\xB1"]]));
+
+            Assert::string($output)->contains('trap.WARNING: Got [unserializable array] [unserializable context]');
+            Assert::false(@\stream_socket_accept($server, 0.1));
+        } finally {
+            \fclose($server);
+        }
+    }
+
+    #[Covers(TrapLogger::class)]
+    public function testLoggerSendsToServerInsideFiber(): void
+    {
+        $server = $this->startServer();
+
+        try {
+            $logger = new TrapLogger(host: '127.0.0.1', port: $this->serverPort($server));
+            (new \Fiber(static fn() => $logger->notice('Hello {name}', ['name' => 'Fiber'])))->start();
+
+            $payload = $this->receivePayload($server);
+
+            Assert::same($payload['message'], 'Hello Fiber');
+            Assert::same($payload['level'], 250);
+        } finally {
+            \fclose($server);
+        }
+    }
+
+    #[Covers(TrapLogger::class)]
+    public function testFallsBackToStderrInsideFiberWhenServerIsUnreachable(): void
+    {
+        $logger = new TrapLogger(host: '127.0.0.1', port: $this->freePort());
+
+        $output = $this->captureStderr(
+            static fn() => (new \Fiber(static fn() => $logger->critical('Refused')))->start(),
+        );
+
+        Assert::string($output)->contains('trap.CRITICAL: Refused []');
+    }
+
+    #[Covers(TrapLogger::class)]
+    public function testFallsBackToStderrInsideFiberWhenHostCannotBeResolved(): void
+    {
+        $logger = new TrapLogger(host: '256.256.256.256', port: 1);
+
+        $output = $this->captureStderr(
+            static fn() => (new \Fiber(static fn() => $logger->alert('Nowhere')))->start(),
+        );
+
+        Assert::string($output)->contains('trap.ALERT: Nowhere []');
+    }
+
+    #[BeforeTest]
     protected function setUp(): void
     {
         parent::setUp();
@@ -133,6 +225,7 @@ final class TrapLoggerTest extends Base
         \putenv('TRAP_MONOLOG_PORT');
     }
 
+    #[AfterTest]
     protected function tearDown(): void
     {
         $this->resetTrapLogger();
@@ -161,5 +254,72 @@ final class TrapLoggerTest extends Base
         $channel = $reflection->getProperty('channel');
 
         return $channel->getValue($logger);
+    }
+
+    /**
+     * @return resource
+     */
+    private function startServer(): mixed
+    {
+        $server = \stream_socket_server('tcp://127.0.0.1:0', $errorCode, $errorMessage);
+        Assert::notSame($server, false);
+
+        return $server;
+    }
+
+    /**
+     * @param resource $server
+     */
+    private function serverPort(mixed $server): int
+    {
+        $address = \stream_socket_get_name($server, false);
+        Assert::string($address);
+
+        return (int) \substr($address, \strrpos($address, ':') + 1);
+    }
+
+    /**
+     * @param resource $server
+     */
+    private function receivePayload(mixed $server): array
+    {
+        $client = @\stream_socket_accept($server, 1);
+        Assert::notSame($client, false);
+
+        try {
+            $line = \stream_get_line($client, 8192, "\n");
+            Assert::string($line);
+
+            return \json_decode($line, true, flags: \JSON_THROW_ON_ERROR);
+        } finally {
+            \fclose($client);
+        }
+    }
+
+    /**
+     * Returns a port nothing listens on: it was bound by a server that is already closed.
+     */
+    private function freePort(): int
+    {
+        $server = $this->startServer();
+        $port = $this->serverPort($server);
+        \fclose($server);
+
+        return $port;
+    }
+
+    private function captureStderr(\Closure $callback): string
+    {
+        \stream_filter_register('trap-logger-test.capture', CaptureFilter::class);
+        CaptureFilter::$captured = '';
+        $filter = \stream_filter_append(\STDERR, 'trap-logger-test.capture', \STREAM_FILTER_WRITE);
+
+        try {
+            $callback();
+        } finally {
+            \stream_filter_remove($filter);
+        }
+
+        return CaptureFilter::$captured;
     }
 }

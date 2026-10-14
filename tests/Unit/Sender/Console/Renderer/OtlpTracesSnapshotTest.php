@@ -13,19 +13,22 @@ use Buggregator\Trap\Proto\Frame\Otlp\Trace\ScopeSpans;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\Span;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\SpanKind;
 use Buggregator\Trap\Sender\Console\Renderer\OtlpTraces;
-use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Output\BufferedOutput;
+use Testo\Assert;
+use Testo\Codecov\Covers;
+use Testo\Data\DataProvider;
+use Testo\Lifecycle\BeforeClass;
+use Testo\Test;
 
 /**
  * Renders sequences of frames and compares the whole console output with a stored snapshot.
  *
  * Set `TRAP_UPDATE_SNAPSHOTS=1` to write the snapshots from the current renderer.
  */
-#[CoversClass(OtlpTraces::class)]
-#[CoversClass(SpanStore::class)]
-final class OtlpTracesSnapshotTest extends TestCase
+#[Covers(OtlpTraces::class)]
+#[Covers(SpanStore::class)]
+#[Test]
+final class OtlpTracesSnapshotTest
 {
     private const SNAPSHOTS = Info::TRAP_ROOT . '/tests/Stub/otlp-render';
     private const TRACE_A = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
@@ -33,9 +36,65 @@ final class OtlpTracesSnapshotTest extends TestCase
     private const TRACE_C = 'cccccccccccccccccccccccccccccccc';
 
     /**
-     * @return \Generator<string, array{int, list<list<Span>>}> Store span limit and frames.
+     * @return \Generator<string, array{string, int, list<list<Span>>}> Scenario name, store span limit and frames.
      */
     public static function provideScenarios(): \Generator
+    {
+        foreach (self::scenarios() as $name => $arguments) {
+            yield $name => [$name, ...$arguments];
+        }
+    }
+
+    #[DataProvider('provideScenarios')]
+    public function testOutputMatchesSnapshot(string $scenario, int $maxSpans, array $frames): void
+    {
+        $config = new Traces();
+        $config->maxSpans = $maxSpans;
+        $renderer = new OtlpTraces(new SpanStore($config));
+        $output = new BufferedOutput();
+        foreach ($frames as $i => $spans) {
+            $output->writeln("=== frame $i");
+            $renderer->render($output, new OtlpTracesFrame(
+                [new ResourceSpans([new ScopeSpans($spans)])],
+                new \DateTimeImmutable('2024-01-01 12:00:00'),
+            ));
+        }
+        $actual = \str_replace("\r\n", "\n", $output->fetch());
+
+        $file = self::snapshotFile($scenario);
+        if (\getenv('TRAP_UPDATE_SNAPSHOTS')) {
+            \is_dir(self::SNAPSHOTS) or \mkdir(self::SNAPSHOTS, 0777, true);
+            \file_put_contents($file, $actual);
+        }
+
+        Assert::true(\file_exists($file));
+        // A checkout with `core.autocrlf` may have turned the line endings into CRLF.
+        Assert::same($actual, \str_replace("\r\n", "\n", (string) \file_get_contents($file)));
+    }
+
+    /**
+     * Removes snapshots of scenarios that no longer exist before they are written again.
+     */
+    #[BeforeClass]
+    public static function setUpBeforeClass(): void
+    {
+        if (!\getenv('TRAP_UPDATE_SNAPSHOTS')) {
+            return;
+        }
+
+        $current = [];
+        foreach (self::scenarios() as $name => $_) {
+            $current[self::snapshotFile($name)] = true;
+        }
+        foreach (\glob(self::SNAPSHOTS . '/*.txt') ?: [] as $file) {
+            isset($current[$file]) or \unlink($file);
+        }
+    }
+
+    /**
+     * @return \Generator<string, array{int, list<list<Span>>}> Store span limit and frames.
+     */
+    private static function scenarios(): \Generator
     {
         $chain = static fn(int $count, string $trace = self::TRACE_A): array => \array_map(
             static fn(int $i): Span => self::span($trace, $i + 1, $i === 0 ? null : $i, $i * 10, 10_000 - $i * 10),
@@ -143,51 +202,6 @@ final class OtlpTracesSnapshotTest extends TestCase
         yield 'random trees' => [10_000, self::randomFrames(42, 400)];
         yield 'random trees in a small store' => [150, self::randomFrames(7, 400)];
         yield 'random trees, one span per frame' => [10_000, self::oneByOne(\array_merge(...self::randomFrames(3, 300)))];
-    }
-
-    #[DataProvider('provideScenarios')]
-    public function testOutputMatchesSnapshot(int $maxSpans, array $frames): void
-    {
-        $config = new Traces();
-        $config->maxSpans = $maxSpans;
-        $renderer = new OtlpTraces(new SpanStore($config));
-        $output = new BufferedOutput();
-        foreach ($frames as $i => $spans) {
-            $output->writeln("=== frame $i");
-            $renderer->render($output, new OtlpTracesFrame(
-                [new ResourceSpans([new ScopeSpans($spans)])],
-                new \DateTimeImmutable('2024-01-01 12:00:00'),
-            ));
-        }
-        $actual = \str_replace("\r\n", "\n", $output->fetch());
-
-        $file = self::snapshotFile((string) $this->dataName());
-        if (\getenv('TRAP_UPDATE_SNAPSHOTS')) {
-            \is_dir(self::SNAPSHOTS) or \mkdir(self::SNAPSHOTS, 0777, true);
-            \file_put_contents($file, $actual);
-        }
-
-        self::assertFileExists($file);
-        // A checkout with `core.autocrlf` may have turned the line endings into CRLF.
-        self::assertSame(\str_replace("\r\n", "\n", (string) \file_get_contents($file)), $actual);
-    }
-
-    /**
-     * Removes snapshots of scenarios that no longer exist before they are written again.
-     */
-    public static function setUpBeforeClass(): void
-    {
-        if (!\getenv('TRAP_UPDATE_SNAPSHOTS')) {
-            return;
-        }
-
-        $current = [];
-        foreach (self::provideScenarios() as $name => $_) {
-            $current[self::snapshotFile($name)] = true;
-        }
-        foreach (\glob(self::SNAPSHOTS . '/*.txt') ?: [] as $file) {
-            isset($current[$file]) or \unlink($file);
-        }
     }
 
     private static function snapshotFile(string $scenario): string

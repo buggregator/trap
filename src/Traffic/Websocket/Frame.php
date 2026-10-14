@@ -138,6 +138,7 @@ final class Frame implements \Stringable
         return new self('', Opcode::Close);
     }
 
+    #[\Override]
     public function __toString(): string
     {
         $len = \strlen($this->content);

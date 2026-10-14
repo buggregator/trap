@@ -7,14 +7,16 @@ namespace Buggregator\Trap\Tests\Unit\Traffic\Websocket;
 use Buggregator\Trap\Traffic\Websocket\Frame;
 use Buggregator\Trap\Traffic\Websocket\Opcode;
 use Buggregator\Trap\Traffic\Websocket\StreamReader;
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Data\DataProvider;
+use Testo\Test;
 
 /**
  * @covers \Buggregator\Trap\Traffic\Websocket\Frame
  * @covers \Buggregator\Trap\Traffic\Websocket\StreamReader
  */
-class FrameTest extends TestCase
+#[Test]
+final class FrameTest
 {
     public static function payloadSizesProvider(): \Generator
     {
@@ -54,7 +56,7 @@ class FrameTest extends TestCase
 
         // Verify the first byte (FIN + opcode)
         $firstByte = \ord($packed[0]);
-        $this->assertSame(0x81, $firstByte, 'First byte should be 0x81 (FIN=1, opcode=Text)');
+        Assert::same($firstByte, 0x81, 'First byte should be 0x81 (FIN=1, opcode=Text)');
 
         // Verify the length encoding
         $secondByte = \ord($packed[1]);
@@ -62,30 +64,30 @@ class FrameTest extends TestCase
 
         if ($size < 126) {
             // Small payload: length is in second byte
-            $this->assertSame($size, $payloadLen, 'Small payload length should be in second byte');
+            Assert::same($payloadLen, $size, 'Small payload length should be in second byte');
             $headerSize = 2;
         } elseif ($size < 65536) {
             // Medium payload: second byte is 126, followed by 16-bit length
-            $this->assertSame(126, $payloadLen, 'Medium payload should have 126 in second byte');
+            Assert::same($payloadLen, 126, 'Medium payload should have 126 in second byte');
             $unpackedLen = \unpack('n', \substr($packed, 2, 2))[1];
-            $this->assertSame($size, $unpackedLen, 'Medium payload length should match');
+            Assert::same($unpackedLen, $size, 'Medium payload length should match');
             $headerSize = 4; // 1 + 1 + 2
         } else {
             // Large payload: second byte is 127, followed by 64-bit length
-            $this->assertSame(127, $payloadLen, 'Large payload should have 127 in second byte');
+            Assert::same($payloadLen, 127, 'Large payload should have 127 in second byte');
             // Unpack as two 32-bit integers in network byte order (big-endian)
             $parts = \unpack('N2', \substr($packed, 2, 8));
             $unpackedLen = ($parts[1] << 32) | $parts[2];
-            $this->assertSame($size, $unpackedLen, 'Large payload length should match');
+            Assert::same($unpackedLen, $size, 'Large payload length should match');
             $headerSize = 10; // 1 + 1 + 8
         }
 
         // Verify total frame size
-        $this->assertSame($headerSize + $size, \strlen($packed), 'Total frame size should be header + payload');
+        Assert::same(\strlen($packed), $headerSize + $size, 'Total frame size should be header + payload');
 
         // Verify payload content
         $extractedPayload = \substr($packed, $headerSize);
-        $this->assertSame($payload, $extractedPayload, 'Payload content should match');
+        Assert::same($extractedPayload, $payload, 'Payload content should match');
     }
 
     /**
@@ -104,12 +106,12 @@ class FrameTest extends TestCase
         // Unpack using StreamReader
         $frames = \iterator_to_array(StreamReader::readFrames([$packed]));
 
-        $this->assertCount(1, $frames, 'Should read exactly one frame');
+        Assert::count($frames, 1, 'Should read exactly one frame');
 
         $unpackedFrame = $frames[0];
-        $this->assertSame($payload, $unpackedFrame->content, 'Unpacked payload should match original');
-        $this->assertSame(Opcode::Text, $unpackedFrame->opcode, 'Unpacked opcode should be Text');
-        $this->assertTrue($unpackedFrame->fin, 'Unpacked frame should have FIN=true');
+        Assert::same($unpackedFrame->content, $payload, 'Unpacked payload should match original');
+        Assert::same($unpackedFrame->opcode, Opcode::Text, 'Unpacked opcode should be Text');
+        Assert::true($unpackedFrame->fin, 'Unpacked frame should have FIN=true');
     }
 
     /**
@@ -128,8 +130,8 @@ class FrameTest extends TestCase
         $unpackedFrame = $frames[0];
 
         // Verify round-trip
-        $this->assertSame($originalFrame->content, $unpackedFrame->content, 'Content should survive round-trip');
-        $this->assertSame($originalFrame->opcode, $unpackedFrame->opcode, 'Opcode should survive round-trip');
-        $this->assertSame($originalFrame->fin, $unpackedFrame->fin, 'FIN should survive round-trip');
+        Assert::same($unpackedFrame->content, $originalFrame->content, 'Content should survive round-trip');
+        Assert::same($unpackedFrame->opcode, $originalFrame->opcode, 'Opcode should survive round-trip');
+        Assert::same($unpackedFrame->fin, $originalFrame->fin, 'FIN should survive round-trip');
     }
 }

@@ -11,21 +11,48 @@ on:  # yamllint disable-line rule:truthy
 
 name: 📦 Create release
 
-# release-please authenticates with TRAP_RELEASE_TOKEN, so GITHUB_TOKEN needs no write access.
 permissions:
   contents: read
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - name: 🎉 Create release
         uses: googleapis/release-please-action@v4
         id: release
         with:
-          token: ${{ secrets.TRAP_RELEASE_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           config-file: .github/.release-please-config.json
           manifest-file: resources/version.json
           target-branch: master
+
+  # A release created with GITHUB_TOKEN fires no `release` event, so the builds are called from here.
+  build-phar:
+    needs: release
+    if: needs.release.outputs.release_created == 'true'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-phar-release.yml
+    with:
+      tag: ${{ needs.release.outputs.tag_name }}
+    secrets: inherit
+
+  build-bin:
+    needs: release
+    if: needs.release.outputs.release_created == 'true'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-bin-release.yml
+    with:
+      tag: ${{ needs.release.outputs.tag_name }}
+    secrets: inherit
 
 ...

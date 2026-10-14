@@ -11,13 +11,15 @@ use Buggregator\Trap\Traffic\Message\Multipart\Part;
 use Buggregator\Trap\Traffic\Parser;
 use Buggregator\Trap\Traffic\Parser\MultipartType;
 use Nyholm\Psr7\Stream;
-use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\StreamInterface;
+use Testo\Assert;
+use Testo\Test;
 
-final class MultipartBodyParserTest extends TestCase
+final class MultipartBodyParserTest
 {
     use FiberTrait;
 
+    #[Test]
     public function testParse(): void
     {
         $body = $this->makeStream(
@@ -44,11 +46,12 @@ final class MultipartBodyParserTest extends TestCase
 
         $result = $this->parse($body, 'your-boundary');
 
-        self::assertCount(2, $result);
-        self::assertInstanceOf(Field::class, $result[0]);
-        self::assertInstanceOf(Field::class, $result[1]);
+        Assert::count($result, 2);
+        Assert::instanceOf($result[0], Field::class);
+        Assert::instanceOf($result[1], Field::class);
     }
 
+    #[Test]
     public function testWithFileAttach(): void
     {
         $file1 = \file_get_contents(__DIR__ . '/../../../Stub/deburger.png');
@@ -83,37 +86,35 @@ final class MultipartBodyParserTest extends TestCase
 
         $result = $this->parse($body, 'Asrf456BGe4h');
 
-        self::assertCount(5, $result);
-        self::assertInstanceOf(Field::class, $result[0]);
-        self::assertInstanceOf(Field::class, $result[1]);
+        Assert::count($result, 5);
+        Assert::instanceOf($result[0], Field::class);
+        Assert::instanceOf($result[1], Field::class);
 
         // POST data
-        self::assertSame('Authors', $result[0]->getName());
-        self::assertSame('@roxblnfk and @butschster', $result[0]->getValue());
-        self::assertSame('MessageTitle', $result[1]->getName());
-        self::assertSame('Hello guys! The Buggregator is a great tool!', $result[1]->getValue());
-        self::assertSame('MessageText', $result[2]->getName());
-        self::assertSame(
-            'Do you know that Buggregator could be called Deburger? But we decided to name it Buggregator.',
-            $result[2]->getValue(),
-        );
+        Assert::same($result[0]->getName(), 'Authors');
+        Assert::same($result[0]->getValue(), '@roxblnfk and @butschster');
+        Assert::same($result[1]->getName(), 'MessageTitle');
+        Assert::same($result[1]->getValue(), 'Hello guys! The Buggregator is a great tool!');
+        Assert::same($result[2]->getName(), 'MessageText');
+        Assert::same($result[2]->getValue(), 'Do you know that Buggregator could be called Deburger? But we decided to name it Buggregator.');
 
         $file = $result[3];
         // Uploaded files
-        self::assertInstanceOf(File::class, $file);
-        self::assertSame('AttachedFile1', $file->getName());
-        self::assertSame('deburger.png', $file->getClientFilename());
-        self::assertSame('image/png', $file->getClientMediaType());
-        self::assertSame($file1, $file->getStream()->__toString());
+        Assert::instanceOf($file, File::class);
+        Assert::same($file->getName(), 'AttachedFile1');
+        Assert::same($file->getClientFilename(), 'deburger.png');
+        Assert::same($file->getClientMediaType(), 'image/png');
+        Assert::same($file->getStream()->__toString(), $file1);
 
         $file = $result[4];
-        self::assertInstanceOf(File::class, $file);
-        self::assertSame('AttachedFile2', $file->getName());
-        self::assertSame('buggregator.png', $file->getClientFilename());
-        self::assertSame('image/png', $file->getClientMediaType());
-        self::assertSame($file2, $file->getStream()->__toString());
+        Assert::instanceOf($file, File::class);
+        Assert::same($file->getName(), 'AttachedFile2');
+        Assert::same($file->getClientFilename(), 'buggregator.png');
+        Assert::same($file->getClientMediaType(), 'image/png');
+        Assert::same($file->getStream()->__toString(), $file2);
     }
 
+    #[Test]
     public function testBase64Encoded(): void
     {
         $file1 = \file_get_contents(__DIR__ . '/../../../Stub/deburger.png');
@@ -141,28 +142,29 @@ final class MultipartBodyParserTest extends TestCase
 
         $result = $this->parse($body, 'Asrf456BGe4h');
 
-        self::assertCount(2, $result);
+        Assert::count($result, 2);
         $file = $result[0];
         // Uploaded files
-        self::assertInstanceOf(File::class, $file);
-        self::assertNull($file->getName());
-        self::assertSame('logo-embeddable', $file->getClientFilename());
-        self::assertSame('image/png', $file->getClientMediaType());
-        self::assertSame('4486bda9ad8b1f422deaf6a750194668@trap', $file->getEmbeddingId());
-        self::assertSame($file1, $file->getStream()->__toString());
+        Assert::instanceOf($file, File::class);
+        Assert::null($file->getName());
+        Assert::same($file->getClientFilename(), 'logo-embeddable');
+        Assert::same($file->getClientMediaType(), 'image/png');
+        Assert::same($file->getEmbeddingId(), '4486bda9ad8b1f422deaf6a750194668@trap');
+        Assert::same($file->getStream()->__toString(), $file1);
 
         $file = $result[1];
-        self::assertInstanceOf(File::class, $file);
-        self::assertSame('AttachedFile2', $file->getName());
-        self::assertSame('logo-embeddable', $file->getClientFilename());
-        self::assertSame('image/png', $file->getClientMediaType());
-        self::assertSame('AttachedFile2', $file->getEmbeddingId());
-        self::assertSame($file2, $file->getStream()->__toString());
+        Assert::instanceOf($file, File::class);
+        Assert::same($file->getName(), 'AttachedFile2');
+        Assert::same($file->getClientFilename(), 'logo-embeddable');
+        Assert::same($file->getClientMediaType(), 'image/png');
+        Assert::same($file->getEmbeddingId(), 'AttachedFile2');
+        Assert::same($file->getStream()->__toString(), $file2);
     }
 
     /**
      * Simple multipart/mixed message without nested parts.
      */
+    #[Test]
     public function testMultipartMixed(): void
     {
         $body = $this->makeStream(
@@ -188,21 +190,21 @@ final class MultipartBodyParserTest extends TestCase
         $result = $this->parse($body, '40ugHb8e', MultipartType::Mixed);
 
 
-        self::assertCount(2, $result);
+        Assert::count($result, 2);
         // Field
         $file = $result[0];
-        self::assertInstanceOf(Field::class, $file);
-        self::assertNull($file->getName());
-        self::assertSame('Test Body', $file->getValue());
+        Assert::instanceOf($file, Field::class);
+        Assert::null($file->getName());
+        Assert::same($file->getValue(), 'Test Body');
 
         // Attached file
         $file = $result[1];
-        self::assertInstanceOf(File::class, $file);
-        self::assertSame('test.txt', $file->getName());
-        self::assertSame('test.txt', $file->getClientFilename());
-        self::assertSame('text/plain', $file->getClientMediaType());
-        self::assertNull($file->getEmbeddingId());
-        self::assertSame("sdg\n", $file->getStream()->__toString());
+        Assert::instanceOf($file, File::class);
+        Assert::same($file->getName(), 'test.txt');
+        Assert::same($file->getClientFilename(), 'test.txt');
+        Assert::same($file->getClientMediaType(), 'text/plain');
+        Assert::null($file->getEmbeddingId());
+        Assert::same($file->getStream()->__toString(), "sdg\n");
     }
 
     private function makeStream(string $body): StreamInterface

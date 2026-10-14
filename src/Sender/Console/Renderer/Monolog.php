@@ -18,17 +18,19 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 final class Monolog implements Renderer
 {
+    #[\Override]
     public function isSupport(Frame $frame): bool
     {
         return $frame->type === ProtoType::Monolog;
     }
 
+    #[\Override]
     public function render(OutputInterface $output, Frame $frame): void
     {
         \assert($frame instanceof Frame\Monolog);
 
         $payload = $frame->message;
-        $level = $payload['level_name'] ?? 'DEBUG';
+        $level = (string) ($payload['level_name'] ?? 'DEBUG');
 
         $levelColor = match (\strtolower($level)) {
             'notice', 'info' => Color::Blue,
@@ -39,7 +41,7 @@ final class Monolog implements Renderer
 
         Common::renderHeader1($output, 'MONOLOG', ...[$levelColor->value => $level]);
 
-        $messages = \explode("\n", $payload['message'] ?? '');
+        $messages = \explode("\n", (string) ($payload['message'] ?? ''));
         unset($payload['message']);
 
         $metadata = \array_merge(['Time' => $frame->time], $payload);

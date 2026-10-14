@@ -21,24 +21,30 @@ use Twig\Template;
  * @link https://github.com/symfony/var-dumper/blob/7.0/Dumper/ContextProvider/SourceContextProvider.php
  * @link https://github.com/symfony/var-dumper/blob/6.3/Dumper/ContextProvider/SourceContextProvider.php
  *
- * @psalm-suppress all
- *
  * todo: rewrite and decompose
  */
 final class Source implements ContextProviderInterface
 {
-    /**
-     * @psalm-suppress UndefinedClass
-     */
-    public function __construct(private readonly ?string $charset = null, private ?string $projectDir = null, private readonly ?FileLinkFormatter $fileLinkFormatter = null, private readonly int $limit = 9) {}
+    public function __construct(
+        private readonly ?string $charset = null,
+        private ?string $projectDir = null,
+        private readonly ?FileLinkFormatter $fileLinkFormatter = null,
+        private readonly int $limit = 9,
+    ) {}
 
+    /**
+     * @psalm-suppress MixedAssignment, MixedMethodCall, MixedArrayAccess, MixedArrayOffset, MixedOperand, RiskyTruthyFalsyComparison
+     *         twig/twig and symfony/http-kernel are optional dependencies that are not installed, so their calls are untyped
+     */
+    #[\Override]
     public function getContext(): ?array
     {
-        \assert(StaticState::getValue() !== null);
-        $trace = StaticState::getValue()->stackTraceWithObjects;
+        $state = StaticState::getValue();
+        \assert($state !== null);
+        $trace = $state->stackTraceWithObjects;
 
-        $file = $trace[0]['file'];
-        $line = $trace[0]['line'];
+        $file = $trace[0]['file'] ?? null;
+        $line = $trace[0]['line'] ?? null;
         $name = $file === '-' || $file === 'Standard input code' ? 'Standard input code' : false;
         $fileExcerpt = false;
 
@@ -53,7 +59,7 @@ final class Source implements ContextProviderInterface
                 while (++$i < $this->limit) {
                     if (isset($trace[$i]['function'], $trace[$i]['file']) && empty($trace[$i]['class']) && !\str_starts_with($trace[$i]['function'], 'call_user_func')) {
                         $file = $trace[$i]['file'];
-                        $line = $trace[$i]['line'];
+                        $line = $trace[$i]['line'] ?? null;
 
                         break;
                     } elseif (isset($trace[$i]['object']) && $trace[$i]['object'] instanceof Template) {
@@ -61,16 +67,18 @@ final class Source implements ContextProviderInterface
                         $name = $template->getTemplateName();
                         $src = \method_exists($template, 'getSourceContext') ? $template->getSourceContext()->getCode() : (\method_exists($template, 'getSource') ? $template->getSource() : false);
                         $info = $template->getDebugInfo();
-                        if (isset($info[$trace[$i - 1]['line']])) {
-                            $line = $info[$trace[$i - 1]['line']];
+                        $prevFrame = $trace[$i - 1] ?? [];
+                        $templateLine = $prevFrame['line'] ?? null;
+                        if ($templateLine !== null && isset($info[$templateLine])) {
+                            $line = $info[$templateLine];
                             $file = \method_exists($template, 'getSourceContext') ? $template->getSourceContext()->getPath() : null;
 
                             if ($src) {
                                 $src = \explode("\n", (string) $src);
                                 $fileExcerpt = [];
 
-                                for ($i = \max($line - 3, 1), $max = \min($line + 3, \count($src)); $i <= $max; ++$i) {
-                                    $fileExcerpt[] = '<li' . ($i === $line ? ' class="selected"' : '') . '><code>' . $this->htmlEncode($src[$i - 1]) . '</code></li>';
+                                for ($n = \max($line - 3, 1), $max = \min($line + 3, \count($src)); $n <= $max; ++$n) {
+                                    $fileExcerpt[] = '<li' . ($n === $line ? ' class="selected"' : '') . '><code>' . $this->htmlEncode($src[$n - 1]) . '</code></li>';
                                 }
 
                                 $fileExcerpt = '<ol start="' . \max($line - 3, 1) . '">' . \implode("\n", $fileExcerpt) . '</ol>';
@@ -86,8 +94,8 @@ final class Source implements ContextProviderInterface
         }
 
         if ($name === false) {
-            $name = \str_replace('\\', '/', $file);
-            $name = \substr($name, \strrpos($name, '/') + 1);
+            $name = \str_replace('\\', '/', (string) $file);
+            $name = \substr($name, (int) \strrpos($name, '/') + 1);
         }
 
         $context = ['name' => $name, 'file' => $file, 'line' => $line];

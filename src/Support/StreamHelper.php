@@ -104,7 +104,7 @@ final class StreamHelper
         $written = 0;
         while (!$from->eof() && $written < $bytes) {
             $diff = $bytes - $written;
-            $toRead = $diff > self::WRITE_STREAM_CHUNK_SIZE && (self::WRITE_STREAM_CHUNK_SIZE * 1.2 > $diff)
+            $toRead = $diff > self::WRITE_STREAM_CHUNK_SIZE && ((float) self::WRITE_STREAM_CHUNK_SIZE * 1.2 > $diff)
                 ? $diff
                 : \min($diff, self::WRITE_STREAM_CHUNK_SIZE);
             $read = $from->read($toRead);
@@ -129,12 +129,11 @@ final class StreamHelper
     /**
      * @param array<non-empty-string|int, mixed> $readFilters filter name => filter options
      * @param array<non-empty-string|int, mixed> $writeFilters filter name => filter options
-     *
-     * @psalm-suppress UnusedFunctionCall
      */
     public static function createFileStream(array $readFilters = [], array $writeFilters = []): StreamInterface
     {
-        $stream = \fopen('php://temp/maxmemory:' . self::MAX_FILE_MEMORY_SIZE, 'w+b');
+        $stream = \fopen('php://temp/maxmemory:' . self::MAX_FILE_MEMORY_SIZE, 'w+b')
+            ?: throw new \RuntimeException('Unable to create a temporary stream.');
 
         /** @var mixed $options */
         foreach ($readFilters as $filter => $options) {

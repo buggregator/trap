@@ -31,7 +31,7 @@ final class StreamReader
                 }
                 $isFirst or $reader->next();
                 $isFirst = false;
-                $buffer .= $reader->current();
+                $buffer .= (string) $reader->current();
             }
 
             $result = \substr($buffer, 0, $len);
@@ -41,6 +41,7 @@ final class StreamReader
         };
 
         while (true) {
+            /** @var Frame|int<1, max> $y */
             $y = $parser->current();
             if (\is_int($y)) {
                 // Parser requests more bytes
@@ -78,12 +79,13 @@ final class StreamReader
 
             // Parse length
             if ($len === 126) {
-                /** @var int $len */
-                $len = \unpack('n', yield 2)[1];
+                /** @var array{1: int} $parts */
+                $parts = \unpack('n', yield 2);
+                $len = $parts[1];
             } elseif ($len === 127) {
                 // Unpack 64-bit length as two 32-bit integers in network byte order (big-endian)
+                /** @var array{1: int, 2: int} $parts */
                 $parts = \unpack('N2', yield 8);
-                /** @var int $len */
                 $len = ($parts[1] << 32) | $parts[2];
             }
 

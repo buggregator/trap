@@ -23,6 +23,7 @@ final class FrameHandler implements HandlerInterface
         private readonly OutputInterface $output,
     ) {}
 
+    #[\Override]
     public function handle(Frame $frame): void
     {
         $buffer = new BufferedOutput(

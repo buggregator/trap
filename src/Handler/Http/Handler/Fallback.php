@@ -47,12 +47,14 @@ final class Fallback implements RequestHandler
         );
     }
 
+    #[\Override]
     public function handle(StreamClient $streamClient, ServerRequestInterface $request, callable $next): iterable
     {
         /** @var mixed $time */
         $time = $request->getAttribute('begin_at');
         $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
         $gotFrame = false;
+        $response = null;
 
         try {
             $fiber = new \Fiber(($this->pipeline)(...));
@@ -70,6 +72,7 @@ final class Fallback implements RequestHandler
                 }
 
                 if ($fiber->isTerminated()) {
+                    /** @var mixed $response */
                     $response = $fiber->getReturn();
                     if (!$response instanceof ResponseInterface) {
                         throw new \RuntimeException('Invalid response type.');
@@ -88,8 +91,6 @@ final class Fallback implements RequestHandler
             $streamClient->disconnect();
         }
 
-        /** @var mixed $response */
-        $response ??= null;
         if ($response instanceof ResponseInterface && (
             $response->hasHeader(FrontendPipeline::FRONTEND_HEADER) || $response->hasHeader(self::NO_DUMP_HEADER)
         )) {

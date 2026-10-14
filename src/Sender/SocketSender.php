@@ -42,6 +42,7 @@ abstract class SocketSender implements Sender, Processable
         ))->stop();
     }
 
+    #[\Override]
     public function process(): void
     {
         if ($this->handler !== null) {
@@ -62,6 +63,7 @@ abstract class SocketSender implements Sender, Processable
         }
     }
 
+    #[\Override]
     public function send(iterable $frames): void
     {
         $this->queue->enqueue($frames);

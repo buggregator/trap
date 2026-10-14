@@ -8,9 +8,11 @@ use Buggregator\Trap\Handler\Http\Emitter;
 use Buggregator\Trap\Test\Mock\StreamClientMock;
 use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Nyholm\Psr7\Response;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Skip;
+use Testo\Test;
 
-final class HttpTest extends TestCase
+final class HttpTest
 {
     use FiberTrait;
 
@@ -19,9 +21,10 @@ final class HttpTest extends TestCase
      *
      * @covers \Buggregator\Trap\Support\StreamHelper::concurrentReadStream()
      */
+    #[Test]
+    #[Skip('This test is not working yet.')]
     public function testConcurrentBodyReading(): void
     {
-        $this->markTestSkipped('This test is not working yet.');
         $content = <<<CONTENT
         0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
         CONTENT;
@@ -59,8 +62,8 @@ final class HttpTest extends TestCase
         }
 
         // Check that the data is the same
-        self::assertSame($data1, $data2);
-        self::assertSame($content, $data1);
-        self::assertSame($content, $data2);
+        Assert::same($data2, $data1);
+        Assert::same($data1, $content);
+        Assert::same($data2, $content);
     }
 }

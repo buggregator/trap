@@ -24,6 +24,7 @@ final class EnvelopeParser
     ): SentryEnvelope {
         // Parse headers
         $headers = \json_decode(self::readLine($stream), true, 32, JSON_THROW_ON_ERROR);
+        \is_array($headers) or throw new \RuntimeException('Invalid envelope headers.');
 
         // Parse items
         $items = [];
@@ -45,10 +46,12 @@ final class EnvelopeParser
     {
         // Parse item header
         $itemHeader = \json_decode(self::readLine($stream), true, 4, JSON_THROW_ON_ERROR);
+        \is_array($itemHeader) or throw new \RuntimeException('Invalid item header.');
 
         $length = isset($itemHeader['length']) ? (int) $itemHeader['length'] : null;
         $length >= 0 or throw new \RuntimeException('Invalid item length.');
 
+        /** @var mixed $type */
         $type = $itemHeader['type'] ?? null;
 
         if ($length > ($type === 'attachment' ? self::MAX_BINARY_ITEM_SIZE : self::MAX_TEXT_ITEM_SIZE)) {
@@ -85,10 +88,11 @@ final class EnvelopeParser
 
         // Validate offset
         $offset === null and throw new \RuntimeException('Failed to detect line end.');
-        $offset - $currentPos > $possibleBytes and throw new \RuntimeException('Line is too long.');
-        $offset === $currentPos and throw new \RuntimeException('End of stream.');
+        $length = $offset - $currentPos;
+        $length > $possibleBytes and throw new \RuntimeException('Line is too long.');
+        $length <= 0 and throw new \RuntimeException('End of stream.');
 
-        $result = self::readBytes($stream, $offset - $currentPos);
+        $result = self::readBytes($stream, $length);
         $size === $offset or $stream->seek(1, \SEEK_CUR);
 
         return $result;

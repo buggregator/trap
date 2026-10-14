@@ -127,10 +127,11 @@ final class Common
     }
 
     /**
-     * @param array<array-key, string|string[]> $headers
+     * @param array<array-key, mixed> $headers
      */
     public static function renderHeaders(OutputInterface $output, array $headers): void
     {
+        /** @var mixed $value */
         foreach ($headers as $head => $value) {
             self::renderHeader($output, (string) $head, $value);
         }
@@ -145,6 +146,7 @@ final class Common
         Color $secondKeyColor = Color::Gray,
     ): void {
         $i = 0;
+        /** @var mixed $item */
         foreach (\is_array($value) ? $value : [$value] as $item) {
             if ($i++ === 0) {
                 $output->write(\sprintf('<fg=%s;options=bold>%s</>: ', $keyColor->value, $name));

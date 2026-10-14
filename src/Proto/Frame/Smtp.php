@@ -25,6 +25,7 @@ final class Smtp extends Frame implements FilesCarrier, \Buggregator\Trap\Proto\
         parent::__construct(ProtoType::SMTP, $time);
     }
 
+    #[\Override]
     public static function fromString(string $payload, \DateTimeImmutable $time): static
     {
         /** @var TArrayData $data */
@@ -34,16 +35,19 @@ final class Smtp extends Frame implements FilesCarrier, \Buggregator\Trap\Proto\
         return new self($message, $time);
     }
 
+    #[\Override]
     public function hasFiles(): bool
     {
         return \count($this->message->getAttachments()) > 0;
     }
 
+    #[\Override]
     public function getFiles(): array
     {
         return $this->message->getAttachments();
     }
 
+    #[\Override]
     public function getStream(): StreamInterface
     {
         return $this->message->getBody();

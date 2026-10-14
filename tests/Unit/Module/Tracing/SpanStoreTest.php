@@ -8,13 +8,22 @@ use Buggregator\Trap\Config\Server\Traces;
 use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\Span;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\SpanKind;
-use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Codecov\Covers;
+use Testo\Lifecycle\BeforeTest;
+use Testo\Test;
 
-#[CoversClass(SpanStore::class)]
-final class SpanStoreTest extends TestCase
+#[Covers(SpanStore::class)]
+#[Test]
+final class SpanStoreTest
 {
     private float $now = 1000.0;
+
+    #[BeforeTest]
+    public function resetClock(): void
+    {
+        $this->now = 1000.0;
+    }
 
     public function testFindsSpansByTraceAndSpanId(): void
     {
@@ -26,15 +35,12 @@ final class SpanStoreTest extends TestCase
         $store->add($child);
         $store->add($root, $other);
 
-        self::assertSame($root, $store->get(self::traceId('a'), self::spanId('1')));
-        self::assertNull($store->get(self::traceId('a'), self::spanId('3')));
-        self::assertSame(
-            [self::spanId('2') => $child, self::spanId('1') => $root],
-            $store->getTrace(self::traceId('a')),
-        );
-        self::assertSame([], $store->getTrace(self::traceId('c')));
-        self::assertSame(3, $store->countSpans());
-        self::assertSame(2, $store->countTraces());
+        Assert::same($store->get(self::traceId('a'), self::spanId('1')), $root);
+        Assert::null($store->get(self::traceId('a'), self::spanId('3')));
+        Assert::same($store->getTrace(self::traceId('a')), [self::spanId('2') => $child, self::spanId('1') => $root]);
+        Assert::same($store->getTrace(self::traceId('c')), []);
+        Assert::same($store->countSpans(), 3);
+        Assert::same($store->countTraces(), 2);
     }
 
     public function testSameSpanIdReplacesStoredSpan(): void
@@ -45,8 +51,8 @@ final class SpanStoreTest extends TestCase
 
         $store->add($first, $second);
 
-        self::assertSame($second, $store->get(self::traceId('a'), self::spanId('1')));
-        self::assertSame(1, $store->countSpans());
+        Assert::same($store->get(self::traceId('a'), self::spanId('1')), $second);
+        Assert::same($store->countSpans(), 1);
     }
 
     public function testEvictsLeastRecentlyUpdatedTracesOverCapacity(): void
@@ -58,9 +64,9 @@ final class SpanStoreTest extends TestCase
         // Updating trace `a` makes `b` the least recently updated one.
         $store->add(self::span('a', '4'));
 
-        self::assertSame([], $store->getTrace(self::traceId('b')));
-        self::assertCount(3, $store->getTrace(self::traceId('a')));
-        self::assertSame(3, $store->countSpans());
+        Assert::same($store->getTrace(self::traceId('b')), []);
+        Assert::count($store->getTrace(self::traceId('a')), 3);
+        Assert::same($store->countSpans(), 3);
     }
 
     public function testTrimsOldestSpansOfSingleTraceOverCapacity(): void
@@ -70,9 +76,9 @@ final class SpanStoreTest extends TestCase
         $store->add(self::span('a', '1'));
         $store->add(self::span('b', '2'), self::span('b', '3'), self::span('b', '4'));
 
-        self::assertSame(1, $store->countTraces());
-        self::assertSame([self::spanId('3'), self::spanId('4')], self::spanIds($store->getTrace(self::traceId('b'))));
-        self::assertSame(2, $store->countSpans());
+        Assert::same($store->countTraces(), 1);
+        Assert::same(self::spanIds($store->getTrace(self::traceId('b'))), [self::spanId('3'), self::spanId('4')]);
+        Assert::same($store->countSpans(), 2);
     }
 
     public function testEndlessTraceStaysWithinCapacity(): void
@@ -92,11 +98,11 @@ final class SpanStoreTest extends TestCase
         }
 
         // Trimming keeps 90% of the limit, then the trace grows back to the limit.
-        self::assertGreaterThanOrEqual(45, $store->countSpans());
-        self::assertLessThanOrEqual(50, $store->countSpans());
-        self::assertCount($store->countSpans(), $store->getTrace(self::traceId('a')));
-        self::assertNotNull($store->get(self::traceId('a'), \sprintf('%016x', 1000)));
-        self::assertNull($store->get(self::traceId('a'), \sprintf('%016x', 950)));
+        Assert::numeric($store->countSpans())->greaterThanOrEqual(45);
+        Assert::numeric($store->countSpans())->lessThanOrEqual(50);
+        Assert::count($store->getTrace(self::traceId('a')), $store->countSpans());
+        Assert::notNull($store->get(self::traceId('a'), \sprintf('%016x', 1000)));
+        Assert::null($store->get(self::traceId('a'), \sprintf('%016x', 950)));
     }
 
     public function testReAddedSpanCountsAsRecent(): void
@@ -107,7 +113,7 @@ final class SpanStoreTest extends TestCase
         $store->add(self::span('a', '1'));
         $store->add(self::span('a', '3'));
 
-        self::assertSame([self::spanId('1'), self::spanId('3')], self::spanIds($store->getTrace(self::traceId('a'))));
+        Assert::same(self::spanIds($store->getTrace(self::traceId('a'))), [self::spanId('1'), self::spanId('3')]);
     }
 
     public function testEvictsExpiredTraces(): void
@@ -120,9 +126,9 @@ final class SpanStoreTest extends TestCase
         $this->now += 31;
         $store->add(self::span('c', '3'));
 
-        self::assertSame([], $store->getTrace(self::traceId('a')));
-        self::assertCount(1, $store->getTrace(self::traceId('b')));
-        self::assertSame(2, $store->countSpans());
+        Assert::same($store->getTrace(self::traceId('a')), []);
+        Assert::count($store->getTrace(self::traceId('b')), 1);
+        Assert::same($store->countSpans(), 2);
     }
 
     public function testInvalidLimitsFallBackToDefaults(): void
@@ -135,13 +141,13 @@ final class SpanStoreTest extends TestCase
         $this->now += 599;
         $store->add(self::span('c', '4'));
 
-        self::assertSame(3, $store->countTraces());
+        Assert::same($store->countTraces(), 3);
 
         $this->now += 2;
         $store->add(self::span('d', '5'));
 
-        self::assertSame([], $store->getTrace(self::traceId('a')));
-        self::assertSame(2, $store->countTraces());
+        Assert::same($store->getTrace(self::traceId('a')), []);
+        Assert::same($store->countTraces(), 2);
     }
 
     public function testIndexesChildrenAndBounds(): void
@@ -155,19 +161,16 @@ final class SpanStoreTest extends TestCase
         );
 
         $children = $store->getChildren(self::traceId('a'), \sprintf('%016x', 1));
-        self::assertSame([\sprintf('%016x', 2), \sprintf('%016x', 3)], self::spanIds($children));
-        self::assertSame([5, 30], $store->getTraceBounds(self::traceId('a')));
-        self::assertSame(3, $store->countTraceSpans(self::traceId('a')));
-        self::assertSame([], $store->getChildren(self::traceId('a'), \sprintf('%016x', 4)));
-        self::assertNull($store->getTraceBounds(self::traceId('c')));
+        Assert::same(self::spanIds($children), [\sprintf('%016x', 2), \sprintf('%016x', 3)]);
+        Assert::same($store->getTraceBounds(self::traceId('a')), [5, 30]);
+        Assert::same($store->countTraceSpans(self::traceId('a')), 3);
+        Assert::same($store->getChildren(self::traceId('a'), \sprintf('%016x', 4)), []);
+        Assert::null($store->getTraceBounds(self::traceId('c')));
 
         // A replaced span moves to the end of its new siblings, and its old times no longer count.
         $store->add(self::timedSpan('a', 3, 1, 11, 19), self::timedSpan('a', 2, 1, 10, 20));
-        self::assertSame(
-            [\sprintf('%016x', 3), \sprintf('%016x', 2)],
-            self::spanIds($store->getChildren(self::traceId('a'), \sprintf('%016x', 1))),
-        );
-        self::assertSame([10, 20], $store->getTraceBounds(self::traceId('a')));
+        Assert::same(self::spanIds($store->getChildren(self::traceId('a'), \sprintf('%016x', 1))), [\sprintf('%016x', 3), \sprintf('%016x', 2)]);
+        Assert::same($store->getTraceBounds(self::traceId('a')), [10, 20]);
     }
 
     public function testResentSpanCoveringItsOldTimeKeepsCachedBounds(): void
@@ -178,11 +181,11 @@ final class SpanStoreTest extends TestCase
         $store->add(self::timedSpan('a', 1, null, 0, 100), self::timedSpan('a', 2, 1, 10, 20));
 
         $store->add(self::timedSpan('a', 1, null, 0, 120));
-        self::assertSame([0, 120], $cached());
+        Assert::same($cached(), [0, 120]);
 
         $store->add(self::timedSpan('a', 1, null, 5, 120));
-        self::assertNull($cached());
-        self::assertSame([5, 120], $store->getTraceBounds($traceId));
+        Assert::null($cached());
+        Assert::same($store->getTraceBounds($traceId), [5, 120]);
     }
 
     /**
@@ -287,21 +290,17 @@ final class SpanStoreTest extends TestCase
         foreach ($traces as $char) {
             $traceId = self::traceId($char);
             $spans = $store->getTrace($traceId);
-            self::assertSame(\count($spans), $store->countTraceSpans($traceId), $case);
+            Assert::same($store->countTraceSpans($traceId), \count($spans), $case);
             if ($spans === []) {
-                self::assertNull($store->getTraceBounds($traceId), $case);
+                Assert::null($store->getTraceBounds($traceId), $case);
                 continue;
             }
 
             $stored[$traceId] = true;
-            self::assertSame(
-                [
-                    \min(\array_map(static fn(Span $span): int => $span->startTimeUnixNano, $spans)),
-                    \max(\array_map(static fn(Span $span): int => $span->endTimeUnixNano, $spans)),
-                ],
-                $store->getTraceBounds($traceId),
-                $case,
-            );
+            Assert::same($store->getTraceBounds($traceId), [
+                \min(\array_map(static fn(Span $span): int => $span->startTimeUnixNano, $spans)),
+                \max(\array_map(static fn(Span $span): int => $span->endTimeUnixNano, $spans)),
+            ], $case);
 
             $expected = $actual = [];
             foreach ($spans as $span) {
@@ -312,23 +311,19 @@ final class SpanStoreTest extends TestCase
                 $children === [] or $actual[$spanId] = $children;
             }
             \ksort($expected);
-            self::assertSame($expected, $actual, $case);
+            Assert::same($actual, $expected, $case);
         }
 
         // Nothing is left in the index for dropped traces and spans, and no list stays empty.
         $children = (new \ReflectionProperty(SpanStore::class, 'children'))->getValue($store);
         $bounds = (new \ReflectionProperty(SpanStore::class, 'bounds'))->getValue($store);
-        self::assertSame([], \array_diff_key($children, $stored), $case);
-        self::assertSame([], \array_diff_key($bounds, $stored), $case);
+        Assert::same(\array_diff_key($children, $stored), [], $case);
+        Assert::same(\array_diff_key($bounds, $stored), [], $case);
         foreach ($children as $traceId => $parents) {
             foreach ($parents as $parentId => $list) {
-                self::assertNotSame([], $list, $case);
+                Assert::notSame($list, [], $case);
                 foreach ($list as $childId => $_) {
-                    self::assertSame(
-                        (string) $parentId,
-                        $store->get((string) $traceId, (string) $childId)?->parentSpanId,
-                        $case,
-                    );
+                    Assert::same($store->get((string) $traceId, (string) $childId)?->parentSpanId, (string) $parentId, $case);
                 }
             }
         }

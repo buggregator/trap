@@ -32,15 +32,16 @@ final class Trace implements \Stringable
         public readonly array $stack,
     ) {}
 
+    #[\Override]
     public function __toString(): string
     {
         // Format delta
         $delta = $this->delta;
         $deltaStr = match (true) {
             $delta === 0.0 => '-.---',
-            $delta < 0.001 => \sprintf('+%.3fms', $delta * 1000),
-            $delta < 0.01 => \sprintf('+%.2fms', $delta * 1000),
-            $delta < 1 => \sprintf('+%.1fms', ($delta * 1000)),
+            $delta < 0.001 => \sprintf('+%.3fms', $delta * 1000.0),
+            $delta < 0.01 => \sprintf('+%.2fms', $delta * 1000.0),
+            $delta < 1 => \sprintf('+%.1fms', ($delta * 1000.0)),
             $delta < 10 => \sprintf('+%.2fs', $delta),
             $delta < 60 => \sprintf('+%.1fs', $delta),
             default => \sprintf('+%dm %ds', (int) $delta % 60, (int) $delta % 60),
@@ -50,7 +51,7 @@ final class Trace implements \Stringable
             "Trace #%d  %s  %sM",
             $this->number,
             $deltaStr,
-            \number_format($this->memory / 1024 / 1024, 2, '.', '_'),
+            \number_format($this->memory / 1_048_576, 2, '.', '_'),
         );
     }
 }

@@ -25,6 +25,7 @@ final class Event implements \JsonSerializable
         public readonly ?\ArrayAccess $assets = null,
     ) {}
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [

@@ -40,6 +40,7 @@ final class ConsoleSender implements Sender
         return new self($renderer);
     }
 
+    #[\Override]
     public function send(iterable $frames): void
     {
         foreach ($frames as $frame) {

@@ -1,19 +1,36 @@
 ---
 
 on:  # yamllint disable-line rule:truthy
+  # A release created by release-please with GITHUB_TOKEN fires no `release` event,
+  # so create-release.yml calls this workflow directly.
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build
+        type: string
+        required: true
   release:
     types:
       - published
 
 name: 📦 Build PHAR release
 
-# Release assets are uploaded with TRAP_RELEASE_TOKEN.
 permissions:
   contents: read
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name }}
 
 jobs:
   build-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     timeout-minutes: 4
     strategy:
       matrix:
@@ -32,6 +49,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: 🛠️ Setup PHP
         uses: shivammathur/setup-php@v2
@@ -78,9 +96,8 @@ jobs:
 
       - name: 📤 Upload release assets
         uses: softprops/action-gh-release@v2.2.1
-        if: startsWith(github.ref, 'refs/tags/')
         with:
-          token: "${{ secrets.TRAP_RELEASE_TOKEN }}"
+          tag_name: ${{ env.RELEASE_TAG }}
           files: |
             ${{ env.TRAP_PHAR }}
             ${{ env.TRAP_PHAR_SIGNATURE }}
@@ -90,13 +107,23 @@ jobs:
     timeout-minutes: 4
     steps:
       - name: ✉️ Notify Discord about release
-        uses: SethCohen/github-releases-to-discord@v1.15.0
-        with:
-          webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          color: '2105893'
-          username: 'Buggregator Trap release'
-          avatar_url: 'https://cdn.discordapp.com/avatars/487431320314576937/bd64361e4ba6313d561d54e78c9e7171.png'
-          content: '||@here||'
-          footer_title: Let's trap!
-          footer_icon_url: 'https://cdn.discordapp.com/avatars/487431320314576937/bd64361e4ba6313d561d54e78c9e7171.png'
-          footer_timestamp: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          AVATAR_URL: https://cdn.discordapp.com/avatars/487431320314576937/bd64361e4ba6313d561d54e78c9e7171.png
+        run: |
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json name,body,url \
+            | jq --arg avatar "$AVATAR_URL" '{
+                username: "Buggregator Trap release",
+                avatar_url: $avatar,
+                content: "||@here||",
+                embeds: [{
+                  title: .name,
+                  url: .url,
+                  description: (.body | .[0:4000]),
+                  color: 2105893,
+                  footer: {text: "Let'\''s trap!", icon_url: $avatar},
+                  timestamp: (now | todate)
+                }]
+              }' \
+            | curl -fsS -H "Content-Type: application/json" -d @- "$WEBHOOK_URL"

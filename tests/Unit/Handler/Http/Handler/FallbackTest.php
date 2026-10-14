@@ -10,32 +10,41 @@ use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Traffic\StreamClient;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;
-use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Testo\Assert;
+use Testo\Codecov\Covers;
+use Testo\Lifecycle\BeforeTest;
+use Testo\Test;
 
-#[CoversClass(Fallback::class)]
-final class FallbackTest extends TestCase
+#[Covers(Fallback::class)]
+#[Test]
+final class FallbackTest
 {
     private string $sent = '';
+
+    #[BeforeTest]
+    public function resetSent(): void
+    {
+        $this->sent = '';
+    }
 
     public function testDumpsRequestWithoutFrame(): void
     {
         $frames = $this->handle(new Response(404));
 
-        self::assertCount(1, $frames);
-        self::assertInstanceOf(Frame\Http::class, $frames[0]);
+        Assert::count($frames, 1);
+        Assert::instanceOf($frames[0], Frame\Http::class);
     }
 
     public function testNoDumpHeaderSuppressesDumpAndIsNotSent(): void
     {
         $frames = $this->handle(new Response(415, [Fallback::NO_DUMP_HEADER => '1'], 'rejected'));
 
-        self::assertSame([], $frames);
-        self::assertStringStartsWith('HTTP/1.1 415', $this->sent);
-        self::assertStringContainsString('rejected', $this->sent);
-        self::assertStringNotContainsStringIgnoringCase(Fallback::NO_DUMP_HEADER, $this->sent);
+        Assert::same($frames, []);
+        Assert::string($this->sent)->startsWith('HTTP/1.1 415');
+        Assert::string($this->sent)->contains('rejected');
+        Assert::string($this->sent)->ignoringCase()->notContains(Fallback::NO_DUMP_HEADER);
     }
 
     /**
@@ -43,8 +52,8 @@ final class FallbackTest extends TestCase
      */
     private function handle(ResponseInterface $response): array
     {
-        $client = $this->createMock(StreamClient::class);
-        $client->method('sendData')->willReturnCallback(function (string $data): bool {
+        $client = \Mockery::mock(StreamClient::class)->shouldIgnoreMissing();
+        $client->shouldReceive('sendData')->andReturnUsing(function (string $data): bool {
             $this->sent .= $data;
             return true;
         });

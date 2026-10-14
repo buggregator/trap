@@ -15,6 +15,7 @@ use Buggregator\Trap\Traffic\StreamClient;
  */
 final class Binary implements Dispatcher
 {
+    #[\Override]
     public function dispatch(StreamClient $stream): iterable
     {
         $fileStream = StreamHelper::createFileStream();
@@ -25,6 +26,7 @@ final class Binary implements Dispatcher
         return [new Frame\Binary($fileStream, $stream->getCreatedAt())];
     }
 
+    #[\Override]
     public function detect(string $data, \DateTimeImmutable $createdAt): ?bool
     {
         // Detect bin data
