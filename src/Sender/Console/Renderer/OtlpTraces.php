@@ -101,8 +101,9 @@ final class OtlpTraces implements Renderer
         }
 
         $this->budget = self::MAX_SPANS;
-        foreach ($traces as $traceId => $spans) {
-            $this->renderTrace($output, $traceId, $spans);
+        foreach ($traces as $spans) {
+            // Not the array key: PHP turns an all-digit hex ID into an int key.
+            $this->renderTrace($output, \reset($spans)->traceId, $spans);
         }
     }
 

@@ -237,6 +237,24 @@ final class OtlpTracesTest extends TestCase
         self::assertCount(2, $this->spanLines($output));
     }
 
+    public function testRendersAllDigitIds(): void
+    {
+        $span = new Span(
+            traceId: \str_repeat('1', 32),
+            spanId: '1234567890123456',
+            parentSpanId: null,
+            name: 'digits',
+            kind: SpanKind::Internal,
+            startTimeUnixNano: 0,
+            endTimeUnixNano: 1,
+        );
+
+        $output = $this->render(self::frame($span));
+
+        self::assertStringContainsString('# Trace ' . \str_repeat('1', 32), $output);
+        self::assertSame(['digits INTERNAL 1 ns id:1234567890123456'], $this->spanLines($output));
+    }
+
     public function testRendersExtremeTimestamps(): void
     {
         $renderer = new OtlpTraces(new SpanStore());
