@@ -241,6 +241,15 @@ The `http/protobuf` protocol needs the suggested packages:
 composer require --dev open-telemetry/gen-otlp-protobuf google/protobuf
 ```
 
+The PHAR, the standalone binary and the Docker image do not include them, so they accept only `http/json`.
+
+Notes:
+
+- Requests with `Transfer-Encoding: chunked` are not supported by the HTTP parser of Trap;
+  OpenTelemetry SDK exporters send `Content-Length`.
+- Port `4318` is also the default port of an OpenTelemetry Collector or Jaeger. When it is taken,
+  Trap keeps retrying to listen on it silently (run with `-vv` to see the errors) and works on the other ports.
+
 With the `file` sender, each export request is saved as one JSON line:
 `{"type":"otlp.traces","resourceSpans":[...]}`.
 
