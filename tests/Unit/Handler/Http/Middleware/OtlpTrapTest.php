@@ -63,6 +63,33 @@ final class OtlpTrapTest extends TestCase
         yield 'path prefix' => ['http://127.0.0.1:9912/otlp/v1/traces'];
     }
 
+    public static function provideEmptyExports(): \Generator
+    {
+        yield 'empty object' => ['application/json', '{}', '{}'];
+        yield 'empty resourceSpans' => ['application/json', '{"resourceSpans":[]}', '{}'];
+        yield 'empty scopeSpans' => ['application/json', '{"resourceSpans":[{"scopeSpans":[{"spans":[]}]}]}', '{}'];
+        yield 'empty protobuf' => ['application/x-protobuf', '', ''];
+    }
+
+    #[DataProvider('provideEmptyExports')]
+    public function testEmptyExportSucceedsWithoutFrameAndDump(string $contentType, string $body, string $response): void
+    {
+        [$result, $frames] = $this->handleInFiber($this->request(body: $body, contentType: $contentType));
+
+        self::assertSame(200, $result->getStatusCode());
+        self::assertSame($response, (string) $result->getBody());
+        self::assertTrue($result->hasHeader(Fallback::NO_DUMP_HEADER));
+        self::assertSame([], $frames);
+    }
+
+    public function testRejectsJsonListWith400(): void
+    {
+        [$response, $frames] = $this->handleInFiber($this->request(body: '[1,2]'));
+
+        self::assertSame(400, $response->getStatusCode());
+        self::assertSame([], $frames);
+    }
+
     #[DataProvider('provideDroppedSignals')]
     public function testDropsUnsupportedSignalsWithSuccess(
         string $uri,

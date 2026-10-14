@@ -241,6 +241,10 @@ final class OtlpTrap implements Middleware
             return self::error($mediaType, 400, self::RPC_INVALID_ARGUMENT, $e->getMessage());
         }
 
+        if ($frame->countSpans() === 0) {
+            return $decoder->createSuccessResponse()->withHeader(Fallback::NO_DUMP_HEADER, '1');
+        }
+
         \Fiber::suspend($frame);
 
         return $decoder->createSuccessResponse();

@@ -25,6 +25,8 @@ final class JsonTracesDecoderTest extends TestCase
     {
         yield 'not a JSON' => ['{"resourceSpans": ['];
         yield 'JSON scalar' => ['"text"'];
+        yield 'JSON list' => ['[1,2]'];
+        yield 'empty JSON list' => [' []'];
         yield 'resourceSpans is an object' => ['{"resourceSpans": {"a": 1}}'];
         yield 'span is a list' => [self::request([[1, 2]])];
         yield 'missing traceId' => [self::request([['spanId' => self::SPAN_ID]])];

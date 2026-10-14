@@ -64,7 +64,9 @@ final class JsonTracesDecoder implements TracesDecoder
 
         // Big integers as strings: as floats they would lose precision before the range checks.
         $data = \json_decode($payload, true, 512, \JSON_THROW_ON_ERROR | \JSON_BIGINT_AS_STRING);
-        \is_array($data) or throw new \InvalidArgumentException('The request body must be a JSON object.');
+        // A list like `[1,2]` decodes to an array as well, and `[]` is indistinguishable from `{}`.
+        \is_array($data) && $payload[\strspn($payload, " \t\n\r")] === '{'
+            or throw new \InvalidArgumentException('The request body must be a JSON object.');
 
         // Before building the span objects, which would add to the memory of the decoded arrays.
         self::countSpans($data) > $this->maxSpans and throw LimitExceededException::spans($this->maxSpans);
