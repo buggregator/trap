@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.17.0 (2026-10-14)
+
+## What's Changed
+* fix: make `trap run` start again and respect the Composer bin proxy autoloader by @roxblnfk in https://github.com/buggregator/trap/pull/220
+* chore: polish repository by @roxblnfk in https://github.com/buggregator/trap/pull/225
+* feat: receive OpenTelemetry traces over OTLP/HTTP by @roxblnfk in https://github.com/buggregator/trap/pull/221
+* perf: index OTLP traces in the span store for console rendering by @roxblnfk in https://github.com/buggregator/trap/pull/227
+
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.16.1...1.17.0
+
 ## 1.16.1 (2026-09-08)
 
 ## What's Changed
