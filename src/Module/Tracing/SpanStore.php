@@ -13,7 +13,7 @@ use Buggregator\Trap\Proto\Frame\Otlp\Trace\Span;
  *
  * Memory is bounded by {@see Config}: a trace is dropped when it has not received a span for `ttl` seconds,
  * and the least recently updated traces are dropped while the store holds more than `maxSpans` spans.
- * A single trace above `maxSpans` keeps only its most recently received spans.
+ * A single trace above `maxSpans` keeps only its most recently received spans, 90% of `maxSpans`.
  *
  * @internal
  */
@@ -129,14 +129,14 @@ final class SpanStore
         }
 
         $traceId = \array_key_last($this->traces);
-        while ($traceId !== null && $this->spanCount > $this->maxSpans) {
-            $spanId = \array_key_first($this->traces[$traceId]);
-            if ($spanId === null) {
-                break;
-            }
-
-            unset($this->traces[$traceId][$spanId]);
-            $this->spanCount = \max(0, $this->spanCount - 1);
+        if ($traceId === null || $this->spanCount <= $this->maxSpans) {
+            return;
         }
+
+        // Trimmed to 90% at once: dropping one span per call leaves holes at the start of the array
+        // that every later trim has to skip, while array_slice() builds a compact one.
+        $keep = $this->maxSpans - \intdiv($this->maxSpans, 10);
+        $this->traces[$traceId] = \array_slice($this->traces[$traceId], -$keep, null, true);
+        $this->spanCount = \count($this->traces[$traceId]);
     }
 }
