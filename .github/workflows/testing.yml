@@ -23,6 +23,9 @@ jobs:
         ['ubuntu-latest']
       dependencies: >-
         ['locked', 'highest']
+      codecov: true
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   compile-phar:
     timeout-minutes: 4
