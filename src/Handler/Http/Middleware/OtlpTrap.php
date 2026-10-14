@@ -128,15 +128,51 @@ final class OtlpTrap implements Middleware
     }
 
     /**
-     * The body is a `google.rpc.Status` as the OTLP/HTTP spec requires for failures.
+     * The body is a `google.rpc.Status` in the encoding of the request, as the OTLP/HTTP spec requires
+     * for failures; JSON for an unknown encoding.
+     *
+     * @param int<0, max> $code `google.rpc.Code`
      */
-    private static function error(int $status, int $code, string $message): ResponseInterface
+    private static function error(string $mediaType, int $status, int $code, string $message): ResponseInterface
     {
-        return new Response(
-            $status,
-            ['Content-Type' => 'application/json', Fallback::NO_DUMP_HEADER => '1'],
-            Json::encode(['code' => $code, 'message' => $message]),
-        );
+        $headers = [Fallback::NO_DUMP_HEADER => '1'];
+
+        return $mediaType === ProtobufTracesDecoder::CONTENT_TYPE
+            ? new Response(
+                $status,
+                ['Content-Type' => ProtobufTracesDecoder::CONTENT_TYPE] + $headers,
+                self::encodeStatus($code, $message),
+            )
+            : new Response(
+                $status,
+                ['Content-Type' => JsonTracesDecoder::CONTENT_TYPE] + $headers,
+                Json::encode(['code' => $code, 'message' => $message]),
+            );
+    }
+
+    /**
+     * Encodes `google.rpc.Status` by hand, so that it does not need the protobuf packages:
+     * field 1 `code` as a varint and field 2 `message` as a length-delimited string.
+     *
+     * @param int<0, max> $code
+     */
+    private static function encodeStatus(int $code, string $message): string
+    {
+        return "\x08" . self::varint($code) . "\x12" . self::varint(\strlen($message)) . $message;
+    }
+
+    /**
+     * @param int<0, max> $value
+     */
+    private static function varint(int $value): string
+    {
+        $result = '';
+        while ($value > 0x7F) {
+            $result .= \chr(($value & 0x7F) | 0x80);
+            $value >>= 7;
+        }
+
+        return $result . \chr($value);
     }
 
     private static function mediaType(ServerRequestInterface $request): string
@@ -179,18 +215,23 @@ final class OtlpTrap implements Middleware
             $body = $request->getBody();
             $size = $body->getSize();
             if ($size === null || $size > self::MAX_BODY_SIZE) {
-                return self::error(413, self::RPC_RESOURCE_EXHAUSTED, 'Request body is too large.');
+                return self::error($mediaType, 413, self::RPC_RESOURCE_EXHAUSTED, 'Request body is too large.');
             }
 
             $payload = self::readPayload($body);
             if ($payload === null) {
-                return self::error(413, self::RPC_RESOURCE_EXHAUSTED, 'Decompressed request body is too large.');
+                return self::error(
+                    $mediaType,
+                    413,
+                    self::RPC_RESOURCE_EXHAUSTED,
+                    'Decompressed request body is too large.',
+                );
             }
 
             $frame = $decoder->decode($payload, $time);
         } catch (\Throwable $e) {
             $this->logger?->info('OTLP traces request rejected: %s', $e->getMessage());
-            return self::error(400, self::RPC_INVALID_ARGUMENT, $e->getMessage());
+            return self::error($mediaType, 400, self::RPC_INVALID_ARGUMENT, $e->getMessage());
         }
 
         \Fiber::suspend($frame);
@@ -210,6 +251,7 @@ final class OtlpTrap implements Middleware
             }
 
             return self::error(
+                $mediaType,
                 415,
                 self::RPC_UNIMPLEMENTED,
                 'OTLP protobuf encoding needs the open-telemetry/gen-otlp-protobuf package, use http/json.',
@@ -217,6 +259,7 @@ final class OtlpTrap implements Middleware
         }
 
         return self::error(
+            $mediaType,
             415,
             self::RPC_UNIMPLEMENTED,
             \sprintf(

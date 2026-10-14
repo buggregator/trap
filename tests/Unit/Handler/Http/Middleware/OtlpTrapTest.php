@@ -8,6 +8,7 @@ use Buggregator\Trap\Handler\Http\Handler\Fallback;
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap;
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\ProtobufTracesDecoder;
+use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\TracesDecoder;
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Proto\Frame\Otlp\OtlpTraces;
@@ -257,7 +258,44 @@ final class OtlpTrapTest extends TestCase
         [$response, $frames] = $this->handleInFiber($request);
 
         self::assertSame(400, $response->getStatusCode());
+        self::assertSame('application/x-protobuf', $response->getHeaderLine('Content-Type'));
+        [$code, $message] = self::decodeStatus((string) $response->getBody());
+        self::assertSame(3, $code);
+        self::assertStringStartsWith('Invalid protobuf message', $message);
         self::assertSame([], $frames);
+    }
+
+    public function testProtobufStatusOfOversizedBody(): void
+    {
+        $body = $this->createMock(StreamInterface::class);
+        $body->method('getSize')->willReturn(11 * 1024 * 1024);
+        $request = $this->request(contentType: 'application/x-protobuf')->withBody($body);
+
+        [$response] = $this->handleInFiber($request);
+
+        self::assertSame(413, $response->getStatusCode());
+        self::assertSame([8, 'Request body is too large.'], self::decodeStatus((string) $response->getBody()));
+    }
+
+    public function testProtobufStatusEncodesLongMessages(): void
+    {
+        $decoder = new class implements TracesDecoder {
+            public function decode(string $payload, \DateTimeImmutable $time): OtlpTraces
+            {
+                throw new \InvalidArgumentException(\str_repeat('x', 200));
+            }
+
+            public function createSuccessResponse(): ResponseInterface
+            {
+                return new Response(200);
+            }
+        };
+        $middleware = new OtlpTrap(tracesDecoders: ['application/x-protobuf' => $decoder]);
+        $request = $this->request(body: 'payload', contentType: 'application/x-protobuf');
+
+        [$response] = $this->handleInFiber($request, $middleware);
+
+        self::assertSame([3, \str_repeat('x', 200)], self::decodeStatus((string) $response->getBody()));
     }
 
     public function testJsonOnlyModeRejectsProtobufWith415AndReportsOnce(): void
@@ -271,7 +309,7 @@ final class OtlpTrapTest extends TestCase
 
         self::assertSame(415, $first->getStatusCode());
         self::assertSame(415, $second->getStatusCode());
-        self::assertSame(12, \json_decode((string) $first->getBody(), true)['code']);
+        self::assertSame(12, self::decodeStatus((string) $first->getBody())[0]);
         self::assertSame([], $frames);
         self::assertSame(1, \substr_count($output->fetch(), 'composer require open-telemetry/gen-otlp-protobuf'));
     }
@@ -296,6 +334,44 @@ final class OtlpTrapTest extends TestCase
         self::assertSame(415, $response->getStatusCode());
         self::assertStringContainsString('text/plain', (string) $response->getBody());
         self::assertSame([], $frames);
+    }
+
+    /**
+     * Reads `google.rpc.Status` fields 1 `code` and 2 `message`.
+     *
+     * @return array{int, string}
+     */
+    private static function decodeStatus(string $bytes): array
+    {
+        $offset = 0;
+        $varint = static function () use ($bytes, &$offset): int {
+            $value = 0;
+            $shift = 0;
+            do {
+                $byte = \ord($bytes[$offset++]);
+                $value |= ($byte & 0x7F) << $shift;
+                $shift += 7;
+            } while ($byte & 0x80);
+
+            return $value;
+        };
+
+        $code = 0;
+        $message = '';
+        while ($offset < \strlen($bytes)) {
+            $tag = $varint();
+            if ($tag === 0x08) {
+                $code = $varint();
+            } elseif ($tag === 0x12) {
+                $length = $varint();
+                $message = \substr($bytes, $offset, $length);
+                $offset += $length;
+            } else {
+                self::fail("Unexpected tag $tag.");
+            }
+        }
+
+        return [$code, $message];
     }
 
     private static function protobufFixture(): string
