@@ -117,16 +117,27 @@ final class SpanStore
     private function evict(float $now): void
     {
         $deadline = $now - $this->ttl;
+        $spanCount = $this->spanCount;
+        $traceCount = \count($this->traces);
+        $dropped = [];
+        // Unset after the loop: unsetting inside foreach copies the whole array on every call, and
+        // array_key_first() in a loop rescans the holes left by earlier unsets.
         foreach ($this->traces as $traceId => $trace) {
             $expired = $this->updatedAt[$traceId] < $deadline;
-            $overflow = $this->spanCount > $this->maxSpans && \count($this->traces) > 1;
+            $overflow = $spanCount > $this->maxSpans && $traceCount > 1;
             if (!$expired && !$overflow) {
                 break;
             }
 
-            unset($this->traces[$traceId], $this->updatedAt[$traceId]);
-            $this->spanCount = \max(0, $this->spanCount - \count($trace));
+            $dropped[] = $traceId;
+            $spanCount -= \count($trace);
+            --$traceCount;
         }
+
+        foreach ($dropped as $traceId) {
+            unset($this->traces[$traceId], $this->updatedAt[$traceId]);
+        }
+        $this->spanCount = \max(0, $spanCount);
 
         $traceId = \array_key_last($this->traces);
         if ($traceId === null || $this->spanCount <= $this->maxSpans) {
