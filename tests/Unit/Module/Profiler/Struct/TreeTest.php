@@ -8,7 +8,6 @@ use Buggregator\Trap\Module\Profiler\Struct\Branch;
 use Buggregator\Trap\Module\Profiler\Struct\Tree;
 use Testo\Assert;
 use Testo\Codecov\Covers;
-use Testo\Skip;
 use Testo\Test;
 
 #[Covers(Tree::class)]
@@ -58,7 +57,6 @@ final class TreeTest
         Assert::same(self::ids($tree->all['p']->children), ['c']);
     }
 
-    #[Skip('Bug #234: adopted lost child keeps parent === null')]
     public function testAdoptedLostChildReferencesItsParent(): void
     {
         $tree = new Tree();

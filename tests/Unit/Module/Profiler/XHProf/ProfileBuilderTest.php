@@ -9,7 +9,6 @@ use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
 use Testo\Assert;
 use Testo\Codecov\Covers;
-use Testo\Skip;
 use Testo\Test;
 
 #[Covers(ProfileBuilder::class)]
@@ -154,7 +153,6 @@ final class ProfileBuilderTest
         Assert::same($profile->peaks->wt, 100);
     }
 
-    #[Skip('Bug #234: Tree does not set the parent of an adopted lost child')]
     public function testComputesDeltaForChildOfSyntheticRoot(): void
     {
         $profile = self::build([
