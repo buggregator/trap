@@ -11,7 +11,9 @@ use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\ProtobufTracesDecoder;
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\TracesDecoder;
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Logger;
+use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Frame\Otlp\OtlpTraces;
+use Buggregator\Trap\Traffic\StreamClient;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
@@ -34,6 +36,10 @@ final class OtlpTrapTest extends TestCase
         yield 'GET traces' => ['GET', '/v1/traces'];
         yield 'GET logs' => ['GET', '/v1/logs'];
         yield 'other path' => ['POST', '/api/traces'];
+        yield 'form to logs' => ['POST', '/api/v1/logs', 'application/x-www-form-urlencoded'];
+        yield 'form to metrics' => ['POST', '/v1/metrics', 'multipart/form-data; boundary=x'];
+        yield 'text to traces' => ['POST', '/hooks/v1/traces', 'text/plain'];
+        yield 'no content type' => ['POST', '/v1/traces', ''];
     }
 
     public static function provideDroppedSignals(): \Generator
@@ -47,7 +53,6 @@ final class OtlpTrapTest extends TestCase
     public static function provideRejectedRequests(): \Generator
     {
         yield 'malformed JSON' => ['application/json', '{"resourceSpans": [', 400];
-        yield 'unsupported content type' => ['text/plain', '{}', 415];
         yield 'too large' => ['application/json', \gzencode(\str_repeat(' ', 11 * 1024 * 1024)), 413];
     }
 
@@ -90,10 +95,13 @@ final class OtlpTrapTest extends TestCase
     }
 
     #[DataProvider('providePassedThroughRequests')]
-    public function testPassesThroughOtherRequests(string $method, string $uri): void
-    {
+    public function testPassesThroughOtherRequests(
+        string $method,
+        string $uri,
+        string $contentType = 'application/json',
+    ): void {
         $expected = new Response(200);
-        $request = $this->request(method: $method, uri: $uri, body: self::PAYLOAD);
+        $request = $this->request(method: $method, uri: $uri, body: self::PAYLOAD, contentType: $contentType);
 
         $result = (new OtlpTrap())->handle($request, static fn(): ResponseInterface => $expected);
 
@@ -325,15 +333,33 @@ final class OtlpTrapTest extends TestCase
         self::assertCount(1, $frames);
     }
 
-    public function testRejectsUnknownContentTypeWith415(): void
+    public function testProtobufOnlyModeRejectsJsonWith415(): void
     {
-        $request = $this->request(body: self::PAYLOAD, contentType: 'text/plain');
+        $middleware = new OtlpTrap(tracesDecoders: ['application/x-protobuf' => new ProtobufTracesDecoder()]);
 
-        [$response, $frames] = $this->handleInFiber($request);
+        [$response, $frames] = $this->handleInFiber($this->request(body: self::PAYLOAD), $middleware);
 
         self::assertSame(415, $response->getStatusCode());
-        self::assertStringContainsString('text/plain', (string) $response->getBody());
+        self::assertStringContainsString('application/json', (string) $response->getBody());
+        self::assertTrue($response->hasHeader(Fallback::NO_DUMP_HEADER));
         self::assertSame([], $frames);
+    }
+
+    public function testFormPostedToLogsPathIsDumpedAsHttp(): void
+    {
+        $request = $this->request(uri: '/api/v1/logs', body: 'a=1', contentType: 'application/x-www-form-urlencoded');
+        $client = $this->createMock(StreamClient::class);
+        $client->method('sendData')->willReturn(true);
+
+        $frames = (new Fallback([new OtlpTrap()]))->handle($client, $request, static fn(): array => []);
+        $fiber = new \Fiber(static fn(): array => \iterator_to_array($frames, false));
+        $fiber->start();
+        while (!$fiber->isTerminated()) {
+            $fiber->resume();
+        }
+
+        self::assertCount(1, $fiber->getReturn());
+        self::assertInstanceOf(Frame\Http::class, $fiber->getReturn()[0]);
     }
 
     /**

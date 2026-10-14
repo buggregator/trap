@@ -21,11 +21,13 @@ use Psr\Http\Message\StreamInterface;
  * Receives OpenTelemetry traces over OTLP/HTTP (`POST /v1/traces`).
  *
  * JSON is always decoded. Protobuf is decoded when the suggested protobuf packages are installed,
- * see {@see ProtobufTracesDecoder}; otherwise it gets 415 like any other content type.
+ * see {@see ProtobufTracesDecoder}; otherwise it gets 415.
  * Logs and metrics (`/v1/logs`, `/v1/metrics`) are not supported: they are answered with success and dropped,
  * so an exporter that sends every signal to Trap does not report errors.
  *
- * Responses to OTLP requests that produce no frame, rejected ones included, are not dumped as HTTP requests.
+ * Only requests with an OTLP content type (JSON or protobuf) are handled. Other requests to these paths,
+ * such as a form posted to `/api/v1/logs`, go down the pipeline and are dumped as HTTP requests.
+ * Handled requests that produce no frame, rejected ones included, are not dumped.
  *
  * @internal
  * @psalm-internal Buggregator\Trap
@@ -34,6 +36,7 @@ final class OtlpTrap implements Middleware
 {
     private const MAX_BODY_SIZE = 10 * 1024 * 1024;
     private const TRACES_PATH = '/v1/traces';
+    private const OTLP_MEDIA_TYPES = [JsonTracesDecoder::CONTENT_TYPE, ProtobufTracesDecoder::CONTENT_TYPE];
     private const UNSUPPORTED_SIGNALS = [
         '/v1/logs' => 'logs',
         '/v1/metrics' => 'metrics',
@@ -73,7 +76,7 @@ final class OtlpTrap implements Middleware
     #[\Override]
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
-        if ($request->getMethod() !== 'POST') {
+        if ($request->getMethod() !== 'POST' || !\in_array(self::mediaType($request), self::OTLP_MEDIA_TYPES, true)) {
             return $next($request);
         }
 
