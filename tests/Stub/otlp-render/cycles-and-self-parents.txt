@@ -1,0 +1,71 @@
+=== frame 0
+
+ OTLP TRACES  2 spans 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  15 ns 
+
+span-1 INTERNAL 10 ns id:0000000000000001 parent:0000000000000002
+│  n: 1
+└─ span-2 INTERNAL 10 ns +5 ns id:0000000000000002
+   │  n: 2
+=== frame 1
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  15 ns  +2 received earlier 
+
+span-3 INTERNAL 1 ns +1 ns id:0000000000000003 parent:0000000000000003
+│  n: 3
+=== frame 2
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  15 ns  +3 received earlier 
+
+span-4 INTERNAL 1 ns +3 ns id:0000000000000004 parent:0000000000000005
+   n: 4
+=== frame 3
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  15 ns  +4 received earlier 
+
+span-5 INTERNAL 1 ns +3 ns id:0000000000000005 parent:0000000000000006
+│  n: 5
+└─ span-4 INTERNAL 1 ns +3 ns id:0000000000000004
+      n: 4
+=== frame 4
+
+ OTLP TRACES  2 spans 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  15 ns  +5 received earlier 
+
+span-6 INTERNAL 1 ns +3 ns id:0000000000000006 parent:0000000000000004
+│  n: 6
+├─ span-5 INTERNAL 1 ns +3 ns id:0000000000000005
+│  │  n: 5
+│  └─ span-4 INTERNAL 1 ns +3 ns id:0000000000000004
+│     │  n: 4
+└─ span-7 INTERNAL 1 ns +3 ns id:0000000000000007
+      n: 7
+=== frame 5
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  15 ns  +7 received earlier 
+
+span-7 INTERNAL 1 ns id:0000000000000007 (1000+ more ancestors above)
+└─ span-8 INTERNAL 0 ns +1 ns id:0000000000000008
+      n: 8

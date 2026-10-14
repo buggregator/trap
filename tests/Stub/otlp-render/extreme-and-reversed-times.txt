@@ -1,0 +1,23 @@
+=== frame 0
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9223372036.85 s 
+
+span-1 INTERNAL 9223372036.85 s id:0000000000000001
+   n: 1
+=== frame 1
+
+ OTLP TRACES  2 spans 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9223372036.85 s  +1 received earlier 
+
+span-1 INTERNAL 9223372036.85 s id:0000000000000001
+├─ span-3 INTERNAL 0 ns id:0000000000000003
+│     n: 3
+└─ span-2 INTERNAL 0 ns +9223372036.85 s id:0000000000000002
+      n: 2

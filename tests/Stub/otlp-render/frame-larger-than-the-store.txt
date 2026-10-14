@@ -1,0 +1,99 @@
+=== frame 0
+
+ OTLP TRACES  40 spans 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  10.00 µs 
+
+span-1 INTERNAL 10.00 µs id:0000000000000001
+│  n: 1
+└─ span-2 INTERNAL 9.98 µs +10 ns id:0000000000000002
+   │  n: 2
+   └─ span-3 INTERNAL 9.96 µs +20 ns id:0000000000000003
+      │  n: 3
+      └─ span-4 INTERNAL 9.94 µs +30 ns id:0000000000000004
+         │  n: 4
+         └─ span-5 INTERNAL 9.92 µs +40 ns id:0000000000000005
+            │  n: 5
+            └─ span-6 INTERNAL 9.90 µs +50 ns id:0000000000000006
+               │  n: 6
+               └─ span-7 INTERNAL 9.88 µs +60 ns id:0000000000000007
+                  │  n: 7
+                  └─ span-8 INTERNAL 9.86 µs +70 ns id:0000000000000008
+                     │  n: 8
+                     └─ span-9 INTERNAL 9.84 µs +80 ns id:0000000000000009
+                        │  n: 9
+                        └─ span-10 INTERNAL 9.82 µs +90 ns id:000000000000000a
+                           │  n: 10
+                           └─ span-11 INTERNAL 9.80 µs +100 ns id:000000000000000b
+                              │  n: 11
+                              └─ span-12 INTERNAL 9.78 µs +110 ns id:000000000000000c
+                                 │  n: 12
+                                 └─ span-13 INTERNAL 9.76 µs +120 ns id:000000000000000d
+                                    │  n: 13
+                                    └─ span-14 INTERNAL 9.74 µs +130 ns id:000000000000000e
+                                       │  n: 14
+                                       └─ span-15 INTERNAL 9.72 µs +140 ns id:000000000000000f
+                                          │  n: 15
+                                          └─ span-16 INTERNAL 9.70 µs +150 ns id:0000000000000010
+                                             │  n: 16
+                                             └─ span-17 INTERNAL 9.68 µs +160 ns id:0000000000000011
+                                                │  n: 17
+                                                └─ span-18 INTERNAL 9.66 µs +170 ns id:0000000000000012
+                                                   │  n: 18
+                                                   └─ span-19 INTERNAL 9.64 µs +180 ns id:0000000000000013
+                                                      │  n: 19
+                                                      └─ span-20 INTERNAL 9.62 µs +190 ns id:0000000000000014
+                                                         │  n: 20
+                                                         └─ span-21 INTERNAL 9.60 µs +200 ns id:0000000000000015
+                                                            │  n: 21
+                                                            └─ span-22 INTERNAL 9.58 µs +210 ns id:0000000000000016
+                                                               │  n: 22
+                                                               └─ span-23 INTERNAL 9.56 µs +220 ns id:0000000000000017
+                                                                  │  n: 23
+                                                                  └─ span-24 INTERNAL 9.54 µs +230 ns id:0000000000000018
+                                                                     │  n: 24
+                                                                     └─ span-25 INTERNAL 9.52 µs +240 ns id:0000000000000019
+                                                                     │  n: 25
+                                                                     └─ span-26 INTERNAL 9.50 µs +250 ns id:000000000000001a [depth 25]
+                                                                     │  n: 26
+                                                                     └─ span-27 INTERNAL 9.48 µs +260 ns id:000000000000001b [depth 26]
+                                                                     │  n: 27
+                                                                     └─ span-28 INTERNAL 9.46 µs +270 ns id:000000000000001c [depth 27]
+                                                                     │  n: 28
+                                                                     └─ span-29 INTERNAL 9.44 µs +280 ns id:000000000000001d [depth 28]
+                                                                     │  n: 29
+                                                                     └─ span-30 INTERNAL 9.42 µs +290 ns id:000000000000001e [depth 29]
+                                                                     │  n: 30
+                                                                     └─ span-31 INTERNAL 9.40 µs +300 ns id:000000000000001f [depth 30]
+                                                                     │  n: 31
+                                                                     └─ span-32 INTERNAL 9.38 µs +310 ns id:0000000000000020 [depth 31]
+                                                                     │  n: 32
+                                                                     └─ span-33 INTERNAL 9.36 µs +320 ns id:0000000000000021 [depth 32]
+                                                                     │  n: 33
+                                                                     └─ span-34 INTERNAL 9.34 µs +330 ns id:0000000000000022 [depth 33]
+                                                                     │  n: 34
+                                                                     └─ span-35 INTERNAL 9.32 µs +340 ns id:0000000000000023 [depth 34]
+                                                                     │  n: 35
+                                                                     └─ span-36 INTERNAL 9.30 µs +350 ns id:0000000000000024 [depth 35]
+                                                                     │  n: 36
+                                                                     └─ span-37 INTERNAL 9.28 µs +360 ns id:0000000000000025 [depth 36]
+                                                                     │  n: 37
+                                                                     └─ span-38 INTERNAL 9.26 µs +370 ns id:0000000000000026 [depth 37]
+                                                                     │  n: 38
+                                                                     └─ span-39 INTERNAL 9.24 µs +380 ns id:0000000000000027 [depth 38]
+                                                                     │  n: 39
+                                                                     └─ span-40 INTERNAL 9.22 µs +390 ns id:0000000000000028 [depth 39]
+                                                                        n: 40
+=== frame 1
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.79 µs  +19 received earlier 
+
+span-40 INTERNAL 9.22 µs id:0000000000000028 (18 more ancestors above)
+└─ span-41 INTERNAL 1 ns id:0000000000000029
+      n: 41
