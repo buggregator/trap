@@ -11,12 +11,16 @@ use Buggregator\Trap\Proto\Frame\Otlp;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\Span;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\SpanKind;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\StatusCode;
-use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Assert\ExpectException;
+use Testo\Codecov\Covers;
+use Testo\Data\DataProvider;
+use Testo\Expect;
+use Testo\Test;
 
-#[CoversClass(JsonTracesDecoder::class)]
-final class JsonTracesDecoderTest extends TestCase
+#[Covers(JsonTracesDecoder::class)]
+#[Test]
+final class JsonTracesDecoderTest
 {
     private const TRACE_ID = '5b8efff798038103d269b633813fc60c';
     private const SPAN_ID = 'eee19b7ec3c1b174';
@@ -93,8 +97,8 @@ final class JsonTracesDecoderTest extends TestCase
         $frame = (new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable());
         $span = $this->singleSpan($frame->resourceSpans[0]->scopeSpans[0]->spans);
 
-        self::assertSame(\PHP_INT_MAX, $span->endTimeUnixNano);
-        self::assertSame(\PHP_INT_MAX - 1700000000000000000, $span->getDuration());
+        Assert::same($span->endTimeUnixNano, \PHP_INT_MAX);
+        Assert::same($span->getDuration(), \PHP_INT_MAX - 1700000000000000000);
     }
 
     public function testKeepsNonFiniteDoublesAsNames(): void
@@ -109,11 +113,8 @@ final class JsonTracesDecoderTest extends TestCase
 
         $frame = (new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable());
 
-        self::assertSame(
-            ['big' => 'Infinity', 'big.string' => 'Infinity', 'small' => '-Infinity', 'nan' => 'NaN', 'inf' => '-Infinity'],
-            $this->singleSpan($frame->resourceSpans[0]->scopeSpans[0]->spans)->attributes,
-        );
-        self::assertStringContainsString('"big":"Infinity"', (string) $frame);
+        Assert::same($this->singleSpan($frame->resourceSpans[0]->scopeSpans[0]->spans)->attributes, ['big' => 'Infinity', 'big.string' => 'Infinity', 'small' => '-Infinity', 'nan' => 'NaN', 'inf' => '-Infinity']);
+        Assert::string((string) $frame)->contains('"big":"Infinity"');
     }
 
     public function testAcceptsInt64Bounds(): void
@@ -126,10 +127,7 @@ final class JsonTracesDecoderTest extends TestCase
 
         $frame = (new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable());
 
-        self::assertSame(
-            ['min' => \PHP_INT_MIN, 'max' => \PHP_INT_MAX, 'zeros' => -7],
-            $this->singleSpan($frame->resourceSpans[0]->scopeSpans[0]->spans)->attributes,
-        );
+        Assert::same($this->singleSpan($frame->resourceSpans[0]->scopeSpans[0]->spans)->attributes, ['min' => \PHP_INT_MIN, 'max' => \PHP_INT_MAX, 'zeros' => -7]);
     }
 
     public function testAcceptsWholeNumberStringsWithExponent(): void
@@ -154,8 +152,8 @@ final class JsonTracesDecoderTest extends TestCase
         $span = $this->singleSpan((new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable())
             ->resourceSpans[0]->scopeSpans[0]->spans);
 
-        self::assertSame($values, $span->attributes);
-        self::assertSame(1_700_000_000_000_000_000, $span->startTimeUnixNano);
+        Assert::same($span->attributes, $values);
+        Assert::same($span->startTimeUnixNano, 1_700_000_000_000_000_000);
     }
 
     public function testDecodesSpanFields(): void
@@ -185,28 +183,28 @@ final class JsonTracesDecoderTest extends TestCase
         $frame = (new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable());
         $span = $this->singleSpan($frame->resourceSpans[0]->scopeSpans[0]->spans);
 
-        self::assertSame(self::TRACE_ID, $span->traceId);
-        self::assertSame(self::SPAN_ID, $span->spanId);
-        self::assertSame('0102030405060708', $span->parentSpanId);
-        self::assertSame('vendor=value', $span->traceState);
-        self::assertSame(257, $span->flags);
-        self::assertSame('GET /users', $span->name);
-        self::assertSame(SpanKind::Server, $span->kind);
-        self::assertSame(1700000000000000000, $span->startTimeUnixNano);
-        self::assertSame(12345678, $span->getDuration());
-        self::assertSame(1, $span->droppedAttributesCount);
-        self::assertSame(StatusCode::Error, $span->status->code);
-        self::assertSame('Boom', $span->status->message);
+        Assert::same($span->traceId, self::TRACE_ID);
+        Assert::same($span->spanId, self::SPAN_ID);
+        Assert::same($span->parentSpanId, '0102030405060708');
+        Assert::same($span->traceState, 'vendor=value');
+        Assert::same($span->flags, 257);
+        Assert::same($span->name, 'GET /users');
+        Assert::same($span->kind, SpanKind::Server);
+        Assert::same($span->startTimeUnixNano, 1700000000000000000);
+        Assert::same($span->getDuration(), 12345678);
+        Assert::same($span->droppedAttributesCount, 1);
+        Assert::same($span->status->code, StatusCode::Error);
+        Assert::same($span->status->message, 'Boom');
 
-        self::assertCount(1, $span->events);
-        self::assertSame('exception', $span->events[0]->name);
-        self::assertSame(1700000000000001000, $span->events[0]->timeUnixNano);
-        self::assertSame(['exception.type' => 'RuntimeException'], $span->events[0]->attributes);
+        Assert::count($span->events, 1);
+        Assert::same($span->events[0]->name, 'exception');
+        Assert::same($span->events[0]->timeUnixNano, 1700000000000001000);
+        Assert::same($span->events[0]->attributes, ['exception.type' => 'RuntimeException']);
 
-        self::assertCount(1, $span->links);
-        self::assertSame('0102030405060708090a0b0c0d0e0f10', $span->links[0]->traceId);
-        self::assertSame('ffffffffffffffff', $span->links[0]->spanId);
-        self::assertSame(['reason' => 'retry'], $span->links[0]->attributes);
+        Assert::count($span->links, 1);
+        Assert::same($span->links[0]->traceId, '0102030405060708090a0b0c0d0e0f10');
+        Assert::same($span->links[0]->spanId, 'ffffffffffffffff');
+        Assert::same($span->links[0]->attributes, ['reason' => 'retry']);
     }
 
     public function testDecodesAttributesOfAllValueTypes(): void
@@ -238,7 +236,7 @@ final class JsonTracesDecoderTest extends TestCase
         $frame = (new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable());
         $span = $this->singleSpan($frame->resourceSpans[0]->scopeSpans[0]->spans);
 
-        self::assertEquals([
+        Assert::equals($span->attributes, [
             'string' => 'text',
             'int' => 9007199254740993,
             'int.number' => 42,
@@ -252,8 +250,8 @@ final class JsonTracesDecoderTest extends TestCase
             'empty.array' => [],
             'empty.value' => null,
             'missing.value' => null,
-        ], $span->attributes);
-        self::assertSame(2.0, $span->attributes['double.int']);
+        ]);
+        Assert::same($span->attributes['double.int'], 2.0);
     }
 
     public function testMapsStayObjectsAndListsStayArraysInJson(): void
@@ -271,11 +269,8 @@ final class JsonTracesDecoderTest extends TestCase
         $frame = (new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable());
         $json = (string) $frame;
 
-        self::assertStringContainsString(
-            '"attributes":{"0":"zero","1":{"0":1.0},"empty.map":{},"empty.list":[],"list":[{}]}',
-            $json,
-        );
-        self::assertSame($json, (string) Otlp::fromString($json, $frame->time), 'Roundtrip keeps the JSON as is.');
+        Assert::string($json)->contains('"attributes":{"0":"zero","1":{"0":1.0},"empty.map":{},"empty.list":[],"list":[{}]}');
+        Assert::same((string) Otlp::fromString($json, $frame->time), $json, 'Roundtrip keeps the JSON as is.');
     }
 
     public function testDecodesResourceAndScope(): void
@@ -301,14 +296,14 @@ final class JsonTracesDecoderTest extends TestCase
         $resource = $frame->resourceSpans[0];
         $scope = $resource->scopeSpans[0];
 
-        self::assertSame(['service.name' => 'billing'], $resource->resourceAttributes);
-        self::assertSame('billing', $resource->getServiceName());
-        self::assertSame(2, $resource->resourceDroppedAttributesCount);
-        self::assertSame('https://opentelemetry.io/schemas/1.38.0', $resource->schemaUrl);
-        self::assertSame('my.scope', $scope->scopeName);
-        self::assertSame('1.0.0', $scope->scopeVersion);
-        self::assertSame(['scope.attr' => true], $scope->scopeAttributes);
-        self::assertSame('https://example.com/scope', $scope->schemaUrl);
+        Assert::same($resource->resourceAttributes, ['service.name' => 'billing']);
+        Assert::same($resource->getServiceName(), 'billing');
+        Assert::same($resource->resourceDroppedAttributesCount, 2);
+        Assert::same($resource->schemaUrl, 'https://opentelemetry.io/schemas/1.38.0');
+        Assert::same($scope->scopeName, 'my.scope');
+        Assert::same($scope->scopeVersion, '1.0.0');
+        Assert::same($scope->scopeAttributes, ['scope.attr' => true]);
+        Assert::same($scope->schemaUrl, 'https://example.com/scope');
     }
 
     public function testAcceptsProtoFieldNames(): void
@@ -343,19 +338,16 @@ final class JsonTracesDecoderTest extends TestCase
         $frame = (new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable());
         $span = $this->singleSpan($frame->resourceSpans[0]->scopeSpans[0]->spans);
 
-        self::assertSame('billing', $frame->resourceSpans[0]->getServiceName());
-        self::assertSame('https://example.com/resource', $frame->resourceSpans[0]->schemaUrl);
-        self::assertSame(self::SPAN_ID, $span->spanId);
-        self::assertSame('0102030405060708', $span->parentSpanId);
-        self::assertSame(SpanKind::Client, $span->kind);
-        self::assertSame(500, $span->getDuration());
-        self::assertEquals(
-            ['flag' => true, 'list' => [1], 'map' => new \ArrayObject(['x' => 0.5])],
-            $span->attributes,
-        );
-        self::assertSame(1700000000000000100, $span->events[0]->timeUnixNano);
-        self::assertSame(2, $span->droppedLinksCount);
-        self::assertSame(StatusCode::Error, $span->status->code);
+        Assert::same($frame->resourceSpans[0]->getServiceName(), 'billing');
+        Assert::same($frame->resourceSpans[0]->schemaUrl, 'https://example.com/resource');
+        Assert::same($span->spanId, self::SPAN_ID);
+        Assert::same($span->parentSpanId, '0102030405060708');
+        Assert::same($span->kind, SpanKind::Client);
+        Assert::same($span->getDuration(), 500);
+        Assert::equals($span->attributes, ['flag' => true, 'list' => [1], 'map' => new \ArrayObject(['x' => 0.5])]);
+        Assert::same($span->events[0]->timeUnixNano, 1700000000000000100);
+        Assert::same($span->droppedLinksCount, 2);
+        Assert::same($span->status->code, StatusCode::Error);
     }
 
     public function testAcceptsEnumNamesAndUppercaseHexIds(): void
@@ -369,9 +361,9 @@ final class JsonTracesDecoderTest extends TestCase
         $frame = (new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable());
         $span = $this->singleSpan($frame->resourceSpans[0]->scopeSpans[0]->spans);
 
-        self::assertSame(self::TRACE_ID, $span->traceId);
-        self::assertSame(SpanKind::Consumer, $span->kind);
-        self::assertSame(StatusCode::Ok, $span->status->code);
+        Assert::same($span->traceId, self::TRACE_ID);
+        Assert::same($span->kind, SpanKind::Consumer);
+        Assert::same($span->status->code, StatusCode::Ok);
     }
 
     #[DataProvider('provideRootParentSpanIds')]
@@ -381,7 +373,7 @@ final class JsonTracesDecoderTest extends TestCase
 
         $frame = (new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable());
 
-        self::assertNull($this->singleSpan($frame->resourceSpans[0]->scopeSpans[0]->spans)->parentSpanId);
+        Assert::null($this->singleSpan($frame->resourceSpans[0]->scopeSpans[0]->spans)->parentSpanId);
     }
 
     public function testCountsSpansOfAllScopesAgainstLimit(): void
@@ -392,9 +384,9 @@ final class JsonTracesDecoderTest extends TestCase
             ['scopeSpans' => [$scope]],
         ]]);
 
-        self::assertSame(6, (new JsonTracesDecoder(6))->decode($payload, new \DateTimeImmutable())->countSpans());
+        Assert::same((new JsonTracesDecoder(6))->decode($payload, new \DateTimeImmutable())->countSpans(), 6);
 
-        $this->expectException(LimitExceededException::class);
+        Expect::exception(LimitExceededException::class);
         (new JsonTracesDecoder(5))->decode($payload, new \DateTimeImmutable());
     }
 
@@ -404,9 +396,9 @@ final class JsonTracesDecoderTest extends TestCase
 
         $frame = (new JsonTracesDecoder())->decode('{}', $time);
 
-        self::assertSame([], $frame->resourceSpans);
-        self::assertSame(0, $frame->countSpans());
-        self::assertSame($time, $frame->time);
+        Assert::same($frame->resourceSpans, []);
+        Assert::same($frame->countSpans(), 0);
+        Assert::same($frame->time, $time);
     }
 
     public function testDecodesFixtureFromOpenTelemetryPhpExporter(): void
@@ -415,42 +407,41 @@ final class JsonTracesDecoderTest extends TestCase
 
         $frame = (new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable());
 
-        self::assertSame(4, $frame->countSpans());
-        self::assertSame('e2e-app', $frame->resourceSpans[0]->getServiceName());
+        Assert::same($frame->countSpans(), 4);
+        Assert::same($frame->resourceSpans[0]->getServiceName(), 'e2e-app');
         $spans = [];
         foreach ($frame->iterateSpans() as [, , $span]) {
             $spans[$span->name] = $span;
         }
 
-        self::assertSame(['db.query', 'template.load', 'render', 'GET /orders'], \array_keys($spans));
+        Assert::same(\array_keys($spans), ['db.query', 'template.load', 'render', 'GET /orders']);
         $root = $spans['GET /orders'];
-        self::assertNull($root->parentSpanId);
-        self::assertSame(SpanKind::Server, $root->kind);
-        self::assertSame(StatusCode::Ok, $root->status->code);
-        self::assertSame([
+        Assert::null($root->parentSpanId);
+        Assert::same($root->kind, SpanKind::Server);
+        Assert::same($root->status->code, StatusCode::Ok);
+        Assert::same($root->attributes, [
             'http.request.method' => 'GET',
             'http.response.status_code' => 200,
             'server.ratio' => 0.75,
             'feature.enabled' => true,
             'order.ids' => [1, 2, 3],
-        ], $root->attributes);
+        ]);
 
         $db = $spans['db.query'];
-        self::assertSame($root->spanId, $db->parentSpanId);
-        self::assertSame(SpanKind::Client, $db->kind);
-        self::assertSame(StatusCode::Error, $db->status->code);
-        self::assertSame('Connection lost', $db->status->message);
-        self::assertSame('exception', $db->events[0]->name);
-        self::assertSame('RuntimeException', $db->events[0]->attributes['exception.type']);
+        Assert::same($db->parentSpanId, $root->spanId);
+        Assert::same($db->kind, SpanKind::Client);
+        Assert::same($db->status->code, StatusCode::Error);
+        Assert::same($db->status->message, 'Connection lost');
+        Assert::same($db->events[0]->name, 'exception');
+        Assert::same($db->events[0]->attributes['exception.type'], 'RuntimeException');
 
-        self::assertSame($spans['render']->spanId, $spans['template.load']->parentSpanId);
+        Assert::same($spans['template.load']->parentSpanId, $spans['render']->spanId);
     }
 
     #[DataProvider('provideMalformedPayloads')]
+    #[ExpectException(\Throwable::class)]
     public function testRejectsMalformedPayload(string $payload): void
     {
-        $this->expectException(\Throwable::class);
-
         (new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable());
     }
 
@@ -479,7 +470,7 @@ final class JsonTracesDecoderTest extends TestCase
      */
     private function singleSpan(array $spans): Span
     {
-        self::assertCount(1, $spans);
+        Assert::count($spans, 1);
         return $spans[0];
     }
 }

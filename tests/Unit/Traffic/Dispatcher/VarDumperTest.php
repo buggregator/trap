@@ -7,13 +7,14 @@ namespace Buggregator\Trap\Tests\Unit\Traffic\Dispatcher;
 use Buggregator\Trap\Test\Mock\StreamClientMock;
 use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Buggregator\Trap\Traffic\Dispatcher\VarDumper;
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Data\DataProvider;
+use Testo\Test;
 
 /**
  * @covers \Buggregator\Trap\Traffic\Dispatcher\Http
  */
-class VarDumperTest extends TestCase
+final class VarDumperTest
 {
     use FiberTrait;
 
@@ -25,12 +26,14 @@ class VarDumperTest extends TestCase
     }
 
     #[DataProvider('detectProvider')]
+    #[Test]
     public function testDetect(string $data, ?bool $expected): void
     {
         $dispatcher = new VarDumper();
-        self::assertSame($expected, $dispatcher->detect($data, new \DateTimeImmutable()));
+        Assert::same($dispatcher->detect($data, new \DateTimeImmutable()), $expected);
     }
 
+    #[Test]
     public function testDispatchFramesTime(): void
     {
         $dispatcher = new VarDumper();
@@ -44,8 +47,8 @@ class VarDumperTest extends TestCase
 
         $frames = $this->runInFiber(static fn() => \iterator_to_array($resultGenerator));
 
-        self::assertCount(3, $frames);
-        self::assertNotSame($frames[0]->time, $frames[1]->time);
-        self::assertNotSame($frames[1]->time, $frames[2]->time);
+        Assert::count($frames, 3);
+        Assert::notSame($frames[1]->time, $frames[0]->time);
+        Assert::notSame($frames[2]->time, $frames[1]->time);
     }
 }

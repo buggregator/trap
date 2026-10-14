@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Traffic\Dispatcher;
 
 use Buggregator\Trap\Traffic\Dispatcher\Http;
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Data\DataProvider;
+use Testo\Test;
 
 /**
  * @covers \Buggregator\Trap\Traffic\Dispatcher\Http
  */
-class HttpTest extends TestCase
+final class HttpTest
 {
     public static function detectProvider()
     {
@@ -51,9 +52,10 @@ class HttpTest extends TestCase
     }
 
     #[DataProvider('detectProvider')]
+    #[Test]
     public function testDetect(string $data, ?bool $expected): void
     {
         $dispatcher = new Http();
-        self::assertSame($expected, $dispatcher->detect($data, new \DateTimeImmutable()));
+        Assert::same($dispatcher->detect($data, new \DateTimeImmutable()), $expected);
     }
 }

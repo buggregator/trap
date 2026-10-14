@@ -11,14 +11,16 @@ use Buggregator\Trap\Proto\Frame\Sentry\SentryStore;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
-use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
+use Testo\Assert;
+use Testo\Codecov\Covers;
+use Testo\Data\DataProvider;
+use Testo\Test;
 
-#[CoversClass(SentryTrap::class)]
-final class SentryTrapTest extends TestCase
+#[Covers(SentryTrap::class)]
+#[Test]
+final class SentryTrapTest
 {
     public static function provideSentryStoreRequests(): \Generator
     {
@@ -81,7 +83,7 @@ final class SentryTrapTest extends TestCase
         $result = $middleware->handle($request, $next);
 
         // Assert
-        self::assertSame($expectedResponse, $result);
+        Assert::same($result, $expectedResponse);
     }
 
     #[DataProvider('provideSentryEnvelopeRequests')]
@@ -97,8 +99,8 @@ final class SentryTrapTest extends TestCase
         [$response, $frames] = $this->handleInFiber($request);
 
         // Assert
-        self::assertSame(200, $response->getStatusCode());
-        self::assertInstanceOf(SentryEnvelope::class, $frames[0]);
+        Assert::same($response->getStatusCode(), 200);
+        Assert::instanceOf($frames[0], SentryEnvelope::class);
     }
 
     #[DataProvider('provideSentryStoreRequests')]
@@ -121,12 +123,12 @@ final class SentryTrapTest extends TestCase
 
         // Assert
         if (!$catch) {
-            self::assertCount(0, $frames);
+            Assert::count($frames, 0);
             return;
         }
-        self::assertSame(200, $response->getStatusCode());
-        self::assertInstanceOf(SentryStore::class, $frames[0]);
-        self::assertSame($storeData, $frames[0]->message);
+        Assert::same($response->getStatusCode(), 200);
+        Assert::instanceOf($frames[0], SentryStore::class);
+        Assert::same($frames[0]->message, $storeData);
     }
 
     #[DataProvider('provideNonSentryRequests')]
@@ -142,7 +144,7 @@ final class SentryTrapTest extends TestCase
         $result = $middleware->handle($request, $next);
 
         // Assert
-        self::assertSame($expectedResponse, $result);
+        Assert::same($result, $expectedResponse);
     }
 
     public function testHandleReturns400ForInvalidJson(): void
@@ -159,14 +161,14 @@ final class SentryTrapTest extends TestCase
         $result = $middleware->handle($request, static fn() => new Response(500));
 
         // Assert
-        self::assertSame(400, $result->getStatusCode());
+        Assert::same($result->getStatusCode(), 400);
     }
 
     public function testHandleReturns400OnGeneralException(): void
     {
         // Arrange
-        $body = $this->createMock(StreamInterface::class);
-        $body->method('getSize')->willThrowException(new \RuntimeException('Test error'));
+        $body = \Mockery::mock(StreamInterface::class)->shouldIgnoreMissing();
+        $body->shouldReceive('getSize')->andThrow(new \RuntimeException('Test error'));
 
         $request = $this->request(
             uri: '/api/sentry/envelope/',
@@ -178,14 +180,14 @@ final class SentryTrapTest extends TestCase
         $result = $middleware->handle($request, static fn() => new Response(500));
 
         // Assert
-        self::assertSame(400, $result->getStatusCode());
+        Assert::same($result->getStatusCode(), 400);
     }
 
     public function testProcessStoreReturns413ForOversizedBody(): void
     {
         // Arrange
-        $body = $this->createMock(StreamInterface::class);
-        $body->method('getSize')->willReturn(3 * 1024 * 1024);
+        $body = \Mockery::mock(StreamInterface::class)->shouldIgnoreMissing();
+        $body->shouldReceive('getSize')->andReturn(3 * 1024 * 1024);
 
         $request = $this->request(
             uri: '/api/sentry/store/',
@@ -197,7 +199,7 @@ final class SentryTrapTest extends TestCase
         $result = $middleware->handle($request, static fn() => new Response(500));
 
         // Assert
-        self::assertSame(413, $result->getStatusCode());
+        Assert::same($result->getStatusCode(), 413);
     }
 
     public function testProcessStoreUsesBeginAtAttribute(): void
@@ -220,8 +222,8 @@ final class SentryTrapTest extends TestCase
         [, $frames] = $this->handleInFiber($request);
 
         // Assert
-        self::assertCount(1, $frames);
-        self::assertEquals($customTime, $frames[0]->time);
+        Assert::count($frames, 1);
+        Assert::equals($frames[0]->time, $customTime);
     }
 
     private function handleInFiber(ServerRequestInterface $request, ?callable $next = null): array

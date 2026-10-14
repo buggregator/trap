@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Traffic\Message;
 
 use Buggregator\Trap\Traffic\Message\Smtp;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Data\DataProvider;
+use Testo\Test;
 
-final class SmtpTest extends TestCase
+#[Test]
+final class SmtpTest
 {
     public static function dataTo(): iterable
     {
@@ -59,9 +62,7 @@ final class SmtpTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider dataTo
-     */
+    #[DataProvider('dataTo')]
     public function testTo(array $toList, array $expected): void
     {
         $smtp = Smtp::create(
@@ -72,8 +73,8 @@ final class SmtpTest extends TestCase
                 'Reply-To' => $toList,
             ],
         );
-        self::assertEquals($expected, $smtp->getTo());
-        self::assertEquals($expected, $smtp->getCc());
-        self::assertEquals($expected, $smtp->getReplyTo());
+        Assert::equals($smtp->getTo(), $expected);
+        Assert::equals($smtp->getCc(), $expected);
+        Assert::equals($smtp->getReplyTo(), $expected);
     }
 }

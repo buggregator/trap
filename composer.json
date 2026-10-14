@@ -52,16 +52,16 @@
         "symfony/var-dumper": "^6.3 || ^7 || ^8"
     },
     "require-dev": {
-        "ergebnis/phpunit-slow-test-detector": "^2.14",
         "google/protobuf": "^3.25 || ^4.30 || ^v5.36.1",
         "llm/skills": "^1.14",
+        "mockery/mockery": "^1.6",
         "open-telemetry/gen-otlp-protobuf": "^1.10",
-        "phpunit/phpunit": "^10.5.10",
         "rector/rector": "^2.0",
         "roxblnfk/unpoly": "^1.8",
         "spiral/code-style": "^2.2.2",
-        "ta-tikoma/phpunit-architecture-test": "^0.8.5",
-        "vimeo/psalm": "^6.5"
+        "testo/bridge-mockery": "^0.1.2",
+        "testo/testo": "^0.10.56",
+        "vimeo/psalm": "^6 || ^7"
     },
     "suggest": {
         "ext-simplexml": "To load trap.xml",
@@ -101,25 +101,13 @@
     "scripts": {
         "cs:diff": "php-cs-fixer fix --dry-run -v --diff",
         "cs:fix": "php-cs-fixer fix -v",
-        "infect": [
-            "@putenv XDEBUG_MODE=coverage",
-            "roave-infection-static-analysis-plugin --configuration=infection.json.dist"
-        ],
-        "infect:ci": [
-            "@putenv XDEBUG_MODE=coverage",
-            "roave-infection-static-analysis-plugin --ansi --configuration=infection.json.dist --logger-github --ignore-msi-with-no-mutations --only-covered"
-        ],
         "psalm": "psalm",
         "psalm:baseline": "psalm --set-baseline=psalm-baseline.xml",
         "psalm:ci": "psalm --output-format=github --shepherd --show-info=false --stats --threads=4",
         "refactor": "rector process --config=rector.php",
         "refactor:ci": "rector process --config=rector.php --dry-run --ansi",
-        "test": "phpunit --color=always --testdox",
-        "test:unit": "phpunit --color=always --testsuite=Unit",
-        "test:arch": "phpunit --color=always --testsuite=Arch",
-        "test:cc": [
-            "@putenv XDEBUG_MODE=coverage",
-            "phpunit --coverage-clover=runtime/phpunit/logs/clover.xml --color=always"
-        ]
+        "test": "testo",
+        "test:unit": "testo --suite=Unit",
+        "test:arch": "testo --suite=Arch"
     }
 }

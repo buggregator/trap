@@ -5,13 +5,15 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Support\Stream;
 
 use Buggregator\Trap\Support\StreamHelper;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Test;
 
-final class Base64DecodeFilterTest extends TestCase
+#[Test]
+final class Base64DecodeFilterTest
 {
     public function testFFilterRegistered(): void
     {
-        self::assertContains(\Buggregator\Trap\Support\Stream\Base64DecodeFilter::FILTER_NAME, \stream_get_filters());
+        Assert::contains(\stream_get_filters(), \Buggregator\Trap\Support\Stream\Base64DecodeFilter::FILTER_NAME);
     }
 
     public function testFilterSimpleLine(): void
@@ -24,7 +26,7 @@ final class Base64DecodeFilterTest extends TestCase
 
         $stream->write($encoded);
 
-        self::assertSame($source, (string) $stream);
+        Assert::same((string) $stream, $source);
     }
 
     public function testFilterChunked(): void
@@ -39,6 +41,6 @@ final class Base64DecodeFilterTest extends TestCase
             $stream->write($chunk);
         }
 
-        self::assertSame($source, (string) $stream);
+        Assert::same((string) $stream, $source);
     }
 }

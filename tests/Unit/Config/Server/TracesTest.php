@@ -11,13 +11,15 @@ use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\Span;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\SpanKind;
 use Internal\Container\Container;
-use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Codecov\Covers;
+use Testo\Data\DataProvider;
+use Testo\Test;
 
-#[CoversClass(Traces::class)]
-#[CoversClass(SpanStore::class)]
-final class TracesTest extends TestCase
+#[Covers(Traces::class)]
+#[Covers(SpanStore::class)]
+#[Test]
+final class TracesTest
 {
     public static function provideInvalidEnvValues(): \Generator
     {
@@ -30,16 +32,16 @@ final class TracesTest extends TestCase
     {
         $config = $this->container()->get(Traces::class);
 
-        self::assertSame(10_000, $config->maxSpans);
-        self::assertSame(600.0, $config->ttl);
+        Assert::same($config->maxSpans, 10_000);
+        Assert::same($config->ttl, 600.0);
     }
 
     public function testTrapXmlHoldsDefaults(): void
     {
         $config = $this->container(xml: Info::TRAP_ROOT . '/trap.xml')->get(Traces::class);
 
-        self::assertSame(10_000, $config->maxSpans);
-        self::assertSame(600.0, $config->ttl);
+        Assert::same($config->maxSpans, 10_000);
+        Assert::same($config->ttl, 600.0);
     }
 
     public function testReadsXml(): void
@@ -48,8 +50,8 @@ final class TracesTest extends TestCase
 
         $config = $this->container(xml: $xml)->get(Traces::class);
 
-        self::assertSame(50, $config->maxSpans);
-        self::assertSame(12.5, $config->ttl);
+        Assert::same($config->maxSpans, 50);
+        Assert::same($config->ttl, 12.5);
     }
 
     public function testEnvOverridesXml(): void
@@ -61,8 +63,8 @@ final class TracesTest extends TestCase
             $xml,
         )->get(Traces::class);
 
-        self::assertSame(2, $config->maxSpans);
-        self::assertSame(30.0, $config->ttl);
+        Assert::same($config->maxSpans, 2);
+        Assert::same($config->ttl, 30.0);
     }
 
     public function testSpanStoreFromContainerUsesEnvLimits(): void
@@ -73,8 +75,8 @@ final class TracesTest extends TestCase
         $store->add(self::span('b'));
         $store->add(self::span('c'));
 
-        self::assertSame(2, $store->countSpans());
-        self::assertSame([], $store->getTrace(\str_repeat('a', 32)));
+        Assert::same($store->countSpans(), 2);
+        Assert::same($store->getTrace(\str_repeat('a', 32)), []);
     }
 
     #[DataProvider('provideInvalidEnvValues')]
@@ -87,7 +89,7 @@ final class TracesTest extends TestCase
             $store->add(self::span($trace));
         }
 
-        self::assertSame(4, $store->countTraces());
+        Assert::same($store->countTraces(), 4);
     }
 
     private static function span(string $trace): Span

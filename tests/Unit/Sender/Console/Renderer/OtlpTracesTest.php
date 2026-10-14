@@ -14,56 +14,46 @@ use Buggregator\Trap\Proto\Frame\Otlp\Trace\ScopeSpans;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\Span;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\SpanKind;
 use Buggregator\Trap\Sender\Console\Renderer\OtlpTraces;
-use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\OutputInterface;
+use Testo\Assert;
+use Testo\Codecov\Covers;
+use Testo\Test;
 
-#[CoversClass(OtlpTraces::class)]
-final class OtlpTracesTest extends TestCase
+#[Covers(OtlpTraces::class)]
+#[Test]
+final class OtlpTracesTest
 {
     public function testSupportsOnlyOtlpTraces(): void
     {
         $renderer = new OtlpTraces();
 
-        self::assertTrue($renderer->isSupport(new OtlpTracesFrame([])));
-        self::assertFalse($renderer->isSupport(new Monolog([])));
+        Assert::true($renderer->isSupport(new OtlpTracesFrame([])));
+        Assert::false($renderer->isSupport(new Monolog([])));
     }
 
     public function testRendersTraceAsTree(): void
     {
         $output = $this->render($this->fixtureFrame());
 
-        self::assertStringContainsString('OTLP TRACES  4 spans', $output);
-        self::assertStringContainsString('Service: e2e-app', $output);
-        self::assertStringContainsString('Scope: e2e.scope 1.2.3', $output);
-        self::assertStringContainsString('# Trace 382bfca057473920912cab0a4ed95abe  27.69 ms', $output);
-        self::assertStringNotContainsString('host.name', $output, 'Resource attributes are verbose-only.');
+        Assert::string($output)->contains('OTLP TRACES  4 spans')->contains('Service: e2e-app')->contains('Scope: e2e.scope 1.2.3')->contains('# Trace 382bfca057473920912cab0a4ed95abe  27.69 ms')->notContains('host.name', 'Resource attributes are verbose-only.');
 
         $lines = $this->spanLines($output);
-        self::assertSame([
+        Assert::same($lines, [
             'GET /orders SERVER 27.69 ms OK id:286e73f2056fe20e',
             '├─ db.query CLIENT 11.82 ms ERROR: Connection lost +832.10 µs id:e0d59f245a195412',
             '└─ render INTERNAL 14.68 ms +12.90 ms id:658f956912e8b228',
             '   └─ template.load INTERNAL 14.46 ms +12.97 ms id:8118bc4ed687fb8d',
-        ], $lines);
+        ]);
 
-        self::assertStringContainsString("│  http.request.method: \"GET\"\n", $output);
-        self::assertStringContainsString("│  order.ids: [1,2,3]\n", $output);
-        self::assertStringContainsString("│     db.system: \"mysql\"\n", $output);
-        self::assertStringContainsString(
-            '│     • exception +10.92 ms exception.type="RuntimeException" exception.message="Connection lost"',
-            $output,
-        );
-        self::assertStringContainsString("         template.name: \"orders.twig\"\n", $output);
+        Assert::string($output)->contains("│  http.request.method: \"GET\"\n")->contains("│  order.ids: [1,2,3]\n")->contains("│     db.system: \"mysql\"\n")->contains('│     • exception +10.92 ms exception.type="RuntimeException" exception.message="Connection lost"')->contains("         template.name: \"orders.twig\"\n");
     }
 
     public function testRendersResourceAttributesInVerboseMode(): void
     {
         $output = $this->render($this->fixtureFrame(), OutputInterface::VERBOSITY_VERBOSE);
 
-        self::assertStringContainsString('host.name: example-host', $output);
-        self::assertStringContainsString('telemetry.sdk.language: php', $output);
+        Assert::string($output)->contains('host.name: example-host')->contains('telemetry.sdk.language: php');
     }
 
     public function testEscapesMarkupAndControlCharactersOfReceivedText(): void
@@ -88,12 +78,7 @@ final class OtlpTracesTest extends TestCase
 
         $output = $this->render($frame, OutputInterface::VERBOSITY_VERBOSE);
 
-        self::assertStringContainsString('Service: <fg=foo>svc</>\x1B]0;title\x07', $output);
-        self::assertStringContainsString('Scope: <fg=foo>scope</> <bg=foo>1</>', $output);
-        self::assertStringContainsString('<fg=foo>k</>: <fg=foo>v</>\u{009B}31m', $output);
-        self::assertStringContainsString('<fg=foo>span</>\x1B[31m', $output);
-        self::assertStringContainsString('<fg=bar>key</>: "red\u001b[31m"', $output);
-        self::assertStringNotContainsString("\e", $output);
+        Assert::string($output)->contains('Service: <fg=foo>svc</>\x1B]0;title\x07')->contains('Scope: <fg=foo>scope</> <bg=foo>1</>')->contains('<fg=foo>k</>: <fg=foo>v</>\u{009B}31m')->contains('<fg=foo>span</>\x1B[31m')->contains('<fg=bar>key</>: "red\u001b[31m"')->notContains("\e");
     }
 
     public function testRendersSpanWithMissingParentAsRoot(): void
@@ -112,11 +97,8 @@ final class OtlpTracesTest extends TestCase
 
         $output = $this->render($frame);
 
-        self::assertStringContainsString('OTLP TRACES  1 span', $output);
-        self::assertSame(
-            ['child <of> nothing PRODUCER 500 ns id:eee19b7ec3c1b174 parent:0102030405060708'],
-            $this->spanLines($output),
-        );
+        Assert::string($output)->contains('OTLP TRACES  1 span');
+        Assert::same($this->spanLines($output), ['child <of> nothing PRODUCER 500 ns id:eee19b7ec3c1b174 parent:0102030405060708']);
     }
 
     public function testGroupsSpansByTrace(): void
@@ -138,9 +120,8 @@ final class OtlpTracesTest extends TestCase
 
         $output = $this->render($frame);
 
-        self::assertSame(2, \substr_count($output, '# Trace '));
-        self::assertMatchesRegularExpression('/# Trace a{32}  2\.50 s\s+first .*\s+third /', $output);
-        self::assertMatchesRegularExpression('/# Trace b{32}  2\.50 s\s+second /', $output);
+        Assert::same(\substr_count($output, '# Trace '), 2);
+        Assert::string($output)->matchesRegex('/# Trace a{32}  2\.50 s\s+first .*\s+third /')->matchesRegex('/# Trace b{32}  2\.50 s\s+second /');
     }
 
     public function testBuildsTreeFromSpansReceivedOneByOne(): void
@@ -154,19 +135,19 @@ final class OtlpTracesTest extends TestCase
         $second = $this->render(self::frame($child), renderer: $renderer);
         $third = $this->render(self::frame($root), renderer: $renderer);
 
-        self::assertSame(['grandchild INTERNAL 10 ns id:3333333333333333 parent:2222222222222222'], $this->spanLines($first));
-        self::assertStringContainsString('+1 received earlier', $second);
-        self::assertSame([
+        Assert::same($this->spanLines($first), ['grandchild INTERNAL 10 ns id:3333333333333333 parent:2222222222222222']);
+        Assert::string($second)->contains('+1 received earlier');
+        Assert::same($this->spanLines($second), [
             'child INTERNAL 40 ns id:2222222222222222 parent:1111111111111111',
             '└─ grandchild INTERNAL 10 ns +10 ns id:3333333333333333',
-        ], $this->spanLines($second));
-        self::assertStringContainsString('+2 received earlier', $third);
-        self::assertSame([
+        ]);
+        Assert::string($third)->contains('+2 received earlier');
+        Assert::same($this->spanLines($third), [
             'root INTERNAL 100 ns id:1111111111111111',
             '└─ child INTERNAL 40 ns +10 ns id:2222222222222222',
             '   └─ grandchild INTERNAL 10 ns +20 ns id:3333333333333333',
-        ], $this->spanLines($third));
-        self::assertStringContainsString('         attr: "grandchild"', $third, 'Earlier spans keep their details.');
+        ]);
+        Assert::string($third)->contains('         attr: "grandchild"', 'Earlier spans keep their details.');
     }
 
     public function testShowsAncestorsReceivedEarlierAsContext(): void
@@ -180,14 +161,11 @@ final class OtlpTracesTest extends TestCase
 
         $output = $this->render(self::frame(self::span('3', '2', 'late child', 20, 90)), renderer: $renderer);
 
-        self::assertSame([
+        Assert::same($this->spanLines($output), [
             'parent INTERNAL 40 ns id:2222222222222222 (1 more ancestor above)',
             '└─ late child INTERNAL 70 ns +20 ns id:3333333333333333',
-        ], $this->spanLines($output));
-        self::assertStringNotContainsString('attr: "parent"', $output, 'Context spans have no details.');
-        self::assertStringContainsString('      attr: "late child"', $output);
-        self::assertStringNotContainsString('sibling', $output);
-        self::assertStringNotContainsString('root', $output);
+        ]);
+        Assert::string($output)->notContains('attr: "parent"', 'Context spans have no details.')->contains('      attr: "late child"')->notContains('sibling')->notContains('root');
     }
 
     public function testSingleSpanNotShownIsSingular(): void
@@ -199,7 +177,7 @@ final class OtlpTracesTest extends TestCase
 
         $output = $this->render(self::frame(...$spans));
 
-        self::assertStringContainsString("… 1 more span not shown\n", $output);
+        Assert::string($output)->contains("… 1 more span not shown\n");
     }
 
     public function testDeepChainInOneFrameIsBounded(): void
@@ -212,10 +190,10 @@ final class OtlpTracesTest extends TestCase
         $output = $this->render(self::frame(...$spans));
         $lines = $this->spanLines($output);
 
-        self::assertCount(500, $lines);
-        self::assertStringContainsString('… 100 more spans not shown', $output);
-        self::assertLessThan(200, \max(\array_map('strlen', \explode("\n", $output))), 'Indentation stops growing.');
-        self::assertStringContainsString('[depth 30]', $output);
+        Assert::count($lines, 500);
+        Assert::string($output)->contains('… 100 more spans not shown');
+        Assert::numeric(\max(\array_map('strlen', \explode("\n", $output))))->lessThan(200, 'Indentation stops growing.');
+        Assert::string($output)->contains('[depth 30]');
     }
 
     public function testChainReceivedLeafFirstPrintsLinearOutput(): void
@@ -227,9 +205,9 @@ final class OtlpTracesTest extends TestCase
             $total += \count($this->spanLines($output));
         }
 
-        self::assertCount(100, $this->spanLines($output), 'The root brings the complete tree.');
+        Assert::count($this->spanLines($output), 100, 'The root brings the complete tree.');
         // Each of the 99 earlier frames prints its span with at most 16 earlier descendants.
-        self::assertLessThanOrEqual(99 * 17 + 100, $total);
+        Assert::numeric($total)->lessThanOrEqual(99 * 17 + 100);
     }
 
     public function testCollapsesManyEarlierDescendants(): void
@@ -241,8 +219,8 @@ final class OtlpTracesTest extends TestCase
 
         $output = $this->render(self::frame(self::chainSpan(1)), renderer: $renderer);
 
-        self::assertCount(1, $this->spanLines($output));
-        self::assertStringContainsString('… 98 earlier descendants', $output);
+        Assert::count($this->spanLines($output), 1);
+        Assert::string($output)->contains('… 98 earlier descendants');
     }
 
     public function testChainReceivedRootFirstShowsOnlyNearestAncestor(): void
@@ -254,8 +232,8 @@ final class OtlpTracesTest extends TestCase
 
         $output = $this->render(self::frame(self::chainSpan(99)), renderer: $renderer);
 
-        self::assertCount(2, $this->spanLines($output));
-        self::assertStringContainsString('(98 more ancestors above)', $output);
+        Assert::count($this->spanLines($output), 2);
+        Assert::string($output)->contains('(98 more ancestors above)');
     }
 
     public function testRendererWithoutSharedStoreKeepsItsOwnSpans(): void
@@ -266,7 +244,7 @@ final class OtlpTracesTest extends TestCase
 
         $output = $this->render(self::frame(self::span('2', '1', 'child', 10, 50)), renderer: $second);
 
-        self::assertSame(['child INTERNAL 40 ns id:2222222222222222 parent:1111111111111111'], $this->spanLines($output));
+        Assert::same($this->spanLines($output), ['child INTERNAL 40 ns id:2222222222222222 parent:1111111111111111']);
     }
 
     public function testRendersSpansOfParentCycle(): void
@@ -276,7 +254,7 @@ final class OtlpTracesTest extends TestCase
             self::span('2', '1', 'second', 0, 10),
         ));
 
-        self::assertCount(2, $this->spanLines($output));
+        Assert::count($this->spanLines($output), 2);
     }
 
     public function testRendersAllDigitIds(): void
@@ -293,8 +271,8 @@ final class OtlpTracesTest extends TestCase
 
         $output = $this->render(self::frame($span));
 
-        self::assertStringContainsString('# Trace ' . \str_repeat('1', 32), $output);
-        self::assertSame(['digits INTERNAL 1 ns id:1234567890123456'], $this->spanLines($output));
+        Assert::string($output)->contains('# Trace ' . \str_repeat('1', 32));
+        Assert::same($this->spanLines($output), ['digits INTERNAL 1 ns id:1234567890123456']);
     }
 
     public function testRendersExtremeTimestamps(): void
@@ -310,8 +288,7 @@ final class OtlpTracesTest extends TestCase
             renderer: $renderer,
         );
 
-        self::assertStringContainsString('reversed INTERNAL 0 ns', $output);
-        self::assertStringContainsString('9223372036.85 s', $output);
+        Assert::string($output)->contains('reversed INTERNAL 0 ns')->contains('9223372036.85 s');
     }
 
     /**

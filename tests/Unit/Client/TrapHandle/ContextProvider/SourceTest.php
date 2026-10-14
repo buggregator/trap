@@ -6,19 +6,19 @@ namespace Buggregator\Trap\Tests\Unit\Client\TrapHandle\ContextProvider;
 
 use Buggregator\Trap\Client\TrapHandle\ContextProvider\Source;
 use Buggregator\Trap\Client\TrapHandle\StaticState;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Test;
 
-use function PHPUnit\Framework\assertSame;
-
-final class SourceTest extends TestCase
+#[Test]
+final class SourceTest
 {
     public function testHere(): void
     {
         $this->staticState();
 
-        self::assertSame(\basename(__FILE__), $this->getContext()['name']);
-        self::assertSame(__FILE__, $this->getContext()['file']);
-        self::assertSame(__LINE__ - 4, $this->getContext()['line']);
+        Assert::same($this->getContext()['name'], \basename(__FILE__));
+        Assert::same($this->getContext()['file'], __FILE__);
+        Assert::same($this->getContext()['line'], __LINE__ - 4);
     }
 
     public function testOnDestruct(): void
@@ -28,8 +28,8 @@ final class SourceTest extends TestCase
         new class {
             public function __destruct()
             {
-                assertSame(\basename(__FILE__), (new Source())->getContext()['name']);
-                assertSame(__FILE__, (new Source())->getContext()['file']);
+                Assert::same((new Source())->getContext()['name'], \basename(__FILE__));
+                Assert::same((new Source())->getContext()['file'], __FILE__);
             }
         };
     }

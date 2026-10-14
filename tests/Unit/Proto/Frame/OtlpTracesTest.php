@@ -12,12 +12,16 @@ use Buggregator\Trap\Proto\Server\Version\V1;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\EventsToFileSender;
 use Buggregator\Trap\Support\Json;
-use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Assert\ExpectException;
+use Testo\Codecov\Covers;
+use Testo\Lifecycle\AfterTest;
+use Testo\Test;
 
-#[CoversClass(OtlpTraces::class)]
-#[CoversClass(Otlp::class)]
-final class OtlpTracesTest extends TestCase
+#[Covers(OtlpTraces::class)]
+#[Covers(Otlp::class)]
+#[Test]
+final class OtlpTracesTest
 {
     private ?string $runtimeDir = null;
 
@@ -27,37 +31,36 @@ final class OtlpTracesTest extends TestCase
 
         $restored = Otlp::fromString((string) $frame, $frame->time);
 
-        self::assertInstanceOf(OtlpTraces::class, $restored);
-        self::assertSame(ProtoType::Otlp, $restored->type);
-        self::assertEquals($frame, $restored);
-        self::assertSame((string) $frame, (string) $restored);
+        Assert::instanceOf($restored, OtlpTraces::class);
+        Assert::same($restored->type, ProtoType::Otlp);
+        Assert::equals($restored, $frame);
+        Assert::same((string) $restored, (string) $frame);
     }
 
     public function testSerializedForm(): void
     {
         $data = Json::decode((string) $this->fixtureFrame());
 
-        self::assertSame('otlp.traces', $data['type']);
+        Assert::same($data['type'], 'otlp.traces');
         $resource = $data['resourceSpans'][0];
-        self::assertSame('e2e-app', $resource['resource']['attributes']['service.name']);
-        self::assertSame('e2e.scope', $resource['scopeSpans'][0]['scope']['name']);
-        self::assertSame([], $resource['scopeSpans'][0]['scope']['attributes']);
+        Assert::same($resource['resource']['attributes']['service.name'], 'e2e-app');
+        Assert::same($resource['scopeSpans'][0]['scope']['name'], 'e2e.scope');
+        Assert::same($resource['scopeSpans'][0]['scope']['attributes'], []);
 
         $span = $resource['scopeSpans'][0]['spans'][3];
-        self::assertSame('GET /orders', $span['name']);
-        self::assertSame(2, $span['kind']);
-        self::assertNull($span['parentSpanId']);
-        self::assertSame(['code' => 1, 'message' => ''], $span['status']);
-        self::assertSame([1, 2, 3], $span['attributes']['order.ids']);
-        self::assertIsInt($span['startTimeUnixNano']);
+        Assert::same($span['name'], 'GET /orders');
+        Assert::same($span['kind'], 2);
+        Assert::null($span['parentSpanId']);
+        Assert::same($span['status'], ['code' => 1, 'message' => '']);
+        Assert::same($span['attributes']['order.ids'], [1, 2, 3]);
+        Assert::int($span['startTimeUnixNano']);
     }
 
     public function testEmptyAttributeMapsAreJsonObjects(): void
     {
         $json = (string) $this->fixtureFrame();
 
-        self::assertStringContainsString('"scope":{"name":"e2e.scope","version":"1.2.3","attributes":{}', $json);
-        self::assertStringNotContainsString('"attributes":[]', $json);
+        Assert::string($json)->contains('"scope":{"name":"e2e.scope","version":"1.2.3","attributes":{}')->notContains('"attributes":[]');
     }
 
     public function testRoundtripThroughRemoteProtocol(): void
@@ -67,10 +70,10 @@ final class OtlpTracesTest extends TestCase
 
         $frames = [...(new V1())->decode($payload)->getParsedPayload()];
 
-        self::assertCount(1, $frames);
-        self::assertInstanceOf(OtlpTraces::class, $frames[0]);
-        self::assertSame((string) $frame, (string) $frames[0]);
-        self::assertEquals($frame->time, $frames[0]->time);
+        Assert::count($frames, 1);
+        Assert::instanceOf($frames[0], OtlpTraces::class);
+        Assert::same((string) $frames[0], (string) $frame);
+        Assert::equals($frames[0]->time, $frame->time);
     }
 
     public function testFileSenderWritesOneReadableLinePerFrame(): void
@@ -81,35 +84,35 @@ final class OtlpTracesTest extends TestCase
         (new EventsToFileSender($this->runtimeDir))->send([$frame, $frame]);
 
         $files = \glob($this->runtimeDir . '/dump-*.log');
-        self::assertCount(1, $files);
+        Assert::count($files, 1);
         $lines = \file($files[0], \FILE_IGNORE_NEW_LINES | \FILE_SKIP_EMPTY_LINES);
-        self::assertCount(2, $lines);
+        Assert::count($lines, 2);
         foreach ($lines as $line) {
             $restored = Otlp::fromString($line, $frame->time);
-            self::assertInstanceOf(OtlpTraces::class, $restored);
-            self::assertSame(4, $restored->countSpans());
+            Assert::instanceOf($restored, OtlpTraces::class);
+            Assert::same($restored->countSpans(), 4);
         }
     }
 
+    #[ExpectException(\LogicException::class)]
     public function testFromStringMustBeCalledOnBaseClass(): void
     {
-        $this->expectException(\LogicException::class);
-
         OtlpTraces::fromString((string) $this->fixtureFrame(), new \DateTimeImmutable());
     }
 
+    #[ExpectException(\InvalidArgumentException::class)]
     public function testFromStringRejectsUnknownSignal(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
-
         Otlp::fromString('{"type":"otlp.profiles"}', new \DateTimeImmutable());
     }
 
+    #[AfterTest]
     protected function tearDown(): void
     {
         if ($this->runtimeDir !== null) {
             \array_map('unlink', \glob($this->runtimeDir . '/*'));
             \rmdir($this->runtimeDir);
+            $this->runtimeDir = null;
         }
     }
 

@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Traffic\Proto\Server\Version;
 
 use Buggregator\Trap\Proto\Server\Version\V1;
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Data\DataProvider;
+use Testo\Test;
 
-final class V1Test extends TestCase
+#[Test]
+final class V1Test
 {
     public static function payloadsDataProvider(): iterable
     {
@@ -24,7 +26,7 @@ final class V1Test extends TestCase
     {
         $decoder = new V1();
 
-        self::assertSame($isSupported, $decoder->isSupport($payload));
+        Assert::same($decoder->isSupport($payload), $isSupported);
     }
 
     public function testDecode(): void
@@ -33,9 +35,9 @@ final class V1Test extends TestCase
 
         $request = $decoder->decode('1|0.1|9a06581c-3bec-4cf1-8412-b2a40bb36a76|[{},{}]');
 
-        self::assertSame(1, $request->protocol);
-        self::assertSame('0.1', $request->client);
-        self::assertSame('9a06581c-3bec-4cf1-8412-b2a40bb36a76', $request->uuid);
-        self::assertSame('[{},{}]', $request->payload);
+        Assert::same($request->protocol, 1);
+        Assert::same($request->client, '0.1');
+        Assert::same($request->uuid, '9a06581c-3bec-4cf1-8412-b2a40bb36a76');
+        Assert::same($request->payload, '[{},{}]');
     }
 }

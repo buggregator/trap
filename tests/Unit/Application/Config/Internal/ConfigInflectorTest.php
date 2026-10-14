@@ -11,9 +11,11 @@ use Buggregator\Trap\Application\Config\Internal\Attribute\InputOption;
 use Buggregator\Trap\Application\Config\Internal\Attribute\XPath;
 use Buggregator\Trap\Application\Config\Internal\ConfigInflector;
 use Internal\Container\ObjectContainer;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Test;
 
-final class ConfigInflectorTest extends TestCase
+#[Test]
+final class ConfigInflectorTest
 {
     public function testSimpleHydration(): void
     {
@@ -42,10 +44,10 @@ final class ConfigInflectorTest extends TestCase
 
         $this->inflect($dto, xml: $xml);
 
-        self::assertTrue($dto->myBool);
-        self::assertSame(200, $dto->myInt);
-        self::assertSame('foo-bar', $dto->myString);
-        self::assertSame(42.0, $dto->myFloat);
+        Assert::true($dto->myBool);
+        Assert::same($dto->myInt, 200);
+        Assert::same($dto->myString, 'foo-bar');
+        Assert::same($dto->myFloat, 42.0);
     }
 
     public function testNonExistingOptions(): void
@@ -70,10 +72,10 @@ final class ConfigInflectorTest extends TestCase
 
         $this->inflect($dto, xml: $xml);
 
-        self::assertSame(3.14, $dto->none1);
-        self::assertSame(3.14, $dto->none2);
-        self::assertSame(3.14, $dto->none3);
-        self::assertSame(3.14, $dto->none4);
+        Assert::same($dto->none1, 3.14);
+        Assert::same($dto->none2, 3.14);
+        Assert::same($dto->none3, 3.14);
+        Assert::same($dto->none4, 3.14);
     }
 
     public function testAttributesOrder(): void
@@ -105,9 +107,9 @@ final class ConfigInflectorTest extends TestCase
 
         $this->inflect($dto, xml: $xml, opts: ['test' => 13], args: ['test' => 69], env: ['test' => 0]);
 
-        self::assertSame(42, $dto->int1);
-        self::assertSame(0, $dto->int2);
-        self::assertSame(69, $dto->int3);
+        Assert::same($dto->int1, 42);
+        Assert::same($dto->int2, 0);
+        Assert::same($dto->int3, 69);
     }
 
     private function inflect(

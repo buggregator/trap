@@ -8,12 +8,13 @@ use Buggregator\Trap\Test\Mock\StreamClientMock;
 use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Buggregator\Trap\Traffic\Message;
 use Buggregator\Trap\Traffic\Parser;
-use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Codecov\Covers;
+use Testo\Data\DataProvider;
+use Testo\Test;
 
-#[CoversClass(Parser\Smtp::class)]
-final class SmtpParserTest extends TestCase
+#[Covers(Parser\Smtp::class)]
+final class SmtpParserTest
 {
     use FiberTrait;
 
@@ -26,11 +27,13 @@ final class SmtpParserTest extends TestCase
     }
 
     #[DataProvider('provideHeaders')]
+    #[Test]
     public function testParseHeader(string $headerString, array $expected): void
     {
-        self::assertSame($expected, Parser\Smtp::parseHeaders($headerString));
+        Assert::same(Parser\Smtp::parseHeaders($headerString), $expected);
     }
 
+    #[Test]
     public function testMultilineHeaders(): void
     {
         $data = \str_split(<<<SMTP
@@ -59,20 +62,21 @@ final class SmtpParserTest extends TestCase
             SMTP, 10);
         $message = $this->parse($data);
 
-        self::assertSame(\implode('', $data), (string) $message->getBody());
-        self::assertCount(2, $message->getMessages());
+        Assert::same((string) $message->getBody(), \implode('', $data));
+        Assert::count($message->getMessages(), 2);
         // Check headers
-        self::assertEquals([
+        Assert::equals($message->getHeaders(), [
             'From' => ['sandbox producer <test@producer.sandbox>'],
             'To' => ['User1 <gam6itko@mail.ru>, User2 <gam6itko@gmail.com>, User3 <gam6itko@yandex.ru>'],
             'Subject' => ['ABCDEFGHIJKLMNOPQRSTUVWXYZ- ABCDEFGHIJKLMNOPQRSTUVWXYZ- ABCDEFGHIJKLMNOPQRSTUVWXYZ- ABCDEFGHIJKLMNOPQRSTUVWXYZ- ABCDEFGHIJKLMNOPQRSTUVWXYZ-'],
             'Content-Type' => ['multipart/alternative; boundary=_ZwZ4SBw'],
-        ], $message->getHeaders());
+        ]);
         // Check body
-        self::assertSame("Hello from Producer!\r\n", $message->getMessages()[0]->getValue());
-        self::assertSame("    <h1>Hello from Producer!</h1>\r\n", $message->getMessages()[1]->getValue());
+        Assert::same($message->getMessages()[0]->getValue(), "Hello from Producer!\r\n");
+        Assert::same($message->getMessages()[1]->getValue(), "    <h1>Hello from Producer!</h1>\r\n");
     }
 
+    #[Test]
     public function testParseSimpleBody(): void
     {
         $data = \str_split(<<<SMTP
@@ -86,19 +90,20 @@ final class SmtpParserTest extends TestCase
                                SMTP, 10);
         $message = $this->parse($data);
 
-        self::assertSame(\implode('', $data), (string) $message->getBody());
-        self::assertCount(1, $message->getMessages());
+        Assert::same((string) $message->getBody(), \implode('', $data));
+        Assert::count($message->getMessages(), 1);
         // Check headers
-        self::assertEquals([
+        Assert::equals($message->getHeaders(), [
             'From' => ['Some User <someusername@somecompany.ru>'],
             'To' => ['User1 <user1@company.tld>'],
             'Subject' => ['Very important theme'],
             'Content-Type' => ['text/plain'],
-        ], $message->getHeaders());
+        ]);
         // Check body
-        self::assertSame('Hi!', $message->getMessages()[0]->getValue());
+        Assert::same($message->getMessages()[0]->getValue(), 'Hi!');
     }
 
+    #[Test]
     public function testParseMultipart(): void
     {
         $data = \str_split(<<<SMTP
@@ -147,65 +152,56 @@ final class SmtpParserTest extends TestCase
         // Check contacts
 
         // Sender
-        self::assertCount(2, $message->getSender());
-        self::assertNull($message->getSender()[0]->name);
-        self::assertSame('someusername@foo.bar', $message->getSender()[0]->email);
-        self::assertNull($message->getSender()[1]->name);
-        self::assertSame('sender@example.com', $message->getSender()[1]->email);
+        Assert::count($message->getSender(), 2);
+        Assert::null($message->getSender()[0]->name);
+        Assert::same($message->getSender()[0]->email, 'someusername@foo.bar');
+        Assert::null($message->getSender()[1]->name);
+        Assert::same($message->getSender()[1]->email, 'sender@example.com');
         // BCC
-        self::assertCount(2, $message->getBcc());
-        self::assertNull($message->getBcc()[0]->name);
-        self::assertSame('user1@company.tld', $message->getBcc()[0]->email);
-        self::assertNull($message->getBcc()[1]->name);
-        self::assertSame('user2@company.tld', $message->getBcc()[1]->email);
+        Assert::count($message->getBcc(), 2);
+        Assert::null($message->getBcc()[0]->name);
+        Assert::same($message->getBcc()[0]->email, 'user1@company.tld');
+        Assert::null($message->getBcc()[1]->name);
+        Assert::same($message->getBcc()[1]->email, 'user2@company.tld');
 
-        self::assertSame(\implode('', $data), (string) $message->getBody());
-        self::assertCount(3, $message->getMessages());
+        Assert::same((string) $message->getBody(), \implode('', $data));
+        Assert::count($message->getMessages(), 3);
         // Check headers
-        self::assertEquals([
+        Assert::equals($message->getHeaders(), [
             'From' => ['sender@example.com'],
             'To' => ['recipient@example.com'],
             'Subject' => ['Multipart Email Example'],
             'Content-Type' => ['multipart/alternative; boundary="boundary-string"'],
-        ], $message->getHeaders());
+        ]);
 
         // Check bodies
 
         // Body 0
-        self::assertSame(
-            "Plain text email goes here!\r\nThis is the fallback if email client does not support HTML\r\n",
-            $message->getMessages()[0]->getValue(),
-        );
-        self::assertEquals([
+        Assert::same($message->getMessages()[0]->getValue(), "Plain text email goes here!\r\nThis is the fallback if email client does not support HTML\r\n");
+        Assert::equals($message->getMessages()[0]->getHeaders(), [
             'Content-Type' => ['text/plain; charset="utf-8"'],
             'Content-Transfer-Encoding' => ['quoted-printable'],
             'Content-Disposition' => ['inline'],
-        ], $message->getMessages()[0]->getHeaders());
+        ]);
 
         // Body 1
-        self::assertSame(
-            "<h1>This is the HTML Section!</h1>\r\n<p>This is what displays in most modern email clients</p>\r\n",
-            $message->getMessages()[1]->getValue(),
-        );
-        self::assertEquals([
+        Assert::same($message->getMessages()[1]->getValue(), "<h1>This is the HTML Section!</h1>\r\n<p>This is what displays in most modern email clients</p>\r\n");
+        Assert::equals($message->getMessages()[1]->getHeaders(), [
             'Content-Type' => ['text/html; charset="utf-8"'],
             'Content-Transfer-Encoding' => ['quoted-printable'],
             'Content-Disposition' => ['inline'],
-        ], $message->getMessages()[1]->getHeaders());
+        ]);
 
         // Body 2
-        self::assertSame(
-            "<b>Apple Watch formatted content</b>\r\n",
-            $message->getMessages()[2]->getValue(),
-        );
-        self::assertEquals([
+        Assert::same($message->getMessages()[2]->getValue(), "<b>Apple Watch formatted content</b>\r\n");
+        Assert::equals($message->getMessages()[2]->getHeaders(), [
             'Content-Type' => ['text/watch-html; charset="utf-8"'],
             'Content-Transfer-Encoding' => ['quoted-printable'],
             'Content-Disposition' => ['inline'],
-        ], $message->getMessages()[2]->getHeaders());
+        ]);
 
         // Check attachments
-        self::assertCount(1, $message->getAttachments());
+        Assert::count($message->getAttachments(), 1);
     }
 
     private function parse(array|string $body, array $protocol = []): Message\Smtp

@@ -8,7 +8,13 @@ use Buggregator\Trap\Client\TrapHandle;
 use Buggregator\Trap\Log\TrapLogger;
 use Psr\Log\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
+use Testo\Assert;
+use Testo\Expect;
+use Testo\Lifecycle\AfterTest;
+use Testo\Lifecycle\BeforeTest;
+use Testo\Test;
 
+#[Test]
 final class TrapLoggerTest extends Base
 {
     public function testLoggerReturnsSameInstance(): void
@@ -16,41 +22,41 @@ final class TrapLoggerTest extends Base
         $logger1 = TrapHandle::logger();
         $logger2 = TrapHandle::logger();
 
-        self::assertInstanceOf(LoggerInterface::class, $logger1);
-        self::assertInstanceOf(TrapLogger::class, $logger1);
-        self::assertSame($logger1, $logger2);
+        Assert::instanceOf($logger1, LoggerInterface::class);
+        Assert::instanceOf($logger1, TrapLogger::class);
+        Assert::same($logger2, $logger1);
     }
 
     public function testLoggerUsesDefaultChannel(): void
     {
         $logger = TrapHandle::logger();
 
-        self::assertInstanceOf(TrapLogger::class, $logger);
-        self::assertSame('trap', $this->getLoggerChannel($logger));
+        Assert::instanceOf($logger, TrapLogger::class);
+        Assert::same($this->getLoggerChannel($logger), 'trap');
     }
 
     public function testLoggerUsesProvidedChannel(): void
     {
         $logger = TrapHandle::logger('app');
 
-        self::assertInstanceOf(TrapLogger::class, $logger);
-        self::assertSame('app', $this->getLoggerChannel($logger));
+        Assert::instanceOf($logger, TrapLogger::class);
+        Assert::same($this->getLoggerChannel($logger), 'app');
     }
 
     public function testLoggerCachesInstancePerChannel(): void
     {
-        self::assertSame(TrapHandle::logger('app'), TrapHandle::logger('app'));
-        self::assertNotSame(TrapHandle::logger('app'), TrapHandle::logger('worker'));
+        Assert::same(TrapHandle::logger('app'), TrapHandle::logger('app'));
+        Assert::notSame(TrapHandle::logger('worker'), TrapHandle::logger('app'));
     }
 
     public function testLoggerSendsToServer(): void
     {
         $server = \stream_socket_server('tcp://127.0.0.1:0', $errorCode, $errorMessage);
-        self::assertNotFalse($server);
+        Assert::notSame($server, false);
 
         try {
             $address = \stream_socket_get_name($server, false);
-            self::assertIsString($address);
+            Assert::string($address);
 
             [, $port] = \explode(':', $address);
 
@@ -58,16 +64,16 @@ final class TrapLoggerTest extends Base
             $logger->info('Hello {name}', ['name' => 'Trap']);
 
             $client = @\stream_socket_accept($server, 1);
-            self::assertNotFalse($client);
+            Assert::notSame($client, false);
 
             $line = \stream_get_line($client, 8192, "\n");
-            self::assertNotFalse($line);
+            Assert::notSame($line, false);
 
             $payload = \json_decode($line, true);
 
-            self::assertSame('Hello Trap', $payload['message']);
-            self::assertSame('INFO', $payload['level_name']);
-            self::assertSame(['name' => 'Trap'], $payload['context']);
+            Assert::same($payload['message'], 'Hello Trap');
+            Assert::same($payload['level_name'], 'INFO');
+            Assert::same($payload['context'], ['name' => 'Trap']);
         } finally {
             if (\is_resource($client ?? null)) {
                 \fclose($client);
@@ -82,16 +88,16 @@ final class TrapLoggerTest extends Base
 
         $logger = TrapHandle::logger();
 
-        self::assertInstanceOf(TrapLogger::class, $logger);
-        self::assertSame(9913, $this->getLoggerPort($logger));
+        Assert::instanceOf($logger, TrapLogger::class);
+        Assert::same($this->getLoggerPort($logger), 9913);
 
         $this->resetTrapLogger();
         \putenv('TRAP_MONOLOG_PORT=70000');
 
         $logger = TrapHandle::logger();
 
-        self::assertInstanceOf(TrapLogger::class, $logger);
-        self::assertSame(9913, $this->getLoggerPort($logger));
+        Assert::instanceOf($logger, TrapLogger::class);
+        Assert::same($this->getLoggerPort($logger), 9913);
     }
 
     public function testFallbackLineIsTextFormatted(): void
@@ -111,21 +117,19 @@ final class TrapLoggerTest extends Base
 
         $line = $formatFallbackLine->invoke($logger, $record);
 
-        self::assertStringStartsWith('[', $line);
-        self::assertStringContainsString('trap.ERROR: Something went wrong: boom', $line);
-        self::assertStringContainsString('{"error":"boom"}', $line);
+        Assert::string($line)->startsWith('[')->contains('trap.ERROR: Something went wrong: boom')->contains('{"error":"boom"}');
     }
 
     public function testInvalidLevelThrowsException(): void
     {
         $logger = new TrapLogger(host: '127.0.0.1', port: 1);
 
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Invalid log level "invalid".');
+        Expect::exception(InvalidArgumentException::class)->withMessageContaining('Invalid log level "invalid".');
 
         $logger->log('invalid', 'Bad level');
     }
 
+    #[BeforeTest]
     protected function setUp(): void
     {
         parent::setUp();
@@ -133,6 +137,7 @@ final class TrapLoggerTest extends Base
         \putenv('TRAP_MONOLOG_PORT');
     }
 
+    #[AfterTest]
     protected function tearDown(): void
     {
         $this->resetTrapLogger();

@@ -6,7 +6,12 @@ namespace Buggregator\Trap\Tests\Unit\Client;
 
 use Buggregator\Trap\Client\TrapHandle\Dumper;
 use Symfony\Component\VarDumper\Dumper\DataDumperInterface;
+use Testo\Assert;
+use Testo\Data\DataProvider;
+use Testo\Expect;
+use Testo\Test;
 
+#[Test]
 final class TrapTest extends Base
 {
     public static function provideTrapTimes(): iterable
@@ -20,21 +25,21 @@ final class TrapTest extends Base
     public function testLabel(): void
     {
         trap(FooName: 'foo-value');
-        self::assertSame('FooName', self::$lastData->getContext()['label']);
+        Assert::same(self::$lastData->getContext()['label'], 'FooName');
     }
 
     public function testSimpleContext(): void
     {
         trap('test-value')->context(foo: 'test-context');
 
-        self::assertSame(['foo' => 'test-context'], self::$lastData->getContext());
+        Assert::same(self::$lastData->getContext(), ['foo' => 'test-context']);
     }
 
     public function testArrayContext(): void
     {
         trap('test-value')->context(['foo' => 'test-context']);
 
-        self::assertSame(['foo' => 'test-context'], self::$lastData->getContext());
+        Assert::same(self::$lastData->getContext(), ['foo' => 'test-context']);
     }
 
     public function testContextMultiple(): void
@@ -44,14 +49,14 @@ final class TrapTest extends Base
             ->context(['bar' => 'bar-context'])
             ->context(foo: 'new');
 
-        self::assertSame(['foo' => 'new', 'bar' => 'bar-context'], self::$lastData->getContext());
+        Assert::same(self::$lastData->getContext(), ['foo' => 'new', 'bar' => 'bar-context']);
     }
 
     public function testCodeHighlight(): void
     {
         trap('test-value')->code('php');
 
-        self::assertSame(['language' => 'php'], self::$lastData->getContext());
+        Assert::same(self::$lastData->getContext(), ['language' => 'php']);
     }
 
     /**
@@ -61,11 +66,11 @@ final class TrapTest extends Base
     {
         $line = __FILE__ . ':' . __LINE__ and trap()->stackTrace();
 
-        self::assertArrayHasKey('trace', self::$lastData->getValue());
+        Assert::array(self::$lastData->getValue())->hasKeys('trace');
 
         $neededLine = \array_key_first(self::$lastData->getValue()['trace']->getValue());
 
-        self::assertStringContainsString($line, $neededLine);
+        Assert::string($neededLine)->contains($line);
     }
 
     /**
@@ -75,7 +80,7 @@ final class TrapTest extends Base
     {
         trap();
 
-        self::assertNull(self::$lastData);
+        Assert::null(self::$lastData);
     }
 
     /**
@@ -89,53 +94,48 @@ final class TrapTest extends Base
         trap($object, $object);
         unset($object);
 
-        self::assertNull($ref->get());
+        Assert::null($ref->get());
     }
 
     public function testTrapOnce(): void
     {
         foreach ([false, true, true, true, true] as $isNull) {
             trap(42)->once();
-            self::assertSame($isNull, self::$lastData === null);
+            Assert::same(self::$lastData === null, $isNull);
             self::$lastData = null;
         }
     }
 
     public function testReturn(): void
     {
-        self::assertSame(42, trap(42)->return());
-        self::assertSame(42, trap(named: 42)->return());
-        self::assertSame(42, trap(named: 42)->return('bad-name'));
-        self::assertSame(42, trap(42, 43)->return());
-        self::assertSame(42, trap(int: 42, foo: 'bar')->return('int'));
-        self::assertSame(42, trap(int: 42, foo: 'bar')->return(0));
-        self::assertSame('foo', trap(...['0' => 'foo', 42 => 90])->return());
-        self::assertNull(trap(null)->return());
+        Assert::same(trap(42)->return(), 42);
+        Assert::same(trap(named: 42)->return(), 42);
+        Assert::same(trap(named: 42)->return('bad-name'), 42);
+        Assert::same(trap(42, 43)->return(), 42);
+        Assert::same(trap(int: 42, foo: 'bar')->return('int'), 42);
+        Assert::same(trap(int: 42, foo: 'bar')->return(0), 42);
+        Assert::same(trap(...['0' => 'foo', 42 => 90])->return(), 'foo');
+        Assert::null(trap(null)->return());
 
-        self::expectException(\InvalidArgumentException::class);
-        self::assertSame(42, trap(42, 43)->return(10));
+        Expect::exception(\InvalidArgumentException::class);
+        Assert::same(trap(42, 43)->return(10), 42);
     }
 
     public function testReturnSendsDumpOnce(): void
     {
-        $dumper = $this->getMockBuilder(DataDumperInterface::class)
-            ->getMock();
-        $dumper->expects(self::once())
-            ->method('dump')
-            ->willReturnArgument(1);
+        $dumper = \Mockery::mock(DataDumperInterface::class);
+        $dumper->shouldReceive('dump')->once()->andReturnNull();
         Dumper::setDumper($dumper);
 
-        self::assertSame(42, trap(42)->return());
+        Assert::same(trap(42)->return(), 42);
     }
 
-    /**
-     * @dataProvider provideTrapTimes
-     */
+    #[DataProvider('provideTrapTimes')]
     public function testTrapTimes(int $times, array $sequence): void
     {
         foreach ($sequence as $isNull) {
             trap(42)->times($times);
-            self::assertSame($isNull, self::$lastData === null);
+            Assert::same(self::$lastData === null, $isNull);
             self::$lastData = null;
         }
     }

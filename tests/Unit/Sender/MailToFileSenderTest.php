@@ -8,12 +8,15 @@ use Buggregator\Trap\Info;
 use Buggregator\Trap\Proto\Frame\Smtp as SmtpFrame;
 use Buggregator\Trap\Sender\MailToFileSender;
 use Buggregator\Trap\Traffic\Message\Smtp as SmtpMessage;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Lifecycle\AfterTest;
+use Testo\Test;
 
 /**
  * @coversDefaultClass \Buggregator\Trap\Sender\MailToFileSender
  */
-final class MailToFileSenderTest extends TestCase
+#[Test]
+final class MailToFileSenderTest
 {
     /** @var list<non-empty-string> */
     private array $cleanupFolders = [];
@@ -53,6 +56,7 @@ final class MailToFileSenderTest extends TestCase
         $this->assertRecipient("$root/us_er_5@inline.com");
     }
 
+    #[AfterTest]
     protected function tearDown(): void
     {
         foreach ($this->cleanupFolders as $folder) {
@@ -60,17 +64,15 @@ final class MailToFileSenderTest extends TestCase
             \array_map('rmdir', \glob("$folder/*"));
             \rmdir($folder);
         }
+        $this->cleanupFolders = [];
     }
 
     private function assertRecipient(string $folder): void
     {
-        self::assertDirectoryExists($folder);
+        Assert::true(\is_dir($folder));
         $files = \glob(\str_replace('[', '[[]', "$folder/*.json"));
-        self::assertCount(1, $files);
+        Assert::count($files, 1);
         $arr = \json_decode(\file_get_contents($files[0]), true, \JSON_THROW_ON_ERROR);
-        self::assertArrayHasKey('protocol', $arr);
-        self::assertArrayHasKey('headers', $arr);
-        self::assertArrayHasKey('messages', $arr);
-        self::assertArrayHasKey('attachments', $arr);
+        Assert::array($arr)->hasKeys('protocol')->hasKeys('headers')->hasKeys('messages')->hasKeys('attachments');
     }
 }
