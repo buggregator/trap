@@ -44,7 +44,7 @@ final class Trace implements \Stringable
             $delta < 1 => \sprintf('+%.1fms', ($delta * 1000.0)),
             $delta < 10 => \sprintf('+%.2fs', $delta),
             $delta < 60 => \sprintf('+%.1fs', $delta),
-            default => \sprintf('+%dm %ds', (int) $delta % 60, (int) $delta % 60),
+            default => \sprintf('+%dm %ds', \intdiv((int) $delta, 60), (int) $delta % 60),
         };
 
         return \sprintf(
