@@ -171,50 +171,41 @@ final class SpanStoreTest extends TestCase
     }
 
     /**
-     * The index matches a scan of the stored spans after any sequence of adds, replacements,
-     * trims and evictions.
+     * The index matches a scan of the stored spans after random sequences of batched adds,
+     * re-sent spans with another parent or other times, trims, evictions and expirations.
      */
     public function testIndexMatchesStoredSpans(): void
     {
-        \mt_srand(5);
-        $store = $this->store(maxSpans: 60);
-        for ($step = 0; $step < 1500; ++$step) {
-            $trace = ['a', 'b', 'c', 'd'][\mt_rand(0, 3)];
-            $start = \mt_rand(-50, 1000);
-            $store->add(self::timedSpan(
-                $trace,
-                \mt_rand(1, 80),
-                \mt_rand(0, 4) === 0 ? null : \mt_rand(1, 85),
-                $start,
-                $start + \mt_rand(-10, 300),
-            ));
+        for ($seed = 1; $seed <= 40; ++$seed) {
+            \mt_srand($seed);
+            $maxSpans = [1, 2, 3, 10, 25, 60][\mt_rand(0, 5)];
+            $traces = \array_slice(['a', 'b', 'c', 'd', 'e'], 0, \mt_rand(1, 5));
+            $ids = \mt_rand(3, 40);
+            $this->now = 1000.0;
+            $store = $this->store($maxSpans, [0.5, 600.0][\mt_rand(0, 1)]);
 
-            foreach (['a', 'b', 'c', 'd'] as $char) {
-                $traceId = self::traceId($char);
-                $spans = $store->getTrace($traceId);
-                self::assertSame(\count($spans), $store->countTraceSpans($traceId));
-                if ($spans === []) {
-                    self::assertNull($store->getTraceBounds($traceId));
-                    continue;
+            for ($step = 0; $step < 100; ++$step) {
+                $this->now += \mt_rand(0, 2) * 0.3;
+                $batch = [];
+                for ($i = \mt_rand(1, 6); $i > 0; --$i) {
+                    $id = \mt_rand(1, $ids);
+                    $start = \mt_rand(-50, 1000);
+                    $batch[] = self::timedSpan(
+                        $traces[\mt_rand(0, \count($traces) - 1)],
+                        $id,
+                        match (\mt_rand(0, 5)) {
+                            0 => null,
+                            1 => $id,
+                            2 => $ids + \mt_rand(1, 3),
+                            default => \mt_rand(1, $ids),
+                        },
+                        $start,
+                        $start + \mt_rand(-10, 300),
+                    );
                 }
+                $store->add(...$batch);
 
-                self::assertSame(
-                    [
-                        \min(\array_map(static fn(Span $span): int => $span->startTimeUnixNano, $spans)),
-                        \max(\array_map(static fn(Span $span): int => $span->endTimeUnixNano, $spans)),
-                    ],
-                    $store->getTraceBounds($traceId),
-                );
-                $expected = $actual = [];
-                foreach ($spans as $span) {
-                    $span->parentSpanId === null or $expected[$span->parentSpanId][] = $span;
-                }
-                for ($id = 1; $id <= 85; ++$id) {
-                    $children = $store->getChildren($traceId, $spanId = \sprintf('%016x', $id));
-                    $children === [] or $actual[$spanId] = $children;
-                }
-                \ksort($expected);
-                self::assertSame($expected, $actual);
+                $this->assertIndexMatches($store, $traces, $ids + 3, "seed $seed, step $step");
             }
         }
         \mt_srand();
@@ -269,6 +260,63 @@ final class SpanStoreTest extends TestCase
     private static function spanId(string $char): string
     {
         return \str_repeat($char, 16);
+    }
+
+    /**
+     * @param list<string> $traces Trace ID chars.
+     * @param int<1, max> $maxId Span IDs to look up children for: 1..$maxId.
+     */
+    private function assertIndexMatches(SpanStore $store, array $traces, int $maxId, string $case): void
+    {
+        $stored = [];
+        foreach ($traces as $char) {
+            $traceId = self::traceId($char);
+            $spans = $store->getTrace($traceId);
+            self::assertSame(\count($spans), $store->countTraceSpans($traceId), $case);
+            if ($spans === []) {
+                self::assertNull($store->getTraceBounds($traceId), $case);
+                continue;
+            }
+
+            $stored[$traceId] = true;
+            self::assertSame(
+                [
+                    \min(\array_map(static fn(Span $span): int => $span->startTimeUnixNano, $spans)),
+                    \max(\array_map(static fn(Span $span): int => $span->endTimeUnixNano, $spans)),
+                ],
+                $store->getTraceBounds($traceId),
+                $case,
+            );
+
+            $expected = $actual = [];
+            foreach ($spans as $span) {
+                $span->parentSpanId === null or $expected[$span->parentSpanId][] = $span;
+            }
+            for ($id = 1; $id <= $maxId; ++$id) {
+                $children = $store->getChildren($traceId, $spanId = \sprintf('%016x', $id));
+                $children === [] or $actual[$spanId] = $children;
+            }
+            \ksort($expected);
+            self::assertSame($expected, $actual, $case);
+        }
+
+        // Nothing is left in the index for dropped traces and spans, and no list stays empty.
+        $children = (new \ReflectionProperty(SpanStore::class, 'children'))->getValue($store);
+        $bounds = (new \ReflectionProperty(SpanStore::class, 'bounds'))->getValue($store);
+        self::assertSame([], \array_diff_key($children, $stored), $case);
+        self::assertSame([], \array_diff_key($bounds, $stored), $case);
+        foreach ($children as $traceId => $parents) {
+            foreach ($parents as $parentId => $list) {
+                self::assertNotSame([], $list, $case);
+                foreach ($list as $childId => $_) {
+                    self::assertSame(
+                        (string) $parentId,
+                        $store->get((string) $traceId, (string) $childId)?->parentSpanId,
+                        $case,
+                    );
+                }
+            }
+        }
     }
 
     private function store(int $maxSpans = 100, float $ttl = 600.0): SpanStore
