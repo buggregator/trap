@@ -353,21 +353,62 @@ final class JsonTracesDecoder implements TracesDecoder
         // Beyond the int64 range a value becomes an infinite float, so the range checks below see it.
         $number = match (true) {
             \is_int($value) => $value,
-            \is_string($value) && \preg_match('/^(-?)0*(\d++)$/', $value, $match) === 1
-                => self::parseDigits($match[1] === '-', $match[2]),
+            \is_string($value) => self::parseIntegerString($value),
             \is_float($value) && \is_finite($value) && \floor($value) === $value => match (true) {
                 $value >= 9_223_372_036_854_775_808.0 => \INF,
                 $value < -9_223_372_036_854_775_808.0 => -\INF,
                 default => (int) $value,
             },
-            default => throw new \InvalidArgumentException(\sprintf('`%s` must be an integer.', $key)),
-        };
+            default => null,
+        } ?? throw new \InvalidArgumentException(\sprintf('`%s` must be an integer.', $key));
 
         if ($number < $min || ($number > $max && !$clamp)) {
             throw new \InvalidArgumentException(\sprintf('`%s` is out of range.', $key));
         }
 
         return $number > $max ? $max : (int) $number;
+    }
+
+    /**
+     * Parses an integer string of proto3 JSON, which may use a fraction and an exponent, like `1.5e3`,
+     * as long as the value is whole. Parsed as digits, not as a float, to keep all 64 bits.
+     *
+     * @return int|float|null An infinite float beyond the int64 range; null when the string is not
+     *         a whole number.
+     */
+    private static function parseIntegerString(string $value): int|float|null
+    {
+        if (\preg_match('/^(-?)(\d++)(?:\.(\d++))?(?:[eE]([+-]?)(\d++))?$/', $value, $match) !== 1) {
+            return null;
+        }
+
+        $negative = $match[1] === '-';
+        $fraction = $match[3] ?? '';
+        $digits = \ltrim($match[2] . $fraction, '0');
+        if ($digits === '') {
+            return 0;
+        }
+
+        $exponent = \ltrim($match[5] ?? '', '0');
+        if (\strlen($exponent) > 4) {
+            // A non-zero number with such an exponent is either far beyond int64 or a fraction.
+            return ($match[4] ?? '') === '-' ? null : ($negative ? -\INF : \INF);
+        }
+
+        $shift = (int) $exponent * (($match[4] ?? '') === '-' ? -1 : 1) - \strlen($fraction);
+        if ($shift < 0) {
+            if (-$shift >= \strlen($digits) || \trim(\substr($digits, $shift), '0') !== '') {
+                return null;
+            }
+            $digits = \substr($digits, 0, $shift);
+        } elseif ($shift > 0) {
+            if (\strlen($digits) + $shift > 19) {
+                return $negative ? -\INF : \INF;
+            }
+            $digits .= \str_repeat('0', $shift);
+        }
+
+        return self::parseDigits($negative, $digits);
     }
 
     /**

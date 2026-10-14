@@ -51,6 +51,14 @@ final class JsonTracesDecoderTest extends TestCase
         yield 'intValue below int64' => [
             self::request([self::span(['attributes' => [['key' => 'k', 'value' => ['intValue' => -1e19]]]])]),
         ];
+        foreach (['1.5', '1e-1', '15e-1', '0.50', '1e', 'e3', '1.e3', '+1', '1e99999', '1e-99999'] as $int) {
+            yield "intValue string $int" => [
+                self::request([self::span(['attributes' => [['key' => 'k', 'value' => ['intValue' => $int]]]])]),
+            ];
+        }
+        yield 'intValue string above int64 with exponent' => [
+            self::request([self::span(['attributes' => [['key' => 'k', 'value' => ['intValue' => '9.3e18']]]])]),
+        ];
         yield 'negative flags' => [self::request([self::span(['flags' => -1])])];
         yield 'flags above uint32' => [self::request([self::span(['flags' => 4294967296])])];
         yield 'negative dropped count' => [self::request([self::span(['droppedEventsCount' => '-3'])])];
@@ -122,6 +130,32 @@ final class JsonTracesDecoderTest extends TestCase
             ['min' => \PHP_INT_MIN, 'max' => \PHP_INT_MAX, 'zeros' => -7],
             $this->singleSpan($frame->resourceSpans[0]->scopeSpans[0]->spans)->attributes,
         );
+    }
+
+    public function testAcceptsWholeNumberStringsWithExponent(): void
+    {
+        $values = [
+            '1e3' => 1000,
+            '1.5e3' => 1500,
+            '-2E+2' => -200,
+            '1500e-1' => 150,
+            '5.0' => 5,
+            '0e99999' => 0,
+            '-0.0' => 0,
+            '9.223372036854775807e18' => \PHP_INT_MAX,
+            '-9223372036854775808e0' => \PHP_INT_MIN,
+        ];
+        $attributes = [];
+        foreach ($values as $int => $_) {
+            $attributes[] = ['key' => (string) $int, 'value' => ['intValue' => (string) $int]];
+        }
+        $payload = self::request([self::span(['attributes' => $attributes, 'startTimeUnixNano' => '1.7e18'])]);
+
+        $span = $this->singleSpan((new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable())
+            ->resourceSpans[0]->scopeSpans[0]->spans);
+
+        self::assertSame($values, $span->attributes);
+        self::assertSame(1_700_000_000_000_000_000, $span->startTimeUnixNano);
     }
 
     public function testDecodesSpanFields(): void
