@@ -53,15 +53,16 @@ final class EnvelopeParserTest
         Assert::same($envelope->items[1]->payload, ['a' => 'sized']);
     }
 
-    #[Skip('Bug #231: the newline after a payload with explicit length is read as the next item header, so parsing stops')]
-    public function testContinuesAfterItemWithLength(): void
+    #[DataSet(["{\"type\":\"event\",\"length\":13}\n{\"a\":\"sized\"}\n"], 'text item')]
+    #[DataSet(["{\"type\":\"attachment\",\"length\":5}\nab\ncd\n"], 'attachment')]
+    #[DataSet(["{\"type\":\"attachment\",\"length\":0}\n\n"], 'zero length attachment')]
+    public function testContinuesAfterItemWithLength(string $sizedItem): void
     {
-        $stream = Stream::create(self::HEADER . "\n{\"type\":\"event\",\"length\":13}\n{\"a\":\"sized\"}\n" . self::EVENT);
+        $stream = Stream::create(self::HEADER . "\n" . $sizedItem . self::EVENT);
 
         $envelope = EnvelopeParser::parse($stream);
 
         Assert::count($envelope->items, 2);
-        Assert::same($envelope->items[0]->payload, ['a' => 'sized']);
         Assert::same($envelope->items[1]->payload, ['message' => 'ok']);
     }
 

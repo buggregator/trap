@@ -63,15 +63,32 @@ final class EnvelopeParser
             // Store attachments as a file stream
             $type === 'attachment' => $length === null
                 ? StreamHelper::createFileStream()->write(self::readLine($stream))
-                : StreamHelper::createFileStream()->write(self::readBytes($stream, $length)),
+                : StreamHelper::createFileStream()->write(self::readPayload($stream, $length)),
 
             // Text items
             default => $length === null
                 ? \json_decode(self::readLine($stream), true, 512, JSON_THROW_ON_ERROR)
-                : \json_decode(self::readBytes($stream, $length), true, 512, JSON_THROW_ON_ERROR),
+                : \json_decode(self::readPayload($stream, $length), true, 512, JSON_THROW_ON_ERROR),
         };
 
         return new EnvelopeItem($itemHeader, $itemPayload);
+    }
+
+    /**
+     * Reads a payload of known length together with the newline that follows it.
+     *
+     * @param int<0, max> $length
+     * @throws \Throwable
+     */
+    private static function readPayload(StreamInterface $stream, int $length): string
+    {
+        $payload = self::readBytes($stream, $length);
+
+        // The newline after a payload may be omitted at the end of the envelope.
+        $next = $stream->read(1);
+        $next === '' || $next === "\n" or $stream->seek(-1, \SEEK_CUR);
+
+        return $payload;
     }
 
     /**
