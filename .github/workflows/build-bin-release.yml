@@ -7,6 +7,10 @@ on: # yamllint disable-line rule:truthy
     types:
       - published
 
+# Release assets are uploaded with TRAP_RELEASE_TOKEN.
+permissions:
+  contents: read
+
 jobs:
   build-unix:
     runs-on: ubuntu-latest
@@ -22,15 +26,17 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
         with:
           platforms: arm64,amd64
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Extract version from tag
         id: get_version
@@ -46,7 +52,7 @@ jobs:
           echo "{\"version\": \"$VERSION\", \"type\":\"bin\"}" > version.json
 
       - name: Build Docker image for ${{ matrix.platform.os }}-${{ matrix.platform.arch }}
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: false
@@ -89,6 +95,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Set up PHP
@@ -183,6 +190,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Set up PHP
@@ -284,7 +292,9 @@ jobs:
     name: 📦 Build Windows (x64)
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2

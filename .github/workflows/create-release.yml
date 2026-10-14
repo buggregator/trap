@@ -11,12 +11,16 @@ on:  # yamllint disable-line rule:truthy
 
 name: 📦 Create release
 
+# release-please authenticates with TRAP_RELEASE_TOKEN, so GITHUB_TOKEN needs no write access.
+permissions:
+  contents: read
+
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
       - name: 🎉 Create release
-        uses: googleapis/release-please-action@v4.1.1
+        uses: googleapis/release-please-action@v4
         id: release
         with:
           token: ${{ secrets.TRAP_RELEASE_TOKEN }}
