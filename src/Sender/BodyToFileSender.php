@@ -28,9 +28,6 @@ class BodyToFileSender implements Sender
         FileSystem::mkdir($path);
     }
 
-    /**
-     * @psalm-suppress PossiblyFalseArgument Bug #241: the file descriptor is used before the fopen() failure check
-     */
     #[\Override]
     public function send(iterable $frames): void
     {
@@ -56,9 +53,9 @@ class BodyToFileSender implements Sender
             // Create file descriptor
             $fName = \sprintf($fileName, $i);
             $fd = \fopen("{$this->path}/{$fName}", 'wb');
+            $fd === false and throw new \RuntimeException(\sprintf('File "%s" was not created', $fName));
             try {
                 $toStream = new Stream($fd);
-                $fd === false and throw new \RuntimeException(\sprintf('File "%s" was not created', $fName));
                 \flock($fd, \LOCK_EX);
                 StreamHelper::writeStream($stream, $toStream, $size);
             } finally {
