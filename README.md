@@ -9,10 +9,17 @@
 
 <div align="center">
 
+[![Documentation](https://img.shields.io/badge/Documentation-blue?style=for-the-badge&logo=gitbook&logoColor=white)](https://docs.buggregator.dev/trap/what-is-trap.html)
+[![Sponsor](https://img.shields.io/static/v1?style=for-the-badge&label=&message=Sponsor&logo=patreon&logoColor=white&color=%23EA4AAA)](https://patreon.com/roxblnfk)
+
+[![Psalm Level](https://shepherd.dev/github/buggregator/trap/level.svg)](https://shepherd.dev/github/buggregator/trap)
+[![Type Coverage](https://shepherd.dev/github/buggregator/trap/coverage.svg)](https://shepherd.dev/github/buggregator/trap)
+[![Codecov](https://img.shields.io/codecov/c/github/buggregator/trap/master?style=flat&logo=codecov)](https://codecov.io/gh/buggregator/trap)
+[![Mutation testing badge](https://img.shields.io/endpoint?style=flat&url=https%3A%2F%2Fbadge-api.stryker-mutator.io%2Fgithub.com%2Fbuggregator%2Ftrap%2Fmaster)](https://dashboard.stryker-mutator.io/reports/github.com/buggregator/trap/master)
+
 [![Awesome PHP](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/ziadoz/awesome-php#debugging-and-profiling)
 [![Twitter](https://img.shields.io/badge/-Follow-black?style=flat-square&logo=X)](https://twitter.com/buggregator)
 [![Discord](https://img.shields.io/static/v1?style=flat-square&label=Join&message=Discord&logo=Discord&color=%235865F2)](https://discord.gg/qF3HpXhMEP)
-[![Support](https://img.shields.io/static/v1?style=flat-square&label=Support&message=%E2%9D%A4&logo=GitHub&color=%23fe0086)](https://patreon.com/roxblnfk)
 
 </div>
 
@@ -33,7 +40,6 @@ Trap includes:
 - [Overview](#overview)
 - [Usage](#usage)
 - [Contributing](#contributing)
-- [License](#license)
 
 ## Installation
 
@@ -47,7 +53,7 @@ composer require --dev buggregator/trap -W
 [![PHP](https://img.shields.io/packagist/php-v/buggregator/trap.svg?style=flat-square&logo=php)](https://packagist.org/packages/buggregator/trap)
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/buggregator/trap.svg?style=flat-square&logo=packagist)](https://packagist.org/packages/buggregator/trap)
 [![License](https://img.shields.io/packagist/l/buggregator/trap.svg?style=flat-square)](LICENSE.md)
-[![Total Downloads](https://img.shields.io/packagist/dt/buggregator/trap.svg?style=flat-square)](https://packagist.org/packages/buggregator/trap)
+[![Total Downloads](https://img.shields.io/packagist/dt/buggregator/trap.svg?style=flat-square)](https://packagist.org/packages/buggregator/trap/stats)
 
 And that's it. Trap is [ready to go](#usage).
 
@@ -308,25 +314,3 @@ We believe in the power of community-driven development. Here's how you can cont
   - If you use Buggregator in a commercial setting, consider [becoming a sponsor](https://patreon.com/roxblnfk) to help us maintain and improve the project.
   - You also can promote a specific feature or bug fix.
     We mark sponsored tasks with the honorary label [`SPONSORED`](https://github.com/buggregator/trap/issues?q=label%3ASPONSORED).
-
-## License
-
-Buggregator Trap is open-sourced software licensed under the BSD-3 license.
-
-<!--
-
-[![Contributors](https://contrib.rocks/image?repo=buggregator/trap)](https://github.com/buggregator/trap/graphs/contributors)
-
-Quality badges:
-
-[![Tests Status](https://img.shields.io/github/actions/workflow/status/buggregator/trap/testing.yml?label=tests&style=flat-square)](https://github.com/buggregator/trap/actions/workflows/testing.yml?query=workflow%3Atesting%3Amaster)
-[![Dependency status](https://php.package.health/packages/buggregator/trap/dev-master/status.svg)](https://php.package.health/packages/buggregator/trap/dev-master)
-
-# (tests coverage)
-# (types coverage)
-# (psalm level)
-# (static analysis)
-# (mutation)
-# (scrutinizer score)
-# (code style)
--->
