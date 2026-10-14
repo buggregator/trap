@@ -231,6 +231,10 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
 OTEL_EXPORTER_OTLP_PROTOCOL=http/json
 ```
 
+Logs and metrics are not supported yet: Trap answers `/v1/logs` and `/v1/metrics` with success and drops them.
+To send only traces, set `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4318/v1/traces` instead of the
+common endpoint, or turn the other signals off with `OTEL_LOGS_EXPORTER=none` and `OTEL_METRICS_EXPORTER=none`.
+
 The `http/protobuf` protocol needs the suggested packages:
 
 ```bash

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Handler\Http\Middleware;
 
+use Buggregator\Trap\Handler\Http\Handler\Fallback;
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\ProtobufTracesDecoder;
@@ -21,7 +22,10 @@ use Psr\Http\Message\StreamInterface;
  *
  * JSON is always decoded. Protobuf is decoded when the suggested protobuf packages are installed,
  * see {@see ProtobufTracesDecoder}; otherwise it gets 415 like any other content type.
- * Logs and metrics (`/v1/logs`, `/v1/metrics`) are passed to the next middleware.
+ * Logs and metrics (`/v1/logs`, `/v1/metrics`) are not supported: they are answered with success and dropped,
+ * so an exporter that sends every signal to Trap does not report errors.
+ *
+ * Responses to OTLP requests that produce no frame, rejected ones included, are not dumped as HTTP requests.
  *
  * @internal
  * @psalm-internal Buggregator\Trap
@@ -30,6 +34,10 @@ final class OtlpTrap implements Middleware
 {
     private const MAX_BODY_SIZE = 10 * 1024 * 1024;
     private const TRACES_PATH = '/v1/traces';
+    private const UNSUPPORTED_SIGNALS = [
+        '/v1/logs' => 'logs',
+        '/v1/metrics' => 'metrics',
+    ];
 
     // google.rpc.Code values for the error body
     private const RPC_INVALID_ARGUMENT = 3;
@@ -40,6 +48,9 @@ final class OtlpTrap implements Middleware
     private readonly array $tracesDecoders;
 
     private bool $protobufReported = false;
+
+    /** @var array<string, true> Unsupported signals already reported in the log */
+    private array $reportedSignals = [];
 
     /**
      * @param array<non-empty-lowercase-string, TracesDecoder>|null $tracesDecoders Media type => decoder.
@@ -62,10 +73,19 @@ final class OtlpTrap implements Middleware
     #[\Override]
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
-        if ($request->getMethod() === 'POST'
-            && \str_ends_with(\rtrim($request->getUri()->getPath(), '/'), self::TRACES_PATH)
-        ) {
+        if ($request->getMethod() !== 'POST') {
+            return $next($request);
+        }
+
+        $path = \rtrim($request->getUri()->getPath(), '/');
+        if (\str_ends_with($path, self::TRACES_PATH)) {
             return $this->processTraces($request);
+        }
+
+        foreach (self::UNSUPPORTED_SIGNALS as $suffix => $signal) {
+            if (\str_ends_with($path, $suffix)) {
+                return $this->dropSignal($request, $signal);
+            }
         }
 
         return $next($request);
@@ -114,14 +134,38 @@ final class OtlpTrap implements Middleware
     {
         return new Response(
             $status,
-            ['Content-Type' => 'application/json'],
+            ['Content-Type' => 'application/json', Fallback::NO_DUMP_HEADER => '1'],
             Json::encode(['code' => $code, 'message' => $message]),
         );
     }
 
+    private static function mediaType(ServerRequestInterface $request): string
+    {
+        return \strtolower(\trim(\explode(';', $request->getHeaderLine('Content-Type'), 2)[0]));
+    }
+
+    /**
+     * Answers with an empty export response of the request encoding, as for a successful export.
+     */
+    private function dropSignal(ServerRequestInterface $request, string $signal): ResponseInterface
+    {
+        if (!isset($this->reportedSignals[$signal])) {
+            $this->reportedSignals[$signal] = true;
+            $this->logger?->print(\sprintf(
+                'OTLP: %1$s are not supported yet and are dropped; set OTEL_%2$s_EXPORTER=none to stop sending them.',
+                $signal,
+                \strtoupper($signal),
+            ));
+        }
+
+        return self::mediaType($request) === ProtobufTracesDecoder::CONTENT_TYPE
+            ? new Response(200, ['Content-Type' => ProtobufTracesDecoder::CONTENT_TYPE, Fallback::NO_DUMP_HEADER => '1'])
+            : new Response(200, ['Content-Type' => 'application/json', Fallback::NO_DUMP_HEADER => '1'], '{}');
+    }
+
     private function processTraces(ServerRequestInterface $request): ResponseInterface
     {
-        $mediaType = \strtolower(\trim(\explode(';', $request->getHeaderLine('Content-Type'), 2)[0]));
+        $mediaType = self::mediaType($request);
         $decoder = $this->tracesDecoders[$mediaType] ?? null;
         if ($decoder === null) {
             return $this->rejectContentType($mediaType);

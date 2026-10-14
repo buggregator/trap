@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Handler\Http\Middleware;
 
+use Buggregator\Trap\Handler\Http\Handler\Fallback;
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap;
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\ProtobufTracesDecoder;
@@ -29,10 +30,24 @@ final class OtlpTrapTest extends TestCase
 
     public static function providePassedThroughRequests(): \Generator
     {
-        yield 'logs signal' => ['POST', '/v1/logs'];
-        yield 'metrics signal' => ['POST', '/v1/metrics'];
         yield 'GET traces' => ['GET', '/v1/traces'];
+        yield 'GET logs' => ['GET', '/v1/logs'];
         yield 'other path' => ['POST', '/api/traces'];
+    }
+
+    public static function provideDroppedSignals(): \Generator
+    {
+        yield 'logs, JSON' => ['/v1/logs', 'application/json', '{}', 'logs'];
+        yield 'metrics, JSON' => ['/v1/metrics/', 'application/json', '{}', 'metrics'];
+        yield 'logs, protobuf' => ['/otlp/v1/logs', 'application/x-protobuf', '', 'logs'];
+        yield 'metrics, protobuf' => ['/v1/metrics', 'application/x-protobuf', '', 'metrics'];
+    }
+
+    public static function provideRejectedRequests(): \Generator
+    {
+        yield 'malformed JSON' => ['application/json', '{"resourceSpans": [', 400];
+        yield 'unsupported content type' => ['text/plain', '{}', 415];
+        yield 'too large' => ['application/json', \gzencode(\str_repeat(' ', 11 * 1024 * 1024)), 413];
     }
 
     public static function provideTracesPaths(): \Generator
@@ -40,6 +55,37 @@ final class OtlpTrapTest extends TestCase
         yield 'default path' => ['/v1/traces'];
         yield 'trailing slash' => ['/v1/traces/'];
         yield 'path prefix' => ['http://127.0.0.1:9912/otlp/v1/traces'];
+    }
+
+    #[DataProvider('provideDroppedSignals')]
+    public function testDropsUnsupportedSignalsWithSuccess(
+        string $uri,
+        string $contentType,
+        string $body,
+        string $signal,
+    ): void {
+        $output = new BufferedOutput();
+        $middleware = new OtlpTrap(new Logger($output));
+        $request = $this->request(uri: $uri, body: 'payload', contentType: $contentType);
+
+        [$response, $frames] = $this->handleInFiber($request, $middleware);
+        $this->handleInFiber($request, $middleware);
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame($contentType, $response->getHeaderLine('Content-Type'));
+        self::assertSame($body, (string) $response->getBody());
+        self::assertTrue($response->hasHeader(Fallback::NO_DUMP_HEADER));
+        self::assertSame([], $frames);
+        self::assertSame(1, \substr_count($output->fetch(), "OTLP: $signal are not supported yet"));
+    }
+
+    #[DataProvider('provideRejectedRequests')]
+    public function testRejectedRequestsAreNotDumped(string $contentType, string $body, int $status): void
+    {
+        [$response] = $this->handleInFiber($this->request(body: $body, contentType: $contentType));
+
+        self::assertSame($status, $response->getStatusCode());
+        self::assertTrue($response->hasHeader(Fallback::NO_DUMP_HEADER));
     }
 
     #[DataProvider('providePassedThroughRequests')]
