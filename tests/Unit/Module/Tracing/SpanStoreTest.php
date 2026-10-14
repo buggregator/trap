@@ -170,6 +170,21 @@ final class SpanStoreTest extends TestCase
         self::assertSame([10, 20], $store->getTraceBounds(self::traceId('a')));
     }
 
+    public function testResentSpanCoveringItsOldTimeKeepsCachedBounds(): void
+    {
+        $store = $this->store();
+        $traceId = self::traceId('a');
+        $cached = static fn(): mixed => (new \ReflectionProperty(SpanStore::class, 'bounds'))->getValue($store)[$traceId];
+        $store->add(self::timedSpan('a', 1, null, 0, 100), self::timedSpan('a', 2, 1, 10, 20));
+
+        $store->add(self::timedSpan('a', 1, null, 0, 120));
+        self::assertSame([0, 120], $cached());
+
+        $store->add(self::timedSpan('a', 1, null, 5, 120));
+        self::assertNull($cached());
+        self::assertSame([5, 120], $store->getTraceBounds($traceId));
+    }
+
     /**
      * The index matches a scan of the stored spans after random sequences of batched adds,
      * re-sent spans with another parent or other times, trims, evictions and expirations.

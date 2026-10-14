@@ -87,7 +87,7 @@ final class SpanStore
             $old = $trace[$span->spanId] ?? null;
             if ($old !== null) {
                 unset($trace[$span->spanId]);
-                $this->unindex($old);
+                $this->unindex($old, $span);
             } else {
                 ++$this->spanCount;
             }
@@ -134,10 +134,12 @@ final class SpanStore
     public function getTraceBounds(string $traceId): ?array
     {
         $trace = $this->traces[$traceId] ?? [];
+        // An empty ID is never stored; the check tells Psalm the key is a non-empty string.
         if ($trace === [] || $traceId === '') {
             return null;
         }
 
+        // Bounds dropped by a replaced span are recomputed here once and cached again.
         return $this->bounds[$traceId] ??= self::computeBounds($trace);
     }
 
@@ -240,29 +242,34 @@ final class SpanStore
         $span->parentSpanId === null
             or $this->children[$span->traceId][$span->parentSpanId][$span->spanId] = true;
 
-        $bounds = $only ? [$span->startTimeUnixNano, $span->endTimeUnixNano] : $this->bounds[$span->traceId] ?? null;
-        $this->bounds[$span->traceId] = $bounds === null ? null : [
-            \min($bounds[0], $span->startTimeUnixNano),
-            \max($bounds[1], $span->endTimeUnixNano),
-        ];
+        $cached = $this->bounds[$span->traceId] ?? null;
+        $this->bounds[$span->traceId] = match (true) {
+            $only => [$span->startTimeUnixNano, $span->endTimeUnixNano],
+            $cached === null => null,
+            default => [\min($cached[0], $span->startTimeUnixNano), \max($cached[1], $span->endTimeUnixNano)],
+        };
     }
 
     /**
-     * Removes a span that is being replaced.
+     * Removes a span that is being replaced by `$new`.
      */
-    private function unindex(Span $span): void
+    private function unindex(Span $old, Span $new): void
     {
-        $parentId = $span->parentSpanId;
+        $parentId = $old->parentSpanId;
         if ($parentId !== null) {
-            unset($this->children[$span->traceId][$parentId][$span->spanId]);
-            if (($this->children[$span->traceId][$parentId] ?? null) === []) {
-                unset($this->children[$span->traceId][$parentId]);
+            unset($this->children[$old->traceId][$parentId][$old->spanId]);
+            if (($this->children[$old->traceId][$parentId] ?? null) === []) {
+                unset($this->children[$old->traceId][$parentId]);
             }
         }
 
-        $bounds = $this->bounds[$span->traceId] ?? null;
-        if ($bounds !== null && ($span->startTimeUnixNano <= $bounds[0] || $span->endTimeUnixNano >= $bounds[1])) {
-            $this->bounds[$span->traceId] = null;
-        }
+        // The bounds stay valid when the old span did not define them or the new one covers its time;
+        // otherwise they are recomputed on the next read.
+        $bounds = $this->bounds[$old->traceId] ?? null;
+        $defined = $bounds !== null
+            && ($old->startTimeUnixNano <= $bounds[0] || $old->endTimeUnixNano >= $bounds[1]);
+        $covered = $new->startTimeUnixNano <= $old->startTimeUnixNano
+            && $new->endTimeUnixNano >= $old->endTimeUnixNano;
+        $defined && !$covered and $this->bounds[$old->traceId] = null;
     }
 }
