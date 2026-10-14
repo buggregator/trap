@@ -77,14 +77,15 @@ final class OtlpTraces implements Renderer
         /** @var array<non-empty-string, non-empty-array<non-empty-string, Span>> $traces */
         $traces = [];
         foreach ($frame->iterateSpans() as [, $scopeSpans, $span]) {
-            $scopeSpans->scopeName === '' or $scopes[] = \trim("$scopeSpans->scopeName $scopeSpans->scopeVersion");
+            $scopeSpans->scopeName === ''
+                or $scopes[] = self::text(\trim("$scopeSpans->scopeName $scopeSpans->scopeVersion"));
             $traces[$span->traceId][$span->spanId] = $span;
             $this->store->add($span);
         }
 
         Common::renderMetadata($output, \array_filter([
             'Time' => $frame->time,
-            'Service' => \implode(', ', $services),
+            'Service' => self::text(\implode(', ', $services)),
             'Scope' => \implode(', ', \array_unique($scopes)),
         ], static fn(mixed $value): bool => $value !== ''));
 
@@ -92,7 +93,7 @@ final class OtlpTraces implements Renderer
         foreach ($output->isVerbose() ? $frame->resourceSpans : [] as $resource) {
             $tags = [];
             foreach ($resource->resourceAttributes as $key => $value) {
-                $tags[(string) $key] = self::formatValue($value, quoteString: false);
+                $tags[self::text((string) $key)] = self::text(self::formatValue($value, quoteString: false));
             }
             if ($tags !== []) {
                 $output->writeln('');
@@ -105,6 +106,23 @@ final class OtlpTraces implements Renderer
             // Not the array key: PHP turns an all-digit hex ID into an int key.
             $this->renderTrace($output, \reset($spans)->traceId, $spans);
         }
+    }
+
+    /**
+     * Escapes received text for the console: Symfony markup like `<fg=foo>` would be parsed and may throw,
+     * and control characters such as ANSI escape sequences would reach the terminal.
+     */
+    private static function text(string $value): string
+    {
+        $value = (string) \preg_replace_callback(
+            '/[\x00-\x08\x0A-\x1F\x7F]|\xC2[\x80-\x9F]/',
+            static fn(array $match): string => \strlen($match[0]) === 1
+                ? \sprintf('\x%02X', \ord($match[0]))
+                : \sprintf('\u{%04X}', \ord($match[0][1])),
+            $value,
+        );
+
+        return OutputFormatter::escape($value);
     }
 
     private static function formatValue(mixed $value, bool $quoteString = true): string
@@ -344,7 +362,7 @@ final class OtlpTraces implements Renderer
     {
         return \sprintf(
             '<fg=gray>%s %s %s id:%s%s%s</>',
-            OutputFormatter::escape($span->name),
+            self::text($span->name),
             \strtoupper($span->kind->name),
             self::formatDuration($span->getDuration()),
             $span->spanId,
@@ -356,7 +374,7 @@ final class OtlpTraces implements Renderer
     private function formatSpanHeader(Span $span, int $traceStart, bool $isRoot): string
     {
         $parts = [
-            \sprintf('<options=bold>%s</>', OutputFormatter::escape($span->name)),
+            \sprintf('<options=bold>%s</>', self::text($span->name)),
             \sprintf('<fg=cyan>%s</>', \strtoupper($span->kind->name)),
             \sprintf('<fg=yellow>%s</>', self::formatDuration($span->getDuration())),
         ];
@@ -365,7 +383,7 @@ final class OtlpTraces implements Renderer
             ? '<fg=green>OK</>'
             : \sprintf(
                 '<fg=red;options=bold>ERROR%s</>',
-                $span->status->message === '' ? '' : ': ' . OutputFormatter::escape($span->status->message),
+                $span->status->message === '' ? '' : ': ' . self::text($span->status->message),
             );
 
         $offset = Span::elapsed($traceStart, $span->startTimeUnixNano);
@@ -388,8 +406,8 @@ final class OtlpTraces implements Renderer
         foreach ($span->attributes as $key => $value) {
             $lines[] = \sprintf(
                 '<fg=gray>%s:</> %s',
-                OutputFormatter::escape((string) $key),
-                OutputFormatter::escape(self::formatValue($value)),
+                self::text((string) $key),
+                self::text(self::formatValue($value)),
             );
         }
 
@@ -401,9 +419,9 @@ final class OtlpTraces implements Renderer
 
             $lines[] = \sprintf(
                 '<fg=magenta>• %s</> <fg=gray>+%s</> %s',
-                OutputFormatter::escape($event->name),
+                self::text($event->name),
                 self::formatDuration(Span::elapsed($span->startTimeUnixNano, $event->timeUnixNano)),
-                OutputFormatter::escape(\implode(' ', $attributes)),
+                self::text(\implode(' ', $attributes)),
             );
         }
 

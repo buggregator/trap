@@ -66,6 +66,36 @@ final class OtlpTracesTest extends TestCase
         self::assertStringContainsString('telemetry.sdk.language: php', $output);
     }
 
+    public function testEscapesMarkupAndControlCharactersOfReceivedText(): void
+    {
+        $span = new Span(
+            traceId: '5b8efff798038103d269b633813fc60c',
+            spanId: 'eee19b7ec3c1b174',
+            parentSpanId: null,
+            name: "<fg=foo>span</>\e[31m",
+            kind: SpanKind::Internal,
+            startTimeUnixNano: 1,
+            endTimeUnixNano: 2,
+            attributes: ['<fg=bar>key</>' => "red\e[31m"],
+        );
+        $frame = new OtlpTracesFrame([new ResourceSpans(
+            [new ScopeSpans([$span], scopeName: '<fg=foo>scope</>', scopeVersion: '<bg=foo>1</>')],
+            resourceAttributes: [
+                'service.name' => "<fg=foo>svc</>\e]0;title\x07",
+                '<fg=foo>k</>' => "<fg=foo>v</>\u{9B}31m",
+            ],
+        )]);
+
+        $output = $this->render($frame, OutputInterface::VERBOSITY_VERBOSE);
+
+        self::assertStringContainsString('Service: <fg=foo>svc</>\x1B]0;title\x07', $output);
+        self::assertStringContainsString('Scope: <fg=foo>scope</> <bg=foo>1</>', $output);
+        self::assertStringContainsString('<fg=foo>k</>: <fg=foo>v</>\u{009B}31m', $output);
+        self::assertStringContainsString('<fg=foo>span</>\x1B[31m', $output);
+        self::assertStringContainsString('<fg=bar>key</>: "red\u001b[31m"', $output);
+        self::assertStringNotContainsString("\e", $output);
+    }
+
     public function testRendersSpanWithMissingParentAsRoot(): void
     {
         $frame = new OtlpTracesFrame([new ResourceSpans([new ScopeSpans([
