@@ -30,7 +30,6 @@ final class ProtobufTracesDecoder implements TracesDecoder
     private const FIELD_RESOURCE_SPANS = 1;
     private const FIELD_SCOPE_SPANS = 2;
     private const FIELD_SPANS = 2;
-
     private const WIRE_VARINT = 0;
     private const WIRE_FIXED64 = 1;
     private const WIRE_LEN = 2;
@@ -43,6 +42,31 @@ final class ProtobufTracesDecoder implements TracesDecoder
     public static function isAvailable(): bool
     {
         return \class_exists(ExportTraceServiceRequest::class);
+    }
+
+    #[\Override]
+    public function decode(string $payload, \DateTimeImmutable $time): OtlpTraces
+    {
+        $limit = $this->jsonDecoder->maxSpans;
+        self::countSpans($payload, $limit) > $limit and throw LimitExceededException::spans($limit);
+
+        $request = new ExportTraceServiceRequest();
+        try {
+            $request->mergeFromString($payload);
+        } catch (\Exception $e) {
+            throw new \InvalidArgumentException('Invalid protobuf message: ' . $e->getMessage(), previous: $e);
+        }
+
+        return $this->jsonDecoder->decode((string) $request->serializeToJsonString(), $time);
+    }
+
+    /**
+     * An empty `ExportTraceServiceResponse` encodes to zero bytes.
+     */
+    #[\Override]
+    public function createSuccessResponse(): ResponseInterface
+    {
+        return new Response(200, ['Content-Type' => self::CONTENT_TYPE]);
     }
 
     /**
@@ -124,30 +148,5 @@ final class ProtobufTracesDecoder implements TracesDecoder
         }
 
         return null;
-    }
-
-    #[\Override]
-    public function decode(string $payload, \DateTimeImmutable $time): OtlpTraces
-    {
-        $limit = $this->jsonDecoder->maxSpans;
-        self::countSpans($payload, $limit) > $limit and throw LimitExceededException::spans($limit);
-
-        $request = new ExportTraceServiceRequest();
-        try {
-            $request->mergeFromString($payload);
-        } catch (\Exception $e) {
-            throw new \InvalidArgumentException('Invalid protobuf message: ' . $e->getMessage(), previous: $e);
-        }
-
-        return $this->jsonDecoder->decode((string) $request->serializeToJsonString(), $time);
-    }
-
-    /**
-     * An empty `ExportTraceServiceResponse` encodes to zero bytes.
-     */
-    #[\Override]
-    public function createSuccessResponse(): ResponseInterface
-    {
-        return new Response(200, ['Content-Type' => self::CONTENT_TYPE]);
     }
 }
