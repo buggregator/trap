@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Tests\Unit\Sender\Console\Renderer;
 
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Info;
+use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Proto\Frame\Monolog;
 use Buggregator\Trap\Proto\Frame\Otlp\OtlpTraces as OtlpTracesFrame;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\ResourceSpans;
@@ -110,6 +111,64 @@ final class OtlpTracesTest extends TestCase
         self::assertSame(2, \substr_count($output, '# Trace '));
         self::assertMatchesRegularExpression('/# Trace a{32}  2\.50 s\s+first .*\s+third /', $output);
         self::assertMatchesRegularExpression('/# Trace b{32}  2\.50 s\s+second /', $output);
+    }
+
+    public function testBuildsTreeFromSpansReceivedOneByOne(): void
+    {
+        $renderer = new OtlpTraces(new SpanStore());
+        $root = self::span('1', null, 'root', 0, 100);
+        $child = self::span('2', '1', 'child', 10, 50);
+        $grandchild = self::span('3', '2', 'grandchild', 20, 30);
+
+        $first = $this->render(self::frame($grandchild), renderer: $renderer);
+        $second = $this->render(self::frame($child), renderer: $renderer);
+        $third = $this->render(self::frame($root), renderer: $renderer);
+
+        self::assertSame(['grandchild INTERNAL 10 ns id:3333333333333333 parent:2222222222222222'], $this->spanLines($first));
+        self::assertStringContainsString('+1 received earlier', $second);
+        self::assertSame([
+            'child INTERNAL 40 ns id:2222222222222222 parent:1111111111111111',
+            '└─ grandchild INTERNAL 10 ns +10 ns id:3333333333333333',
+        ], $this->spanLines($second));
+        self::assertStringContainsString('+2 received earlier', $third);
+        self::assertSame([
+            'root INTERNAL 100 ns id:1111111111111111',
+            '└─ child INTERNAL 40 ns +10 ns id:2222222222222222',
+            '   └─ grandchild INTERNAL 10 ns +20 ns id:3333333333333333',
+        ], $this->spanLines($third));
+        self::assertStringContainsString('         attr: "grandchild"', $third, 'Earlier spans keep their details.');
+    }
+
+    public function testShowsAncestorsReceivedEarlierAsContext(): void
+    {
+        $renderer = new OtlpTraces(new SpanStore());
+        $renderer->render(new BufferedOutput(), self::frame(
+            self::span('1', null, 'root', 0, 100),
+            self::span('2', '1', 'parent', 10, 50),
+            self::span('4', '1', 'sibling', 60, 70),
+        ));
+
+        $output = $this->render(self::frame(self::span('3', '2', 'late child', 20, 90)), renderer: $renderer);
+
+        self::assertSame([
+            'root INTERNAL 100 ns id:1111111111111111',
+            '└─ parent INTERNAL 40 ns id:2222222222222222',
+            '   └─ late child INTERNAL 70 ns +20 ns id:3333333333333333',
+        ], $this->spanLines($output));
+        self::assertStringNotContainsString('attr: "root"', $output, 'Context spans have no details.');
+        self::assertStringContainsString('      attr: "late child"', $output);
+        self::assertStringNotContainsString('sibling', $output);
+    }
+
+    public function testRendererWithoutSharedStoreKeepsItsOwnSpans(): void
+    {
+        $first = new OtlpTraces();
+        $second = new OtlpTraces();
+        $first->render(new BufferedOutput(), self::frame(self::span('1', null, 'root', 0, 100)));
+
+        $output = $this->render(self::frame(self::span('2', '1', 'child', 10, 50)), renderer: $second);
+
+        self::assertSame(['child INTERNAL 40 ns id:2222222222222222 parent:1111111111111111'], $this->spanLines($output));
     }
 
     public function testRendersSpansOfParentCycle(): void

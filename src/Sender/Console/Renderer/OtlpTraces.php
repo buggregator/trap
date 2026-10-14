@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender\Console\Renderer;
 
+use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\ResourceSpans;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\Span;
@@ -16,10 +17,15 @@ use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * Renders spans grouped by trace, as a tree built from `parentSpanId`.
+ * Renders received spans grouped by trace, as a tree built from `parentSpanId`.
  *
- * A frame holds one export request, so a span whose parent was exported in another request
- * is rendered as a root with its parent ID. With a simple span processor every span arrives alone.
+ * Every received span is added to the {@see SpanStore}, so a tree can join spans of separate
+ * export requests. For each newly received span the tree shows:
+ *  - its whole subtree, including descendants received earlier, with full details;
+ *  - its ancestors received earlier, dimmed and without details, as the path to the root.
+ * With a simple span processor children end before their parents, so each span is printed alone when
+ * it arrives, and the root span brings the complete tree. A parent that has not arrived is shown as
+ * `parent:<id>` on the topmost span.
  *
  * @implements Renderer<Frame\Otlp\OtlpTraces>
  *
@@ -27,6 +33,13 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 final class OtlpTraces implements Renderer
 {
+    /** @var array<non-empty-string, true> Span IDs already printed in the current trace */
+    private array $rendered = [];
+
+    public function __construct(
+        private readonly SpanStore $store = new SpanStore(),
+    ) {}
+
     #[\Override]
     public function isSupport(Frame $frame): bool
     {
@@ -46,11 +59,12 @@ final class OtlpTraces implements Renderer
             $frame->resourceSpans,
         )));
         $scopes = [];
-        /** @var array<non-empty-string, non-empty-list<Span>> $traces */
+        /** @var array<non-empty-string, non-empty-array<non-empty-string, Span>> $traces */
         $traces = [];
         foreach ($frame->iterateSpans() as [, $scopeSpans, $span]) {
             $scopeSpans->scopeName === '' or $scopes[] = \trim("$scopeSpans->scopeName $scopeSpans->scopeVersion");
-            $traces[$span->traceId][] = $span;
+            $traces[$span->traceId][$span->spanId] = $span;
+            $this->store->add($span);
         }
 
         Common::renderMetadata($output, \array_filter([
@@ -103,69 +117,114 @@ final class OtlpTraces implements Renderer
     }
 
     /**
-     * @param non-empty-string $traceId
-     * @param non-empty-list<Span> $spans
+     * @param array<array-key, Span> $spans
+     * @return list<Span>
      */
-    private function renderTrace(OutputInterface $output, string $traceId, array $spans): void
+    private static function sortByStart(array $spans): array
     {
         \usort($spans, static fn(Span $a, Span $b): int => $a->startTimeUnixNano <=> $b->startTimeUnixNano);
-        $start = $spans[0]->startTimeUnixNano;
-        $end = \max(\array_map(static fn(Span $span): int => $span->endTimeUnixNano, $spans));
+        return $spans;
+    }
 
-        Common::renderHeader2($output, "Trace $traceId", self::formatDuration(\max(0, $end - $start)));
+    /**
+     * @param non-empty-string $traceId
+     * @param non-empty-array<non-empty-string, Span> $received Spans of the current frame.
+     */
+    private function renderTrace(OutputInterface $output, string $traceId, array $received): void
+    {
+        // The store may have evicted the trace already when it alone exceeds the store capacity.
+        $known = $this->store->getTrace($traceId) + $received;
 
-        $known = [];
-        foreach ($spans as $span) {
-            $known[$span->spanId] = true;
-        }
-
-        $roots = [];
         /** @var array<non-empty-string, list<Span>> $children */
         $children = [];
-        foreach ($spans as $span) {
+        foreach ($known as $span) {
             $span->parentSpanId !== null && isset($known[$span->parentSpanId])
-                ? $children[$span->parentSpanId][] = $span
-                : $roots[] = $span;
+            and $children[$span->parentSpanId][] = $span;
         }
 
-        $rendered = [];
-        foreach ($roots as $root) {
-            $this->renderSpan($output, $root, $children, $start, '', null, $rendered);
+        // Span ID => true for an ancestor shown as context only, false for a span shown in full.
+        $shown = [];
+        $queue = \array_keys($received);
+        while ($queue !== []) {
+            $spanId = \array_shift($queue);
+            if (isset($shown[$spanId])) {
+                continue;
+            }
+
+            $shown[$spanId] = false;
+            foreach ($children[$spanId] ?? [] as $child) {
+                $queue[] = $child->spanId;
+            }
+        }
+
+        foreach ($received as $span) {
+            $parentId = $span->parentSpanId;
+            while ($parentId !== null && isset($known[$parentId]) && !isset($shown[$parentId])) {
+                $shown[$parentId] = true;
+                $parentId = $known[$parentId]->parentSpanId;
+            }
+        }
+
+        $start = \min(\array_map(static fn(Span $span): int => $span->startTimeUnixNano, $known));
+        $end = \max(\array_map(static fn(Span $span): int => $span->endTimeUnixNano, $known));
+        $earlier = \count($known) - \count($received);
+        Common::renderHeader2(
+            $output,
+            "Trace $traceId",
+            self::formatDuration(\max(0, $end - $start)),
+            $earlier > 0 ? "+$earlier received earlier" : '',
+        );
+
+        $roots = [];
+        foreach ($shown as $spanId => $_) {
+            $parentId = $known[$spanId]->parentSpanId;
+            $parentId !== null && isset($shown[$parentId]) or $roots[] = $known[$spanId];
+        }
+
+        $this->rendered = [];
+        foreach (self::sortByStart($roots) as $root) {
+            $this->renderSpan($output, $root, $children, $shown, $start, '', null);
         }
 
         // Spans of a parent cycle have no root; such data is malformed, but every span is still printed.
-        foreach ($spans as $span) {
-            isset($rendered[$span->spanId])
-            or $this->renderSpan($output, $span, $children, $start, '', null, $rendered);
+        foreach ($shown as $spanId => $_) {
+            isset($this->rendered[$spanId])
+            or $this->renderSpan($output, $known[$spanId], $children, $shown, $start, '', null);
         }
     }
 
     /**
      * @param array<non-empty-string, list<Span>> $children
+     * @param array<non-empty-string, bool> $shown Span ID => whether the span is context only.
      * @param bool|null $isLast Null for a root span.
-     * @param array<non-empty-string, true> $rendered Span IDs already printed.
      */
     private function renderSpan(
         OutputInterface $output,
         Span $span,
         array $children,
+        array $shown,
         int $traceStart,
         string $prefix,
         ?bool $isLast,
-        array &$rendered,
     ): void {
-        if (isset($rendered[$span->spanId])) {
+        if (isset($this->rendered[$span->spanId])) {
             return;
         }
 
-        $rendered[$span->spanId] = true;
+        $this->rendered[$span->spanId] = true;
+        $isContext = $shown[$span->spanId] ?? false;
         $output->writeln($prefix . match ($isLast) {
             null => '',
             true => '└─ ',
             false => '├─ ',
-        } . $this->formatSpanHeader($span, $traceStart, $isLast === null));
+        } . ($isContext
+            ? $this->formatContextHeader($span, $isLast === null)
+            : $this->formatSpanHeader($span, $traceStart, $isLast === null)));
 
-        $nested = $children[$span->spanId] ?? [];
+        $nested = self::sortByStart(\array_filter(
+            $children[$span->spanId] ?? [],
+            static fn(Span $child): bool => isset($shown[$child->spanId]),
+        ));
         $childPrefix = $prefix . match ($isLast) {
             null => '',
             true => '   ',
@@ -173,14 +232,26 @@ final class OtlpTraces implements Renderer
         };
         $detailPrefix = $childPrefix . ($nested === [] ? '   ' : '│  ');
 
-        foreach ($this->formatDetails($span) as $line) {
+        foreach ($isContext ? [] : $this->formatDetails($span) as $line) {
             $output->writeln($detailPrefix . $line);
         }
 
         $last = \count($nested) - 1;
         foreach ($nested as $i => $child) {
-            $this->renderSpan($output, $child, $children, $traceStart, $childPrefix, $i === $last, $rendered);
+            $this->renderSpan($output, $child, $children, $shown, $traceStart, $childPrefix, $i === $last);
         }
+    }
+
+    private function formatContextHeader(Span $span, bool $isRoot): string
+    {
+        return \sprintf(
+            '<fg=gray>%s %s %s id:%s%s</>',
+            OutputFormatter::escape($span->name),
+            \strtoupper($span->kind->name),
+            self::formatDuration($span->getDuration()),
+            $span->spanId,
+            $isRoot && $span->parentSpanId !== null ? " parent:$span->parentSpanId" : '',
+        );
     }
 
     private function formatSpanHeader(Span $span, int $traceStart, bool $isRoot): string
