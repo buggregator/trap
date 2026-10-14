@@ -251,12 +251,12 @@ final class OtlpTraces implements Renderer
         $context = new TraceView($children, $shown, $collapsed, $hiddenAncestors, $start);
         $this->rendered = [];
         foreach (self::sortByStart($roots) as $root) {
-            $this->renderSpan($output, $context, $root, '', null, 0);
+            $this->renderSpan($output, $context, $root);
         }
 
         // Spans of a parent cycle have no root; such data is malformed, but every span is still printed.
         foreach ($shown as $spanId => $_) {
-            isset($this->rendered[$spanId]) or $this->renderSpan($output, $context, $known[$spanId], '', null, 0);
+            isset($this->rendered[$spanId]) or $this->renderSpan($output, $context, $known[$spanId]);
         }
 
         $skipped = \count($shown) - \count($this->rendered);
@@ -264,19 +264,36 @@ final class OtlpTraces implements Renderer
     }
 
     /**
+     * Prints a span with its subtree depth-first. A stack instead of recursion, so that a deep chain
+     * does not hit a nesting limit such as the one of Xdebug.
+     */
+    private function renderSpan(OutputInterface $output, TraceView $context, Span $root): void
+    {
+        /** @var list<array{Span, string, bool|null, int<0, max>}> $stack */
+        $stack = [[$root, '', null, 0]];
+        while (($item = \array_pop($stack)) !== null) {
+            [$span, $prefix, $isLast, $depth] = $item;
+            foreach (\array_reverse($this->renderOne($output, $context, $span, $prefix, $isLast, $depth)) as $child) {
+                $stack[] = $child;
+            }
+        }
+    }
+
+    /**
      * @param bool|null $isLast Null for a root span.
      * @param int<0, max> $depth
+     * @return list<array{Span, string, bool, int<0, max>}> Children to print next, in order.
      */
-    private function renderSpan(
+    private function renderOne(
         OutputInterface $output,
         TraceView $context,
         Span $span,
         string $prefix,
         ?bool $isLast,
         int $depth,
-    ): void {
+    ): array {
         if (isset($this->rendered[$span->spanId]) || $this->budget <= 0) {
-            return;
+            return [];
         }
 
         --$this->budget;
@@ -315,9 +332,12 @@ final class OtlpTraces implements Renderer
         ));
 
         $last = \count($nested) - 1;
+        $result = [];
         foreach ($nested as $i => $child) {
-            $this->renderSpan($output, $context, $child, $childPrefix, $i === $last, $depth + 1);
+            $result[] = [$child, $childPrefix, $i === $last, $depth + 1];
         }
+
+        return $result;
     }
 
     private function formatContextHeader(Span $span, bool $isRoot, int $ancestorsAbove): string
