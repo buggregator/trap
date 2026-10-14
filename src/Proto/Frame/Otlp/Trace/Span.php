@@ -89,11 +89,27 @@ final class Span implements \JsonSerializable
     }
 
     /**
+     * Nanoseconds from one Unix-nano timestamp to another.
+     *
+     * @return int<0, max> Zero when `$to` precedes `$from`; `PHP_INT_MAX` when the difference overflows.
+     */
+    public static function elapsed(int $from, int $to): int
+    {
+        if ($to <= $from) {
+            return 0;
+        }
+
+        // int minus int turns into float on overflow.
+        $elapsed = $to - $from;
+        return \is_int($elapsed) && $elapsed > 0 ? $elapsed : \PHP_INT_MAX;
+    }
+
+    /**
      * @return int<0, max> Nanoseconds; zero when the end time precedes the start time.
      */
     public function getDuration(): int
     {
-        return \max(0, $this->endTimeUnixNano - $this->startTimeUnixNano);
+        return self::elapsed($this->startTimeUnixNano, $this->endTimeUnixNano);
     }
 
     #[\Override]

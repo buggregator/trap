@@ -23,7 +23,8 @@ use Psr\Http\Message\ResponseInterface;
  * with trace and span IDs as hex strings.
  *
  * Proto3 JSON lets a sender put 64-bit integers either as numbers or as strings, and enums
- * either as numbers or as names; both forms are accepted.
+ * either as numbers or as names; both forms are accepted. Integers outside their protobuf type
+ * are rejected, except timestamps above `PHP_INT_MAX`, which are clamped to it.
  *
  * @internal
  * @psalm-internal Buggregator\Trap\Handler\Http\Middleware
@@ -36,11 +37,13 @@ final class JsonTracesDecoder implements TracesDecoder
     public const CONTENT_TYPE = 'application/json';
     private const TRACE_ID_BYTES = 16;
     private const SPAN_ID_BYTES = 8;
+    private const UINT32_MAX = 0xFFFF_FFFF;
 
     #[\Override]
     public function decode(string $payload, \DateTimeImmutable $time): OtlpTraces
     {
-        $data = Json::decode($payload);
+        // Big integers as strings: as floats they would lose precision before the range checks.
+        $data = \json_decode($payload, true, 512, \JSON_THROW_ON_ERROR | \JSON_BIGINT_AS_STRING);
         \is_array($data) or throw new \InvalidArgumentException('The request body must be a JSON object.');
 
         return new OtlpTraces(
@@ -63,7 +66,7 @@ final class JsonTracesDecoder implements TracesDecoder
         return new ResourceSpans(
             scopeSpans: \array_map(self::scopeSpans(...), self::list($data, 'scopeSpans')),
             resourceAttributes: self::attributes($resource),
-            resourceDroppedAttributesCount: self::count($resource, 'droppedAttributesCount'),
+            resourceDroppedAttributesCount: self::uint32($resource, 'droppedAttributesCount'),
             schemaUrl: self::string($data, 'schemaUrl'),
         );
     }
@@ -78,7 +81,7 @@ final class JsonTracesDecoder implements TracesDecoder
             scopeName: self::string($scope, 'name'),
             scopeVersion: self::string($scope, 'version'),
             scopeAttributes: self::attributes($scope),
-            scopeDroppedAttributesCount: self::count($scope, 'droppedAttributesCount'),
+            scopeDroppedAttributesCount: self::uint32($scope, 'droppedAttributesCount'),
             schemaUrl: self::string($data, 'schemaUrl'),
         );
     }
@@ -96,8 +99,8 @@ final class JsonTracesDecoder implements TracesDecoder
             parentSpanId: self::id($data, 'parentSpanId', self::SPAN_ID_BYTES),
             name: self::string($data, 'name'),
             kind: SpanKind::tryFrom(self::enum($data, 'kind', 'SPAN_KIND_', SpanKind::cases())) ?? SpanKind::Unspecified,
-            startTimeUnixNano: self::int($data, 'startTimeUnixNano'),
-            endTimeUnixNano: self::int($data, 'endTimeUnixNano'),
+            startTimeUnixNano: self::timestamp($data, 'startTimeUnixNano'),
+            endTimeUnixNano: self::timestamp($data, 'endTimeUnixNano'),
             attributes: self::attributes($data),
             events: \array_map(self::event(...), self::list($data, 'events')),
             links: \array_map(self::link(...), self::list($data, 'links')),
@@ -106,10 +109,10 @@ final class JsonTracesDecoder implements TracesDecoder
                 self::string($status, 'message'),
             ),
             traceState: self::string($data, 'traceState'),
-            flags: self::int($data, 'flags'),
-            droppedAttributesCount: self::count($data, 'droppedAttributesCount'),
-            droppedEventsCount: self::count($data, 'droppedEventsCount'),
-            droppedLinksCount: self::count($data, 'droppedLinksCount'),
+            flags: self::uint32($data, 'flags'),
+            droppedAttributesCount: self::uint32($data, 'droppedAttributesCount'),
+            droppedEventsCount: self::uint32($data, 'droppedEventsCount'),
+            droppedLinksCount: self::uint32($data, 'droppedLinksCount'),
         );
     }
 
@@ -118,10 +121,10 @@ final class JsonTracesDecoder implements TracesDecoder
         $data = self::object($data, 'events[]');
 
         return new SpanEvent(
-            timeUnixNano: self::int($data, 'timeUnixNano'),
+            timeUnixNano: self::timestamp($data, 'timeUnixNano'),
             name: self::string($data, 'name'),
             attributes: self::attributes($data),
-            droppedAttributesCount: self::count($data, 'droppedAttributesCount'),
+            droppedAttributesCount: self::uint32($data, 'droppedAttributesCount'),
         );
     }
 
@@ -135,9 +138,9 @@ final class JsonTracesDecoder implements TracesDecoder
             spanId: self::id($data, 'spanId', self::SPAN_ID_BYTES)
                 ?? throw new \InvalidArgumentException('Link `spanId` is required.'),
             traceState: self::string($data, 'traceState'),
-            flags: self::int($data, 'flags'),
+            flags: self::uint32($data, 'flags'),
             attributes: self::attributes($data),
-            droppedAttributesCount: self::count($data, 'droppedAttributesCount'),
+            droppedAttributesCount: self::uint32($data, 'droppedAttributesCount'),
         );
     }
 
@@ -177,7 +180,7 @@ final class JsonTracesDecoder implements TracesDecoder
             \array_key_exists('boolValue', $value) => \is_bool($value['boolValue'])
                 ? $value['boolValue']
                 : throw new \InvalidArgumentException('`boolValue` must be a boolean.'),
-            \array_key_exists('intValue', $value) => self::int($value, 'intValue'),
+            \array_key_exists('intValue', $value) => self::int64($value, 'intValue'),
             \array_key_exists('doubleValue', $value) => self::double($value['doubleValue']),
             \array_key_exists('bytesValue', $value) => self::string($value, 'bytesValue'),
             \array_key_exists('arrayValue', $value) => \array_map(
@@ -251,27 +254,81 @@ final class JsonTracesDecoder implements TracesDecoder
             return 0;
         }
 
-        return self::int($data, $key);
-    }
-
-    private static function int(array $data, string $key): int
-    {
-        /** @var mixed $value */
-        $value = $data[$key] ?? 0;
-        return match (true) {
-            \is_int($value) => $value,
-            \is_string($value) && \preg_match('/^-?\d++$/', $value) === 1 => (int) $value,
-            \is_float($value) && \floor($value) === $value => (int) $value,
-            default => throw new \InvalidArgumentException(\sprintf('`%s` must be an integer.', $key)),
-        };
+        return self::int64($data, $key);
     }
 
     /**
+     * Reads a `fixed64` Unix-nano timestamp. Values above `PHP_INT_MAX` are valid on the wire
+     * but not representable, so they are clamped.
+     *
      * @return int<0, max>
      */
-    private static function count(array $data, string $key): int
+    private static function timestamp(array $data, string $key): int
     {
-        return \max(0, self::int($data, $key));
+        $value = self::integer($data, $key, 0, \PHP_INT_MAX, clamp: true);
+        \assert($value >= 0);
+
+        return $value;
+    }
+
+    /**
+     * @return int<0, 4294967295>
+     */
+    private static function uint32(array $data, string $key): int
+    {
+        $value = self::integer($data, $key, 0, self::UINT32_MAX);
+        \assert($value >= 0 && $value <= self::UINT32_MAX);
+
+        return $value;
+    }
+
+    private static function int64(array $data, string $key): int
+    {
+        return self::integer($data, $key, \PHP_INT_MIN, \PHP_INT_MAX);
+    }
+
+    /**
+     * @param bool $clamp Turn a value above `$max`, even one beyond the int64 range, into `$max` instead of failing.
+     */
+    private static function integer(array $data, string $key, int $min, int $max, bool $clamp = false): int
+    {
+        /** @var mixed $value */
+        $value = $data[$key] ?? 0;
+
+        // Beyond the int64 range a value becomes an infinite float, so the range checks below see it.
+        $number = match (true) {
+            \is_int($value) => $value,
+            \is_string($value) && \preg_match('/^(-?)0*(\d++)$/', $value, $match) === 1
+                => self::parseDigits($match[1] === '-', $match[2]),
+            \is_float($value) && \is_finite($value) && \floor($value) === $value => match (true) {
+                $value >= 9_223_372_036_854_775_808.0 => \INF,
+                $value < -9_223_372_036_854_775_808.0 => -\INF,
+                default => (int) $value,
+            },
+            default => throw new \InvalidArgumentException(\sprintf('`%s` must be an integer.', $key)),
+        };
+
+        if ($number < $min || ($number > $max && !$clamp)) {
+            throw new \InvalidArgumentException(\sprintf('`%s` is out of range.', $key));
+        }
+
+        return $number > $max ? $max : (int) $number;
+    }
+
+    /**
+     * @param string $digits Without leading zeros.
+     */
+    private static function parseDigits(bool $negative, string $digits): int|float
+    {
+        $limit = $negative ? '9223372036854775808' : '9223372036854775807';
+        $fits = \strlen($digits) < \strlen($limit)
+            || (\strlen($digits) === \strlen($limit) && \strcmp($digits, $limit) <= 0);
+
+        return match (true) {
+            !$fits => $negative ? -\INF : \INF,
+            $negative => (int) ('-' . $digits),
+            default => (int) $digits,
+        };
     }
 
     private static function string(array $data, string $key): string

@@ -37,6 +37,55 @@ final class JsonTracesDecoderTest extends TestCase
         yield 'doubleValue is a string' => [
             self::request([self::span(['attributes' => [['key' => 'k', 'value' => ['doubleValue' => 'many']]]])]),
         ];
+        yield 'negative timestamp' => [self::request([self::span(['startTimeUnixNano' => '-1'])])];
+        yield 'negative number timestamp' => [self::request([self::span(['endTimeUnixNano' => -5])])];
+        yield 'negative event timestamp' => [self::request([self::span(['events' => [['timeUnixNano' => -1]]])])];
+        yield 'fractional timestamp' => [self::request([self::span(['startTimeUnixNano' => 1.5])])];
+        yield 'intValue above int64' => [
+            self::request([self::span(['attributes' => [['key' => 'k', 'value' => ['intValue' => '9223372036854775808']]]])]),
+        ];
+        yield 'intValue below int64' => [
+            self::request([self::span(['attributes' => [['key' => 'k', 'value' => ['intValue' => -1e19]]]])]),
+        ];
+        yield 'negative flags' => [self::request([self::span(['flags' => -1])])];
+        yield 'flags above uint32' => [self::request([self::span(['flags' => 4294967296])])];
+        yield 'negative dropped count' => [self::request([self::span(['droppedEventsCount' => '-3'])])];
+    }
+
+    public static function provideClampedTimestamps(): \Generator
+    {
+        yield 'uint64 max as string' => ['"18446744073709551615"'];
+        yield 'above int64 as string' => ['"9223372036854775808"'];
+        yield 'above int64 as big JSON integer' => ['99999999999999999999'];
+        yield 'above int64 as JSON float' => ['1e20'];
+    }
+
+    #[DataProvider('provideClampedTimestamps')]
+    public function testClampsTimestampsAboveInt64(string $json): void
+    {
+        $payload = \str_replace('"END"', $json, self::request([self::span(['endTimeUnixNano' => 'END'])]));
+
+        $frame = (new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable());
+        $span = $this->singleSpan($frame->resourceSpans[0]->scopeSpans[0]->spans);
+
+        self::assertSame(\PHP_INT_MAX, $span->endTimeUnixNano);
+        self::assertSame(\PHP_INT_MAX - 1700000000000000000, $span->getDuration());
+    }
+
+    public function testAcceptsInt64Bounds(): void
+    {
+        $payload = self::request([self::span(['attributes' => [
+            ['key' => 'min', 'value' => ['intValue' => '-9223372036854775808']],
+            ['key' => 'max', 'value' => ['intValue' => '9223372036854775807']],
+            ['key' => 'zeros', 'value' => ['intValue' => '-007']],
+        ]])]);
+
+        $frame = (new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable());
+
+        self::assertSame(
+            ['min' => \PHP_INT_MIN, 'max' => \PHP_INT_MAX, 'zeros' => -7],
+            $this->singleSpan($frame->resourceSpans[0]->scopeSpans[0]->spans)->attributes,
+        );
     }
 
     public function testDecodesSpanFields(): void

@@ -181,6 +181,23 @@ final class OtlpTracesTest extends TestCase
         self::assertCount(2, $this->spanLines($output));
     }
 
+    public function testRendersExtremeTimestamps(): void
+    {
+        $renderer = new OtlpTraces(new SpanStore());
+        $renderer->render(new BufferedOutput(), self::frame(self::span('1', null, 'root', 0, \PHP_INT_MAX)));
+
+        $output = $this->render(
+            self::frame(
+                self::span('2', '1', 'reversed', \PHP_INT_MAX, 5),
+                self::span('3', '1', 'min', \PHP_INT_MIN, \PHP_INT_MAX),
+            ),
+            renderer: $renderer,
+        );
+
+        self::assertStringContainsString('reversed INTERNAL 0 ns', $output);
+        self::assertStringContainsString('9223372036.85 s', $output);
+    }
+
     private static function frame(Span ...$spans): OtlpTracesFrame
     {
         return new OtlpTracesFrame([new ResourceSpans([new ScopeSpans(\array_values($spans))])]);

@@ -171,7 +171,7 @@ final class OtlpTraces implements Renderer
         Common::renderHeader2(
             $output,
             "Trace $traceId",
-            self::formatDuration(\max(0, $end - $start)),
+            self::formatDuration(Span::elapsed($start, $end)),
             $earlier > 0 ? "+$earlier received earlier" : '',
         );
 
@@ -269,7 +269,7 @@ final class OtlpTraces implements Renderer
                 $span->status->message === '' ? '' : ': ' . OutputFormatter::escape($span->status->message),
             );
 
-        $offset = \max(0, $span->startTimeUnixNano - $traceStart);
+        $offset = Span::elapsed($traceStart, $span->startTimeUnixNano);
         $parts[] = \sprintf(
             '<fg=gray>%sid:%s%s</>',
             $offset === 0 ? '' : '+' . self::formatDuration($offset) . ' ',
@@ -303,7 +303,7 @@ final class OtlpTraces implements Renderer
             $lines[] = \sprintf(
                 '<fg=magenta>• %s</> <fg=gray>+%s</> %s',
                 OutputFormatter::escape($event->name),
-                self::formatDuration(\max(0, $event->timeUnixNano - $span->startTimeUnixNano)),
+                self::formatDuration(Span::elapsed($span->startTimeUnixNano, $event->timeUnixNano)),
                 OutputFormatter::escape(\implode(' ', $attributes)),
             );
         }
