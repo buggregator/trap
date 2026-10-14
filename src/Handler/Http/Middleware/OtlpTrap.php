@@ -12,7 +12,6 @@ use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\LimitExceededException;
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\TracesDecoder;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Support\Json;
-use Http\Message\Encoding\GzipDecodeStream;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -112,19 +111,23 @@ final class OtlpTrap implements Middleware
             return $body->getContents();
         }
 
-        // The zlib stream filter reports corrupted data as a PHP notice, not as an exception.
+        // zlib reports corrupted data as a PHP warning, not as an exception.
+        // A stream filter is not used: dropping one with unread input warns at an arbitrary later point.
         \set_error_handler(static function (int $errno, string $message): never {
             throw new \RuntimeException('Invalid gzip body: ' . $message);
         });
         try {
-            $stream = new GzipDecodeStream($body);
+            $inflate = \inflate_init(\ZLIB_ENCODING_GZIP) ?: throw new \RuntimeException('Cannot inflate the gzip body.');
             $payload = '';
-            while (!$stream->eof()) {
-                $payload .= $stream->read(65536);
+            do {
+                $chunk = $body->read(65536);
+                $inflated = \inflate_add($inflate, $chunk, $body->eof() ? \ZLIB_FINISH : \ZLIB_SYNC_FLUSH);
+                $inflated === false and throw new \RuntimeException('Invalid gzip body.');
+                $payload .= $inflated;
                 if (\strlen($payload) > self::MAX_BODY_SIZE) {
                     return null;
                 }
-            }
+            } while ($chunk !== '');
         } finally {
             \restore_error_handler();
         }
