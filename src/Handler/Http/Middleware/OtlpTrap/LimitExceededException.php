@@ -19,12 +19,4 @@ final class LimitExceededException extends \InvalidArgumentException
     {
         return new self(\sprintf('Too many spans in one request, the limit is %d.', $limit));
     }
-
-    /**
-     * @param int<1, max> $limit
-     */
-    public static function jsonContainers(int $limit): self
-    {
-        return new self(\sprintf('Too many JSON objects and arrays in one request, the limit is %d.', $limit));
-    }
 }

@@ -248,7 +248,7 @@ Notes:
 - Requests with `Transfer-Encoding: chunked` are not supported by the HTTP parser of Trap;
   OpenTelemetry SDK exporters send `Content-Length`.
 - Exporters running in a browser are not supported: Trap does not answer CORS preflight requests.
-- One export request may carry up to 4 MB (after decompression) and up to 10 000 spans; a bigger one gets `413`.
+- One export request may carry up to 10 MB (after decompression) and up to 10 000 spans; a bigger one gets `413`.
   SDK batch processors export 512 spans at a time by default.
 - Port `4318` is also the default port of an OpenTelemetry Collector or Jaeger. On Linux and macOS, when it is
   taken, Trap keeps retrying to listen on it silently (run with `-vv` to see the errors) and works on the other ports.

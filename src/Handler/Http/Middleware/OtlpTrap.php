@@ -36,7 +36,7 @@ use Symfony\Component\Console\Formatter\OutputFormatter;
  */
 final class OtlpTrap implements Middleware
 {
-    private const MAX_BODY_SIZE = 4 * 1024 * 1024;
+    private const MAX_BODY_SIZE = 10 * 1024 * 1024;
     private const TRACES_PATH = '/v1/traces';
     private const OTLP_MEDIA_TYPES = [JsonTracesDecoder::CONTENT_TYPE, ProtobufTracesDecoder::CONTENT_TYPE];
     private const UNSUPPORTED_SIGNALS = [

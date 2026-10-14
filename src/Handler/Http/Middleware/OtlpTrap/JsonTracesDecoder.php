@@ -40,28 +40,15 @@ final class JsonTracesDecoder implements TracesDecoder
     private const UINT32_MAX = 0xFFFF_FFFF;
 
     /**
-     * A decoded JSON object takes about 400 bytes, so a body of tiny objects like `{"a":1}` grows
-     * about 50 times in json_decode(). The limit keeps that under about 90 MB; real spans stay well
-     * below it within the body size limit of {@see \Buggregator\Trap\Handler\Http\Middleware\OtlpTrap}.
-     */
-    public const MAX_JSON_CONTAINERS = 200_000;
-
-    /**
      * @param int<1, max> $maxSpans Spans accepted in one request.
-     * @param int<1, max> $maxJsonContainers JSON objects and arrays accepted in one request,
-     *        estimated by counting `{` and `[`, those in strings included.
      */
     public function __construct(
         public readonly int $maxSpans = self::MAX_SPANS,
-        private readonly int $maxJsonContainers = self::MAX_JSON_CONTAINERS,
     ) {}
 
     #[\Override]
     public function decode(string $payload, \DateTimeImmutable $time): OtlpTraces
     {
-        \substr_count($payload, '{') + \substr_count($payload, '[') > $this->maxJsonContainers
-            and throw LimitExceededException::jsonContainers($this->maxJsonContainers);
-
         // Big integers as strings: as floats they would lose precision before the range checks.
         $data = \json_decode($payload, true, 512, \JSON_THROW_ON_ERROR | \JSON_BIGINT_AS_STRING);
         // A list like `[1,2]` decodes to an array as well, and `[]` is indistinguishable from `{}`.

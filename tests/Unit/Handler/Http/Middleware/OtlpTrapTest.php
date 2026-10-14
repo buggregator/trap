@@ -53,7 +53,7 @@ final class OtlpTrapTest extends TestCase
     public static function provideRejectedRequests(): \Generator
     {
         yield 'malformed JSON' => ['application/json', '{"resourceSpans": [', 400];
-        yield 'too large' => ['application/json', \gzencode(\str_repeat(' ', 5 * 1024 * 1024)), 413];
+        yield 'too large' => ['application/json', \gzencode(\str_repeat(' ', 11 * 1024 * 1024)), 413];
     }
 
     public static function provideTracesPaths(): \Generator
@@ -254,7 +254,7 @@ final class OtlpTrapTest extends TestCase
     public function testRejectsOversizedBodyWith413(): void
     {
         $body = $this->createMock(StreamInterface::class);
-        $body->method('getSize')->willReturn(5 * 1024 * 1024);
+        $body->method('getSize')->willReturn(11 * 1024 * 1024);
         $request = $this->request()->withBody($body);
 
         [$response, $frames] = $this->handleInFiber($request);
@@ -265,7 +265,7 @@ final class OtlpTrapTest extends TestCase
 
     public function testRejectsOversizedDecompressedBodyWith413(): void
     {
-        $request = $this->request(body: \gzencode(\str_repeat(' ', 5 * 1024 * 1024)));
+        $request = $this->request(body: \gzencode(\str_repeat(' ', 11 * 1024 * 1024)));
 
         [$response, $frames] = $this->handleInFiber($request);
 
@@ -329,7 +329,7 @@ final class OtlpTrapTest extends TestCase
     public function testProtobufStatusOfOversizedBody(): void
     {
         $body = $this->createMock(StreamInterface::class);
-        $body->method('getSize')->willReturn(5 * 1024 * 1024);
+        $body->method('getSize')->willReturn(11 * 1024 * 1024);
         $request = $this->request(contentType: 'application/x-protobuf')->withBody($body);
 
         [$response] = $this->handleInFiber($request);

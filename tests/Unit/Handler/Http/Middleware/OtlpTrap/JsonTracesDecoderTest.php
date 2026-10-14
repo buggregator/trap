@@ -398,18 +398,6 @@ final class JsonTracesDecoderTest extends TestCase
         (new JsonTracesDecoder(5))->decode($payload, new \DateTimeImmutable());
     }
 
-    public function testLimitsJsonObjectsAndArraysBeforeDecoding(): void
-    {
-        // 4 objects and 3 arrays
-        $payload = self::request([self::span()]);
-
-        self::assertSame(1, (new JsonTracesDecoder(maxJsonContainers: 7))->decode($payload, new \DateTimeImmutable())->countSpans());
-
-        $this->expectException(LimitExceededException::class);
-        $this->expectExceptionMessage('Too many JSON objects and arrays in one request, the limit is 6.');
-        (new JsonTracesDecoder(maxJsonContainers: 6))->decode($payload, new \DateTimeImmutable());
-    }
-
     public function testEmptyRequestHasNoSpans(): void
     {
         $time = new \DateTimeImmutable('2024-01-01 00:00:00');
