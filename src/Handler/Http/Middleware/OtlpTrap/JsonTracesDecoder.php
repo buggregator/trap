@@ -39,12 +39,35 @@ final class JsonTracesDecoder implements TracesDecoder
     private const SPAN_ID_BYTES = 8;
     private const UINT32_MAX = 0xFFFF_FFFF;
 
+    /**
+     * A decoded JSON object takes about 400 bytes, so a body of tiny objects like `{"a":1}` grows
+     * about 50 times in json_decode(). The limit keeps that under about 90 MB; real spans stay well
+     * below it within the body size limit of {@see \Buggregator\Trap\Handler\Http\Middleware\OtlpTrap}.
+     */
+    public const MAX_JSON_CONTAINERS = 200_000;
+
+    /**
+     * @param int<1, max> $maxSpans Spans accepted in one request.
+     * @param int<1, max> $maxJsonContainers JSON objects and arrays accepted in one request,
+     *        estimated by counting `{` and `[`, those in strings included.
+     */
+    public function __construct(
+        public readonly int $maxSpans = self::MAX_SPANS,
+        private readonly int $maxJsonContainers = self::MAX_JSON_CONTAINERS,
+    ) {}
+
     #[\Override]
     public function decode(string $payload, \DateTimeImmutable $time): OtlpTraces
     {
+        \substr_count($payload, '{') + \substr_count($payload, '[') > $this->maxJsonContainers
+            and throw LimitExceededException::jsonContainers($this->maxJsonContainers);
+
         // Big integers as strings: as floats they would lose precision before the range checks.
         $data = \json_decode($payload, true, 512, \JSON_THROW_ON_ERROR | \JSON_BIGINT_AS_STRING);
         \is_array($data) or throw new \InvalidArgumentException('The request body must be a JSON object.');
+
+        // Before building the span objects, which would add to the memory of the decoded arrays.
+        self::countSpans($data) > $this->maxSpans and throw LimitExceededException::spans($this->maxSpans);
 
         return new OtlpTraces(
             \array_map(self::resourceSpans(...), self::list($data, 'resourceSpans')),
@@ -56,6 +79,31 @@ final class JsonTracesDecoder implements TracesDecoder
     public function createSuccessResponse(): ResponseInterface
     {
         return new Response(200, ['Content-Type' => self::CONTENT_TYPE], '{}');
+    }
+
+    /**
+     * Counts spans without validating the structure; malformed parts count as empty and fail later.
+     */
+    private static function countSpans(array $data): int
+    {
+        $count = 0;
+        /** @var mixed $resource */
+        foreach (self::arrayField($data, 'resourceSpans') as $resource) {
+            /** @var mixed $scope */
+            foreach (self::arrayField($resource, 'scopeSpans') as $scope) {
+                $count += \count(self::arrayField($scope, 'spans'));
+            }
+        }
+
+        return $count;
+    }
+
+    private static function arrayField(mixed $data, string $key): array
+    {
+        /** @var mixed $value */
+        $value = \is_array($data) ? self::field($data, $key) : null;
+
+        return \is_array($value) ? $value : [];
     }
 
     private static function resourceSpans(mixed $data): ResourceSpans

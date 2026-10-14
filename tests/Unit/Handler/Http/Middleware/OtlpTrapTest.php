@@ -53,7 +53,7 @@ final class OtlpTrapTest extends TestCase
     public static function provideRejectedRequests(): \Generator
     {
         yield 'malformed JSON' => ['application/json', '{"resourceSpans": [', 400];
-        yield 'too large' => ['application/json', \gzencode(\str_repeat(' ', 11 * 1024 * 1024)), 413];
+        yield 'too large' => ['application/json', \gzencode(\str_repeat(' ', 5 * 1024 * 1024)), 413];
     }
 
     public static function provideTracesPaths(): \Generator
@@ -201,7 +201,7 @@ final class OtlpTrapTest extends TestCase
     public function testRejectsOversizedBodyWith413(): void
     {
         $body = $this->createMock(StreamInterface::class);
-        $body->method('getSize')->willReturn(11 * 1024 * 1024);
+        $body->method('getSize')->willReturn(5 * 1024 * 1024);
         $request = $this->request()->withBody($body);
 
         [$response, $frames] = $this->handleInFiber($request);
@@ -212,7 +212,7 @@ final class OtlpTrapTest extends TestCase
 
     public function testRejectsOversizedDecompressedBodyWith413(): void
     {
-        $request = $this->request(body: \gzencode(\str_repeat(' ', 11 * 1024 * 1024)));
+        $request = $this->request(body: \gzencode(\str_repeat(' ', 5 * 1024 * 1024)));
 
         [$response, $frames] = $this->handleInFiber($request);
 
@@ -276,13 +276,40 @@ final class OtlpTrapTest extends TestCase
     public function testProtobufStatusOfOversizedBody(): void
     {
         $body = $this->createMock(StreamInterface::class);
-        $body->method('getSize')->willReturn(11 * 1024 * 1024);
+        $body->method('getSize')->willReturn(5 * 1024 * 1024);
         $request = $this->request(contentType: 'application/x-protobuf')->withBody($body);
 
         [$response] = $this->handleInFiber($request);
 
         self::assertSame(413, $response->getStatusCode());
         self::assertSame([8, 'Request body is too large.'], self::decodeStatus((string) $response->getBody()));
+    }
+
+    public function testRejectsTooManySpansWith413(): void
+    {
+        $json = new JsonTracesDecoder(3);
+        $middleware = new OtlpTrap(tracesDecoders: [
+            'application/json' => $json,
+            'application/x-protobuf' => new ProtobufTracesDecoder($json),
+        ]);
+        $jsonRequest = $this->request(body: \file_get_contents(Info::TRAP_ROOT . '/tests/Stub/otlp-traces.json'));
+        $protobufRequest = $this->request(body: self::protobufFixture(), contentType: 'application/x-protobuf');
+
+        [$jsonResponse, $jsonFrames] = $this->handleInFiber($jsonRequest, $middleware);
+        [$protobufResponse, $protobufFrames] = $this->handleInFiber($protobufRequest, $middleware);
+
+        self::assertSame(413, $jsonResponse->getStatusCode());
+        self::assertSame(
+            ['code' => 8, 'message' => 'Too many spans in one request, the limit is 3.'],
+            \json_decode((string) $jsonResponse->getBody(), true),
+        );
+        self::assertTrue($jsonResponse->hasHeader(Fallback::NO_DUMP_HEADER));
+        self::assertSame(413, $protobufResponse->getStatusCode());
+        self::assertSame(
+            [8, 'Too many spans in one request, the limit is 3.'],
+            self::decodeStatus((string) $protobufResponse->getBody()),
+        );
+        self::assertSame([], [...$jsonFrames, ...$protobufFrames]);
     }
 
     public function testProtobufStatusEncodesLongMessages(): void

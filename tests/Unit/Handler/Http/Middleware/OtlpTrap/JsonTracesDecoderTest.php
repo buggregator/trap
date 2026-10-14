@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Handler\Http\Middleware\OtlpTrap;
 
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\JsonTracesDecoder;
+use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\LimitExceededException;
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Proto\Frame\Otlp;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\Span;
@@ -345,6 +346,32 @@ final class JsonTracesDecoderTest extends TestCase
         $frame = (new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable());
 
         self::assertNull($this->singleSpan($frame->resourceSpans[0]->scopeSpans[0]->spans)->parentSpanId);
+    }
+
+    public function testCountsSpansOfAllScopesAgainstLimit(): void
+    {
+        $scope = ['spans' => [self::span(), self::span(['spanId' => 'eee19b7ec3c1b175'])]];
+        $payload = \json_encode(['resourceSpans' => [
+            ['scopeSpans' => [$scope, $scope]],
+            ['scopeSpans' => [$scope]],
+        ]]);
+
+        self::assertSame(6, (new JsonTracesDecoder(6))->decode($payload, new \DateTimeImmutable())->countSpans());
+
+        $this->expectException(LimitExceededException::class);
+        (new JsonTracesDecoder(5))->decode($payload, new \DateTimeImmutable());
+    }
+
+    public function testLimitsJsonObjectsAndArraysBeforeDecoding(): void
+    {
+        // 4 objects and 3 arrays
+        $payload = self::request([self::span()]);
+
+        self::assertSame(1, (new JsonTracesDecoder(maxJsonContainers: 7))->decode($payload, new \DateTimeImmutable())->countSpans());
+
+        $this->expectException(LimitExceededException::class);
+        $this->expectExceptionMessage('Too many JSON objects and arrays in one request, the limit is 6.');
+        (new JsonTracesDecoder(maxJsonContainers: 6))->decode($payload, new \DateTimeImmutable());
     }
 
     public function testEmptyRequestHasNoSpans(): void

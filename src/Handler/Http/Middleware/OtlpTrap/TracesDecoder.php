@@ -16,8 +16,14 @@ use Psr\Http\Message\ResponseInterface;
 interface TracesDecoder
 {
     /**
+     * Default limit of spans in one request. It bounds the memory one request takes while being decoded.
+     */
+    public const MAX_SPANS = 10_000;
+
+    /**
      * @param string $payload Uncompressed request body.
      *
+     * @throws LimitExceededException When the payload has more spans than the decoder accepts.
      * @throws \InvalidArgumentException|\JsonException When the payload is malformed.
      */
     public function decode(string $payload, \DateTimeImmutable $time): OtlpTraces;

@@ -8,6 +8,7 @@ use Buggregator\Trap\Handler\Http\Handler\Fallback;
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\ProtobufTracesDecoder;
+use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\LimitExceededException;
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\TracesDecoder;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Support\Json;
@@ -34,7 +35,7 @@ use Psr\Http\Message\StreamInterface;
  */
 final class OtlpTrap implements Middleware
 {
-    private const MAX_BODY_SIZE = 10 * 1024 * 1024;
+    private const MAX_BODY_SIZE = 4 * 1024 * 1024;
     private const TRACES_PATH = '/v1/traces';
     private const OTLP_MEDIA_TYPES = [JsonTracesDecoder::CONTENT_TYPE, ProtobufTracesDecoder::CONTENT_TYPE];
     private const UNSUPPORTED_SIGNALS = [
@@ -232,6 +233,9 @@ final class OtlpTrap implements Middleware
             }
 
             $frame = $decoder->decode($payload, $time);
+        } catch (LimitExceededException $e) {
+            $this->logger?->info('OTLP traces request rejected: %s', $e->getMessage());
+            return self::error($mediaType, 413, self::RPC_RESOURCE_EXHAUSTED, $e->getMessage());
         } catch (\Throwable $e) {
             $this->logger?->info('OTLP traces request rejected: %s', $e->getMessage());
             return self::error($mediaType, 400, self::RPC_INVALID_ARGUMENT, $e->getMessage());

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Handler\Http\Middleware\OtlpTrap;
 
+use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\ProtobufTracesDecoder;
+use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\LimitExceededException;
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\SpanKind;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\StatusCode;
@@ -90,6 +92,27 @@ final class ProtobufTracesDecoderTest extends TestCase
         self::assertSame(SpanKind::Unspecified, $decoded->kind);
         self::assertSame(500, $decoded->getDuration());
         self::assertEquals(['bytes' => 'AQID', 'kvlist' => new \ArrayObject(['deep' => 1.5])], $decoded->attributes);
+    }
+
+    public function testCountsSpansOfAllScopesAgainstLimit(): void
+    {
+        $span = static fn(int $id): Span => (new Span())
+            ->setTraceId(\hex2bin('5b8efff798038103d269b633813fc60c'))
+            ->setSpanId(\pack('J', $id))
+            ->setAttributes([
+                (new KeyValue())->setKey('negative')->setValue((new AnyValue())->setIntValue(-1)),
+            ]);
+        $scope = static fn(int $id): ScopeSpans => (new ScopeSpans())->setSpans([$span($id), $span($id + 1)]);
+        $payload = (new ExportTraceServiceRequest())->setResourceSpans([
+            (new ResourceSpans())->setScopeSpans([$scope(1), $scope(3)]),
+            (new ResourceSpans())->setScopeSpans([$scope(5), $scope(7)]),
+        ])->serializeToString();
+
+        $frame = (new ProtobufTracesDecoder(new JsonTracesDecoder(8)))->decode($payload, new \DateTimeImmutable());
+        self::assertSame(8, $frame->countSpans());
+
+        $this->expectException(LimitExceededException::class);
+        (new ProtobufTracesDecoder(new JsonTracesDecoder(7)))->decode($payload, new \DateTimeImmutable());
     }
 
     public function testRejectsMalformedMessage(): void
