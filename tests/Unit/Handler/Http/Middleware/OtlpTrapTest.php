@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Handler\Http\Middleware;
 
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap;
+use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\JsonTracesDecoder;
+use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\ProtobufTracesDecoder;
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Proto\Frame\Otlp\OtlpTraces;
@@ -174,11 +176,49 @@ final class OtlpTrapTest extends TestCase
         self::assertSame(413, $response->getStatusCode());
     }
 
-    public function testRejectsProtobufWith415AndReportsOnce(): void
+    public function testRegistersProtobufDecoderWhenPackagesAreInstalled(): void
+    {
+        self::assertTrue(ProtobufTracesDecoder::isAvailable(), 'The dev dependencies include the protobuf packages.');
+        $request = $this->request(body: self::protobufFixture(), contentType: 'application/x-protobuf');
+
+        [$response, $frames] = $this->handleInFiber($request);
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame('application/x-protobuf', $response->getHeaderLine('Content-Type'));
+        self::assertSame('', (string) $response->getBody());
+        self::assertCount(1, $frames);
+        self::assertSame(4, $frames[0]->countSpans());
+    }
+
+    public function testAcceptsGzipProtobufBody(): void
+    {
+        $request = $this->request(
+            body: \gzencode(self::protobufFixture()),
+            contentType: 'application/x-protobuf',
+            headers: ['Content-Encoding' => 'gzip'],
+        );
+
+        [$response, $frames] = $this->handleInFiber($request);
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame(4, $frames[0]->countSpans());
+    }
+
+    public function testRejectsMalformedProtobufWith400(): void
+    {
+        $request = $this->request(body: "\x0a\xff\xff\xff", contentType: 'application/x-protobuf');
+
+        [$response, $frames] = $this->handleInFiber($request);
+
+        self::assertSame(400, $response->getStatusCode());
+        self::assertSame([], $frames);
+    }
+
+    public function testJsonOnlyModeRejectsProtobufWith415AndReportsOnce(): void
     {
         $output = new BufferedOutput();
-        $middleware = new OtlpTrap(new Logger($output));
-        $request = $this->request(body: "\n\x02\x0a\x00", contentType: 'application/x-protobuf');
+        $middleware = new OtlpTrap(new Logger($output), ['application/json' => new JsonTracesDecoder()]);
+        $request = $this->request(body: self::protobufFixture(), contentType: 'application/x-protobuf');
 
         [$first, $frames] = $this->handleInFiber($request, $middleware);
         [$second] = $this->handleInFiber($request, $middleware);
@@ -187,7 +227,18 @@ final class OtlpTrapTest extends TestCase
         self::assertSame(415, $second->getStatusCode());
         self::assertSame(12, \json_decode((string) $first->getBody(), true)['code']);
         self::assertSame([], $frames);
-        self::assertSame(1, \substr_count($output->fetch(), 'protobuf encoding is not supported'));
+        self::assertSame(1, \substr_count($output->fetch(), 'composer require open-telemetry/gen-otlp-protobuf'));
+    }
+
+    public function testJsonOnlyModeAcceptsJson(): void
+    {
+        $middleware = new OtlpTrap(tracesDecoders: ['application/json' => new JsonTracesDecoder()]);
+
+        [$response, $frames] = $this->handleInFiber($this->request(body: self::PAYLOAD), $middleware);
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame('{}', (string) $response->getBody());
+        self::assertCount(1, $frames);
     }
 
     public function testRejectsUnknownContentTypeWith415(): void
@@ -199,6 +250,11 @@ final class OtlpTrapTest extends TestCase
         self::assertSame(415, $response->getStatusCode());
         self::assertStringContainsString('text/plain', (string) $response->getBody());
         self::assertSame([], $frames);
+    }
+
+    private static function protobufFixture(): string
+    {
+        return \file_get_contents(Info::TRAP_ROOT . '/tests/Stub/otlp-traces.pb');
     }
 
     /**

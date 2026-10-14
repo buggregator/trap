@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Handler\Http\Middleware;
 
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\JsonTracesDecoder;
+use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\ProtobufTracesDecoder;
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\TracesDecoder;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Support\Json;
@@ -18,8 +19,8 @@ use Psr\Http\Message\StreamInterface;
 /**
  * Receives OpenTelemetry traces over OTLP/HTTP (`POST /v1/traces`).
  *
- * Decoders are picked by the media type of the request. Only JSON is decoded for now;
- * other content types, protobuf included, get 415.
+ * JSON is always decoded. Protobuf is decoded when the suggested protobuf packages are installed,
+ * see {@see ProtobufTracesDecoder}; otherwise it gets 415 like any other content type.
  * Logs and metrics (`/v1/logs`, `/v1/metrics`) are passed to the next middleware.
  *
  * @internal
@@ -42,13 +43,20 @@ final class OtlpTrap implements Middleware
 
     /**
      * @param array<non-empty-lowercase-string, TracesDecoder>|null $tracesDecoders Media type => decoder.
-     *        Null registers JSON.
+     *        Null registers JSON, and protobuf when its packages are installed.
      */
     public function __construct(
         private readonly ?Logger $logger = null,
         ?array $tracesDecoders = null,
     ) {
-        $this->tracesDecoders = $tracesDecoders ?? [JsonTracesDecoder::CONTENT_TYPE => new JsonTracesDecoder()];
+        if ($tracesDecoders === null) {
+            $json = new JsonTracesDecoder();
+            $tracesDecoders = [JsonTracesDecoder::CONTENT_TYPE => $json];
+            ProtobufTracesDecoder::isAvailable()
+            and $tracesDecoders[ProtobufTracesDecoder::CONTENT_TYPE] = new ProtobufTracesDecoder($json);
+        }
+
+        $this->tracesDecoders = $tracesDecoders;
     }
 
     #[\Override]
@@ -148,15 +156,20 @@ final class OtlpTrap implements Middleware
 
     private function rejectContentType(string $mediaType): ResponseInterface
     {
-        if ($mediaType === 'application/x-protobuf') {
+        if ($mediaType === ProtobufTracesDecoder::CONTENT_TYPE) {
             if (!$this->protobufReported) {
                 $this->protobufReported = true;
                 $this->logger?->print(
-                    'OTLP: protobuf encoding is not supported yet, set OTEL_EXPORTER_OTLP_PROTOCOL=http/json.',
+                    'OTLP: to receive protobuf, run `composer require open-telemetry/gen-otlp-protobuf google/protobuf`'
+                    . ' or set OTEL_EXPORTER_OTLP_PROTOCOL=http/json.',
                 );
             }
 
-            return self::error(415, self::RPC_UNIMPLEMENTED, 'OTLP protobuf encoding is not supported, use http/json.');
+            return self::error(
+                415,
+                self::RPC_UNIMPLEMENTED,
+                'OTLP protobuf encoding needs the open-telemetry/gen-otlp-protobuf package, use http/json.',
+            );
         }
 
         return self::error(
