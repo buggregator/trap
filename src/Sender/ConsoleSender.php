@@ -25,6 +25,7 @@ final class ConsoleSender implements Sender
         $renderer->register(new Renderer\VarDumper());
         $renderer->register(new Renderer\SentryStore());
         $renderer->register(new Renderer\SentryEnvelope());
+        $renderer->register(new Renderer\OtlpTraces());
         $renderer->register(new Renderer\Monolog());
         $renderer->register(new Renderer\Smtp());
         $renderer->register(new Renderer\Http());
