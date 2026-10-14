@@ -154,7 +154,7 @@ final class ProfileBuilderTest
         Assert::same($profile->peaks->wt, 100);
     }
 
-    #[Skip('Bug: Tree does not set the parent of an adopted lost child')]
+    #[Skip('Bug #234: Tree does not set the parent of an adopted lost child')]
     public function testComputesDeltaForChildOfSyntheticRoot(): void
     {
         $profile = self::build([

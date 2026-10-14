@@ -181,7 +181,7 @@ final class ServerTest
      * before the first record does. Writing right after connecting races with the server
      * and fails about every other run the same way.
      */
-    #[Skip('Bug: a Monolog record that arrives after the connection is accepted is dumped as binary, see src/Traffic/Dispatcher/Monolog.php:37')]
+    #[Skip('Bug #238: a Monolog record that arrives after the connection is accepted is dumped as binary, see src/Traffic/Dispatcher/Monolog.php:37')]
     public function testMonologRecordIsCaptured(): void
     {
         $trap = $this->startTrap('monolog');

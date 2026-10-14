@@ -53,7 +53,7 @@ final class EnvelopeParserTest
         Assert::same($envelope->items[1]->payload, ['a' => 'sized']);
     }
 
-    #[Skip('Bug: the newline after a payload with explicit length is read as the next item header, so parsing stops')]
+    #[Skip('Bug #231: the newline after a payload with explicit length is read as the next item header, so parsing stops')]
     public function testContinuesAfterItemWithLength(): void
     {
         $stream = Stream::create(self::HEADER . "\n{\"type\":\"event\",\"length\":13}\n{\"a\":\"sized\"}\n" . self::EVENT);
@@ -130,7 +130,7 @@ final class EnvelopeParserTest
         Assert::same($envelope->items[1]->headers['length'], $length);
     }
 
-    #[Skip('Bug: attachment payload is the int returned by StreamInterface::write(), not the file stream')]
+    #[Skip('Bug #232: attachment payload is the int returned by StreamInterface::write(), not the file stream')]
     public function testStoresAttachmentAsStream(): void
     {
         $stream = Stream::create(self::HEADER . "\n{\"type\":\"attachment\",\"length\":5}\nab\ncd\n");

@@ -51,6 +51,7 @@ final class EventStorage implements \IteratorAggregate, \Countable
     /**
      * @return \Traversable<Event>
      */
+    #[\Override]
     public function getIterator(): \Traversable
     {
         // Defers sorting of events until it is necessary.
@@ -71,6 +72,7 @@ final class EventStorage implements \IteratorAggregate, \Countable
     /**
      * @return int<0, max>
      */
+    #[\Override]
     public function count(): int
     {
         return \count($this->events);

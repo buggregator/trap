@@ -20,6 +20,7 @@ final class VarDumper extends Frame
         parent::__construct(ProtoType::VarDumper, $time);
     }
 
+    #[\Override]
     public static function fromString(string $payload, \DateTimeImmutable $time): static
     {
         return new self($payload, $time);

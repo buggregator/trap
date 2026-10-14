@@ -26,6 +26,6 @@ final class TemplateEngine
         \extract($data); // Extract the variables from the data array
         include $templatePath;
 
-        return \ob_get_clean();
+        return (string) \ob_get_clean();
     }
 }

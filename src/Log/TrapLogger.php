@@ -37,6 +37,7 @@ final class TrapLogger extends AbstractLogger
      * Sends a log record to the Trap server in Monolog-compatible JSON format,
      * falling back to STDERR if the connection fails.
      */
+    #[\Override]
     public function log(mixed $level, string|\Stringable $message, array $context = []): void
     {
         $level = \strtolower((string) $level);

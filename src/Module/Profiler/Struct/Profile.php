@@ -24,6 +24,13 @@ namespace Buggregator\Trap\Module\Profiler\Struct;
  *     total_edges: int<0, max>,
  * }
  *
+ * @psalm-type ProfileInput = array{
+ *     date: int,
+ *     tags: array<non-empty-string, non-empty-string>,
+ *     peaks: PeaksData,
+ *     ...
+ * }
+ *
  * @psalm-import-type PeaksData from Peaks
  *
  * @internal
@@ -31,6 +38,8 @@ namespace Buggregator\Trap\Module\Profiler\Struct;
 final class Profile implements \JsonSerializable
 {
     public Peaks $peaks;
+
+    /** @var Tree<Edge> */
     public Tree $calls;
 
     /**
@@ -45,6 +54,7 @@ final class Profile implements \JsonSerializable
         ?Tree $calls = null,
         ?Peaks $peaks = null,
     ) {
+        /** @var Tree<Edge> */
         $this->calls = $calls ?? new Tree();
         if ($peaks === null) {
             $this->peaks = new Peaks();
@@ -59,8 +69,7 @@ final class Profile implements \JsonSerializable
     }
 
     /**
-     * @param ProfileData $data
-     * @psalm-suppress all
+     * @param ProfileInput $data
      */
     public static function fromArray(array $data): self
     {
@@ -78,19 +87,23 @@ final class Profile implements \JsonSerializable
 
     /**
      * @return ProfileData
-     * @psalm-suppress all
      */
+    #[\Override]
     public function jsonSerialize(): array
     {
         /** @var array<non-empty-string, array> $edges */
         $edges = \iterator_to_array($this->calls->getItemsSortedV1(
+            /**
+             * @param Branch<Edge> $a
+             * @param Branch<Edge> $b
+             */
             static fn(Branch $a, Branch $b): int => $b->item->cost->wt <=> $a->item->cost->wt,
         ));
         return [
             'date' => $this->date->getTimestamp(),
             'app_name' => $this->metadata['app_name'] ?? '',
-            'hostname' => $this->metadata['hostname'] ?? '',
-            'filename' => $this->metadata['filename'] ?? '',
+            'hostname' => (string) ($this->metadata['hostname'] ?? ''),
+            'filename' => (string) ($this->metadata['filename'] ?? ''),
             'tags' => $this->tags,
             'peaks' => $this->peaks,
             'edges' => $edges,

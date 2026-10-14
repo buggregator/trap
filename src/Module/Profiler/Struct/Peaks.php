@@ -63,6 +63,7 @@ final class Peaks implements \JsonSerializable
      *     pmu: int<0, max>
      * }
      */
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [

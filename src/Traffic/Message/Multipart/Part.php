@@ -74,6 +74,7 @@ abstract class Part implements \JsonSerializable
      *      name?: string
      *  }
      */
+    #[\Override]
     public function jsonSerialize(): array
     {
         $data = [

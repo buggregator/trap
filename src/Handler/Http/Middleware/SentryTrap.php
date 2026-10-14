@@ -26,6 +26,7 @@ final class SentryTrap implements Middleware
         private readonly ?Logger $logger = null,
     ) {}
 
+    #[\Override]
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
         try {

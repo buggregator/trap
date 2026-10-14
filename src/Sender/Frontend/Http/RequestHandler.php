@@ -25,6 +25,7 @@ final class RequestHandler implements RequestHandlernterace
         private readonly Sender\Frontend\ConnectionPool $connectionPool,
     ) {}
 
+    #[\Override]
     public function handle(StreamClient $streamClient, ServerRequestInterface $request, callable $next): \Generator
     {
         if (

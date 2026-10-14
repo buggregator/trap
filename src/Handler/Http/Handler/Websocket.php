@@ -20,6 +20,7 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 final class Websocket implements RequestHandler
 {
+    #[\Override]
     public function handle(StreamClient $streamClient, ServerRequestInterface $request, callable $next): iterable
     {
         if (

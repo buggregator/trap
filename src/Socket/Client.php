@@ -54,6 +54,7 @@ final class Client implements Destroyable
         );
     }
 
+    #[\Override]
     public function destroy(): void
     {
         /** @psalm-suppress RedundantPropertyInitializationCheck */

@@ -41,6 +41,7 @@ final class RemoteSender extends SocketSender
         $frames === [] or parent::send($frames);
     }
 
+    #[\Override]
     protected function makePackage(string $payload): string
     {
         return "1|$this->clientVersion|$this->uuid|$payload\n";

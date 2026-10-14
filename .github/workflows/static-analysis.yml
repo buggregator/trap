@@ -2,21 +2,9 @@
 
 on:  # yamllint disable-line rule:truthy
   pull_request:
-    paths:
-      - 'src/**'
-      - 'bin/trap'
-      - '.php-cs-fixer.dist.php'
-      - 'psalm*'
-      - 'composer.*'
   push:
     branches:
       - master
-    paths:
-      - 'src/**'
-      - 'bin/trap'
-      - '.php-cs-fixer.dist.php'
-      - 'psalm*'
-      - 'composer.*'
 
 name: 🔍 Static analysis
 
@@ -29,37 +17,9 @@ permissions:
 
 jobs:
   psalm:
-    timeout-minutes: 4
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: true
-      matrix:
-        os:
-          - ubuntu-latest
-        php-version:
-          - '8.2'
-        dependencies:
-          - locked
-    steps:
-      - name: 📦 Check out the codebase
-        uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-
-      - name: 🛠️ Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: ${{ matrix.php-version }}
-          ini-values: error_reporting=E_ALL
-          coverage: none
-
-      - name: 🤖 Validate composer.json and composer.lock
-        run: composer validate --ansi --strict
-
-      - name: 📥 Install dependencies with composer
-        uses: ramsey/composer-install@v3
-        with:
-          dependency-versions: ${{ matrix.dependencies }}
-
-      - name: 🔍 Run static analysis using vimeo/psalm
-        run: composer psalm:ci
+    uses: spiral/gh-actions/.github/workflows/psalm.yml@master
+    with:
+      os: >-
+        ['ubuntu-latest']
+      php: >-
+        ['8.2']

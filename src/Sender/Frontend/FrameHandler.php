@@ -25,6 +25,7 @@ final class FrameHandler implements HandlerInterface
         $this->frameMapper = new FrameMapper();
     }
 
+    #[\Override]
     public function handle(Frame $frame): void
     {
         try {

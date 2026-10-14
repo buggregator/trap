@@ -72,6 +72,7 @@ final class Smtp implements \JsonSerializable
         return $self;
     }
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [

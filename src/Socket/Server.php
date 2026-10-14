@@ -46,7 +46,9 @@ final class Server implements Processable, Cancellable, Destroyable
         private readonly ?\Closure $clientInflector,
         private readonly Logger $logger,
     ) {
-        $this->socket = \socket_create(\AF_INET, \SOCK_STREAM, \getprotobyname($protocol))
+        $protocolNumber = \getprotobyname($protocol);
+        $protocolNumber === false and throw new \RuntimeException(\sprintf('Unknown protocol `%s`.', $protocol));
+        $this->socket = \socket_create(\AF_INET, \SOCK_STREAM, $protocolNumber)
             ?: throw new \RuntimeException('Socket create failed.');
         @\socket_set_nonblock($this->socket)
             ?: throw new \RuntimeException('Socket set nonblock failed.');
@@ -82,15 +84,16 @@ final class Server implements Processable, Cancellable, Destroyable
         return new self($protocol, $address, $port, $payloadSize, $acceptPeriod, $clientInflector, $logger);
     }
 
+    #[\Override]
     public function destroy(): void
     {
-        /** @psalm-suppress all */
+        /** @psalm-suppress RedundantCondition, TypeDoesNotContainType The property is unset by a previous destroy() call */
         foreach ($this->clients ?? [] as $client) {
             $client->destroy();
         }
 
         try {
-            /** @psalm-suppress all */
+            /** @psalm-suppress RedundantPropertyInitializationCheck The property is unset by a previous destroy() call */
             if (isset($this->socket)) {
                 \socket_close($this->socket);
             }
@@ -100,6 +103,7 @@ final class Server implements Processable, Cancellable, Destroyable
         unset($this->socket, $this->clients, $this->fibers);
     }
 
+    #[\Override]
     public function process(): void
     {
         // /** @psalm-suppress PossiblyInvalidArgument */
@@ -119,7 +123,6 @@ final class Server implements Processable, Cancellable, Destroyable
                 $this->fibers[$key] = new \Fiber($client->process(...));
                 /**
                  * The {@see self::$cancelled} may be changed because of fibers
-                 * @psalm-suppress all
                  */
                 $this->cancelled and $client->disconnect();
             } catch (\Throwable) {
@@ -155,6 +158,7 @@ final class Server implements Processable, Cancellable, Destroyable
         }
     }
 
+    #[\Override]
     public function cancel(): void
     {
         $this->cancelled = true;

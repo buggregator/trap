@@ -56,11 +56,13 @@ final class Binary implements Renderer
         public readonly int $printBytes = 512,
     ) {}
 
+    #[\Override]
     public function isSupport(Frame $frame): bool
     {
         return $frame->type === ProtoType::Binary;
     }
 
+    #[\Override]
     public function render(OutputInterface $output, Frame $frame): void
     {
         \assert($frame instanceof Frame\Binary);
@@ -109,7 +111,7 @@ final class Binary implements Renderer
                 '<info>%s</info>  %s  %s',
                 \str_pad(\dechex($offset), 8, '0', \STR_PAD_LEFT),
                 $hexes,
-                \preg_replace(
+                (string) \preg_replace(
                     \array_keys(self::BYTE_REPLACES),
                     \array_values(self::BYTE_REPLACES),
                     \substr($read, $offset, 16),

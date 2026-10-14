@@ -28,6 +28,7 @@ final class Test extends Command
     /** @psalm-suppress PropertyNotSetInConstructor */
     private Logger $logger;
 
+    #[\Override]
     protected function execute(
         InputInterface $input,
         OutputInterface $output,
@@ -81,7 +82,7 @@ final class Test extends Command
         trap(Nested: (object) ['msg' => $message]);
 
         try {
-            $socket = @\socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+            $socket = @\socket_create(AF_INET, SOCK_STREAM, SOL_TCP) ?: throw new \RuntimeException('Cannot create socket.');
             @\socket_connect($socket, $this->addr, $this->port);
             @\socket_write($socket, $message->serializeToString());
         } catch (\Throwable $e) {
@@ -96,7 +97,7 @@ final class Test extends Command
     private function mail(OutputInterface $output, bool $multipart = false): void
     {
         try {
-            $socket = \socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+            $socket = \socket_create(AF_INET, SOCK_STREAM, SOL_TCP) ?: throw new \RuntimeException('Cannot create socket.');
             \socket_connect($socket, $this->addr, $this->port);
 
             $this->sendMailPackage($output, $socket, '', '220 ');
@@ -153,7 +154,7 @@ final class Test extends Command
                 $this->sendMailPackage(
                     $output,
                     $socket,
-                    \base64_encode(\file_get_contents(Info::TRAP_ROOT . '/resources/public/favicon.ico')) . "\r\n",
+                    \base64_encode((string) \file_get_contents(Info::TRAP_ROOT . '/resources/public/favicon.ico')) . "\r\n",
                     '',
                 );
                 $this->sendMailPackage($output, $socket, "\r\n", '');
@@ -233,7 +234,7 @@ final class Test extends Command
     private function sendContent(string $file): void
     {
         try {
-            $socket = @\socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+            $socket = @\socket_create(AF_INET, SOCK_STREAM, SOL_TCP) ?: throw new \RuntimeException('Cannot create socket.');
             @\socket_connect($socket, $this->addr, $this->port);
 
             $fp = @\fopen(Info::TRAP_ROOT . '/resources/payloads/' . $file, 'rb');
@@ -243,6 +244,7 @@ final class Test extends Command
             @\flock($fp, LOCK_SH);
             while (!\feof($fp)) {
                 $read = \fread($fp, 4096);
+                $read === false and throw new \RuntimeException('Cannot read file.');
                 @\socket_write($socket, $read);
             }
 

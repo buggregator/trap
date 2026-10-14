@@ -19,11 +19,13 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 final class SentryStore implements Renderer
 {
+    #[\Override]
     public function isSupport(Frame $frame): bool
     {
         return $frame->type === ProtoType::Sentry && $frame instanceof Frame\Sentry\SentryStore;
     }
 
+    #[\Override]
     public function render(OutputInterface $output, Frame $frame): void
     {
         \assert($frame instanceof Frame\Sentry\SentryStore);

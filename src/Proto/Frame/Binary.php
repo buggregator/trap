@@ -22,16 +22,19 @@ final class Binary extends Frame implements \Buggregator\Trap\Proto\StreamCarrie
         parent::__construct(ProtoType::Binary, $time);
     }
 
+    #[\Override]
     public static function fromString(string $payload, \DateTimeImmutable $time): never
     {
         throw new \RuntimeException('Binary data can not be restored from string.');
     }
 
+    #[\Override]
     public function getSize(): int
     {
-        return (int) $this->stream->getSize();
+        return \max(0, (int) $this->stream->getSize());
     }
 
+    #[\Override]
     public function getStream(): StreamInterface
     {
         return $this->stream;

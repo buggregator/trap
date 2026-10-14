@@ -3,12 +3,19 @@
        xmlns="https://getpsalm.org/schema/config"
        xsi:schemaLocation="https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd"
        errorLevel="1"
-       findUnusedBaselineEntry="false"
        findUnusedCode="false"
-       errorBaseline="psalm-baseline.xml"
        phpVersion="8.2"
 >
     <issueHandlers>
+        <!-- Making public classes final would break BC for users who extend them -->
+        <ClassMustBeFinal errorLevel="suppress"/>
+        <UndefinedClass>
+            <errorLevel type="suppress">
+                <!-- Optional dependencies that are not installed -->
+                <referencedClass name="Symfony\Component\HttpKernel\Debug\FileLinkFormatter"/>
+                <referencedClass name="Twig\Template"/>
+            </errorLevel>
+        </UndefinedClass>
         <RedundantConditionGivenDocblockType errorLevel="suppress"/>
         <RedundantCastGivenDocblockType errorLevel="suppress"/>
         <PropertyNotSetInConstructor errorLevel="suppress">

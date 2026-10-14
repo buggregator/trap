@@ -35,8 +35,22 @@ final class Http extends Frame implements FilesCarrier, \Buggregator\Trap\Proto\
         parent::__construct(type: ProtoType::HTTP, time: $time);
     }
 
+    #[\Override]
     public static function fromString(string $payload, \DateTimeImmutable $time): static
     {
+        /**
+         * @var array{
+         *     method?: string,
+         *     uri?: string,
+         *     headers?: array<string, list<string>>,
+         *     body?: string,
+         *     protocolVersion?: string,
+         *     serverParams?: array,
+         *     queryParams?: array,
+         *     cookies?: array,
+         *     uploadedFiles?: array,
+         * } $payload
+         */
         $payload = \json_decode($payload, true, 64, \JSON_THROW_ON_ERROR);
 
         $request = new ServerRequest(
@@ -48,6 +62,7 @@ final class Http extends Frame implements FilesCarrier, \Buggregator\Trap\Proto\
             $payload['serverParams'] ?? [],
         );
 
+        /** @psalm-suppress MixedArgument Bug #233: uploaded files are serialized as empty objects and cannot be restored */
         return new self(
             $request->withQueryParams($payload['queryParams'] ?? [])
                 ->withCookieParams($payload['cookies'] ?? [])
@@ -67,16 +82,22 @@ final class Http extends Frame implements FilesCarrier, \Buggregator\Trap\Proto\
         );
     }
 
+    #[\Override]
     public function getSize(): int
     {
         return $this->cachedSize;
     }
 
+    #[\Override]
     public function hasFiles(): bool
     {
         return \count($this->request->getUploadedFiles()) > 0;
     }
 
+    /**
+     * @psalm-suppress MixedReturnTypeCoercion Bug #233: PSR-7 uploaded files may be nested arrays, but a flat list is declared
+     */
+    #[\Override]
     public function getFiles(): array
     {
         return $this->request->getUploadedFiles();
@@ -107,6 +128,7 @@ final class Http extends Frame implements FilesCarrier, \Buggregator\Trap\Proto\
         return $generator($this->request->getUploadedFiles());
     }
 
+    #[\Override]
     public function getStream(): StreamInterface
     {
         return $this->request->getBody();

@@ -46,7 +46,7 @@ final class CliTest
     #[DataSet(['--port=abc', 'abc', ['TRAP_TCP_PORTS' => null]], 'non-numeric port')]
     #[DataSet(['--port=70000', '70000', ['TRAP_TCP_PORTS' => null]], 'port out of range')]
     #[DataSet(['--sender=nosuch', 'nosuch', []], 'unknown sender')]
-    #[Skip('Bug: `trap run` hides a startup error unless run with -vv and exits 0, see src/Command/Run.php:174')]
+    #[Skip('Bug #237: `trap run` hides a startup error unless run with -vv and exits 0, see src/Command/Run.php:174')]
     public function testInvalidStartupOptionFails(string $option, string $reported, array $env): void
     {
         [$exitCode, $output] = TrapProcess::run('cli-invalid-option', [$option], $env);

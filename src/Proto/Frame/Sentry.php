@@ -18,6 +18,7 @@ use Buggregator\Trap\Support\Json;
  */
 abstract class Sentry extends Frame
 {
+    #[\Override]
     final public static function fromString(string $payload, \DateTimeImmutable $time): static
     {
         static::class === self::class or throw new \LogicException(

@@ -128,7 +128,7 @@ final class HttpTest
         Assert::same($frame->getSize(), 2 + 12);
     }
 
-    #[Skip('Bug: __toString() serializes UploadedFile objects as {}, so fromString() cannot restore them')]
+    #[Skip('Bug #233: __toString() serializes UploadedFile objects as {}, so fromString() cannot restore them')]
     public function testStringRoundtripWithFiles(): void
     {
         $request = (new ServerRequest('POST', '/upload'))

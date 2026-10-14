@@ -28,6 +28,10 @@ class BodyToFileSender implements Sender
         FileSystem::mkdir($path);
     }
 
+    /**
+     * @psalm-suppress PossiblyFalseArgument Bug #241: the file descriptor is used before the fopen() failure check
+     */
+    #[\Override]
     public function send(iterable $frames): void
     {
         $fileName = 'dump-' . (new \DateTimeImmutable())->format('Y-m-d-H-i-s-v') . '[%d].log';

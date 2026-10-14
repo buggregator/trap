@@ -25,6 +25,7 @@ class MailToFileSender implements Sender
         FileSystem::mkdir($path);
     }
 
+    #[\Override]
     public function send(iterable $frames): void
     {
         /** @var Frame $frame */

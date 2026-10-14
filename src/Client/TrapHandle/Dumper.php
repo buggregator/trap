@@ -36,7 +36,7 @@ final class Dumper
 
     /**
      * @return null|callable(mixed, string|null, int): mixed
-     * @psalm-suppress MixedInferredReturnType, MixedPropertyTypeCoercion, MismatchingDocblockReturnType
+     * @psalm-suppress MixedPropertyTypeCoercion, MismatchingDocblockReturnType
      */
     public static function setHandler(?callable $callable = null): ?\Closure
     {
@@ -120,7 +120,6 @@ final class Dumper
 
         if (!\in_array(\PHP_SAPI, ['cli', 'phpdbg'], true) && \class_exists(Request::class)) {
             $requestStack = new RequestStack();
-            /** @psalm-suppress MixedMethodCall */
             $requestStack->push(Request::createFromGlobals());
             $contextProviders['request'] = new RequestContextProvider($requestStack);
         }

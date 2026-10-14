@@ -256,7 +256,7 @@ final class TrapHandle
     private static function getEnvValue(string $name, string $default): string
     {
         if (\array_key_exists($name, $_ENV)) {
-            return $_ENV[$name];
+            return (string) $_ENV[$name];
         }
 
         $value = \getenv($name, true);
@@ -298,7 +298,6 @@ final class TrapHandle
              * @var mixed $value
              */
             foreach ($this->values as $key => $value) {
-                /** @psalm-suppress TooManyArguments */
                 VarDumper::dump($value, label: $key, depth: $this->depth);
             }
         } finally {

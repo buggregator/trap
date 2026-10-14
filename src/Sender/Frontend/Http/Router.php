@@ -31,6 +31,7 @@ final class Router implements Middleware
         $this->router = CommonRouter::new($service);
     }
 
+    #[\Override]
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
         try {

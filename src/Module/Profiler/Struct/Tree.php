@@ -79,6 +79,7 @@ final class Tree implements \IteratorAggregate, \Countable
      *
      * @return \Traversable<non-empty-string, Branch<TItem>>
      */
+    #[\Override]
     public function getIterator(): \Traversable
     {
         yield from $this->all;
@@ -155,6 +156,7 @@ final class Tree implements \IteratorAggregate, \Countable
     /**
      * @return int<0, max>
      */
+    #[\Override]
     public function count(): int
     {
         return \count($this->all);

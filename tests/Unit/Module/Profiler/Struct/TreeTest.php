@@ -58,7 +58,7 @@ final class TreeTest
         Assert::same(self::ids($tree->all['p']->children), ['c']);
     }
 
-    #[Skip('Bug: adopted lost child keeps parent === null')]
+    #[Skip('Bug #234: adopted lost child keeps parent === null')]
     public function testAdoptedLostChildReferencesItsParent(): void
     {
         $tree = new Tree();

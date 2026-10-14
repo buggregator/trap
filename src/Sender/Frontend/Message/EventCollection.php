@@ -20,6 +20,7 @@ final class EventCollection implements \JsonSerializable
         public readonly array $meta = [],
     ) {}
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [

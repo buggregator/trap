@@ -17,6 +17,7 @@ final class EnvelopeItem implements \Stringable, \JsonSerializable
         public readonly mixed $payload,
     ) {}
 
+    #[\Override]
     public function jsonSerialize(): mixed
     {
         return [
@@ -28,6 +29,7 @@ final class EnvelopeItem implements \Stringable, \JsonSerializable
     /**
      * @throws \JsonException
      */
+    #[\Override]
     public function __toString(): string
     {
         return Json::encode($this->jsonSerialize());
