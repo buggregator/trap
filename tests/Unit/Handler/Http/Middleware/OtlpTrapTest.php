@@ -73,6 +73,12 @@ final class OtlpTrapTest
         yield 'empty protobuf' => ['application/x-protobuf', '', ''];
     }
 
+    public static function provideUnreadGzipBodies(): iterable
+    {
+        yield 'broken' => ['"\x1f\x8b" . "not really gzip"', '400'];
+        yield 'decompressed body too large' => ['\gzencode(\str_repeat(" ", 11 * 1024 * 1024))', '413'];
+    }
+
     #[DataProvider('provideEmptyExports')]
     public function testEmptyExportSucceedsWithoutFrameAndDump(string $contentType, string $body, string $response): void
     {
@@ -263,6 +269,39 @@ final class OtlpTrapTest
 
         Assert::same($response->getStatusCode(), 413);
         Assert::same($frames, []);
+    }
+
+    /**
+     * Runs in a separate process without an error handler: only then does PHP print such warnings.
+     */
+    #[DataProvider('provideUnreadGzipBodies')]
+    public function testGzipBodyLeftUnreadPrintsNoWarning(string $bodyExpression, string $status): void
+    {
+        $script = <<<PHP
+            require \$argv[1];
+            \$request = (new \\Nyholm\\Psr7\\ServerRequest('POST', '/v1/traces'))
+                ->withHeader('Content-Type', 'application/json')
+                ->withBody(\\Nyholm\\Psr7\\Stream::create($bodyExpression));
+            \$fiber = new \\Fiber(static fn() => (new \\Buggregator\\Trap\\Handler\\Http\\Middleware\\OtlpTrap())
+                ->handle(\$request, static fn() => new \\Nyholm\\Psr7\\Response(500)));
+            \$fiber->start();
+            while (!\$fiber->isTerminated()) {
+                \$fiber->resume();
+            }
+            echo \$fiber->getReturn()->getStatusCode();
+            PHP;
+
+        $process = \proc_open(
+            [\PHP_BINARY, '-d', 'display_errors=stderr', '-r', $script, Info::TRAP_ROOT . '/vendor/autoload.php'],
+            [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            $pipes,
+        );
+        $stdout = \stream_get_contents($pipes[1]);
+        $stderr = \stream_get_contents($pipes[2]);
+        \proc_close($process);
+
+        Assert::same($stdout, $status);
+        Assert::same($stderr, '');
     }
 
     public function testRejectsOversizedDecompressedBodyWith413(): void
