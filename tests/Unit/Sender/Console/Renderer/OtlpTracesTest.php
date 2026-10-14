@@ -181,13 +181,25 @@ final class OtlpTracesTest extends TestCase
         $output = $this->render(self::frame(self::span('3', '2', 'late child', 20, 90)), renderer: $renderer);
 
         self::assertSame([
-            'parent INTERNAL 40 ns id:2222222222222222 (1 more ancestors above)',
+            'parent INTERNAL 40 ns id:2222222222222222 (1 more ancestor above)',
             '└─ late child INTERNAL 70 ns +20 ns id:3333333333333333',
         ], $this->spanLines($output));
         self::assertStringNotContainsString('attr: "parent"', $output, 'Context spans have no details.');
         self::assertStringContainsString('      attr: "late child"', $output);
         self::assertStringNotContainsString('sibling', $output);
         self::assertStringNotContainsString('root', $output);
+    }
+
+    public function testSingleSpanNotShownIsSingular(): void
+    {
+        $spans = [];
+        for ($i = 0; $i < 501; ++$i) {
+            $spans[] = self::chainSpan($i);
+        }
+
+        $output = $this->render(self::frame(...$spans));
+
+        self::assertStringContainsString("… 1 more span not shown\n", $output);
     }
 
     public function testDeepChainInOneFrameIsBounded(): void

@@ -278,7 +278,11 @@ final class OtlpTraces implements Renderer
         }
 
         $skipped = \count($shown) - \count($this->rendered);
-        $skipped > 0 and $output->writeln(\sprintf('<fg=gray>… %d more spans not shown</>', $skipped));
+        $skipped > 0 and $output->writeln(\sprintf(
+            '<fg=gray>… %d more %s not shown</>',
+            $skipped,
+            $skipped === 1 ? 'span' : 'spans',
+        ));
     }
 
     /**
@@ -367,7 +371,11 @@ final class OtlpTraces implements Renderer
             self::formatDuration($span->getDuration()),
             $span->spanId,
             $isRoot && $span->parentSpanId !== null && $ancestorsAbove === 0 ? " parent:$span->parentSpanId" : '',
-            $ancestorsAbove > 0 ? ' (' . self::formatCount($ancestorsAbove) . ' more ancestors above)' : '',
+            match (true) {
+                $ancestorsAbove === 0 => '',
+                $ancestorsAbove === 1 => ' (1 more ancestor above)',
+                default => ' (' . self::formatCount($ancestorsAbove) . ' more ancestors above)',
+            },
         );
     }
 
