@@ -164,18 +164,19 @@ final class OtlpTraces implements Renderer
     /**
      * Descendants of a span that are not in `$exclude`, in breadth-first order.
      *
-     * @param array<non-empty-string, list<Span>> $children
+     * @param \Closure(string): list<Span> $children Child spans of a span ID.
      * @param array<non-empty-string, mixed> $exclude Span IDs to skip together with their subtrees.
      * @param int<1, max> $limit
      * @return list<non-empty-string> At most `$limit` span IDs.
      */
-    private static function descendants(string $spanId, array $children, array $exclude, int $limit): array
+    private static function descendants(string $spanId, \Closure $children, array $exclude, int $limit): array
     {
         $result = [];
         $seen = [$spanId => true];
         $queue = [$spanId];
-        while (($current = \array_shift($queue)) !== null) {
-            foreach ($children[$current] ?? [] as $child) {
+        // An index instead of array_shift(), which moves the whole queue on every call.
+        for ($i = 0; $i < \count($queue); ++$i) {
+            foreach ($children($queue[$i]) as $child) {
                 if (isset($seen[$child->spanId]) || isset($exclude[$child->spanId])) {
                     continue;
                 }
@@ -204,15 +205,7 @@ final class OtlpTraces implements Renderer
      */
     private function renderTrace(OutputInterface $output, string $traceId, array $received): void
     {
-        // The store may have evicted the trace already when it alone exceeds the store capacity.
-        $known = $this->store->getTrace($traceId) + $received;
-
-        /** @var array<non-empty-string, list<Span>> $children */
-        $children = [];
-        foreach ($known as $span) {
-            $span->parentSpanId !== null && isset($known[$span->parentSpanId])
-            and $children[$span->parentSpanId][] = $span;
-        }
+        [$lookup, $children, $start, $end, $knownCount] = $this->knownSpans($traceId, $received);
 
         // Span ID => true for an ancestor shown as context only, false for a span shown in full.
         $shown = \array_fill_keys(\array_keys($received), false);
@@ -236,23 +229,25 @@ final class OtlpTraces implements Renderer
         $hiddenAncestors = [];
         foreach ($received as $span) {
             $parentId = $span->parentSpanId;
-            if ($parentId === null || !isset($known[$parentId]) || isset($shown[$parentId])) {
+            if ($parentId === null || isset($shown[$parentId])) {
+                continue;
+            }
+            $parent = $lookup($parentId);
+            if ($parent === null) {
                 continue;
             }
 
             $shown[$parentId] = true;
             $above = 0;
-            $ancestorId = $known[$parentId]->parentSpanId;
-            while ($ancestorId !== null && isset($known[$ancestorId]) && $above < self::MAX_COUNTED) {
+            $ancestor = $parent->parentSpanId === null ? null : $lookup($parent->parentSpanId);
+            while ($ancestor !== null && $above < self::MAX_COUNTED) {
                 ++$above;
-                $ancestorId = $known[$ancestorId]->parentSpanId;
+                $ancestor = $ancestor->parentSpanId === null ? null : $lookup($ancestor->parentSpanId);
             }
             $hiddenAncestors[$parentId] = $above;
         }
 
-        $start = \min(\array_map(static fn(Span $span): int => $span->startTimeUnixNano, $known));
-        $end = \max(\array_map(static fn(Span $span): int => $span->endTimeUnixNano, $known));
-        $earlier = \count($known) - \count($received);
+        $earlier = $knownCount - \count($received);
         Common::renderHeader2(
             $output,
             "Trace $traceId",
@@ -260,10 +255,13 @@ final class OtlpTraces implements Renderer
             $earlier > 0 ? "+$earlier received earlier" : '',
         );
 
+        // Keys of $shown are cast back to strings: an all-digit ID is an int key.
         $roots = [];
         foreach ($shown as $spanId => $_) {
-            $parentId = $known[$spanId]->parentSpanId;
-            $parentId !== null && isset($shown[$parentId]) or $roots[] = $known[$spanId];
+            $span = $lookup((string) $spanId);
+            \assert($span !== null);
+            $parentId = $span->parentSpanId;
+            $parentId !== null && isset($shown[$parentId]) or $roots[] = $span;
         }
 
         $context = new TraceView($children, $shown, $collapsed, $hiddenAncestors, $start);
@@ -274,7 +272,11 @@ final class OtlpTraces implements Renderer
 
         // Spans of a parent cycle have no root; such data is malformed, but every span is still printed.
         foreach ($shown as $spanId => $_) {
-            isset($this->rendered[$spanId]) or $this->renderSpan($output, $context, $known[$spanId]);
+            if (!isset($this->rendered[$spanId])) {
+                $span = $lookup((string) $spanId);
+                \assert($span !== null);
+                $this->renderSpan($output, $context, $span);
+            }
         }
 
         $skipped = \count($shown) - \count($this->rendered);
@@ -283,6 +285,56 @@ final class OtlpTraces implements Renderer
             $skipped,
             $skipped === 1 ? 'span' : 'spans',
         ));
+    }
+
+    /**
+     * The spans of a trace known so far: the stored ones and the received ones.
+     *
+     * Usually the store holds all received spans and answers from its index. When it has dropped some
+     * of them already, because the trace alone exceeds the store capacity, the known spans are put
+     * together from the stored trace and the frame.
+     *
+     * @param non-empty-string $traceId
+     * @param non-empty-array<non-empty-string, Span> $received
+     * @return array{\Closure(string): ?Span, \Closure(string): list<Span>, int, int, int<0, max>}
+     *         Span by ID, children by span ID, the earliest start, the latest end, the number of spans.
+     */
+    private function knownSpans(string $traceId, array $received): array
+    {
+        $stored = true;
+        foreach ($received as $span) {
+            if ($this->store->get($traceId, $span->spanId) === null) {
+                $stored = false;
+                break;
+            }
+        }
+
+        $bounds = $stored ? $this->store->getTraceBounds($traceId) : null;
+        if ($bounds !== null) {
+            return [
+                fn(string $spanId): ?Span => $this->store->get($traceId, $spanId),
+                fn(string $spanId): array => $this->store->getChildren($traceId, $spanId),
+                $bounds[0],
+                $bounds[1],
+                $this->store->countTraceSpans($traceId),
+            ];
+        }
+
+        $known = $this->store->getTrace($traceId) + $received;
+        /** @var array<non-empty-string, list<Span>> $children */
+        $children = [];
+        foreach ($known as $span) {
+            $span->parentSpanId !== null && isset($known[$span->parentSpanId])
+            and $children[$span->parentSpanId][] = $span;
+        }
+
+        return [
+            static fn(string $spanId): ?Span => $known[$spanId] ?? null,
+            static fn(string $spanId): array => $children[$spanId] ?? [],
+            \min(\array_map(static fn(Span $span): int => $span->startTimeUnixNano, $known)),
+            \max(\array_map(static fn(Span $span): int => $span->endTimeUnixNano, $known)),
+            \count($known),
+        ];
     }
 
     /**
@@ -332,7 +384,7 @@ final class OtlpTraces implements Renderer
         } . $header);
 
         $nested = self::sortByStart(\array_filter(
-            $context->children[$span->spanId] ?? [],
+            ($context->children)($span->spanId),
             static fn(Span $child): bool => isset($context->shown[$child->spanId]),
         ));
         // Past the indentation limit children are drawn at their parent's level.

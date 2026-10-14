@@ -144,6 +144,82 @@ final class SpanStoreTest extends TestCase
         self::assertSame(2, $store->countTraces());
     }
 
+    public function testIndexesChildrenAndBounds(): void
+    {
+        $store = $this->store();
+        $store->add(
+            self::timedSpan('a', 2, 1, 10, 20),
+            self::timedSpan('a', 3, 1, 5, 30),
+            self::timedSpan('a', 4, 2, 12, 13),
+            self::timedSpan('b', 1, null, 0, 100),
+        );
+
+        $children = $store->getChildren(self::traceId('a'), \sprintf('%016x', 1));
+        self::assertSame([\sprintf('%016x', 2), \sprintf('%016x', 3)], self::spanIds($children));
+        self::assertSame([5, 30], $store->getTraceBounds(self::traceId('a')));
+        self::assertSame(3, $store->countTraceSpans(self::traceId('a')));
+        self::assertSame([], $store->getChildren(self::traceId('a'), \sprintf('%016x', 4)));
+        self::assertNull($store->getTraceBounds(self::traceId('c')));
+
+        // A replaced span moves to the end of its new siblings, and its old times no longer count.
+        $store->add(self::timedSpan('a', 3, 1, 11, 19), self::timedSpan('a', 2, 1, 10, 20));
+        self::assertSame(
+            [\sprintf('%016x', 3), \sprintf('%016x', 2)],
+            self::spanIds($store->getChildren(self::traceId('a'), \sprintf('%016x', 1))),
+        );
+        self::assertSame([10, 20], $store->getTraceBounds(self::traceId('a')));
+    }
+
+    /**
+     * The index matches a scan of the stored spans after any sequence of adds, replacements,
+     * trims and evictions.
+     */
+    public function testIndexMatchesStoredSpans(): void
+    {
+        \mt_srand(5);
+        $store = $this->store(maxSpans: 60);
+        for ($step = 0; $step < 1500; ++$step) {
+            $trace = ['a', 'b', 'c', 'd'][\mt_rand(0, 3)];
+            $start = \mt_rand(-50, 1000);
+            $store->add(self::timedSpan(
+                $trace,
+                \mt_rand(1, 80),
+                \mt_rand(0, 4) === 0 ? null : \mt_rand(1, 85),
+                $start,
+                $start + \mt_rand(-10, 300),
+            ));
+
+            foreach (['a', 'b', 'c', 'd'] as $char) {
+                $traceId = self::traceId($char);
+                $spans = $store->getTrace($traceId);
+                self::assertSame(\count($spans), $store->countTraceSpans($traceId));
+                if ($spans === []) {
+                    self::assertNull($store->getTraceBounds($traceId));
+                    continue;
+                }
+
+                self::assertSame(
+                    [
+                        \min(\array_map(static fn(Span $span): int => $span->startTimeUnixNano, $spans)),
+                        \max(\array_map(static fn(Span $span): int => $span->endTimeUnixNano, $spans)),
+                    ],
+                    $store->getTraceBounds($traceId),
+                );
+                $expected = $actual = [];
+                foreach ($spans as $span) {
+                    $span->parentSpanId === null or $expected[$span->parentSpanId][] = $span;
+                }
+                for ($id = 1; $id <= 85; ++$id) {
+                    $children = $store->getChildren($traceId, $spanId = \sprintf('%016x', $id));
+                    $children === [] or $actual[$spanId] = $children;
+                }
+                \ksort($expected);
+                self::assertSame($expected, $actual);
+            }
+        }
+        \mt_srand();
+    }
+
     /**
      * @param array<array-key, Span> $spans
      * @return list<string>
@@ -163,6 +239,19 @@ final class SpanStoreTest extends TestCase
             kind: SpanKind::Internal,
             startTimeUnixNano: 0,
             endTimeUnixNano: 1,
+        );
+    }
+
+    private static function timedSpan(string $trace, int $span, ?int $parent, int $start, int $end): Span
+    {
+        return new Span(
+            traceId: self::traceId($trace),
+            spanId: \sprintf('%016x', $span),
+            parentSpanId: $parent === null ? null : \sprintf('%016x', $parent),
+            name: "span-$span",
+            kind: SpanKind::Internal,
+            startTimeUnixNano: $start,
+            endTimeUnixNano: $end,
         );
     }
 
