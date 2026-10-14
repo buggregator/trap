@@ -20,7 +20,11 @@ final class TraceTest
         yield [3, 0.123, 123456, 'Trace #3  +123.0ms  0.12M'];
         yield [2, 1.23, 123456, 'Trace #2  +1.23s  0.12M'];
         yield [1, 42.3, 123456, 'Trace #1  +42.3s  0.12M'];
-        yield [42, 10050.0, 0, 'Trace #42  +30m 30s  0.00M'];
+        yield [6, 60.0, 0, 'Trace #6  +1m 0s  0.00M'];
+        yield [7, 125.0, 0, 'Trace #7  +2m 5s  0.00M'];
+        yield [8, 3599.9, 0, 'Trace #8  +59m 59s  0.00M'];
+        yield [9, 3725.0, 0, 'Trace #9  +62m 5s  0.00M'];
+        yield [42, 10050.0, 0, 'Trace #42  +167m 30s  0.00M'];
     }
 
     /**
