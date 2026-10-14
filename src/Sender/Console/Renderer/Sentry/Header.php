@@ -35,11 +35,10 @@ final class Header
             isset($context['runtime']) and $meta['Runtime'] = \implode(' ', \array_map(\strval(...), (array) $context['runtime']));
             isset($context['os']) and $meta['OS'] = \implode(' ', \array_map(\strval(...), (array) $context['os']));
         }
-        $headersList = \array_map(
+        isset($message['sdk']) and $meta['SDK'] = \implode(' ', \array_map(
             static fn(mixed $value): string => \is_scalar($value) ? (string) $value : Json::encode($value),
             (array) $message['sdk'],
-        );
-        isset($message['sdk']) and $meta['SDK'] = \implode(' ', $headersList);
+        ));
 
         Common::renderMetadata($output, $meta);
 
