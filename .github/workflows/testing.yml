@@ -27,6 +27,32 @@ jobs:
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  acceptance-windows:
+    name: Acceptance (PHP 8.4, windows-latest)
+    timeout-minutes: 10
+    runs-on: windows-latest
+    steps:
+      - name: 📦 Check out the codebase
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: 🛠️ Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sockets
+          ini-values: error_reporting=E_ALL
+          coverage: none
+
+      - name: 📥 Install dependencies with composer
+        uses: ramsey/composer-install@v3
+        with:
+          dependency-versions: locked
+
+      - name: 🧪 Run acceptance tests
+        run: vendor/bin/testo --suite=Acceptance
+
   compile-phar:
     timeout-minutes: 4
     runs-on: ${{ matrix.os }}

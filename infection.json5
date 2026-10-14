@@ -6,6 +6,8 @@
         "excludes": ["Test"]
     },
     "testFramework": "testo",
+    // The acceptance suite runs trap in subprocesses, which neither coverage nor mutants reach.
+    "testFrameworkOptions": "--suite=Unit",
     "tmpDir": "runtime",
     "timeout": 10,
     "logs": {

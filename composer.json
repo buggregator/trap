@@ -108,6 +108,7 @@
         "refactor:ci": "rector process --config=rector.php --dry-run --ansi",
         "test": "testo",
         "test:unit": "testo --suite=Unit",
-        "test:arch": "testo --suite=Arch"
+        "test:arch": "testo --suite=Arch",
+        "test:acceptance": "testo --suite=Acceptance"
     }
 }

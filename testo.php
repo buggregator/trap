@@ -21,6 +21,10 @@ return new ApplicationConfig(
             name: 'Arch',
             location: ['tests/Arch'],
         ),
+        new SuiteConfig(
+            name: 'Acceptance',
+            location: ['tests/Acceptance'],
+        ),
     ],
     plugins: [
         new MockeryPlugin(),
