@@ -101,6 +101,7 @@ Buggregator Trap boasts a much wider range of handlers ("traps") for debug messa
 - Symfony var-dumper,
 - Monolog,
 - Sentry,
+- OpenTelemetry traces (OTLP/HTTP),
 - SMTP,
 - HTTP dumps,
 - Ray,
@@ -206,7 +207,8 @@ function handle($input) {
 
 Trap automatically recognizes the type of traffic.
 Therefore, there is no need to open separate ports for different protocols.
-By default, it operates on the same ports as the Buggregator Server: `9912`, `9913`, `1025`, and `8000`.
+By default, it operates on the same ports as the Buggregator Server: `9912`, `9913`, `1025`, and `8000`,
+plus `4318`, the default OTLP/HTTP port.
 However, if you wish to utilize a different port, you can easily make this adjustment using the `-p` option:
 
 ```bash
@@ -215,9 +217,38 @@ vendor/bin/trap -p9912 --ui=8000
 
 Environment variables can also be used to set endpoints:
 
-- `TRAP_TCP_PORTS` - for TCP traffic: `9912,9913,1025,8000`
+- `TRAP_TCP_PORTS` - for TCP traffic: `9912,9913,1025,8000,4318`
 - `TRAP_TCP_HOST` - for the TCP host (default: `127.0.0.1`)
 - `TRAP_UI_PORT` - for the web interface: `8080`
+
+### OpenTelemetry traces
+
+Trap receives traces exported over OTLP/HTTP (`POST /v1/traces`) on any of its ports
+and prints them in the console as a tree of spans:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
+OTEL_EXPORTER_OTLP_PROTOCOL=http/json
+```
+
+The `http/protobuf` protocol needs the suggested packages:
+
+```bash
+composer require --dev open-telemetry/gen-otlp-protobuf google/protobuf
+```
+
+With the `file` sender, each export request is saved as one JSON line:
+`{"type":"otlp.traces","resourceSpans":[...]}`.
+
+Spans of one trace often arrive in separate requests (a simple span processor exports each span on its own),
+so Trap keeps received spans in memory to print them together. The memory is limited by:
+
+- `TRAP_TRACES_MAX_SPANS` - the maximum number of kept spans; the least recently updated traces are dropped
+  above it (default: `10000`)
+- `TRAP_TRACES_TTL` - seconds a trace is kept after its last received span (default: `600`)
+
+The same limits can be set in `trap.xml`: `<traces maxSpans="10000" ttl="600"/>`.
+Non-positive or non-numeric values fall back to the defaults.
 
 ### Choosing Your Senders
 
