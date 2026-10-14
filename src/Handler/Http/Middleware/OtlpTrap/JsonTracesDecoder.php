@@ -200,12 +200,19 @@ final class JsonTracesDecoder implements TracesDecoder
      */
     private static function double(mixed $value): float|string
     {
-        return match (true) {
+        $double = match (true) {
             \is_float($value) => $value,
             \is_int($value) => (float) $value,
             \in_array($value, ['NaN', 'Infinity', '-Infinity'], true) => $value,
             \is_string($value) && \is_numeric($value) => (float) $value,
             default => throw new \InvalidArgumentException('`doubleValue` must be a number.'),
+        };
+
+        // A number like 1e400 overflows to INF while decoding.
+        return match (true) {
+            !\is_float($double), \is_finite($double) => $double,
+            \is_nan($double) => 'NaN',
+            default => $double > 0 ? 'Infinity' : '-Infinity',
         };
     }
 

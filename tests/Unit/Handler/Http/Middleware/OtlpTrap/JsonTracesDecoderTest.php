@@ -72,6 +72,25 @@ final class JsonTracesDecoderTest extends TestCase
         self::assertSame(\PHP_INT_MAX - 1700000000000000000, $span->getDuration());
     }
 
+    public function testKeepsNonFiniteDoublesAsNames(): void
+    {
+        $payload = \strtr(self::request([self::span(['attributes' => [
+            ['key' => 'big', 'value' => ['doubleValue' => 'BIG']],
+            ['key' => 'big.string', 'value' => ['doubleValue' => '1e400']],
+            ['key' => 'small', 'value' => ['doubleValue' => 'SMALL']],
+            ['key' => 'nan', 'value' => ['doubleValue' => 'NaN']],
+            ['key' => 'inf', 'value' => ['doubleValue' => '-Infinity']],
+        ]])]), ['"BIG"' => '1e400', '"SMALL"' => '-1e400']);
+
+        $frame = (new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable());
+
+        self::assertSame(
+            ['big' => 'Infinity', 'big.string' => 'Infinity', 'small' => '-Infinity', 'nan' => 'NaN', 'inf' => '-Infinity'],
+            $this->singleSpan($frame->resourceSpans[0]->scopeSpans[0]->spans)->attributes,
+        );
+        self::assertStringContainsString('"big":"Infinity"', (string) $frame);
+    }
+
     public function testAcceptsInt64Bounds(): void
     {
         $payload = self::request([self::span(['attributes' => [
