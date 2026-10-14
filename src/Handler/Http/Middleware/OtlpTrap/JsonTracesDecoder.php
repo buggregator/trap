@@ -61,7 +61,7 @@ final class JsonTracesDecoder implements TracesDecoder
     private static function resourceSpans(mixed $data): ResourceSpans
     {
         $data = self::object($data, 'resourceSpans[]');
-        $resource = self::object($data['resource'] ?? [], 'resource');
+        $resource = self::object(self::field($data, 'resource') ?? [], 'resource');
 
         return new ResourceSpans(
             scopeSpans: \array_map(self::scopeSpans(...), self::list($data, 'scopeSpans')),
@@ -74,7 +74,7 @@ final class JsonTracesDecoder implements TracesDecoder
     private static function scopeSpans(mixed $data): ScopeSpans
     {
         $data = self::object($data, 'scopeSpans[]');
-        $scope = self::object($data['scope'] ?? [], 'scope');
+        $scope = self::object(self::field($data, 'scope') ?? [], 'scope');
 
         return new ScopeSpans(
             spans: \array_map(self::span(...), self::list($data, 'spans')),
@@ -89,7 +89,7 @@ final class JsonTracesDecoder implements TracesDecoder
     private static function span(mixed $data): Span
     {
         $data = self::object($data, 'spans[]');
-        $status = self::object($data['status'] ?? [], 'status');
+        $status = self::object(self::field($data, 'status') ?? [], 'status');
 
         return new Span(
             traceId: self::id($data, 'traceId', self::TRACE_ID_BYTES)
@@ -155,9 +155,9 @@ final class JsonTracesDecoder implements TracesDecoder
         /** @var mixed $item */
         foreach (self::list($data, $key) as $item) {
             $item = self::object($item, $key . '[]');
-            $name = $item['key'] ?? null;
+            $name = self::field($item, 'key');
             \is_string($name) or throw new \InvalidArgumentException(\sprintf('`%s[].key` must be a string.', $key));
-            $result[$name] = self::anyValue($item['value'] ?? null);
+            $result[$name] = self::anyValue(self::field($item, 'value'));
         }
 
         return $result;
@@ -176,19 +176,17 @@ final class JsonTracesDecoder implements TracesDecoder
         $value = self::object($value, 'value');
 
         return match (true) {
-            \array_key_exists('stringValue', $value) => self::string($value, 'stringValue'),
-            \array_key_exists('boolValue', $value) => \is_bool($value['boolValue'])
-                ? $value['boolValue']
-                : throw new \InvalidArgumentException('`boolValue` must be a boolean.'),
-            \array_key_exists('intValue', $value) => self::int64($value, 'intValue'),
-            \array_key_exists('doubleValue', $value) => self::double($value['doubleValue']),
-            \array_key_exists('bytesValue', $value) => self::string($value, 'bytesValue'),
-            \array_key_exists('arrayValue', $value) => \array_map(
+            self::has($value, 'stringValue') => self::string($value, 'stringValue'),
+            self::has($value, 'boolValue') => self::bool($value, 'boolValue'),
+            self::has($value, 'intValue') => self::int64($value, 'intValue'),
+            self::has($value, 'doubleValue') => self::double(self::field($value, 'doubleValue')),
+            self::has($value, 'bytesValue') => self::string($value, 'bytesValue'),
+            self::has($value, 'arrayValue') => \array_map(
                 self::anyValue(...),
-                self::list(self::object($value['arrayValue'] ?? [], 'arrayValue'), 'values'),
+                self::list(self::object(self::field($value, 'arrayValue') ?? [], 'arrayValue'), 'values'),
             ),
-            \array_key_exists('kvlistValue', $value) => new \ArrayObject(self::attributes(
-                self::object($value['kvlistValue'] ?? [], 'kvlistValue'),
+            self::has($value, 'kvlistValue') => new \ArrayObject(self::attributes(
+                self::object(self::field($value, 'kvlistValue') ?? [], 'kvlistValue'),
                 'values',
             )),
             default => null,
@@ -250,7 +248,7 @@ final class JsonTracesDecoder implements TracesDecoder
     private static function enum(array $data, string $key, string $prefix, array $cases): int
     {
         /** @var mixed $value */
-        $value = $data[$key] ?? 0;
+        $value = self::field($data, $key) ?? 0;
         if (\is_string($value) && \str_starts_with($value, $prefix)) {
             foreach ($cases as $case) {
                 if ($prefix . \strtoupper($case->name) === $value) {
@@ -300,7 +298,7 @@ final class JsonTracesDecoder implements TracesDecoder
     private static function integer(array $data, string $key, int $min, int $max, bool $clamp = false): int
     {
         /** @var mixed $value */
-        $value = $data[$key] ?? 0;
+        $value = self::field($data, $key) ?? 0;
 
         // Beyond the int64 range a value becomes an infinite float, so the range checks below see it.
         $number = match (true) {
@@ -338,9 +336,18 @@ final class JsonTracesDecoder implements TracesDecoder
         };
     }
 
+    private static function bool(array $data, string $key): bool
+    {
+        /** @var mixed $value */
+        $value = self::field($data, $key);
+        \is_bool($value) or throw new \InvalidArgumentException(\sprintf('`%s` must be a boolean.', $key));
+
+        return $value;
+    }
+
     private static function string(array $data, string $key): string
     {
-        $value = $data[$key] ?? '';
+        $value = self::field($data, $key) ?? '';
         \is_string($value) or throw new \InvalidArgumentException(\sprintf('`%s` must be a string.', $key));
 
         return $value;
@@ -351,11 +358,32 @@ final class JsonTracesDecoder implements TracesDecoder
      */
     private static function list(array $data, string $key): array
     {
-        $value = $data[$key] ?? [];
+        $value = self::field($data, $key) ?? [];
         \is_array($value) && \array_is_list($value)
             or throw new \InvalidArgumentException(\sprintf('`%s` must be an array.', $key));
 
         return $value;
+    }
+
+    /**
+     * Reads a field by its JSON name or by its original proto name: proto3 JSON parsers must accept both.
+     */
+    private static function field(array $data, string $jsonName): mixed
+    {
+        return $data[$jsonName] ?? $data[self::protoName($jsonName)] ?? null;
+    }
+
+    private static function has(array $data, string $jsonName): bool
+    {
+        return \array_key_exists($jsonName, $data) || \array_key_exists(self::protoName($jsonName), $data);
+    }
+
+    /**
+     * `startTimeUnixNano` => `start_time_unix_nano`
+     */
+    private static function protoName(string $jsonName): string
+    {
+        return \strtolower((string) \preg_replace('/[A-Z]/', '_$0', $jsonName));
     }
 
     private static function object(mixed $value, string $name): array

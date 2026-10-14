@@ -261,6 +261,53 @@ final class JsonTracesDecoderTest extends TestCase
         self::assertSame('https://example.com/scope', $scope->schemaUrl);
     }
 
+    public function testAcceptsProtoFieldNames(): void
+    {
+        $payload = \json_encode(['resource_spans' => [[
+            'resource' => ['attributes' => [['key' => 'service.name', 'value' => ['string_value' => 'billing']]]],
+            'schema_url' => 'https://example.com/resource',
+            'scope_spans' => [[
+                'scope' => ['name' => 'my.scope'],
+                'spans' => [[
+                    'trace_id' => self::TRACE_ID,
+                    'span_id' => self::SPAN_ID,
+                    'parent_span_id' => '0102030405060708',
+                    'name' => 'span',
+                    'kind' => 'SPAN_KIND_CLIENT',
+                    'start_time_unix_nano' => '1700000000000000000',
+                    'end_time_unix_nano' => '1700000000000000500',
+                    'attributes' => [
+                        ['key' => 'flag', 'value' => ['bool_value' => true]],
+                        ['key' => 'list', 'value' => ['array_value' => ['values' => [['int_value' => '1']]]]],
+                        ['key' => 'map', 'value' => ['kvlist_value' => ['values' => [
+                            ['key' => 'x', 'value' => ['double_value' => 0.5]],
+                        ]]]],
+                    ],
+                    'events' => [['time_unix_nano' => '1700000000000000100', 'name' => 'event']],
+                    'dropped_links_count' => 2,
+                    'status' => ['code' => 'STATUS_CODE_ERROR', 'message' => 'Boom'],
+                ]],
+            ]],
+        ]]]);
+
+        $frame = (new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable());
+        $span = $this->singleSpan($frame->resourceSpans[0]->scopeSpans[0]->spans);
+
+        self::assertSame('billing', $frame->resourceSpans[0]->getServiceName());
+        self::assertSame('https://example.com/resource', $frame->resourceSpans[0]->schemaUrl);
+        self::assertSame(self::SPAN_ID, $span->spanId);
+        self::assertSame('0102030405060708', $span->parentSpanId);
+        self::assertSame(SpanKind::Client, $span->kind);
+        self::assertSame(500, $span->getDuration());
+        self::assertEquals(
+            ['flag' => true, 'list' => [1], 'map' => new \ArrayObject(['x' => 0.5])],
+            $span->attributes,
+        );
+        self::assertSame(1700000000000000100, $span->events[0]->timeUnixNano);
+        self::assertSame(2, $span->droppedLinksCount);
+        self::assertSame(StatusCode::Error, $span->status->code);
+    }
+
     public function testAcceptsEnumNamesAndUppercaseHexIds(): void
     {
         $payload = self::request([self::span([
