@@ -11,6 +11,7 @@ use Buggregator\Trap\Proto\Frame\Otlp\Trace\Span;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\StatusCode;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\Renderer;
+use Buggregator\Trap\Sender\Console\Renderer\Otlp\KnownSpans;
 use Buggregator\Trap\Sender\Console\Renderer\Otlp\TraceView;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Buggregator\Trap\Support\Json;
@@ -164,19 +165,18 @@ final class OtlpTraces implements Renderer
     /**
      * Descendants of a span that are not in `$exclude`, in breadth-first order.
      *
-     * @param \Closure(string): list<Span> $children Child spans of a span ID.
      * @param array<non-empty-string, mixed> $exclude Span IDs to skip together with their subtrees.
      * @param int<1, max> $limit
      * @return list<non-empty-string> At most `$limit` span IDs.
      */
-    private static function descendants(string $spanId, \Closure $children, array $exclude, int $limit): array
+    private static function descendants(string $spanId, KnownSpans $known, array $exclude, int $limit): array
     {
         $result = [];
         $seen = [$spanId => true];
         $queue = [$spanId];
         // An index instead of array_shift(), which moves the whole queue on every call.
         for ($i = 0; $i < \count($queue); ++$i) {
-            foreach ($children($queue[$i]) as $child) {
+            foreach ($known->children($queue[$i]) as $child) {
                 if (isset($seen[$child->spanId]) || isset($exclude[$child->spanId])) {
                     continue;
                 }
@@ -205,7 +205,7 @@ final class OtlpTraces implements Renderer
      */
     private function renderTrace(OutputInterface $output, string $traceId, array $received): void
     {
-        [$lookup, $children, $start, $end, $knownCount] = $this->knownSpans($traceId, $received);
+        $known = $this->knownSpans($traceId, $received);
 
         // Span ID => true for an ancestor shown as context only, false for a span shown in full.
         $shown = \array_fill_keys(\array_keys($received), false);
@@ -214,14 +214,14 @@ final class OtlpTraces implements Renderer
         // Array keys are not used as IDs here: PHP turns an all-digit hex ID into an int key.
         foreach ($received as $span) {
             $limit = $span->parentSpanId === null ? \PHP_INT_MAX : self::INLINE_DESCENDANTS + 1;
-            $descendants = self::descendants($span->spanId, $children, $received, $limit);
+            $descendants = self::descendants($span->spanId, $known, $received, $limit);
             if (\count($descendants) <= self::INLINE_DESCENDANTS || $span->parentSpanId === null) {
                 $shown += \array_fill_keys($descendants, false);
                 continue;
             }
 
             $collapsed[$span->spanId] = \count(
-                self::descendants($span->spanId, $children, $received, self::MAX_COUNTED),
+                self::descendants($span->spanId, $known, $received, self::MAX_COUNTED),
             );
         }
 
@@ -232,39 +232,39 @@ final class OtlpTraces implements Renderer
             if ($parentId === null || isset($shown[$parentId])) {
                 continue;
             }
-            $parent = $lookup($parentId);
+            $parent = $known->get($parentId);
             if ($parent === null) {
                 continue;
             }
 
             $shown[$parentId] = true;
             $above = 0;
-            $ancestor = $parent->parentSpanId === null ? null : $lookup($parent->parentSpanId);
+            $ancestor = $parent->parentSpanId === null ? null : $known->get($parent->parentSpanId);
             while ($ancestor !== null && $above < self::MAX_COUNTED) {
                 ++$above;
-                $ancestor = $ancestor->parentSpanId === null ? null : $lookup($ancestor->parentSpanId);
+                $ancestor = $ancestor->parentSpanId === null ? null : $known->get($ancestor->parentSpanId);
             }
             $hiddenAncestors[$parentId] = $above;
         }
 
-        $earlier = $knownCount - \count($received);
+        $earlier = $known->count - \count($received);
         Common::renderHeader2(
             $output,
             "Trace $traceId",
-            self::formatDuration(Span::elapsed($start, $end)),
+            self::formatDuration(Span::elapsed($known->start, $known->end)),
             $earlier > 0 ? "+$earlier received earlier" : '',
         );
 
         // Keys of $shown are cast back to strings: an all-digit ID is an int key.
         $roots = [];
         foreach ($shown as $spanId => $_) {
-            $span = $lookup((string) $spanId);
+            $span = $known->get((string) $spanId);
             \assert($span !== null);
             $parentId = $span->parentSpanId;
             $parentId !== null && isset($shown[$parentId]) or $roots[] = $span;
         }
 
-        $context = new TraceView($children, $shown, $collapsed, $hiddenAncestors, $start);
+        $context = new TraceView($known, $shown, $collapsed, $hiddenAncestors);
         $this->rendered = [];
         foreach (self::sortByStart($roots) as $root) {
             $this->renderSpan($output, $context, $root);
@@ -273,7 +273,7 @@ final class OtlpTraces implements Renderer
         // Spans of a parent cycle have no root; such data is malformed, but every span is still printed.
         foreach ($shown as $spanId => $_) {
             if (!isset($this->rendered[$spanId])) {
-                $span = $lookup((string) $spanId);
+                $span = $known->get((string) $spanId);
                 \assert($span !== null);
                 $this->renderSpan($output, $context, $span);
             }
@@ -296,10 +296,8 @@ final class OtlpTraces implements Renderer
      *
      * @param non-empty-string $traceId
      * @param non-empty-array<non-empty-string, Span> $received
-     * @return array{\Closure(string): ?Span, \Closure(string): list<Span>, int, int, int<0, max>}
-     *         Span by ID, children by span ID, the earliest start, the latest end, the number of spans.
      */
-    private function knownSpans(string $traceId, array $received): array
+    private function knownSpans(string $traceId, array $received): KnownSpans
     {
         $stored = true;
         foreach ($received as $span) {
@@ -311,13 +309,13 @@ final class OtlpTraces implements Renderer
 
         $bounds = $stored ? $this->store->getTraceBounds($traceId) : null;
         if ($bounds !== null) {
-            return [
+            return new KnownSpans(
                 fn(string $spanId): ?Span => $this->store->get($traceId, $spanId),
                 fn(string $spanId): array => $this->store->getChildren($traceId, $spanId),
                 $bounds[0],
                 $bounds[1],
                 $this->store->countTraceSpans($traceId),
-            ];
+            );
         }
 
         $known = $this->store->getTrace($traceId) + $received;
@@ -328,13 +326,13 @@ final class OtlpTraces implements Renderer
             and $children[$span->parentSpanId][] = $span;
         }
 
-        return [
+        return new KnownSpans(
             static fn(string $spanId): ?Span => $known[$spanId] ?? null,
             static fn(string $spanId): array => $children[$spanId] ?? [],
             \min(\array_map(static fn(Span $span): int => $span->startTimeUnixNano, $known)),
             \max(\array_map(static fn(Span $span): int => $span->endTimeUnixNano, $known)),
             \count($known),
-        ];
+        );
     }
 
     /**
@@ -375,7 +373,7 @@ final class OtlpTraces implements Renderer
         $isContext = $context->shown[$span->spanId] ?? false;
         $header = $isContext
             ? $this->formatContextHeader($span, $isLast === null, $context->hiddenAncestors[$span->spanId] ?? 0)
-            : $this->formatSpanHeader($span, $context->traceStart, $isLast === null);
+            : $this->formatSpanHeader($span, $context->known->start, $isLast === null);
         $depth > self::MAX_INDENT and $header .= " <fg=gray>[depth $depth]</>";
         $output->writeln($prefix . match ($isLast) {
             null => '',
@@ -384,7 +382,7 @@ final class OtlpTraces implements Renderer
         } . $header);
 
         $nested = self::sortByStart(\array_filter(
-            ($context->children)($span->spanId),
+            $context->known->children($span->spanId),
             static fn(Span $child): bool => isset($context->shown[$child->spanId]),
         ));
         // Past the indentation limit children are drawn at their parent's level.
