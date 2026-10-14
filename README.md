@@ -244,7 +244,7 @@ Spans of one trace often arrive in separate requests (a simple span processor ex
 so Trap keeps received spans in memory to print them together. The memory is limited by:
 
 - `TRAP_TRACES_MAX_SPANS` - the maximum number of kept spans; the least recently updated traces are dropped
-  above it (default: `10000`)
+  above it, and a single trace above it keeps only its most recent spans (default: `10000`)
 - `TRAP_TRACES_TTL` - seconds a trace is kept after its last received span (default: `600`)
 
 The same limits can be set in `trap.xml`: `<traces maxSpans="10000" ttl="600"/>`.

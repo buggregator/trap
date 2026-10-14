@@ -13,6 +13,7 @@ use Buggregator\Trap\Proto\Frame\Otlp\Trace\Span;
  *
  * Memory is bounded by {@see Config}: a trace is dropped when it has not received a span for `ttl` seconds,
  * and the least recently updated traces are dropped while the store holds more than `maxSpans` spans.
+ * A single trace above `maxSpans` keeps only its most recently received spans.
  *
  * @internal
  */
@@ -67,7 +68,12 @@ final class SpanStore
             // Re-inserting moves the trace to the end, keeping the update order.
             unset($this->traces[$span->traceId]);
 
-            isset($trace[$span->spanId]) or ++$this->spanCount;
+            // Re-inserting a known span moves it to the end too, so the oldest spans stay first.
+            if (isset($trace[$span->spanId])) {
+                unset($trace[$span->spanId]);
+            } else {
+                ++$this->spanCount;
+            }
             $trace[$span->spanId] = $span;
             $this->traces[$span->traceId] = $trace;
             $this->updatedAt[$span->traceId] = $now;
@@ -106,7 +112,7 @@ final class SpanStore
     }
 
     /**
-     * The most recently updated trace is kept even when it alone exceeds the span limit.
+     * When the most recently updated trace alone exceeds the span limit, its oldest spans are dropped.
      */
     private function evict(float $now): void
     {
@@ -115,11 +121,22 @@ final class SpanStore
             $expired = $this->updatedAt[$traceId] < $deadline;
             $overflow = $this->spanCount > $this->maxSpans && \count($this->traces) > 1;
             if (!$expired && !$overflow) {
-                return;
+                break;
             }
 
             unset($this->traces[$traceId], $this->updatedAt[$traceId]);
             $this->spanCount = \max(0, $this->spanCount - \count($trace));
+        }
+
+        $traceId = \array_key_last($this->traces);
+        while ($traceId !== null && $this->spanCount > $this->maxSpans) {
+            $spanId = \array_key_first($this->traces[$traceId]);
+            if ($spanId === null) {
+                break;
+            }
+
+            unset($this->traces[$traceId][$spanId]);
+            $this->spanCount = \max(0, $this->spanCount - 1);
         }
     }
 }

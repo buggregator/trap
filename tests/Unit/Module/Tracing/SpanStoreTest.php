@@ -63,7 +63,7 @@ final class SpanStoreTest extends TestCase
         self::assertSame(3, $store->countSpans());
     }
 
-    public function testKeepsLatestTraceEvenOverCapacity(): void
+    public function testTrimsOldestSpansOfSingleTraceOverCapacity(): void
     {
         $store = $this->store(maxSpans: 2);
 
@@ -71,7 +71,41 @@ final class SpanStoreTest extends TestCase
         $store->add(self::span('b', '2'), self::span('b', '3'), self::span('b', '4'));
 
         self::assertSame(1, $store->countTraces());
-        self::assertCount(3, $store->getTrace(self::traceId('b')));
+        self::assertSame([self::spanId('3'), self::spanId('4')], self::spanIds($store->getTrace(self::traceId('b'))));
+        self::assertSame(2, $store->countSpans());
+    }
+
+    public function testEndlessTraceStaysWithinCapacity(): void
+    {
+        $store = $this->store(maxSpans: 50);
+
+        for ($i = 0; $i < 1000; ++$i) {
+            $store->add(new Span(
+                traceId: self::traceId('a'),
+                spanId: \sprintf('%016x', $i + 1),
+                parentSpanId: null,
+                name: 'span',
+                kind: SpanKind::Internal,
+                startTimeUnixNano: 0,
+                endTimeUnixNano: 1,
+            ));
+        }
+
+        self::assertSame(50, $store->countSpans());
+        self::assertCount(50, $store->getTrace(self::traceId('a')));
+        self::assertNotNull($store->get(self::traceId('a'), \sprintf('%016x', 1000)));
+        self::assertNull($store->get(self::traceId('a'), \sprintf('%016x', 950)));
+    }
+
+    public function testReAddedSpanCountsAsRecent(): void
+    {
+        $store = $this->store(maxSpans: 2);
+
+        $store->add(self::span('a', '1'), self::span('a', '2'));
+        $store->add(self::span('a', '1'));
+        $store->add(self::span('a', '3'));
+
+        self::assertSame([self::spanId('1'), self::spanId('3')], self::spanIds($store->getTrace(self::traceId('a'))));
     }
 
     public function testEvictsExpiredTraces(): void
@@ -106,6 +140,15 @@ final class SpanStoreTest extends TestCase
 
         self::assertSame([], $store->getTrace(self::traceId('a')));
         self::assertSame(2, $store->countTraces());
+    }
+
+    /**
+     * @param array<array-key, Span> $spans
+     * @return list<string>
+     */
+    private static function spanIds(array $spans): array
+    {
+        return \array_values(\array_map(static fn(Span $span): string => $span->spanId, $spans));
     }
 
     private static function span(string $trace, string $span, ?string $parent = null): Span
