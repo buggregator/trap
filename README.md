@@ -249,8 +249,12 @@ Notes:
   OpenTelemetry SDK exporters send `Content-Length`.
 - One export request may carry up to 4 MB (after decompression) and up to 10 000 spans; a bigger one gets `413`.
   SDK batch processors export 512 spans at a time by default.
-- Port `4318` is also the default port of an OpenTelemetry Collector or Jaeger. When it is taken,
-  Trap keeps retrying to listen on it silently (run with `-vv` to see the errors) and works on the other ports.
+- Port `4318` is also the default port of an OpenTelemetry Collector or Jaeger. On Linux and macOS, when it is
+  taken, Trap keeps retrying to listen on it silently (run with `-vv` to see the errors) and works on the other ports.
+  On Windows, Trap can listen on `127.0.0.1:4318` even while another process, such as a Collector or Jaeger in
+  Docker Desktop, listens on `0.0.0.0:4318`, and then Trap receives the local traffic meant for that process.
+  To leave the port to it, list the ports without `4318`:
+  `vendor/bin/trap -p1025 -p8000 -p9912 -p9913` or `TRAP_TCP_PORTS=1025,8000,9912,9913`.
 
 With the `file` sender, each export request is saved as one JSON line:
 `{"type":"otlp.traces","resourceSpans":[...]}`.
