@@ -48,6 +48,6 @@ jobs:
           composer require --dev --no-interaction --no-progress -W infection/infection testo/bridge-infection
 
       - name: 🧬 Run Infection
-        run: vendor/bin/infection --threads=max --logger-github --show-mutations=0 --min-msi=0 --min-covered-msi=0
+        run: vendor/bin/infection --threads=max --logger-github --show-mutations=0 --min-msi=70 --min-covered-msi=70
         env:
           STRYKER_DASHBOARD_API_KEY: ${{ github.event_name == 'push' && secrets.STRYKER_DASHBOARD_API_KEY || '' }}
