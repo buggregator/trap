@@ -89,7 +89,7 @@ final class ProtobufTracesDecoderTest extends TestCase
         self::assertSame('eee19b7ec3c1b174', $decoded->spanId);
         self::assertSame(SpanKind::Unspecified, $decoded->kind);
         self::assertSame(500, $decoded->getDuration());
-        self::assertSame(['bytes' => 'AQID', 'kvlist' => ['deep' => 1.5]], $decoded->attributes);
+        self::assertEquals(['bytes' => 'AQID', 'kvlist' => new \ArrayObject(['deep' => 1.5])], $decoded->attributes);
     }
 
     public function testRejectsMalformedMessage(): void

@@ -187,10 +187,10 @@ final class JsonTracesDecoder implements TracesDecoder
                 self::anyValue(...),
                 self::list(self::object($value['arrayValue'] ?? [], 'arrayValue'), 'values'),
             ),
-            \array_key_exists('kvlistValue', $value) => self::attributes(
+            \array_key_exists('kvlistValue', $value) => new \ArrayObject(self::attributes(
                 self::object($value['kvlistValue'] ?? [], 'kvlistValue'),
                 'values',
-            ),
+            )),
             default => null,
         };
     }

@@ -11,13 +11,16 @@ namespace Buggregator\Trap\Support;
 final class Json
 {
     /**
+     * @param int $flags `JSON_*` flags added to the default ones.
      * @throws \JsonException
      */
-    public static function encode(mixed $value): string
+    public static function encode(mixed $value, int $flags = 0): string
     {
-        return \json_encode(
+        // Never false: JSON_THROW_ON_ERROR is always set.
+        return (string) \json_encode(
             $value,
-            \JSON_THROW_ON_ERROR | \JSON_INVALID_UTF8_SUBSTITUTE | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE,
+            $flags
+            | \JSON_THROW_ON_ERROR | \JSON_INVALID_UTF8_SUBSTITUTE | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE,
         );
     }
 

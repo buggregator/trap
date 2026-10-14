@@ -82,9 +82,10 @@ final class OtlpTraces extends Frame\Otlp
      */
     public function __toString(): string
     {
+        // Without the zero fraction a double attribute like 1.0 would read back as an int.
         return Json::encode([
             'type' => self::OTLP_FRAME_TYPE,
             'resourceSpans' => $this->resourceSpans,
-        ]);
+        ], \JSON_PRESERVE_ZERO_FRACTION);
     }
 }

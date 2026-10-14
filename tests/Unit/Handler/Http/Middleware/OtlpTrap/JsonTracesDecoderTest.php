@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Tests\Unit\Handler\Http\Middleware\OtlpTrap;
 
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Info;
+use Buggregator\Trap\Proto\Frame\Otlp;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\Span;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\SpanKind;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\StatusCode;
@@ -187,7 +188,7 @@ final class JsonTracesDecoderTest extends TestCase
         $frame = (new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable());
         $span = $this->singleSpan($frame->resourceSpans[0]->scopeSpans[0]->spans);
 
-        self::assertSame([
+        self::assertEquals([
             'string' => 'text',
             'int' => 9007199254740993,
             'int.number' => 42,
@@ -197,11 +198,34 @@ final class JsonTracesDecoderTest extends TestCase
             'bool' => false,
             'bytes' => 'AQID',
             'array' => ['a', 1, [true]],
-            'kvlist' => ['nested' => ['deep' => 1.5]],
+            'kvlist' => new \ArrayObject(['nested' => new \ArrayObject(['deep' => 1.5])]),
             'empty.array' => [],
             'empty.value' => null,
             'missing.value' => null,
         ], $span->attributes);
+        self::assertSame(2.0, $span->attributes['double.int']);
+    }
+
+    public function testMapsStayObjectsAndListsStayArraysInJson(): void
+    {
+        $payload = self::request([self::span(['attributes' => [
+            ['key' => '0', 'value' => ['stringValue' => 'zero']],
+            ['key' => '1', 'value' => ['kvlistValue' => ['values' => [
+                ['key' => '0', 'value' => ['doubleValue' => 1.0]],
+            ]]]],
+            ['key' => 'empty.map', 'value' => ['kvlistValue' => []]],
+            ['key' => 'empty.list', 'value' => ['arrayValue' => []]],
+            ['key' => 'list', 'value' => ['arrayValue' => ['values' => [['kvlistValue' => []]]]]],
+        ]])]);
+
+        $frame = (new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable());
+        $json = (string) $frame;
+
+        self::assertStringContainsString(
+            '"attributes":{"0":"zero","1":{"0":1.0},"empty.map":{},"empty.list":[],"list":[{}]}',
+            $json,
+        );
+        self::assertSame($json, (string) Otlp::fromString($json, $frame->time), 'Roundtrip keeps the JSON as is.');
     }
 
     public function testDecodesResourceAndScope(): void

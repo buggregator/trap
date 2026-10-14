@@ -6,8 +6,8 @@ namespace Buggregator\Trap\Proto\Frame;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Frame\Otlp\OtlpTraces;
+use Buggregator\Trap\Proto\Frame\Otlp\Trace\Attributes;
 use Buggregator\Trap\ProtoType;
-use Buggregator\Trap\Support\Json;
 
 /**
  * OpenTelemetry signals received over OTLP. Each signal is its own subclass,
@@ -33,7 +33,7 @@ abstract class Otlp extends Frame
         );
 
         /** @var array{type: string, ...mixed} $data */
-        $data = Json::decode($payload);
+        $data = self::fromJsonObjects(\json_decode($payload, false, 512, \JSON_THROW_ON_ERROR));
 
         /** @psalm-suppress InvalidArgument */
         $result = match ($data['type']) {
@@ -42,5 +42,24 @@ abstract class Otlp extends Frame
         };
 
         return $result;
+    }
+
+    /**
+     * Turns JSON objects into arrays, except inside `attributes`, where maps must stay apart from lists.
+     */
+    private static function fromJsonObjects(mixed $value): mixed
+    {
+        if ($value instanceof \stdClass) {
+            $result = [];
+            /** @var mixed $item */
+            foreach (\get_object_vars($value) as $key => $item) {
+                /** @psalm-suppress MixedAssignment */
+                $result[$key] = $key === 'attributes' ? Attributes::fromJson($item) : self::fromJsonObjects($item);
+            }
+
+            return $result;
+        }
+
+        return \is_array($value) ? \array_map(self::fromJsonObjects(...), $value) : $value;
     }
 }
