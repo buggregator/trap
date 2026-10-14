@@ -16,6 +16,9 @@ use Symfony\Component\Console\CommandLoader\FactoryCommandLoader;
     $cwd = \getcwd();
 
     $possibleAutoloadPaths = [
+        // set by the Composer bin proxy; the only reliable path when the package is symlinked
+        // from a path repository, where the paths below resolve to the package's own vendor
+        ...(\is_string($GLOBALS['_composer_autoload_path'] ?? null) ? [$GLOBALS['_composer_autoload_path']] : []),
         // local dev repository
         \dirname(__DIR__) . '/vendor/autoload.php',
         // running from project root
