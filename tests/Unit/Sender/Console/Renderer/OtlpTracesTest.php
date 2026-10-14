@@ -151,13 +151,69 @@ final class OtlpTracesTest extends TestCase
         $output = $this->render(self::frame(self::span('3', '2', 'late child', 20, 90)), renderer: $renderer);
 
         self::assertSame([
-            'root INTERNAL 100 ns id:1111111111111111',
-            '└─ parent INTERNAL 40 ns id:2222222222222222',
-            '   └─ late child INTERNAL 70 ns +20 ns id:3333333333333333',
+            'parent INTERNAL 40 ns id:2222222222222222 (1 more ancestors above)',
+            '└─ late child INTERNAL 70 ns +20 ns id:3333333333333333',
         ], $this->spanLines($output));
-        self::assertStringNotContainsString('attr: "root"', $output, 'Context spans have no details.');
+        self::assertStringNotContainsString('attr: "parent"', $output, 'Context spans have no details.');
         self::assertStringContainsString('      attr: "late child"', $output);
         self::assertStringNotContainsString('sibling', $output);
+        self::assertStringNotContainsString('root', $output);
+    }
+
+    public function testDeepChainInOneFrameIsBounded(): void
+    {
+        $spans = [];
+        for ($i = 0; $i < 600; ++$i) {
+            $spans[] = self::chainSpan($i);
+        }
+
+        $output = $this->render(self::frame(...$spans));
+        $lines = $this->spanLines($output);
+
+        self::assertCount(500, $lines);
+        self::assertStringContainsString('… 100 more spans not shown', $output);
+        self::assertLessThan(200, \max(\array_map('strlen', \explode("\n", $output))), 'Indentation stops growing.');
+        self::assertStringContainsString('[depth 30]', $output);
+    }
+
+    public function testChainReceivedLeafFirstPrintsLinearOutput(): void
+    {
+        $renderer = new OtlpTraces(new SpanStore());
+        $total = 0;
+        for ($i = 99; $i >= 0; --$i) {
+            $output = $this->render(self::frame(self::chainSpan($i)), renderer: $renderer);
+            $total += \count($this->spanLines($output));
+        }
+
+        self::assertCount(100, $this->spanLines($output), 'The root brings the complete tree.');
+        // Each of the 99 earlier frames prints its span with at most 16 earlier descendants.
+        self::assertLessThanOrEqual(99 * 17 + 100, $total);
+    }
+
+    public function testCollapsesManyEarlierDescendants(): void
+    {
+        $renderer = new OtlpTraces(new SpanStore());
+        for ($i = 99; $i >= 1; --$i) {
+            $renderer->render(new BufferedOutput(), self::frame(self::chainSpan($i)));
+        }
+
+        $output = $this->render(self::frame(self::chainSpan(1)), renderer: $renderer);
+
+        self::assertCount(1, $this->spanLines($output));
+        self::assertStringContainsString('… 98 earlier descendants', $output);
+    }
+
+    public function testChainReceivedRootFirstShowsOnlyNearestAncestor(): void
+    {
+        $renderer = new OtlpTraces(new SpanStore());
+        for ($i = 0; $i < 99; ++$i) {
+            $renderer->render(new BufferedOutput(), self::frame(self::chainSpan($i)));
+        }
+
+        $output = $this->render(self::frame(self::chainSpan(99)), renderer: $renderer);
+
+        self::assertCount(2, $this->spanLines($output));
+        self::assertStringContainsString('(98 more ancestors above)', $output);
     }
 
     public function testRendererWithoutSharedStoreKeepsItsOwnSpans(): void
@@ -196,6 +252,22 @@ final class OtlpTracesTest extends TestCase
 
         self::assertStringContainsString('reversed INTERNAL 0 ns', $output);
         self::assertStringContainsString('9223372036.85 s', $output);
+    }
+
+    /**
+     * A span of a chain where span N is the child of span N-1.
+     */
+    private static function chainSpan(int $index): Span
+    {
+        return new Span(
+            traceId: \str_repeat('c', 32),
+            spanId: \sprintf('%016x', $index + 1),
+            parentSpanId: $index === 0 ? null : \sprintf('%016x', $index),
+            name: "span-$index",
+            kind: SpanKind::Internal,
+            startTimeUnixNano: $index,
+            endTimeUnixNano: 1000 - $index,
+        );
     }
 
     private static function frame(Span ...$spans): OtlpTracesFrame
