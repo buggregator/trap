@@ -7,6 +7,8 @@ on:  # yamllint disable-line rule:truthy
       - 'tests/**'
       - 'composer.*'
   push:
+    branches:
+      - master
     paths:
       - 'src/**'
       - 'tests/**'
@@ -14,13 +16,17 @@ on:  # yamllint disable-line rule:truthy
 
 name: ⚙️ Refactoring
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
 jobs:
   rector:
     timeout-minutes: 4
     runs-on: ${{ matrix.os }}
-    concurrency:
-      cancel-in-progress: true
-      group: rector-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
     strategy:
       fail-fast: true
       matrix:
@@ -33,6 +39,8 @@ jobs:
     steps:
       - name: 📦 Check out the codebase
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: 🛠️ Setup PHP
         uses: shivammathur/setup-php@v2
