@@ -23,7 +23,7 @@ return RectorConfig::configure()
     ])
     ->withSkipPath('src/Client/TrapHandle/ContextProvider/Source.php')
     ->withImportNames(importNames: false, importDocBlockNames: true, importShortClasses: false, removeUnusedImports: true)
-    ->withPhpVersion(PhpVersion::PHP_81)
+    ->withPhpVersion(PhpVersion::PHP_82)
     ->withPhpSets(php81: true)
     ->withPreparedSets(
         deadCode: false,
