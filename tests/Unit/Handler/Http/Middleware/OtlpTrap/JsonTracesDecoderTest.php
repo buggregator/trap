@@ -51,6 +51,12 @@ final class JsonTracesDecoderTest extends TestCase
         yield 'negative flags' => [self::request([self::span(['flags' => -1])])];
         yield 'flags above uint32' => [self::request([self::span(['flags' => 4294967296])])];
         yield 'negative dropped count' => [self::request([self::span(['droppedEventsCount' => '-3'])])];
+        yield 'zero traceId' => [self::request([self::span(['traceId' => \str_repeat('0', 32)])])];
+        yield 'zero base64 traceId' => [self::request([self::span(['traceId' => 'AAAAAAAAAAAAAAAAAAAAAA=='])])];
+        yield 'zero spanId' => [self::request([self::span(['spanId' => \str_repeat('0', 16)])])];
+        yield 'zero link spanId' => [
+            self::request([self::span(['links' => [['traceId' => self::TRACE_ID, 'spanId' => \str_repeat('0', 16)]]])]),
+        ];
     }
 
     public static function provideClampedTimestamps(): \Generator
@@ -59,6 +65,13 @@ final class JsonTracesDecoderTest extends TestCase
         yield 'above int64 as string' => ['"9223372036854775808"'];
         yield 'above int64 as big JSON integer' => ['99999999999999999999'];
         yield 'above int64 as JSON float' => ['1e20'];
+    }
+
+    public static function provideRootParentSpanIds(): \Generator
+    {
+        yield 'empty' => [''];
+        yield 'zero hex' => ['0000000000000000'];
+        yield 'zero base64' => ['AAAAAAAAAAA='];
     }
 
     #[DataProvider('provideClampedTimestamps')]
@@ -125,7 +138,7 @@ final class JsonTracesDecoderTest extends TestCase
                 'attributes' => [['key' => 'exception.type', 'value' => ['stringValue' => 'RuntimeException']]],
             ]],
             'links' => [[
-                'traceId' => 'AAAAAAAAAAAAAAAAAAAAAA==',
+                'traceId' => 'AQIDBAUGBwgJCgsMDQ4PEA==',
                 'spanId' => 'ffffffffffffffff',
                 'attributes' => [['key' => 'reason', 'value' => ['stringValue' => 'retry']]],
             ]],
@@ -154,7 +167,7 @@ final class JsonTracesDecoderTest extends TestCase
         self::assertSame(['exception.type' => 'RuntimeException'], $span->events[0]->attributes);
 
         self::assertCount(1, $span->links);
-        self::assertSame('00000000000000000000000000000000', $span->links[0]->traceId);
+        self::assertSame('0102030405060708090a0b0c0d0e0f10', $span->links[0]->traceId);
         self::assertSame('ffffffffffffffff', $span->links[0]->spanId);
         self::assertSame(['reason' => 'retry'], $span->links[0]->attributes);
     }
@@ -324,9 +337,10 @@ final class JsonTracesDecoderTest extends TestCase
         self::assertSame(StatusCode::Ok, $span->status->code);
     }
 
-    public function testEmptyParentSpanIdMeansRoot(): void
+    #[DataProvider('provideRootParentSpanIds')]
+    public function testEmptyOrZeroParentSpanIdMeansRoot(string $parentSpanId): void
     {
-        $payload = self::request([self::span(['parentSpanId' => ''])]);
+        $payload = self::request([self::span(['parentSpanId' => $parentSpanId])]);
 
         $frame = (new JsonTracesDecoder())->decode($payload, new \DateTimeImmutable());
 

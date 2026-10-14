@@ -93,9 +93,9 @@ final class JsonTracesDecoder implements TracesDecoder
 
         return new Span(
             traceId: self::id($data, 'traceId', self::TRACE_ID_BYTES)
-                ?? throw new \InvalidArgumentException('Span `traceId` is required.'),
+                ?? throw new \InvalidArgumentException('Span `traceId` is required and must not be all zeros.'),
             spanId: self::id($data, 'spanId', self::SPAN_ID_BYTES)
-                ?? throw new \InvalidArgumentException('Span `spanId` is required.'),
+                ?? throw new \InvalidArgumentException('Span `spanId` is required and must not be all zeros.'),
             parentSpanId: self::id($data, 'parentSpanId', self::SPAN_ID_BYTES),
             name: self::string($data, 'name'),
             kind: SpanKind::tryFrom(self::enum($data, 'kind', 'SPAN_KIND_', SpanKind::cases())) ?? SpanKind::Unspecified,
@@ -134,9 +134,9 @@ final class JsonTracesDecoder implements TracesDecoder
 
         return new SpanLink(
             traceId: self::id($data, 'traceId', self::TRACE_ID_BYTES)
-                ?? throw new \InvalidArgumentException('Link `traceId` is required.'),
+                ?? throw new \InvalidArgumentException('Link `traceId` is required and must not be all zeros.'),
             spanId: self::id($data, 'spanId', self::SPAN_ID_BYTES)
-                ?? throw new \InvalidArgumentException('Link `spanId` is required.'),
+                ?? throw new \InvalidArgumentException('Link `spanId` is required and must not be all zeros.'),
             traceState: self::string($data, 'traceState'),
             flags: self::uint32($data, 'flags'),
             attributes: self::attributes($data),
@@ -219,7 +219,8 @@ final class JsonTracesDecoder implements TracesDecoder
      * proto3 JSON mapping of `bytes` produces.
      *
      * @param int<1, max> $bytes
-     * @return non-empty-string|null Lowercase hex; null when the field is absent or empty.
+     * @return non-empty-string|null Lowercase hex; null when the field is absent, empty or all zeros,
+     *         which OpenTelemetry defines as an invalid ID.
      */
     private static function id(array $data, string $key, int $bytes): ?string
     {
@@ -228,17 +229,16 @@ final class JsonTracesDecoder implements TracesDecoder
             return null;
         }
 
-        if (\strlen($value) === $bytes * 2 && \preg_match('/^[0-9a-f]++$/i', $value) === 1) {
-            return \strtolower($value);
-        }
-
         $binary = \base64_decode($value, true);
-        if ($binary !== false && $binary !== '' && \strlen($binary) === $bytes) {
-            /** @var non-empty-string */
-            return \bin2hex($binary);
-        }
+        $hex = match (true) {
+            \strlen($value) === $bytes * 2 && \preg_match('/^[0-9a-f]++$/i', $value) === 1 => \strtolower($value),
+            $binary !== false && \strlen($binary) === $bytes => \bin2hex($binary),
+            default => throw new \InvalidArgumentException(
+                \sprintf('`%s` must be a %d-byte hex string.', $key, $bytes),
+            ),
+        };
 
-        throw new \InvalidArgumentException(\sprintf('`%s` must be a %d-byte hex string.', $key, $bytes));
+        return $hex === '' || \trim($hex, '0') === '' ? null : $hex;
     }
 
     /**
