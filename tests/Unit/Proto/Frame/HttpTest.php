@@ -12,7 +12,6 @@ use Nyholm\Psr7\Stream;
 use Nyholm\Psr7\UploadedFile;
 use Testo\Assert;
 use Testo\Codecov\Covers;
-use Testo\Skip;
 use Testo\Test;
 
 #[Covers(Http::class)]
@@ -108,7 +107,7 @@ final class HttpTest
             'body' => 'xy',
             'uploadedFiles' => [
                 'doc' => [
-                    'content' => $path,
+                    'contents' => \base64_encode(\file_get_contents($path)),
                     'size' => 12,
                     'clientFilename' => 'logo.png',
                     'clientMediaType' => 'image/png',
@@ -128,7 +127,6 @@ final class HttpTest
         Assert::same($frame->getSize(), 2 + 12);
     }
 
-    #[Skip('Bug #233: __toString() serializes UploadedFile objects as {}, so fromString() cannot restore them')]
     public function testStringRoundtripWithFiles(): void
     {
         $request = (new ServerRequest('POST', '/upload'))
@@ -140,6 +138,38 @@ final class HttpTest
         $file = $restored->getFiles()['doc'];
         Assert::same((string) $file->getStream(), 'abc');
         Assert::same($file->getClientFilename(), 'doc.txt');
+    }
+
+    public function testStringRoundtripWithNestedFiles(): void
+    {
+        $failed = new UploadedFile(Stream::create(''), 0, \UPLOAD_ERR_NO_FILE, 'none.txt', 'text/plain');
+        $request = (new ServerRequest('POST', '/upload'))->withUploadedFiles([
+            'many' => [$this->uploadedFile('aaa', 'a.txt'), ['deep' => $this->uploadedFile("\x00\xff", 'b.bin')]],
+            'failed' => $failed,
+        ]);
+        $frame = new Http($request);
+
+        $restored = Http::fromString((string) $frame, $frame->time);
+
+        $files = $restored->request->getUploadedFiles();
+        Assert::same((string) $files['many'][0]->getStream(), 'aaa');
+        Assert::same($files['many'][0]->getClientFilename(), 'a.txt');
+        Assert::same($files['many'][0]->getClientMediaType(), 'text/plain');
+        Assert::same((string) $files['many'][1]['deep']->getStream(), "\x00\xff");
+        Assert::same($files['many'][1]['deep']->getSize(), 2);
+        Assert::same($files['failed']->getError(), \UPLOAD_ERR_NO_FILE);
+        Assert::same($files['failed']->getClientFilename(), 'none.txt');
+        Assert::same($restored->getSize(), $frame->getSize());
+        Assert::same((string) $restored, (string) $frame);
+    }
+
+    public function testFromStringDropsFilesWithoutData(): void
+    {
+        $payload = Json::encode(['uploadedFiles' => ['doc' => [], 'many' => [[], 'not a file']]]);
+
+        $frame = Http::fromString($payload, new \DateTimeImmutable());
+
+        Assert::false($frame->hasFiles());
     }
 
     private function uploadedFile(string $content, string $name): UploadedFile
