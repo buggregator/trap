@@ -68,6 +68,7 @@ final class Tree implements \IteratorAggregate, \Countable
 
         foreach ($this->lostChildren as $lostChild) {
             if ($lostChild->parentId === $id) {
+                $lostChild->parent = $branch;
                 $branch->children[] = $lostChild;
                 unset($this->lostChildren[$lostChild->id]);
             }
