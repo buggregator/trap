@@ -12,7 +12,6 @@ use Testo\Codecov\Covers;
 use Testo\Data\DataSet;
 use Testo\Expect;
 use Testo\Fiber\RunInFiber;
-use Testo\Skip;
 use Testo\Test;
 
 #[Covers(EnvelopeParser::class)]
@@ -131,7 +130,6 @@ final class EnvelopeParserTest
         Assert::same($envelope->items[1]->headers['length'], $length);
     }
 
-    #[Skip('Bug #232: attachment payload is the int returned by StreamInterface::write(), not the file stream')]
     public function testStoresAttachmentAsStream(): void
     {
         $stream = Stream::create(self::HEADER . "\n{\"type\":\"attachment\",\"length\":5}\nab\ncd\n");
@@ -140,7 +138,6 @@ final class EnvelopeParserTest
 
         $payload = $envelope->items[0]->payload;
         Assert::instanceOf($payload, StreamInterface::class);
-        $payload->rewind();
         Assert::same($payload->getContents(), "ab\ncd");
     }
 
