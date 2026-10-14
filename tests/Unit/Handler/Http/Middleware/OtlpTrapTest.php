@@ -113,12 +113,38 @@ final class OtlpTrapTest extends TestCase
     }
 
     #[DataProvider('provideRejectedRequests')]
-    public function testRejectedRequestsAreNotDumped(string $contentType, string $body, int $status): void
+    public function testRejectedRequestsAreNotDumpedButReported(string $contentType, string $body, int $status): void
     {
-        [$response] = $this->handleInFiber($this->request(body: $body, contentType: $contentType));
+        $output = new BufferedOutput();
+        $middleware = new OtlpTrap(new Logger($output));
+
+        [$response] = $this->handleInFiber($this->request(body: $body, contentType: $contentType), $middleware);
 
         self::assertSame($status, $response->getStatusCode());
         self::assertTrue($response->hasHeader(Fallback::NO_DUMP_HEADER));
+        self::assertSame(1, \substr_count($output->fetch(), "OTLP: traces request rejected with $status: "));
+    }
+
+    public function testRejectionReportEscapesReceivedText(): void
+    {
+        $output = new BufferedOutput();
+        $request = $this->request(body: '{}');
+        $decoder = new class implements TracesDecoder {
+            public function decode(string $payload, \DateTimeImmutable $time): OtlpTraces
+            {
+                throw new \InvalidArgumentException("<fg=foo>bad</>\e[31m");
+            }
+
+            public function createSuccessResponse(): ResponseInterface
+            {
+                return new Response(200);
+            }
+        };
+        $middleware = new OtlpTrap(new Logger($output), ['application/json' => $decoder]);
+
+        $this->handleInFiber($request, $middleware);
+
+        self::assertSame("OTLP: traces request rejected with 400: <fg=foo>bad</>?[31m\n", $output->fetch());
     }
 
     #[DataProvider('providePassedThroughRequests')]

@@ -17,6 +17,7 @@ use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
+use Symfony\Component\Console\Formatter\OutputFormatter;
 
 /**
  * Receives OpenTelemetry traces over OTLP/HTTP (`POST /v1/traces`).
@@ -219,12 +220,12 @@ final class OtlpTrap implements Middleware
             $body = $request->getBody();
             $size = $body->getSize();
             if ($size === null || $size > self::MAX_BODY_SIZE) {
-                return self::error($mediaType, 413, self::RPC_RESOURCE_EXHAUSTED, 'Request body is too large.');
+                return $this->reject($mediaType, 413, self::RPC_RESOURCE_EXHAUSTED, 'Request body is too large.');
             }
 
             $payload = self::readPayload($body);
             if ($payload === null) {
-                return self::error(
+                return $this->reject(
                     $mediaType,
                     413,
                     self::RPC_RESOURCE_EXHAUSTED,
@@ -234,11 +235,9 @@ final class OtlpTrap implements Middleware
 
             $frame = $decoder->decode($payload, $time);
         } catch (LimitExceededException $e) {
-            $this->logger?->info('OTLP traces request rejected: %s', $e->getMessage());
-            return self::error($mediaType, 413, self::RPC_RESOURCE_EXHAUSTED, $e->getMessage());
+            return $this->reject($mediaType, 413, self::RPC_RESOURCE_EXHAUSTED, $e->getMessage());
         } catch (\Throwable $e) {
-            $this->logger?->info('OTLP traces request rejected: %s', $e->getMessage());
-            return self::error($mediaType, 400, self::RPC_INVALID_ARGUMENT, $e->getMessage());
+            return $this->reject($mediaType, 400, self::RPC_INVALID_ARGUMENT, $e->getMessage());
         }
 
         if ($frame->countSpans() === 0) {
@@ -269,7 +268,7 @@ final class OtlpTrap implements Middleware
             );
         }
 
-        return self::error(
+        return $this->reject(
             $mediaType,
             415,
             self::RPC_UNIMPLEMENTED,
@@ -279,5 +278,22 @@ final class OtlpTrap implements Middleware
                 \implode(', ', \array_keys($this->tracesDecoders)),
             ),
         );
+    }
+
+    /**
+     * Prints the reason at the default verbosity: an exporter logs a failed export on its own side,
+     * where it is easy to miss, and Trap would otherwise show nothing.
+     *
+     * @param int<0, max> $code `google.rpc.Code`
+     */
+    private function reject(string $mediaType, int $status, int $code, string $message): ResponseInterface
+    {
+        $this->logger?->print(OutputFormatter::escape((string) \preg_replace(
+            '/[\x00-\x1F\x7F]/',
+            '?',
+            \sprintf('OTLP: traces request rejected with %d: %s', $status, $message),
+        )));
+
+        return self::error($mediaType, $status, $code, $message);
     }
 }
