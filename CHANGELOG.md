@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.17.1 (2026-10-14)
+
+## What's Changed
+* fix: stop the zlib warning on broken gzip OTLP bodies by @roxblnfk in https://github.com/buggregator/trap/pull/235
+
+
+**Full Changelog**: https://github.com/buggregator/trap/compare/1.17.0...1.17.1
+
 ## 1.17.0 (2026-10-14)
 
 ## What's Changed
