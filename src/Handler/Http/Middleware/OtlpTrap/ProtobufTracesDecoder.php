@@ -139,7 +139,7 @@ final class ProtobufTracesDecoder implements TracesDecoder
             throw new \InvalidArgumentException('Invalid protobuf message: ' . $e->getMessage(), previous: $e);
         }
 
-        return $this->jsonDecoder->decode($request->serializeToJsonString(), $time);
+        return $this->jsonDecoder->decode((string) $request->serializeToJsonString(), $time);
     }
 
     /**
