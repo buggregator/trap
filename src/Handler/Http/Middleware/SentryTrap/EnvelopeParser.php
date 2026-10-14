@@ -61,9 +61,9 @@ final class EnvelopeParser
         /** @var mixed $itemPayload */
         $itemPayload = match (true) {
             // Store attachments as a file stream
-            $type === 'attachment' => $length === null
-                ? StreamHelper::createFileStream()->write(self::readLine($stream))
-                : StreamHelper::createFileStream()->write(self::readPayload($stream, $length)),
+            $type === 'attachment' => self::createAttachmentStream($length === null
+                ? self::readLine($stream)
+                : self::readPayload($stream, $length)),
 
             // Text items
             default => $length === null
@@ -72,6 +72,15 @@ final class EnvelopeParser
         };
 
         return new EnvelopeItem($itemHeader, $itemPayload);
+    }
+
+    private static function createAttachmentStream(string $content): StreamInterface
+    {
+        $file = StreamHelper::createFileStream();
+        $file->write($content);
+        $file->rewind();
+
+        return $file;
     }
 
     /**
