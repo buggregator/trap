@@ -1,0 +1,320 @@
+=== frame 0
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  20 ns 
+
+span-100 INTERNAL 20 ns id:0000000000000064 parent:0000000000000002
+=== frame 1
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  21 ns  +1 received earlier 
+
+span-101 INTERNAL 20 ns +1 ns id:0000000000000065 parent:0000000000000002
+=== frame 2
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  22 ns  +2 received earlier 
+
+span-102 INTERNAL 20 ns +2 ns id:0000000000000066 parent:0000000000000002
+=== frame 3
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  23 ns  +3 received earlier 
+
+span-103 INTERNAL 20 ns +3 ns id:0000000000000067 parent:0000000000000002
+=== frame 4
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  24 ns  +4 received earlier 
+
+span-104 INTERNAL 20 ns +4 ns id:0000000000000068 parent:0000000000000002
+=== frame 5
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  25 ns  +5 received earlier 
+
+span-105 INTERNAL 20 ns +5 ns id:0000000000000069 parent:0000000000000002
+=== frame 6
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  26 ns  +6 received earlier 
+
+span-106 INTERNAL 20 ns +6 ns id:000000000000006a parent:0000000000000002
+=== frame 7
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  27 ns  +7 received earlier 
+
+span-107 INTERNAL 20 ns +7 ns id:000000000000006b parent:0000000000000002
+=== frame 8
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  28 ns  +8 received earlier 
+
+span-108 INTERNAL 20 ns +8 ns id:000000000000006c parent:0000000000000002
+=== frame 9
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  29 ns  +9 received earlier 
+
+span-109 INTERNAL 20 ns +9 ns id:000000000000006d parent:0000000000000002
+=== frame 10
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  30 ns  +10 received earlier 
+
+span-110 INTERNAL 20 ns +10 ns id:000000000000006e parent:0000000000000002
+=== frame 11
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  31 ns  +11 received earlier 
+
+span-111 INTERNAL 20 ns +11 ns id:000000000000006f parent:0000000000000002
+=== frame 12
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  32 ns  +12 received earlier 
+
+span-112 INTERNAL 20 ns +12 ns id:0000000000000070 parent:0000000000000002
+=== frame 13
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  33 ns  +13 received earlier 
+
+span-113 INTERNAL 20 ns +13 ns id:0000000000000071 parent:0000000000000002
+=== frame 14
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  34 ns  +14 received earlier 
+
+span-114 INTERNAL 20 ns +14 ns id:0000000000000072 parent:0000000000000002
+=== frame 15
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  35 ns  +15 received earlier 
+
+span-115 INTERNAL 20 ns +15 ns id:0000000000000073 parent:0000000000000002
+=== frame 16
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  36 ns  +16 received earlier 
+
+span-116 INTERNAL 20 ns +16 ns id:0000000000000074 parent:0000000000000002
+=== frame 17
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  37 ns  +17 received earlier 
+
+span-117 INTERNAL 20 ns +17 ns id:0000000000000075 parent:0000000000000002
+=== frame 18
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  38 ns  +18 received earlier 
+
+span-118 INTERNAL 20 ns +18 ns id:0000000000000076 parent:0000000000000002
+=== frame 19
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  39 ns  +19 received earlier 
+
+span-119 INTERNAL 20 ns +19 ns id:0000000000000077 parent:0000000000000002
+=== frame 20
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  40 ns  +20 received earlier 
+
+span-120 INTERNAL 20 ns +20 ns id:0000000000000078 parent:0000000000000002
+=== frame 21
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  41 ns  +21 received earlier 
+
+span-121 INTERNAL 20 ns +21 ns id:0000000000000079 parent:0000000000000002
+=== frame 22
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  42 ns  +22 received earlier 
+
+span-122 INTERNAL 20 ns +22 ns id:000000000000007a parent:0000000000000002
+=== frame 23
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  43 ns  +23 received earlier 
+
+span-123 INTERNAL 20 ns +23 ns id:000000000000007b parent:0000000000000002
+=== frame 24
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  44 ns  +24 received earlier 
+
+span-124 INTERNAL 20 ns +24 ns id:000000000000007c parent:0000000000000002
+=== frame 25
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  45 ns  +25 received earlier 
+
+span-125 INTERNAL 20 ns +25 ns id:000000000000007d parent:0000000000000002
+=== frame 26
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  46 ns  +26 received earlier 
+
+span-126 INTERNAL 20 ns +26 ns id:000000000000007e parent:0000000000000002
+=== frame 27
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  47 ns  +27 received earlier 
+
+span-127 INTERNAL 20 ns +27 ns id:000000000000007f parent:0000000000000002
+=== frame 28
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  48 ns  +28 received earlier 
+
+span-128 INTERNAL 20 ns +28 ns id:0000000000000080 parent:0000000000000002
+=== frame 29
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  49 ns  +29 received earlier 
+
+span-129 INTERNAL 20 ns +29 ns id:0000000000000081 parent:0000000000000002
+=== frame 30
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  850 ns  +30 received earlier 
+
+span-2 INTERNAL 850 ns id:0000000000000002 parent:0000000000000001
+   … 30 earlier descendants
+=== frame 31
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  5.00 µs  +31 received earlier 
+
+span-1 INTERNAL 5.00 µs id:0000000000000001
+└─ span-2 INTERNAL 850 ns +50 ns id:0000000000000002
+   ├─ span-100 INTERNAL 20 ns +60 ns id:0000000000000064
+   ├─ span-101 INTERNAL 20 ns +61 ns id:0000000000000065
+   ├─ span-102 INTERNAL 20 ns +62 ns id:0000000000000066
+   ├─ span-103 INTERNAL 20 ns +63 ns id:0000000000000067
+   ├─ span-104 INTERNAL 20 ns +64 ns id:0000000000000068
+   ├─ span-105 INTERNAL 20 ns +65 ns id:0000000000000069
+   ├─ span-106 INTERNAL 20 ns +66 ns id:000000000000006a
+   ├─ span-107 INTERNAL 20 ns +67 ns id:000000000000006b
+   ├─ span-108 INTERNAL 20 ns +68 ns id:000000000000006c
+   ├─ span-109 INTERNAL 20 ns +69 ns id:000000000000006d
+   ├─ span-110 INTERNAL 20 ns +70 ns id:000000000000006e
+   ├─ span-111 INTERNAL 20 ns +71 ns id:000000000000006f
+   ├─ span-112 INTERNAL 20 ns +72 ns id:0000000000000070
+   ├─ span-113 INTERNAL 20 ns +73 ns id:0000000000000071
+   ├─ span-114 INTERNAL 20 ns +74 ns id:0000000000000072
+   ├─ span-115 INTERNAL 20 ns +75 ns id:0000000000000073
+   ├─ span-116 INTERNAL 20 ns +76 ns id:0000000000000074
+   ├─ span-117 INTERNAL 20 ns +77 ns id:0000000000000075
+   ├─ span-118 INTERNAL 20 ns +78 ns id:0000000000000076
+   ├─ span-119 INTERNAL 20 ns +79 ns id:0000000000000077
+   ├─ span-120 INTERNAL 20 ns +80 ns id:0000000000000078
+   ├─ span-121 INTERNAL 20 ns +81 ns id:0000000000000079
+   ├─ span-122 INTERNAL 20 ns +82 ns id:000000000000007a
+   ├─ span-123 INTERNAL 20 ns +83 ns id:000000000000007b
+   ├─ span-124 INTERNAL 20 ns +84 ns id:000000000000007c
+   ├─ span-125 INTERNAL 20 ns +85 ns id:000000000000007d
+   ├─ span-126 INTERNAL 20 ns +86 ns id:000000000000007e
+   ├─ span-127 INTERNAL 20 ns +87 ns id:000000000000007f
+   ├─ span-128 INTERNAL 20 ns +88 ns id:0000000000000080
+   └─ span-129 INTERNAL 20 ns +89 ns id:0000000000000081

@@ -29,6 +29,21 @@ final class SpanStore
     /** @var array<non-empty-string, float> Trace ID => time of the last added span */
     private array $updatedAt = [];
 
+    /**
+     * Children of each parent in the order of the trace, so that a trace is not rescanned
+     * for every received span. The parent may be absent from the trace.
+     *
+     * @var array<non-empty-string, array<non-empty-string, array<non-empty-string, true>>>
+     *      Trace ID => parent span ID => child span ID => true
+     */
+    private array $children = [];
+
+    /**
+     * @var array<non-empty-string, array{int, int}|null> Trace ID => earliest start and latest end
+     *      of its spans; null when a replaced or dropped span may have defined them.
+     */
+    private array $bounds = [];
+
     /** @var int<0, max> */
     private int $spanCount = 0;
 
@@ -69,14 +84,17 @@ final class SpanStore
             unset($this->traces[$span->traceId]);
 
             // Re-inserting a known span moves it to the end too, so the oldest spans stay first.
-            if (isset($trace[$span->spanId])) {
+            $old = $trace[$span->spanId] ?? null;
+            if ($old !== null) {
                 unset($trace[$span->spanId]);
+                $this->unindex($old, $span);
             } else {
                 ++$this->spanCount;
             }
             $trace[$span->spanId] = $span;
             $this->traces[$span->traceId] = $trace;
             $this->updatedAt[$span->traceId] = $now;
+            $this->index($span, \count($trace) === 1);
         }
 
         $this->evict($now);
@@ -96,6 +114,44 @@ final class SpanStore
     }
 
     /**
+     * @return list<Span> Stored spans whose parent is the given span, in the order of arrival.
+     */
+    public function getChildren(string $traceId, string $spanId): array
+    {
+        $result = [];
+        $trace = $this->traces[$traceId] ?? [];
+        foreach ($this->children[$traceId][$spanId] ?? [] as $childId => $_) {
+            $result[] = $trace[$childId];
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array{int, int}|null The earliest start and the latest end of the spans of the trace,
+     *         in Unix nanoseconds; null for an unknown trace.
+     */
+    public function getTraceBounds(string $traceId): ?array
+    {
+        $trace = $this->traces[$traceId] ?? [];
+        // An empty ID is never stored; the check tells Psalm the key is a non-empty string.
+        if ($trace === [] || $traceId === '') {
+            return null;
+        }
+
+        // Bounds dropped by a replaced span are recomputed here once and cached again.
+        return $this->bounds[$traceId] ??= self::computeBounds($trace);
+    }
+
+    /**
+     * @return int<0, max>
+     */
+    public function countTraceSpans(string $traceId): int
+    {
+        return \count($this->traces[$traceId] ?? []);
+    }
+
+    /**
      * @return int<0, max>
      */
     public function countSpans(): int
@@ -109,6 +165,22 @@ final class SpanStore
     public function countTraces(): int
     {
         return \count($this->traces);
+    }
+
+    /**
+     * @param array<array-key, Span> $trace Not empty.
+     * @return array{int, int}
+     */
+    private static function computeBounds(array $trace): array
+    {
+        $start = \PHP_INT_MAX;
+        $end = \PHP_INT_MIN;
+        foreach ($trace as $span) {
+            $start = \min($start, $span->startTimeUnixNano);
+            $end = \max($end, $span->endTimeUnixNano);
+        }
+
+        return [$start, $end];
     }
 
     /**
@@ -135,7 +207,7 @@ final class SpanStore
         }
 
         foreach ($dropped as $traceId) {
-            unset($this->traces[$traceId], $this->updatedAt[$traceId]);
+            unset($this->traces[$traceId], $this->updatedAt[$traceId], $this->children[$traceId], $this->bounds[$traceId]);
         }
         $this->spanCount = \max(0, $spanCount);
 
@@ -146,8 +218,58 @@ final class SpanStore
 
         // Trimmed to 90% at once: dropping one span per call leaves holes at the start of the array
         // that every later trim has to skip, while array_slice() builds a compact one.
+        // The index is rebuilt for the same reason, once per 10% of the limit.
         $keep = $this->maxSpans - \intdiv($this->maxSpans, 10);
-        $this->traces[$traceId] = \array_slice($this->traces[$traceId], -$keep, null, true);
-        $this->spanCount = \count($this->traces[$traceId]);
+        $trace = \array_slice($this->traces[$traceId], -$keep, null, true);
+        $this->traces[$traceId] = $trace;
+        $this->spanCount = \count($trace);
+
+        $children = [];
+        foreach ($trace as $span) {
+            $span->parentSpanId === null or $children[$span->parentSpanId][$span->spanId] = true;
+        }
+        $this->children[$traceId] = $children;
+        $this->bounds[$traceId] = self::computeBounds($trace);
+    }
+
+    /**
+     * Adds a span that has just been appended to its trace.
+     *
+     * @param bool $only Whether it is the only span of the trace.
+     */
+    private function index(Span $span, bool $only): void
+    {
+        $span->parentSpanId === null
+            or $this->children[$span->traceId][$span->parentSpanId][$span->spanId] = true;
+
+        $cached = $this->bounds[$span->traceId] ?? null;
+        $this->bounds[$span->traceId] = match (true) {
+            $only => [$span->startTimeUnixNano, $span->endTimeUnixNano],
+            $cached === null => null,
+            default => [\min($cached[0], $span->startTimeUnixNano), \max($cached[1], $span->endTimeUnixNano)],
+        };
+    }
+
+    /**
+     * Removes a span that is being replaced by `$new`.
+     */
+    private function unindex(Span $old, Span $new): void
+    {
+        $parentId = $old->parentSpanId;
+        if ($parentId !== null) {
+            unset($this->children[$old->traceId][$parentId][$old->spanId]);
+            if (($this->children[$old->traceId][$parentId] ?? null) === []) {
+                unset($this->children[$old->traceId][$parentId]);
+            }
+        }
+
+        // The bounds stay valid when the old span did not define them or the new one covers its time;
+        // otherwise they are recomputed on the next read.
+        $bounds = $this->bounds[$old->traceId] ?? null;
+        $defined = $bounds !== null
+            && ($old->startTimeUnixNano <= $bounds[0] || $old->endTimeUnixNano >= $bounds[1]);
+        $covered = $new->startTimeUnixNano <= $old->startTimeUnixNano
+            && $new->endTimeUnixNano >= $old->endTimeUnixNano;
+        $defined && !$covered and $this->bounds[$old->traceId] = null;
     }
 }
