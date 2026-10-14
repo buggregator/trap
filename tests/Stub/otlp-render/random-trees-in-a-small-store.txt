@@ -7,39 +7,25 @@ Time: 2024-01-01 12:00:00
 # Trace cccccccccccccccccccccccccccccccc  808 ns 
 
 span-196 INTERNAL 242 ns id:00000000000000c4 parent:0000000000000059
-   n: 196
 span-385 INTERNAL 30 ns +135 ns id:0000000000000181 parent:0000000000000091
-   n: 385
 span-6 INTERNAL 278 ns +372 ns id:0000000000000006 parent:0000000000000191
-   n: 6
 span-238 INTERNAL 101 ns +405 ns id:00000000000000ee
-   n: 238
 span-176 INTERNAL 100 ns +438 ns id:00000000000000b0
-   n: 176
 span-261 INTERNAL 285 ns +523 ns id:0000000000000105 parent:0000000000000043
-   n: 261
 span-157 INTERNAL 150 ns +560 ns id:000000000000009d parent:0000000000000066
-   n: 157
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  968 ns 
 
 span-271 INTERNAL 133 ns +301 ns id:000000000000010f parent:0000000000000007
-   n: 271
 span-103 INTERNAL 7 ns +615 ns id:0000000000000067 parent:0000000000000022
-   n: 103
 span-288 INTERNAL 168 ns +717 ns id:0000000000000120 parent:0000000000000192
-   n: 288
 span-97 INTERNAL 203 ns +765 ns id:0000000000000061 parent:0000000000000036
-   n: 97
 span-228 INTERNAL 134 ns id:00000000000000e4 parent:00000000000000e4
-│  n: 228
 span-170 INTERNAL 188 ns +312 ns id:00000000000000aa parent:00000000000000aa
-│  n: 170
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  293 ns 
 
 span-290 INTERNAL 293 ns id:0000000000000122 parent:0000000000000193
-   n: 290
 === frame 1
 
  OTLP TRACES  16 spans 
@@ -49,43 +35,27 @@ Time: 2024-01-01 12:00:00
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.12 µs  +6 received earlier 
 
 span-172 INTERNAL 141 ns +93 ns id:00000000000000ac parent:0000000000000092
-   n: 172
 span-262 INTERNAL 207 ns +270 ns id:0000000000000106 parent:000000000000005a
-   n: 262
 span-89 INTERNAL 115 ns +443 ns id:0000000000000059 parent:0000000000000191
-   n: 89
 span-52 INTERNAL 45 ns +587 ns id:0000000000000034 parent:0000000000000020
-   n: 52
 span-235 INTERNAL 297 ns +613 ns id:00000000000000eb
-   n: 235
 span-109 INTERNAL 113 ns +779 ns id:000000000000006d parent:0000000000000195
-│  n: 109
 └─ span-299 INTERNAL 147 ns id:000000000000012b
-      n: 299
 span-330 INTERNAL 229 ns +893 ns id:000000000000014a parent:000000000000005a
-   n: 330
 span-323 INTERNAL 57 ns +976 ns id:0000000000000143 parent:00000000000000be
-   n: 323
 span-335 INTERNAL 202 ns +91 ns id:000000000000014f parent:000000000000014f
-│  n: 335
 
 # Trace cccccccccccccccccccccccccccccccc  1.12 µs  +7 received earlier 
 
 span-178 INTERNAL 120 ns id:00000000000000b2 parent:000000000000005f
-   n: 178
 span-233 INTERNAL 184 ns +333 ns id:00000000000000e9 parent:00000000000000dc
-   n: 233
 span-185 INTERNAL 236 ns +501 ns id:00000000000000b9 parent:0000000000000061
-   n: 185
 span-189 INTERNAL 299 ns +823 ns id:00000000000000bd parent:0000000000000053
-   n: 189
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  941 ns  +1 received earlier 
 
 span-113 INTERNAL 60 ns id:0000000000000071 parent:0000000000000028
-   n: 113
 span-7 INTERNAL 31 ns +377 ns id:0000000000000007 parent:0000000000000006
-   n: 7
 === frame 2
 
  OTLP TRACES  16 spans 
@@ -95,45 +65,28 @@ Time: 2024-01-01 12:00:00
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.03 µs  +3 received earlier 
 
 span-182 INTERNAL 5 ns +669 ns id:00000000000000b6 parent:0000000000000023
-   n: 182
 span-266 INTERNAL 219 ns +813 ns id:000000000000010a parent:000000000000000e
-   n: 266
 span-32 INTERNAL 3 ns +841 ns id:0000000000000020 parent:0000000000000014
-   n: 32
 
 # Trace cccccccccccccccccccccccccccccccc  1.12 µs  +11 received earlier 
 
 again INTERNAL 1 ns +65 ns id:0000000000000012 parent:0000000000000017
-   n: 18
 span-183 INTERNAL 46 ns +168 ns id:00000000000000b7 parent:0000000000000028
-   n: 183
 span-147 INTERNAL 287 ns +230 ns id:0000000000000093 parent:000000000000002e
-   n: 147
 span-13 INTERNAL 275 ns +256 ns id:000000000000000d parent:000000000000000c
-   n: 13
 span-272 INTERNAL 293 ns +480 ns id:0000000000000110 parent:0000000000000029
-   n: 272
 span-111 INTERNAL 298 ns +643 ns id:000000000000006f parent:000000000000001f
-   n: 111
 span-192 INTERNAL 122 ns +764 ns id:00000000000000c0 parent:000000000000008e
-   n: 192
 span-315 INTERNAL 163 ns +813 ns id:000000000000013b parent:00000000000000cb
-   n: 315
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.12 µs  +16 received earlier 
 
 span-305 INTERNAL 241 ns +81 ns id:0000000000000131 parent:000000000000006f
-   n: 305
 span-121 INTERNAL 82 ns +528 ns id:0000000000000079 parent:0000000000000051
-   n: 121
 span-34 INTERNAL 241 ns +606 ns id:0000000000000022 parent:0000000000000004
-│  n: 34
 └─ span-103 INTERNAL 7 ns +715 ns id:0000000000000067
-      n: 103
 span-221 INTERNAL 104 ns +733 ns id:00000000000000dd parent:0000000000000088
-   n: 221
 span-357 INTERNAL 221 ns +732 ns id:0000000000000165 parent:0000000000000165
-│  n: 357
 === frame 3
 
  OTLP TRACES  20 spans 
@@ -143,54 +96,33 @@ Time: 2024-01-01 12:00:00
 # Trace cccccccccccccccccccccccccccccccc  1.23 µs  +19 received earlier 
 
 span-275 INTERNAL 253 ns id:0000000000000113 parent:0000000000000004
-   n: 275
 span-44 INTERNAL 5 ns +117 ns id:000000000000002c parent:0000000000000002
-   n: 44
 span-292 INTERNAL 22 ns +334 ns id:0000000000000124 parent:000000000000008c
-   n: 292
 span-13 INTERNAL 275 ns id:000000000000000d parent:000000000000000c
 └─ span-38 INTERNAL 113 ns +673 ns id:0000000000000026
-      n: 38
 span-258 INTERNAL 256 ns +562 ns id:0000000000000102 parent:00000000000000be
-   n: 258
 span-201 INTERNAL 218 ns +848 ns id:00000000000000c9 parent:0000000000000087
-   n: 201
 span-219 INTERNAL 191 ns +32 ns id:00000000000000db parent:00000000000000db
-│  n: 219
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.12 µs  +21 received earlier 
 
 span-259 INTERNAL 174 ns +152 ns id:0000000000000103 parent:00000000000000fb
-   n: 259
 span-381 INTERNAL 90 ns +259 ns id:000000000000017d parent:00000000000000bc
-   n: 381
 span-141 INTERNAL 70 ns +269 ns id:000000000000008d parent:000000000000008b
-   n: 141
 span-110 INTERNAL 240 ns +490 ns id:000000000000006e parent:0000000000000054
-   n: 110
 again INTERNAL 1 ns +532 ns id:0000000000000051 parent:000000000000004a
-│  n: 81
 └─ span-121 INTERNAL 82 ns +528 ns id:0000000000000079
-      n: 121
 again INTERNAL 1 ns +596 ns id:0000000000000019 parent:0000000000000021
-   n: 25
 span-351 INTERNAL 51 ns +755 ns id:000000000000015f parent:0000000000000110
-   n: 351
 span-48 INTERNAL 135 ns +45 ns id:0000000000000030 parent:0000000000000030
-│  n: 48
 span-11 INTERNAL 84 ns +203 ns id:000000000000000b parent:000000000000000b
-│  n: 11
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.03 µs  +6 received earlier 
 
 span-226 INTERNAL 2 ns +126 ns id:00000000000000e2
-   n: 226
 span-140 INTERNAL 166 ns +183 ns id:000000000000008c parent:0000000000000063
-   n: 140
 span-146 INTERNAL 124 ns +183 ns id:0000000000000092 parent:0000000000000003
-   n: 146
 span-81 INTERNAL 209 ns +199 ns id:0000000000000051 parent:0000000000000043
-   n: 81
 === frame 4
 
  OTLP TRACES  16 spans 
@@ -200,45 +132,28 @@ Time: 2024-01-01 12:00:00
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.12 µs  +30 received earlier 
 
 span-265 INTERNAL 34 ns +11 ns id:0000000000000109 parent:00000000000000f9
-   n: 265
 span-250 INTERNAL 196 ns +406 ns id:00000000000000fa parent:0000000000000195
-   n: 250
 span-291 INTERNAL 151 ns +650 ns id:0000000000000123 parent:0000000000000193
-   n: 291
 span-27 INTERNAL 160 ns +873 ns id:000000000000001b parent:000000000000001b
-│  n: 27
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.16 µs  +10 received earlier 
 
 span-123 INTERNAL 299 ns id:000000000000007b
-   n: 123
 span-20 INTERNAL 283 ns +158 ns id:0000000000000014
-│  n: 20
 └─ span-32 INTERNAL 3 ns +973 ns id:0000000000000020
-      n: 32
 span-92 INTERNAL 289 ns +164 ns id:000000000000005c parent:000000000000000a
-   n: 92
 span-269 INTERNAL 204 ns +212 ns id:000000000000010d parent:0000000000000192
-   n: 269
 span-339 INTERNAL 97 ns +687 ns id:0000000000000153 parent:000000000000011c
-   n: 339
 span-96 INTERNAL 245 ns +812 ns id:0000000000000060 parent:0000000000000060
-│  n: 96
 span-73 INTERNAL 16 ns +155 ns id:0000000000000049 parent:0000000000000049
-│  n: 73
 span-102 INTERNAL 54 ns +211 ns id:0000000000000066 parent:0000000000000066
-│  n: 102
 
 # Trace cccccccccccccccccccccccccccccccc  1.23 µs  +26 received earlier 
 
 span-394 INTERNAL 297 ns +17 ns id:000000000000018a parent:000000000000005c
-   n: 394
 span-231 INTERNAL 247 ns +330 ns id:00000000000000e7
-   n: 231
 span-62 INTERNAL 110 ns +810 ns id:000000000000003e parent:000000000000000b
-   n: 62
 span-255 INTERNAL 264 ns +656 ns id:00000000000000ff parent:00000000000000ff
-│  n: 255
 === frame 5
 
  OTLP TRACES  12 spans 
@@ -248,36 +163,24 @@ Time: 2024-01-01 12:00:00
 # Trace cccccccccccccccccccccccccccccccc  1.23 µs  +30 received earlier 
 
 span-382 INTERNAL 148 ns +144 ns id:000000000000017e parent:00000000000000d2
-   n: 382
 again INTERNAL 1 ns +325 ns id:0000000000000062 parent:0000000000000009
-   n: 98
 span-55 INTERNAL 184 ns +843 ns id:0000000000000037 parent:0000000000000028
-   n: 55
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.12 µs  +34 received earlier 
 
 again INTERNAL 1 ns +54 ns id:000000000000002f
-   n: 47
 span-71 INTERNAL 47 ns +527 ns id:0000000000000047 parent:000000000000002d
-│  n: 71
 └─ span-72 INTERNAL 110 ns +918 ns id:0000000000000048
-      n: 72
 span-98 INTERNAL 118 ns +472 ns id:0000000000000062 parent:0000000000000062
-│  n: 98
 span-384 INTERNAL 76 ns +828 ns id:0000000000000180 parent:00000000000000e4
-   n: 384
 span-228 INTERNAL 134 ns id:00000000000000e4 (1000+ more ancestors above)
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.26 µs  +18 received earlier 
 
 span-82 INTERNAL 25 ns id:0000000000000052 parent:0000000000000048
-   n: 82
 span-165 INTERNAL 117 ns +767 ns id:00000000000000a5 parent:0000000000000030
-   n: 165
 span-387 INTERNAL 175 ns +904 ns id:0000000000000183 parent:0000000000000174
-   n: 387
 span-124 INTERNAL 281 ns +980 ns id:000000000000007c parent:000000000000000d
-   n: 124
 === frame 6
 
  OTLP TRACES  10 spans 
@@ -287,31 +190,21 @@ Time: 2024-01-01 12:00:00
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.26 µs  +22 received earlier 
 
 span-314 INTERNAL 106 ns +203 ns id:000000000000013a parent:00000000000000da
-   n: 314
 span-341 INTERNAL 133 ns +261 ns id:0000000000000155 parent:0000000000000028
-   n: 341
 span-144 INTERNAL 194 ns +775 ns id:0000000000000090 parent:0000000000000085
-   n: 144
 span-254 INTERNAL 51 ns +995 ns id:00000000000000fe parent:0000000000000195
-   n: 254
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.15 µs  +39 received earlier 
 
 span-115 INTERNAL 232 ns +244 ns id:0000000000000073 parent:0000000000000027
-   n: 115
 span-163 INTERNAL 176 ns +972 ns id:00000000000000a3 parent:000000000000009f
-   n: 163
 span-194 INTERNAL 281 ns +260 ns id:00000000000000c2 parent:00000000000000c2
-│  n: 194
 
 # Trace cccccccccccccccccccccccccccccccc  1.23 µs  +32 received earlier 
 
 span-374 INTERNAL 48 ns id:0000000000000176 parent:0000000000000195
-   n: 374
 span-18 INTERNAL 34 ns +407 ns id:0000000000000012 parent:0000000000000009
-   n: 18
 span-205 INTERNAL 255 ns +546 ns id:00000000000000cd parent:000000000000009e
-   n: 205
 === frame 7
 
  OTLP TRACES  4 spans 
@@ -321,16 +214,12 @@ Time: 2024-01-01 12:00:00
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.26 µs  +26 received earlier 
 
 span-322 INTERNAL 125 ns +308 ns id:0000000000000142 parent:0000000000000001
-   n: 322
 
 # Trace cccccccccccccccccccccccccccccccc  1.23 µs  +35 received earlier 
 
 span-173 INTERNAL 1 ns +434 ns id:00000000000000ad parent:000000000000009a
-   n: 173
 span-57 INTERNAL 141 ns +652 ns id:0000000000000039 parent:000000000000001d
-   n: 57
 span-316 INTERNAL 234 ns +819 ns id:000000000000013c parent:0000000000000091
-   n: 316
 === frame 8
 
  OTLP TRACES  10 spans 
@@ -340,35 +229,23 @@ Time: 2024-01-01 12:00:00
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.26 µs  +27 received earlier 
 
 span-66 INTERNAL 283 ns +523 ns id:0000000000000042 parent:0000000000000008
-   n: 66
 span-229 INTERNAL 270 ns +693 ns id:00000000000000e5
-   n: 229
 span-318 INTERNAL 159 ns +29 ns id:000000000000013e parent:000000000000013e
-│  n: 318
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.15 µs  +42 received earlier 
 
 span-90 INTERNAL 213 ns +557 ns id:000000000000005a parent:000000000000000d
-│  n: 90
 ├─ span-262 INTERNAL 207 ns +270 ns id:0000000000000106
-│     n: 262
 └─ span-330 INTERNAL 229 ns +893 ns id:000000000000014a
-      n: 330
 span-177 INTERNAL 128 ns +647 ns id:00000000000000b1 parent:0000000000000035
-   n: 177
 span-282 INTERNAL 204 ns +743 ns id:000000000000011a parent:0000000000000195
-   n: 282
 span-321 INTERNAL 166 ns +282 ns id:0000000000000141 parent:0000000000000141
-│  n: 321
 
 # Trace cccccccccccccccccccccccccccccccc  1.23 µs  +38 received earlier 
 
 span-84 INTERNAL 32 ns +287 ns id:0000000000000054 parent:0000000000000035
-   n: 84
 span-150 INTERNAL 194 ns +887 ns id:0000000000000096 parent:0000000000000191
-   n: 150
 span-301 INTERNAL 165 ns +349 ns id:000000000000012d parent:000000000000012d
-│  n: 301
 === frame 9
 
  OTLP TRACES  16 spans 
@@ -378,46 +255,29 @@ Time: 2024-01-01 12:00:00
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.26 µs  +29 received earlier 
 
 again INTERNAL 1 ns +154 ns id:0000000000000007
-   n: 7
 span-247 INTERNAL 149 ns +273 ns id:00000000000000f7 parent:0000000000000193
-   n: 247
 span-25 INTERNAL 183 ns +441 ns id:0000000000000019 parent:0000000000000008
-   n: 25
 span-371 INTERNAL 69 ns +486 ns id:0000000000000173 parent:0000000000000195
-   n: 371
 span-35 INTERNAL 107 ns +758 ns id:0000000000000023 parent:000000000000001f
-│  n: 35
 └─ span-182 INTERNAL 5 ns +821 ns id:00000000000000b6
-      n: 182
 again INTERNAL 1 ns +804 ns id:000000000000001e parent:0000000000000010
-   n: 30
 span-224 INTERNAL 118 ns +902 ns id:00000000000000e0 parent:0000000000000061
-   n: 224
 span-355 INTERNAL 248 ns +943 ns id:0000000000000163 parent:00000000000000b7
-   n: 355
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.15 µs  +46 received earlier 
 
 span-312 INTERNAL 104 ns +180 ns id:0000000000000138 parent:000000000000010c
-   n: 312
 span-366 INTERNAL 173 ns +433 ns id:000000000000016e parent:00000000000000da
-   n: 366
 span-99 INTERNAL 16 ns +709 ns id:0000000000000063 parent:0000000000000013
-   n: 99
 span-376 INTERNAL 0 ns +779 ns id:0000000000000178 parent:0000000000000178
-│  n: 376
 
 # Trace cccccccccccccccccccccccccccccccc  1.23 µs  +41 received earlier 
 
 span-18 INTERNAL 34 ns id:0000000000000012 parent:0000000000000009
 └─ again INTERNAL 1 ns +503 ns id:0000000000000036
-      n: 54
 span-390 INTERNAL 127 ns +435 ns id:0000000000000186 parent:000000000000015c
-   n: 390
 span-389 INTERNAL 194 ns +564 ns id:0000000000000185 parent:00000000000000fa
-   n: 389
 span-126 INTERNAL 66 ns +650 ns id:000000000000007e parent:0000000000000193
-   n: 126
 === frame 10
 
  OTLP TRACES  14 spans 
@@ -427,40 +287,26 @@ Time: 2024-01-01 12:00:00
 # Trace cccccccccccccccccccccccccccccccc  1.23 µs  +45 received earlier 
 
 span-132 INTERNAL 2 ns +459 ns id:0000000000000084 parent:000000000000005c
-   n: 132
 span-112 INTERNAL 177 ns +562 ns id:0000000000000070 parent:0000000000000052
-   n: 112
 span-26 INTERNAL 106 ns +796 ns id:000000000000001a parent:000000000000000b
-   n: 26
 span-373 INTERNAL 78 ns +944 ns id:0000000000000175 parent:0000000000000195
-   n: 373
 span-386 INTERNAL 287 ns +136 ns id:0000000000000182 parent:0000000000000182
-│  n: 386
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.26 µs  +37 received earlier 
 
 span-20 INTERNAL 283 ns id:0000000000000014
 └─ span-139 INTERNAL 79 ns +959 ns id:000000000000008b
-      n: 139
 span-220 INTERNAL 149 ns +289 ns id:00000000000000dc parent:0000000000000002
-   n: 220
 span-74 INTERNAL 272 ns +350 ns id:000000000000004a parent:000000000000000d
-   n: 74
 span-277 INTERNAL 85 ns +487 ns id:0000000000000115 parent:0000000000000010
-   n: 277
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.15 µs  +50 received earlier 
 
 span-308 INTERNAL 57 ns +45 ns id:0000000000000134 parent:00000000000000d4
-   n: 308
 span-22 INTERNAL 6 ns +642 ns id:0000000000000016 parent:0000000000000003
-│  n: 22
 └─ span-209 INTERNAL 240 ns +323 ns id:00000000000000d1
-      n: 209
 span-169 INTERNAL 141 ns +685 ns id:00000000000000a9 parent:0000000000000086
-   n: 169
 span-306 INTERNAL 133 ns +751 ns id:0000000000000132
-   n: 306
 === frame 11
 
  OTLP TRACES  3 spans 
@@ -470,17 +316,14 @@ Time: 2024-01-01 12:00:00
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.26 µs  +41 received earlier 
 
 span-242 INTERNAL 45 ns +122 ns id:00000000000000f2 parent:00000000000000f2
-│  n: 242
 
 # Trace cccccccccccccccccccccccccccccccc  1.23 µs  +50 received earlier 
 
 span-199 INTERNAL 220 ns +453 ns id:00000000000000c7 parent:000000000000000a
-   n: 199
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.15 µs  +55 received earlier 
 
 span-21 INTERNAL 205 ns +292 ns id:0000000000000015 parent:0000000000000001
-   n: 21
 === frame 12
 
  OTLP TRACES  10 spans 
@@ -490,36 +333,24 @@ Time: 2024-01-01 12:00:00
 # Trace cccccccccccccccccccccccccccccccc  1.23 µs  +51 received earlier 
 
 span-380 INTERNAL 271 ns +412 ns id:000000000000017c parent:000000000000006e
-   n: 380
 span-51 INTERNAL 66 ns +738 ns id:0000000000000033 parent:000000000000000b
-   n: 51
 again INTERNAL 1 ns +844 ns id:0000000000000011 parent:0000000000000028
-   n: 17
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.26 µs  +42 received earlier 
 
 span-360 INTERNAL 243 ns +626 ns id:0000000000000168
-   n: 360
 span-31 INTERNAL 154 ns +838 ns id:000000000000001f
-│  n: 31
 └─ span-35 INTERNAL 107 ns +759 ns id:0000000000000023
-   │  n: 35
    └─ span-182 INTERNAL 5 ns +822 ns id:00000000000000b6
-         n: 182
 span-114 INTERNAL 102 ns id:0000000000000072 parent:0000000000000060
-   n: 114
 span-365 INTERNAL 135 ns +27 ns id:000000000000016d parent:000000000000016d
-│  n: 365
 span-96 INTERNAL 245 ns id:0000000000000060 (1000+ more ancestors above)
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  886 ns 
 
 span-296 INTERNAL 178 ns id:0000000000000128 parent:0000000000000192
-   n: 296
 span-354 INTERNAL 54 ns +611 ns id:0000000000000162
-   n: 354
 span-134 INTERNAL 191 ns +695 ns id:0000000000000086 parent:000000000000002f
-   n: 134
 === frame 13
 
  OTLP TRACES  19 spans 
@@ -529,52 +360,32 @@ Time: 2024-01-01 12:00:00
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.06 µs  +3 received earlier 
 
 span-375 INTERNAL 87 ns +72 ns id:0000000000000177
-   n: 375
 span-195 INTERNAL 273 ns +146 ns id:00000000000000c3 parent:0000000000000019
-   n: 195
 span-379 INTERNAL 37 ns +276 ns id:000000000000017b parent:000000000000012c
-   n: 379
 span-346 INTERNAL 117 ns +431 ns id:000000000000015a parent:0000000000000008
-   n: 346
 span-234 INTERNAL 2 ns +435 ns id:00000000000000ea parent:000000000000006f
-   n: 234
 span-137 INTERNAL 227 ns +435 ns id:0000000000000089 parent:0000000000000016
-   n: 137
 span-186 INTERNAL 169 ns +467 ns id:00000000000000ba parent:000000000000001d
-   n: 186
 span-218 INTERNAL 222 ns +646 ns id:00000000000000da parent:0000000000000074
-   n: 218
 span-86 INTERNAL 196 ns +698 ns id:0000000000000056 parent:0000000000000045
-   n: 86
 span-202 INTERNAL 189 ns +868 ns id:00000000000000ca parent:0000000000000045
-   n: 202
 span-128 INTERNAL 268 ns +86 ns id:0000000000000080 parent:0000000000000080
-│  n: 128
 span-36 INTERNAL 61 ns +404 ns id:0000000000000024 parent:0000000000000024
-│  n: 36
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.26 µs  +46 received earlier 
 
 span-392 INTERNAL 76 ns +47 ns id:0000000000000188 parent:000000000000005a
-   n: 392
 span-314 INTERNAL 106 ns id:000000000000013a parent:00000000000000da
 └─ span-349 INTERNAL 93 ns +533 ns id:000000000000015d
-      n: 349
 span-294 INTERNAL 55 ns +253 ns id:0000000000000126 parent:000000000000001c
-   n: 294
 span-105 INTERNAL 255 ns +420 ns id:0000000000000069 parent:0000000000000195
-   n: 105
 span-397 INTERNAL 201 ns +862 ns id:000000000000018d parent:0000000000000121
-   n: 397
 span-268 INTERNAL 36 ns +557 ns id:000000000000010c parent:000000000000010c
-│  n: 268
 
 # Trace cccccccccccccccccccccccccccccccc  1.23 µs  +54 received earlier 
 
 span-348 INTERNAL 115 ns +196 ns id:000000000000015c parent:0000000000000063
-│  n: 348
 └─ span-390 INTERNAL 127 ns +435 ns id:0000000000000186
-      n: 390
 === frame 14
 
  OTLP TRACES  14 spans 
@@ -584,36 +395,22 @@ Time: 2024-01-01 12:00:00
 # Trace cccccccccccccccccccccccccccccccc  1.23 µs  +55 received earlier 
 
 span-236 INTERNAL 212 ns +199 ns id:00000000000000ec parent:000000000000000b
-   n: 236
 span-204 INTERNAL 166 ns +617 ns id:00000000000000cc parent:0000000000000095
-   n: 204
 span-232 INTERNAL 105 ns +622 ns id:00000000000000e8 parent:00000000000000d8
-   n: 232
 span-151 INTERNAL 145 ns +777 ns id:0000000000000097 parent:000000000000004b
-   n: 151
 span-180 INTERNAL 277 ns +863 ns id:00000000000000b4 parent:00000000000000a1
-   n: 180
 span-264 INTERNAL 10 ns +863 ns id:0000000000000108 parent:0000000000000065
-   n: 264
 span-298 INTERNAL 161 ns +890 ns id:000000000000012a parent:0000000000000041
-   n: 298
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.06 µs  +15 received earlier 
 
 span-166 INTERNAL 262 ns +24 ns id:00000000000000a6 parent:000000000000002b
-   n: 166
 span-332 INTERNAL 160 ns +179 ns id:000000000000014c parent:00000000000000fc
-   n: 332
 span-311 INTERNAL 196 ns +500 ns id:0000000000000137 parent:0000000000000021
-   n: 311
 span-222 INTERNAL 109 ns +689 ns id:00000000000000de parent:0000000000000087
-   n: 222
 span-68 INTERNAL 29 ns +711 ns id:0000000000000044 parent:0000000000000193
-   n: 68
 span-240 INTERNAL 47 ns +714 ns id:00000000000000f0 parent:00000000000000b2
-   n: 240
 span-289 INTERNAL 210 ns +824 ns id:0000000000000121 parent:000000000000007f
-   n: 289
 === frame 15
 
  OTLP TRACES  1 span 
@@ -623,7 +420,6 @@ Time: 2024-01-01 12:00:00
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.06 µs  +22 received earlier 
 
 span-302 INTERNAL 147 ns +365 ns id:000000000000012e parent:0000000000000050
-   n: 302
 === frame 16
 
  OTLP TRACES  7 spans 
@@ -633,29 +429,20 @@ Time: 2024-01-01 12:00:00
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.06 µs  +23 received earlier 
 
 span-285 INTERNAL 11 ns +68 ns id:000000000000011d parent:000000000000010a
-   n: 285
 span-324 INTERNAL 1 ns +283 ns id:0000000000000144 parent:0000000000000130
-   n: 324
 span-283 INTERNAL 139 ns +752 ns id:000000000000011b parent:00000000000000fd
-   n: 283
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.26 µs  +52 received earlier 
 
 span-230 INTERNAL 296 ns +748 ns id:00000000000000e6 parent:0000000000000008
-   n: 230
 span-388 INTERNAL 65 ns +844 ns id:0000000000000184 parent:0000000000000005
-   n: 388
 
 # Trace cccccccccccccccccccccccccccccccc  1.23 µs  +62 received earlier 
 
 span-85 INTERNAL 228 ns +756 ns id:0000000000000055 parent:0000000000000055
-│  n: 85
 span-145 INTERNAL 243 ns +985 ns id:0000000000000091 parent:0000000000000091
-│  n: 145
 ├─ span-385 INTERNAL 30 ns +299 ns id:0000000000000181
-│     n: 385
 ├─ span-316 INTERNAL 234 ns +819 ns id:000000000000013c
-│     n: 316
 === frame 17
 
  OTLP TRACES  15 spans 
@@ -665,42 +452,27 @@ Time: 2024-01-01 12:00:00
 # Trace cccccccccccccccccccccccccccccccc  1.23 µs  +64 received earlier 
 
 span-138 INTERNAL 235 ns +176 ns id:000000000000008a parent:0000000000000017
-   n: 138
 span-76 INTERNAL 199 ns +727 ns id:000000000000004c parent:0000000000000192
-   n: 76
 span-127 INTERNAL 288 ns +884 ns id:000000000000007f parent:000000000000007a
-   n: 127
 span-333 INTERNAL 208 ns +193 ns id:000000000000014d parent:000000000000014d
-│  n: 333
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.01 µs 
 
 span-100 INTERNAL 274 ns id:0000000000000064
-   n: 100
 span-273 INTERNAL 237 ns +509 ns id:0000000000000111 parent:0000000000000069
-   n: 273
 span-213 INTERNAL 9 ns +620 ns id:00000000000000d5
-   n: 213
 span-334 INTERNAL 60 ns +859 ns id:000000000000014e parent:000000000000012f
-   n: 334
 span-395 INTERNAL 90 ns +921 ns id:000000000000018b
-   n: 395
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.26 µs  +54 received earlier 
 
 span-37 INTERNAL 91 ns +113 ns id:0000000000000025 parent:0000000000000018
-   n: 37
 again INTERNAL 1 ns +290 ns id:000000000000004b parent:0000000000000002
-   n: 75
 span-95 INTERNAL 76 ns +491 ns id:000000000000005f parent:0000000000000002
-   n: 95
 span-162 INTERNAL 256 ns +502 ns id:00000000000000a2 parent:0000000000000096
-   n: 162
 span-39 INTERNAL 31 ns +697 ns id:0000000000000027 parent:0000000000000018
-   n: 39
 span-254 INTERNAL 51 ns id:00000000000000fe parent:0000000000000195
 └─ span-350 INTERNAL 92 ns +592 ns id:000000000000015e
-      n: 350
 === frame 18
 
  OTLP TRACES  18 spans 
@@ -710,52 +482,33 @@ Time: 2024-01-01 12:00:00
 # Trace cccccccccccccccccccccccccccccccc  1.23 µs  +67 received earlier 
 
 span-8 INTERNAL 264 ns +184 ns id:0000000000000008 parent:0000000000000004
-   n: 8
 span-104 INTERNAL 54 ns +242 ns id:0000000000000068
-   n: 104
 span-106 INTERNAL 11 ns +729 ns id:000000000000006a parent:0000000000000193
-   n: 106
 span-62 INTERNAL 110 ns id:000000000000003e parent:000000000000000b
 └─ span-286 INTERNAL 234 ns +504 ns id:000000000000011e
-      n: 286
 span-55 INTERNAL 184 ns id:0000000000000037 parent:0000000000000028
 └─ span-94 INTERNAL 278 ns +866 ns id:000000000000005e
-      n: 94
 span-201 INTERNAL 218 ns id:00000000000000c9 parent:0000000000000087
 └─ span-278 INTERNAL 168 ns +72 ns id:0000000000000116
-      n: 278
 again INTERNAL 1 ns +858 ns id:0000000000000096 parent:0000000000000114
-   n: 150
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.26 µs  +60 received earlier 
 
 span-398 INTERNAL 81 ns +364 ns id:000000000000018e parent:000000000000014a
-   n: 398
 span-122 INTERNAL 229 ns +466 ns id:000000000000007a
-   n: 122
 span-5 INTERNAL 10 ns +531 ns id:0000000000000005 parent:0000000000000001
-│  n: 5
 └─ span-388 INTERNAL 65 ns +844 ns id:0000000000000184
-      n: 388
 span-77 INTERNAL 231 ns +978 ns id:000000000000004d parent:000000000000001b
-   n: 77
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.17 µs  +2 received earlier 
 
 span-56 INTERNAL 39 ns +10 ns id:0000000000000038 parent:0000000000000018
-   n: 56
 span-353 INTERNAL 187 ns +325 ns id:0000000000000161
-   n: 353
 span-326 INTERNAL 151 ns +328 ns id:0000000000000146 parent:0000000000000016
-   n: 326
 span-210 INTERNAL 242 ns +516 ns id:00000000000000d2 parent:0000000000000056
-   n: 210
 span-378 INTERNAL 32 ns +562 ns id:000000000000017a parent:0000000000000011
-   n: 378
 span-223 INTERNAL 253 ns +916 ns id:00000000000000df parent:0000000000000067
-   n: 223
 span-214 INTERNAL 3 ns +927 ns id:00000000000000d6 parent:00000000000000c9
-   n: 214
 === frame 19
 
  OTLP TRACES  5 spans 
@@ -765,21 +518,16 @@ Time: 2024-01-01 12:00:00
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  180 ns 
 
 span-345 INTERNAL 180 ns id:0000000000000159 parent:0000000000000011
-   n: 345
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.17 µs  +9 received earlier 
 
 span-256 INTERNAL 239 ns +346 ns id:0000000000000100 parent:0000000000000194
-   n: 256
 span-331 INTERNAL 145 ns +357 ns id:000000000000014b parent:0000000000000056
-   n: 331
 
 # Trace cccccccccccccccccccccccccccccccc  1.23 µs  +74 received earlier 
 
 span-70 INTERNAL 21 ns +512 ns id:0000000000000046 parent:000000000000001f
-   n: 70
 span-225 INTERNAL 144 ns +544 ns id:00000000000000e1 parent:00000000000000e1
-│  n: 225
 === frame 20
 
  OTLP TRACES  19 spans 
@@ -789,54 +537,33 @@ Time: 2024-01-01 12:00:00
 # Trace cccccccccccccccccccccccccccccccc  1.23 µs  +76 received earlier 
 
 span-12 INTERNAL 109 ns +28 ns id:000000000000000c
-│  n: 12
 └─ span-13 INTERNAL 275 ns +367 ns id:000000000000000d
-   │  n: 13
    └─ span-38 INTERNAL 113 ns +674 ns id:0000000000000026
-         n: 38
 span-136 INTERNAL 72 ns +402 ns id:0000000000000088 parent:000000000000003f
-   n: 136
 span-132 INTERNAL 2 ns id:0000000000000084 parent:000000000000005c
 └─ span-167 INTERNAL 57 ns +660 ns id:00000000000000a7
-      n: 167
 span-87 INTERNAL 125 ns +689 ns id:0000000000000057 parent:0000000000000194
-   n: 87
 span-342 INTERNAL 31 ns +806 ns id:0000000000000156 parent:000000000000001b
-   n: 342
 span-212 INTERNAL 263 ns +843 ns id:00000000000000d4 parent:0000000000000067
-   n: 212
 span-370 INTERNAL 287 ns +650 ns id:0000000000000172 parent:0000000000000172
-│  n: 370
 span-108 INTERNAL 98 ns +985 ns id:000000000000006c parent:000000000000006c
-│  n: 108
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.19 µs  +11 received earlier 
 
 span-107 INTERNAL 40 ns +152 ns id:000000000000006b parent:0000000000000032
-   n: 107
 span-208 INTERNAL 245 ns +211 ns id:00000000000000d0 parent:00000000000000cc
-   n: 208
 span-393 INTERNAL 241 ns +409 ns id:0000000000000189 parent:0000000000000125
-   n: 393
 span-338 INTERNAL 155 ns +563 ns id:0000000000000152 parent:000000000000001f
-   n: 338
 span-49 INTERNAL 291 ns +654 ns id:0000000000000031
-   n: 49
 span-243 INTERNAL 144 ns +870 ns id:00000000000000f3 parent:00000000000000d7
-   n: 243
 span-263 INTERNAL 262 ns +927 ns id:0000000000000107 parent:000000000000000e
-   n: 263
 span-181 INTERNAL 165 ns +683 ns id:00000000000000b5 parent:00000000000000b5
-│  n: 181
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  751 ns 
 
 span-41 INTERNAL 279 ns id:0000000000000029 parent:0000000000000195
-   n: 41
 span-361 INTERNAL 91 ns +406 ns id:0000000000000169 parent:00000000000000a4
-   n: 361
 span-287 INTERNAL 277 ns +474 ns id:000000000000011f parent:000000000000000d
-   n: 287
 === frame 21
 
  OTLP TRACES  8 spans 
@@ -846,27 +573,19 @@ Time: 2024-01-01 12:00:00
 # Trace cccccccccccccccccccccccccccccccc  1.23 µs  +84 received earlier 
 
 span-117 INTERNAL 284 ns +125 ns id:0000000000000075 parent:000000000000005a
-   n: 117
 span-362 INTERNAL 191 ns +195 ns id:000000000000016a parent:00000000000000ab
-   n: 362
 span-14 INTERNAL 46 ns +132 ns id:000000000000000e parent:000000000000000e
-│  n: 14
 span-184 INTERNAL 282 ns +411 ns id:00000000000000b8 parent:00000000000000b8
-│  n: 184
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.19 µs  +19 received earlier 
 
 span-158 INTERNAL 298 ns +464 ns id:000000000000009e parent:0000000000000192
-   n: 158
 span-129 INTERNAL 101 ns +590 ns id:0000000000000081 parent:000000000000002f
-   n: 129
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  867 ns  +3 received earlier 
 
 span-17 INTERNAL 248 ns id:0000000000000011 parent:000000000000000a
-   n: 17
 span-79 INTERNAL 234 ns +541 ns id:000000000000004f parent:0000000000000042
-   n: 79
 === frame 22
 
  OTLP TRACES  18 spans 
@@ -876,53 +595,32 @@ Time: 2024-01-01 12:00:00
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.19 µs  +21 received earlier 
 
 span-148 INTERNAL 180 ns +214 ns id:0000000000000094 parent:0000000000000035
-   n: 148
 span-391 INTERNAL 19 ns +227 ns id:0000000000000187 parent:0000000000000057
-   n: 391
 span-307 INTERNAL 248 ns +498 ns id:0000000000000133 parent:00000000000000a8
-   n: 307
 span-69 INTERNAL 54 ns +512 ns id:0000000000000045 parent:0000000000000192
-   n: 69
 span-251 INTERNAL 47 ns +318 ns id:00000000000000fb parent:00000000000000fb
-│  n: 251
 
 # Trace cccccccccccccccccccccccccccccccc  1.23 µs  +88 received earlier 
 
 span-367 INTERNAL 170 ns +30 ns id:000000000000016f parent:00000000000000a1
-   n: 367
 span-63 INTERNAL 99 ns +57 ns id:000000000000003f parent:000000000000003a
-│  n: 63
 └─ span-136 INTERNAL 72 ns +402 ns id:0000000000000088
-      n: 136
 span-279 INTERNAL 275 ns +485 ns id:0000000000000117 parent:0000000000000009
-   n: 279
 span-313 INTERNAL 268 ns +685 ns id:0000000000000139
-   n: 313
 span-75 INTERNAL 110 ns +775 ns id:000000000000004b parent:000000000000003d
-│  n: 75
 └─ span-151 INTERNAL 145 ns +777 ns id:0000000000000097
-      n: 151
 span-120 INTERNAL 287 ns +860 ns id:0000000000000078
-   n: 120
 span-53 INTERNAL 6 ns +121 ns id:0000000000000035 parent:0000000000000035
-│  n: 53
 └─ span-84 INTERNAL 32 ns +287 ns id:0000000000000054
-      n: 84
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  999 ns  +5 received earlier 
 
 span-88 INTERNAL 190 ns +190 ns id:0000000000000058 parent:000000000000002c
-   n: 88
 span-59 INTERNAL 199 ns +210 ns id:000000000000003b parent:000000000000001d
-│  n: 59
 └─ span-310 INTERNAL 168 ns +608 ns id:0000000000000136
-      n: 310
 span-54 INTERNAL 245 ns +217 ns id:0000000000000036 parent:0000000000000034
-   n: 54
 span-216 INTERNAL 33 ns +315 ns id:00000000000000d8 parent:000000000000008e
-   n: 216
 span-377 INTERNAL 295 ns +704 ns id:0000000000000179 parent:0000000000000001
-   n: 377
 === frame 23
 
  OTLP TRACES  5 spans 
@@ -933,26 +631,19 @@ Time: 2024-01-01 12:00:00
 
 span-147 INTERNAL 287 ns id:0000000000000093 parent:000000000000002e
 └─ span-200 INTERNAL 253 ns +768 ns id:00000000000000c8
-      n: 200
 span-18 INTERNAL 34 ns id:0000000000000012 parent:0000000000000009
 └─ span-61 INTERNAL 272 ns +503 ns id:000000000000003d
-   │  n: 61
    └─ span-75 INTERNAL 110 ns +775 ns id:000000000000004b
-      │  n: 75
       └─ span-151 INTERNAL 145 ns +777 ns id:0000000000000097
-            n: 151
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.19 µs  +26 received earlier 
 
 span-42 INTERNAL 232 ns +180 ns id:000000000000002a parent:0000000000000191
-   n: 42
 span-197 INTERNAL 98 ns +426 ns id:00000000000000c5 parent:000000000000008c
-   n: 197
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  999 ns  +11 received earlier 
 
 span-190 INTERNAL 16 ns +819 ns id:00000000000000be parent:0000000000000040
-   n: 190
 === frame 24
 
  OTLP TRACES  5 spans 
@@ -962,23 +653,17 @@ Time: 2024-01-01 12:00:00
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.19 µs  +28 received earlier 
 
 span-206 INTERNAL 157 ns +652 ns id:00000000000000ce parent:0000000000000055
-   n: 206
 
 # Trace cccccccccccccccccccccccccccccccc  1.23 µs  +96 received earlier 
 
 span-47 INTERNAL 29 ns +323 ns id:000000000000002f parent:0000000000000014
-   n: 47
 again INTERNAL 1 ns +685 ns id:0000000000000096
-   n: 150
 span-29 INTERNAL 47 ns +777 ns id:000000000000001d parent:0000000000000016
-│  n: 29
 └─ span-57 INTERNAL 141 ns +652 ns id:0000000000000039
-      n: 57
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  999 ns  +12 received earlier 
 
 span-239 INTERNAL 271 ns +118 ns id:00000000000000ef parent:00000000000000e6
-   n: 239
 === frame 25
 
  OTLP TRACES  17 spans 
@@ -988,45 +673,28 @@ Time: 2024-01-01 12:00:00
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.19 µs  +29 received earlier 
 
 span-135 INTERNAL 279 ns +65 ns id:0000000000000087 parent:0000000000000080
-   n: 135
 span-64 INTERNAL 212 ns +632 ns id:0000000000000040 parent:0000000000000008
-   n: 64
 span-284 INTERNAL 205 ns +812 ns id:000000000000011c parent:00000000000000ef
-   n: 284
 span-65 INTERNAL 153 ns +841 ns id:0000000000000041
-   n: 65
 span-249 INTERNAL 247 ns +887 ns id:00000000000000f9 parent:00000000000000b0
-   n: 249
 span-246 INTERNAL 60 ns +220 ns id:00000000000000f6 parent:00000000000000f6
-│  n: 246
 span-155 INTERNAL 220 ns +249 ns id:000000000000009b parent:000000000000009b
-│  n: 155
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  999 ns  +13 received earlier 
 
 span-46 INTERNAL 277 ns +60 ns id:000000000000002e parent:0000000000000195
-   n: 46
 span-91 INTERNAL 265 ns +155 ns id:000000000000005b parent:000000000000005a
-   n: 91
 span-364 INTERNAL 201 ns +233 ns id:000000000000016c parent:000000000000001c
-   n: 364
 span-336 INTERNAL 235 ns +678 ns id:0000000000000150 parent:00000000000000e1
-   n: 336
 span-293 INTERNAL 65 ns +687 ns id:0000000000000125
-   n: 293
 
 # Trace cccccccccccccccccccccccccccccccc  412 ns 
 
 span-58 INTERNAL 88 ns id:000000000000003a parent:0000000000000193
-│  n: 58
 └─ span-281 INTERNAL 135 ns +274 ns id:0000000000000119
-      n: 281
 span-396 INTERNAL 94 ns +50 ns id:000000000000018c parent:0000000000000194
-   n: 396
 span-171 INTERNAL 70 ns +342 ns id:00000000000000ab parent:000000000000002c
-   n: 171
 span-372 INTERNAL 43 ns +55 ns id:0000000000000174 parent:0000000000000174
-│  n: 372
 === frame 26
 
  OTLP TRACES  17 spans 
@@ -1036,45 +704,28 @@ Time: 2024-01-01 12:00:00
 # Trace cccccccccccccccccccccccccccccccc  752 ns  +4 received earlier 
 
 span-320 INTERNAL 87 ns id:0000000000000140 parent:0000000000000086
-   n: 320
 span-245 INTERNAL 241 ns +95 ns id:00000000000000f5 parent:0000000000000025
-   n: 245
 span-175 INTERNAL 282 ns +207 ns id:00000000000000af parent:000000000000005b
-   n: 175
 span-325 INTERNAL 65 ns +368 ns id:0000000000000145 parent:0000000000000012
-   n: 325
 span-133 INTERNAL 134 ns +521 ns id:0000000000000085 parent:0000000000000059
-   n: 133
 again INTERNAL 1 ns +751 ns id:0000000000000066 parent:0000000000000063
-│  n: 102
 └─ again INTERNAL 1 ns +547 ns id:0000000000000047
-      n: 71
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.23 µs  +36 received earlier 
 
 span-15 INTERNAL 282 ns id:000000000000000f parent:0000000000000192
-   n: 15
 span-4 INTERNAL 17 ns +225 ns id:0000000000000004 parent:0000000000000001
-   n: 4
 span-309 INTERNAL 293 ns +341 ns id:0000000000000135 parent:000000000000010c
-   n: 309
 span-149 INTERNAL 116 ns +523 ns id:0000000000000095 parent:000000000000004a
-   n: 149
 span-267 INTERNAL 182 ns +710 ns id:000000000000010b parent:0000000000000192
-   n: 267
 span-118 INTERNAL 174 ns +728 ns id:0000000000000076 parent:0000000000000193
-   n: 118
 span-328 INTERNAL 122 ns +899 ns id:0000000000000148 parent:0000000000000148
-│  n: 328
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.04 µs  +18 received earlier 
 
 span-78 INTERNAL 50 ns id:000000000000004e parent:0000000000000014
-   n: 78
 span-215 INTERNAL 126 ns +427 ns id:00000000000000d7 parent:0000000000000066
-   n: 215
 span-16 INTERNAL 263 ns +428 ns id:0000000000000010 parent:0000000000000003
-   n: 16
 === frame 27
 
  OTLP TRACES  2 spans 
@@ -1084,12 +735,10 @@ Time: 2024-01-01 12:00:00
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.23 µs  +43 received earlier 
 
 span-356 INTERNAL 187 ns +280 ns id:0000000000000164 parent:00000000000000ae
-   n: 356
 
 # Trace cccccccccccccccccccccccccccccccc  752 ns  +11 received earlier 
 
 span-10 INTERNAL 54 ns +467 ns id:000000000000000a parent:0000000000000004
-   n: 10
 === frame 28
 
  OTLP TRACES  4 spans 
@@ -1099,20 +748,16 @@ Time: 2024-01-01 12:00:00
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.23 µs  +44 received earlier 
 
 span-358 INTERNAL 244 ns +95 ns id:0000000000000166 parent:0000000000000116
-   n: 358
 span-210 INTERNAL 242 ns id:00000000000000d2 parent:0000000000000056
 └─ span-248 INTERNAL 52 ns +261 ns id:00000000000000f8
-      n: 248
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.04 µs  +21 received earlier 
 
 span-297 INTERNAL 87 ns +464 ns id:0000000000000129 parent:00000000000000da
-   n: 297
 
 # Trace cccccccccccccccccccccccccccccccc  818 ns  +12 received earlier 
 
 again INTERNAL 1 ns id:0000000000000009 parent:000000000000005f
-   n: 9
 === frame 29
 
  OTLP TRACES  6 spans 
@@ -1122,23 +767,17 @@ Time: 2024-01-01 12:00:00
 # Trace cccccccccccccccccccccccccccccccc  1.05 µs  +13 received earlier 
 
 again INTERNAL 1 ns +131 ns id:0000000000000068
-   n: 104
 span-337 INTERNAL 79 ns +270 ns id:0000000000000151 parent:000000000000009f
-   n: 337
 span-344 INTERNAL 205 ns +850 ns id:0000000000000158 parent:0000000000000158
-│  n: 344
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.04 µs  +22 received earlier 
 
 span-23 INTERNAL 145 ns +89 ns id:0000000000000017
-   n: 23
 span-252 INTERNAL 53 ns id:00000000000000fc parent:00000000000000fc
-│  n: 252
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.23 µs  +46 received earlier 
 
 span-80 INTERNAL 244 ns +138 ns id:0000000000000050 parent:0000000000000022
-   n: 80
 === frame 30
 
  OTLP TRACES  19 spans 
@@ -1148,52 +787,32 @@ Time: 2024-01-01 12:00:00
 # Trace cccccccccccccccccccccccccccccccc  1.15 µs  +15 received earlier 
 
 span-203 INTERNAL 165 ns id:00000000000000cb parent:0000000000000065
-   n: 203
 span-168 INTERNAL 173 ns +20 ns id:00000000000000a8
-   n: 168
 span-319 INTERNAL 197 ns +99 ns id:000000000000013f parent:000000000000012a
-   n: 319
 span-93 INTERNAL 240 ns +175 ns id:000000000000005d parent:0000000000000035
-   n: 93
 span-211 INTERNAL 222 ns +276 ns id:00000000000000d3
-   n: 211
 span-67 INTERNAL 234 ns +393 ns id:0000000000000043 parent:000000000000000f
-│  n: 67
 └─ span-160 INTERNAL 198 ns +581 ns id:00000000000000a0
-      n: 160
 span-131 INTERNAL 158 ns +568 ns id:0000000000000083 parent:0000000000000030
-   n: 131
 span-274 INTERNAL 139 ns +915 ns id:0000000000000112 parent:0000000000000063
-   n: 274
 span-30 INTERNAL 136 ns +942 ns id:000000000000001e
-   n: 30
 span-237 INTERNAL 159 ns +970 ns id:00000000000000ed parent:0000000000000084
-   n: 237
 span-9 INTERNAL 15 ns +252 ns id:0000000000000009 parent:0000000000000009
-│  n: 9
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.23 µs  +47 received earlier 
 
 span-260 INTERNAL 119 ns +8 ns id:0000000000000104 parent:0000000000000034
-   n: 260
 span-193 INTERNAL 244 ns +351 ns id:00000000000000c1 parent:00000000000000a2
-   n: 193
 span-363 INTERNAL 84 ns +604 ns id:000000000000016b
-   n: 363
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.04 µs  +24 received earlier 
 
 span-83 INTERNAL 221 ns +276 ns id:0000000000000053 parent:0000000000000024
-   n: 83
 span-16 INTERNAL 263 ns id:0000000000000010 parent:0000000000000003
 └─ span-33 INTERNAL 276 ns +739 ns id:0000000000000021
-      n: 33
 span-188 INTERNAL 177 ns +769 ns id:00000000000000bc
-   n: 188
 span-1 INTERNAL 274 ns +275 ns id:0000000000000001 parent:0000000000000001
-│  n: 1
 └─ span-377 INTERNAL 295 ns +745 ns id:0000000000000179
-      n: 377
 === frame 31
 
  OTLP TRACES  4 spans 
@@ -1204,19 +823,15 @@ Time: 2024-01-01 12:00:00
 
 span-78 INTERNAL 50 ns id:000000000000004e parent:0000000000000014
 └─ span-359 INTERNAL 164 ns +920 ns id:0000000000000167
-      n: 359
 span-116 INTERNAL 106 ns +621 ns id:0000000000000074 parent:0000000000000065
-   n: 116
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.23 µs  +50 received earlier 
 
 span-156 INTERNAL 300 ns +340 ns id:000000000000009c parent:0000000000000019
-   n: 156
 
 # Trace cccccccccccccccccccccccccccccccc  1.15 µs  +27 received earlier 
 
 span-143 INTERNAL 259 ns +865 ns id:000000000000008f parent:000000000000000e
-   n: 143
 === frame 32
 
  OTLP TRACES  18 spans 
@@ -1226,52 +841,32 @@ Time: 2024-01-01 12:00:00
 # Trace cccccccccccccccccccccccccccccccc  1.15 µs  +28 received earlier 
 
 span-174 INTERNAL 21 ns +36 ns id:00000000000000ae parent:0000000000000089
-   n: 174
 span-400 INTERNAL 176 ns +578 ns id:0000000000000190 parent:0000000000000181
-   n: 400
 span-179 INTERNAL 186 ns +901 ns id:00000000000000b3 parent:0000000000000079
-   n: 179
 
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.23 µs  +51 received earlier 
 
 span-45 INTERNAL 190 ns +13 ns id:000000000000002d parent:000000000000000e
-   n: 45
 span-257 INTERNAL 136 ns +67 ns id:0000000000000101 parent:0000000000000096
-   n: 257
 span-329 INTERNAL 221 ns +119 ns id:0000000000000149
-   n: 329
 again INTERNAL 1 ns +341 ns id:0000000000000027 parent:000000000000010c
-   n: 39
 span-187 INTERNAL 132 ns +473 ns id:00000000000000bb parent:000000000000002e
-   n: 187
 span-40 INTERNAL 298 ns +486 ns id:0000000000000028 parent:000000000000001c
-   n: 40
 span-50 INTERNAL 44 ns +587 ns id:0000000000000032 parent:0000000000000021
-│  n: 50
 └─ span-107 INTERNAL 40 ns +197 ns id:000000000000006b
-      n: 107
 span-65 INTERNAL 153 ns id:0000000000000041
 └─ span-343 INTERNAL 59 ns +593 ns id:0000000000000157
-      n: 343
 span-152 INTERNAL 117 ns +922 ns id:0000000000000098 parent:0000000000000098
-│  n: 152
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.15 µs  +30 received earlier 
 
 span-207 INTERNAL 228 ns +161 ns id:00000000000000cf parent:0000000000000086
-   n: 207
 span-101 INTERNAL 100 ns +215 ns id:0000000000000065 parent:0000000000000061
-│  n: 101
 └─ span-116 INTERNAL 106 ns +621 ns id:0000000000000074
-      n: 116
 span-244 INTERNAL 22 ns +413 ns id:00000000000000f4 parent:0000000000000055
-   n: 244
 span-153 INTERNAL 231 ns +669 ns id:0000000000000099 parent:000000000000001d
-   n: 153
 span-347 INTERNAL 183 ns +712 ns id:000000000000015b parent:0000000000000194
-   n: 347
 span-253 INTERNAL 294 ns +857 ns id:00000000000000fd parent:00000000000000fd
-│  n: 253
 === frame 33
 
  OTLP TRACES  18 spans 
@@ -1281,51 +876,32 @@ Time: 2024-01-01 12:00:00
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.23 µs  +60 received earlier 
 
 span-3 INTERNAL 211 ns +99 ns id:0000000000000003 parent:0000000000000002
-   n: 3
 span-399 INTERNAL 206 ns +195 ns id:000000000000018f parent:00000000000000a1
-   n: 399
 span-198 INTERNAL 265 ns +244 ns id:00000000000000c6
-   n: 198
 span-227 INTERNAL 23 ns +338 ns id:00000000000000e3 parent:0000000000000066
-   n: 227
 span-142 INTERNAL 70 ns +402 ns id:000000000000008e parent:000000000000001d
-   n: 142
 span-28 INTERNAL 174 ns +535 ns id:000000000000001c parent:000000000000000e
-│  n: 28
 └─ span-40 INTERNAL 298 ns +486 ns id:0000000000000028
-      n: 40
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.15 µs  +36 received earlier 
 
 span-159 INTERNAL 298 ns +13 ns id:000000000000009f
-   n: 159
 span-368 INTERNAL 296 ns +484 ns id:0000000000000170 parent:0000000000000168
-   n: 368
 span-161 INTERNAL 214 ns +821 ns id:00000000000000a1 parent:0000000000000044
-   n: 161
 span-60 INTERNAL 0 ns +840 ns id:000000000000003c
-   n: 60
 span-270 INTERNAL 103 ns +637 ns id:000000000000010e parent:000000000000010e
-│  n: 270
 span-2 INTERNAL 129 ns +685 ns id:0000000000000002 parent:0000000000000001
-   n: 2
 span-1 INTERNAL 274 ns id:0000000000000001 (1000+ more ancestors above)
 
 # Trace cccccccccccccccccccccccccccccccc  1.18 µs  +31 received earlier 
 
 again INTERNAL 1 ns +157 ns id:0000000000000110 parent:00000000000000d2
-   n: 272
 span-295 INTERNAL 87 ns +237 ns id:0000000000000127 parent:0000000000000115
-   n: 295
 span-300 INTERNAL 150 ns +678 ns id:000000000000012c parent:0000000000000052
-   n: 300
 again INTERNAL 1 ns id:0000000000000047 (1 more ancestor above)
 └─ span-119 INTERNAL 289 ns +889 ns id:0000000000000077
-      n: 119
 span-276 INTERNAL 206 ns +870 ns id:0000000000000114 parent:0000000000000114
-│  n: 276
 span-369 INTERNAL 81 ns id:0000000000000171 parent:0000000000000171
-│  n: 369
 === frame 34
 
  OTLP TRACES  3 spans 
@@ -1335,14 +911,11 @@ Time: 2024-01-01 12:00:00
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  1.15 µs  +42 received earlier 
 
 span-125 INTERNAL 180 ns +275 ns id:000000000000007d parent:000000000000007c
-   n: 125
 span-24 INTERNAL 167 ns +248 ns id:0000000000000018 parent:0000000000000018
-│  n: 24
 
 # Trace cccccccccccccccccccccccccccccccc  1.18 µs  +37 received earlier 
 
 span-280 INTERNAL 4 ns +484 ns id:0000000000000118 parent:000000000000005c
-   n: 280
 === frame 35
 
  OTLP TRACES  1 span 
@@ -1352,7 +925,6 @@ Time: 2024-01-01 12:00:00
 # Trace cccccccccccccccccccccccccccccccc  1.18 µs  +38 received earlier 
 
 span-19 INTERNAL 253 ns +405 ns id:0000000000000013 parent:0000000000000010
-   n: 19
 === frame 36
 
  OTLP TRACES  14 spans 
@@ -1362,39 +934,24 @@ Time: 2024-01-01 12:00:00
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  1.23 µs  +66 received earlier 
 
 span-191 INTERNAL 219 ns +73 ns id:00000000000000bf parent:000000000000006e
-   n: 191
 span-241 INTERNAL 98 ns +481 ns id:00000000000000f1 parent:0000000000000080
-   n: 241
 span-383 INTERNAL 63 ns +648 ns id:000000000000017f parent:0000000000000099
-   n: 383
 span-217 INTERNAL 124 ns +746 ns id:00000000000000d9 parent:0000000000000042
-   n: 217
 span-317 INTERNAL 37 ns +342 ns id:000000000000013d parent:000000000000013d
-│  n: 317
 span-43 INTERNAL 79 ns +475 ns id:000000000000002b parent:000000000000002b
-│  n: 43
 span-130 INTERNAL 231 ns +935 ns id:0000000000000082 parent:0000000000000082
-│  n: 130
 span-303 INTERNAL 155 ns +268 ns id:000000000000012f parent:000000000000012f
-│  n: 303
 └─ span-334 INTERNAL 60 ns +904 ns id:000000000000014e
-      n: 334
 span-304 INTERNAL 188 ns +763 ns id:0000000000000130 parent:0000000000000130
-│  n: 304
 
 # Trace cccccccccccccccccccccccccccccccc  1.18 µs  +39 received earlier 
 
 span-164 INTERNAL 144 ns +299 ns id:00000000000000a4 parent:000000000000002d
-   n: 164
 span-340 INTERNAL 278 ns +338 ns id:0000000000000154 parent:0000000000000009
-   n: 340
 span-9 INTERNAL 15 ns id:0000000000000009 (1000+ more ancestors above)
 
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  808 ns 
 
 span-327 INTERNAL 297 ns id:0000000000000147 parent:0000000000000077
-   n: 327
 span-352 INTERNAL 13 ns +439 ns id:0000000000000160 parent:00000000000000d3
-   n: 352
 span-154 INTERNAL 225 ns +583 ns id:000000000000009a parent:0000000000000195
-   n: 154

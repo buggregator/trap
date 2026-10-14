@@ -7,9 +7,7 @@ Time: 2024-01-01 12:00:00
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  15 ns 
 
 span-3 INTERNAL 10 ns id:0000000000000003 parent:0000000000000002
-   n: 3
 span-4 INTERNAL 10 ns +5 ns id:0000000000000004 parent:0000000000000002
-   n: 4
 === frame 1
 
  OTLP TRACES  1 span 
@@ -19,7 +17,6 @@ Time: 2024-01-01 12:00:00
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  30 ns  +2 received earlier 
 
 span-5 INTERNAL 10 ns +20 ns id:0000000000000005 parent:0000000000000009
-   n: 5
 === frame 2
 
  OTLP TRACES  1 span 
@@ -30,7 +27,6 @@ Time: 2024-01-01 12:00:00
 
 span-3 INTERNAL 10 ns id:0000000000000003 parent:0000000000000002
 └─ span-6 INTERNAL 1 ns +1 ns id:0000000000000006
-      n: 6
 === frame 3
 
  OTLP TRACES  1 span 
@@ -40,13 +36,9 @@ Time: 2024-01-01 12:00:00
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  45 ns  +4 received earlier 
 
 span-2 INTERNAL 45 ns id:0000000000000002 parent:0000000000000001
-│  n: 2
 ├─ span-3 INTERNAL 10 ns +5 ns id:0000000000000003
-│  │  n: 3
 │  └─ span-6 INTERNAL 1 ns +6 ns id:0000000000000006
-│        n: 6
 └─ span-4 INTERNAL 10 ns +10 ns id:0000000000000004
-      n: 4
 === frame 4
 
  OTLP TRACES  2 spans 
@@ -56,6 +48,4 @@ Time: 2024-01-01 12:00:00
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  75 ns  +5 received earlier 
 
 span-8 INTERNAL 25 ns +50 ns id:0000000000000008 parent:0000000000000001
-│  n: 8
 └─ span-7 INTERNAL 10 ns +55 ns id:0000000000000007
-      n: 7

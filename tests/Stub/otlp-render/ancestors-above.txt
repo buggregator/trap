@@ -7,15 +7,10 @@ Time: 2024-01-01 12:00:00
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  10.00 µs 
 
 span-1 INTERNAL 10.00 µs id:0000000000000001
-│  n: 1
 └─ span-2 INTERNAL 9.98 µs +10 ns id:0000000000000002
-   │  n: 2
    └─ span-3 INTERNAL 9.96 µs +20 ns id:0000000000000003
-      │  n: 3
       └─ span-4 INTERNAL 9.94 µs +30 ns id:0000000000000004
-         │  n: 4
          └─ span-5 INTERNAL 9.92 µs +40 ns id:0000000000000005
-               n: 5
 === frame 1
 
  OTLP TRACES  1 span 
@@ -26,7 +21,6 @@ Time: 2024-01-01 12:00:00
 
 span-5 INTERNAL 9.92 µs id:0000000000000005 (4 more ancestors above)
 └─ span-6 INTERNAL 10 ns +60 ns id:0000000000000006
-      n: 6
 === frame 2
 
  OTLP TRACES  1 span 
@@ -36,7 +30,6 @@ Time: 2024-01-01 12:00:00
 # Trace bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  100 ns 
 
 span-1 INTERNAL 100 ns id:0000000000000001
-   n: 1
 === frame 3
 
  OTLP TRACES  1 span 
@@ -47,7 +40,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 100 ns id:0000000000000001
 └─ span-2 INTERNAL 80 ns +10 ns id:0000000000000002
-      n: 2
 === frame 4
 
  OTLP TRACES  1 span 
@@ -58,7 +50,6 @@ Time: 2024-01-01 12:00:00
 
 span-2 INTERNAL 80 ns id:0000000000000002 (1 more ancestor above)
 └─ span-3 INTERNAL 60 ns +20 ns id:0000000000000003
-      n: 3
 === frame 5
 
  OTLP TRACES  1101 spans 
@@ -68,1005 +59,505 @@ Time: 2024-01-01 12:00:00
 # Trace cccccccccccccccccccccccccccccccc  2.00 µs 
 
 span-1 INTERNAL 2.00 µs id:0000000000000001
-│  n: 1
 └─ span-2 INTERNAL 2.00 µs +1 ns id:0000000000000002
-   │  n: 2
    └─ span-3 INTERNAL 2.00 µs +2 ns id:0000000000000003
-      │  n: 3
       └─ span-4 INTERNAL 1.99 µs +3 ns id:0000000000000004
-         │  n: 4
          └─ span-5 INTERNAL 1.99 µs +4 ns id:0000000000000005
-            │  n: 5
             └─ span-6 INTERNAL 1.99 µs +5 ns id:0000000000000006
-               │  n: 6
                └─ span-7 INTERNAL 1.99 µs +6 ns id:0000000000000007
-                  │  n: 7
                   └─ span-8 INTERNAL 1.99 µs +7 ns id:0000000000000008
-                     │  n: 8
                      └─ span-9 INTERNAL 1.98 µs +8 ns id:0000000000000009
-                        │  n: 9
                         └─ span-10 INTERNAL 1.98 µs +9 ns id:000000000000000a
-                           │  n: 10
                            └─ span-11 INTERNAL 1.98 µs +10 ns id:000000000000000b
-                              │  n: 11
                               └─ span-12 INTERNAL 1.98 µs +11 ns id:000000000000000c
-                                 │  n: 12
                                  └─ span-13 INTERNAL 1.98 µs +12 ns id:000000000000000d
-                                    │  n: 13
                                     └─ span-14 INTERNAL 1.97 µs +13 ns id:000000000000000e
-                                       │  n: 14
                                        └─ span-15 INTERNAL 1.97 µs +14 ns id:000000000000000f
-                                          │  n: 15
                                           └─ span-16 INTERNAL 1.97 µs +15 ns id:0000000000000010
-                                             │  n: 16
                                              └─ span-17 INTERNAL 1.97 µs +16 ns id:0000000000000011
-                                                │  n: 17
                                                 └─ span-18 INTERNAL 1.97 µs +17 ns id:0000000000000012
-                                                   │  n: 18
                                                    └─ span-19 INTERNAL 1.96 µs +18 ns id:0000000000000013
-                                                      │  n: 19
                                                       └─ span-20 INTERNAL 1.96 µs +19 ns id:0000000000000014
-                                                         │  n: 20
                                                          └─ span-21 INTERNAL 1.96 µs +20 ns id:0000000000000015
-                                                            │  n: 21
                                                             └─ span-22 INTERNAL 1.96 µs +21 ns id:0000000000000016
-                                                               │  n: 22
                                                                └─ span-23 INTERNAL 1.96 µs +22 ns id:0000000000000017
-                                                                  │  n: 23
                                                                   └─ span-24 INTERNAL 1.95 µs +23 ns id:0000000000000018
-                                                                     │  n: 24
                                                                      └─ span-25 INTERNAL 1.95 µs +24 ns id:0000000000000019
-                                                                     │  n: 25
                                                                      └─ span-26 INTERNAL 1.95 µs +25 ns id:000000000000001a [depth 25]
-                                                                     │  n: 26
                                                                      └─ span-27 INTERNAL 1.95 µs +26 ns id:000000000000001b [depth 26]
-                                                                     │  n: 27
                                                                      └─ span-28 INTERNAL 1.95 µs +27 ns id:000000000000001c [depth 27]
-                                                                     │  n: 28
                                                                      └─ span-29 INTERNAL 1.94 µs +28 ns id:000000000000001d [depth 28]
-                                                                     │  n: 29
                                                                      └─ span-30 INTERNAL 1.94 µs +29 ns id:000000000000001e [depth 29]
-                                                                     │  n: 30
                                                                      └─ span-31 INTERNAL 1.94 µs +30 ns id:000000000000001f [depth 30]
-                                                                     │  n: 31
                                                                      └─ span-32 INTERNAL 1.94 µs +31 ns id:0000000000000020 [depth 31]
-                                                                     │  n: 32
                                                                      └─ span-33 INTERNAL 1.94 µs +32 ns id:0000000000000021 [depth 32]
-                                                                     │  n: 33
                                                                      └─ span-34 INTERNAL 1.93 µs +33 ns id:0000000000000022 [depth 33]
-                                                                     │  n: 34
                                                                      └─ span-35 INTERNAL 1.93 µs +34 ns id:0000000000000023 [depth 34]
-                                                                     │  n: 35
                                                                      └─ span-36 INTERNAL 1.93 µs +35 ns id:0000000000000024 [depth 35]
-                                                                     │  n: 36
                                                                      └─ span-37 INTERNAL 1.93 µs +36 ns id:0000000000000025 [depth 36]
-                                                                     │  n: 37
                                                                      └─ span-38 INTERNAL 1.93 µs +37 ns id:0000000000000026 [depth 37]
-                                                                     │  n: 38
                                                                      └─ span-39 INTERNAL 1.92 µs +38 ns id:0000000000000027 [depth 38]
-                                                                     │  n: 39
                                                                      └─ span-40 INTERNAL 1.92 µs +39 ns id:0000000000000028 [depth 39]
-                                                                     │  n: 40
                                                                      └─ span-41 INTERNAL 1.92 µs +40 ns id:0000000000000029 [depth 40]
-                                                                     │  n: 41
                                                                      └─ span-42 INTERNAL 1.92 µs +41 ns id:000000000000002a [depth 41]
-                                                                     │  n: 42
                                                                      └─ span-43 INTERNAL 1.92 µs +42 ns id:000000000000002b [depth 42]
-                                                                     │  n: 43
                                                                      └─ span-44 INTERNAL 1.91 µs +43 ns id:000000000000002c [depth 43]
-                                                                     │  n: 44
                                                                      └─ span-45 INTERNAL 1.91 µs +44 ns id:000000000000002d [depth 44]
-                                                                     │  n: 45
                                                                      └─ span-46 INTERNAL 1.91 µs +45 ns id:000000000000002e [depth 45]
-                                                                     │  n: 46
                                                                      └─ span-47 INTERNAL 1.91 µs +46 ns id:000000000000002f [depth 46]
-                                                                     │  n: 47
                                                                      └─ span-48 INTERNAL 1.91 µs +47 ns id:0000000000000030 [depth 47]
-                                                                     │  n: 48
                                                                      └─ span-49 INTERNAL 1.90 µs +48 ns id:0000000000000031 [depth 48]
-                                                                     │  n: 49
                                                                      └─ span-50 INTERNAL 1.90 µs +49 ns id:0000000000000032 [depth 49]
-                                                                     │  n: 50
                                                                      └─ span-51 INTERNAL 1.90 µs +50 ns id:0000000000000033 [depth 50]
-                                                                     │  n: 51
                                                                      └─ span-52 INTERNAL 1.90 µs +51 ns id:0000000000000034 [depth 51]
-                                                                     │  n: 52
                                                                      └─ span-53 INTERNAL 1.90 µs +52 ns id:0000000000000035 [depth 52]
-                                                                     │  n: 53
                                                                      └─ span-54 INTERNAL 1.89 µs +53 ns id:0000000000000036 [depth 53]
-                                                                     │  n: 54
                                                                      └─ span-55 INTERNAL 1.89 µs +54 ns id:0000000000000037 [depth 54]
-                                                                     │  n: 55
                                                                      └─ span-56 INTERNAL 1.89 µs +55 ns id:0000000000000038 [depth 55]
-                                                                     │  n: 56
                                                                      └─ span-57 INTERNAL 1.89 µs +56 ns id:0000000000000039 [depth 56]
-                                                                     │  n: 57
                                                                      └─ span-58 INTERNAL 1.89 µs +57 ns id:000000000000003a [depth 57]
-                                                                     │  n: 58
                                                                      └─ span-59 INTERNAL 1.88 µs +58 ns id:000000000000003b [depth 58]
-                                                                     │  n: 59
                                                                      └─ span-60 INTERNAL 1.88 µs +59 ns id:000000000000003c [depth 59]
-                                                                     │  n: 60
                                                                      └─ span-61 INTERNAL 1.88 µs +60 ns id:000000000000003d [depth 60]
-                                                                     │  n: 61
                                                                      └─ span-62 INTERNAL 1.88 µs +61 ns id:000000000000003e [depth 61]
-                                                                     │  n: 62
                                                                      └─ span-63 INTERNAL 1.88 µs +62 ns id:000000000000003f [depth 62]
-                                                                     │  n: 63
                                                                      └─ span-64 INTERNAL 1.87 µs +63 ns id:0000000000000040 [depth 63]
-                                                                     │  n: 64
                                                                      └─ span-65 INTERNAL 1.87 µs +64 ns id:0000000000000041 [depth 64]
-                                                                     │  n: 65
                                                                      └─ span-66 INTERNAL 1.87 µs +65 ns id:0000000000000042 [depth 65]
-                                                                     │  n: 66
                                                                      └─ span-67 INTERNAL 1.87 µs +66 ns id:0000000000000043 [depth 66]
-                                                                     │  n: 67
                                                                      └─ span-68 INTERNAL 1.87 µs +67 ns id:0000000000000044 [depth 67]
-                                                                     │  n: 68
                                                                      └─ span-69 INTERNAL 1.86 µs +68 ns id:0000000000000045 [depth 68]
-                                                                     │  n: 69
                                                                      └─ span-70 INTERNAL 1.86 µs +69 ns id:0000000000000046 [depth 69]
-                                                                     │  n: 70
                                                                      └─ span-71 INTERNAL 1.86 µs +70 ns id:0000000000000047 [depth 70]
-                                                                     │  n: 71
                                                                      └─ span-72 INTERNAL 1.86 µs +71 ns id:0000000000000048 [depth 71]
-                                                                     │  n: 72
                                                                      └─ span-73 INTERNAL 1.86 µs +72 ns id:0000000000000049 [depth 72]
-                                                                     │  n: 73
                                                                      └─ span-74 INTERNAL 1.85 µs +73 ns id:000000000000004a [depth 73]
-                                                                     │  n: 74
                                                                      └─ span-75 INTERNAL 1.85 µs +74 ns id:000000000000004b [depth 74]
-                                                                     │  n: 75
                                                                      └─ span-76 INTERNAL 1.85 µs +75 ns id:000000000000004c [depth 75]
-                                                                     │  n: 76
                                                                      └─ span-77 INTERNAL 1.85 µs +76 ns id:000000000000004d [depth 76]
-                                                                     │  n: 77
                                                                      └─ span-78 INTERNAL 1.85 µs +77 ns id:000000000000004e [depth 77]
-                                                                     │  n: 78
                                                                      └─ span-79 INTERNAL 1.84 µs +78 ns id:000000000000004f [depth 78]
-                                                                     │  n: 79
                                                                      └─ span-80 INTERNAL 1.84 µs +79 ns id:0000000000000050 [depth 79]
-                                                                     │  n: 80
                                                                      └─ span-81 INTERNAL 1.84 µs +80 ns id:0000000000000051 [depth 80]
-                                                                     │  n: 81
                                                                      └─ span-82 INTERNAL 1.84 µs +81 ns id:0000000000000052 [depth 81]
-                                                                     │  n: 82
                                                                      └─ span-83 INTERNAL 1.84 µs +82 ns id:0000000000000053 [depth 82]
-                                                                     │  n: 83
                                                                      └─ span-84 INTERNAL 1.83 µs +83 ns id:0000000000000054 [depth 83]
-                                                                     │  n: 84
                                                                      └─ span-85 INTERNAL 1.83 µs +84 ns id:0000000000000055 [depth 84]
-                                                                     │  n: 85
                                                                      └─ span-86 INTERNAL 1.83 µs +85 ns id:0000000000000056 [depth 85]
-                                                                     │  n: 86
                                                                      └─ span-87 INTERNAL 1.83 µs +86 ns id:0000000000000057 [depth 86]
-                                                                     │  n: 87
                                                                      └─ span-88 INTERNAL 1.83 µs +87 ns id:0000000000000058 [depth 87]
-                                                                     │  n: 88
                                                                      └─ span-89 INTERNAL 1.82 µs +88 ns id:0000000000000059 [depth 88]
-                                                                     │  n: 89
                                                                      └─ span-90 INTERNAL 1.82 µs +89 ns id:000000000000005a [depth 89]
-                                                                     │  n: 90
                                                                      └─ span-91 INTERNAL 1.82 µs +90 ns id:000000000000005b [depth 90]
-                                                                     │  n: 91
                                                                      └─ span-92 INTERNAL 1.82 µs +91 ns id:000000000000005c [depth 91]
-                                                                     │  n: 92
                                                                      └─ span-93 INTERNAL 1.82 µs +92 ns id:000000000000005d [depth 92]
-                                                                     │  n: 93
                                                                      └─ span-94 INTERNAL 1.81 µs +93 ns id:000000000000005e [depth 93]
-                                                                     │  n: 94
                                                                      └─ span-95 INTERNAL 1.81 µs +94 ns id:000000000000005f [depth 94]
-                                                                     │  n: 95
                                                                      └─ span-96 INTERNAL 1.81 µs +95 ns id:0000000000000060 [depth 95]
-                                                                     │  n: 96
                                                                      └─ span-97 INTERNAL 1.81 µs +96 ns id:0000000000000061 [depth 96]
-                                                                     │  n: 97
                                                                      └─ span-98 INTERNAL 1.81 µs +97 ns id:0000000000000062 [depth 97]
-                                                                     │  n: 98
                                                                      └─ span-99 INTERNAL 1.80 µs +98 ns id:0000000000000063 [depth 98]
-                                                                     │  n: 99
                                                                      └─ span-100 INTERNAL 1.80 µs +99 ns id:0000000000000064 [depth 99]
-                                                                     │  n: 100
                                                                      └─ span-101 INTERNAL 1.80 µs +100 ns id:0000000000000065 [depth 100]
-                                                                     │  n: 101
                                                                      └─ span-102 INTERNAL 1.80 µs +101 ns id:0000000000000066 [depth 101]
-                                                                     │  n: 102
                                                                      └─ span-103 INTERNAL 1.80 µs +102 ns id:0000000000000067 [depth 102]
-                                                                     │  n: 103
                                                                      └─ span-104 INTERNAL 1.79 µs +103 ns id:0000000000000068 [depth 103]
-                                                                     │  n: 104
                                                                      └─ span-105 INTERNAL 1.79 µs +104 ns id:0000000000000069 [depth 104]
-                                                                     │  n: 105
                                                                      └─ span-106 INTERNAL 1.79 µs +105 ns id:000000000000006a [depth 105]
-                                                                     │  n: 106
                                                                      └─ span-107 INTERNAL 1.79 µs +106 ns id:000000000000006b [depth 106]
-                                                                     │  n: 107
                                                                      └─ span-108 INTERNAL 1.79 µs +107 ns id:000000000000006c [depth 107]
-                                                                     │  n: 108
                                                                      └─ span-109 INTERNAL 1.78 µs +108 ns id:000000000000006d [depth 108]
-                                                                     │  n: 109
                                                                      └─ span-110 INTERNAL 1.78 µs +109 ns id:000000000000006e [depth 109]
-                                                                     │  n: 110
                                                                      └─ span-111 INTERNAL 1.78 µs +110 ns id:000000000000006f [depth 110]
-                                                                     │  n: 111
                                                                      └─ span-112 INTERNAL 1.78 µs +111 ns id:0000000000000070 [depth 111]
-                                                                     │  n: 112
                                                                      └─ span-113 INTERNAL 1.78 µs +112 ns id:0000000000000071 [depth 112]
-                                                                     │  n: 113
                                                                      └─ span-114 INTERNAL 1.77 µs +113 ns id:0000000000000072 [depth 113]
-                                                                     │  n: 114
                                                                      └─ span-115 INTERNAL 1.77 µs +114 ns id:0000000000000073 [depth 114]
-                                                                     │  n: 115
                                                                      └─ span-116 INTERNAL 1.77 µs +115 ns id:0000000000000074 [depth 115]
-                                                                     │  n: 116
                                                                      └─ span-117 INTERNAL 1.77 µs +116 ns id:0000000000000075 [depth 116]
-                                                                     │  n: 117
                                                                      └─ span-118 INTERNAL 1.77 µs +117 ns id:0000000000000076 [depth 117]
-                                                                     │  n: 118
                                                                      └─ span-119 INTERNAL 1.76 µs +118 ns id:0000000000000077 [depth 118]
-                                                                     │  n: 119
                                                                      └─ span-120 INTERNAL 1.76 µs +119 ns id:0000000000000078 [depth 119]
-                                                                     │  n: 120
                                                                      └─ span-121 INTERNAL 1.76 µs +120 ns id:0000000000000079 [depth 120]
-                                                                     │  n: 121
                                                                      └─ span-122 INTERNAL 1.76 µs +121 ns id:000000000000007a [depth 121]
-                                                                     │  n: 122
                                                                      └─ span-123 INTERNAL 1.76 µs +122 ns id:000000000000007b [depth 122]
-                                                                     │  n: 123
                                                                      └─ span-124 INTERNAL 1.75 µs +123 ns id:000000000000007c [depth 123]
-                                                                     │  n: 124
                                                                      └─ span-125 INTERNAL 1.75 µs +124 ns id:000000000000007d [depth 124]
-                                                                     │  n: 125
                                                                      └─ span-126 INTERNAL 1.75 µs +125 ns id:000000000000007e [depth 125]
-                                                                     │  n: 126
                                                                      └─ span-127 INTERNAL 1.75 µs +126 ns id:000000000000007f [depth 126]
-                                                                     │  n: 127
                                                                      └─ span-128 INTERNAL 1.75 µs +127 ns id:0000000000000080 [depth 127]
-                                                                     │  n: 128
                                                                      └─ span-129 INTERNAL 1.74 µs +128 ns id:0000000000000081 [depth 128]
-                                                                     │  n: 129
                                                                      └─ span-130 INTERNAL 1.74 µs +129 ns id:0000000000000082 [depth 129]
-                                                                     │  n: 130
                                                                      └─ span-131 INTERNAL 1.74 µs +130 ns id:0000000000000083 [depth 130]
-                                                                     │  n: 131
                                                                      └─ span-132 INTERNAL 1.74 µs +131 ns id:0000000000000084 [depth 131]
-                                                                     │  n: 132
                                                                      └─ span-133 INTERNAL 1.74 µs +132 ns id:0000000000000085 [depth 132]
-                                                                     │  n: 133
                                                                      └─ span-134 INTERNAL 1.73 µs +133 ns id:0000000000000086 [depth 133]
-                                                                     │  n: 134
                                                                      └─ span-135 INTERNAL 1.73 µs +134 ns id:0000000000000087 [depth 134]
-                                                                     │  n: 135
                                                                      └─ span-136 INTERNAL 1.73 µs +135 ns id:0000000000000088 [depth 135]
-                                                                     │  n: 136
                                                                      └─ span-137 INTERNAL 1.73 µs +136 ns id:0000000000000089 [depth 136]
-                                                                     │  n: 137
                                                                      └─ span-138 INTERNAL 1.73 µs +137 ns id:000000000000008a [depth 137]
-                                                                     │  n: 138
                                                                      └─ span-139 INTERNAL 1.72 µs +138 ns id:000000000000008b [depth 138]
-                                                                     │  n: 139
                                                                      └─ span-140 INTERNAL 1.72 µs +139 ns id:000000000000008c [depth 139]
-                                                                     │  n: 140
                                                                      └─ span-141 INTERNAL 1.72 µs +140 ns id:000000000000008d [depth 140]
-                                                                     │  n: 141
                                                                      └─ span-142 INTERNAL 1.72 µs +141 ns id:000000000000008e [depth 141]
-                                                                     │  n: 142
                                                                      └─ span-143 INTERNAL 1.72 µs +142 ns id:000000000000008f [depth 142]
-                                                                     │  n: 143
                                                                      └─ span-144 INTERNAL 1.71 µs +143 ns id:0000000000000090 [depth 143]
-                                                                     │  n: 144
                                                                      └─ span-145 INTERNAL 1.71 µs +144 ns id:0000000000000091 [depth 144]
-                                                                     │  n: 145
                                                                      └─ span-146 INTERNAL 1.71 µs +145 ns id:0000000000000092 [depth 145]
-                                                                     │  n: 146
                                                                      └─ span-147 INTERNAL 1.71 µs +146 ns id:0000000000000093 [depth 146]
-                                                                     │  n: 147
                                                                      └─ span-148 INTERNAL 1.71 µs +147 ns id:0000000000000094 [depth 147]
-                                                                     │  n: 148
                                                                      └─ span-149 INTERNAL 1.70 µs +148 ns id:0000000000000095 [depth 148]
-                                                                     │  n: 149
                                                                      └─ span-150 INTERNAL 1.70 µs +149 ns id:0000000000000096 [depth 149]
-                                                                     │  n: 150
                                                                      └─ span-151 INTERNAL 1.70 µs +150 ns id:0000000000000097 [depth 150]
-                                                                     │  n: 151
                                                                      └─ span-152 INTERNAL 1.70 µs +151 ns id:0000000000000098 [depth 151]
-                                                                     │  n: 152
                                                                      └─ span-153 INTERNAL 1.70 µs +152 ns id:0000000000000099 [depth 152]
-                                                                     │  n: 153
                                                                      └─ span-154 INTERNAL 1.69 µs +153 ns id:000000000000009a [depth 153]
-                                                                     │  n: 154
                                                                      └─ span-155 INTERNAL 1.69 µs +154 ns id:000000000000009b [depth 154]
-                                                                     │  n: 155
                                                                      └─ span-156 INTERNAL 1.69 µs +155 ns id:000000000000009c [depth 155]
-                                                                     │  n: 156
                                                                      └─ span-157 INTERNAL 1.69 µs +156 ns id:000000000000009d [depth 156]
-                                                                     │  n: 157
                                                                      └─ span-158 INTERNAL 1.69 µs +157 ns id:000000000000009e [depth 157]
-                                                                     │  n: 158
                                                                      └─ span-159 INTERNAL 1.68 µs +158 ns id:000000000000009f [depth 158]
-                                                                     │  n: 159
                                                                      └─ span-160 INTERNAL 1.68 µs +159 ns id:00000000000000a0 [depth 159]
-                                                                     │  n: 160
                                                                      └─ span-161 INTERNAL 1.68 µs +160 ns id:00000000000000a1 [depth 160]
-                                                                     │  n: 161
                                                                      └─ span-162 INTERNAL 1.68 µs +161 ns id:00000000000000a2 [depth 161]
-                                                                     │  n: 162
                                                                      └─ span-163 INTERNAL 1.68 µs +162 ns id:00000000000000a3 [depth 162]
-                                                                     │  n: 163
                                                                      └─ span-164 INTERNAL 1.67 µs +163 ns id:00000000000000a4 [depth 163]
-                                                                     │  n: 164
                                                                      └─ span-165 INTERNAL 1.67 µs +164 ns id:00000000000000a5 [depth 164]
-                                                                     │  n: 165
                                                                      └─ span-166 INTERNAL 1.67 µs +165 ns id:00000000000000a6 [depth 165]
-                                                                     │  n: 166
                                                                      └─ span-167 INTERNAL 1.67 µs +166 ns id:00000000000000a7 [depth 166]
-                                                                     │  n: 167
                                                                      └─ span-168 INTERNAL 1.67 µs +167 ns id:00000000000000a8 [depth 167]
-                                                                     │  n: 168
                                                                      └─ span-169 INTERNAL 1.66 µs +168 ns id:00000000000000a9 [depth 168]
-                                                                     │  n: 169
                                                                      └─ span-170 INTERNAL 1.66 µs +169 ns id:00000000000000aa [depth 169]
-                                                                     │  n: 170
                                                                      └─ span-171 INTERNAL 1.66 µs +170 ns id:00000000000000ab [depth 170]
-                                                                     │  n: 171
                                                                      └─ span-172 INTERNAL 1.66 µs +171 ns id:00000000000000ac [depth 171]
-                                                                     │  n: 172
                                                                      └─ span-173 INTERNAL 1.66 µs +172 ns id:00000000000000ad [depth 172]
-                                                                     │  n: 173
                                                                      └─ span-174 INTERNAL 1.65 µs +173 ns id:00000000000000ae [depth 173]
-                                                                     │  n: 174
                                                                      └─ span-175 INTERNAL 1.65 µs +174 ns id:00000000000000af [depth 174]
-                                                                     │  n: 175
                                                                      └─ span-176 INTERNAL 1.65 µs +175 ns id:00000000000000b0 [depth 175]
-                                                                     │  n: 176
                                                                      └─ span-177 INTERNAL 1.65 µs +176 ns id:00000000000000b1 [depth 176]
-                                                                     │  n: 177
                                                                      └─ span-178 INTERNAL 1.65 µs +177 ns id:00000000000000b2 [depth 177]
-                                                                     │  n: 178
                                                                      └─ span-179 INTERNAL 1.64 µs +178 ns id:00000000000000b3 [depth 178]
-                                                                     │  n: 179
                                                                      └─ span-180 INTERNAL 1.64 µs +179 ns id:00000000000000b4 [depth 179]
-                                                                     │  n: 180
                                                                      └─ span-181 INTERNAL 1.64 µs +180 ns id:00000000000000b5 [depth 180]
-                                                                     │  n: 181
                                                                      └─ span-182 INTERNAL 1.64 µs +181 ns id:00000000000000b6 [depth 181]
-                                                                     │  n: 182
                                                                      └─ span-183 INTERNAL 1.64 µs +182 ns id:00000000000000b7 [depth 182]
-                                                                     │  n: 183
                                                                      └─ span-184 INTERNAL 1.63 µs +183 ns id:00000000000000b8 [depth 183]
-                                                                     │  n: 184
                                                                      └─ span-185 INTERNAL 1.63 µs +184 ns id:00000000000000b9 [depth 184]
-                                                                     │  n: 185
                                                                      └─ span-186 INTERNAL 1.63 µs +185 ns id:00000000000000ba [depth 185]
-                                                                     │  n: 186
                                                                      └─ span-187 INTERNAL 1.63 µs +186 ns id:00000000000000bb [depth 186]
-                                                                     │  n: 187
                                                                      └─ span-188 INTERNAL 1.63 µs +187 ns id:00000000000000bc [depth 187]
-                                                                     │  n: 188
                                                                      └─ span-189 INTERNAL 1.62 µs +188 ns id:00000000000000bd [depth 188]
-                                                                     │  n: 189
                                                                      └─ span-190 INTERNAL 1.62 µs +189 ns id:00000000000000be [depth 189]
-                                                                     │  n: 190
                                                                      └─ span-191 INTERNAL 1.62 µs +190 ns id:00000000000000bf [depth 190]
-                                                                     │  n: 191
                                                                      └─ span-192 INTERNAL 1.62 µs +191 ns id:00000000000000c0 [depth 191]
-                                                                     │  n: 192
                                                                      └─ span-193 INTERNAL 1.62 µs +192 ns id:00000000000000c1 [depth 192]
-                                                                     │  n: 193
                                                                      └─ span-194 INTERNAL 1.61 µs +193 ns id:00000000000000c2 [depth 193]
-                                                                     │  n: 194
                                                                      └─ span-195 INTERNAL 1.61 µs +194 ns id:00000000000000c3 [depth 194]
-                                                                     │  n: 195
                                                                      └─ span-196 INTERNAL 1.61 µs +195 ns id:00000000000000c4 [depth 195]
-                                                                     │  n: 196
                                                                      └─ span-197 INTERNAL 1.61 µs +196 ns id:00000000000000c5 [depth 196]
-                                                                     │  n: 197
                                                                      └─ span-198 INTERNAL 1.61 µs +197 ns id:00000000000000c6 [depth 197]
-                                                                     │  n: 198
                                                                      └─ span-199 INTERNAL 1.60 µs +198 ns id:00000000000000c7 [depth 198]
-                                                                     │  n: 199
                                                                      └─ span-200 INTERNAL 1.60 µs +199 ns id:00000000000000c8 [depth 199]
-                                                                     │  n: 200
                                                                      └─ span-201 INTERNAL 1.60 µs +200 ns id:00000000000000c9 [depth 200]
-                                                                     │  n: 201
                                                                      └─ span-202 INTERNAL 1.60 µs +201 ns id:00000000000000ca [depth 201]
-                                                                     │  n: 202
                                                                      └─ span-203 INTERNAL 1.60 µs +202 ns id:00000000000000cb [depth 202]
-                                                                     │  n: 203
                                                                      └─ span-204 INTERNAL 1.59 µs +203 ns id:00000000000000cc [depth 203]
-                                                                     │  n: 204
                                                                      └─ span-205 INTERNAL 1.59 µs +204 ns id:00000000000000cd [depth 204]
-                                                                     │  n: 205
                                                                      └─ span-206 INTERNAL 1.59 µs +205 ns id:00000000000000ce [depth 205]
-                                                                     │  n: 206
                                                                      └─ span-207 INTERNAL 1.59 µs +206 ns id:00000000000000cf [depth 206]
-                                                                     │  n: 207
                                                                      └─ span-208 INTERNAL 1.59 µs +207 ns id:00000000000000d0 [depth 207]
-                                                                     │  n: 208
                                                                      └─ span-209 INTERNAL 1.58 µs +208 ns id:00000000000000d1 [depth 208]
-                                                                     │  n: 209
                                                                      └─ span-210 INTERNAL 1.58 µs +209 ns id:00000000000000d2 [depth 209]
-                                                                     │  n: 210
                                                                      └─ span-211 INTERNAL 1.58 µs +210 ns id:00000000000000d3 [depth 210]
-                                                                     │  n: 211
                                                                      └─ span-212 INTERNAL 1.58 µs +211 ns id:00000000000000d4 [depth 211]
-                                                                     │  n: 212
                                                                      └─ span-213 INTERNAL 1.58 µs +212 ns id:00000000000000d5 [depth 212]
-                                                                     │  n: 213
                                                                      └─ span-214 INTERNAL 1.57 µs +213 ns id:00000000000000d6 [depth 213]
-                                                                     │  n: 214
                                                                      └─ span-215 INTERNAL 1.57 µs +214 ns id:00000000000000d7 [depth 214]
-                                                                     │  n: 215
                                                                      └─ span-216 INTERNAL 1.57 µs +215 ns id:00000000000000d8 [depth 215]
-                                                                     │  n: 216
                                                                      └─ span-217 INTERNAL 1.57 µs +216 ns id:00000000000000d9 [depth 216]
-                                                                     │  n: 217
                                                                      └─ span-218 INTERNAL 1.57 µs +217 ns id:00000000000000da [depth 217]
-                                                                     │  n: 218
                                                                      └─ span-219 INTERNAL 1.56 µs +218 ns id:00000000000000db [depth 218]
-                                                                     │  n: 219
                                                                      └─ span-220 INTERNAL 1.56 µs +219 ns id:00000000000000dc [depth 219]
-                                                                     │  n: 220
                                                                      └─ span-221 INTERNAL 1.56 µs +220 ns id:00000000000000dd [depth 220]
-                                                                     │  n: 221
                                                                      └─ span-222 INTERNAL 1.56 µs +221 ns id:00000000000000de [depth 221]
-                                                                     │  n: 222
                                                                      └─ span-223 INTERNAL 1.56 µs +222 ns id:00000000000000df [depth 222]
-                                                                     │  n: 223
                                                                      └─ span-224 INTERNAL 1.55 µs +223 ns id:00000000000000e0 [depth 223]
-                                                                     │  n: 224
                                                                      └─ span-225 INTERNAL 1.55 µs +224 ns id:00000000000000e1 [depth 224]
-                                                                     │  n: 225
                                                                      └─ span-226 INTERNAL 1.55 µs +225 ns id:00000000000000e2 [depth 225]
-                                                                     │  n: 226
                                                                      └─ span-227 INTERNAL 1.55 µs +226 ns id:00000000000000e3 [depth 226]
-                                                                     │  n: 227
                                                                      └─ span-228 INTERNAL 1.55 µs +227 ns id:00000000000000e4 [depth 227]
-                                                                     │  n: 228
                                                                      └─ span-229 INTERNAL 1.54 µs +228 ns id:00000000000000e5 [depth 228]
-                                                                     │  n: 229
                                                                      └─ span-230 INTERNAL 1.54 µs +229 ns id:00000000000000e6 [depth 229]
-                                                                     │  n: 230
                                                                      └─ span-231 INTERNAL 1.54 µs +230 ns id:00000000000000e7 [depth 230]
-                                                                     │  n: 231
                                                                      └─ span-232 INTERNAL 1.54 µs +231 ns id:00000000000000e8 [depth 231]
-                                                                     │  n: 232
                                                                      └─ span-233 INTERNAL 1.54 µs +232 ns id:00000000000000e9 [depth 232]
-                                                                     │  n: 233
                                                                      └─ span-234 INTERNAL 1.53 µs +233 ns id:00000000000000ea [depth 233]
-                                                                     │  n: 234
                                                                      └─ span-235 INTERNAL 1.53 µs +234 ns id:00000000000000eb [depth 234]
-                                                                     │  n: 235
                                                                      └─ span-236 INTERNAL 1.53 µs +235 ns id:00000000000000ec [depth 235]
-                                                                     │  n: 236
                                                                      └─ span-237 INTERNAL 1.53 µs +236 ns id:00000000000000ed [depth 236]
-                                                                     │  n: 237
                                                                      └─ span-238 INTERNAL 1.53 µs +237 ns id:00000000000000ee [depth 237]
-                                                                     │  n: 238
                                                                      └─ span-239 INTERNAL 1.52 µs +238 ns id:00000000000000ef [depth 238]
-                                                                     │  n: 239
                                                                      └─ span-240 INTERNAL 1.52 µs +239 ns id:00000000000000f0 [depth 239]
-                                                                     │  n: 240
                                                                      └─ span-241 INTERNAL 1.52 µs +240 ns id:00000000000000f1 [depth 240]
-                                                                     │  n: 241
                                                                      └─ span-242 INTERNAL 1.52 µs +241 ns id:00000000000000f2 [depth 241]
-                                                                     │  n: 242
                                                                      └─ span-243 INTERNAL 1.52 µs +242 ns id:00000000000000f3 [depth 242]
-                                                                     │  n: 243
                                                                      └─ span-244 INTERNAL 1.51 µs +243 ns id:00000000000000f4 [depth 243]
-                                                                     │  n: 244
                                                                      └─ span-245 INTERNAL 1.51 µs +244 ns id:00000000000000f5 [depth 244]
-                                                                     │  n: 245
                                                                      └─ span-246 INTERNAL 1.51 µs +245 ns id:00000000000000f6 [depth 245]
-                                                                     │  n: 246
                                                                      └─ span-247 INTERNAL 1.51 µs +246 ns id:00000000000000f7 [depth 246]
-                                                                     │  n: 247
                                                                      └─ span-248 INTERNAL 1.51 µs +247 ns id:00000000000000f8 [depth 247]
-                                                                     │  n: 248
                                                                      └─ span-249 INTERNAL 1.50 µs +248 ns id:00000000000000f9 [depth 248]
-                                                                     │  n: 249
                                                                      └─ span-250 INTERNAL 1.50 µs +249 ns id:00000000000000fa [depth 249]
-                                                                     │  n: 250
                                                                      └─ span-251 INTERNAL 1.50 µs +250 ns id:00000000000000fb [depth 250]
-                                                                     │  n: 251
                                                                      └─ span-252 INTERNAL 1.50 µs +251 ns id:00000000000000fc [depth 251]
-                                                                     │  n: 252
                                                                      └─ span-253 INTERNAL 1.50 µs +252 ns id:00000000000000fd [depth 252]
-                                                                     │  n: 253
                                                                      └─ span-254 INTERNAL 1.49 µs +253 ns id:00000000000000fe [depth 253]
-                                                                     │  n: 254
                                                                      └─ span-255 INTERNAL 1.49 µs +254 ns id:00000000000000ff [depth 254]
-                                                                     │  n: 255
                                                                      └─ span-256 INTERNAL 1.49 µs +255 ns id:0000000000000100 [depth 255]
-                                                                     │  n: 256
                                                                      └─ span-257 INTERNAL 1.49 µs +256 ns id:0000000000000101 [depth 256]
-                                                                     │  n: 257
                                                                      └─ span-258 INTERNAL 1.49 µs +257 ns id:0000000000000102 [depth 257]
-                                                                     │  n: 258
                                                                      └─ span-259 INTERNAL 1.48 µs +258 ns id:0000000000000103 [depth 258]
-                                                                     │  n: 259
                                                                      └─ span-260 INTERNAL 1.48 µs +259 ns id:0000000000000104 [depth 259]
-                                                                     │  n: 260
                                                                      └─ span-261 INTERNAL 1.48 µs +260 ns id:0000000000000105 [depth 260]
-                                                                     │  n: 261
                                                                      └─ span-262 INTERNAL 1.48 µs +261 ns id:0000000000000106 [depth 261]
-                                                                     │  n: 262
                                                                      └─ span-263 INTERNAL 1.48 µs +262 ns id:0000000000000107 [depth 262]
-                                                                     │  n: 263
                                                                      └─ span-264 INTERNAL 1.47 µs +263 ns id:0000000000000108 [depth 263]
-                                                                     │  n: 264
                                                                      └─ span-265 INTERNAL 1.47 µs +264 ns id:0000000000000109 [depth 264]
-                                                                     │  n: 265
                                                                      └─ span-266 INTERNAL 1.47 µs +265 ns id:000000000000010a [depth 265]
-                                                                     │  n: 266
                                                                      └─ span-267 INTERNAL 1.47 µs +266 ns id:000000000000010b [depth 266]
-                                                                     │  n: 267
                                                                      └─ span-268 INTERNAL 1.47 µs +267 ns id:000000000000010c [depth 267]
-                                                                     │  n: 268
                                                                      └─ span-269 INTERNAL 1.46 µs +268 ns id:000000000000010d [depth 268]
-                                                                     │  n: 269
                                                                      └─ span-270 INTERNAL 1.46 µs +269 ns id:000000000000010e [depth 269]
-                                                                     │  n: 270
                                                                      └─ span-271 INTERNAL 1.46 µs +270 ns id:000000000000010f [depth 270]
-                                                                     │  n: 271
                                                                      └─ span-272 INTERNAL 1.46 µs +271 ns id:0000000000000110 [depth 271]
-                                                                     │  n: 272
                                                                      └─ span-273 INTERNAL 1.46 µs +272 ns id:0000000000000111 [depth 272]
-                                                                     │  n: 273
                                                                      └─ span-274 INTERNAL 1.45 µs +273 ns id:0000000000000112 [depth 273]
-                                                                     │  n: 274
                                                                      └─ span-275 INTERNAL 1.45 µs +274 ns id:0000000000000113 [depth 274]
-                                                                     │  n: 275
                                                                      └─ span-276 INTERNAL 1.45 µs +275 ns id:0000000000000114 [depth 275]
-                                                                     │  n: 276
                                                                      └─ span-277 INTERNAL 1.45 µs +276 ns id:0000000000000115 [depth 276]
-                                                                     │  n: 277
                                                                      └─ span-278 INTERNAL 1.45 µs +277 ns id:0000000000000116 [depth 277]
-                                                                     │  n: 278
                                                                      └─ span-279 INTERNAL 1.44 µs +278 ns id:0000000000000117 [depth 278]
-                                                                     │  n: 279
                                                                      └─ span-280 INTERNAL 1.44 µs +279 ns id:0000000000000118 [depth 279]
-                                                                     │  n: 280
                                                                      └─ span-281 INTERNAL 1.44 µs +280 ns id:0000000000000119 [depth 280]
-                                                                     │  n: 281
                                                                      └─ span-282 INTERNAL 1.44 µs +281 ns id:000000000000011a [depth 281]
-                                                                     │  n: 282
                                                                      └─ span-283 INTERNAL 1.44 µs +282 ns id:000000000000011b [depth 282]
-                                                                     │  n: 283
                                                                      └─ span-284 INTERNAL 1.43 µs +283 ns id:000000000000011c [depth 283]
-                                                                     │  n: 284
                                                                      └─ span-285 INTERNAL 1.43 µs +284 ns id:000000000000011d [depth 284]
-                                                                     │  n: 285
                                                                      └─ span-286 INTERNAL 1.43 µs +285 ns id:000000000000011e [depth 285]
-                                                                     │  n: 286
                                                                      └─ span-287 INTERNAL 1.43 µs +286 ns id:000000000000011f [depth 286]
-                                                                     │  n: 287
                                                                      └─ span-288 INTERNAL 1.43 µs +287 ns id:0000000000000120 [depth 287]
-                                                                     │  n: 288
                                                                      └─ span-289 INTERNAL 1.42 µs +288 ns id:0000000000000121 [depth 288]
-                                                                     │  n: 289
                                                                      └─ span-290 INTERNAL 1.42 µs +289 ns id:0000000000000122 [depth 289]
-                                                                     │  n: 290
                                                                      └─ span-291 INTERNAL 1.42 µs +290 ns id:0000000000000123 [depth 290]
-                                                                     │  n: 291
                                                                      └─ span-292 INTERNAL 1.42 µs +291 ns id:0000000000000124 [depth 291]
-                                                                     │  n: 292
                                                                      └─ span-293 INTERNAL 1.42 µs +292 ns id:0000000000000125 [depth 292]
-                                                                     │  n: 293
                                                                      └─ span-294 INTERNAL 1.41 µs +293 ns id:0000000000000126 [depth 293]
-                                                                     │  n: 294
                                                                      └─ span-295 INTERNAL 1.41 µs +294 ns id:0000000000000127 [depth 294]
-                                                                     │  n: 295
                                                                      └─ span-296 INTERNAL 1.41 µs +295 ns id:0000000000000128 [depth 295]
-                                                                     │  n: 296
                                                                      └─ span-297 INTERNAL 1.41 µs +296 ns id:0000000000000129 [depth 296]
-                                                                     │  n: 297
                                                                      └─ span-298 INTERNAL 1.41 µs +297 ns id:000000000000012a [depth 297]
-                                                                     │  n: 298
                                                                      └─ span-299 INTERNAL 1.40 µs +298 ns id:000000000000012b [depth 298]
-                                                                     │  n: 299
                                                                      └─ span-300 INTERNAL 1.40 µs +299 ns id:000000000000012c [depth 299]
-                                                                     │  n: 300
                                                                      └─ span-301 INTERNAL 1.40 µs +300 ns id:000000000000012d [depth 300]
-                                                                     │  n: 301
                                                                      └─ span-302 INTERNAL 1.40 µs +301 ns id:000000000000012e [depth 301]
-                                                                     │  n: 302
                                                                      └─ span-303 INTERNAL 1.40 µs +302 ns id:000000000000012f [depth 302]
-                                                                     │  n: 303
                                                                      └─ span-304 INTERNAL 1.39 µs +303 ns id:0000000000000130 [depth 303]
-                                                                     │  n: 304
                                                                      └─ span-305 INTERNAL 1.39 µs +304 ns id:0000000000000131 [depth 304]
-                                                                     │  n: 305
                                                                      └─ span-306 INTERNAL 1.39 µs +305 ns id:0000000000000132 [depth 305]
-                                                                     │  n: 306
                                                                      └─ span-307 INTERNAL 1.39 µs +306 ns id:0000000000000133 [depth 306]
-                                                                     │  n: 307
                                                                      └─ span-308 INTERNAL 1.39 µs +307 ns id:0000000000000134 [depth 307]
-                                                                     │  n: 308
                                                                      └─ span-309 INTERNAL 1.38 µs +308 ns id:0000000000000135 [depth 308]
-                                                                     │  n: 309
                                                                      └─ span-310 INTERNAL 1.38 µs +309 ns id:0000000000000136 [depth 309]
-                                                                     │  n: 310
                                                                      └─ span-311 INTERNAL 1.38 µs +310 ns id:0000000000000137 [depth 310]
-                                                                     │  n: 311
                                                                      └─ span-312 INTERNAL 1.38 µs +311 ns id:0000000000000138 [depth 311]
-                                                                     │  n: 312
                                                                      └─ span-313 INTERNAL 1.38 µs +312 ns id:0000000000000139 [depth 312]
-                                                                     │  n: 313
                                                                      └─ span-314 INTERNAL 1.37 µs +313 ns id:000000000000013a [depth 313]
-                                                                     │  n: 314
                                                                      └─ span-315 INTERNAL 1.37 µs +314 ns id:000000000000013b [depth 314]
-                                                                     │  n: 315
                                                                      └─ span-316 INTERNAL 1.37 µs +315 ns id:000000000000013c [depth 315]
-                                                                     │  n: 316
                                                                      └─ span-317 INTERNAL 1.37 µs +316 ns id:000000000000013d [depth 316]
-                                                                     │  n: 317
                                                                      └─ span-318 INTERNAL 1.37 µs +317 ns id:000000000000013e [depth 317]
-                                                                     │  n: 318
                                                                      └─ span-319 INTERNAL 1.36 µs +318 ns id:000000000000013f [depth 318]
-                                                                     │  n: 319
                                                                      └─ span-320 INTERNAL 1.36 µs +319 ns id:0000000000000140 [depth 319]
-                                                                     │  n: 320
                                                                      └─ span-321 INTERNAL 1.36 µs +320 ns id:0000000000000141 [depth 320]
-                                                                     │  n: 321
                                                                      └─ span-322 INTERNAL 1.36 µs +321 ns id:0000000000000142 [depth 321]
-                                                                     │  n: 322
                                                                      └─ span-323 INTERNAL 1.36 µs +322 ns id:0000000000000143 [depth 322]
-                                                                     │  n: 323
                                                                      └─ span-324 INTERNAL 1.35 µs +323 ns id:0000000000000144 [depth 323]
-                                                                     │  n: 324
                                                                      └─ span-325 INTERNAL 1.35 µs +324 ns id:0000000000000145 [depth 324]
-                                                                     │  n: 325
                                                                      └─ span-326 INTERNAL 1.35 µs +325 ns id:0000000000000146 [depth 325]
-                                                                     │  n: 326
                                                                      └─ span-327 INTERNAL 1.35 µs +326 ns id:0000000000000147 [depth 326]
-                                                                     │  n: 327
                                                                      └─ span-328 INTERNAL 1.35 µs +327 ns id:0000000000000148 [depth 327]
-                                                                     │  n: 328
                                                                      └─ span-329 INTERNAL 1.34 µs +328 ns id:0000000000000149 [depth 328]
-                                                                     │  n: 329
                                                                      └─ span-330 INTERNAL 1.34 µs +329 ns id:000000000000014a [depth 329]
-                                                                     │  n: 330
                                                                      └─ span-331 INTERNAL 1.34 µs +330 ns id:000000000000014b [depth 330]
-                                                                     │  n: 331
                                                                      └─ span-332 INTERNAL 1.34 µs +331 ns id:000000000000014c [depth 331]
-                                                                     │  n: 332
                                                                      └─ span-333 INTERNAL 1.34 µs +332 ns id:000000000000014d [depth 332]
-                                                                     │  n: 333
                                                                      └─ span-334 INTERNAL 1.33 µs +333 ns id:000000000000014e [depth 333]
-                                                                     │  n: 334
                                                                      └─ span-335 INTERNAL 1.33 µs +334 ns id:000000000000014f [depth 334]
-                                                                     │  n: 335
                                                                      └─ span-336 INTERNAL 1.33 µs +335 ns id:0000000000000150 [depth 335]
-                                                                     │  n: 336
                                                                      └─ span-337 INTERNAL 1.33 µs +336 ns id:0000000000000151 [depth 336]
-                                                                     │  n: 337
                                                                      └─ span-338 INTERNAL 1.33 µs +337 ns id:0000000000000152 [depth 337]
-                                                                     │  n: 338
                                                                      └─ span-339 INTERNAL 1.32 µs +338 ns id:0000000000000153 [depth 338]
-                                                                     │  n: 339
                                                                      └─ span-340 INTERNAL 1.32 µs +339 ns id:0000000000000154 [depth 339]
-                                                                     │  n: 340
                                                                      └─ span-341 INTERNAL 1.32 µs +340 ns id:0000000000000155 [depth 340]
-                                                                     │  n: 341
                                                                      └─ span-342 INTERNAL 1.32 µs +341 ns id:0000000000000156 [depth 341]
-                                                                     │  n: 342
                                                                      └─ span-343 INTERNAL 1.32 µs +342 ns id:0000000000000157 [depth 342]
-                                                                     │  n: 343
                                                                      └─ span-344 INTERNAL 1.31 µs +343 ns id:0000000000000158 [depth 343]
-                                                                     │  n: 344
                                                                      └─ span-345 INTERNAL 1.31 µs +344 ns id:0000000000000159 [depth 344]
-                                                                     │  n: 345
                                                                      └─ span-346 INTERNAL 1.31 µs +345 ns id:000000000000015a [depth 345]
-                                                                     │  n: 346
                                                                      └─ span-347 INTERNAL 1.31 µs +346 ns id:000000000000015b [depth 346]
-                                                                     │  n: 347
                                                                      └─ span-348 INTERNAL 1.31 µs +347 ns id:000000000000015c [depth 347]
-                                                                     │  n: 348
                                                                      └─ span-349 INTERNAL 1.30 µs +348 ns id:000000000000015d [depth 348]
-                                                                     │  n: 349
                                                                      └─ span-350 INTERNAL 1.30 µs +349 ns id:000000000000015e [depth 349]
-                                                                     │  n: 350
                                                                      └─ span-351 INTERNAL 1.30 µs +350 ns id:000000000000015f [depth 350]
-                                                                     │  n: 351
                                                                      └─ span-352 INTERNAL 1.30 µs +351 ns id:0000000000000160 [depth 351]
-                                                                     │  n: 352
                                                                      └─ span-353 INTERNAL 1.30 µs +352 ns id:0000000000000161 [depth 352]
-                                                                     │  n: 353
                                                                      └─ span-354 INTERNAL 1.29 µs +353 ns id:0000000000000162 [depth 353]
-                                                                     │  n: 354
                                                                      └─ span-355 INTERNAL 1.29 µs +354 ns id:0000000000000163 [depth 354]
-                                                                     │  n: 355
                                                                      └─ span-356 INTERNAL 1.29 µs +355 ns id:0000000000000164 [depth 355]
-                                                                     │  n: 356
                                                                      └─ span-357 INTERNAL 1.29 µs +356 ns id:0000000000000165 [depth 356]
-                                                                     │  n: 357
                                                                      └─ span-358 INTERNAL 1.29 µs +357 ns id:0000000000000166 [depth 357]
-                                                                     │  n: 358
                                                                      └─ span-359 INTERNAL 1.28 µs +358 ns id:0000000000000167 [depth 358]
-                                                                     │  n: 359
                                                                      └─ span-360 INTERNAL 1.28 µs +359 ns id:0000000000000168 [depth 359]
-                                                                     │  n: 360
                                                                      └─ span-361 INTERNAL 1.28 µs +360 ns id:0000000000000169 [depth 360]
-                                                                     │  n: 361
                                                                      └─ span-362 INTERNAL 1.28 µs +361 ns id:000000000000016a [depth 361]
-                                                                     │  n: 362
                                                                      └─ span-363 INTERNAL 1.28 µs +362 ns id:000000000000016b [depth 362]
-                                                                     │  n: 363
                                                                      └─ span-364 INTERNAL 1.27 µs +363 ns id:000000000000016c [depth 363]
-                                                                     │  n: 364
                                                                      └─ span-365 INTERNAL 1.27 µs +364 ns id:000000000000016d [depth 364]
-                                                                     │  n: 365
                                                                      └─ span-366 INTERNAL 1.27 µs +365 ns id:000000000000016e [depth 365]
-                                                                     │  n: 366
                                                                      └─ span-367 INTERNAL 1.27 µs +366 ns id:000000000000016f [depth 366]
-                                                                     │  n: 367
                                                                      └─ span-368 INTERNAL 1.27 µs +367 ns id:0000000000000170 [depth 367]
-                                                                     │  n: 368
                                                                      └─ span-369 INTERNAL 1.26 µs +368 ns id:0000000000000171 [depth 368]
-                                                                     │  n: 369
                                                                      └─ span-370 INTERNAL 1.26 µs +369 ns id:0000000000000172 [depth 369]
-                                                                     │  n: 370
                                                                      └─ span-371 INTERNAL 1.26 µs +370 ns id:0000000000000173 [depth 370]
-                                                                     │  n: 371
                                                                      └─ span-372 INTERNAL 1.26 µs +371 ns id:0000000000000174 [depth 371]
-                                                                     │  n: 372
                                                                      └─ span-373 INTERNAL 1.26 µs +372 ns id:0000000000000175 [depth 372]
-                                                                     │  n: 373
                                                                      └─ span-374 INTERNAL 1.25 µs +373 ns id:0000000000000176 [depth 373]
-                                                                     │  n: 374
                                                                      └─ span-375 INTERNAL 1.25 µs +374 ns id:0000000000000177 [depth 374]
-                                                                     │  n: 375
                                                                      └─ span-376 INTERNAL 1.25 µs +375 ns id:0000000000000178 [depth 375]
-                                                                     │  n: 376
                                                                      └─ span-377 INTERNAL 1.25 µs +376 ns id:0000000000000179 [depth 376]
-                                                                     │  n: 377
                                                                      └─ span-378 INTERNAL 1.25 µs +377 ns id:000000000000017a [depth 377]
-                                                                     │  n: 378
                                                                      └─ span-379 INTERNAL 1.24 µs +378 ns id:000000000000017b [depth 378]
-                                                                     │  n: 379
                                                                      └─ span-380 INTERNAL 1.24 µs +379 ns id:000000000000017c [depth 379]
-                                                                     │  n: 380
                                                                      └─ span-381 INTERNAL 1.24 µs +380 ns id:000000000000017d [depth 380]
-                                                                     │  n: 381
                                                                      └─ span-382 INTERNAL 1.24 µs +381 ns id:000000000000017e [depth 381]
-                                                                     │  n: 382
                                                                      └─ span-383 INTERNAL 1.24 µs +382 ns id:000000000000017f [depth 382]
-                                                                     │  n: 383
                                                                      └─ span-384 INTERNAL 1.23 µs +383 ns id:0000000000000180 [depth 383]
-                                                                     │  n: 384
                                                                      └─ span-385 INTERNAL 1.23 µs +384 ns id:0000000000000181 [depth 384]
-                                                                     │  n: 385
                                                                      └─ span-386 INTERNAL 1.23 µs +385 ns id:0000000000000182 [depth 385]
-                                                                     │  n: 386
                                                                      └─ span-387 INTERNAL 1.23 µs +386 ns id:0000000000000183 [depth 386]
-                                                                     │  n: 387
                                                                      └─ span-388 INTERNAL 1.23 µs +387 ns id:0000000000000184 [depth 387]
-                                                                     │  n: 388
                                                                      └─ span-389 INTERNAL 1.22 µs +388 ns id:0000000000000185 [depth 388]
-                                                                     │  n: 389
                                                                      └─ span-390 INTERNAL 1.22 µs +389 ns id:0000000000000186 [depth 389]
-                                                                     │  n: 390
                                                                      └─ span-391 INTERNAL 1.22 µs +390 ns id:0000000000000187 [depth 390]
-                                                                     │  n: 391
                                                                      └─ span-392 INTERNAL 1.22 µs +391 ns id:0000000000000188 [depth 391]
-                                                                     │  n: 392
                                                                      └─ span-393 INTERNAL 1.22 µs +392 ns id:0000000000000189 [depth 392]
-                                                                     │  n: 393
                                                                      └─ span-394 INTERNAL 1.21 µs +393 ns id:000000000000018a [depth 393]
-                                                                     │  n: 394
                                                                      └─ span-395 INTERNAL 1.21 µs +394 ns id:000000000000018b [depth 394]
-                                                                     │  n: 395
                                                                      └─ span-396 INTERNAL 1.21 µs +395 ns id:000000000000018c [depth 395]
-                                                                     │  n: 396
                                                                      └─ span-397 INTERNAL 1.21 µs +396 ns id:000000000000018d [depth 396]
-                                                                     │  n: 397
                                                                      └─ span-398 INTERNAL 1.21 µs +397 ns id:000000000000018e [depth 397]
-                                                                     │  n: 398
                                                                      └─ span-399 INTERNAL 1.20 µs +398 ns id:000000000000018f [depth 398]
-                                                                     │  n: 399
                                                                      └─ span-400 INTERNAL 1.20 µs +399 ns id:0000000000000190 [depth 399]
-                                                                     │  n: 400
                                                                      └─ span-401 INTERNAL 1.20 µs +400 ns id:0000000000000191 [depth 400]
-                                                                     │  n: 401
                                                                      └─ span-402 INTERNAL 1.20 µs +401 ns id:0000000000000192 [depth 401]
-                                                                     │  n: 402
                                                                      └─ span-403 INTERNAL 1.20 µs +402 ns id:0000000000000193 [depth 402]
-                                                                     │  n: 403
                                                                      └─ span-404 INTERNAL 1.19 µs +403 ns id:0000000000000194 [depth 403]
-                                                                     │  n: 404
                                                                      └─ span-405 INTERNAL 1.19 µs +404 ns id:0000000000000195 [depth 404]
-                                                                     │  n: 405
                                                                      └─ span-406 INTERNAL 1.19 µs +405 ns id:0000000000000196 [depth 405]
-                                                                     │  n: 406
                                                                      └─ span-407 INTERNAL 1.19 µs +406 ns id:0000000000000197 [depth 406]
-                                                                     │  n: 407
                                                                      └─ span-408 INTERNAL 1.19 µs +407 ns id:0000000000000198 [depth 407]
-                                                                     │  n: 408
                                                                      └─ span-409 INTERNAL 1.18 µs +408 ns id:0000000000000199 [depth 408]
-                                                                     │  n: 409
                                                                      └─ span-410 INTERNAL 1.18 µs +409 ns id:000000000000019a [depth 409]
-                                                                     │  n: 410
                                                                      └─ span-411 INTERNAL 1.18 µs +410 ns id:000000000000019b [depth 410]
-                                                                     │  n: 411
                                                                      └─ span-412 INTERNAL 1.18 µs +411 ns id:000000000000019c [depth 411]
-                                                                     │  n: 412
                                                                      └─ span-413 INTERNAL 1.18 µs +412 ns id:000000000000019d [depth 412]
-                                                                     │  n: 413
                                                                      └─ span-414 INTERNAL 1.17 µs +413 ns id:000000000000019e [depth 413]
-                                                                     │  n: 414
                                                                      └─ span-415 INTERNAL 1.17 µs +414 ns id:000000000000019f [depth 414]
-                                                                     │  n: 415
                                                                      └─ span-416 INTERNAL 1.17 µs +415 ns id:00000000000001a0 [depth 415]
-                                                                     │  n: 416
                                                                      └─ span-417 INTERNAL 1.17 µs +416 ns id:00000000000001a1 [depth 416]
-                                                                     │  n: 417
                                                                      └─ span-418 INTERNAL 1.17 µs +417 ns id:00000000000001a2 [depth 417]
-                                                                     │  n: 418
                                                                      └─ span-419 INTERNAL 1.16 µs +418 ns id:00000000000001a3 [depth 418]
-                                                                     │  n: 419
                                                                      └─ span-420 INTERNAL 1.16 µs +419 ns id:00000000000001a4 [depth 419]
-                                                                     │  n: 420
                                                                      └─ span-421 INTERNAL 1.16 µs +420 ns id:00000000000001a5 [depth 420]
-                                                                     │  n: 421
                                                                      └─ span-422 INTERNAL 1.16 µs +421 ns id:00000000000001a6 [depth 421]
-                                                                     │  n: 422
                                                                      └─ span-423 INTERNAL 1.16 µs +422 ns id:00000000000001a7 [depth 422]
-                                                                     │  n: 423
                                                                      └─ span-424 INTERNAL 1.15 µs +423 ns id:00000000000001a8 [depth 423]
-                                                                     │  n: 424
                                                                      └─ span-425 INTERNAL 1.15 µs +424 ns id:00000000000001a9 [depth 424]
-                                                                     │  n: 425
                                                                      └─ span-426 INTERNAL 1.15 µs +425 ns id:00000000000001aa [depth 425]
-                                                                     │  n: 426
                                                                      └─ span-427 INTERNAL 1.15 µs +426 ns id:00000000000001ab [depth 426]
-                                                                     │  n: 427
                                                                      └─ span-428 INTERNAL 1.15 µs +427 ns id:00000000000001ac [depth 427]
-                                                                     │  n: 428
                                                                      └─ span-429 INTERNAL 1.14 µs +428 ns id:00000000000001ad [depth 428]
-                                                                     │  n: 429
                                                                      └─ span-430 INTERNAL 1.14 µs +429 ns id:00000000000001ae [depth 429]
-                                                                     │  n: 430
                                                                      └─ span-431 INTERNAL 1.14 µs +430 ns id:00000000000001af [depth 430]
-                                                                     │  n: 431
                                                                      └─ span-432 INTERNAL 1.14 µs +431 ns id:00000000000001b0 [depth 431]
-                                                                     │  n: 432
                                                                      └─ span-433 INTERNAL 1.14 µs +432 ns id:00000000000001b1 [depth 432]
-                                                                     │  n: 433
                                                                      └─ span-434 INTERNAL 1.13 µs +433 ns id:00000000000001b2 [depth 433]
-                                                                     │  n: 434
                                                                      └─ span-435 INTERNAL 1.13 µs +434 ns id:00000000000001b3 [depth 434]
-                                                                     │  n: 435
                                                                      └─ span-436 INTERNAL 1.13 µs +435 ns id:00000000000001b4 [depth 435]
-                                                                     │  n: 436
                                                                      └─ span-437 INTERNAL 1.13 µs +436 ns id:00000000000001b5 [depth 436]
-                                                                     │  n: 437
                                                                      └─ span-438 INTERNAL 1.13 µs +437 ns id:00000000000001b6 [depth 437]
-                                                                     │  n: 438
                                                                      └─ span-439 INTERNAL 1.12 µs +438 ns id:00000000000001b7 [depth 438]
-                                                                     │  n: 439
                                                                      └─ span-440 INTERNAL 1.12 µs +439 ns id:00000000000001b8 [depth 439]
-                                                                     │  n: 440
                                                                      └─ span-441 INTERNAL 1.12 µs +440 ns id:00000000000001b9 [depth 440]
-                                                                     │  n: 441
                                                                      └─ span-442 INTERNAL 1.12 µs +441 ns id:00000000000001ba [depth 441]
-                                                                     │  n: 442
                                                                      └─ span-443 INTERNAL 1.12 µs +442 ns id:00000000000001bb [depth 442]
-                                                                     │  n: 443
                                                                      └─ span-444 INTERNAL 1.11 µs +443 ns id:00000000000001bc [depth 443]
-                                                                     │  n: 444
                                                                      └─ span-445 INTERNAL 1.11 µs +444 ns id:00000000000001bd [depth 444]
-                                                                     │  n: 445
                                                                      └─ span-446 INTERNAL 1.11 µs +445 ns id:00000000000001be [depth 445]
-                                                                     │  n: 446
                                                                      └─ span-447 INTERNAL 1.11 µs +446 ns id:00000000000001bf [depth 446]
-                                                                     │  n: 447
                                                                      └─ span-448 INTERNAL 1.11 µs +447 ns id:00000000000001c0 [depth 447]
-                                                                     │  n: 448
                                                                      └─ span-449 INTERNAL 1.10 µs +448 ns id:00000000000001c1 [depth 448]
-                                                                     │  n: 449
                                                                      └─ span-450 INTERNAL 1.10 µs +449 ns id:00000000000001c2 [depth 449]
-                                                                     │  n: 450
                                                                      └─ span-451 INTERNAL 1.10 µs +450 ns id:00000000000001c3 [depth 450]
-                                                                     │  n: 451
                                                                      └─ span-452 INTERNAL 1.10 µs +451 ns id:00000000000001c4 [depth 451]
-                                                                     │  n: 452
                                                                      └─ span-453 INTERNAL 1.10 µs +452 ns id:00000000000001c5 [depth 452]
-                                                                     │  n: 453
                                                                      └─ span-454 INTERNAL 1.09 µs +453 ns id:00000000000001c6 [depth 453]
-                                                                     │  n: 454
                                                                      └─ span-455 INTERNAL 1.09 µs +454 ns id:00000000000001c7 [depth 454]
-                                                                     │  n: 455
                                                                      └─ span-456 INTERNAL 1.09 µs +455 ns id:00000000000001c8 [depth 455]
-                                                                     │  n: 456
                                                                      └─ span-457 INTERNAL 1.09 µs +456 ns id:00000000000001c9 [depth 456]
-                                                                     │  n: 457
                                                                      └─ span-458 INTERNAL 1.09 µs +457 ns id:00000000000001ca [depth 457]
-                                                                     │  n: 458
                                                                      └─ span-459 INTERNAL 1.08 µs +458 ns id:00000000000001cb [depth 458]
-                                                                     │  n: 459
                                                                      └─ span-460 INTERNAL 1.08 µs +459 ns id:00000000000001cc [depth 459]
-                                                                     │  n: 460
                                                                      └─ span-461 INTERNAL 1.08 µs +460 ns id:00000000000001cd [depth 460]
-                                                                     │  n: 461
                                                                      └─ span-462 INTERNAL 1.08 µs +461 ns id:00000000000001ce [depth 461]
-                                                                     │  n: 462
                                                                      └─ span-463 INTERNAL 1.08 µs +462 ns id:00000000000001cf [depth 462]
-                                                                     │  n: 463
                                                                      └─ span-464 INTERNAL 1.07 µs +463 ns id:00000000000001d0 [depth 463]
-                                                                     │  n: 464
                                                                      └─ span-465 INTERNAL 1.07 µs +464 ns id:00000000000001d1 [depth 464]
-                                                                     │  n: 465
                                                                      └─ span-466 INTERNAL 1.07 µs +465 ns id:00000000000001d2 [depth 465]
-                                                                     │  n: 466
                                                                      └─ span-467 INTERNAL 1.07 µs +466 ns id:00000000000001d3 [depth 466]
-                                                                     │  n: 467
                                                                      └─ span-468 INTERNAL 1.07 µs +467 ns id:00000000000001d4 [depth 467]
-                                                                     │  n: 468
                                                                      └─ span-469 INTERNAL 1.06 µs +468 ns id:00000000000001d5 [depth 468]
-                                                                     │  n: 469
                                                                      └─ span-470 INTERNAL 1.06 µs +469 ns id:00000000000001d6 [depth 469]
-                                                                     │  n: 470
                                                                      └─ span-471 INTERNAL 1.06 µs +470 ns id:00000000000001d7 [depth 470]
-                                                                     │  n: 471
                                                                      └─ span-472 INTERNAL 1.06 µs +471 ns id:00000000000001d8 [depth 471]
-                                                                     │  n: 472
                                                                      └─ span-473 INTERNAL 1.06 µs +472 ns id:00000000000001d9 [depth 472]
-                                                                     │  n: 473
                                                                      └─ span-474 INTERNAL 1.05 µs +473 ns id:00000000000001da [depth 473]
-                                                                     │  n: 474
                                                                      └─ span-475 INTERNAL 1.05 µs +474 ns id:00000000000001db [depth 474]
-                                                                     │  n: 475
                                                                      └─ span-476 INTERNAL 1.05 µs +475 ns id:00000000000001dc [depth 475]
-                                                                     │  n: 476
                                                                      └─ span-477 INTERNAL 1.05 µs +476 ns id:00000000000001dd [depth 476]
-                                                                     │  n: 477
                                                                      └─ span-478 INTERNAL 1.05 µs +477 ns id:00000000000001de [depth 477]
-                                                                     │  n: 478
                                                                      └─ span-479 INTERNAL 1.04 µs +478 ns id:00000000000001df [depth 478]
-                                                                     │  n: 479
                                                                      └─ span-480 INTERNAL 1.04 µs +479 ns id:00000000000001e0 [depth 479]
-                                                                     │  n: 480
                                                                      └─ span-481 INTERNAL 1.04 µs +480 ns id:00000000000001e1 [depth 480]
-                                                                     │  n: 481
                                                                      └─ span-482 INTERNAL 1.04 µs +481 ns id:00000000000001e2 [depth 481]
-                                                                     │  n: 482
                                                                      └─ span-483 INTERNAL 1.04 µs +482 ns id:00000000000001e3 [depth 482]
-                                                                     │  n: 483
                                                                      └─ span-484 INTERNAL 1.03 µs +483 ns id:00000000000001e4 [depth 483]
-                                                                     │  n: 484
                                                                      └─ span-485 INTERNAL 1.03 µs +484 ns id:00000000000001e5 [depth 484]
-                                                                     │  n: 485
                                                                      └─ span-486 INTERNAL 1.03 µs +485 ns id:00000000000001e6 [depth 485]
-                                                                     │  n: 486
                                                                      └─ span-487 INTERNAL 1.03 µs +486 ns id:00000000000001e7 [depth 486]
-                                                                     │  n: 487
                                                                      └─ span-488 INTERNAL 1.03 µs +487 ns id:00000000000001e8 [depth 487]
-                                                                     │  n: 488
                                                                      └─ span-489 INTERNAL 1.02 µs +488 ns id:00000000000001e9 [depth 488]
-                                                                     │  n: 489
                                                                      └─ span-490 INTERNAL 1.02 µs +489 ns id:00000000000001ea [depth 489]
-                                                                     │  n: 490
                                                                      └─ span-491 INTERNAL 1.02 µs +490 ns id:00000000000001eb [depth 490]
-                                                                     │  n: 491
                                                                      └─ span-492 INTERNAL 1.02 µs +491 ns id:00000000000001ec [depth 491]
-                                                                     │  n: 492
                                                                      └─ span-493 INTERNAL 1.02 µs +492 ns id:00000000000001ed [depth 492]
-                                                                     │  n: 493
                                                                      └─ span-494 INTERNAL 1.01 µs +493 ns id:00000000000001ee [depth 493]
-                                                                     │  n: 494
                                                                      └─ span-495 INTERNAL 1.01 µs +494 ns id:00000000000001ef [depth 494]
-                                                                     │  n: 495
                                                                      └─ span-496 INTERNAL 1.01 µs +495 ns id:00000000000001f0 [depth 495]
-                                                                     │  n: 496
                                                                      └─ span-497 INTERNAL 1.01 µs +496 ns id:00000000000001f1 [depth 496]
-                                                                     │  n: 497
                                                                      └─ span-498 INTERNAL 1.01 µs +497 ns id:00000000000001f2 [depth 497]
-                                                                     │  n: 498
                                                                      └─ span-499 INTERNAL 1.00 µs +498 ns id:00000000000001f3 [depth 498]
-                                                                     │  n: 499
                                                                      └─ span-500 INTERNAL 1.00 µs +499 ns id:00000000000001f4 [depth 499]
-                                                                     │  n: 500
 … 601 more spans not shown
 === frame 6
 
@@ -1078,4 +569,3 @@ Time: 2024-01-01 12:00:00
 
 span-1101 INTERNAL 0 ns id:000000000000044d (1000+ more ancestors above)
 └─ span-1200 INTERNAL 1 ns +5.00 µs id:00000000000004b0
-      n: 1200

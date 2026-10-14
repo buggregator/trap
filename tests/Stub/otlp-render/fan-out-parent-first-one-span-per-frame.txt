@@ -7,7 +7,6 @@ Time: 2024-01-01 12:00:00
 # Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  5.00 µs 
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
-   n: 1
 === frame 1
 
  OTLP TRACES  1 span 
@@ -18,7 +17,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-2 INTERNAL 100 ns +100 ns id:0000000000000002
-      n: 2
 === frame 2
 
  OTLP TRACES  1 span 
@@ -29,7 +27,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-3 INTERNAL 64 ns +137 ns id:0000000000000003
-      n: 3
 === frame 3
 
  OTLP TRACES  1 span 
@@ -40,7 +37,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-4 INTERNAL 28 ns +174 ns id:0000000000000004
-      n: 4
 === frame 4
 
  OTLP TRACES  1 span 
@@ -51,7 +47,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-5 INTERNAL 0 ns +211 ns id:0000000000000005
-      n: 5
 === frame 5
 
  OTLP TRACES  1 span 
@@ -62,7 +57,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-6 INTERNAL 0 ns +248 ns id:0000000000000006
-      n: 6
 === frame 6
 
  OTLP TRACES  1 span 
@@ -73,7 +67,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-7 INTERNAL 0 ns +285 ns id:0000000000000007
-      n: 7
 === frame 7
 
  OTLP TRACES  1 span 
@@ -84,7 +77,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-8 INTERNAL 0 ns +322 ns id:0000000000000008
-      n: 8
 === frame 8
 
  OTLP TRACES  1 span 
@@ -95,7 +87,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-9 INTERNAL 0 ns +359 ns id:0000000000000009
-      n: 9
 === frame 9
 
  OTLP TRACES  1 span 
@@ -106,7 +97,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-10 INTERNAL 0 ns +396 ns id:000000000000000a
-      n: 10
 === frame 10
 
  OTLP TRACES  1 span 
@@ -117,7 +107,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-11 INTERNAL 0 ns +433 ns id:000000000000000b
-      n: 11
 === frame 11
 
  OTLP TRACES  1 span 
@@ -128,7 +117,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-12 INTERNAL 0 ns +470 ns id:000000000000000c
-      n: 12
 === frame 12
 
  OTLP TRACES  1 span 
@@ -139,7 +127,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-13 INTERNAL 0 ns +507 ns id:000000000000000d
-      n: 13
 === frame 13
 
  OTLP TRACES  1 span 
@@ -150,7 +137,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-14 INTERNAL 0 ns +544 ns id:000000000000000e
-      n: 14
 === frame 14
 
  OTLP TRACES  1 span 
@@ -161,7 +147,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-15 INTERNAL 0 ns +581 ns id:000000000000000f
-      n: 15
 === frame 15
 
  OTLP TRACES  1 span 
@@ -172,7 +157,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-16 INTERNAL 96 ns +118 ns id:0000000000000010
-      n: 16
 === frame 16
 
  OTLP TRACES  1 span 
@@ -183,7 +167,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-17 INTERNAL 60 ns +155 ns id:0000000000000011
-      n: 17
 === frame 17
 
  OTLP TRACES  1 span 
@@ -194,7 +177,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-18 INTERNAL 24 ns +192 ns id:0000000000000012
-      n: 18
 === frame 18
 
  OTLP TRACES  1 span 
@@ -205,7 +187,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-19 INTERNAL 0 ns +229 ns id:0000000000000013
-      n: 19
 === frame 19
 
  OTLP TRACES  1 span 
@@ -216,7 +197,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-20 INTERNAL 0 ns +266 ns id:0000000000000014
-      n: 20
 === frame 20
 
  OTLP TRACES  1 span 
@@ -227,7 +207,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-21 INTERNAL 0 ns +303 ns id:0000000000000015
-      n: 21
 === frame 21
 
  OTLP TRACES  1 span 
@@ -238,7 +217,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-22 INTERNAL 0 ns +340 ns id:0000000000000016
-      n: 22
 === frame 22
 
  OTLP TRACES  1 span 
@@ -249,7 +227,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-23 INTERNAL 0 ns +377 ns id:0000000000000017
-      n: 23
 === frame 23
 
  OTLP TRACES  1 span 
@@ -260,7 +237,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-24 INTERNAL 0 ns +414 ns id:0000000000000018
-      n: 24
 === frame 24
 
  OTLP TRACES  1 span 
@@ -271,7 +247,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-25 INTERNAL 0 ns +451 ns id:0000000000000019
-      n: 25
 === frame 25
 
  OTLP TRACES  1 span 
@@ -282,7 +257,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-26 INTERNAL 0 ns +488 ns id:000000000000001a
-      n: 26
 === frame 26
 
  OTLP TRACES  1 span 
@@ -293,7 +267,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-27 INTERNAL 0 ns +525 ns id:000000000000001b
-      n: 27
 === frame 27
 
  OTLP TRACES  1 span 
@@ -304,7 +277,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-28 INTERNAL 0 ns +562 ns id:000000000000001c
-      n: 28
 === frame 28
 
  OTLP TRACES  1 span 
@@ -315,7 +287,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-29 INTERNAL 0 ns +599 ns id:000000000000001d
-      n: 29
 === frame 29
 
  OTLP TRACES  1 span 
@@ -326,7 +297,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-30 INTERNAL 92 ns +136 ns id:000000000000001e
-      n: 30
 === frame 30
 
  OTLP TRACES  1 span 
@@ -337,7 +307,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-31 INTERNAL 56 ns +173 ns id:000000000000001f
-      n: 31
 === frame 31
 
  OTLP TRACES  1 span 
@@ -348,7 +317,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-32 INTERNAL 20 ns +210 ns id:0000000000000020
-      n: 32
 === frame 32
 
  OTLP TRACES  1 span 
@@ -359,7 +327,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-33 INTERNAL 0 ns +247 ns id:0000000000000021
-      n: 33
 === frame 33
 
  OTLP TRACES  1 span 
@@ -370,7 +337,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-34 INTERNAL 0 ns +284 ns id:0000000000000022
-      n: 34
 === frame 34
 
  OTLP TRACES  1 span 
@@ -381,7 +347,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-35 INTERNAL 0 ns +321 ns id:0000000000000023
-      n: 35
 === frame 35
 
  OTLP TRACES  1 span 
@@ -392,7 +357,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-36 INTERNAL 0 ns +358 ns id:0000000000000024
-      n: 36
 === frame 36
 
  OTLP TRACES  1 span 
@@ -403,7 +367,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-37 INTERNAL 0 ns +395 ns id:0000000000000025
-      n: 37
 === frame 37
 
  OTLP TRACES  1 span 
@@ -414,7 +377,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-38 INTERNAL 0 ns +432 ns id:0000000000000026
-      n: 38
 === frame 38
 
  OTLP TRACES  1 span 
@@ -425,7 +387,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-39 INTERNAL 0 ns +469 ns id:0000000000000027
-      n: 39
 === frame 39
 
  OTLP TRACES  1 span 
@@ -436,7 +397,6 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-40 INTERNAL 0 ns +506 ns id:0000000000000028
-      n: 40
 === frame 40
 
  OTLP TRACES  1 span 
@@ -447,4 +407,3 @@ Time: 2024-01-01 12:00:00
 
 span-1 INTERNAL 5.00 µs id:0000000000000001
 └─ span-41 INTERNAL 0 ns +543 ns id:0000000000000029
-      n: 41

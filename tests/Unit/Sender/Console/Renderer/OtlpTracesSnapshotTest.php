@@ -49,12 +49,23 @@ final class OtlpTracesSnapshotTest extends TestCase
 
         yield 'chain, leaf first, one span per frame' => [10_000, self::oneByOne(\array_reverse($chain(40)))];
         yield 'chain, root first, one span per frame' => [10_000, self::oneByOne($chain(40))];
-        yield 'chain in one frame, truncated' => [10_000, [$chain(600)]];
-        yield 'chain of 1200, leaf first, batches of 100' => [10_000, \array_chunk(\array_reverse($chain(1200)), 100)];
+        // Spans 200..1200 of a chain, then span 199 with more than 1000 earlier descendants.
+        yield 'chain with 1000+ earlier descendants' => [10_000, [
+            \array_slice($chain(1200), 199),
+            [self::span(self::TRACE_A, 199, 198, 1, 2)],
+        ]];
         yield 'fan-out, children first, one span per frame' => [10_000, [...self::oneByOne($fanOut(40)), [$root]]];
         yield 'fan-out, parent first, one span per frame' => [10_000, [[$root], ...self::oneByOne($fanOut(40))]];
-        yield 'fan-out in one frame, truncated' => [10_000, [[$root, ...$fanOut(700)]]];
-        yield 'fan-out of 600 earlier children, then parent' => [10_000, [$fanOut(600), [$root]]];
+        // A chain deeper than the indentation limit and more children than one frame prints.
+        yield 'deep and wide frame, truncated' => [10_000, [[
+            $root,
+            ...\array_map(
+                static fn(int $i): Span => self::span(self::TRACE_A, 5000 + $i, $i === 0 ? 1 : 4999 + $i, $i, 4000 - $i),
+                \range(0, 39),
+            ),
+            ...$fanOut(600),
+        ]]];
+        yield 'parent after 520 earlier children' => [10_000, [$fanOut(520), [$root]]];
 
         $mid = self::span(self::TRACE_A, 2, 1, 50, 900);
         $leaves = \array_map(
@@ -93,22 +104,25 @@ final class OtlpTracesSnapshotTest extends TestCase
             [self::span(self::TRACE_A, 6, 4, 3, 4), self::span(self::TRACE_A, 7, 6, 3, 4)],
             [self::span(self::TRACE_A, 8, 7, 1, 1)],
         ]];
+        // Spans with details, so that detail lines stay covered.
+        $detailed = static fn(string $trace, int $id, ?int $parent, int $start, int $end, ?string $name = null): Span
+            => self::span($trace, $id, $parent, $start, $end, $name, ['n' => $id]);
         yield 'several traces per frame' => [10_000, [
             [
-                self::span(self::TRACE_B, 2, 1, 10, 20),
-                self::span(self::TRACE_A, 2, 1, 10, 20),
-                self::span(self::TRACE_C, 1, null, 0, 30),
-                self::span(self::TRACE_A, 3, 2, 12, 18),
+                $detailed(self::TRACE_B, 2, 1, 10, 20),
+                $detailed(self::TRACE_A, 2, 1, 10, 20),
+                $detailed(self::TRACE_C, 1, null, 0, 30),
+                $detailed(self::TRACE_A, 3, 2, 12, 18),
             ],
-            [self::span(self::TRACE_A, 1, null, 0, 40), self::span(self::TRACE_B, 1, null, 0, 40)],
-            [self::span(self::TRACE_C, 2, 1, 1, 2), self::span(self::TRACE_B, 3, 2, 11, 12)],
+            [$detailed(self::TRACE_A, 1, null, 0, 40), $detailed(self::TRACE_B, 1, null, 0, 40)],
+            [$detailed(self::TRACE_C, 2, 1, 1, 2), $detailed(self::TRACE_B, 3, 2, 11, 12)],
         ]];
         yield 'span sent again with other fields' => [10_000, [
-            [self::span(self::TRACE_A, 2, 1, 10, 20), self::span(self::TRACE_A, 3, 1, 30, 40)],
-            [self::span(self::TRACE_A, 2, 3, 35, 36, 'moved')],
-            [self::span(self::TRACE_A, 4, 2, 1, 99_999), self::span(self::TRACE_A, 4, 3, 31, 32, 'moved')],
-            [self::span(self::TRACE_A, 3, 1, -5, 40), self::span(self::TRACE_A, 1, null, 0, 50)],
-            [self::span(self::TRACE_A, 1, null, 0, 45, 'root again')],
+            [$detailed(self::TRACE_A, 2, 1, 10, 20), $detailed(self::TRACE_A, 3, 1, 30, 40)],
+            [$detailed(self::TRACE_A, 2, 3, 35, 36, 'moved')],
+            [$detailed(self::TRACE_A, 4, 2, 1, 99_999), $detailed(self::TRACE_A, 4, 3, 31, 32, 'moved')],
+            [$detailed(self::TRACE_A, 3, 1, -5, 40), $detailed(self::TRACE_A, 1, null, 0, 50)],
+            [$detailed(self::TRACE_A, 1, null, 0, 45, 'root again')],
         ]];
         yield 'all-digit IDs' => [10_000, [
             [new Span('12345678901234567890123456789012', '1234567890123456', '2234567890123456', 'child', SpanKind::Client, 5, 6)],
@@ -147,14 +161,39 @@ final class OtlpTracesSnapshotTest extends TestCase
         }
         $actual = \str_replace("\r\n", "\n", $output->fetch());
 
-        $file = self::SNAPSHOTS . '/' . \trim((string) \preg_replace('/[^a-z0-9]+/', '-', \strtolower($this->dataName())), '-') . '.txt';
+        $file = self::snapshotFile((string) $this->dataName());
         if (\getenv('TRAP_UPDATE_SNAPSHOTS')) {
             \is_dir(self::SNAPSHOTS) or \mkdir(self::SNAPSHOTS, 0777, true);
             \file_put_contents($file, $actual);
         }
 
         self::assertFileExists($file);
-        self::assertSame(\file_get_contents($file), $actual);
+        // A checkout with `core.autocrlf` may have turned the line endings into CRLF.
+        self::assertSame(\str_replace("\r\n", "\n", (string) \file_get_contents($file)), $actual);
+    }
+
+    /**
+     * Removes snapshots of scenarios that no longer exist before they are written again.
+     */
+    public static function setUpBeforeClass(): void
+    {
+        if (!\getenv('TRAP_UPDATE_SNAPSHOTS')) {
+            return;
+        }
+
+        $current = [];
+        foreach (self::provideScenarios() as $name => $_) {
+            $current[self::snapshotFile($name)] = true;
+        }
+        foreach (\glob(self::SNAPSHOTS . '/*.txt') ?: [] as $file) {
+            isset($current[$file]) or \unlink($file);
+        }
+    }
+
+    private static function snapshotFile(string $scenario): string
+    {
+        return self::SNAPSHOTS . '/'
+            . \trim((string) \preg_replace('/[^a-z0-9]+/', '-', \strtolower($scenario)), '-') . '.txt';
     }
 
     /**
@@ -230,6 +269,7 @@ final class OtlpTracesSnapshotTest extends TestCase
         int $start,
         int $end,
         ?string $name = null,
+        array $attributes = [],
     ): Span {
         return new Span(
             traceId: $trace,
@@ -239,7 +279,7 @@ final class OtlpTracesSnapshotTest extends TestCase
             kind: SpanKind::Internal,
             startTimeUnixNano: $start,
             endTimeUnixNano: $end,
-            attributes: ['n' => $id],
+            attributes: $attributes,
         );
     }
 }

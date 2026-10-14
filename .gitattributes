@@ -13,6 +13,9 @@
 *.pb binary
 *.png binary
 
+# Snapshots compared byte by byte, whatever `core.autocrlf` says.
+/tests/Stub/otlp-render/*.txt text eol=lf
+
 # List-like manifests: concurrent additions to the same list merge instead of conflicting.
 /composer.json merge=union
 
