@@ -23,6 +23,12 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 final class Fallback implements RequestHandler
 {
+    /**
+     * A middleware sets this response header when the request must not be dumped as an HTTP frame
+     * although it produced no frame. The header is not sent to the client.
+     */
+    public const NO_DUMP_HEADER = 'X-Trap-No-Dump';
+
     /** @var Pipeline<Middleware, ResponseInterface> */
     private readonly Pipeline $pipeline;
 
@@ -60,7 +66,7 @@ final class Fallback implements RequestHandler
                 }
 
                 if ($got instanceof ResponseInterface) {
-                    HttpEmitter::emit($streamClient, $got);
+                    HttpEmitter::emit($streamClient, $got->withoutHeader(self::NO_DUMP_HEADER));
                 }
 
                 if ($fiber->isTerminated()) {
@@ -69,7 +75,7 @@ final class Fallback implements RequestHandler
                         throw new \RuntimeException('Invalid response type.');
                     }
 
-                    HttpEmitter::emit($streamClient, $response);
+                    HttpEmitter::emit($streamClient, $response->withoutHeader(self::NO_DUMP_HEADER));
                     break;
                 }
 
@@ -84,7 +90,9 @@ final class Fallback implements RequestHandler
 
         /** @var mixed $response */
         $response ??= null;
-        if ($response instanceof ResponseInterface && $response->hasHeader(FrontendPipeline::FRONTEND_HEADER)) {
+        if ($response instanceof ResponseInterface && (
+            $response->hasHeader(FrontendPipeline::FRONTEND_HEADER) || $response->hasHeader(self::NO_DUMP_HEADER)
+        )) {
             return;
         }
 

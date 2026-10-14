@@ -54,6 +54,7 @@
     "require-dev": {
         "ergebnis/phpunit-slow-test-detector": "^2.14",
         "google/protobuf": "^3.25 || ^4.30 || ^v5.36.1",
+        "open-telemetry/gen-otlp-protobuf": "^1.10",
         "phpunit/phpunit": "^10.5.10",
         "rector/rector": "^2.0",
         "roxblnfk/unpoly": "^1.8.1",
@@ -63,6 +64,8 @@
     },
     "suggest": {
         "ext-simplexml": "To load trap.xml",
+        "google/protobuf": "To receive OpenTelemetry traces encoded as OTLP/HTTP protobuf (with open-telemetry/gen-otlp-protobuf)",
+        "open-telemetry/gen-otlp-protobuf": "To receive OpenTelemetry traces encoded as OTLP/HTTP protobuf",
         "roxblnfk/unpoly": "If you want to remove unnecessary PHP polyfills depend on PHP version."
     },
     "minimum-stability": "dev",

@@ -10,6 +10,7 @@
 *.http binary
 *.ico binary
 *.jpg binary
+*.pb binary
 *.png binary
 
 # List-like manifests: concurrent additions to the same list merge instead of conflicting.

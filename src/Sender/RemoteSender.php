@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender;
 
 use Buggregator\Trap\Info;
+use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Support\Uuid;
 
 /**
+ * OTLP frames are not sent: a receiver of protocol version 1 that does not know the `otlp` type
+ * rejects the whole package, the other frames in it included.
+ *
  * @internal
  */
 final class RemoteSender extends SocketSender
@@ -24,6 +28,17 @@ final class RemoteSender extends SocketSender
         $this->uuid = $uuid ?? Uuid::generate();
 
         parent::__construct($host, $port);
+    }
+
+    #[\Override]
+    public function send(iterable $frames): void
+    {
+        $frames = \array_values(\array_filter(
+            \is_array($frames) ? $frames : \iterator_to_array($frames, false),
+            static fn(Frame $frame): bool => !$frame instanceof Frame\Otlp,
+        ));
+
+        $frames === [] or parent::send($frames);
     }
 
     protected function makePackage(string $payload): string

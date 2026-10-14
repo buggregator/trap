@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender;
 
+use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Sender;
 use Buggregator\Trap\Sender\Console\FrameHandler;
 use Buggregator\Trap\Sender\Console\Renderer;
@@ -18,13 +19,17 @@ final class ConsoleSender implements Sender
         private readonly FrameHandler $handler,
     ) {}
 
-    public static function create(OutputInterface $output): self
+    /**
+     * @param SpanStore|null $spanStore Shared spans of the Trap process; null keeps them in this sender only.
+     */
+    public static function create(OutputInterface $output, ?SpanStore $spanStore = null): self
     {
         // Configure renderer
         $renderer = new FrameHandler($output);
         $renderer->register(new Renderer\VarDumper());
         $renderer->register(new Renderer\SentryStore());
         $renderer->register(new Renderer\SentryEnvelope());
+        $renderer->register(new Renderer\OtlpTraces($spanStore ?? new SpanStore()));
         $renderer->register(new Renderer\Monolog());
         $renderer->register(new Renderer\Smtp());
         $renderer->register(new Renderer\Http());

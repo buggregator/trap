@@ -89,6 +89,7 @@ final class V1 implements PayloadDecoder
                             ProtoType::HTTP->value => Frame\Http::fromString($payload, $date),
                             ProtoType::Sentry->value => Frame\Sentry::fromString($payload, $date),
                             ProtoType::Profiler->value => Frame\Profiler::fromString($payload, $date),
+                            ProtoType::Otlp->value => Frame\Otlp::fromString($payload, $date),
                             default => throw new \RuntimeException('Invalid type.'),
                         };
                     },

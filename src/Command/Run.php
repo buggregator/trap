@@ -10,6 +10,7 @@ use Buggregator\Trap\Config\Server\SocketServer;
 use Buggregator\Trap\Config\Server\TcpPorts;
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Logger;
+use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Sender;
 use Internal\Container\Container;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -92,10 +93,13 @@ final class Run extends Command implements SignalableCommandInterface
         return $servers;
     }
 
-    public function createRegistry(OutputInterface $output): Sender\SenderRegistry
+    public function createRegistry(OutputInterface $output, ?Container $container = null): Sender\SenderRegistry
     {
         $registry = new Sender\SenderRegistry();
-        $registry->register('console', static fn(): Sender => Sender\ConsoleSender::create($output));
+        $registry->register('console', static fn(): Sender => Sender\ConsoleSender::create(
+            $output,
+            $container?->get(SpanStore::class),
+        ));
         $registry->register('file', static fn(): Sender => new Sender\EventsToFileSender());
         $registry->register('file-body', static fn(): Sender => new Sender\BodyToFileSender());
         $registry->register('mail-to-file', static fn(): Sender => new Sender\MailToFileSender());
@@ -149,14 +153,13 @@ final class Run extends Command implements SignalableCommandInterface
             /** @var non-empty-string[] $senders */
             $senders = (array) $input->getOption('sender');
 
-            $registry = $this->createRegistry($output);
-
             $container = Bootstrap::init()->withConfig(
                 xml: \dirname(__DIR__, 2) . '/trap.xml',
                 inputOptions: $input->getOptions(),
                 inputArguments: $input->getArguments(),
                 environment: \getenv(),
             )->finish();
+            $registry = $this->createRegistry($output, $container);
             $container->set($registry);
             $container->set($input, InputInterface::class);
             $container->set($this->logger);
