@@ -10,7 +10,7 @@
 <div align="center">
 
 [![Documentation](https://img.shields.io/badge/Documentation-blue?style=for-the-badge&logo=gitbook&logoColor=white)](https://docs.buggregator.dev/trap/what-is-trap.html)
-[![Sponsor](https://img.shields.io/static/v1?style=for-the-badge&label=&message=Sponsor&logo=patreon&logoColor=white&color=%23EA4AAA)](https://patreon.com/roxblnfk)
+[![Sponsor](https://img.shields.io/static/v1?style=for-the-badge&label=&message=Sponsor&logo=boosty&logoColor=white&color=%23F15F2C)](https://boosty.to/roxblnfk)
 
 [![Psalm Level](https://shepherd.dev/github/buggregator/trap/level.svg)](https://shepherd.dev/github/buggregator/trap)
 [![Type Coverage](https://shepherd.dev/github/buggregator/trap/coverage.svg)](https://shepherd.dev/github/buggregator/trap)
@@ -311,6 +311,6 @@ We believe in the power of community-driven development. Here's how you can cont
     [There are issues](https://github.com/buggregator/trap/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22) labeled "help wanted" that are a good place to start.
   - Have good documentation writing skills? We'd love your help improving our [docs](https://github.com/buggregator/docs/tree/master/docs).
 - Sponsor us:  
-  - If you use Buggregator in a commercial setting, consider [becoming a sponsor](https://patreon.com/roxblnfk) to help us maintain and improve the project.
+  - If you use Buggregator in a commercial setting, consider [becoming a sponsor](https://boosty.to/roxblnfk) to help us maintain and improve the project.
   - You also can promote a specific feature or bug fix.
     We mark sponsored tasks with the honorary label [`SPONSORED`](https://github.com/buggregator/trap/issues?q=label%3ASPONSORED).
