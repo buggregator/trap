@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.18.0](https://github.com/buggregator/trap/compare/1.17.1...1.18.0) (2026-10-15)
+
+
+### Features
+
+* require PHP 8.2, migrate tests to Testo ([#229](https://github.com/buggregator/trap/issues/229)) ([6c26ae5](https://github.com/buggregator/trap/commit/6c26ae5e9ca814d695668470302f7ad5539b8196))
+
+
+### Bug Fixes
+
+* decode base64 bodies correctly when a chunk splits a 4-character group ([#258](https://github.com/buggregator/trap/issues/258)) ([5c4d84c](https://github.com/buggregator/trap/commit/5c4d84c705af1409f0a3e0149eb3ef035b97eacc))
+* dump a Monolog record sent after a pause as Monolog, not binary ([#255](https://github.com/buggregator/trap/issues/255)) ([e717fae](https://github.com/buggregator/trap/commit/e717faee72938baadcbd062cce2c097d716ed24c))
+* keep every body of one batch in its own file in BodyToFileSender ([#254](https://github.com/buggregator/trap/issues/254)) ([11f7cec](https://github.com/buggregator/trap/commit/11f7cec5a72296d716a47a1e970f580d55fbbfdd))
+* keep parsing Sentry envelope items after an item with explicit length ([#246](https://github.com/buggregator/trap/issues/246)) ([ed88322](https://github.com/buggregator/trap/commit/ed88322a7cefcba92da34d4d9102c09bf4e90f48))
+* render Sentry attachment items in the console instead of a render error ([#248](https://github.com/buggregator/trap/issues/248)) ([f4c804f](https://github.com/buggregator/trap/commit/f4c804fa1a3b832d112941f82374e4030bd14186))
+* report trap run startup errors and exit with a non-zero code ([#256](https://github.com/buggregator/trap/issues/256)) ([f5f7615](https://github.com/buggregator/trap/commit/f5f761551229e52c53346b5b8733213918479270))
+* restore uploaded files of an Http frame from its string form ([#259](https://github.com/buggregator/trap/issues/259)) ([a0f8b40](https://github.com/buggregator/trap/commit/a0f8b40c30190509cc28e500bc2bea0691f2b10c))
+* set the parent of a profiler tree node added before its parent ([#257](https://github.com/buggregator/trap/issues/257)) ([eca830e](https://github.com/buggregator/trap/commit/eca830e2b839a9f5fbc91366c26468163ac82102))
+* show the right minutes in tr() deltas over a minute ([#250](https://github.com/buggregator/trap/issues/250)) ([8b1eb6d](https://github.com/buggregator/trap/commit/8b1eb6d494f23312461157b4898abc9175600b7d))
+* stop the undefined key warning on Sentry events without sdk ([#249](https://github.com/buggregator/trap/issues/249)) ([3208adf](https://github.com/buggregator/trap/commit/3208adfa1e4e730e333f1028cc78dc186bcdc283))
+* store Sentry attachment payload as a stream instead of its byte count ([#247](https://github.com/buggregator/trap/issues/247)) ([6f53cda](https://github.com/buggregator/trap/commit/6f53cdaa56040be68c11a7c47bdf48a01842ef8e))
+* throw JsonException instead of TypeError on an invalid Monolog frame ([#251](https://github.com/buggregator/trap/issues/251)) ([b66a282](https://github.com/buggregator/trap/commit/b66a282f27a5ac5c27e89d9a4deeb4986851f6e2))
+* throw the intended RuntimeException when BodyToFileSender cannot create the file ([#252](https://github.com/buggregator/trap/issues/252)) ([16d725e](https://github.com/buggregator/trap/commit/16d725e52245708cecabb3c6735af3859cfa2712))
+
+
+### Documentation
+
+* point the sponsor badge and link to Boosty ([a4734d1](https://github.com/buggregator/trap/commit/a4734d11b8ea4067a60affebb8bf35fc9e2d4f23))
+
 ## [1.17.1](https://github.com/buggregator/trap/compare/1.17.0...1.17.1) (2026-10-14)
 
 
