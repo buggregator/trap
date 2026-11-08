@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend\Mapper;
 
-use Buggregator\Trap\Proto\Frame\Http as HttpFrame;
 use Buggregator\Trap\Module\Frontend\Event\AttachedFile;
 use Buggregator\Trap\Module\Frontend\Mapper\HttpRequest;
+use Buggregator\Trap\Proto\Frame\Http as HttpFrame;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
 use Nyholm\Psr7\UploadedFile;

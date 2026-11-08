@@ -36,7 +36,7 @@ try {
     /**
      * Send values into Buggregator and return the first value.
      *
-     * When arguments are passed it equals to {@see trap()} with `->return()` method call.
+     * When arguments are passed it equals to {@see \trap()} with `->return()` method call.
      * When no arguments passed, it calculates ticks, time between the last `tr()` call and memory usage.
      *
      */
@@ -75,7 +75,7 @@ try {
     /**
      * Send values into Buggregator and die.
      *
-     * When no arguments passed, it works like {@see tr()}.
+     * When no arguments passed, it works like {@see \tr()}.
      *
      * @codeCoverageIgnore
      */

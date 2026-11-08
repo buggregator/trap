@@ -14,12 +14,12 @@ use Buggregator\Trap\Config\Server\TcpPorts;
 use Buggregator\Trap\Handler\Http\Handler\Websocket;
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Proto\Buffer;
-use Internal\Container\Container;
 use Buggregator\Trap\Socket\Client;
 use Buggregator\Trap\Socket\Server;
 use Buggregator\Trap\Socket\SocketStream;
 use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Traffic\Inspector;
+use Internal\Container\Container;
 use Internal\Destroy\Destroyable;
 
 /**

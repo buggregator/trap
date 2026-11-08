@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Log;
 
-use Psr\Log\InvalidArgumentException;
 use Psr\Log\AbstractLogger;
+use Psr\Log\InvalidArgumentException;
 
 /**
  * @psalm-type LogRecord = array{

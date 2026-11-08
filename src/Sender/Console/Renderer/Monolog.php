@@ -7,8 +7,8 @@ namespace Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\Renderer;
-use Buggregator\Trap\Sender\Console\Support\Common;
 use Buggregator\Trap\Sender\Console\Support\Color;
+use Buggregator\Trap\Sender\Console\Support\Common;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**

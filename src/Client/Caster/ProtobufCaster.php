@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Client\Caster;
 
-use Google\Protobuf\Internal\FieldDescriptor;
-use Google\Protobuf\Internal\EnumDescriptor;
-use Google\Protobuf\Internal\EnumValueDescriptorProto;
 use Google\Protobuf\Descriptor as PublicDescriptor;
 use Google\Protobuf\Internal\Descriptor as InternalDescriptor;
 use Google\Protobuf\Internal\DescriptorPool;
+use Google\Protobuf\Internal\EnumDescriptor;
+use Google\Protobuf\Internal\EnumValueDescriptorProto;
+use Google\Protobuf\Internal\FieldDescriptor;
 use Google\Protobuf\Internal\GPBType;
 use Google\Protobuf\Internal\MapField;
 use Google\Protobuf\Internal\Message;

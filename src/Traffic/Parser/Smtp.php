@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Traffic\Parser;
 
-use Buggregator\Trap\Traffic\StreamClient;
 use Buggregator\Trap\Support\StreamHelper;
 use Buggregator\Trap\Traffic\Message;
 use Buggregator\Trap\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
+use Buggregator\Trap\Traffic\StreamClient;
 use Psr\Http\Message\StreamInterface;
 
 /**

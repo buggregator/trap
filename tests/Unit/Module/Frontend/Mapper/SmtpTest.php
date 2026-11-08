@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend\Mapper;
 
-use Buggregator\Trap\Proto\Frame\Smtp as SmtpFrame;
 use Buggregator\Trap\Module\Frontend\Event\AttachedFile;
 use Buggregator\Trap\Module\Frontend\Event\EmbeddedFile;
 use Buggregator\Trap\Module\Frontend\Mapper\Smtp;
+use Buggregator\Trap\Proto\Frame\Smtp as SmtpFrame;
 use Buggregator\Trap\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
 use Buggregator\Trap\Traffic\Message\Smtp as SmtpMessage;
