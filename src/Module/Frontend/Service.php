@@ -87,8 +87,17 @@ final class Service
         AssertSuccess(Method::Delete, '/api/events'),
         AssertFail(Method::Delete, 'api/events/'),
         AssertFail(Method::Delete, 'api/event'),]
-    public function eventsDelete(array $uuids = []): Success
+    public function eventsDelete(array $uuids = [], ?string $type = null): Success
     {
+        if ($type !== null) {
+            $this->debug('Delete events of type %s', $type);
+            foreach (\iterator_to_array($this->eventsStorage) as $event) {
+                $event->type === $type and $this->eventsStorage->delete($event->uuid);
+            }
+
+            return new Success();
+        }
+
         $this->debug('Delete all events');
         if (empty($uuids)) {
             $this->eventsStorage->clear();
