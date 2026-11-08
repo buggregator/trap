@@ -71,10 +71,10 @@ final class Mapper
                     description: 'Calls',
                     values: [new TopFunctions\Value(key: 'ct', format: 'number')],
                 ),
-                ...self::metricColumns('cpu', 'CPU', 'CPU time (ms)', 'ms'),
-                ...self::metricColumns('wt', 'WT', 'Wall time (ms)', 'ms'),
-                ...self::metricColumns('mu', 'MU', 'Memory usage (bytes)', 'bytes'),
-                ...self::metricColumns('pmu', 'PMU', 'Peak memory usage (bytes)', 'bytes'),
+                ...self::metricColumns($profile->peaks, 'cpu', 'CPU', 'CPU time (ms)', 'ms'),
+                ...self::metricColumns($profile->peaks, 'wt', 'WT', 'Wall time (ms)', 'ms'),
+                ...self::metricColumns($profile->peaks, 'mu', 'MU', 'Memory usage (bytes)', 'bytes'),
+                ...self::metricColumns($profile->peaks, 'pmu', 'PMU', 'Peak memory usage (bytes)', 'bytes'),
             ]),
         );
     }
@@ -134,12 +134,15 @@ final class Mapper
         }
 
         return new CallGraph(
-            toolbar: new CallGraph\Toolbar([
-                new CallGraph\Button('CPU', 'cpu', 'CPU time (ms)'),
-                new CallGraph\Button('Wall time', 'wt', 'Wall time (ms)'),
-                new CallGraph\Button('Memory', 'mu', 'Memory usage (bytes)'),
-                new CallGraph\Button('Peak memory', 'pmu', 'Peak memory usage (bytes)'),
-            ]),
+            toolbar: new CallGraph\Toolbar(\array_values(\array_filter(
+                [
+                    new CallGraph\Button('CPU', 'cpu', 'CPU time (ms)'),
+                    new CallGraph\Button('Wall time', 'wt', 'Wall time (ms)'),
+                    new CallGraph\Button('Memory', 'mu', 'Memory usage (bytes)'),
+                    new CallGraph\Button('Peak memory', 'pmu', 'Peak memory usage (bytes)'),
+                ],
+                static fn(CallGraph\Button $button): bool => self::isMeasured($profile->peaks, $button->metric),
+            ))),
             nodes: $nodes,
             edges: $edges,
         );
@@ -199,10 +202,34 @@ final class Mapper
     }
 
     /**
-     * @return array{TopFunctions\Column, TopFunctions\Column}
+     * A profiler may not measure a metric at all: Xdebug has no CPU time and no peak memory.
      */
-    private static function metricColumns(string $key, string $label, string $description, string $format): array
+    private static function isMeasured(Peaks $peaks, string $metric): bool
     {
+        return match ($metric) {
+            'ct' => $peaks->ct > 0,
+            'wt' => $peaks->wt > 0,
+            'cpu' => $peaks->cpu > 0,
+            'mu' => $peaks->mu > 0,
+            'pmu' => $peaks->pmu > 0,
+            default => false,
+        };
+    }
+
+    /**
+     * @return list<TopFunctions\Column> Inclusive and exclusive columns, none for a metric not measured.
+     */
+    private static function metricColumns(
+        Peaks $peaks,
+        string $key,
+        string $label,
+        string $description,
+        string $format,
+    ): array {
+        if (!self::isMeasured($peaks, $key)) {
+            return [];
+        }
+
         return [
             new TopFunctions\Column(
                 key: $key,
@@ -230,18 +257,9 @@ final class Mapper
     private static function withPercents(Cost $cost, Peaks $peaks): Cost
     {
         $cost = clone $cost;
-        $cost->p_ct = self::percent($cost->ct, $peaks->ct);
-        $cost->p_wt = self::percent($cost->wt, $peaks->wt);
-        $cost->p_cpu = self::percent($cost->cpu, $peaks->cpu);
-        $cost->p_mu = self::percent($cost->mu, $peaks->mu);
-        $cost->p_pmu = self::percent($cost->pmu, $peaks->pmu);
+        $cost->setPercentsOf($peaks);
 
         return $cost;
-    }
-
-    private static function percent(int $value, int $total): float
-    {
-        return $total > 0 ? \round((float) $value / (float) $total * 100.0, 3) : 0.0;
     }
 
     private static function percentOf(Cost $cost, string $metric): float

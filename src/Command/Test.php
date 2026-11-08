@@ -37,6 +37,8 @@ final class Test extends Command
 
         // XHProf
         $this->sendContent('yii-xhprof.http');
+        // XDebug
+        $this->sendContent('testo-xdebug.http');
 
         $this->dump();
         \usleep(100_000);

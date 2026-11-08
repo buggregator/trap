@@ -43,6 +43,20 @@ final class RealProfileTest
         Assert::same($values, $sorted);
     }
 
+    public function testAllMeasuredMetricsAreOffered(): void
+    {
+        $mapper = new Mapper();
+        $top = self::json($mapper->topFunctions(self::event(), 'wt'));
+        $graph = self::json($mapper->callGraph(self::event(), metric: 'cpu'));
+
+        Assert::same(
+            \array_column($top['schema'], 'key'),
+            ['function', 'ct', 'cpu', 'excl_cpu', 'wt', 'excl_wt', 'mu', 'excl_mu', 'pmu', 'excl_pmu'],
+        );
+        Assert::same(\array_column($graph['toolbar'], 'metric'), ['cpu', 'wt', 'mu', 'pmu']);
+        Assert::same($graph['nodes'] !== [], true);
+    }
+
     public function testCallGraphHasAllFunctionsWithoutThresholds(): void
     {
         $graph = self::json((new Mapper())->callGraph(self::event(), threshold: 0, percentage: 0));

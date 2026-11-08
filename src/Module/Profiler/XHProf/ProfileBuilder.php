@@ -108,25 +108,7 @@ final class ProfileBuilder
         }
         unset($lostParents);
 
-        // Calc percentages and delta against the caller's total
-        $callerCosts = [];
-        foreach ($graph as $edge) {
-            $cost = $edge->cost;
-            $cost->p_cpu = $peaks->cpu > 0 ? \round((float) $cost->cpu / (float) $peaks->cpu * 100.0, 3) : 0;
-            $cost->p_ct = $peaks->ct > 0 ? \round((float) $cost->ct / (float) $peaks->ct * 100.0, 3) : 0;
-            $cost->p_mu = $peaks->mu > 0 ? \round((float) $cost->mu / (float) $peaks->mu * 100.0, 3) : 0;
-            $cost->p_pmu = $peaks->pmu > 0 ? \round((float) $cost->pmu / (float) $peaks->pmu * 100.0, 3) : 0;
-            $cost->p_wt = $peaks->wt > 0 ? \round((float) $cost->wt / (float) $peaks->wt * 100.0, 3) : 0;
-
-            if ($edge->callerId !== null) {
-                $parentCost = $callerCosts[$edge->callerId] ??= $graph->inclusiveCost($edge->callerId);
-                $cost->d_cpu = $cost->cpu - $parentCost->cpu;
-                $cost->d_ct = $cost->ct - $parentCost->ct;
-                $cost->d_mu = $cost->mu - $parentCost->mu;
-                $cost->d_pmu = $cost->pmu - $parentCost->pmu;
-                $cost->d_wt = $cost->wt - $parentCost->wt;
-            }
-        }
+        $graph->setPercentsAndDeltas($peaks);
 
         return [$graph, $peaks];
     }

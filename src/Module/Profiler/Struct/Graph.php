@@ -31,6 +31,57 @@ final class Graph implements \IteratorAggregate, \Countable
     /** @var array<string, Cost> Inclusive costs by function IDs */
     private array $inclusiveCosts = [];
 
+    /**
+     * Sums the nodes of an exact call tree by caller and callee pairs.
+     *
+     * @param Tree<Edge> $tree Items carry function IDs with recursion levels, so the graph has no cycles.
+     *
+     * @return self Edges without percentages and deltas: see {@see self::setPercentsAndDeltas()}.
+     */
+    public static function fromTree(Tree $tree): self
+    {
+        /** @var array<non-empty-string, array{Edge, int, int, int, int, int}> $sums Edges with summed metrics */
+        $sums = [];
+        foreach ($tree->getIterator() as $branch) {
+            $edge = $branch->item;
+            $cost = $edge->cost;
+            $key = ($edge->callerId ?? '') . '==>' . $edge->calleeId;
+            $sum = $sums[$key] ?? [$edge, 0, 0, 0, 0, 0];
+            $sums[$key] = [
+                $sum[0],
+                $sum[1] + $cost->ct,
+                $sum[2] + $cost->wt,
+                $sum[3] + $cost->cpu,
+                $sum[4] + $cost->mu,
+                $sum[5] + $cost->pmu,
+            ];
+        }
+
+        $graph = new self();
+        foreach ($sums as [$edge, $ct, $wt, $cpu, $mu, $pmu]) {
+            $graph->add(new Edge(
+                $edge->caller,
+                $edge->callee,
+                new Cost(\max(0, $ct), \max(0, $wt), \max(0, $cpu), \max(0, $mu), \max(0, $pmu)),
+                $edge->calleeId,
+                $edge->callerId,
+            ));
+        }
+
+        return $graph;
+    }
+
+    /**
+     * Sets the shares of the peaks and the deltas against the callers' total cost of every edge.
+     */
+    public function setPercentsAndDeltas(Peaks $peaks): void
+    {
+        foreach ($this->edges as $edge) {
+            $edge->cost->setPercentsOf($peaks);
+            $edge->callerId === null or $edge->cost->setDeltasTo($this->inclusiveCost($edge->callerId));
+        }
+    }
+
     public function add(Edge $edge): void
     {
         $key = ($edge->callerId ?? '') . '==>' . $edge->calleeId;

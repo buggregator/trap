@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Profiler\Struct;
 
 use Buggregator\Trap\Module\Profiler\Struct\Branch;
+use Buggregator\Trap\Module\Profiler\Struct\Cost;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Graph;
+use Buggregator\Trap\Module\Profiler\Struct\Peaks;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Module\Profiler\Struct\Tree;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
@@ -117,13 +119,45 @@ final class GraphTest
         Assert::same($profile->tree(), $tree);
     }
 
+    public function testFromTreeSumsNodesByCallerAndCallee(): void
+    {
+        /** @var Tree<Edge> $tree */
+        $tree = new Tree();
+        $tree->addItem(new Edge(null, 'main', new Cost(1, 100, 10, 50, 60)), 'n1', null);
+        $tree->addItem(new Edge('main', 'a', new Cost(1, 30, 3, 10, 0)), 'n2', 'n1');
+        $tree->addItem(new Edge('a', 'x', new Cost(1, 5, 1, 2, 0)), 'n3', 'n2');
+        $tree->addItem(new Edge('main', 'a', new Cost(1, 40, 4, 20, 0)), 'n4', 'n1');
+        $tree->addItem(new Edge('a', 'x', new Cost(2, 7, 2, 3, 0)), 'n5', 'n4');
+
+        $graph = Graph::fromTree($tree);
+
+        Assert::same(\count($graph), 3);
+        $a = $graph->callers('a')[0]->cost;
+        Assert::same([$a->ct, $a->wt, $a->cpu, $a->mu], [2, 70, 7, 30]);
+        $x = $graph->callers('x')[0]->cost;
+        Assert::same([$x->ct, $x->wt], [3, 12]);
+        Assert::same(\array_map(static fn(Edge $e): string => $e->calleeId, $graph->callees('main')), ['a']);
+    }
+
+    public function testSetsPercentsAndDeltasOfEdges(): void
+    {
+        $graph = new Graph();
+        $graph->add($main = new Edge(null, 'main', new Cost(1, 100, 0, 0, 0)));
+        $graph->add($a = new Edge('main', 'a', new Cost(1, 25, 0, 0, 0)));
+
+        $graph->setPercentsAndDeltas(new Peaks(1, 100, 0, 0, 0));
+
+        Assert::same([$a->cost->p_wt, $a->cost->d_wt], [25.0, -75]);
+        Assert::same([$main->cost->p_wt, $main->cost->d_wt], [100.0, 0]);
+    }
+
     public function testAddingDuplicateEdgeFails(): void
     {
         $graph = new Graph();
-        $graph->add(new Edge('a', 'b', new \Buggregator\Trap\Module\Profiler\Struct\Cost(1, 1, 1, 1, 1)));
+        $graph->add(new Edge('a', 'b', new Cost(1, 1, 1, 1, 1)));
 
         Expect::exception(\LogicException::class);
-        $graph->add(new Edge('a', 'b', new \Buggregator\Trap\Module\Profiler\Struct\Cost(1, 1, 1, 1, 1)));
+        $graph->add(new Edge('a', 'b', new Cost(1, 1, 1, 1, 1)));
     }
 
     private static function graph(array $calls): Graph

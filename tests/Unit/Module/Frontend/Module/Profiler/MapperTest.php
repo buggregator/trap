@@ -81,14 +81,19 @@ final class MapperTest
         Assert::same(\array_column($top['functions'], 'function')[0], 'main()');
     }
 
-    public function testTopFunctionsSchemaHasExclusiveColumns(): void
+    public function testTopFunctionsSchemaSkipsMetricsNotMeasured(): void
     {
+        // The stub has no CPU time and no peak memory
         $top = self::json((new Mapper())->topFunctions(self::event(), 'wt'));
 
-        Assert::same(
-            \array_column($top['schema'], 'key'),
-            ['function', 'ct', 'cpu', 'excl_cpu', 'wt', 'excl_wt', 'mu', 'excl_mu', 'pmu', 'excl_pmu'],
-        );
+        Assert::same(\array_column($top['schema'], 'key'), ['function', 'ct', 'wt', 'excl_wt', 'mu', 'excl_mu']);
+    }
+
+    public function testCallGraphToolbarSkipsMetricsNotMeasured(): void
+    {
+        $graph = self::json((new Mapper())->callGraph(self::event()));
+
+        Assert::same(\array_column($graph['toolbar'], 'metric'), ['wt', 'mu']);
     }
 
     public function testCallGraphFiltersAndColorsNodes(): void

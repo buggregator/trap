@@ -415,6 +415,7 @@ final class TrapProcess
             'TRAP_TRACES_TTL' => '600',
             'TRAP_UI_HOST' => '127.0.0.1',
             'TRAP_XHPROF_PATH' => $workDir . '/xhprof',
+            'TRAP_XDEBUG_PATH' => $workDir . '/xdebug',
             'XDEBUG_MODE' => 'off',
         ];
 
