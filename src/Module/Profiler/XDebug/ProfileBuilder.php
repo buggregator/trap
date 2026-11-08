@@ -47,6 +47,42 @@ final class ProfileBuilder
     }
 
     /**
+     * Resolves a name compressed as `(id) name` on the first use and `(id)` afterward.
+     *
+     * @param array<string, non-empty-string> $names
+     *
+     * @return non-empty-string
+     */
+    private static function name(string $value, array &$names): string
+    {
+        if (\preg_match('/^\((\d+)\)(?: (.+))?$/', $value, $m) !== 1) {
+            $value === '' and throw new \InvalidArgumentException('Empty function name.');
+            return $value;
+        }
+
+        if (isset($m[2]) && $m[2] !== '') {
+            return $names[$m[1]] = $m[2];
+        }
+
+        return $names[$m[1]] ?? throw new \InvalidArgumentException("Unknown function name ID `{$m[1]}`.");
+    }
+
+    /**
+     * @return float Divisor of the time event to microseconds.
+     */
+    private static function timeDivisor(string $line): float
+    {
+        $event = \explode(' ', \trim(\substr($line, 7)))[0];
+
+        return match ($event) {
+            'Time_(10ns)' => 100.0,
+            'Time_(ns)' => 1000.0,
+            'Time', 'Time_(µs)' => 1.0,
+            default => throw new \InvalidArgumentException("Unsupported time event `$event`."),
+        };
+    }
+
+    /**
      * @return array{list<Call>, float} Calls in the order they end, and the divisor of time to microseconds.
      */
     private function parse(string $content): array
@@ -173,41 +209,5 @@ final class ProfileBuilder
         }
 
         return $tree;
-    }
-
-    /**
-     * Resolves a name compressed as `(id) name` on the first use and `(id)` afterward.
-     *
-     * @param array<string, non-empty-string> $names
-     *
-     * @return non-empty-string
-     */
-    private static function name(string $value, array &$names): string
-    {
-        if (\preg_match('/^\((\d+)\)(?: (.+))?$/', $value, $m) !== 1) {
-            $value === '' and throw new \InvalidArgumentException('Empty function name.');
-            return $value;
-        }
-
-        if (isset($m[2]) && $m[2] !== '') {
-            return $names[$m[1]] = $m[2];
-        }
-
-        return $names[$m[1]] ?? throw new \InvalidArgumentException("Unknown function name ID `{$m[1]}`.");
-    }
-
-    /**
-     * @return float Divisor of the time event to microseconds.
-     */
-    private static function timeDivisor(string $line): float
-    {
-        $event = \explode(' ', \trim(\substr($line, 7)))[0];
-
-        return match ($event) {
-            'Time_(10ns)' => 100.0,
-            'Time_(ns)' => 1000.0,
-            'Time', 'Time_(µs)' => 1.0,
-            default => throw new \InvalidArgumentException("Unsupported time event `$event`."),
-        };
     }
 }

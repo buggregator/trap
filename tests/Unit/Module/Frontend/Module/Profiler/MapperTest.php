@@ -52,6 +52,87 @@ final class MapperTest
         'main()' => ['ct' => 1, 'wt' => 100, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
     ];
 
+    /**
+     * `main` calls `a`, `b` and `c`; `a` calls `j` that calls `z`, `b` calls `j` that calls nothing,
+     * `c` calls `k` that calls `z`. With an 8% threshold `j` (8%) and `k` (7%) are hidden, `z` (12%) is not.
+     */
+    private const BYPASS_XHPROF = [
+        'j==>z' => ['ct' => 1, 'wt' => 6, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'a==>j' => ['ct' => 1, 'wt' => 7, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'main()==>a' => ['ct' => 1, 'wt' => 10, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'b==>j' => ['ct' => 1, 'wt' => 1, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'main()==>b' => ['ct' => 1, 'wt' => 10, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'k==>z' => ['ct' => 1, 'wt' => 6, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'c==>k' => ['ct' => 1, 'wt' => 7, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'main()==>c' => ['ct' => 1, 'wt' => 10, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'main()' => ['ct' => 1, 'wt' => 100, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+    ];
+
+    /**
+     * The same calls in the Xdebug format: own times in 10 ns, a block per call in the order the calls end.
+     */
+    private const BYPASS_CACHEGRIND = <<<'CACHEGRIND'
+        version: 1
+        creator: xdebug 3.4.0 (PHP 8.4.0)
+        cmd: /app/bypass.php
+        part: 1
+        positions: line
+
+        events: Time_(10ns) Memory_(bytes)
+
+        fn=(1) z
+        1 600 0
+
+        fn=(2) j
+        1 100 0
+        cfn=(1)
+        calls=1 0 0
+        1 600 0
+
+        fn=(3) a
+        1 300 0
+        cfn=(2)
+        calls=1 0 0
+        1 700 0
+
+        fn=(2)
+        1 100 0
+
+        fn=(4) b
+        1 900 0
+        cfn=(2)
+        calls=1 0 0
+        1 100 0
+
+        fn=(1)
+        1 600 0
+
+        fn=(5) k
+        1 100 0
+        cfn=(1)
+        calls=1 0 0
+        1 600 0
+
+        fn=(6) c
+        1 300 0
+        cfn=(5)
+        calls=1 0 0
+        1 700 0
+
+        fn=(7) main
+        1 7000 0
+        cfn=(3)
+        calls=1 0 0
+        1 1000 0
+        cfn=(4)
+        calls=1 0 0
+        1 1000 0
+        cfn=(6)
+        calls=1 0 0
+        1 1000 0
+
+        CACHEGRIND;
+
     public function testTopFunctionsSortedByExclusiveWallTime(): void
     {
         $top = self::json((new Mapper())->topFunctions(self::event(), 'excl_wt'));
@@ -202,87 +283,6 @@ final class MapperTest
             'c => z: 6%',
         ]);
     }
-
-    /**
-     * `main` calls `a`, `b` and `c`; `a` calls `j` that calls `z`, `b` calls `j` that calls nothing,
-     * `c` calls `k` that calls `z`. With an 8% threshold `j` (8%) and `k` (7%) are hidden, `z` (12%) is not.
-     */
-    private const BYPASS_XHPROF = [
-        'j==>z' => ['ct' => 1, 'wt' => 6, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
-        'a==>j' => ['ct' => 1, 'wt' => 7, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
-        'main()==>a' => ['ct' => 1, 'wt' => 10, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
-        'b==>j' => ['ct' => 1, 'wt' => 1, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
-        'main()==>b' => ['ct' => 1, 'wt' => 10, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
-        'k==>z' => ['ct' => 1, 'wt' => 6, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
-        'c==>k' => ['ct' => 1, 'wt' => 7, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
-        'main()==>c' => ['ct' => 1, 'wt' => 10, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
-        'main()' => ['ct' => 1, 'wt' => 100, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
-    ];
-
-    /**
-     * The same calls in the Xdebug format: own times in 10 ns, a block per call in the order the calls end.
-     */
-    private const BYPASS_CACHEGRIND = <<<'CACHEGRIND'
-        version: 1
-        creator: xdebug 3.4.0 (PHP 8.4.0)
-        cmd: /app/bypass.php
-        part: 1
-        positions: line
-
-        events: Time_(10ns) Memory_(bytes)
-
-        fn=(1) z
-        1 600 0
-
-        fn=(2) j
-        1 100 0
-        cfn=(1)
-        calls=1 0 0
-        1 600 0
-
-        fn=(3) a
-        1 300 0
-        cfn=(2)
-        calls=1 0 0
-        1 700 0
-
-        fn=(2)
-        1 100 0
-
-        fn=(4) b
-        1 900 0
-        cfn=(2)
-        calls=1 0 0
-        1 100 0
-
-        fn=(1)
-        1 600 0
-
-        fn=(5) k
-        1 100 0
-        cfn=(1)
-        calls=1 0 0
-        1 600 0
-
-        fn=(6) c
-        1 300 0
-        cfn=(5)
-        calls=1 0 0
-        1 700 0
-
-        fn=(7) main
-        1 7000 0
-        cfn=(3)
-        calls=1 0 0
-        1 1000 0
-        cfn=(4)
-        calls=1 0 0
-        1 1000 0
-        cfn=(6)
-        calls=1 0 0
-        1 1000 0
-
-        CACHEGRIND;
 
     private static function event(array $calls = self::XHPROF_STUB): Event
     {

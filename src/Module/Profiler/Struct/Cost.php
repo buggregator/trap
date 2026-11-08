@@ -111,11 +111,6 @@ final class Cost implements \JsonSerializable
         $this->d_pmu = $this->pmu - $parent->pmu;
     }
 
-    private static function percent(int $value, int $total): float
-    {
-        return $total > 0 ? \round((float) $value / (float) $total * 100.0, 3) : 0.0;
-    }
-
     /**
      * @return array{
      *     ct: int<0, max>,
@@ -155,5 +150,10 @@ final class Cost implements \JsonSerializable
             'd_mu' => $this->d_mu,
             'd_pmu' => $this->d_pmu,
         ];
+    }
+
+    private static function percent(int $value, int $total): float
+    {
+        return $total > 0 ? \round((float) $value / (float) $total * 100.0, 3) : 0.0;
     }
 }

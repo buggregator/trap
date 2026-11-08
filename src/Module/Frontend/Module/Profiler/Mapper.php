@@ -146,6 +146,33 @@ final class Mapper
     }
 
     /**
+     * @param Event<ProfilerPayload> $event
+     */
+    public function flameChart(Event $event): FlameChart
+    {
+        $roots = [];
+
+        // Iterative: the depth follows the recursion in the profiled code, deeper than Xdebug's nesting limit
+        /** @var list<array{Branch<Edge>, float, FlameChart\Span|null}> $stack Node, its start and parent span */
+        $stack = self::layOut(\array_values($event->payload->getProfile()->tree()->root), 0.0, null);
+        while ($stack !== []) {
+            [$branch, $start, $parent] = \array_pop($stack);
+            $cost = $branch->item->cost;
+            $span = new FlameChart\Span(
+                name: $branch->item->callee,
+                start: $start,
+                duration: self::duration($cost),
+                cost: $cost,
+                color: Palette::flameChartSpan($cost->p_wt),
+            );
+            $parent === null ? $roots[] = $span : $parent->children[] = $span;
+            \array_push($stack, ...self::layOut($branch->children, $start, $span));
+        }
+
+        return new FlameChart($roots);
+    }
+
+    /**
      * Calls between the visible functions, with their cost.
      *
      * A hidden function doesn't break the paths through it: its visible caller is linked to its visible callees.
@@ -210,33 +237,6 @@ final class Mapper
             ],
             $calls,
         ));
-    }
-
-    /**
-     * @param Event<ProfilerPayload> $event
-     */
-    public function flameChart(Event $event): FlameChart
-    {
-        $roots = [];
-
-        // Iterative: the depth follows the recursion in the profiled code, deeper than Xdebug's nesting limit
-        /** @var list<array{Branch<Edge>, float, FlameChart\Span|null}> $stack Node, its start and parent span */
-        $stack = self::layOut(\array_values($event->payload->getProfile()->tree()->root), 0.0, null);
-        while ($stack !== []) {
-            [$branch, $start, $parent] = \array_pop($stack);
-            $cost = $branch->item->cost;
-            $span = new FlameChart\Span(
-                name: $branch->item->callee,
-                start: $start,
-                duration: self::duration($cost),
-                cost: $cost,
-                color: Palette::flameChartSpan($cost->p_wt),
-            );
-            $parent === null ? $roots[] = $span : $parent->children[] = $span;
-            \array_push($stack, ...self::layOut($branch->children, $start, $span));
-        }
-
-        return new FlameChart($roots);
     }
 
     /**
