@@ -72,6 +72,29 @@ final class Graph implements \IteratorAggregate, \Countable
     }
 
     /**
+     * Adds a root for every caller that is never called, as when profiling starts deep in the stack.
+     *
+     * The root's cost sums the times of its calls and takes the maximum of their memory.
+     */
+    public function addMissingRoots(): void
+    {
+        /** @var array<non-empty-string, array{non-empty-string, Peaks}> $missing Names and costs by caller IDs */
+        $missing = [];
+        foreach ($this->edges as $edge) {
+            if ($edge->callerId === null || $edge->caller === null || $this->callers($edge->callerId) !== []) {
+                continue;
+            }
+
+            $missing[$edge->callerId] ??= [$edge->caller, new Peaks()];
+            $missing[$edge->callerId][1]->add($edge->cost);
+        }
+
+        foreach ($missing as $callerId => [$name, $cost]) {
+            $this->add(new Edge(caller: null, callee: $name, cost: $cost->toCost(), calleeId: $callerId));
+        }
+    }
+
+    /**
      * Sets the shares of the peaks and the deltas against the callers' total cost of every edge.
      */
     public function setPercentsAndDeltas(Peaks $peaks): void

@@ -13,6 +13,7 @@ use Buggregator\Trap\Module\Profiler\Struct\Cost;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Graph;
 use Buggregator\Trap\Module\Profiler\Struct\Peaks;
+use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Proto\Frame\Profiler\Payload as ProfilerPayload;
 
 /**
@@ -120,16 +121,12 @@ final class Mapper
             );
         }
 
-        foreach ($graph as $edge) {
-            if ($edge->callerId === null || !isset($visible[$edge->callerId], $visible[$edge->calleeId])) {
-                continue;
-            }
-
+        foreach (self::visibleCalls($profile, $visible) as [$callerId, $calleeId, $cost]) {
             $edges[] = new CallGraph\Edge(
-                color: $visible[$edge->calleeId][1],
-                label: (string) self::percentOf($edge->cost, $metric) . '%',
-                source: $visible[$edge->callerId][0],
-                target: $visible[$edge->calleeId][0],
+                color: $visible[$calleeId][1],
+                label: (string) self::percentOf(self::withPercents($cost, $profile->peaks), $metric) . '%',
+                source: $visible[$callerId][0],
+                target: $visible[$calleeId][0],
             );
         }
 
@@ -146,6 +143,73 @@ final class Mapper
             nodes: $nodes,
             edges: $edges,
         );
+    }
+
+    /**
+     * Calls between the visible functions, with their cost.
+     *
+     * A hidden function doesn't break the paths through it: its visible caller is linked to its visible callees.
+     * The direct calls come from the call graph. The calls through hidden functions come from the call tree:
+     * exact when the profiler records one, estimated by unfolding the graph otherwise.
+     *
+     * @param array<non-empty-string, mixed> $visible Keyed by function IDs.
+     *
+     * @return list<array{non-empty-string, non-empty-string, Cost}> Caller ID, callee ID and the summed cost.
+     */
+    private static function visibleCalls(Profile $profile, array $visible): array
+    {
+        /** @var array<non-empty-string, array{non-empty-string, non-empty-string, int, int, int, int, int}> $calls */
+        $calls = [];
+        /**
+         * @param non-empty-string $callerId
+         * @param non-empty-string $calleeId
+         */
+        $add = static function (string $callerId, string $calleeId, Cost $cost) use (&$calls): void {
+            $key = "$callerId==>$calleeId";
+            $sum = $calls[$key] ?? [$callerId, $calleeId, 0, 0, 0, 0, 0];
+            $calls[$key] = [
+                $callerId,
+                $calleeId,
+                $sum[2] + $cost->ct,
+                $sum[3] + $cost->wt,
+                $sum[4] + $cost->cpu,
+                $sum[5] + $cost->mu,
+                $sum[6] + $cost->pmu,
+            ];
+        };
+
+        foreach ($profile->calls as $edge) {
+            $edge->callerId !== null && isset($visible[$edge->callerId], $visible[$edge->calleeId])
+                and $add($edge->callerId, $edge->calleeId, $edge->cost);
+        }
+
+        // Iterative: the depth follows the recursion in the profiled code, deeper than Xdebug's nesting limit
+        /** @var list<array{Branch<Edge>, non-empty-string|null, bool}> $stack Node, nearest visible ancestor, whether a hidden one is between */
+        $stack = \array_map(
+            static fn(Branch $branch): array => [$branch, null, false],
+            \array_reverse(\array_values($profile->tree()->root)),
+        );
+        while ($stack !== []) {
+            [$branch, $ancestor, $throughHidden] = \array_pop($stack);
+            $functionId = $branch->item->calleeId;
+            $isVisible = isset($visible[$functionId]);
+
+            $isVisible && $throughHidden && $ancestor !== null && $ancestor !== $functionId
+                and $add($ancestor, $functionId, $branch->item->cost);
+
+            foreach (\array_reverse($branch->children) as $child) {
+                $stack[] = $isVisible ? [$child, $functionId, false] : [$child, $ancestor, $ancestor !== null];
+            }
+        }
+
+        return \array_values(\array_map(
+            static fn(array $sum): array => [
+                $sum[0],
+                $sum[1],
+                new Cost(\max(0, $sum[2]), \max(0, $sum[3]), \max(0, $sum[4]), \max(0, $sum[5]), \max(0, $sum[6])),
+            ],
+            $calls,
+        ));
     }
 
     /**
@@ -298,8 +362,7 @@ final class Mapper
             $func->addCall(
                 $graph->inclusiveCost($functionId),
                 \array_map(static fn(Edge $child): Cost => $child->cost, $graph->callees($functionId)),
-                // A nested recursion level like `foo@1` is a part of the outer level's inclusive cost
-                recursive: $functionId !== $name,
+                recursive: $calls[0]->isRecursive(),
             );
         }
 

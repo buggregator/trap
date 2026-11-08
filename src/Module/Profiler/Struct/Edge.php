@@ -42,6 +42,14 @@ final class Edge implements \JsonSerializable
         $this->callerId = $callerId ?? $caller;
     }
 
+    /**
+     * The calls are nested in other calls of the same function: the callee ID carries a recursion level.
+     */
+    public function isRecursive(): bool
+    {
+        return $this->calleeId !== $this->callee;
+    }
+
     #[\Override]
     public function jsonSerialize(): array
     {

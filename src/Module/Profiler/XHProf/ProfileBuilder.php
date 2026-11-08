@@ -7,7 +7,6 @@ namespace Buggregator\Trap\Module\Profiler\XHProf;
 use Buggregator\Trap\Module\Profiler\Struct\Cost;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Graph;
-use Buggregator\Trap\Module\Profiler\Struct\Peaks;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 
 /**
@@ -36,14 +35,7 @@ final class ProfileBuilder
         array $tags = [],
         array $calls = [],
     ): Profile {
-        [$graph, $peaks] = $this->dataToPayload($calls);
-        return new Profile(
-            date: $date,
-            metadata: $metadata,
-            tags: $tags,
-            calls: $graph,
-            peaks: $peaks,
-        );
+        return Profile::fromGraph($this->buildGraph($calls), $date, $metadata, $tags);
     }
 
     /**
@@ -59,11 +51,9 @@ final class ProfileBuilder
 
     /**
      * @param RawData $data
-     * @return array{Graph, Peaks}
      */
-    private function dataToPayload(array $data): array
+    private function buildGraph(array $data): Graph
     {
-        $peaks = new Peaks();
         $graph = new Graph();
 
         // Normalize root
@@ -88,28 +78,9 @@ final class ProfileBuilder
                 callerId: $callerId,
             );
 
-            $peaks->update($edge->cost);
             $graph->add($edge);
         }
 
-        // Add synthetic roots for callers that are never called
-        $lostParents = [];
-        foreach ($graph as $edge) {
-            $edge->callerId === null || $graph->callers($edge->callerId) !== [] or
-                ($lostParents[$edge->callerId] ??= new Peaks())->add($edge->cost);
-        }
-        foreach ($lostParents as $parentId => $peak) {
-            $graph->add(new Edge(
-                caller: null,
-                callee: self::functionName($parentId),
-                cost: $peak->toCost(),
-                calleeId: $parentId,
-            ));
-        }
-        unset($lostParents);
-
-        $graph->setPercentsAndDeltas($peaks);
-
-        return [$graph, $peaks];
+        return $graph;
     }
 }

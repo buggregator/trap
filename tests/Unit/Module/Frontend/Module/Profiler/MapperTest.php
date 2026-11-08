@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Frontend\Module\Profiler;
 use Buggregator\Trap\Module\Frontend\Event;
 use Buggregator\Trap\Module\Frontend\Module\Profiler\Mapper;
 use Buggregator\Trap\Module\Frontend\Module\Profiler\Palette;
+use Buggregator\Trap\Module\Profiler\XDebug\ProfileBuilder as XDebugProfileBuilder;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
 use Buggregator\Trap\Proto\Frame\Profiler\Payload;
 use Buggregator\Trap\Proto\Frame\Profiler\Type;
@@ -174,6 +175,115 @@ final class MapperTest
         Assert::same(\array_column($main['children'], 'color'), ['#FF8989', '#B3E5FC']);
     }
 
+    public function testCallGraphLinksThroughHiddenFunctionsByExactTree(): void
+    {
+        $graph = self::json((new Mapper())->callGraph(self::xdebugEvent(self::BYPASS_CACHEGRIND), threshold: 8, percentage: 100));
+
+        Assert::same(self::edges($graph), [
+            'main => a: 10%',
+            'main => b: 10%',
+            'main => c: 10%',
+            'a => z: 6%',
+            'c => z: 6%',
+        ]);
+    }
+
+    public function testCallGraphLinksThroughHiddenFunctionsByUnfoldedGraph(): void
+    {
+        $graph = self::json((new Mapper())->callGraph(self::event(self::BYPASS_XHPROF), threshold: 8, percentage: 100));
+
+        // XHProf sums the calls of `j` from both callers: the share of `z` is estimated for `b` too
+        Assert::same(self::edges($graph), [
+            'main() => a: 10%',
+            'main() => b: 10%',
+            'main() => c: 10%',
+            'a => z: 5%',
+            'b => z: 1%',
+            'c => z: 6%',
+        ]);
+    }
+
+    /**
+     * `main` calls `a`, `b` and `c`; `a` calls `j` that calls `z`, `b` calls `j` that calls nothing,
+     * `c` calls `k` that calls `z`. With an 8% threshold `j` (8%) and `k` (7%) are hidden, `z` (12%) is not.
+     */
+    private const BYPASS_XHPROF = [
+        'j==>z' => ['ct' => 1, 'wt' => 6, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'a==>j' => ['ct' => 1, 'wt' => 7, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'main()==>a' => ['ct' => 1, 'wt' => 10, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'b==>j' => ['ct' => 1, 'wt' => 1, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'main()==>b' => ['ct' => 1, 'wt' => 10, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'k==>z' => ['ct' => 1, 'wt' => 6, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'c==>k' => ['ct' => 1, 'wt' => 7, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'main()==>c' => ['ct' => 1, 'wt' => 10, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'main()' => ['ct' => 1, 'wt' => 100, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+    ];
+
+    /**
+     * The same calls in the Xdebug format: own times in 10 ns, a block per call in the order the calls end.
+     */
+    private const BYPASS_CACHEGRIND = <<<'CACHEGRIND'
+        version: 1
+        creator: xdebug 3.4.0 (PHP 8.4.0)
+        cmd: /app/bypass.php
+        part: 1
+        positions: line
+
+        events: Time_(10ns) Memory_(bytes)
+
+        fn=(1) z
+        1 600 0
+
+        fn=(2) j
+        1 100 0
+        cfn=(1)
+        calls=1 0 0
+        1 600 0
+
+        fn=(3) a
+        1 300 0
+        cfn=(2)
+        calls=1 0 0
+        1 700 0
+
+        fn=(2)
+        1 100 0
+
+        fn=(4) b
+        1 900 0
+        cfn=(2)
+        calls=1 0 0
+        1 100 0
+
+        fn=(1)
+        1 600 0
+
+        fn=(5) k
+        1 100 0
+        cfn=(1)
+        calls=1 0 0
+        1 600 0
+
+        fn=(6) c
+        1 300 0
+        cfn=(5)
+        calls=1 0 0
+        1 700 0
+
+        fn=(7) main
+        1 7000 0
+        cfn=(3)
+        calls=1 0 0
+        1 1000 0
+        cfn=(4)
+        calls=1 0 0
+        1 1000 0
+        cfn=(6)
+        calls=1 0 0
+        1 1000 0
+
+        CACHEGRIND;
+
     private static function event(array $calls = self::XHPROF_STUB): Event
     {
         $profile = (new ProfileBuilder())->createProfile(calls: $calls);
@@ -183,6 +293,34 @@ final class MapperTest
             type: 'profiler',
             payload: Payload::new(Type::XHProf, static fn() => $profile),
             timestamp: 0.0,
+        );
+    }
+
+    private static function xdebugEvent(string $cachegrind): Event
+    {
+        $profile = (new XDebugProfileBuilder())->createProfile($cachegrind);
+
+        return new Event(
+            uuid: $profile->uuid,
+            type: 'profiler',
+            payload: Payload::new(Type::XDebug, static fn() => $profile),
+            timestamp: 0.0,
+        );
+    }
+
+    /**
+     * @return list<string> `caller => callee: label`, node names without the call counts.
+     */
+    private static function edges(array $graph): array
+    {
+        $names = \array_map(
+            static fn(string $name): string => \preg_replace('/ \(\d+x\)$/', '', $name),
+            \array_column(\array_column($graph['nodes'], 'data'), 'name', 'id'),
+        );
+
+        return \array_map(
+            static fn(array $e): string => "{$names[$e['data']['source']]} => {$names[$e['data']['target']]}: {$e['data']['label']}",
+            $graph['edges'],
         );
     }
 

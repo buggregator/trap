@@ -7,8 +7,6 @@ namespace Buggregator\Trap\Module\Profiler\XDebug;
 use Buggregator\Trap\Module\Profiler\Struct\Branch;
 use Buggregator\Trap\Module\Profiler\Struct\Cost;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
-use Buggregator\Trap\Module\Profiler\Struct\Graph;
-use Buggregator\Trap\Module\Profiler\Struct\Peaks;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Module\Profiler\Struct\Tree;
 
@@ -45,28 +43,7 @@ final class ProfileBuilder
             $content === false and throw new \InvalidArgumentException('Invalid gzip data.');
         }
 
-        $tree = $this->buildTree(...$this->parse($content));
-        $graph = Graph::fromTree($tree);
-
-        $peaks = new Peaks();
-        foreach ($graph as $edge) {
-            $peaks->update($edge->cost);
-        }
-        $graph->setPercentsAndDeltas($peaks);
-
-        foreach ($tree->getIterator() as $branch) {
-            $branch->item->cost->setPercentsOf($peaks);
-            $branch->parent === null or $branch->item->cost->setDeltasTo($branch->parent->item->cost);
-        }
-
-        return new Profile(
-            date: $date,
-            metadata: $metadata,
-            tags: $tags,
-            calls: $graph,
-            peaks: $peaks,
-            tree: $tree,
-        );
+        return Profile::fromTree($this->buildTree(...$this->parse($content)), $date, $metadata, $tags);
     }
 
     /**
@@ -171,11 +148,6 @@ final class ProfileBuilder
         while ($stack !== []) {
             [$call, $parent] = \array_pop($stack);
 
-            $level = 0;
-            for ($p = $parent; $p !== null; $p = $p->parent) {
-                $p->item->callee === $call->name and ++$level;
-            }
-
             $id = 'n' . (\count($tree) + 1);
             $tree->addItem(
                 new Edge(
@@ -188,8 +160,6 @@ final class ProfileBuilder
                         mu: \max(0, $call->memory),
                         pmu: 0,
                     ),
-                    calleeId: $level === 0 ? $call->name : "{$call->name}@$level",
-                    callerId: $parent?->item->calleeId,
                 ),
                 $id,
                 $parent?->id,

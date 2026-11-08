@@ -78,6 +78,54 @@ final class Profile implements \JsonSerializable
     }
 
     /**
+     * Builds a profile of a profiler that sums the calls by caller and callee pairs.
+     *
+     * @param Graph $calls Edges with raw costs; function IDs carry recursion levels (`foo@1`),
+     *        so the graph has no cycles. Callers that are never called get synthetic roots.
+     * @param Metadata $metadata
+     * @param array<non-empty-string, non-empty-string> $tags
+     */
+    public static function fromGraph(
+        Graph $calls,
+        \DateTimeInterface $date = new \DateTimeImmutable(),
+        array $metadata = [],
+        array $tags = [],
+    ): self {
+        // Peaks of the recorded calls only: a synthetic root sums its children
+        $peaks = self::peaksOf($calls);
+        $calls->addMissingRoots();
+        $calls->setPercentsAndDeltas($peaks);
+
+        return new self($date, $metadata, $tags, $calls, $peaks);
+    }
+
+    /**
+     * Builds a profile of a profiler that records the call tree.
+     *
+     * @param Tree<Edge> $tree Nodes with raw costs and function names; recursion levels are added here.
+     * @param Metadata $metadata
+     * @param array<non-empty-string, non-empty-string> $tags
+     */
+    public static function fromTree(
+        Tree $tree,
+        \DateTimeInterface $date = new \DateTimeImmutable(),
+        array $metadata = [],
+        array $tags = [],
+    ): self {
+        $tree = self::withRecursionLevels($tree);
+        $calls = Graph::fromTree($tree);
+        $peaks = self::peaksOf($calls);
+        $calls->setPercentsAndDeltas($peaks);
+
+        foreach ($tree->getIterator() as $branch) {
+            $branch->item->cost->setPercentsOf($peaks);
+            $branch->parent === null or $branch->item->cost->setDeltasTo($branch->parent->item->cost);
+        }
+
+        return new self($date, $metadata, $tags, $calls, $peaks, $tree);
+    }
+
+    /**
      * @param ProfileInput $data
      */
     public static function fromArray(array $data): self
@@ -126,5 +174,61 @@ final class Profile implements \JsonSerializable
             'peaks' => $this->peaks,
             'total_edges' => $this->calls->count(),
         ];
+    }
+
+    private static function peaksOf(Graph $calls): Peaks
+    {
+        $peaks = new Peaks();
+        foreach ($calls as $edge) {
+            $peaks->update($edge->cost);
+        }
+
+        return $peaks;
+    }
+
+    /**
+     * Copies the tree, marking nested calls of a function with their level: `foo`, `foo@1`, `foo@2`.
+     *
+     * @param Tree<Edge> $tree
+     *
+     * @return Tree<Edge>
+     */
+    private static function withRecursionLevels(Tree $tree): Tree
+    {
+        /** @var Tree<Edge> $result */
+        $result = new Tree();
+
+        // Iterative: the depth follows the recursion in the profiled code, deeper than Xdebug's nesting limit
+        /** @var list<array{Branch<Edge>, Branch<Edge>|null}> $stack Source node and the copy of its parent */
+        $stack = \array_map(static fn(Branch $branch): array => [$branch, null], \array_reverse(\array_values($tree->root)));
+        while ($stack !== []) {
+            [$branch, $parent] = \array_pop($stack);
+            $edge = $branch->item;
+
+            $level = 0;
+            for ($p = $parent; $p !== null; $p = $p->parent) {
+                $p->item->callee === $edge->callee and ++$level;
+            }
+
+            $result->addItem(
+                new Edge(
+                    caller: $parent?->item->callee,
+                    callee: $edge->callee,
+                    cost: $edge->cost,
+                    calleeId: $level === 0 ? $edge->callee : "{$edge->callee}@$level",
+                    callerId: $parent?->item->calleeId,
+                ),
+                $branch->id,
+                $parent?->id,
+            );
+
+            /** @var Branch<Edge> $copy */
+            $copy = $result->all[$branch->id];
+            foreach (\array_reverse($branch->children) as $child) {
+                $stack[] = [$child, $copy];
+            }
+        }
+
+        return $result;
     }
 }
