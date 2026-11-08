@@ -6,10 +6,12 @@ namespace Buggregator\Trap\Tests\Unit\Traffic\Message\Multipart;
 
 use Buggregator\Trap\Support\StreamHelper;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Data\DataProvider;
+use Testo\Test;
 
-class FileTest extends TestCase
+#[Test]
+final class FileTest
 {
     public static function provideEmbeddings(): iterable
     {
@@ -28,9 +30,9 @@ class FileTest extends TestCase
     {
         $file = new File(['Foo' => 'Bar'], 'name', 'filename');
 
-        self::assertSame('name', $file->getName());
-        self::assertSame('filename', $file->getClientFilename());
-        self::assertSame('Bar', $file->getHeaderLine('foo'));
+        Assert::same($file->getName(), 'name');
+        Assert::same($file->getClientFilename(), 'filename');
+        Assert::same($file->getHeaderLine('foo'), 'Bar');
     }
 
     public function testWithHeader(): void
@@ -38,9 +40,9 @@ class FileTest extends TestCase
         $file = new File(['Foo' => 'Bar'], 'name', 'filename');
         $new = $file->withHeader('foo', 'baz');
 
-        self::assertNotSame($file, $new);
-        self::assertSame('Bar', $file->getHeaderLine('foo'));
-        self::assertSame('baz', $new->getHeaderLine('foo'));
+        Assert::notSame($new, $file);
+        Assert::same($file->getHeaderLine('foo'), 'Bar');
+        Assert::same($new->getHeaderLine('foo'), 'baz');
     }
 
     #[DataProvider('provideEmbeddings')]
@@ -50,7 +52,7 @@ class FileTest extends TestCase
             'headers' => $headers,
         ]);
 
-        self::assertSame($result, $field->getEmbeddingId());
+        Assert::same($field->getEmbeddingId(), $result);
     }
 
     public function testFromArray(): void
@@ -61,11 +63,11 @@ class FileTest extends TestCase
             'size' => 10,
         ]);
 
-        self::assertNull($field->getName());
-        self::assertSame(10, $field->getSize());
-        self::assertSame('bar.jpg', $field->getClientFilename());
-        self::assertSame('image/jpeg', $field->getClientMediaType());
-        self::assertSame(['Bar', 'Baz'], $field->getHeader('foo'));
+        Assert::null($field->getName());
+        Assert::same($field->getSize(), 10);
+        Assert::same($field->getClientFilename(), 'bar.jpg');
+        Assert::same($field->getClientMediaType(), 'image/jpeg');
+        Assert::same($field->getHeader('foo'), ['Bar', 'Baz']);
     }
 
     public function testSerializeAndUnserialize(): void
@@ -77,9 +79,9 @@ class FileTest extends TestCase
 
         $to = File::fromArray($from->jsonSerialize());
 
-        self::assertSame($from->getHeaders(), $to->getHeaders());
-        self::assertSame($from->getSize(), $to->getSize());
-        self::assertSame($from->getClientFilename(), $to->getClientFilename());
-        self::assertSame($from->getClientMediaType(), $to->getClientMediaType());
+        Assert::same($to->getHeaders(), $from->getHeaders());
+        Assert::same($to->getSize(), $from->getSize());
+        Assert::same($to->getClientFilename(), $from->getClientFilename());
+        Assert::same($to->getClientMediaType(), $from->getClientMediaType());
     }
 }

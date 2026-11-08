@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Config\Server\Frontend;
 
-use Buggregator\Trap\Service\Config\XPath;
+use Buggregator\Trap\Application\Config\Internal\Attribute\InflectableConfig;
+use Buggregator\Trap\Application\Config\Internal\Attribute\XPath;
 
 /**
  * Configuration for the frontend events buffer.
  *
  * @internal
  */
+#[InflectableConfig]
 final class EventStorage
 {
     /**

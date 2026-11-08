@@ -19,6 +19,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 )]
 final class Joke extends Command
 {
+    #[\Override]
     protected function execute(
         InputInterface $input,
         OutputInterface $output,
@@ -27,6 +28,7 @@ final class Joke extends Command
             filename: Info::TRAP_ROOT . '/resources/registry/jokes.txt',
             flags: \FILE_IGNORE_NEW_LINES | \FILE_IGNORE_NEW_LINES,
         );
+        $jokes === false and throw new \RuntimeException('Unable to read jokes.');
         $joke = \str_replace('%s', 'Buggregator', \base64_decode($jokes[\array_rand($jokes)]));
 
         trap($joke);

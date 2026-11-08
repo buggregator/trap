@@ -3,4 +3,5 @@
     <frontend port="8000">
         <EventStorage maxEvents="200"/>
     </frontend>
+    <traces maxSpans="10000" ttl="600"/>
 </trap>

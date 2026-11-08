@@ -11,9 +11,13 @@ use Buggregator\Trap\Proto\Frame;
  */
 final class FrameMapper
 {
-    public function map(Frame $frame): Event
+    /**
+     * @return Event|null Null for frames the Buggregator UI has no event type for.
+     */
+    public function map(Frame $frame): ?Event
     {
         return match ($frame::class) {
+            Frame\Otlp\OtlpTraces::class => null,
             Frame\VarDumper::class => (new Mapper\VarDump())->map($frame),
             Frame\Http::class => (new Mapper\HttpRequest())->map($frame),
             Frame\Smtp::class => (new Mapper\Smtp())->map($frame),

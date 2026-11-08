@@ -25,6 +25,7 @@ class EventsToFileSender implements Sender
         FileSystem::mkdir($path);
     }
 
+    #[\Override]
     public function send(iterable $frames): void
     {
         $data = \implode(

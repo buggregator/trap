@@ -1,0 +1,557 @@
+=== frame 0
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.22 µs 
+
+span-40 INTERNAL 9.22 µs id:0000000000000028 parent:0000000000000027
+=== frame 1
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.24 µs  +1 received earlier 
+
+span-39 INTERNAL 9.24 µs id:0000000000000027 parent:0000000000000026
+└─ span-40 INTERNAL 9.22 µs +10 ns id:0000000000000028
+=== frame 2
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.26 µs  +2 received earlier 
+
+span-38 INTERNAL 9.26 µs id:0000000000000026 parent:0000000000000025
+└─ span-39 INTERNAL 9.24 µs +10 ns id:0000000000000027
+   └─ span-40 INTERNAL 9.22 µs +20 ns id:0000000000000028
+=== frame 3
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.28 µs  +3 received earlier 
+
+span-37 INTERNAL 9.28 µs id:0000000000000025 parent:0000000000000024
+└─ span-38 INTERNAL 9.26 µs +10 ns id:0000000000000026
+   └─ span-39 INTERNAL 9.24 µs +20 ns id:0000000000000027
+      └─ span-40 INTERNAL 9.22 µs +30 ns id:0000000000000028
+=== frame 4
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.30 µs  +4 received earlier 
+
+span-36 INTERNAL 9.30 µs id:0000000000000024 parent:0000000000000023
+└─ span-37 INTERNAL 9.28 µs +10 ns id:0000000000000025
+   └─ span-38 INTERNAL 9.26 µs +20 ns id:0000000000000026
+      └─ span-39 INTERNAL 9.24 µs +30 ns id:0000000000000027
+         └─ span-40 INTERNAL 9.22 µs +40 ns id:0000000000000028
+=== frame 5
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.32 µs  +5 received earlier 
+
+span-35 INTERNAL 9.32 µs id:0000000000000023 parent:0000000000000022
+└─ span-36 INTERNAL 9.30 µs +10 ns id:0000000000000024
+   └─ span-37 INTERNAL 9.28 µs +20 ns id:0000000000000025
+      └─ span-38 INTERNAL 9.26 µs +30 ns id:0000000000000026
+         └─ span-39 INTERNAL 9.24 µs +40 ns id:0000000000000027
+            └─ span-40 INTERNAL 9.22 µs +50 ns id:0000000000000028
+=== frame 6
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.34 µs  +6 received earlier 
+
+span-34 INTERNAL 9.34 µs id:0000000000000022 parent:0000000000000021
+└─ span-35 INTERNAL 9.32 µs +10 ns id:0000000000000023
+   └─ span-36 INTERNAL 9.30 µs +20 ns id:0000000000000024
+      └─ span-37 INTERNAL 9.28 µs +30 ns id:0000000000000025
+         └─ span-38 INTERNAL 9.26 µs +40 ns id:0000000000000026
+            └─ span-39 INTERNAL 9.24 µs +50 ns id:0000000000000027
+               └─ span-40 INTERNAL 9.22 µs +60 ns id:0000000000000028
+=== frame 7
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.36 µs  +7 received earlier 
+
+span-33 INTERNAL 9.36 µs id:0000000000000021 parent:0000000000000020
+└─ span-34 INTERNAL 9.34 µs +10 ns id:0000000000000022
+   └─ span-35 INTERNAL 9.32 µs +20 ns id:0000000000000023
+      └─ span-36 INTERNAL 9.30 µs +30 ns id:0000000000000024
+         └─ span-37 INTERNAL 9.28 µs +40 ns id:0000000000000025
+            └─ span-38 INTERNAL 9.26 µs +50 ns id:0000000000000026
+               └─ span-39 INTERNAL 9.24 µs +60 ns id:0000000000000027
+                  └─ span-40 INTERNAL 9.22 µs +70 ns id:0000000000000028
+=== frame 8
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.38 µs  +8 received earlier 
+
+span-32 INTERNAL 9.38 µs id:0000000000000020 parent:000000000000001f
+└─ span-33 INTERNAL 9.36 µs +10 ns id:0000000000000021
+   └─ span-34 INTERNAL 9.34 µs +20 ns id:0000000000000022
+      └─ span-35 INTERNAL 9.32 µs +30 ns id:0000000000000023
+         └─ span-36 INTERNAL 9.30 µs +40 ns id:0000000000000024
+            └─ span-37 INTERNAL 9.28 µs +50 ns id:0000000000000025
+               └─ span-38 INTERNAL 9.26 µs +60 ns id:0000000000000026
+                  └─ span-39 INTERNAL 9.24 µs +70 ns id:0000000000000027
+                     └─ span-40 INTERNAL 9.22 µs +80 ns id:0000000000000028
+=== frame 9
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.40 µs  +9 received earlier 
+
+span-31 INTERNAL 9.40 µs id:000000000000001f parent:000000000000001e
+└─ span-32 INTERNAL 9.38 µs +10 ns id:0000000000000020
+   └─ span-33 INTERNAL 9.36 µs +20 ns id:0000000000000021
+      └─ span-34 INTERNAL 9.34 µs +30 ns id:0000000000000022
+         └─ span-35 INTERNAL 9.32 µs +40 ns id:0000000000000023
+            └─ span-36 INTERNAL 9.30 µs +50 ns id:0000000000000024
+               └─ span-37 INTERNAL 9.28 µs +60 ns id:0000000000000025
+                  └─ span-38 INTERNAL 9.26 µs +70 ns id:0000000000000026
+                     └─ span-39 INTERNAL 9.24 µs +80 ns id:0000000000000027
+                        └─ span-40 INTERNAL 9.22 µs +90 ns id:0000000000000028
+=== frame 10
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.42 µs  +10 received earlier 
+
+span-30 INTERNAL 9.42 µs id:000000000000001e parent:000000000000001d
+└─ span-31 INTERNAL 9.40 µs +10 ns id:000000000000001f
+   └─ span-32 INTERNAL 9.38 µs +20 ns id:0000000000000020
+      └─ span-33 INTERNAL 9.36 µs +30 ns id:0000000000000021
+         └─ span-34 INTERNAL 9.34 µs +40 ns id:0000000000000022
+            └─ span-35 INTERNAL 9.32 µs +50 ns id:0000000000000023
+               └─ span-36 INTERNAL 9.30 µs +60 ns id:0000000000000024
+                  └─ span-37 INTERNAL 9.28 µs +70 ns id:0000000000000025
+                     └─ span-38 INTERNAL 9.26 µs +80 ns id:0000000000000026
+                        └─ span-39 INTERNAL 9.24 µs +90 ns id:0000000000000027
+                           └─ span-40 INTERNAL 9.22 µs +100 ns id:0000000000000028
+=== frame 11
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.44 µs  +11 received earlier 
+
+span-29 INTERNAL 9.44 µs id:000000000000001d parent:000000000000001c
+└─ span-30 INTERNAL 9.42 µs +10 ns id:000000000000001e
+   └─ span-31 INTERNAL 9.40 µs +20 ns id:000000000000001f
+      └─ span-32 INTERNAL 9.38 µs +30 ns id:0000000000000020
+         └─ span-33 INTERNAL 9.36 µs +40 ns id:0000000000000021
+            └─ span-34 INTERNAL 9.34 µs +50 ns id:0000000000000022
+               └─ span-35 INTERNAL 9.32 µs +60 ns id:0000000000000023
+                  └─ span-36 INTERNAL 9.30 µs +70 ns id:0000000000000024
+                     └─ span-37 INTERNAL 9.28 µs +80 ns id:0000000000000025
+                        └─ span-38 INTERNAL 9.26 µs +90 ns id:0000000000000026
+                           └─ span-39 INTERNAL 9.24 µs +100 ns id:0000000000000027
+                              └─ span-40 INTERNAL 9.22 µs +110 ns id:0000000000000028
+=== frame 12
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.46 µs  +12 received earlier 
+
+span-28 INTERNAL 9.46 µs id:000000000000001c parent:000000000000001b
+└─ span-29 INTERNAL 9.44 µs +10 ns id:000000000000001d
+   └─ span-30 INTERNAL 9.42 µs +20 ns id:000000000000001e
+      └─ span-31 INTERNAL 9.40 µs +30 ns id:000000000000001f
+         └─ span-32 INTERNAL 9.38 µs +40 ns id:0000000000000020
+            └─ span-33 INTERNAL 9.36 µs +50 ns id:0000000000000021
+               └─ span-34 INTERNAL 9.34 µs +60 ns id:0000000000000022
+                  └─ span-35 INTERNAL 9.32 µs +70 ns id:0000000000000023
+                     └─ span-36 INTERNAL 9.30 µs +80 ns id:0000000000000024
+                        └─ span-37 INTERNAL 9.28 µs +90 ns id:0000000000000025
+                           └─ span-38 INTERNAL 9.26 µs +100 ns id:0000000000000026
+                              └─ span-39 INTERNAL 9.24 µs +110 ns id:0000000000000027
+                                 └─ span-40 INTERNAL 9.22 µs +120 ns id:0000000000000028
+=== frame 13
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.48 µs  +13 received earlier 
+
+span-27 INTERNAL 9.48 µs id:000000000000001b parent:000000000000001a
+└─ span-28 INTERNAL 9.46 µs +10 ns id:000000000000001c
+   └─ span-29 INTERNAL 9.44 µs +20 ns id:000000000000001d
+      └─ span-30 INTERNAL 9.42 µs +30 ns id:000000000000001e
+         └─ span-31 INTERNAL 9.40 µs +40 ns id:000000000000001f
+            └─ span-32 INTERNAL 9.38 µs +50 ns id:0000000000000020
+               └─ span-33 INTERNAL 9.36 µs +60 ns id:0000000000000021
+                  └─ span-34 INTERNAL 9.34 µs +70 ns id:0000000000000022
+                     └─ span-35 INTERNAL 9.32 µs +80 ns id:0000000000000023
+                        └─ span-36 INTERNAL 9.30 µs +90 ns id:0000000000000024
+                           └─ span-37 INTERNAL 9.28 µs +100 ns id:0000000000000025
+                              └─ span-38 INTERNAL 9.26 µs +110 ns id:0000000000000026
+                                 └─ span-39 INTERNAL 9.24 µs +120 ns id:0000000000000027
+                                    └─ span-40 INTERNAL 9.22 µs +130 ns id:0000000000000028
+=== frame 14
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.50 µs  +14 received earlier 
+
+span-26 INTERNAL 9.50 µs id:000000000000001a parent:0000000000000019
+└─ span-27 INTERNAL 9.48 µs +10 ns id:000000000000001b
+   └─ span-28 INTERNAL 9.46 µs +20 ns id:000000000000001c
+      └─ span-29 INTERNAL 9.44 µs +30 ns id:000000000000001d
+         └─ span-30 INTERNAL 9.42 µs +40 ns id:000000000000001e
+            └─ span-31 INTERNAL 9.40 µs +50 ns id:000000000000001f
+               └─ span-32 INTERNAL 9.38 µs +60 ns id:0000000000000020
+                  └─ span-33 INTERNAL 9.36 µs +70 ns id:0000000000000021
+                     └─ span-34 INTERNAL 9.34 µs +80 ns id:0000000000000022
+                        └─ span-35 INTERNAL 9.32 µs +90 ns id:0000000000000023
+                           └─ span-36 INTERNAL 9.30 µs +100 ns id:0000000000000024
+                              └─ span-37 INTERNAL 9.28 µs +110 ns id:0000000000000025
+                                 └─ span-38 INTERNAL 9.26 µs +120 ns id:0000000000000026
+                                    └─ span-39 INTERNAL 9.24 µs +130 ns id:0000000000000027
+                                       └─ span-40 INTERNAL 9.22 µs +140 ns id:0000000000000028
+=== frame 15
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.52 µs  +15 received earlier 
+
+span-25 INTERNAL 9.52 µs id:0000000000000019 parent:0000000000000018
+└─ span-26 INTERNAL 9.50 µs +10 ns id:000000000000001a
+   └─ span-27 INTERNAL 9.48 µs +20 ns id:000000000000001b
+      └─ span-28 INTERNAL 9.46 µs +30 ns id:000000000000001c
+         └─ span-29 INTERNAL 9.44 µs +40 ns id:000000000000001d
+            └─ span-30 INTERNAL 9.42 µs +50 ns id:000000000000001e
+               └─ span-31 INTERNAL 9.40 µs +60 ns id:000000000000001f
+                  └─ span-32 INTERNAL 9.38 µs +70 ns id:0000000000000020
+                     └─ span-33 INTERNAL 9.36 µs +80 ns id:0000000000000021
+                        └─ span-34 INTERNAL 9.34 µs +90 ns id:0000000000000022
+                           └─ span-35 INTERNAL 9.32 µs +100 ns id:0000000000000023
+                              └─ span-36 INTERNAL 9.30 µs +110 ns id:0000000000000024
+                                 └─ span-37 INTERNAL 9.28 µs +120 ns id:0000000000000025
+                                    └─ span-38 INTERNAL 9.26 µs +130 ns id:0000000000000026
+                                       └─ span-39 INTERNAL 9.24 µs +140 ns id:0000000000000027
+                                          └─ span-40 INTERNAL 9.22 µs +150 ns id:0000000000000028
+=== frame 16
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.54 µs  +16 received earlier 
+
+span-24 INTERNAL 9.54 µs id:0000000000000018 parent:0000000000000017
+└─ span-25 INTERNAL 9.52 µs +10 ns id:0000000000000019
+   └─ span-26 INTERNAL 9.50 µs +20 ns id:000000000000001a
+      └─ span-27 INTERNAL 9.48 µs +30 ns id:000000000000001b
+         └─ span-28 INTERNAL 9.46 µs +40 ns id:000000000000001c
+            └─ span-29 INTERNAL 9.44 µs +50 ns id:000000000000001d
+               └─ span-30 INTERNAL 9.42 µs +60 ns id:000000000000001e
+                  └─ span-31 INTERNAL 9.40 µs +70 ns id:000000000000001f
+                     └─ span-32 INTERNAL 9.38 µs +80 ns id:0000000000000020
+                        └─ span-33 INTERNAL 9.36 µs +90 ns id:0000000000000021
+                           └─ span-34 INTERNAL 9.34 µs +100 ns id:0000000000000022
+                              └─ span-35 INTERNAL 9.32 µs +110 ns id:0000000000000023
+                                 └─ span-36 INTERNAL 9.30 µs +120 ns id:0000000000000024
+                                    └─ span-37 INTERNAL 9.28 µs +130 ns id:0000000000000025
+                                       └─ span-38 INTERNAL 9.26 µs +140 ns id:0000000000000026
+                                          └─ span-39 INTERNAL 9.24 µs +150 ns id:0000000000000027
+                                             └─ span-40 INTERNAL 9.22 µs +160 ns id:0000000000000028
+=== frame 17
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.56 µs  +17 received earlier 
+
+span-23 INTERNAL 9.56 µs id:0000000000000017 parent:0000000000000016
+   … 17 earlier descendants
+=== frame 18
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.58 µs  +18 received earlier 
+
+span-22 INTERNAL 9.58 µs id:0000000000000016 parent:0000000000000015
+   … 18 earlier descendants
+=== frame 19
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.60 µs  +19 received earlier 
+
+span-21 INTERNAL 9.60 µs id:0000000000000015 parent:0000000000000014
+   … 19 earlier descendants
+=== frame 20
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.62 µs  +20 received earlier 
+
+span-20 INTERNAL 9.62 µs id:0000000000000014 parent:0000000000000013
+   … 20 earlier descendants
+=== frame 21
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.64 µs  +21 received earlier 
+
+span-19 INTERNAL 9.64 µs id:0000000000000013 parent:0000000000000012
+   … 21 earlier descendants
+=== frame 22
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.66 µs  +22 received earlier 
+
+span-18 INTERNAL 9.66 µs id:0000000000000012 parent:0000000000000011
+   … 22 earlier descendants
+=== frame 23
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.68 µs  +23 received earlier 
+
+span-17 INTERNAL 9.68 µs id:0000000000000011 parent:0000000000000010
+   … 23 earlier descendants
+=== frame 24
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.70 µs  +24 received earlier 
+
+span-16 INTERNAL 9.70 µs id:0000000000000010 parent:000000000000000f
+   … 24 earlier descendants
+=== frame 25
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.72 µs  +25 received earlier 
+
+span-15 INTERNAL 9.72 µs id:000000000000000f parent:000000000000000e
+   … 25 earlier descendants
+=== frame 26
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.74 µs  +26 received earlier 
+
+span-14 INTERNAL 9.74 µs id:000000000000000e parent:000000000000000d
+   … 26 earlier descendants
+=== frame 27
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.76 µs  +27 received earlier 
+
+span-13 INTERNAL 9.76 µs id:000000000000000d parent:000000000000000c
+   … 27 earlier descendants
+=== frame 28
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.78 µs  +28 received earlier 
+
+span-12 INTERNAL 9.78 µs id:000000000000000c parent:000000000000000b
+   … 28 earlier descendants
+=== frame 29
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.80 µs  +29 received earlier 
+
+span-11 INTERNAL 9.80 µs id:000000000000000b parent:000000000000000a
+   … 29 earlier descendants
+=== frame 30
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.82 µs  +30 received earlier 
+
+span-10 INTERNAL 9.82 µs id:000000000000000a parent:0000000000000009
+   … 30 earlier descendants
+=== frame 31
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.84 µs  +31 received earlier 
+
+span-9 INTERNAL 9.84 µs id:0000000000000009 parent:0000000000000008
+   … 31 earlier descendants
+=== frame 32
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.86 µs  +32 received earlier 
+
+span-8 INTERNAL 9.86 µs id:0000000000000008 parent:0000000000000007
+   … 32 earlier descendants
+=== frame 33
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.88 µs  +33 received earlier 
+
+span-7 INTERNAL 9.88 µs id:0000000000000007 parent:0000000000000006
+   … 33 earlier descendants
+=== frame 34
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.90 µs  +34 received earlier 
+
+span-6 INTERNAL 9.90 µs id:0000000000000006 parent:0000000000000005
+   … 34 earlier descendants
+=== frame 35
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.92 µs  +35 received earlier 
+
+span-5 INTERNAL 9.92 µs id:0000000000000005 parent:0000000000000004
+   … 35 earlier descendants
+=== frame 36
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.94 µs  +36 received earlier 
+
+span-4 INTERNAL 9.94 µs id:0000000000000004 parent:0000000000000003
+   … 36 earlier descendants
+=== frame 37
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.96 µs  +37 received earlier 
+
+span-3 INTERNAL 9.96 µs id:0000000000000003 parent:0000000000000002
+   … 37 earlier descendants
+=== frame 38
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  9.98 µs  +38 received earlier 
+
+span-2 INTERNAL 9.98 µs id:0000000000000002 parent:0000000000000001
+   … 38 earlier descendants
+=== frame 39
+
+ OTLP TRACES  1 span 
+
+Time: 2024-01-01 12:00:00
+
+# Trace aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  10.00 µs  +39 received earlier 
+
+span-1 INTERNAL 10.00 µs id:0000000000000001
+└─ span-2 INTERNAL 9.98 µs +10 ns id:0000000000000002
+   └─ span-3 INTERNAL 9.96 µs +20 ns id:0000000000000003
+      └─ span-4 INTERNAL 9.94 µs +30 ns id:0000000000000004
+         └─ span-5 INTERNAL 9.92 µs +40 ns id:0000000000000005
+            └─ span-6 INTERNAL 9.90 µs +50 ns id:0000000000000006
+               └─ span-7 INTERNAL 9.88 µs +60 ns id:0000000000000007
+                  └─ span-8 INTERNAL 9.86 µs +70 ns id:0000000000000008
+                     └─ span-9 INTERNAL 9.84 µs +80 ns id:0000000000000009
+                        └─ span-10 INTERNAL 9.82 µs +90 ns id:000000000000000a
+                           └─ span-11 INTERNAL 9.80 µs +100 ns id:000000000000000b
+                              └─ span-12 INTERNAL 9.78 µs +110 ns id:000000000000000c
+                                 └─ span-13 INTERNAL 9.76 µs +120 ns id:000000000000000d
+                                    └─ span-14 INTERNAL 9.74 µs +130 ns id:000000000000000e
+                                       └─ span-15 INTERNAL 9.72 µs +140 ns id:000000000000000f
+                                          └─ span-16 INTERNAL 9.70 µs +150 ns id:0000000000000010
+                                             └─ span-17 INTERNAL 9.68 µs +160 ns id:0000000000000011
+                                                └─ span-18 INTERNAL 9.66 µs +170 ns id:0000000000000012
+                                                   └─ span-19 INTERNAL 9.64 µs +180 ns id:0000000000000013
+                                                      └─ span-20 INTERNAL 9.62 µs +190 ns id:0000000000000014
+                                                         └─ span-21 INTERNAL 9.60 µs +200 ns id:0000000000000015
+                                                            └─ span-22 INTERNAL 9.58 µs +210 ns id:0000000000000016
+                                                               └─ span-23 INTERNAL 9.56 µs +220 ns id:0000000000000017
+                                                                  └─ span-24 INTERNAL 9.54 µs +230 ns id:0000000000000018
+                                                                     └─ span-25 INTERNAL 9.52 µs +240 ns id:0000000000000019
+                                                                     └─ span-26 INTERNAL 9.50 µs +250 ns id:000000000000001a [depth 25]
+                                                                     └─ span-27 INTERNAL 9.48 µs +260 ns id:000000000000001b [depth 26]
+                                                                     └─ span-28 INTERNAL 9.46 µs +270 ns id:000000000000001c [depth 27]
+                                                                     └─ span-29 INTERNAL 9.44 µs +280 ns id:000000000000001d [depth 28]
+                                                                     └─ span-30 INTERNAL 9.42 µs +290 ns id:000000000000001e [depth 29]
+                                                                     └─ span-31 INTERNAL 9.40 µs +300 ns id:000000000000001f [depth 30]
+                                                                     └─ span-32 INTERNAL 9.38 µs +310 ns id:0000000000000020 [depth 31]
+                                                                     └─ span-33 INTERNAL 9.36 µs +320 ns id:0000000000000021 [depth 32]
+                                                                     └─ span-34 INTERNAL 9.34 µs +330 ns id:0000000000000022 [depth 33]
+                                                                     └─ span-35 INTERNAL 9.32 µs +340 ns id:0000000000000023 [depth 34]
+                                                                     └─ span-36 INTERNAL 9.30 µs +350 ns id:0000000000000024 [depth 35]
+                                                                     └─ span-37 INTERNAL 9.28 µs +360 ns id:0000000000000025 [depth 36]
+                                                                     └─ span-38 INTERNAL 9.26 µs +370 ns id:0000000000000026 [depth 37]
+                                                                     └─ span-39 INTERNAL 9.24 µs +380 ns id:0000000000000027 [depth 38]
+                                                                     └─ span-40 INTERNAL 9.22 µs +390 ns id:0000000000000028 [depth 39]

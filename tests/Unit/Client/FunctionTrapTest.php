@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Client;
 
-use PHPUnit\Framework\Attributes\RunInSeparateProcess;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Test;
 
-final class FunctionTrapTest extends TestCase
+#[Test]
+final class FunctionTrapTest
 {
-    #[RunInSeparateProcess]
     public function testLeak(): void
     {
         $object = new \stdClass();
@@ -18,6 +18,6 @@ final class FunctionTrapTest extends TestCase
         trap($object, $object);
         unset($object);
 
-        self::assertNull($ref->get());
+        Assert::null($ref->get());
     }
 }

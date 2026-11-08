@@ -15,7 +15,7 @@ use Buggregator\Trap\Support\Json;
  * @psalm-type SentryEnvelopeMessage = array{
  *     type: SentryEnvelope::SENTRY_FRAME_TYPE,
  *     items: array<array-key, array{array<array-key, mixed>, mixed}>,
- *     headers: array<string, string>
+ *     headers: array<array-key, mixed>
  * }
  */
 final class SentryEnvelope extends Frame\Sentry
@@ -23,7 +23,7 @@ final class SentryEnvelope extends Frame\Sentry
     public const SENTRY_FRAME_TYPE = 'envelope';
 
     /**
-     * @param array<string, string> $headers
+     * @param array<array-key, mixed> $headers
      * @param list<Frame\Sentry\EnvelopeItem> $items
      */
     public function __construct(

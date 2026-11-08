@@ -1,22 +1,38 @@
+# Line-ending normalization for text files.
 * text=auto
 
-.github                export-ignore
-.phive                 export-ignore
-tests                  export-ignore
-.*                     export-ignore
-box.json.dist          export-ignore
-composer.lock          export-ignore
-composer-require-*     export-ignore
-docker-compose.yaml    export-ignore
-Makefile               export-ignore
-phpunit.xml*           export-ignore
-pest.xml*              export-ignore
-phpstan.*              export-ignore
-phpstan-baseline.neon  export-ignore
-psalm.*                export-ignore
-psalm-baseline.xml     export-ignore
-infection.*            export-ignore
-codecov.*              export-ignore
+# PHP-aware hunk headers in `git diff`.
+*.php diff=php
 
-*.http binary
+# Binary files keep their bytes.
+*.bin binary
 *.gpg binary
+*.http binary
+*.ico binary
+*.jpg binary
+*.pb binary
+*.png binary
+
+# Snapshots compared byte by byte, whatever `core.autocrlf` says.
+/tests/Stub/otlp-render/*.txt text eol=lf
+
+# List-like manifests: concurrent additions to the same list merge instead of conflicting.
+/composer.json merge=union
+
+# Default: nothing goes into the dist archive. Re-include only what the installed package needs.
+* export-ignore
+
+# Manifest and top-level documentation.
+/composer.json   -export-ignore
+/LICENSE.md      -export-ignore
+/README.md       -export-ignore
+/CHANGELOG.md    -export-ignore
+
+# Autoloaded source code, executables and runtime resources.
+/src             -export-ignore
+/src/**          -export-ignore
+/bin             -export-ignore
+/bin/**          -export-ignore
+/resources       -export-ignore
+/resources/**    -export-ignore
+/trap.xml        -export-ignore

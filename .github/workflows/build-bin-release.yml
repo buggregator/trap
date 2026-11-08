@@ -1,0 +1,366 @@
+---
+
+name: 📦 Build binary
+
+on:  # yamllint disable-line rule:truthy
+  # A release created by release-please with GITHUB_TOKEN fires no `release` event,
+  # so create-release.yml calls this workflow directly.
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build
+        type: string
+        required: true
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name }}
+
+jobs:
+  build-unix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    name: 📦 Build Unix Executables
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - os: linux
+            arch: amd64
+          - os: linux
+            arch: arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64,amd64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract version from tag
+        id: get_version
+        run: |
+          VERSION=${RELEASE_TAG#v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "{\"version\": \"$VERSION\", \"type\":\"bin\"}" > version.json
+
+      - name: Build Docker image for ${{ matrix.platform.os }}-${{ matrix.platform.arch }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: trap-builder-${{ matrix.platform.os }}-${{ matrix.platform.arch }}:latest
+          platforms: linux/${{ matrix.platform.arch }}
+          build-args: |
+            TARGET_OS=${{ matrix.platform.os }}
+            TARGET_ARCH=${{ matrix.platform.arch }}
+            VERSION=${{ env.VERSION }}
+          cache-from: type=gha,scope=${{ matrix.platform.os }}-${{ matrix.platform.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.platform.os }}-${{ matrix.platform.arch }}
+
+      - name: Extract executable
+        run: |
+          mkdir -p dist
+          container_id=$(docker create trap-builder-${{ matrix.platform.os }}-${{ matrix.platform.arch }}:latest)
+          docker cp $container_id:/.output/trap ./dist/trap
+          docker rm $container_id
+
+      - name: Zip output
+        uses: ksm2/archive-action@v1
+        with:
+          root-directory: dist
+          format: "tar.gz"
+          name: trap-${{ env.VERSION }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}
+
+      - name: 📤 Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          files: |
+            ./trap-${{ env.VERSION }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}.tar.gz
+
+  build-macos-arm64:
+    runs-on: macos-14
+    permissions:
+      contents: write
+    name: 📦 Build macOS ARM64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, xml, sockets
+          coverage: none
+
+      - name: Extract version from tag or set dev version
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=${RELEASE_TAG#v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "{\"version\": \"$VERSION\", \"type\":\"bin\"}" > version.json
+
+      - name: Install Composer dependencies
+        run: composer install --no-dev --prefer-dist --ignore-platform-reqs
+
+      - name: Create build directories
+        run: mkdir -p .build/phar .build/bin dist
+
+      - name: Download box tool
+        run: |
+          curl -fsSL -o .build/bin/box.phar https://github.com/box-project/box/releases/download/4.6.6/box.phar
+          chmod +x .build/bin/box.phar
+
+      - name: Download SPC for macOS ARM64
+        run: |
+          curl -fsSL -o .build/bin/spc https://dl.static-php.dev/static-php-cli/spc-bin/nightly/spc-macos-aarch64
+          chmod +x .build/bin/spc
+
+      - name: Download required PHP extensions
+        run: |
+          export SPC_SKIP_BREW_INSTALL=1
+          .build/bin/spc download micro --for-extensions=ctype,dom,filter,libxml,mbstring,phar,simplexml,sockets,tokenizer,xml,xmlwriter --with-php=8.3 --prefer-pre-built
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Verify environment is ready
+        run: |
+          export SPC_SKIP_BREW_INSTALL=1
+          .build/bin/spc doctor --auto-fix
+
+      - name: Build PHAR file
+        run: |
+          php .build/bin/box.phar compile -v
+
+      - name: Build the self-executable binary
+        run: |
+          # Skip Homebrew installation (we don't need it)
+          export SPC_SKIP_BREW_INSTALL=1
+          .build/bin/spc build "ctype,dom,filter,libxml,mbstring,phar,simplexml,sockets,tokenizer,xml,xmlwriter" --build-micro
+
+      - name: Combine micro.sfx with the PHAR
+        run: |
+          .build/bin/spc micro:combine .build/phar/trap.phar --output=dist/trap
+
+      - name: Test binary
+        run: |
+          chmod +x dist/trap
+          dist/trap --help
+
+      - name: Zip output
+        uses: ksm2/archive-action@v1
+        with:
+          root-directory: dist
+          format: "tar.gz"
+          name: trap-${{ env.VERSION }}-darwin-arm64
+
+      - name: 📤 Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          files: |
+            ./trap-${{ env.VERSION }}-darwin-arm64.tar.gz
+
+  build-macos-amd64:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    name: 📦 Build macOS (x64)
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, xml, sockets
+          coverage: none
+
+      - name: Extract version from tag or set dev version
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=${RELEASE_TAG#v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "{\"version\": \"$VERSION\", \"type\":\"bin\"}" > version.json
+
+      - name: Install Composer dependencies
+        run: composer install --no-dev --prefer-dist --ignore-platform-reqs
+
+      - name: Create build directories
+        run: mkdir -p .build/phar .build/bin dist
+
+      - name: Download SPC for macOS AMD64
+        run: |
+          curl -fsSL -o .build/bin/spc https://dl.static-php.dev/static-php-cli/spc-bin/nightly/spc-macos-x86_64
+          chmod +x .build/bin/spc
+
+      - name: Download box tool
+        run: |
+          curl -fsSL -o .build/bin/box.phar https://github.com/box-project/box/releases/download/4.6.6/box.phar
+          chmod +x .build/bin/box.phar
+
+      - name: Install Intel Homebrew for AMD64
+        run: |
+          # Check if we need to install Intel Homebrew
+          if [[ ! -d "/usr/local/Homebrew" ]]; then
+            echo "Installing Intel (x86_64) version of Homebrew"
+            arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          fi
+
+      - name: Download required PHP extensions
+        run: |
+          # For AMD64, ensure we're using the Intel Homebrew
+          export PATH="/usr/local/bin:$PATH"
+          .build/bin/spc download micro --for-extensions=ctype,dom,filter,libxml,mbstring,phar,simplexml,sockets,tokenizer,xml,xmlwriter --with-php=8.3 --prefer-pre-built
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Verify environment is ready
+        run: |
+          export PATH="/usr/local/bin:$PATH"
+          .build/bin/spc doctor --auto-fix
+
+      - name: Build PHAR file
+        run: |
+          php .build/bin/box.phar compile -v
+
+      - name: Build the self-executable binary
+        run: |
+          export PATH="/usr/local/bin:$PATH"
+          .build/bin/spc build "ctype,dom,filter,libxml,mbstring,phar,simplexml,sockets,tokenizer,xml,xmlwriter" --build-micro
+
+      - name: Combine micro.sfx with the PHAR
+        run: |
+          export PATH="/usr/local/bin:$PATH"
+          .build/bin/spc micro:combine .build/phar/trap.phar --output=dist/trap
+
+      - name: Test binary
+        run: |
+          chmod +x dist/trap
+          dist/trap --help
+
+      - name: Zip output
+        uses: ksm2/archive-action@v1
+        with:
+          root-directory: dist
+          format: "tar.gz"
+          name: trap-${{ env.VERSION }}-darwin-amd64
+
+      - name: 📤 Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          files: |
+            ./trap-${{ env.VERSION }}-darwin-amd64.tar.gz
+
+  build-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    name: 📦 Build Windows (x64)
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, xml, sockets
+          coverage: none
+
+      - name: Extract version from tag or set dev version
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=${RELEASE_TAG#v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "{\"version\": \"$VERSION\", \"type\":\"bin\"}" > version.json
+
+      - name: Install Composer dependencies
+        run: composer install --no-dev --prefer-dist --ignore-platform-reqs
+
+      - name: Create build directories
+        run: New-Item -Path ".build\phar", ".build\bin" -ItemType Directory -Force
+
+      - name: Download box tool
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/box-project/box/releases/download/4.6.6/box.phar" -OutFile ".build/bin/box.phar"
+
+      - name: Download SPC for Windows
+        run: |
+          Invoke-WebRequest -Uri "https://dl.static-php.dev/static-php-cli/spc-bin/nightly/spc-windows-x64.exe" -OutFile ".build/bin/spc.exe"
+
+      - name: Download required PHP extensions
+        run: .build/bin/spc.exe download micro --for-extensions=ctype,dom,filter,libxml,mbstring,phar,simplexml,sockets,tokenizer,xml,xmlwriter --with-php=8.3 --prefer-pre-built
+
+      #   todo: fix this
+      #      - name: Install UPX for compression
+      #        run: |
+      #          .build/bin/spc.exe install-pkg upx
+
+      - name: Verify environment is ready
+        run: |
+          .build/bin/spc.exe doctor --auto-fix
+
+      - name: Build the self-executable binary
+        run: .build/bin/spc.exe build "ctype,dom,filter,libxml,mbstring,phar,simplexml,sockets,tokenizer,xml,xmlwriter" --build-micro # --with-upx-pack
+
+      - name: Build PHAR file
+        run: |
+          php .build/bin/box.phar compile -v --allow-composer-check-failure
+
+      - name: Combine micro.sfx with the PHAR
+        run: |
+          New-Item -Path "dist" -ItemType Directory -Force
+          .build\bin\spc.exe micro:combine .build\phar\trap.phar --output=dist\trap.exe
+
+      - name: Zip output
+        uses: ksm2/archive-action@v1
+        with:
+          root-directory: dist
+          format: "tar.gz"
+          name: trap-${{ env.VERSION }}-windows-amd64
+
+      - name: 📤 Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          files: |
+            ./trap-${{ env.VERSION }}-windows-amd64.tar.gz

@@ -15,7 +15,7 @@ final class TraceCaster
     public static function cast(Trace $tick, array $a, Stub $stub, bool $isNested): array
     {
         $stub->class = $tick->__toString();
-        $stub->type = $stub::TYPE_OBJECT;
+        $stub->type = Stub::TYPE_OBJECT;
         $stub->attr = $tick->stack;
         $stub->handle = 0;
 
@@ -30,7 +30,7 @@ final class TraceCaster
 
     public static function castLine(TraceFile $line, array $a, Stub $stub, bool $isNested): array
     {
-        $stub->type = $stub::TYPE_REF;
+        $stub->type = Stub::TYPE_REF;
         $stub->attr = $line->line;
         $stub->handle = 0;
         $stub->class = $line->__toString();

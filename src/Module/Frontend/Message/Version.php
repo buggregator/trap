@@ -18,6 +18,7 @@ final class Version implements \JsonSerializable
         $this->number = Info::version();
     }
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [

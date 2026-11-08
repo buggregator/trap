@@ -10,8 +10,9 @@ use Buggregator\Trap\Config\Server\SocketServer;
 use Buggregator\Trap\Config\Server\TcpPorts;
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Logger;
+use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Sender;
-use Buggregator\Trap\Service\Container;
+use Internal\Container\Container;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Command\SignalableCommandInterface;
@@ -21,6 +22,21 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Run application
+ *
+ * Examples:
+ *
+ * ```
+ *  # Run with default ports and console sender
+ *  trap run
+ *
+ *  # Run with UI on port 8080, listen default ports, and use console sender
+ *  trap run --ui=8080
+ *
+ *  # Run with UI, disable console sender
+ *  trap run --ui=8080 -s
+ *  # Equals to
+ *  trap run --ui=8080 --sender=""
+ * ```
  *
  * @internal
  */
@@ -34,6 +50,7 @@ final class Run extends Command implements SignalableCommandInterface
     private Logger $logger;
     private bool $cancelled = false;
 
+    #[\Override]
     public function configure(): void
     {
         $this->addOption(
@@ -77,10 +94,13 @@ final class Run extends Command implements SignalableCommandInterface
         return $servers;
     }
 
-    public function createRegistry(OutputInterface $output): Sender\SenderRegistry
+    public function createRegistry(OutputInterface $output, ?Container $container = null): Sender\SenderRegistry
     {
         $registry = new Sender\SenderRegistry();
-        $registry->register('console', static fn(): Sender => Sender\ConsoleSender::create($output));
+        $registry->register('console', static fn(): Sender => Sender\ConsoleSender::create(
+            $output,
+            $container?->get(SpanStore::class),
+        ));
         $registry->register('file', static fn(): Sender => new Sender\EventsToFileSender());
         $registry->register('file-body', static fn(): Sender => new Sender\BodyToFileSender());
         $registry->register('mail-to-file', static fn(): Sender => new Sender\MailToFileSender());
@@ -89,6 +109,7 @@ final class Run extends Command implements SignalableCommandInterface
         return $registry;
     }
 
+    #[\Override]
     public function getSubscribedSignals(): array
     {
         $result = [];
@@ -100,6 +121,7 @@ final class Run extends Command implements SignalableCommandInterface
         return $result;
     }
 
+    #[\Override]
     public function handleSignal(int $signal, int|false $previousExitCode = 0): int|false
     {
         if (\defined('SIGINT') && $signal === \SIGINT) {
@@ -121,6 +143,7 @@ final class Run extends Command implements SignalableCommandInterface
         return false;
     }
 
+    #[\Override]
     protected function execute(
         InputInterface $input,
         OutputInterface $output,
@@ -134,20 +157,19 @@ final class Run extends Command implements SignalableCommandInterface
             /** @var non-empty-string[] $senders */
             $senders = (array) $input->getOption('sender');
 
-            $registry = $this->createRegistry($output);
-
             $container = Bootstrap::init()->withConfig(
                 xml: \dirname(__DIR__, 2) . '/trap.xml',
                 inputOptions: $input->getOptions(),
                 inputArguments: $input->getArguments(),
                 environment: \getenv(),
             )->finish();
+            $registry = $this->createRegistry($output, $container);
             $container->set($registry);
             $container->set($input, InputInterface::class);
             $container->set($this->logger);
             $this->app = $container->get(Application::class, [
                 'map' => $this->getServers($container),
-                'senders' => $registry->getSenders($senders),
+                'senders' => $registry->getSenders(\array_filter($senders)),
                 'withFrontend' => $input->getOption('ui') !== false,
             ]);
 
@@ -155,8 +177,10 @@ final class Run extends Command implements SignalableCommandInterface
             $this->app->run();
         } catch (\Throwable $e) {
             do {
-                $this->logger->exception($e);
+                $this->logger->exception($e, important: true);
             } while ($e = $e->getPrevious());
+
+            return Command::FAILURE;
         }
 
         return Command::SUCCESS;

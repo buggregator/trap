@@ -23,6 +23,7 @@ final class TraceFile implements \Stringable
         public readonly array $line,
     ) {}
 
+    #[\Override]
     public function __toString(): string
     {
         return isset($this->line['file'], $this->line['line'])

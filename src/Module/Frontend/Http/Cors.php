@@ -15,6 +15,7 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 final class Cors implements Middleware
 {
+    #[\Override]
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
         $response = $request->getMethod() === 'OPTIONS'

@@ -138,6 +138,7 @@ final class Frame implements \Stringable
         return new self('', Opcode::Close);
     }
 
+    #[\Override]
     public function __toString(): string
     {
         $len = \strlen($this->content);
@@ -148,7 +149,8 @@ final class Frame implements \Stringable
             match (true) {
                 $len < 126 => \chr($len),
                 $len < 65536 => \pack('Cn', 126, $len),
-                default => \pack('CJ', 127, $len),
+                // Pack 64-bit length as two 32-bit integers in network byte order (big-endian)
+                default => \pack('CNN', 127, $len >> 32, $len & 0xFFFFFFFF),
             },
             $this->content,
         );

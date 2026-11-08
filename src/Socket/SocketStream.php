@@ -6,14 +6,13 @@ namespace Buggregator\Trap\Socket;
 
 use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Traffic\StreamClient;
-use IteratorAggregate;
 
 /**
  * Simple abstraction over {@see Client} to make it easier to work with.
  * Use {@see Server::$clientInflector} to wrap {@see Client} into {@see self}.
  *
  * @internal
- * @implements IteratorAggregate<int, string>
+ * @implements \IteratorAggregate<int, string>
  */
 final class SocketStream implements \IteratorAggregate, StreamClient
 {
@@ -45,16 +44,19 @@ final class SocketStream implements \IteratorAggregate, StreamClient
         return $self;
     }
 
+    #[\Override]
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
     }
 
+    #[\Override]
     public function hasData(): bool
     {
         return !$this->queue->isEmpty();
     }
 
+    #[\Override]
     public function waitData(?Timer $timer = null): void
     {
         $before = $this->queue->count();
@@ -63,6 +65,7 @@ final class SocketStream implements \IteratorAggregate, StreamClient
         } while (!$this->disconnected && $this->queue->count() === $before && $timer?->isReady() !== true);
     }
 
+    #[\Override]
     public function sendData(string $data): bool
     {
         if ($data === '' || $this->isDisconnected()) {
@@ -73,6 +76,7 @@ final class SocketStream implements \IteratorAggregate, StreamClient
         return true;
     }
 
+    #[\Override]
     public function disconnect(): void
     {
         if ($this->isDisconnected()) {
@@ -81,16 +85,19 @@ final class SocketStream implements \IteratorAggregate, StreamClient
         $this->client->disconnect();
     }
 
+    #[\Override]
     public function isDisconnected(): bool
     {
         return $this->disconnected;
     }
 
+    #[\Override]
     public function isFinished(): bool
     {
         return $this->disconnected && $this->queue->isEmpty();
     }
 
+    #[\Override]
     public function fetchLine(): string
     {
         $line = '';
@@ -120,16 +127,19 @@ final class SocketStream implements \IteratorAggregate, StreamClient
         return $line;
     }
 
+    #[\Override]
     public function fetchAll(): string
     {
         return \implode('', \iterator_to_array($this->getIterator()));
     }
 
+    #[\Override]
     public function getData(): string
     {
         return \implode('', [...$this->queue]);
     }
 
+    #[\Override]
     public function getIterator(): \Generator
     {
         while (!$this->disconnected || !$this->queue->isEmpty()) {

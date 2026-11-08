@@ -7,7 +7,7 @@ namespace Buggregator\Trap\Service\FilesObserver;
 use Buggregator\Trap\Config\Server\Files\ObserverConfig as Config;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Service\Container;
+use Internal\Container\Container;
 use Buggregator\Trap\Support\Timer;
 
 /**
@@ -41,12 +41,14 @@ final class Handler implements \IteratorAggregate
 
         $this->path = $config->path;
         $this->timer = new Timer($config->scanInterval);
+        /** @psalm-suppress InvalidArgument The config is matched by type, so a custom converter may name the parameter freely */
         $this->converter = $container->make($config->converterClass, [$config]);
     }
 
     /**
      * @return \Traversable<int, Frame>
      */
+    #[\Override]
     public function getIterator(): \Traversable
     {
         do {

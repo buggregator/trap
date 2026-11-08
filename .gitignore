@@ -1,7 +1,9 @@
 /.*/
-!/.phive/
 !/.github/
-!/.phar/
+!/.phive/
+!/.idea/
+/.idea/*
+!/.idea/icon.svg
 /runtime/
 /vendor/
 /.env

@@ -61,8 +61,8 @@ final class ProfileBuilder
         // Normalize root
         if (!\array_key_exists('main()', $data) && \array_key_exists('value', $data)) {
             $data['main()'] = $data['value'];
-            unset($data['value']);
         }
+        unset($data['value']);
 
         // Convert all the items to edges
         foreach (\array_reverse($data, true) as $key => $value) {
@@ -83,25 +83,24 @@ final class ProfileBuilder
             $tree->addItem($edge, $calleeId, $callerId, prepend: true);
         }
 
-        // todo: do we need it?
-        // // Add parents for lost children
-        // $lostParents = [];
-        // /** @var Branch<Edge> $branch */
-        // foreach ($tree->iterateLostChildren() as $branch) {
-        //     \assert($branch->item->caller !== null);
-        //     ($lostParents[$branch->item->caller] ??= new Peaks())
-        //         ->add($branch->item->cost);
-        // }
-        // /** @var array<non-empty-string, Peaks> $lostParents */
-        // foreach ($lostParents as $key => $peak) {
-        //     $edge = new Edge(
-        //         caller: null,
-        //         callee: $key,
-        //         cost: $peak->toCost(),
-        //     );
-        //     $tree->addItem($edge, $edge->callee, $edge->caller, prepend: true);
-        // }
-        // unset($lostParents);
+        // Add synthetic root parents for lost children
+        $lostParents = [];
+        /** @var Branch<Edge> $branch */
+        foreach ($tree->iterateLostChildren() as $branch) {
+            \assert($branch->parentId !== null);
+            ($lostParents[$branch->parentId] ??= new Peaks())
+                ->add($branch->item->cost);
+        }
+        /** @var array<non-empty-string, Peaks> $lostParents */
+        foreach ($lostParents as $parentId => $peak) {
+            $edge = new Edge(
+                caller: null,
+                callee: \explode('@', $parentId, 2)[0],
+                cost: $peak->toCost(),
+            );
+            $tree->addItem($edge, $parentId, null);
+        }
+        unset($lostParents);
 
         /**
          * Calc percentages and delta
@@ -109,11 +108,11 @@ final class ProfileBuilder
          */
         foreach ($tree->getIterator() as $branch) {
             $cost = $branch->item->cost;
-            $cost->p_cpu = $peaks->cpu > 0 ? \round($cost->cpu / $peaks->cpu * 100, 3) : 0;
-            $cost->p_ct = $peaks->ct > 0 ? \round($cost->ct / $peaks->ct * 100, 3) : 0;
-            $cost->p_mu = $peaks->mu > 0 ? \round($cost->mu / $peaks->mu * 100, 3) : 0;
-            $cost->p_pmu = $peaks->pmu > 0 ? \round($cost->pmu / $peaks->pmu * 100, 3) : 0;
-            $cost->p_wt = $peaks->wt > 0 ? \round($cost->wt / $peaks->wt * 100, 3) : 0;
+            $cost->p_cpu = $peaks->cpu > 0 ? \round((float) $cost->cpu / (float) $peaks->cpu * 100.0, 3) : 0;
+            $cost->p_ct = $peaks->ct > 0 ? \round((float) $cost->ct / (float) $peaks->ct * 100.0, 3) : 0;
+            $cost->p_mu = $peaks->mu > 0 ? \round((float) $cost->mu / (float) $peaks->mu * 100.0, 3) : 0;
+            $cost->p_pmu = $peaks->pmu > 0 ? \round((float) $cost->pmu / (float) $peaks->pmu * 100.0, 3) : 0;
+            $cost->p_wt = $peaks->wt > 0 ? \round((float) $cost->wt / (float) $peaks->wt * 100.0, 3) : 0;
 
             if ($branch->parent !== null) {
                 $parentCost = $branch->parent->item->cost;

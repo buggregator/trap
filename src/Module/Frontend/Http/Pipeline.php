@@ -46,6 +46,7 @@ final class Pipeline implements Middleware
         );
     }
 
+    #[\Override]
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
         /** @var ResponseInterface $response */

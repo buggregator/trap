@@ -16,11 +16,13 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 final class Plain implements Renderer
 {
+    #[\Override]
     public function isSupport(Frame $frame): bool
     {
         return true;
     }
 
+    #[\Override]
     public function render(OutputInterface $output, Frame $frame): void
     {
         Common::renderHeader1($output, $frame->type->value);

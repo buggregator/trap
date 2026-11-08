@@ -19,6 +19,7 @@ final class Edge implements \JsonSerializable
         public readonly Cost $cost,
     ) {}
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [

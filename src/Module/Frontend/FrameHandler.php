@@ -25,10 +25,16 @@ final class FrameHandler implements HandlerInterface
         $this->frameMapper = new FrameMapper();
     }
 
+    #[\Override]
     public function handle(Frame $frame): void
     {
         try {
-            $this->eventsStorage->add($event = $this->frameMapper->map($frame));
+            $event = $this->frameMapper->map($frame);
+            if ($event === null) {
+                return;
+            }
+
+            $this->eventsStorage->add($event);
             unset($frame);
         } catch (\Throwable $e) {
             $this->logger->error('Mapping frame failed: %s', $e->getMessage());

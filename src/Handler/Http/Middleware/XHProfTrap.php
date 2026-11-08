@@ -34,6 +34,7 @@ final class XHProfTrap implements Middleware
         private readonly Logger $logger,
     ) {}
 
+    #[\Override]
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
         try {

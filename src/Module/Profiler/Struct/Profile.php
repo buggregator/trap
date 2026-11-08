@@ -26,6 +26,13 @@ use Buggregator\Trap\Support\Uuid;
  *     total_edges: int<0, max>,
  * }
  *
+ * @psalm-type ProfileInput = array{
+ *     date: int,
+ *     tags: array<non-empty-string, non-empty-string>,
+ *     peaks: PeaksData,
+ *     ...
+ * }
+ *
  * @psalm-import-type PeaksData from Peaks
  *
  * @internal
@@ -67,34 +74,39 @@ final class Profile implements \JsonSerializable
     }
 
     /**
-     * @param ProfileData $data
-     * @psalm-suppress all
+     * @param ProfileInput $data
      */
     public static function fromArray(array $data): self
     {
         $metadata = $data;
-        unset($metadata['tags'], $metadata['peaks'], $metadata['total_edges'], $metadata['date']);
+        unset($metadata['tags'], $metadata['peaks'], $metadata['total_edges'], $metadata['date'], $metadata['profile_uuid']);
 
-        return new self(
+        $profile = new self(
             date: new \DateTimeImmutable('@' . $data['date']),
             metadata: $metadata,
             tags: $data['tags'],
             // todo calls from edges
             peaks: Peaks::fromArray($data['peaks']),
         );
+
+        /** @var mixed $uuid */
+        $uuid = $data['profile_uuid'] ?? null;
+        \is_string($uuid) && $uuid !== '' and $profile->uuid = $uuid;
+
+        return $profile;
     }
 
     /**
      * @return ProfileData
-     * @psalm-suppress all
      */
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [
             'date' => $this->date->getTimestamp(),
             'app_name' => $this->metadata['app_name'] ?? '',
-            'hostname' => $this->metadata['hostname'] ?? '',
-            'filename' => $this->metadata['filename'] ?? '',
+            'hostname' => (string) ($this->metadata['hostname'] ?? ''),
+            'filename' => (string) ($this->metadata['filename'] ?? ''),
             'profile_uuid' => $this->uuid,
             'tags' => $this->tags,
             'peaks' => $this->peaks,

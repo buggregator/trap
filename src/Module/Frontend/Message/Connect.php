@@ -17,6 +17,7 @@ final class Connect implements \JsonSerializable
         public readonly bool $pong = true,
     ) {}
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [

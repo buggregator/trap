@@ -23,17 +23,19 @@ use Symfony\Component\VarDumper\Dumper\CliDumper;
  */
 final class VarDumper implements Renderer
 {
+    #[\Override]
     public function isSupport(Frame $frame): bool
     {
         return $frame->type === ProtoType::VarDumper;
     }
 
+    #[\Override]
     public function render(OutputInterface $output, Frame $frame): void
     {
         \assert($frame instanceof Frame\VarDumper);
 
         /** @var array{Data, array}|false $payload */
-        $payload = @\unserialize(\base64_decode($frame->dump, true), ['allowed_classes' => [Data::class, Stub::class]]);
+        $payload = @\unserialize((string) \base64_decode($frame->dump, true), ['allowed_classes' => [Data::class, Stub::class]]);
 
         // Impossible to decode the message, give up.
         $payload === false and throw new \RuntimeException("Unable to decode the message.");
@@ -54,6 +56,7 @@ final class VarDumper implements Renderer
             /**
              * @psalm-suppress RiskyTruthyFalsyComparison, MixedArrayAccess, MixedArgument
              */
+            #[\Override]
             public function describe(OutputInterface $output, Data $data, array $context, int $clientId): void
             {
                 Common::renderHeader1($output, 'DUMP');
@@ -75,7 +78,7 @@ final class VarDumper implements Renderer
                         }
 
                         if (isset($source['file_relative'])) {
-                            $meta['File'] = $source['file_relative'];
+                            $meta['File'] = (string) $source['file_relative'];
                         } else {
                             $meta['File'] = \sprintf('%s:%s', $source['file'], $source['line']);
                         }
@@ -85,19 +88,20 @@ final class VarDumper implements Renderer
                         $request = $context['request'];
                         \assert(\is_array($request));
 
-                        empty($request['method'] ?? '') or $meta['Method'] = $request['method'];
-                        empty($request['uri'] ?? '') or $meta['URI'] = $request['uri'];
-                        if ($controller = $request['controller']) {
+                        empty($request['method'] ?? '') or $meta['Method'] = (string) $request['method'];
+                        empty($request['uri'] ?? '') or $meta['URI'] = (string) $request['uri'];
+                        /** @var mixed $controller */
+                        $controller = $request['controller'];
+                        if ($controller) {
                             $meta['Controller'] = \rtrim((string) $this->dumper->dump($controller, true), "\n");
                         }
                     } elseif (isset($context['cli'])) {
-                        $meta['Command'] = $context['cli']['command_line'];
+                        $meta['Command'] = (string) $context['cli']['command_line'];
                     }
                 } catch (\Throwable) {
                     // Do nothing.
                 }
 
-                /** @psalm-suppress InternalMethod, InternalClass */
                 Common::renderMetadata($output, $meta);
                 $output->writeln('');
 

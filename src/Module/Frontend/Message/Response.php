@@ -15,6 +15,7 @@ final class Response implements \JsonSerializable
         public ?Connect $connect = null,
     ) {}
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         $data = ['id' => $this->id];

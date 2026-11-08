@@ -15,6 +15,7 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 final class RayRequestDump implements Middleware
 {
+    #[\Override]
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
         if (\str_ends_with($request->getUri()->getPath(), '_availability_check')) {

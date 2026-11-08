@@ -15,11 +15,10 @@ use Buggregator\Trap\Traffic\StreamClient;
 use Buggregator\Trap\Traffic\Websocket\Frame;
 use Buggregator\Trap\Traffic\Websocket\Opcode;
 use Buggregator\Trap\Traffic\Websocket\StreamReader;
-use IteratorAggregate;
 
 /**
  * @internal
- * @implements IteratorAggregate<StreamClient>
+ * @implements \IteratorAggregate<StreamClient>
  */
 final class ConnectionPool implements \IteratorAggregate, Processable
 {
@@ -47,6 +46,7 @@ final class ConnectionPool implements \IteratorAggregate, Processable
         });
     }
 
+    #[\Override]
     public function process(): void
     {
         foreach ($this->fibers as $key => $fiber) {
@@ -66,6 +66,7 @@ final class ConnectionPool implements \IteratorAggregate, Processable
     /**
      * @return \Traversable<StreamClient>
      */
+    #[\Override]
     public function getIterator(): \Traversable
     {
         foreach ($this->streams as $stream) {

@@ -23,7 +23,8 @@ final class EnvelopeParser
         \DateTimeImmutable $time = new \DateTimeImmutable(),
     ): SentryEnvelope {
         // Parse headers
-        $headers = \json_decode(self::readLine($stream), true, 4, JSON_THROW_ON_ERROR);
+        $headers = \json_decode(self::readLine($stream), true, 32, JSON_THROW_ON_ERROR);
+        \is_array($headers) or throw new \RuntimeException('Invalid envelope headers.');
 
         // Parse items
         $items = [];
@@ -45,10 +46,12 @@ final class EnvelopeParser
     {
         // Parse item header
         $itemHeader = \json_decode(self::readLine($stream), true, 4, JSON_THROW_ON_ERROR);
+        \is_array($itemHeader) or throw new \RuntimeException('Invalid item header.');
 
         $length = isset($itemHeader['length']) ? (int) $itemHeader['length'] : null;
         $length >= 0 or throw new \RuntimeException('Invalid item length.');
 
+        /** @var mixed $type */
         $type = $itemHeader['type'] ?? null;
 
         if ($length > ($type === 'attachment' ? self::MAX_BINARY_ITEM_SIZE : self::MAX_TEXT_ITEM_SIZE)) {
@@ -58,17 +61,43 @@ final class EnvelopeParser
         /** @var mixed $itemPayload */
         $itemPayload = match (true) {
             // Store attachments as a file stream
-            $type === 'attachment' => $length === null
-                ? StreamHelper::createFileStream()->write(self::readLine($stream))
-                : StreamHelper::createFileStream()->write(self::readBytes($stream, $length)),
+            $type === 'attachment' => self::createAttachmentStream($length === null
+                ? self::readLine($stream)
+                : self::readPayload($stream, $length)),
 
             // Text items
             default => $length === null
                 ? \json_decode(self::readLine($stream), true, 512, JSON_THROW_ON_ERROR)
-                : \json_decode(self::readBytes($stream, $length), true, 512, JSON_THROW_ON_ERROR),
+                : \json_decode(self::readPayload($stream, $length), true, 512, JSON_THROW_ON_ERROR),
         };
 
         return new EnvelopeItem($itemHeader, $itemPayload);
+    }
+
+    private static function createAttachmentStream(string $content): StreamInterface
+    {
+        $file = StreamHelper::createFileStream();
+        $file->write($content);
+        $file->rewind();
+
+        return $file;
+    }
+
+    /**
+     * Reads a payload of known length together with the newline that follows it.
+     *
+     * @param int<0, max> $length
+     * @throws \Throwable
+     */
+    private static function readPayload(StreamInterface $stream, int $length): string
+    {
+        $payload = self::readBytes($stream, $length);
+
+        // The newline after a payload may be omitted at the end of the envelope.
+        $next = $stream->read(1);
+        $next === '' || $next === "\n" or $stream->seek(-1, \SEEK_CUR);
+
+        return $payload;
     }
 
     /**
@@ -85,10 +114,11 @@ final class EnvelopeParser
 
         // Validate offset
         $offset === null and throw new \RuntimeException('Failed to detect line end.');
-        $offset - $currentPos > $possibleBytes and throw new \RuntimeException('Line is too long.');
-        $offset === $currentPos and throw new \RuntimeException('End of stream.');
+        $length = $offset - $currentPos;
+        $length > $possibleBytes and throw new \RuntimeException('Line is too long.');
+        $length <= 0 and throw new \RuntimeException('End of stream.');
 
-        $result = self::readBytes($stream, $offset - $currentPos);
+        $result = self::readBytes($stream, $length);
         $size === $offset or $stream->seek(1, \SEEK_CUR);
 
         return $result;

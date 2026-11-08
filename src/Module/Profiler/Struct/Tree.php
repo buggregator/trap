@@ -118,6 +118,7 @@ final class Tree implements \IteratorAggregate, \Countable
 
         foreach ($this->lostChildren as $lk => $lostChild) {
             if ($lostChild->parentId === $id) {
+                $lostChild->parent = $branch;
                 $branch->children[] = $lostChild;
                 unset($this->lostChildren[$lk]);
             }
@@ -129,6 +130,7 @@ final class Tree implements \IteratorAggregate, \Countable
      *
      * @return \Traversable<non-empty-string, Branch<TItem>>
      */
+    #[\Override]
     public function getIterator(): \Traversable
     {
         yield from $this->all;
@@ -205,6 +207,7 @@ final class Tree implements \IteratorAggregate, \Countable
     /**
      * @return int<0, max>
      */
+    #[\Override]
     public function count(): int
     {
         return \count($this->all);

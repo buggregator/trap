@@ -19,6 +19,7 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 final class Profiler implements Renderer
 {
+    #[\Override]
     public function isSupport(Frame $frame): bool
     {
         return $frame->type === ProtoType::Profiler;
@@ -27,6 +28,7 @@ final class Profiler implements Renderer
     /**
      * @psalm-suppress MixedAssignment
      */
+    #[\Override]
     public function render(OutputInterface $output, Frame $frame): void
     {
         \assert($frame instanceof Frame\Profiler);
@@ -39,7 +41,7 @@ final class Profiler implements Renderer
 
         $data = [];
         isset($metadata['date']) && \is_numeric($metadata['date'])
-        and $data['Time'] = new \DateTimeImmutable('@' . $metadata['date']);
+        and $data['Time'] = new \DateTimeImmutable('@' . (string) $metadata['date']);
         \is_string($m = $metadata['app_name'] ?? null) and $data['App name'] = $m;
         \is_string($m = $metadata['hostname'] ?? null) and $data['Hostname'] = $m;
         \is_string($m = $metadata['filename'] ?? null) and $data['File name'] = $m . (

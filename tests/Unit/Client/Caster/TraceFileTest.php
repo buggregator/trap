@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Client\Caster;
 
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Test;
 
-final class TraceFileTest extends TestCase
+#[Test]
+final class TraceFileTest
 {
     public function testToString(): void
     {
@@ -19,7 +21,7 @@ final class TraceFileTest extends TestCase
             'args' => ['bar'],
         ]);
 
-        self::assertSame('file.php:42', (string) $traceFile);
+        Assert::same((string) $traceFile, 'file.php:42');
     }
 
     public function testToStringWithoutFile(): void
@@ -28,7 +30,7 @@ final class TraceFileTest extends TestCase
             'function' => 'foo',
         ]);
 
-        self::assertSame('<internal>', (string) $traceFile);
+        Assert::same((string) $traceFile, '<internal>');
     }
 
     public function testToStringWithoutLine(): void
@@ -38,6 +40,6 @@ final class TraceFileTest extends TestCase
             'file' => '/path/to/file.php',
         ]);
 
-        self::assertSame('<internal>', (string) $traceFile);
+        Assert::same((string) $traceFile, '<internal>');
     }
 }

@@ -7,14 +7,16 @@ namespace Buggregator\Trap\Tests\Unit\Traffic\Parser;
 use Buggregator\Trap\Test\Mock\StreamClientMock;
 use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Buggregator\Trap\Traffic\Parser;
-use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
+use Testo\Assert;
+use Testo\Test;
 
-class HttpParserTest extends TestCase
+final class HttpParserTest
 {
     use FiberTrait;
 
+    #[Test]
     public function testSimpleGet(): void
     {
         $body = \str_split(
@@ -39,22 +41,23 @@ class HttpParserTest extends TestCase
 
         $request = $this->parseStream($body);
 
-        self::assertSame('GET', $request->getMethod());
-        self::assertSame('/foo/bar', $request->getUri()->getPath());
-        self::assertSame('1.1', $request->getProtocolVersion());
-        self::assertSame(['127.0.0.1:9912'], $request->getHeader('host'));
-        self::assertSame(['ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3'], $request->getHeader('accept-language'));
-        self::assertSame([
+        Assert::same($request->getMethod(), 'GET');
+        Assert::same($request->getUri()->getPath(), '/foo/bar');
+        Assert::same($request->getProtocolVersion(), '1.1');
+        Assert::same($request->getHeader('host'), ['127.0.0.1:9912']);
+        Assert::same($request->getHeader('accept-language'), ['ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3']);
+        Assert::same($request->getCookieParams(), [
             'koa.sess' => 'Ijo4NjQwMDAwMH0=',
             'koa.sess.sig' => 'liV7oStLo',
             'csrf-token' => 'Gmch9',
             'csrf-token.sig' => 'X0fR',
-        ], $request->getCookieParams());
+        ]);
     }
 
     /*\
      * Parer doesn't fail on wrong cookies
      */
+    #[Test]
     public function testWrongCookie(): void
     {
         $body = \str_split(
@@ -75,16 +78,17 @@ class HttpParserTest extends TestCase
 
         $request = $this->parseStream($body);
 
-        self::assertSame('GET', $request->getMethod());
-        self::assertSame('/foo/bar', $request->getUri()->getPath());
-        self::assertSame('1.1', $request->getProtocolVersion());
-        self::assertSame(['127.0.0.1:9912'], $request->getHeader('host'));
-        self::assertSame(['ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3'], $request->getHeader('accept-language'));
-        self::assertSame([
+        Assert::same($request->getMethod(), 'GET');
+        Assert::same($request->getUri()->getPath(), '/foo/bar');
+        Assert::same($request->getProtocolVersion(), '1.1');
+        Assert::same($request->getHeader('host'), ['127.0.0.1:9912']);
+        Assert::same($request->getHeader('accept-language'), ['ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3']);
+        Assert::same($request->getCookieParams(), [
             'csrf-token.sig' => 'X0fR',
-        ], $request->getCookieParams());
+        ]);
     }
 
+    #[Test]
     public function testPostUrlEncoded(): void
     {
         $body = \str_split(
@@ -111,14 +115,15 @@ class HttpParserTest extends TestCase
 
         $request = $this->parseStream($body);
 
-        self::assertSame('POST', $request->getMethod());
-        self::assertSame('/foo/bar', $request->getUri()->getPath());
-        self::assertSame('1.1', $request->getProtocolVersion());
-        self::assertSame(['foo.bar.com'], $request->getHeader('host'));
-        self::assertSame('foo=bar&baz=qux&quux=corge+grault', $request->getBody()->__toString());
-        self::assertSame(['foo' => 'bar', 'baz' => 'qux', 'quux' => 'corge grault'], $request->getParsedBody());
+        Assert::same($request->getMethod(), 'POST');
+        Assert::same($request->getUri()->getPath(), '/foo/bar');
+        Assert::same($request->getProtocolVersion(), '1.1');
+        Assert::same($request->getHeader('host'), ['foo.bar.com']);
+        Assert::same($request->getBody()->__toString(), 'foo=bar&baz=qux&quux=corge+grault');
+        Assert::same($request->getParsedBody(), ['foo' => 'bar', 'baz' => 'qux', 'quux' => 'corge grault']);
     }
 
+    #[Test]
     public function testPostMultipartFormData(): void
     {
         $file1 = \file_get_contents(__DIR__ . '/../../../Stub/deburger.png');
@@ -161,28 +166,29 @@ class HttpParserTest extends TestCase
 
         $request = $this->parseStream($headers . $body);
 
-        self::assertSame('POST', $request->getMethod());
-        self::assertSame('/send-message.html', $request->getUri()->getPath());
-        self::assertSame('1.1', $request->getProtocolVersion());
-        self::assertSame(['webmail.example.com'], $request->getHeader('host'));
+        Assert::same($request->getMethod(), 'POST');
+        Assert::same($request->getUri()->getPath(), '/send-message.html');
+        Assert::same($request->getProtocolVersion(), '1.1');
+        Assert::same($request->getHeader('host'), ['webmail.example.com']);
         // POST data
-        self::assertEquals([
+        Assert::equals($request->getParsedBody(), [
             'Authors' => '@roxblnfk and @butschster',
             'MessageTitle' => 'Hello guys! The Buggregator is a great tool!',
             'MessageText' => 'Do you know that Buggregator could be called Deburger? But we decided to name it Buggregator.',
-        ], $request->getParsedBody());
+        ]);
         // Uploaded files
-        self::assertCount(2, $files = $request->getUploadedFiles());
+        Assert::count($files = $request->getUploadedFiles(), 2);
         /** @var UploadedFileInterface[] $files */
-        self::assertSame('deburger.png', $files['AttachedFile1'][0]->getClientFilename());
-        self::assertSame('image/png', $files['AttachedFile1'][0]->getClientMediaType());
-        self::assertSame($file1, $files['AttachedFile1'][0]->getStream()->__toString());
+        Assert::same($files['AttachedFile1'][0]->getClientFilename(), 'deburger.png');
+        Assert::same($files['AttachedFile1'][0]->getClientMediaType(), 'image/png');
+        Assert::same($files['AttachedFile1'][0]->getStream()->__toString(), $file1);
 
-        self::assertSame('buggregator.png', $files['AttachedFile2'][0]->getClientFilename());
-        self::assertSame('image/png', $files['AttachedFile2'][0]->getClientMediaType());
-        self::assertSame($file2, $files['AttachedFile2'][0]->getStream()->__toString());
+        Assert::same($files['AttachedFile2'][0]->getClientFilename(), 'buggregator.png');
+        Assert::same($files['AttachedFile2'][0]->getClientMediaType(), 'image/png');
+        Assert::same($files['AttachedFile2'][0]->getStream()->__toString(), $file2);
     }
 
+    #[Test]
     public function testGzippedBody(): void
     {
         $http = \file_get_contents(__DIR__ . '/../../../Stub/sentry.bin');
@@ -190,7 +196,7 @@ class HttpParserTest extends TestCase
         $request = $this->parseStream($http);
 
         $file = \file_get_contents(__DIR__ . '/../../../Stub/sentry-body.bin');
-        self::assertSame($file, $request->getBody()->__toString());
+        Assert::same($request->getBody()->__toString(), $file);
     }
 
     private function parseStream(array|string $body): ServerRequestInterface

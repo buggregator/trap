@@ -34,6 +34,7 @@ final class Inspector implements Processable
         $this->fibers[] = new \Fiber(fn() => $this->processStream($stream));
     }
 
+    #[\Override]
     public function process(): void
     {
         foreach ($this->fibers as $key => $fiber) {

@@ -20,11 +20,13 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 final class Http implements Renderer
 {
+    #[\Override]
     public function isSupport(Frame $frame): bool
     {
         return $frame->type === ProtoType::HTTP;
     }
 
+    #[\Override]
     public function render(OutputInterface $output, Frame $frame): void
     {
         \assert($frame instanceof Frame\Http);
@@ -109,7 +111,7 @@ final class Http implements Renderer
             $body->rewind();
             $read = $body->read($toRead);
             // replace all non-printable characters
-            $read = \preg_replace('/[\x00-\x09\x0F-\x1F]/', '.', $read);
+            $read = (string) \preg_replace('/[\x00-\x09\x0F-\x1F]/', '.', $read);
             $output->write($read, true, OutputInterface::OUTPUT_RAW);
         }
     }

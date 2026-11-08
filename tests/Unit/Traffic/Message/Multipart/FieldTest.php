@@ -5,17 +5,19 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Traffic\Message\Multipart;
 
 use Buggregator\Trap\Traffic\Message\Multipart\Field;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Test;
 
-final class FieldTest extends TestCase
+#[Test]
+final class FieldTest
 {
     public function testGetters(): void
     {
         $field = new Field(['Foo' => 'Bar'], 'name', 'value');
 
-        self::assertSame('name', $field->getName());
-        self::assertSame('value', $field->getValue());
-        self::assertSame('Bar', $field->getHeaderLine('foo'));
+        Assert::same($field->getName(), 'name');
+        Assert::same($field->getValue(), 'value');
+        Assert::same($field->getHeaderLine('foo'), 'Bar');
     }
 
     public function testWithHeader(): void
@@ -23,18 +25,18 @@ final class FieldTest extends TestCase
         $field = new Field(['Foo' => 'Bar'], 'name', 'value');
         $new = $field->withHeader('foo', 'baz');
 
-        self::assertNotSame($field, $new);
-        self::assertSame('Bar', $field->getHeaderLine('foo'));
-        self::assertSame('baz', $new->getHeaderLine('foo'));
+        Assert::notSame($new, $field);
+        Assert::same($field->getHeaderLine('foo'), 'Bar');
+        Assert::same($new->getHeaderLine('foo'), 'baz');
     }
 
     public function testFromArray(): void
     {
         $field = Field::fromArray(['headers' => ['Foo' => ['Bar', 'Baz']], 'value' => 'bar']);
 
-        self::assertNull($field->getName());
-        self::assertSame('bar', $field->getValue());
-        self::assertSame(['Bar', 'Baz'], $field->getHeader('foo'));
+        Assert::null($field->getName());
+        Assert::same($field->getValue(), 'bar');
+        Assert::same($field->getHeader('foo'), ['Bar', 'Baz']);
     }
 
     public function testSerializeAndUnserialize(): void
@@ -42,6 +44,6 @@ final class FieldTest extends TestCase
         $from = new Field(['Foo' => ['Bar', 'Baz']], 'message', 'foo bar baz');
         $to = Field::fromArray($from->jsonSerialize());
 
-        self::assertEquals($from, $to);
+        Assert::equals($to, $from);
     }
 }

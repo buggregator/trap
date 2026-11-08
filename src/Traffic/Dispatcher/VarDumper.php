@@ -14,6 +14,7 @@ use Buggregator\Trap\Traffic\StreamClient;
  */
 final class VarDumper implements Dispatcher
 {
+    #[\Override]
     public function dispatch(StreamClient $stream): iterable
     {
         while (!$stream->isFinished()) {
@@ -27,6 +28,7 @@ final class VarDumper implements Dispatcher
         }
     }
 
+    #[\Override]
     public function detect(string $data, \DateTimeImmutable $createdAt): ?bool
     {
         // Detect non-base64 symbols

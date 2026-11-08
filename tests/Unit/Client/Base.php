@@ -6,40 +6,42 @@ namespace Buggregator\Trap\Tests\Unit\Client;
 
 use Buggregator\Trap\Client\TrapHandle\Counter;
 use Buggregator\Trap\Client\TrapHandle\Dumper;
-use PHPUnit\Framework\TestCase;
 use Symfony\Component\VarDumper\Cloner\Data;
 use Symfony\Component\VarDumper\Dumper\DataDumperInterface;
+use Testo\Lifecycle\AfterTest;
+use Testo\Lifecycle\BeforeTest;
 
-class Base extends TestCase
+class Base
 {
     protected static ?Data $lastData = null;
 
+    #[BeforeTest]
     protected function setUp(): void
     {
         self::$lastData = null;
         Counter::clear();
-        $dumper = $this->getMockBuilder(DataDumperInterface::class)
-            ->getMock();
-        $dumper->expects($this->any())
-            ->method('dump')
-            ->with(
-                $this->callback(static function (Data $data): bool {
-                    static::$lastData = $data;
-                    return true;
-                }),
-            )
-            ->willReturnArgument(1);
 
-        Dumper::setDumper($dumper);
+        Dumper::setDumper(new class(static function (Data $data): void {
+            self::$lastData = $data;
+        }) implements DataDumperInterface {
 
-        parent::setUp();
+            public function __construct(
+                private readonly \Closure $capture,
+            ) {}
+
+            public function dump(Data $data): ?string
+            {
+                ($this->capture)($data);
+                return null;
+            }
+        });
     }
 
+    #[AfterTest]
     protected function tearDown(): void
     {
         self::$lastData = null;
         Counter::clear();
         Dumper::setDumper(null);
-        parent::tearDown();
     }
 }

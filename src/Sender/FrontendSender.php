@@ -22,6 +22,7 @@ final class FrontendSender implements \Buggregator\Trap\Sender, Processable
     /**
      * @param iterable<Frame> $frames
      */
+    #[\Override]
     public function send(iterable $frames): void
     {
         foreach ($frames as $frame) {
@@ -40,6 +41,7 @@ final class FrontendSender implements \Buggregator\Trap\Sender, Processable
         return $this->framesStorage;
     }
 
+    #[\Override]
     public function process(): void
     {
         $this->connectionPool->process();

@@ -5,14 +5,20 @@ name: 🔐 Security analysis
 on:  # yamllint disable-line rule:truthy
   pull_request:
   push:
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
 
 jobs:
   security-analysis:
     timeout-minutes: 4
     runs-on: ${{ matrix.os }}
-    concurrency:
-      cancel-in-progress: true
-      group: security-analysis-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
     strategy:
       fail-fast: true
       matrix:
@@ -24,36 +30,24 @@ jobs:
           - locked
     steps:
       - name: 📦 Check out the codebase
-        uses: actions/checkout@v4.1.5
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: 🛠️ Setup PHP
-        uses: shivammathur/setup-php@2.30.4
+        uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-version }}
-          extensions: none, ctype, dom, json, mbstring, phar, simplexml, tokenizer, xml, xmlwriter, sockets
           ini-values: error_reporting=E_ALL
           coverage: none
-
-      - name: 🛠️ Setup problem matchers
-        run: echo "::add-matcher::${{ runner.tool_cache }}/php.json"
 
       - name: 🤖 Validate composer.json and composer.lock
         run: composer validate --ansi --strict
 
-      - name: 🔍 Get composer cache directory
-        uses: wayofdev/gh-actions/actions/composer/get-cache-directory@v3.1.0
-
-      - name: ♻️ Restore cached dependencies installed with composer
-        uses: actions/cache@v4.0.2
+      - name: 📥 Install dependencies with composer
+        uses: ramsey/composer-install@v3
         with:
-          path: ${{ env.COMPOSER_CACHE_DIR }}
-          key: php-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-${{ hashFiles('composer.lock') }}
-          restore-keys: php-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-
-
-      - name: 📥 Install "${{ matrix.dependencies }}" dependencies
-        uses: wayofdev/gh-actions/actions/composer/install@v3.1.0
-        with:
-          dependencies: ${{ matrix.dependencies }}
+          dependency-versions: ${{ matrix.dependencies }}
 
       - name: 🐛 Check installed packages for security vulnerability advisories
-        run: composer audit --ansi
+        run: composer audit --ansi --no-dev

@@ -54,7 +54,7 @@ final class VarDump
      */
     private function parse(string $message): array
     {
-        $payload = @\unserialize(\base64_decode($message, true), ['allowed_classes' => [Data::class, Stub::class]]);
+        $payload = @\unserialize((string) \base64_decode($message, true), ['allowed_classes' => [Data::class, Stub::class]]);
 
         // Impossible to decode the message, give up.
         if ($payload === false) {

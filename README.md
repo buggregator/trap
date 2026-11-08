@@ -9,9 +9,17 @@
 
 <div align="center">
 
+[![Documentation](https://img.shields.io/badge/Documentation-blue?style=for-the-badge&logo=gitbook&logoColor=white)](https://docs.buggregator.dev/trap/what-is-trap.html)
+[![Sponsor](https://img.shields.io/static/v1?style=for-the-badge&label=&message=Sponsor&logo=boosty&logoColor=white&color=%23F15F2C)](https://boosty.to/roxblnfk)
+
+[![Psalm Level](https://shepherd.dev/github/buggregator/trap/level.svg)](https://shepherd.dev/github/buggregator/trap)
+[![Type Coverage](https://shepherd.dev/github/buggregator/trap/coverage.svg)](https://shepherd.dev/github/buggregator/trap)
+[![Codecov](https://img.shields.io/codecov/c/github/buggregator/trap/master?style=flat&logo=codecov)](https://codecov.io/gh/buggregator/trap)
+[![Mutation testing badge](https://img.shields.io/endpoint?style=flat&url=https%3A%2F%2Fbadge-api.stryker-mutator.io%2Fgithub.com%2Fbuggregator%2Ftrap%2Fmaster)](https://dashboard.stryker-mutator.io/reports/github.com/buggregator/trap/master)
+
+[![Awesome PHP](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/ziadoz/awesome-php#debugging-and-profiling)
 [![Twitter](https://img.shields.io/badge/-Follow-black?style=flat-square&logo=X)](https://twitter.com/buggregator)
 [![Discord](https://img.shields.io/static/v1?style=flat-square&label=Join&message=Discord&logo=Discord&color=%235865F2)](https://discord.gg/qF3HpXhMEP)
-[![Support](https://img.shields.io/static/v1?style=flat-square&label=Support&message=%E2%9D%A4&logo=GitHub&color=%23fe0086)](https://patreon.com/roxblnfk)
 
 </div>
 
@@ -32,7 +40,6 @@ Trap includes:
 - [Overview](#overview)
 - [Usage](#usage)
 - [Contributing](#contributing)
-- [License](#license)
 
 ## Installation
 
@@ -46,9 +53,17 @@ composer require --dev buggregator/trap -W
 [![PHP](https://img.shields.io/packagist/php-v/buggregator/trap.svg?style=flat-square&logo=php)](https://packagist.org/packages/buggregator/trap)
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/buggregator/trap.svg?style=flat-square&logo=packagist)](https://packagist.org/packages/buggregator/trap)
 [![License](https://img.shields.io/packagist/l/buggregator/trap.svg?style=flat-square)](LICENSE.md)
-[![Total Downloads](https://img.shields.io/packagist/dt/buggregator/trap.svg?style=flat-square)](https://packagist.org/packages/buggregator/trap)
+[![Total Downloads](https://img.shields.io/packagist/dt/buggregator/trap.svg?style=flat-square)](https://packagist.org/packages/buggregator/trap/stats)
 
 And that's it. Trap is [ready to go](#usage).
+
+### Binary
+
+If you prefer to use Trap as a binary, you can install it globally using [Dload](https://github.com/php-internal/dload):
+
+```bash
+dload get trap
+```
 
 ### Phar
 
@@ -92,6 +107,7 @@ Buggregator Trap boasts a much wider range of handlers ("traps") for debug messa
 - Symfony var-dumper,
 - Monolog,
 - Sentry,
+- OpenTelemetry traces (OTLP/HTTP),
 - SMTP,
 - HTTP dumps,
 - Ray,
@@ -197,7 +213,8 @@ function handle($input) {
 
 Trap automatically recognizes the type of traffic.
 Therefore, there is no need to open separate ports for different protocols.
-By default, it operates on the same ports as the Buggregator Server: `9912`, `9913`, `1025`, and `8000`.
+By default, it operates on the same ports as the Buggregator Server: `9912`, `9913`, `1025`, and `8000`,
+plus `4318`, the default OTLP/HTTP port.
 However, if you wish to utilize a different port, you can easily make this adjustment using the `-p` option:
 
 ```bash
@@ -206,9 +223,58 @@ vendor/bin/trap -p9912 --ui=8000
 
 Environment variables can also be used to set endpoints:
 
-- `TRAP_TCP_PORTS` - for TCP traffic: `9912,9913,1025,8000`
+- `TRAP_TCP_PORTS` - for TCP traffic: `9912,9913,1025,8000,4318`
 - `TRAP_TCP_HOST` - for the TCP host (default: `127.0.0.1`)
 - `TRAP_UI_PORT` - for the web interface: `8080`
+
+### OpenTelemetry traces
+
+Trap receives traces exported over OTLP/HTTP (`POST /v1/traces`) on any of its ports
+and prints them in the console as a tree of spans:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
+OTEL_EXPORTER_OTLP_PROTOCOL=http/json
+```
+
+Logs and metrics are not supported yet: Trap answers `/v1/logs` and `/v1/metrics` with success and drops them.
+To send only traces, set `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4318/v1/traces` instead of the
+common endpoint, or turn the other signals off with `OTEL_LOGS_EXPORTER=none` and `OTEL_METRICS_EXPORTER=none`.
+
+The `http/protobuf` protocol needs the suggested packages:
+
+```bash
+composer require --dev open-telemetry/gen-otlp-protobuf google/protobuf
+```
+
+The PHAR, the standalone binary and the Docker image do not include them, so they accept only `http/json`.
+
+Notes:
+
+- Requests with `Transfer-Encoding: chunked` are not supported by the HTTP parser of Trap;
+  OpenTelemetry SDK exporters send `Content-Length`.
+- Exporters running in a browser are not supported: Trap does not answer CORS preflight requests.
+- One export request may carry up to 10 MB (after decompression) and up to 10 000 spans; a bigger one gets `413`.
+  SDK batch processors export 512 spans at a time by default.
+- Port `4318` is also the default port of an OpenTelemetry Collector or Jaeger. On Linux and macOS, when it is
+  taken, Trap keeps retrying to listen on it silently (run with `-vv` to see the errors) and works on the other ports.
+  On Windows, Trap can listen on `127.0.0.1:4318` even while another process, such as a Collector or Jaeger in
+  Docker Desktop, listens on `0.0.0.0:4318`, and then Trap receives the local traffic meant for that process.
+  To leave the port to it, list the ports without `4318`:
+  `vendor/bin/trap -p1025 -p8000 -p9912 -p9913` or `TRAP_TCP_PORTS=1025,8000,9912,9913`.
+
+With the `file` sender, each export request is saved as one JSON line:
+`{"type":"otlp.traces","resourceSpans":[...]}`.
+
+Spans of one trace often arrive in separate requests (a simple span processor exports each span on its own),
+so Trap keeps received spans in memory to print them together. The memory is limited by:
+
+- `TRAP_TRACES_MAX_SPANS` - the maximum number of kept spans; the least recently updated traces are dropped
+  above it, and a single trace above it keeps only its most recent spans (default: `10000`)
+- `TRAP_TRACES_TTL` - seconds a trace is kept after its last received span (default: `600`)
+
+The same limits can be set in `trap.xml`: `<traces maxSpans="10000" ttl="600"/>`.
+Non-positive or non-numeric values fall back to the defaults.
 
 ### Choosing Your Senders
 
@@ -245,28 +311,6 @@ We believe in the power of community-driven development. Here's how you can cont
     [There are issues](https://github.com/buggregator/trap/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22) labeled "help wanted" that are a good place to start.
   - Have good documentation writing skills? We'd love your help improving our [docs](https://github.com/buggregator/docs/tree/master/docs).
 - Sponsor us:  
-  - If you use Buggregator in a commercial setting, consider [becoming a sponsor](https://patreon.com/roxblnfk) to help us maintain and improve the project.
+  - If you use Buggregator in a commercial setting, consider [becoming a sponsor](https://boosty.to/roxblnfk) to help us maintain and improve the project.
   - You also can promote a specific feature or bug fix.
     We mark sponsored tasks with the honorary label [`SPONSORED`](https://github.com/buggregator/trap/issues?q=label%3ASPONSORED).
-
-## License
-
-Buggregator Trap is open-sourced software licensed under the BSD-3 license.
-
-<!--
-
-[![Contributors](https://contrib.rocks/image?repo=buggregator/trap)](https://github.com/buggregator/trap/graphs/contributors)
-
-Quality badges:
-
-[![Tests Status](https://img.shields.io/github/actions/workflow/status/buggregator/trap/testing.yml?label=tests&style=flat-square)](https://github.com/buggregator/trap/actions/workflows/testing.yml?query=workflow%3Atesting%3Amaster)
-[![Dependency status](https://php.package.health/packages/buggregator/trap/dev-master/status.svg)](https://php.package.health/packages/buggregator/trap/dev-master)
-
-# (tests coverage)
-# (types coverage)
-# (psalm level)
-# (static analysis)
-# (mutation)
-# (scrutinizer score)
-# (code style)
--->

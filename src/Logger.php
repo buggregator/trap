@@ -30,22 +30,22 @@ final class Logger
 
     public function status(string $sender, string $message, string|int|float|bool ...$values): void
     {
-        $this->echo("\033[47;1;30m " . $sender . " \033[0m " . \sprintf($message, ...$values) . "\n\n", false);
+        $this->echo("\033[47;1;30m " . $sender . " \033[0m " . self::format($message, $values) . "\n\n", false);
     }
 
     public function info(string $message, string|int|float|bool ...$values): void
     {
-        $this->echo("\033[32m" . \sprintf($message, ...$values) . "\033[0m\n", !$this->verbose);
+        $this->echo("\033[32m" . self::format($message, $values) . "\033[0m\n", !$this->verbose);
     }
 
     public function debug(string $message, string|int|float|bool ...$values): void
     {
-        $this->echo("\033[34m" . \sprintf($message, ...$values) . "\033[0m\n");
+        $this->echo("\033[34m" . self::format($message, $values) . "\033[0m\n");
     }
 
     public function error(string $message, string|int|float|bool ...$values): void
     {
-        $this->echo("\033[31m" . \sprintf($message, ...$values) . "\033[0m\n");
+        $this->echo("\033[31m" . self::format($message, $values) . "\033[0m\n");
     }
 
     public function exception(\Throwable $e, ?string $header = null, bool $important = false): void
@@ -66,6 +66,18 @@ final class Logger
         $r .= "\033[90m" . \implode("\n", \array_slice($stack, 0, \min(5, \count($stack)))) . "\033[0m\n";
         $r .= "\n";
         $this->echo($r, !$important);
+    }
+
+    /**
+     * @param array<array-key, string|int|float|bool> $values
+     */
+    private static function format(string $message, array $values): string
+    {
+        // Convert booleans to strings the same way sprintf() does
+        return \sprintf($message, ...\array_map(
+            static fn(string|int|float|bool $value): string|int|float => \is_bool($value) ? (string) $value : $value,
+            $values,
+        ));
     }
 
     private function echo(string $message, bool $debug = true): void

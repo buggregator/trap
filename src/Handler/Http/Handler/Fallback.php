@@ -23,6 +23,12 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 final class Fallback implements RequestHandler
 {
+    /**
+     * A middleware sets this response header when the request must not be dumped as an HTTP frame
+     * although it produced no frame. The header is not sent to the client.
+     */
+    public const NO_DUMP_HEADER = 'X-Trap-No-Dump';
+
     /** @var Pipeline<Middleware, ResponseInterface> */
     private readonly Pipeline $pipeline;
 
@@ -41,12 +47,14 @@ final class Fallback implements RequestHandler
         );
     }
 
+    #[\Override]
     public function handle(StreamClient $streamClient, ServerRequestInterface $request, callable $next): iterable
     {
         /** @var mixed $time */
         $time = $request->getAttribute('begin_at');
         $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
         $gotFrame = false;
+        $response = null;
 
         try {
             $fiber = new \Fiber(($this->pipeline)(...));
@@ -60,16 +68,17 @@ final class Fallback implements RequestHandler
                 }
 
                 if ($got instanceof ResponseInterface) {
-                    HttpEmitter::emit($streamClient, $got);
+                    HttpEmitter::emit($streamClient, $got->withoutHeader(self::NO_DUMP_HEADER));
                 }
 
                 if ($fiber->isTerminated()) {
+                    /** @var mixed $response */
                     $response = $fiber->getReturn();
                     if (!$response instanceof ResponseInterface) {
                         throw new \RuntimeException('Invalid response type.');
                     }
 
-                    HttpEmitter::emit($streamClient, $response);
+                    HttpEmitter::emit($streamClient, $response->withoutHeader(self::NO_DUMP_HEADER));
                     break;
                 }
 
@@ -82,9 +91,9 @@ final class Fallback implements RequestHandler
             $streamClient->disconnect();
         }
 
-        /** @var mixed $response */
-        $response ??= null;
-        if ($response instanceof ResponseInterface && $response->hasHeader(FrontendPipeline::FRONTEND_HEADER)) {
+        if ($response instanceof ResponseInterface && (
+            $response->hasHeader(FrontendPipeline::FRONTEND_HEADER) || $response->hasHeader(self::NO_DUMP_HEADER)
+        )) {
             return;
         }
 

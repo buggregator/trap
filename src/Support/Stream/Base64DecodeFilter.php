@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Support\Stream;
 
 /**
- * @psalm-suppress all
- *
  * @internal
  * @psalm-internal Buggregator\Trap
  *
@@ -23,40 +21,28 @@ final class Base64DecodeFilter extends \php_user_filter
      * @param resource $out
      * @param int<0, max> $consumed
      */
+    #[\Override]
     public function filter($in, $out, &$consumed, bool $closing): int
     {
-        // Buffer size
-        $bs = \strlen($this->buffer);
-
         while ($bucket = \stream_bucket_make_writeable($in)) {
-            /** @var int<1, max> $len */
-            $len = $bs + $bucket->datalen;
-            $d = $len % 4;
+            /** @var string $data */
+            $data = $bucket->data;
+            /** @var int<0, max> $dataLen */
+            $dataLen = $bucket->datalen;
+            $consumed += $dataLen;
 
-            if ($d === 0 || $closing) {
-                $bucket->data = \base64_decode($this->buffer . $bucket->data, true);
-                $consumed += $bucket->datalen;
-                $this->buffer = '';
+            // MIME wraps base64 lines with CRLF: line breaks must not count towards the 4-character groups
+            $this->buffer .= \str_replace(["\r", "\n", "\t", " "], '', $data);
+            $tail = $closing ? 0 : \strlen($this->buffer) % 4;
+            $bucket->data = \base64_decode(\substr($this->buffer, 0, \strlen($this->buffer) - $tail), true);
+            $this->buffer = \substr($this->buffer, \strlen($this->buffer) - $tail);
 
-                // Send the decoded data to the next bucket
-                \stream_bucket_append($out, $bucket);
+            \stream_bucket_append($out, $bucket);
+        }
 
-                continue;
-            }
-
-            if ($len < 4) {
-                $this->buffer .= $bucket->data;
-                $consumed += $bucket->datalen;
-
-                continue;
-            }
-
-            // Decode part of the data
-            $bucket->data = \base64_decode($this->buffer . \substr($bucket->data, 0, -$d), true);
-            $consumed += $bucket->datalen;
-            $this->buffer = \substr($bucket->data, -$d);
-
-            // Send the decoded data to the next bucket
+        if ($closing && $this->buffer !== '' && $this->stream !== null) {
+            $bucket = \stream_bucket_new($this->stream, (string) \base64_decode($this->buffer, true));
+            $this->buffer = '';
             \stream_bucket_append($out, $bucket);
         }
 

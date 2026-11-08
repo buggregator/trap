@@ -14,12 +14,13 @@ use Buggregator\Trap\Config\Server\TcpPorts;
 use Buggregator\Trap\Handler\Http\Handler\Websocket;
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Proto\Buffer;
-use Buggregator\Trap\Service\Container;
+use Internal\Container\Container;
 use Buggregator\Trap\Socket\Client;
 use Buggregator\Trap\Socket\Server;
 use Buggregator\Trap\Socket\SocketStream;
 use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Traffic\Inspector;
+use Internal\Destroy\Destroyable;
 
 /**
  * @internal
@@ -63,40 +64,46 @@ final class Application implements Processable, Cancellable, Destroyable
         $withFrontend and $this->configureFrontend($feSeparated);
 
         $inspectorWithFrontend = $inspector = $container->make(Inspector::class, [
-            // new Traffic\Dispatcher\WebSocket(),
-            new Traffic\Dispatcher\VarDumper(),
-            new Traffic\Dispatcher\Http(
-                [
-                    $this->container->get(Middleware\Resources::class),
-                    $this->container->get(Middleware\DebugPage::class),
-                    $this->container->get(Middleware\RayRequestDump::class),
-                    $this->container->get(Middleware\SentryTrap::class),
-                    $this->container->get(Middleware\XHProfTrap::class),
-                ],
-                [new Websocket()],
-            ),
-            new Traffic\Dispatcher\Smtp(),
-            new Traffic\Dispatcher\Monolog(),
+            'dispatchers' => [
+                // new Traffic\Dispatcher\WebSocket(),
+                new Traffic\Dispatcher\VarDumper(),
+                new Traffic\Dispatcher\Http(
+                    [
+                        $this->container->get(Middleware\Resources::class),
+                        $this->container->get(Middleware\DebugPage::class),
+                        $this->container->get(Middleware\RayRequestDump::class),
+                        $this->container->get(Middleware\SentryTrap::class),
+                        $this->container->get(Middleware\XHProfTrap::class),
+                        $this->container->get(Middleware\OtlpTrap::class),
+                    ],
+                    [new Websocket()],
+                ),
+                new Traffic\Dispatcher\Smtp(),
+                new Traffic\Dispatcher\Monolog(),
+            ],
         ]);
         $this->processors[] = $inspector;
 
 
         if ($withFrontend && !$feSeparated) {
             $inspectorWithFrontend = $container->make(Inspector::class, [
-                new Traffic\Dispatcher\VarDumper(),
-                new Traffic\Dispatcher\Http(
-                    [
-                        $this->container->get(Module\Frontend\Http\Pipeline::class),
-                        $this->container->get(Middleware\Resources::class),
-                        $this->container->get(Middleware\DebugPage::class),
-                        $this->container->get(Middleware\RayRequestDump::class),
-                        $this->container->get(Middleware\SentryTrap::class),
-                        $this->container->get(Middleware\XHProfTrap::class),
-                    ],
-                    [$this->container->get(Module\Frontend\Http\RequestHandler::class)],
-                ),
-                new Traffic\Dispatcher\Smtp(),
-                new Traffic\Dispatcher\Monolog(),
+                'dispatchers' => [
+                    new Traffic\Dispatcher\VarDumper(),
+                    new Traffic\Dispatcher\Http(
+                        [
+                            $this->container->get(Module\Frontend\Http\Pipeline::class),
+                            $this->container->get(Middleware\Resources::class),
+                            $this->container->get(Middleware\DebugPage::class),
+                            $this->container->get(Middleware\RayRequestDump::class),
+                            $this->container->get(Middleware\SentryTrap::class),
+                            $this->container->get(Middleware\XHProfTrap::class),
+                            $this->container->get(Middleware\OtlpTrap::class),
+                        ],
+                        [$this->container->get(Module\Frontend\Http\RequestHandler::class)],
+                    ),
+                    new Traffic\Dispatcher\Smtp(),
+                    new Traffic\Dispatcher\Monolog(),
+                ],
             ]);
             $this->processors[] = $inspectorWithFrontend;
         }
@@ -131,6 +138,7 @@ final class Application implements Processable, Cancellable, Destroyable
     /**
      * @param Sender[] $senders
      */
+    #[\Override]
     public function process(array $senders = []): void
     {
         foreach ($this->processors as $server) {
@@ -156,6 +164,7 @@ final class Application implements Processable, Cancellable, Destroyable
         }
     }
 
+    #[\Override]
     public function destroy(): void
     {
         foreach ([...$this->servers, ...$this->processors] as $instance) {
@@ -169,6 +178,7 @@ final class Application implements Processable, Cancellable, Destroyable
         $this->fibers = [];
     }
 
+    #[\Override]
     public function cancel(): void
     {
         $this->cancelled = true;
@@ -214,11 +224,13 @@ final class Application implements Processable, Cancellable, Destroyable
 
         // Separated port
         $inspector = $this->container->make(Inspector::class, [
-            new Traffic\Dispatcher\Http(
-                [$this->container->get(Module\Frontend\Http\Pipeline::class)],
-                [$this->container->get(Module\Frontend\Http\RequestHandler::class)],
-                silentMode: true,
-            ),
+            'dispatchers' => [
+                new Traffic\Dispatcher\Http(
+                    [$this->container->get(Module\Frontend\Http\Pipeline::class)],
+                    [$this->container->get(Module\Frontend\Http\RequestHandler::class)],
+                    silentMode: true,
+                ),
+            ],
         ]);
         $this->processors[] = $inspector;
         /** @var TcpPorts $tcpConfig */
@@ -259,7 +271,7 @@ final class Application implements Processable, Cancellable, Destroyable
             $config->host,
             $config->port,
             payloadSize: 524_288,
-            acceptPeriod: \max(50, $config->pollingInterval) / 1e6,
+            acceptPeriod: (float) \max(50, $config->pollingInterval) / 1e6,
             clientInflector: $clientInflector,
             logger: $this->logger,
         );
@@ -268,9 +280,11 @@ final class Application implements Processable, Cancellable, Destroyable
     private function configureFileObserver(): void
     {
         $this->processors[] = $this->container->make(Service\FilesObserver::class, [
-            $this->container->get(XHProfFileConfig::class),
-            $this->container->get(XDebugFileConfig::class),
-            $this->container->get(SPXFileConfig::class),
+            'configs' => [
+                $this->container->get(XHProfFileConfig::class),
+                $this->container->get(XDebugFileConfig::class),
+                $this->container->get(SPXFileConfig::class),
+            ],
         ]);
     }
 }

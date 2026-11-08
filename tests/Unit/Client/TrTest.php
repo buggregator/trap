@@ -5,37 +5,46 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Client;
 
 use Buggregator\Trap\Client\TrapHandle\Dumper;
-use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use Symfony\Component\VarDumper\Dumper\DataDumperInterface;
+use Testo\Assert;
+use Testo\Test;
 
+#[Test]
 final class TrTest extends Base
 {
+    /** The `%f` placeholder of PHPUnit's `assertStringMatchesFormat()`. */
+    private const FLOAT = '[+-]?\.?\d+\.?\d*(?:[Ee][+-]?\d+)?';
+
     public function testLabel(): void
     {
         tr(FooName: 'foo-value');
-        self::assertSame('FooName', self::$lastData->getContext()['label']);
+        Assert::same(self::$lastData->getContext()['label'], 'FooName');
     }
 
     /**
      * Check the stacktrace contains three items and it begins with the right function name.
+     *
+     * The tick counter lives in a static variable of {@see tr()} and other tests call it too,
+     * so the numbers are checked relative to the first call.
      */
-    #[RunInSeparateProcess]
     public function testTrAsStackTrace(): void
     {
         tr();
 
         // 3 Stack Trace items
-        self::assertCount(3, self::$lastData->getValue());
-        self::assertStringMatchesFormat('Trace #0  -.---  %fM', self::$lastData->getType());
+        Assert::count(self::$lastData->getValue(), 3);
+        $type = self::$lastData->getType();
+        Assert::string($type)->matchesRegex('/^Trace #\d+  (?:-\.---|\+' . self::FLOAT . 'ms)  ' . self::FLOAT . 'M$/');
+        $tick = (int) \substr($type, \strlen('Trace #'));
         $firstLineKey = \array_key_first(self::$lastData->getValue());
-        self::assertStringContainsString('tr()', $firstLineKey);
+        Assert::string($firstLineKey)->contains('tr()');
 
         tr();
 
-        self::assertCount(3, self::$lastData->getValue());
-        self::assertStringMatchesFormat('Trace #1  +%fms  %fM', self::$lastData->getType());
+        Assert::count(self::$lastData->getValue(), 3);
+        Assert::string(self::$lastData->getType())->matchesRegex('/^Trace #' . ($tick + 1) . '  \+' . self::FLOAT . 'ms  ' . self::FLOAT . 'M$/');
         $firstLineKey = \array_key_first(self::$lastData->getValue());
-        self::assertStringContainsString('tr()', $firstLineKey);
+        Assert::string($firstLineKey)->contains('tr()');
     }
 
     /**
@@ -49,27 +58,24 @@ final class TrTest extends Base
         tr($object, $object);
         unset($object);
 
-        self::assertNull($ref->get());
+        Assert::null($ref->get());
     }
 
     public function testReturn(): void
     {
-        self::assertSame(42, tr(42));
-        self::assertSame(42, tr(named: 42));
-        self::assertSame(42, tr(42, 43));
-        self::assertSame('foo', tr(...['0' => 'foo', 42 => 90]));
-        self::assertNull(tr(null));
+        Assert::same(tr(42), 42);
+        Assert::same(tr(named: 42), 42);
+        Assert::same(tr(42, 43), 42);
+        Assert::same(tr(...['0' => 'foo', 42 => 90]), 'foo');
+        Assert::null(tr(null));
     }
 
     public function testReturnSendsDumpOnce(): void
     {
-        $dumper = $this->getMockBuilder(DataDumperInterface::class)
-            ->getMock();
-        $dumper->expects(self::once())
-            ->method('dump')
-            ->willReturnArgument(1);
+        $dumper = \Mockery::mock(DataDumperInterface::class);
+        $dumper->shouldReceive('dump')->once()->andReturnNull();
         Dumper::setDumper($dumper);
 
-        self::assertSame(42, tr(42));
+        Assert::same(tr(42), 42);
     }
 }

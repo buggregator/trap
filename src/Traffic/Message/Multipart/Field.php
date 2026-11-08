@@ -35,6 +35,7 @@ final class Field extends Part
      * @return FieldDataArray
      * @psalm-suppress ImplementedReturnTypeMismatch
      */
+    #[\Override]
     public function jsonSerialize(): array
     {
         return parent::jsonSerialize() + [

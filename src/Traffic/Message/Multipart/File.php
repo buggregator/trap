@@ -48,6 +48,7 @@ final class File extends Part implements UploadedFileInterface
      *
      * @psalm-suppress ImplementedReturnTypeMismatch
      */
+    #[\Override]
     public function jsonSerialize(): array
     {
         $data = parent::jsonSerialize();
@@ -85,11 +86,13 @@ final class File extends Part implements UploadedFileInterface
         return isset($this->uploadedFile);
     }
 
+    #[\Override]
     public function getStream(): StreamInterface
     {
         return $this->getUploadedFile()->getStream();
     }
 
+    #[\Override]
     public function moveTo(string $targetPath): void
     {
         $this->getUploadedFile()->moveTo($targetPath);
@@ -98,21 +101,25 @@ final class File extends Part implements UploadedFileInterface
     /**
      * @return int<0, max>|null
      */
+    #[\Override]
     public function getSize(): ?int
     {
         return $this->fileSize;
     }
 
+    #[\Override]
     public function getError(): int
     {
         return $this->getUploadedFile()->getError();
     }
 
+    #[\Override]
     public function getClientFilename(): ?string
     {
         return $this->fileName;
     }
 
+    #[\Override]
     public function getClientMediaType(): ?string
     {
         return \explode(';', $this->getHeader('Content-Type')[0] ?? '', 2)[0] ?? null;

@@ -8,14 +8,17 @@ use Buggregator\Trap\Info;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\CommandLoader\FactoryCommandLoader;
 
-if ('cli' !== PHP_SAPI) {
-    throw new Exception('This script must be run from the command line.');
-}
+// if ('cli' !== PHP_SAPI) {
+//     throw new Exception('This script must be run from the command line.');
+// }
 
 (static function () {
     $cwd = \getcwd();
 
     $possibleAutoloadPaths = [
+        // set by the Composer bin proxy; the only reliable path when the package is symlinked
+        // from a path repository, where the paths below resolve to the package's own vendor
+        ...(\is_string($GLOBALS['_composer_autoload_path'] ?? null) ? [$GLOBALS['_composer_autoload_path']] : []),
         // local dev repository
         \dirname(__DIR__) . '/vendor/autoload.php',
         // running from project root
@@ -45,12 +48,12 @@ if ('cli' !== PHP_SAPI) {
     $application = new Application();
     $application->setCommandLoader(
         new FactoryCommandLoader([
-            Command\Run::getDefaultName() => static fn() => new Command\Run(),
-            Command\Joke::getDefaultName() => static fn() => new Command\Joke(),
-            Command\Test::getDefaultName() => static fn() => new Command\Test(),
+            'run' => static fn(): Command\Run => new Command\Run(),
+            'joke' => static fn(): Command\Joke => new Command\Joke(),
+            'test' => static fn(): Command\Test => new Command\Test(),
         ]),
     );
-    $application->setDefaultCommand(Command\Run::getDefaultName(), false);
+    $application->setDefaultCommand('run', false);
     $application->setName(Info::NAME);
     $application->setVersion(Info::version());
     $application->run();

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Socket;
 
-use Buggregator\Trap\Destroyable;
 use Buggregator\Trap\Socket\Exception\ClientDisconnected;
 use Buggregator\Trap\Support\Timer;
+use Internal\Destroy\Destroyable;
 
 /**
  * Client state on the server side.
@@ -54,6 +54,7 @@ final class Client implements Destroyable
         );
     }
 
+    #[\Override]
     public function destroy(): void
     {
         /** @psalm-suppress RedundantPropertyInitializationCheck */
@@ -161,8 +162,23 @@ final class Client implements Destroyable
     private function writeQueue(): void
     {
         foreach ($this->writeQueue as $data) {
-            \socket_write($this->socket, $data);
-            // Logger::debug('Respond %d bytes', $x);
+            $length = \strlen($data);
+            $written = 0;
+            while ($written < $length) {
+                $result = \socket_write($this->socket, \substr($data, $written));
+                if ($result === false) {
+                    $errno = \socket_last_error($this->socket);
+                    // If the send buffer is temporarily full, suspend the fiber and retry
+                    if ($errno === \SOCKET_EAGAIN || $errno === \SOCKET_EWOULDBLOCK) {
+                        \socket_clear_error($this->socket);
+                        \Fiber::suspend();
+                        continue;
+                    }
+                    // Unrecoverable error, stop writing
+                    break 2;
+                }
+                $written += $result;
+            }
         }
         \socket_set_nonblock($this->socket);
 

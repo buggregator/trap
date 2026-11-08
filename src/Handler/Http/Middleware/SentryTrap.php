@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Handler\Http\Middleware;
 
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Handler\Http\Middleware\SentryTrap\EnvelopeParser;
+use Buggregator\Trap\Logger;
 use Buggregator\Trap\Proto\Frame;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
@@ -21,12 +22,17 @@ final class SentryTrap implements Middleware
 {
     private const MAX_BODY_SIZE = 2 * 1024 * 1024;
 
+    public function __construct(
+        private readonly ?Logger $logger = null,
+    ) {}
+
+    #[\Override]
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
         try {
             // Detect Sentry envelope
             if ($request->getHeaderLine('Content-Type') === 'application/x-sentry-envelope'
-                && \str_ends_with($request->getUri()->getPath(), '/envelope/')
+                && \str_contains($request->getUri()->getPath(), '/envelope/')
             ) {
                 return $this->processEnvelope($request);
             }
@@ -55,7 +61,7 @@ final class SentryTrap implements Middleware
      * @return Response
      * @throws \Throwable
      */
-    public function processEnvelope(ServerRequestInterface $request): ResponseInterface
+    private function processEnvelope(ServerRequestInterface $request): ResponseInterface
     {
         $size = $request->getBody()->getSize();
         if ($size === null || $size > self::MAX_BODY_SIZE) {
@@ -69,8 +75,12 @@ final class SentryTrap implements Middleware
         $time = $request->getAttribute('begin_at');
         $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
 
-        $frame = EnvelopeParser::parse($request->getBody(), $time);
-        \Fiber::suspend($frame);
+        try {
+            $frame = EnvelopeParser::parse($request->getBody(), $time);
+            \Fiber::suspend($frame);
+        } catch (\Throwable $e) {
+            $this->logger?->info('Sentry envelope parsing failed: %s', $e->getMessage());
+        }
 
         return new Response(200);
     }

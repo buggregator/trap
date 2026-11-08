@@ -29,6 +29,7 @@ final class XHProf implements FileFilterInterface
         private readonly ProfileBuilder $profileBuilder,
     ) {}
 
+    #[\Override]
     public function validate(FileInfo $file): bool
     {
         return $file->getExtension() === 'xhprof';
@@ -37,6 +38,7 @@ final class XHProf implements FileFilterInterface
     /**
      * @return \Traversable<int, ProfilerFrame>
      */
+    #[\Override]
     public function convert(FileInfo $file): \Traversable
     {
         try {
@@ -45,12 +47,13 @@ final class XHProf implements FileFilterInterface
                     type: ProfilerFrame\Type::XHProf,
                     callsProvider: function () use ($file): Profile {
                         $content = \file_get_contents($file->path);
+                        $content === false and throw new \RuntimeException('Unable to read the profile file.');
                         /** @var RawData $data */
                         $data = \unserialize($content, ['allowed_classes' => false]);
                         return $this->profileBuilder->createProfile(
                             date: new \DateTimeImmutable('@' . $file->mtime),
                             metadata: [
-                                'hostname' => \gethostname(),
+                                'hostname' => (string) \gethostname(),
                                 'filename' => $file->getName(),
                                 'filesize' => $file->size,
                             ],

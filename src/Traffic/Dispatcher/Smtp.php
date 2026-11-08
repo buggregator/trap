@@ -28,6 +28,7 @@ final class Smtp implements Dispatcher
     }
 
     // todo support Auth https://www.rfc-editor.org/rfc/rfc4954
+    #[\Override]
     public function dispatch(StreamClient $stream): iterable
     {
         $stream->sendData($this->createResponse(self::READY, 'mailamie'));
@@ -62,6 +63,7 @@ final class Smtp implements Dispatcher
         }
     }
 
+    #[\Override]
     public function detect(string $data, \DateTimeImmutable $createdAt): ?bool
     {
         if ($data !== '') {

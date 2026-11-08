@@ -1,0 +1,20 @@
+{
+    "$schema": "https://raw.githubusercontent.com/infection/infection/0.35.6/resources/schema.json",
+    "source": {
+        "directories": ["src"],
+        // Test helpers and generated protobuf stubs, not production code.
+        "excludes": ["Test"]
+    },
+    "testFramework": "testo",
+    // The acceptance suite runs trap in subprocesses, which neither coverage nor mutants reach.
+    "testFrameworkOptions": "--suite=Unit",
+    "tmpDir": "runtime",
+    "timeout": 10,
+    "logs": {
+        "text": "runtime/infection.log",
+        "github": true,
+        "stryker": {
+            "report": "master"
+        }
+    }
+}

@@ -8,10 +8,12 @@ use Buggregator\Trap\Client\Caster\Trace;
 use Buggregator\Trap\Client\TrapHandle\Counter;
 use Buggregator\Trap\Client\TrapHandle\Dumper as VarDumper;
 use Buggregator\Trap\Client\TrapHandle\StaticState;
+use Buggregator\Trap\Log\TrapLogger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\VarDumper\Caster\TraceStub;
 
 /**
- * @internal
+ * @api
  */
 final class TrapHandle
 {
@@ -21,15 +23,34 @@ final class TrapHandle
     private int $depth = 0;
     private readonly StaticState $staticState;
 
+    /** @var array<string, TrapLogger> */
+    private static array $loggers = [];
+
     private function __construct(
         private array $values,
     ) {
         $this->staticState = StaticState::new();
     }
 
+    /**
+     * @internal
+     */
     public static function fromArray(array $array): self
     {
         return new self($array);
+    }
+
+    /**
+     * Get a PSR-3 compatible logger instance for Trap client logging.
+     *
+     * Uses TRAP_MONOLOG_HOST and TRAP_MONOLOG_PORT env variables,
+     * falling back to 127.0.0.1:9913.
+     *
+     * @param non-empty-string $channel Monolog channel name the records will be tagged with.
+     */
+    public static function logger(string $channel = 'trap'): LoggerInterface
+    {
+        return self::$loggers[$channel] ??= self::createLogger($channel);
     }
 
     /**
@@ -211,6 +232,46 @@ final class TrapHandle
         $this->haveToSend() and $this->sendDump();
     }
 
+    /**
+     * @param non-empty-string $channel
+     */
+    private static function createLogger(string $channel): TrapLogger
+    {
+        $host = self::getEnvValue('TRAP_MONOLOG_HOST', '127.0.0.1');
+        $port = self::getEnvValue('TRAP_MONOLOG_PORT', '9913');
+
+        $port = \is_numeric($port) ? (int) $port : 9913;
+
+        if ($port < 1 || $port > 65535) {
+            $port = 9913;
+        }
+
+        return new TrapLogger(
+            host: $host,
+            port: $port,
+            channel: $channel,
+        );
+    }
+
+    private static function getEnvValue(string $name, string $default): string
+    {
+        if (\array_key_exists($name, $_ENV)) {
+            return (string) $_ENV[$name];
+        }
+
+        $value = \getenv($name, true);
+        if ($value !== false) {
+            return $value;
+        }
+
+        $value = \getenv($name);
+        if ($value !== false) {
+            return $value;
+        }
+
+        return $default;
+    }
+
     private function sendDump(): void
     {
         $staticState = StaticState::getValue();
@@ -220,9 +281,9 @@ final class TrapHandle
         try {
             // Set default values if not set
             if (!isset($_SERVER['VAR_DUMPER_FORMAT'], $_SERVER['VAR_DUMPER_SERVER'])) {
-                $_SERVER['VAR_DUMPER_FORMAT'] = 'server';
+                $_SERVER['VAR_DUMPER_FORMAT'] = self::getEnvValue('VAR_DUMPER_FORMAT', 'server');
                 // todo use the config file in the future
-                $_SERVER['VAR_DUMPER_SERVER'] = '127.0.0.1:9912';
+                $_SERVER['VAR_DUMPER_SERVER'] = self::getEnvValue('VAR_DUMPER_SERVER', '127.0.0.1:9912');
             }
 
             // Dump single value
@@ -237,7 +298,6 @@ final class TrapHandle
              * @var mixed $value
              */
             foreach ($this->values as $key => $value) {
-                /** @psalm-suppress TooManyArguments */
                 VarDumper::dump($value, label: $key, depth: $this->depth);
             }
         } finally {

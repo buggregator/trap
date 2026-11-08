@@ -14,6 +14,7 @@ final class Success implements \JsonSerializable
         public readonly bool $status = true,
     ) {}
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [

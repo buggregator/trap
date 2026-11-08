@@ -21,12 +21,13 @@ final class Monolog extends Frame
         parent::__construct(ProtoType::Monolog, $time);
     }
 
+    #[\Override]
     public static function fromString(string $payload, \DateTimeImmutable $time): static
     {
-        return new self(
-            \json_decode($payload, true, JSON_THROW_ON_ERROR),
-            $time,
-        );
+        $message = Json::decode($payload);
+        \is_array($message) or throw new \JsonException('The Monolog frame payload must be a JSON object.');
+
+        return new self($message, $time);
     }
 
     /**

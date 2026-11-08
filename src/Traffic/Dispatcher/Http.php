@@ -48,7 +48,9 @@ final class Http implements Dispatcher
             $handlers,
             /** @see RequestHandler::handle() */
             'handle',
-            static function (): never { throw new \LogicException('No handler found for request.'); },
+            static function (): never {
+                throw new \LogicException('No handler found for request.');
+            },
             'never',
         );
     }
@@ -56,6 +58,7 @@ final class Http implements Dispatcher
     /**
      * @throws \Exception
      */
+    #[\Override]
     public function dispatch(StreamClient $stream): iterable
     {
         $generator = ($this->pipeline)(
@@ -74,6 +77,7 @@ final class Http implements Dispatcher
         }
     }
 
+    #[\Override]
     public function detect(string $data, \DateTimeImmutable $createdAt): ?bool
     {
         if (!\str_contains($data, "\r\n")) {

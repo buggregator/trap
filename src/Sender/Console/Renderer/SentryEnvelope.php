@@ -19,11 +19,13 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 final class SentryEnvelope implements Renderer
 {
+    #[\Override]
     public function isSupport(Frame $frame): bool
     {
         return $frame->type === ProtoType::Sentry && $frame instanceof Frame\Sentry\SentryEnvelope;
     }
 
+    #[\Override]
     public function render(OutputInterface $output, Frame $frame): void
     {
         \assert($frame instanceof Frame\Sentry\SentryEnvelope);
@@ -35,8 +37,13 @@ final class SentryEnvelope implements Renderer
         foreach ($frame->items as $item) {
             ++$i;
             try {
-                $type = $item->headers['type'] ?? null;
-                Common::renderHeader2($output, "Item $i", green: (string) $type);
+                $type = (string) ($item->headers['type'] ?? null);
+                Common::renderHeader2($output, "Item $i", green: $type);
+
+                if (!\is_array($item->payload)) {
+                    $this->renderItemHeaders($output, $item);
+                    continue;
+                }
 
                 Header::renderMessageHeader($output, $item->payload);
                 $this->renderItem($output, $item);
@@ -47,9 +54,23 @@ final class SentryEnvelope implements Renderer
         }
     }
 
+    /**
+     * Renders an item whose payload is not an event, e.g. an attachment stream.
+     */
+    private function renderItemHeaders(OutputInterface $output, Frame\Sentry\EnvelopeItem $item): void
+    {
+        $meta = [];
+        isset($item->headers['filename']) and $meta['Filename'] = (string) $item->headers['filename'];
+        isset($item->headers['content_type']) and $meta['Content type'] = (string) $item->headers['content_type'];
+        isset($item->headers['attachment_type']) and $meta['Attachment type'] = (string) $item->headers['attachment_type'];
+        isset($item->headers['length']) and $meta['Length'] = (string) $item->headers['length'];
+
+        Common::renderMetadata($output, $meta);
+    }
+
     private function renderItem(OutputInterface $output, Frame\Sentry\EnvelopeItem $data): void
     {
-        if (isset($data->payload['exceptions'])) {
+        if (\is_array($data->payload) && isset($data->payload['exceptions'])) {
             Exceptions::render($output, $data->payload['exceptions']);
             return;
         }

@@ -16,6 +16,7 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 final class Resources implements Middleware
 {
+    #[\Override]
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
         $path = $request->getUri()->getPath();
@@ -38,13 +39,16 @@ final class Resources implements Middleware
                 default => 'octet/stream',
             };
 
+            $content = \file_get_contents($file);
+            $content === false and throw new \RuntimeException('Unable to read the resource file.');
+
             return new Response(
                 200,
                 [
                     'Content-Type' => $type,
                     'Content-Length' => \filesize($file),
                 ],
-                \file_get_contents($file),
+                $content,
             );
         }
 

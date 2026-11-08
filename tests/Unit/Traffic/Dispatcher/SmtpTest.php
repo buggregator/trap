@@ -8,14 +8,16 @@ use Buggregator\Trap\Proto\Frame\Smtp as SmtpFrame;
 use Buggregator\Trap\Test\Mock\StreamClientMock;
 use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Buggregator\Trap\Traffic\Dispatcher\Smtp;
-use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\TestCase;
+use Testo\Assert;
+use Testo\Codecov\Covers;
+use Testo\Test;
 
-#[CoversClass(Smtp::class)]
-class SmtpTest extends TestCase
+#[Covers(Smtp::class)]
+final class SmtpTest
 {
     use FiberTrait;
 
+    #[Test]
     public function testDispatchOneMail(): void
     {
         $stream = StreamClientMock::createFromGenerator($this->mailMe(quit: true));
@@ -23,15 +25,16 @@ class SmtpTest extends TestCase
         $this->runInFiber(static function () use ($stream): void {
             $cnt = 0;
             foreach ((new Smtp())->dispatch($stream) as $frame) {
-                self::assertInstanceOf(SmtpFrame::class, $frame);
-                self::assertSame('Test email', $frame->message->getSubject());
+                Assert::instanceOf($frame, SmtpFrame::class);
+                Assert::same($frame->message->getSubject(), 'Test email');
                 ++$cnt;
             }
 
-            self::assertSame(1, $cnt, 'Only one frame should be yielded.');
+            Assert::same($cnt, 1, 'Only one frame should be yielded.');
         });
     }
 
+    #[Test]
     public function testDispatchOneMailWithRset(): void
     {
         $stream = StreamClientMock::createFromGenerator((function (\Generator ...$generators) {
@@ -46,20 +49,17 @@ class SmtpTest extends TestCase
         $this->runInFiber(static function () use ($stream): void {
             $cnt = 0;
             foreach ((new Smtp())->dispatch($stream) as $frame) {
-                self::assertInstanceOf(SmtpFrame::class, $frame);
-                self::assertSame("Test email", $frame->message->getSubject());
-                self::assertSame(
-                    ['user1@company.tld', 'user2@company.tld'],
-                    $frame->message->getProtocol()['BCC'],
-                    'RSET should clear the buffered data.',
-                );
+                Assert::instanceOf($frame, SmtpFrame::class);
+                Assert::same($frame->message->getSubject(), "Test email");
+                Assert::same($frame->message->getProtocol()['BCC'], ['user1@company.tld', 'user2@company.tld'], 'RSET should clear the buffered data.');
                 ++$cnt;
             }
 
-            self::assertSame(1, $cnt, 'Only one frame should be yielded.');
+            Assert::same($cnt, 1, 'Only one frame should be yielded.');
         });
     }
 
+    #[Test]
     public function testDispatchMultipleMails(): void
     {
         $stream = StreamClientMock::createFromGenerator((static function (\Generator ...$generators) {
@@ -75,15 +75,15 @@ class SmtpTest extends TestCase
         $this->runInFiber(static function () use ($stream): void {
             $i = 1;
             foreach ((new Smtp())->dispatch($stream) as $frame) {
-                self::assertInstanceOf(SmtpFrame::class, $frame);
-                self::assertSame("Test email $i", $frame->message->getSubject());
+                Assert::instanceOf($frame, SmtpFrame::class);
+                Assert::same($frame->message->getSubject(), "Test email $i");
 
                 if (++$i === 3) {
                     return;
                 }
             }
 
-            self::fail('No frame was yielded.');
+            Assert::fail('No frame was yielded.');
         });
     }
 

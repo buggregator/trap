@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Frontend;
 
 use Buggregator\Trap\Config\Server\Frontend\EventStorage as Config;
-use IteratorAggregate;
 
 /**
  * @internal
- * @implements IteratorAggregate<Event>
+ * @implements \IteratorAggregate<Event>
  */
 final class EventStorage implements \IteratorAggregate, \Countable
 {
@@ -52,6 +51,7 @@ final class EventStorage implements \IteratorAggregate, \Countable
     /**
      * @return \Traversable<Event>
      */
+    #[\Override]
     public function getIterator(): \Traversable
     {
         // Defers sorting of events until it is necessary.
@@ -72,6 +72,7 @@ final class EventStorage implements \IteratorAggregate, \Countable
     /**
      * @return int<0, max>
      */
+    #[\Override]
     public function count(): int
     {
         return \count($this->events);

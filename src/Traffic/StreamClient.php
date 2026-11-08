@@ -61,5 +61,6 @@ interface StreamClient extends \IteratorAggregate
      *
      * @return \Generator<int, string, mixed, void>
      */
+    #[\Override]
     public function getIterator(): \Generator;
 }

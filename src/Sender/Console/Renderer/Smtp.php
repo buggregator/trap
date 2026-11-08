@@ -19,11 +19,13 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 final class Smtp implements Renderer
 {
+    #[\Override]
     public function isSupport(Frame $frame): bool
     {
         return $frame->type === ProtoType::SMTP;
     }
 
+    #[\Override]
     public function render(OutputInterface $output, Frame $frame): void
     {
         \assert($frame instanceof Frame\Smtp);

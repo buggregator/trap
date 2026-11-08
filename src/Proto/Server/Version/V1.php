@@ -14,6 +14,7 @@ use Buggregator\Trap\ProtoType;
  */
 final class V1 implements PayloadDecoder
 {
+    #[\Override]
     public function isSupport(string $payload): bool
     {
         $startJson = \strpos($payload, '[');
@@ -27,9 +28,10 @@ final class V1 implements PayloadDecoder
         return $totalSegments === 3;
     }
 
+    #[\Override]
     public function decode(string $payload): Request
     {
-        $startJson = \strpos($payload, '[') - 1;
+        $startJson = (int) \strpos($payload, '[') - 1;
 
         $header = \explode('|', \substr($payload, 0, $startJson), 3);
         if (\count($header) !== 3) {
@@ -40,10 +42,10 @@ final class V1 implements PayloadDecoder
          * @var string $protocol
          * @var non-empty-string $client
          * @var non-empty-string $uuid
-         * @var non-empty-string $payload
          */
         [$protocol, $client, $uuid] = $header;
 
+        /** @var non-empty-string $payload */
         $payload = \substr($payload, $startJson + 1);
         // Validation
 
@@ -89,6 +91,7 @@ final class V1 implements PayloadDecoder
                             ProtoType::HTTP->value => Frame\Http::fromString($payload, $date),
                             ProtoType::Sentry->value => Frame\Sentry::fromString($payload, $date),
                             ProtoType::Profiler->value => Frame\Profiler::fromString($payload, $date),
+                            ProtoType::Otlp->value => Frame\Otlp::fromString($payload, $date),
                             default => throw new \RuntimeException('Invalid type.'),
                         };
                     },

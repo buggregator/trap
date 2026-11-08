@@ -18,6 +18,7 @@ final class StaticFiles implements Middleware
 {
     private array $earlyResponse = [];
 
+    #[\Override]
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
         $path = $request->getUri()->getPath();
@@ -57,7 +58,7 @@ final class StaticFiles implements Middleware
 
             if ($path === '/index.html') {
                 if (empty($this->earlyResponse)) {
-                    $cacheContent[$file] ??= \file_get_contents($file);
+                    $cacheContent[$file] ??= self::readFile($file);
                     // Find all CSS files
                     \preg_match_all(
                         '#\\bhref="([^"]+?\\.css)"#i',
@@ -77,7 +78,7 @@ final class StaticFiles implements Middleware
                 // (new \Buggregator\Trap\Support\Timer(2))->wait(); // to test early hints
             }
 
-            $cacheContent[$file] ??= \file_get_contents($file);
+            $cacheContent[$file] ??= self::readFile($file);
             return new Response(
                 200,
                 [
@@ -93,5 +94,13 @@ final class StaticFiles implements Middleware
         }
 
         return $next($request);
+    }
+
+    private static function readFile(string $file): string
+    {
+        $content = \file_get_contents($file);
+        $content === false and throw new \RuntimeException(\sprintf('Unable to read the file `%s`.', $file));
+
+        return $content;
     }
 }

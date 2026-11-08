@@ -6,12 +6,10 @@ use Rector\CodeQuality\Rector\ClassMethod\InlineArrayReturnAssignRector;
 use Rector\CodeQuality\Rector\Expression\InlineIfToExplicitIfRector;
 use Rector\CodeQuality\Rector\Identical\FlipTypeControlToUseExclusiveTypeRector;
 use Rector\CodeQuality\Rector\LogicalAnd\LogicalToBooleanRector;
-use Rector\CodingStyle\Rector\Encapsed\EncapsedStringsToSprintfRector;
+use Rector\CodingStyle\Rector\ClassLike\NewlineBetweenClassLikeStmtsRector;
 use Rector\CodingStyle\Rector\PostInc\PostIncDecToPreIncDecRector;
 use Rector\CodingStyle\Rector\Stmt\NewlineAfterStatementRector;
 use Rector\Config\RectorConfig;
-use Rector\Php81\Rector\FuncCall\NullToStrictStringFuncCallArgRector;
-use Rector\Strict\Rector\Empty_\DisallowedEmptyRuleFixerRector;
 use Rector\TypeDeclaration\Rector\BooleanAnd\BinaryOpNullableToInstanceofRector;
 use Rector\ValueObject\PhpVersion;
 
@@ -24,11 +22,8 @@ return RectorConfig::configure()
         __DIR__ . '/src/Client',
     ])
     ->withSkipPath('src/Client/TrapHandle/ContextProvider/Source.php')
-    ->withPHPStanConfigs([
-        __DIR__ . '/phpstan-baseline.neon',
-    ])
     ->withImportNames(importNames: false, importDocBlockNames: true, importShortClasses: false, removeUnusedImports: true)
-    ->withPhpVersion(PhpVersion::PHP_81)
+    ->withPhpVersion(PhpVersion::PHP_82)
     ->withPhpSets(php81: true)
     ->withPreparedSets(
         deadCode: false,
@@ -39,7 +34,6 @@ return RectorConfig::configure()
         naming: false,
         instanceOf: true,
         earlyReturn: true,
-        strictBooleans: true,
         carbon: false,
         rectorPreset: true,
     )->withSkip([
@@ -50,7 +44,5 @@ return RectorConfig::configure()
         LogicalToBooleanRector::class,
         BinaryOpNullableToInstanceofRector::class,
         FlipTypeControlToUseExclusiveTypeRector::class,
-        DisallowedEmptyRuleFixerRector::class,
-        NullToStrictStringFuncCallArgRector::class,
-        EncapsedStringsToSprintfRector::class,
+        NewlineBetweenClassLikeStmtsRector::class,
     ]);

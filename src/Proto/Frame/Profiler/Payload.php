@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Proto\Frame\Profiler;
 
+use Buggregator\Trap\Module\Profiler\Struct\Peaks;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Proto\Frame\Profiler\Type as PayloadType;
 
@@ -15,7 +16,16 @@ use Buggregator\Trap\Proto\Frame\Profiler\Type as PayloadType;
  *     ...
  * }
  *
+ * @psalm-type PayloadInput = array{
+ *     type: non-empty-string,
+ *     date: int,
+ *     tags: array<non-empty-string, non-empty-string>,
+ *     peaks: PeaksData,
+ *     ...
+ * }
+ *
  * @psalm-import-type ProfileData from Profile
+ * @psalm-import-type PeaksData from Peaks
  *
  * @internal
  * @psalm-internal Buggregator
@@ -43,17 +53,12 @@ final class Payload implements \JsonSerializable
     }
 
     /**
-     * @param array{type: non-empty-string}|ProfileData $data
+     * @param PayloadInput $data
      */
     public static function fromArray(array $data, ?PayloadType $type = null): static
     {
-        /**
-         * @var \Closure(): Profile $provider
-         * @psalm-suppress all
-         */
         $provider = static fn(): Profile => Profile::fromArray($data);
 
-        /** @psalm-suppress all */
         $type ??= PayloadType::from($data['type']);
 
         return new self(
@@ -78,6 +83,7 @@ final class Payload implements \JsonSerializable
     /**
      * @return array{type: non-empty-string}|ProfileData
      */
+    #[\Override]
     public function jsonSerialize(): array
     {
         return $this->toArray();

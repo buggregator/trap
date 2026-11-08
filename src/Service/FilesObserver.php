@@ -11,6 +11,7 @@ use Buggregator\Trap\Processable;
 use Buggregator\Trap\Proto\Buffer;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Service\FilesObserver\Handler;
+use Internal\Container\Container;
 
 /**
  * The service orchestrates the process of scanning files in directories.
@@ -38,13 +39,14 @@ final class FilesObserver implements Processable, Cancellable
             }
 
             $this->fibers[] = new \Fiber(function () use ($config): void {
-                foreach ($this->container->make(Handler::class, [$config]) as $frame) {
+                foreach ($this->container->make(Handler::class, ['config' => $config]) as $frame) {
                     $this->propagateFrame($frame);
                 }
             });
         }
     }
 
+    #[\Override]
     public function process(): void
     {
         if ($this->cancelled) {
@@ -65,6 +67,7 @@ final class FilesObserver implements Processable, Cancellable
         }
     }
 
+    #[\Override]
     public function cancel(): void
     {
         $this->cancelled = true;

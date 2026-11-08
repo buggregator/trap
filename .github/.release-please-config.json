@@ -9,7 +9,6 @@
     },
     "include-component-in-tag": false,
     "include-v-in-tag": false,
-    "changelog-type": "github",
     "changelog-sections": [
         {
             "type": "feat",

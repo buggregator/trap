@@ -13,6 +13,7 @@ final class Rpc implements \JsonSerializable
         public readonly mixed $data,
     ) {}
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [

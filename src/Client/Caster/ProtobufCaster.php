@@ -65,6 +65,9 @@ final class ProtobufCaster
         return self::castMessage($c, $descriptor);
     }
 
+    /**
+     * @psalm-suppress DeprecatedClass The internal name is kept for google/protobuf 3.x, which has no public RepeatedField
+     */
     public static function castRepeated(RepeatedField $c, array $a, Stub $stub, bool $isNested): array
     {
         return \iterator_to_array($c);
@@ -124,6 +127,9 @@ final class ProtobufCaster
         for ($i = 0; $i < $pub->getFieldCount(); $i++) {
             /** @var FieldDescriptor $fd */
             $fd = $descriptor->getFieldByIndex($i);
+            /** @var string $name */
+            $name = $fd->getName();
+            /** @var scalar|object|null $value */
             $value = $message->{$fd->getGetter()}();
 
             // Skip defaults
@@ -144,11 +150,11 @@ final class ProtobufCaster
                 continue;
             }
 
-            if ($fd->isRepeated() && \count($value) === 0) {
+            if ($fd->isRepeated() && $value instanceof \Countable && \count($value) === 0) {
                 continue;
             }
 
-            if ($fd->isMap() && \count($value) === 0) {
+            if ($fd->isMap() && $value instanceof \Countable && \count($value) === 0) {
                 continue;
             }
 
@@ -159,17 +165,20 @@ final class ProtobufCaster
                 /** @var EnumValueDescriptorProto $v */
                 $v = $ed->getValueByNumber($value);
 
-                $values[$fd->getName()] = new EnumValue(
-                    class: $ed->getClass(),
+                /** @var string $class */
+                $class = $ed->getClass();
+
+                $values[$name] = new EnumValue(
+                    class: $class,
                     name: $v->getName(),
                     value: $v->getNumber(),
                 );
 
-                unset($ed, $v);
+                unset($ed, $v, $class);
                 continue;
             }
 
-            $values[$fd->getName()] = $value;
+            $values[$name] = $value;
         }
 
         return $values;
