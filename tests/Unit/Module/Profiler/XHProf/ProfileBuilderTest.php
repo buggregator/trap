@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Profiler\XHProf;
 
-use Buggregator\Trap\Module\Profiler\Struct\Branch;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
@@ -53,7 +52,7 @@ final class ProfileBuilderTest
         Assert::same($profile->peaks->jsonSerialize(), ['ct' => 0, 'wt' => 0, 'cpu' => 0, 'mu' => 0, 'pmu' => 0]);
     }
 
-    public function testBuildsCallTreeFromCallerCalleeKeys(): void
+    public function testBuildsCallGraphFromCallerCalleeKeys(): void
     {
         $profile = self::build([
             'a==>b' => self::cost(1, 30, 20, 100, 200),
@@ -62,13 +61,34 @@ final class ProfileBuilderTest
         ]);
 
         $calls = $profile->calls;
-        Assert::same(\array_keys($calls->root), ['main()']);
-        Assert::same(\array_keys($calls->all), ['b', 'a', 'main()']);
-        Assert::same($calls->lostChildren, []);
-        Assert::same($calls->all['b']->parent, $calls->all['a']);
+        Assert::same(self::ids($calls->roots()), ['main()']);
+        Assert::same(self::ids($calls->callees('main()')), ['a']);
+        Assert::same(self::ids($calls->callees('a')), ['b']);
+        Assert::same($calls->functions(), ['b', 'a', 'main()']);
         Assert::same(self::edge($profile, 'main()')->caller, null);
         Assert::same(self::edge($profile, 'a')->caller, 'main()');
         Assert::same(self::edge($profile, 'b')->caller, 'a');
+    }
+
+    public function testKeepsEveryCallerOfSharedCallee(): void
+    {
+        $profile = self::build([
+            'x==>y' => self::cost(1, 5, 0, 0, 0),
+            'a==>x' => self::cost(1, 10, 0, 0, 0),
+            'main()==>a' => self::cost(1, 20, 0, 0, 0),
+            'b==>x' => self::cost(1, 30, 0, 0, 0),
+            'main()==>b' => self::cost(1, 40, 0, 0, 0),
+            'main()' => self::cost(1, 100, 0, 0, 0),
+        ]);
+
+        $calls = $profile->calls;
+        Assert::same(\count($calls), 6);
+        Assert::same(\array_map(static fn(Edge $e): ?string => $e->caller, $calls->callers('x')), ['a', 'b']);
+        Assert::same(self::ids($calls->callees('x')), ['y']);
+        Assert::same($calls->inclusiveCost('x')->wt, 40);
+        foreach ($calls->callers('x') as $edge) {
+            Assert::same($edge->cost->p_wt > 0, true);
+        }
     }
 
     public function testComputesPeaksAsMaximumOfEveryMetric(): void
@@ -121,6 +141,20 @@ final class ProfileBuilderTest
         Assert::same([$root->d_ct, $root->d_wt, $root->d_cpu, $root->d_mu, $root->d_pmu], [0, 0, 0, 0, 0]);
     }
 
+    public function testComputesDeltaAgainstAllCallsOfParent(): void
+    {
+        $profile = self::build([
+            'x==>y' => self::cost(1, 5, 0, 0, 0),
+            'a==>x' => self::cost(1, 10, 0, 0, 0),
+            'b==>x' => self::cost(1, 30, 0, 0, 0),
+            'main()==>a' => self::cost(1, 20, 0, 0, 0),
+            'main()==>b' => self::cost(1, 40, 0, 0, 0),
+            'main()' => self::cost(1, 100, 0, 0, 0),
+        ]);
+
+        Assert::same(self::edge($profile, 'y')->cost->d_wt, -35);
+    }
+
     public function testValueKeyBecomesMainWhenMainIsAbsent(): void
     {
         $profile = self::build([
@@ -128,8 +162,8 @@ final class ProfileBuilderTest
             'value' => self::cost(1, 100, 80, 500, 1000),
         ]);
 
-        Assert::same(\array_keys($profile->calls->root), ['main()']);
-        Assert::same(\array_keys($profile->calls->all), ['a', 'main()']);
+        Assert::same(self::ids($profile->calls->roots()), ['main()']);
+        Assert::same($profile->calls->functions(), ['a', 'main()']);
         Assert::same(self::edge($profile, 'main()')->cost->wt, 100);
     }
 
@@ -140,7 +174,7 @@ final class ProfileBuilderTest
             'value' => self::cost(1, 999, 999, 999, 999),
         ]);
 
-        Assert::same(\array_keys($profile->calls->all), ['main()']);
+        Assert::same($profile->calls->functions(), ['main()']);
         Assert::same(self::edge($profile, 'main()')->cost->wt, 100);
         Assert::same($profile->peaks->wt, 100);
     }
@@ -151,7 +185,7 @@ final class ProfileBuilderTest
             '==>main()' => self::cost(1, 100, 80, 500, 1000),
         ]);
 
-        Assert::same(\array_keys($profile->calls->root), ['main()']);
+        Assert::same(self::ids($profile->calls->roots()), ['main()']);
         Assert::same(self::edge($profile, 'main()')->caller, null);
     }
 
@@ -164,9 +198,8 @@ final class ProfileBuilderTest
         ]);
 
         $calls = $profile->calls;
-        Assert::same(\array_keys($calls->root), ['main()', 'x']);
-        Assert::same($calls->lostChildren, []);
-        Assert::same(\array_map(static fn($b): string => $b->id, $calls->all['x']->children), ['c', 'b']);
+        Assert::same(self::ids($calls->roots()), ['main()', 'x']);
+        Assert::same(self::ids($calls->callees('x')), ['c', 'b']);
         $x = self::edge($profile, 'x');
         Assert::same($x->caller, null);
         Assert::same([$x->cost->wt, $x->cost->cpu, $x->cost->mu, $x->cost->pmu], [40, 25, 300, 400]);
@@ -185,25 +218,32 @@ final class ProfileBuilderTest
         Assert::same([$cost->d_wt, $cost->d_cpu, $cost->d_mu, $cost->d_pmu], [-30, -20, -200, 0]);
     }
 
-    public function testXhprofOutputBuildsTreeInCallOrder(): void
+    public function testRecursionLevelIsStrippedFromName(): void
+    {
+        $profile = self::build([
+            'bar==>bar@1' => self::cost(1, 2, 0, 0, 0),
+            'main()==>bar' => self::cost(1, 10, 0, 0, 0),
+            'main()' => self::cost(1, 100, 0, 0, 0),
+        ]);
+
+        $edge = self::edge($profile, 'bar@1');
+        Assert::same($edge->callee, 'bar');
+        Assert::same($edge->calleeId, 'bar@1');
+        Assert::same($edge->callerId, 'bar');
+    }
+
+    public function testXhprofOutputBuildsGraphInCallOrder(): void
     {
         $calls = self::build(self::XHPROF_STUB)->calls;
 
-        Assert::array(\array_keys($calls->all))
+        Assert::array($calls->functions())
             ->sameElementsAs(['main()', 'foo', 'xhprof_disable', 'bar', 'strlen', 'bar@1']);
-        Assert::same(\array_keys($calls->root), ['main()']);
-
-        $main = $calls->root['main()'];
-        Assert::same(\array_map(static fn(Branch $b): string => $b->item->callee, $main->children), ['foo', 'xhprof_disable']);
-
-        $foo = $main->children[0];
-        Assert::same(\array_map(static fn(Branch $b): string => $b->item->callee, $foo->children), ['bar', 'strlen']);
-
-        $bar = $foo->children[0];
-        Assert::count($bar->children, 1);
-        Assert::same($bar->children[0]->id, 'bar@1');
-        Assert::same($bar->children[0]->item->callee, 'bar');
-        Assert::same($bar->children[0]->item->cost->wt, 2);
+        Assert::same(self::ids($calls->roots()), ['main()']);
+        Assert::same(self::ids($calls->callees('main()')), ['foo', 'xhprof_disable']);
+        Assert::same(self::ids($calls->callees('foo')), ['bar', 'strlen']);
+        Assert::same(self::ids($calls->callees('bar')), ['bar@1']);
+        Assert::same($calls->callees('bar')[0]->callee, 'bar');
+        Assert::same($calls->callees('bar')[0]->cost->wt, 2);
     }
 
     /**
@@ -214,9 +254,22 @@ final class ProfileBuilderTest
         return (new ProfileBuilder())->createProfile(calls: $calls);
     }
 
-    private static function edge(Profile $profile, string $callee): Edge
+    /**
+     * First call of the function.
+     */
+    private static function edge(Profile $profile, string $calleeId): Edge
     {
-        return $profile->calls->all[$callee]->item;
+        return $profile->calls->callers($calleeId)[0];
+    }
+
+    /**
+     * @param list<Edge> $edges
+     *
+     * @return list<non-empty-string>
+     */
+    private static function ids(array $edges): array
+    {
+        return \array_map(static fn(Edge $e): string => $e->calleeId, $edges);
     }
 
     /**

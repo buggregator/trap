@@ -48,7 +48,7 @@ final class HttpRequest
                             $assets->offsetSet($asset->uuid, $asset);
 
                             return [
-                                'id' => $asset->uuid,
+                                'uuid' => $asset->uuid,
                                 'name' => $attachment->getClientFilename(),
                                 'uri' => $uri,
                                 'size' => $attachment->getSize(),

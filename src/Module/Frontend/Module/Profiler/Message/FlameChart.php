@@ -9,14 +9,16 @@ namespace Buggregator\Trap\Module\Frontend\Module\Profiler\Message;
  */
 final class FlameChart implements \JsonSerializable
 {
+    /**
+     * @param list<FlameChart\Span> $roots
+     */
     public function __construct(
-        private readonly FlameChart\Span $root,
+        private readonly array $roots,
     ) {}
 
+    #[\Override]
     public function jsonSerialize(): array
     {
-        return [
-            $this->root,
-        ];
+        return $this->roots;
     }
 }

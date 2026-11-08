@@ -75,14 +75,14 @@ final class HttpRequestTest
         Assert::same($second->file, $b);
         Assert::same($event->payload['request']['files'], [
             [
-                'id' => $first->uuid,
+                'uuid' => $first->uuid,
                 'name' => 'a.txt',
                 'uri' => $event->uuid . '/' . $first->uuid,
                 'size' => 3,
                 'mime' => 'text/plain',
             ],
             [
-                'id' => $second->uuid,
+                'uuid' => $second->uuid,
                 'name' => 'b.png',
                 'uri' => $event->uuid . '/' . $second->uuid,
                 'size' => 5,

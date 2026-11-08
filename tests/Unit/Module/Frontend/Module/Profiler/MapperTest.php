@@ -39,6 +39,18 @@ final class MapperTest
         'main()' => ['ct' => 1, 'wt' => 139, 'cpu' => 0, 'mu' => 5936, 'pmu' => 0],
     ];
 
+    /**
+     * `x()` is called from both `a()` and `b()` and calls `y()`.
+     */
+    private const SHARED_STUB = [
+        'x==>y' => ['ct' => 1, 'wt' => 5, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'a==>x' => ['ct' => 1, 'wt' => 10, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'main()==>a' => ['ct' => 1, 'wt' => 20, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'b==>x' => ['ct' => 1, 'wt' => 30, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'main()==>b' => ['ct' => 1, 'wt' => 40, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        'main()' => ['ct' => 1, 'wt' => 100, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+    ];
+
     public function testTopFunctionsSortedByExclusiveWallTime(): void
     {
         $top = self::json((new Mapper())->topFunctions(self::event(), 'excl_wt'));
@@ -83,29 +95,70 @@ final class MapperTest
     {
         $graph = self::json((new Mapper())->callGraph(self::event(), threshold: 1, percentage: 15, metric: 'wt'));
 
-        $nodes = \array_column($graph['nodes'], 'data');
-        Assert::same(\array_column($nodes, 'id'), ['n1', 'n2', 'n3', 'n4', 'n5']);
+        $nodes = \array_column(\array_column($graph['nodes'], 'data'), null, 'name');
+        Assert::array(\array_keys($nodes))
+            ->sameElementsAs(['main() (1x)', 'foo (1x)', 'bar (2x)', 'bar (1x)', 'strlen (2x)']);
         Assert::same(
-            \array_column($nodes, 'name'),
-            ['main() (1x)', 'foo (1x)', 'bar (2x)', 'bar (1x)', 'strlen (2x)'],
+            \array_map(static fn(array $n): array => [$n['color'], $n['textColor']], $nodes),
+            [
+                'bar (2x)' => ['#D93939', '#FFFFFF'],
+                'strlen (2x)' => ['#FFFFFF', '#000000'],
+                'bar (1x)' => ['#FFFFFF', '#000000'],
+                'foo (1x)' => ['#540D0D', '#FFFFFF'],
+                'main() (1x)' => ['#000000', '#FFFFFF'],
+            ],
         );
-        Assert::same(\array_column($nodes, 'color'), ['#000000', '#540D0D', '#D93939', '#FFFFFF', '#FFFFFF']);
-        Assert::same(\array_column($nodes, 'textColor'), ['#FFFFFF', '#FFFFFF', '#FFFFFF', '#000000', '#000000']);
-        Assert::same($nodes[1]['metrics'], ['cost' => 104, 'percents' => 74.82]);
+        Assert::same($nodes['foo (1x)']['metrics'], ['cost' => 104, 'percents' => 74.82]);
     }
 
-    public function testCallGraphLinksNodesToParents(): void
+    public function testCallGraphLinksCallersToCallees(): void
     {
         $graph = self::json((new Mapper())->callGraph(self::event(), threshold: 1, percentage: 15, metric: 'wt'));
 
+        $names = \array_column(\array_column($graph['nodes'], 'data'), 'name', 'id');
         $edges = \array_map(
-            static fn(array $e): string => $e['data']['source'] . '>' . $e['data']['target'],
+            static fn(array $e): string => "{$names[$e['data']['source']]} > {$names[$e['data']['target']]}: {$e['data']['label']}",
             $graph['edges'],
         );
-        Assert::same($edges, ['n1>n2', 'n2>n3', 'n3>n4', 'n2>n5']);
-        Assert::same($graph['edges'][0]['data']['label'], '74.82%');
+        Assert::same($edges, [
+            'foo (1x) > bar (2x): 26.619%',
+            'foo (1x) > strlen (2x): 2.158%',
+            'bar (2x) > bar (1x): 1.439%',
+            'main() (1x) > foo (1x): 74.82%',
+        ]);
     }
 
+    public function testCallGraphHasOneNodePerFunction(): void
+    {
+        $graph = self::json((new Mapper())->callGraph(self::event(self::SHARED_STUB), threshold: 0, percentage: 0));
+
+        $names = \array_column(\array_column($graph['nodes'], 'data'), 'name', 'id');
+        Assert::array(\array_values($names))->sameElementsAs(['main() (1x)', 'a (1x)', 'b (1x)', 'x (2x)', 'y (1x)']);
+        $x = \array_values(\array_filter(\array_column($graph['nodes'], 'data'), static fn(array $n): bool => $n['name'] === 'x (2x)'))[0];
+        Assert::same($x['metrics'], ['cost' => 40, 'percents' => 40]);
+        Assert::count($graph['edges'], 5);
+    }
+
+    public function testTopFunctionsSumCallsFromAllCallers(): void
+    {
+        $top = self::json((new Mapper())->topFunctions(self::event(self::SHARED_STUB), 'wt'));
+        $x = self::find($top['functions'], 'x');
+
+        Assert::same([$x['ct'], $x['wt'], $x['excl_wt']], [2, 40, 35]);
+        Assert::count($top['functions'], 5);
+    }
+
+    public function testFlameChartScalesSharedCalleeByCaller(): void
+    {
+        $chart = self::json((new Mapper())->flameChart(self::event(self::SHARED_STUB)));
+
+        [$a, $b] = $chart[0]['children'];
+        $yUnderA = $a['children'][0]['children'][0];
+        $yUnderB = $b['children'][0]['children'][0];
+        Assert::same([$yUnderA['name'], $yUnderA['duration'], $yUnderA['start']], ['y', 0.00125, 0]);
+        Assert::same([$yUnderB['name'], $yUnderB['duration'], $yUnderB['start']], ['y', 0.00375, 0.02]);
+        Assert::same($b['start'], 0.02);
+    }
     public function testFlameChartSpansAreColoredByWallTime(): void
     {
         $chart = self::json((new Mapper())->flameChart(self::event()));
@@ -115,9 +168,9 @@ final class MapperTest
         Assert::same(\array_column($main['children'], 'color'), ['#FF8989', '#B3E5FC']);
     }
 
-    private static function event(): Event
+    private static function event(array $calls = self::XHPROF_STUB): Event
     {
-        $profile = (new ProfileBuilder())->createProfile(calls: self::XHPROF_STUB);
+        $profile = (new ProfileBuilder())->createProfile(calls: $calls);
 
         return new Event(
             uuid: $profile->uuid,

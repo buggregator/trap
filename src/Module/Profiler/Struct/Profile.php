@@ -41,8 +41,7 @@ final class Profile implements \JsonSerializable
 {
     public Peaks $peaks;
 
-    /** @var Tree<Edge> */
-    public Tree $calls;
+    public Graph $calls;
 
     /** @var non-empty-string some leaked bs required for Frontend */
     public string $uuid;
@@ -50,17 +49,16 @@ final class Profile implements \JsonSerializable
     /**
      * @param Metadata $metadata
      * @param array<non-empty-string, non-empty-string> $tags
-     * @param Tree<Edge>|null $calls
      */
     public function __construct(
         public \DateTimeInterface $date = new \DateTimeImmutable(),
         public array $metadata = [],
         public array $tags = [],
-        ?Tree $calls = null,
+        ?Graph $calls = null,
         ?Peaks $peaks = null,
     ) {
         $this->uuid = Uuid::uuid4();
-        $this->calls = $calls ?? new Tree();
+        $this->calls = $calls ?? new Graph();
         if ($peaks === null) {
             $this->peaks = new Peaks();
 

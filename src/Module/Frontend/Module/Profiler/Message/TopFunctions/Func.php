@@ -32,9 +32,10 @@ final class Func implements \JsonSerializable
     ) {}
 
     /**
-     * @param list<Cost> $children Costs of the calls made from this call.
-     * @param bool $recursive The call is nested in another call of the same function,
-     *        so its cost is already a part of the outer call's inclusive cost.
+     * @param Cost $cost Inclusive cost of the calls.
+     * @param list<Cost> $children Costs of the calls made from these calls.
+     * @param bool $recursive The calls are nested in other calls of the same function,
+     *        so their cost is already a part of the outer calls' inclusive cost.
      */
     public function addCall(Cost $cost, array $children, bool $recursive): void
     {
