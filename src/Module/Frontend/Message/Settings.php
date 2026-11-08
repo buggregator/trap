@@ -11,6 +11,11 @@ use Buggregator\Trap\Info;
  */
 final class Settings implements \JsonSerializable
 {
+    /**
+     * Event types trap produces. The UI hides the others from its menu.
+     */
+    private const EVENTS = ['var-dump', 'smtp', 'sentry', 'profiler', 'monolog', 'http-dump'];
+
     public readonly string $number;
 
     public function __construct()
@@ -27,6 +32,9 @@ final class Settings implements \JsonSerializable
                 'login_url' => '/auth/sso/login',
             ],
             'version' => $this->number,
+            'client' => [
+                'events' => self::EVENTS,
+            ],
         ];
     }
 }

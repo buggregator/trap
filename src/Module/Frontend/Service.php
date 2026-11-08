@@ -13,6 +13,7 @@ use Buggregator\Trap\Logger;
 use Buggregator\Trap\Module\Frontend\Event\AttachedFile;
 use Buggregator\Trap\Module\Frontend\Message\Attachments;
 use Buggregator\Trap\Module\Frontend\Message\EventCollection;
+use Buggregator\Trap\Module\Frontend\Message\Projects;
 use Buggregator\Trap\Module\Frontend\Message\Settings;
 use Buggregator\Trap\Module\Frontend\Message\Success;
 use Buggregator\Trap\Module\Frontend\Message\Version;
@@ -82,48 +83,80 @@ final class Service
         return new Attachments($event, files: $attaches);
     }
 
+    /**
+     * @param array $uuids Events to delete; when empty, the events of the type and the project are deleted.
+     * @param string|null $type Event type; any when null.
+     * @param string|null $project Project key; any when null.
+     */
     #[StaticRoute(Method::Delete, 'api/events')]
+    #[StaticRoute(Method::Delete, 'api/events/preview')]
     #[AssertSuccess(Method::Delete, '/api/events'),
+        AssertSuccess(Method::Delete, '/api/events/preview'),
         AssertFail(Method::Delete, 'api/events/'),
         AssertFail(Method::Delete, 'api/event'),]
-    public function eventsDelete(array $uuids = [], ?string $type = null): Success
+    public function eventsDelete(array $uuids = [], ?string $type = null, ?string $project = null): Success
     {
-        if ($type !== null) {
-            $this->debug('Delete events of type %s', $type);
-            foreach (\iterator_to_array($this->eventsStorage) as $event) {
-                $event->type === $type and $this->eventsStorage->delete($event->uuid);
+        if ($uuids !== []) {
+            $this->debug('Delete %s events', (string) \count($uuids));
+            try {
+                foreach ($uuids as $uuid) {
+                    \is_string($uuid) or throw new \InvalidArgumentException('UUID must be a string');
+                    $this->eventsStorage->delete($uuid);
+                }
+            } catch (\Throwable $e) {
+                $this->logger->exception($e);
+                return new Success(status: false);
             }
 
             return new Success();
         }
 
-        $this->debug('Delete all events');
-        if (empty($uuids)) {
+        if ($type === null && $project === null) {
+            $this->debug('Delete all events');
             $this->eventsStorage->clear();
             return new Success();
         }
 
-        try {
-            foreach ($uuids as $uuid) {
-                \is_string($uuid) or throw new \InvalidArgumentException('UUID must be a string');
-                $this->eventsStorage->delete($uuid);
-            }
-        } catch (\Throwable $e) {
-            $this->logger->exception($e);
-            return new Success(status: false);
+        $this->debug('Delete events of type %s in project %s', $type ?? 'any', $project ?? 'any');
+        foreach (\iterator_to_array($this->eventsStorage) as $event) {
+            ($type === null || $event->type === $type) && ($project === null || $event->projectKey() === $project)
+                and $this->eventsStorage->delete($event->uuid);
         }
 
         return new Success();
     }
 
+    /**
+     * @param string|null $project Project key; all the events when null.
+     */
     #[StaticRoute(Method::Get, 'api/events')]
+    #[StaticRoute(Method::Get, 'api/events/preview')]
     #[AssertSuccess(Method::Get, '/api/events'),
+        AssertSuccess(Method::Get, '/api/events/preview?project=default'),
         AssertFail(Method::Get, 'api/event'),
         AssertFail(Method::Post, 'api/events'),]
-    public function eventsList(): EventCollection
+    public function eventsList(?string $project = null): EventCollection
     {
-        $this->debug('List all events');
-        return new EventCollection(events: \iterator_to_array($this->eventsStorage->getIterator(), false));
+        $this->debug('List events of project %s', $project ?? 'any');
+        $events = [];
+        foreach ($this->eventsStorage as $event) {
+            ($project === null || $event->projectKey() === $project) and $events[] = $event;
+        }
+
+        return new EventCollection(events: $events);
+    }
+
+    #[StaticRoute(Method::Get, 'api/projects')]
+    #[AssertSuccess(Method::Get, '/api/projects'),
+        AssertFail(Method::Get, 'api/project'),]
+    public function projects(): Projects
+    {
+        $keys = [];
+        foreach ($this->eventsStorage as $event) {
+            $keys[$event->projectKey()] = true;
+        }
+
+        return new Projects(\array_keys($keys));
     }
 
     #[StaticRoute(Method::Get, 'api/settings')]

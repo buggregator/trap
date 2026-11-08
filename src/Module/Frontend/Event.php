@@ -13,6 +13,12 @@ use Buggregator\Trap\Module\Frontend\Event\Asset;
 final class Event implements \JsonSerializable
 {
     /**
+     * Project of the events sent without one. The UI shows only the events of the active project,
+     * and it picks the default project when there is nothing else.
+     */
+    public const DEFAULT_PROJECT = 'default';
+
+    /**
      * @param non-empty-string $uuid
      * @param non-empty-string $type
      * @param TPayload $payload
@@ -27,6 +33,14 @@ final class Event implements \JsonSerializable
         public readonly ?\ArrayAccess $assets = null,
     ) {}
 
+    /**
+     * @return non-empty-string
+     */
+    public function projectKey(): string
+    {
+        return $this->project === null || $this->project === '' ? self::DEFAULT_PROJECT : $this->project;
+    }
+
     #[\Override]
     public function jsonSerialize(): array
     {
@@ -35,7 +49,7 @@ final class Event implements \JsonSerializable
             'type' => $this->type,
             'payload' => $this->payload,
             'timestamp' => $this->timestamp,
-            'project' => $this->project,
+            'project' => $this->projectKey(),
         ];
     }
 }
