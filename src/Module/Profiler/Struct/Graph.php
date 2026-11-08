@@ -168,6 +168,24 @@ final class Graph implements \IteratorAggregate, \Countable
         return $tree;
     }
 
+    /**
+     * @return \Traversable<non-empty-string, Edge> Edges by `callerId==>calleeId` keys in the order of adding.
+     */
+    #[\Override]
+    public function getIterator(): \Traversable
+    {
+        yield from $this->edges;
+    }
+
+    /**
+     * @return int<0, max> Number of edges.
+     */
+    #[\Override]
+    public function count(): int
+    {
+        return \count($this->edges);
+    }
+
     private static function scaleCost(Cost $cost, float $scale, ?Cost $parent): Cost
     {
         $result = new Cost(
@@ -202,23 +220,5 @@ final class Graph implements \IteratorAggregate, \Countable
     private static function scaleValue(int $value, float $scale): int
     {
         return \max(0, (int) \round((float) $value * $scale));
-    }
-
-    /**
-     * @return \Traversable<non-empty-string, Edge> Edges by `callerId==>calleeId` keys in the order of adding.
-     */
-    #[\Override]
-    public function getIterator(): \Traversable
-    {
-        yield from $this->edges;
-    }
-
-    /**
-     * @return int<0, max> Number of edges.
-     */
-    #[\Override]
-    public function count(): int
-    {
-        return \count($this->edges);
     }
 }

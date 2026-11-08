@@ -159,6 +159,7 @@ final class MapperTest
         Assert::same([$yUnderB['name'], $yUnderB['duration'], $yUnderB['start']], ['y', 0.004, 0.02]);
         Assert::same($b['start'], 0.02);
     }
+
     public function testFlameChartSpansAreColoredByWallTime(): void
     {
         $chart = self::json((new Mapper())->flameChart(self::event()));

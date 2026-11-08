@@ -197,27 +197,6 @@ final class Mapper
     {
         return (float) $cost->wt / 1000.0;
     }
-    /**
-     * @return array<string, TopFunctions\Func>
-     */
-    private function aggregateFunctions(Graph $graph, Peaks $totals): array
-    {
-        $functions = [];
-        foreach ($graph->functions() as $functionId) {
-            $calls = $graph->callers($functionId);
-            $name = $calls[0]->callee;
-            $func = $functions[$name] ??= new TopFunctions\Func($name, $totals);
-
-            $func->addCall(
-                $graph->inclusiveCost($functionId),
-                \array_map(static fn(Edge $child): Cost => $child->cost, $graph->callees($functionId)),
-                // A nested recursion level like `foo@1` is a part of the outer level's inclusive cost
-                recursive: $functionId !== $name,
-            );
-        }
-
-        return $functions;
-    }
 
     /**
      * @return array{TopFunctions\Column, TopFunctions\Column}
@@ -285,5 +264,27 @@ final class Mapper
             'ct' => $cost->ct,
             default => $cost->wt,
         };
+    }
+
+    /**
+     * @return array<string, TopFunctions\Func>
+     */
+    private function aggregateFunctions(Graph $graph, Peaks $totals): array
+    {
+        $functions = [];
+        foreach ($graph->functions() as $functionId) {
+            $calls = $graph->callers($functionId);
+            $name = $calls[0]->callee;
+            $func = $functions[$name] ??= new TopFunctions\Func($name, $totals);
+
+            $func->addCall(
+                $graph->inclusiveCost($functionId),
+                \array_map(static fn(Edge $child): Cost => $child->cost, $graph->callees($functionId)),
+                // A nested recursion level like `foo@1` is a part of the outer level's inclusive cost
+                recursive: $functionId !== $name,
+            );
+        }
+
+        return $functions;
     }
 }

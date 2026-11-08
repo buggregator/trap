@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Profiler\Struct;
 
 use Buggregator\Trap\Module\Profiler\Struct\Branch;
-use Buggregator\Trap\Module\Profiler\Struct\Cost;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Graph;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;

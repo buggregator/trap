@@ -39,17 +39,16 @@ use Buggregator\Trap\Support\Uuid;
  */
 final class Profile implements \JsonSerializable
 {
-    public Peaks $peaks;
-
-    public Graph $calls;
-
-    /** @var non-empty-string some leaked bs required for Frontend */
-    public string $uuid;
-
     /**
      * Unfolded nodes with a smaller share of the profile are dropped: they are too small to show.
      */
     private const UNFOLD_MIN_SHARE = 0.0001;
+
+    public Peaks $peaks;
+    public Graph $calls;
+
+    /** @var non-empty-string some leaked bs required for Frontend */
+    public string $uuid;
 
     /**
      * @param Metadata $metadata
@@ -79,16 +78,6 @@ final class Profile implements \JsonSerializable
     }
 
     /**
-     * Call tree: the exact one when the profiler records it, otherwise unfolded from the call graph.
-     *
-     * @return Tree<Edge>
-     */
-    public function tree(): Tree
-    {
-        return $this->tree ??= $this->calls->unfold(self::UNFOLD_MIN_SHARE);
-    }
-
-    /**
      * @param ProfileInput $data
      */
     public static function fromArray(array $data): self
@@ -109,6 +98,16 @@ final class Profile implements \JsonSerializable
         \is_string($uuid) && $uuid !== '' and $profile->uuid = $uuid;
 
         return $profile;
+    }
+
+    /**
+     * Call tree: the exact one when the profiler records it, otherwise unfolded from the call graph.
+     *
+     * @return Tree<Edge>
+     */
+    public function tree(): Tree
+    {
+        return $this->tree ??= $this->calls->unfold(self::UNFOLD_MIN_SHARE);
     }
 
     /**
