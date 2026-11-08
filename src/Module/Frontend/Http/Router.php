@@ -63,7 +63,8 @@ final class Router implements Middleware
                     'Content-Type' => 'application/json',
                     'Cache-Control' => 'no-cache',
                 ],
-                Json::encode($message),
+                // A flame chart nests as deep as the recursion in the profiled code
+                Json::encode($message, depth: 10_000),
             );
         } catch (\Throwable $e) {
             $this->logger->exception($e);

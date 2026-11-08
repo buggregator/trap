@@ -116,53 +116,56 @@ final class Graph implements \IteratorAggregate, \Countable
             $total += $edge->cost->wt;
         }
 
+        $minWt = (float) $total * $minShare;
+
         /** @var Tree<Edge> $tree */
         $tree = new Tree();
+        /** @var array<non-empty-string, true> $path Function IDs of the ancestors, to stop on a cycle */
         $path = [];
-        foreach ($this->roots as $edge) {
-            $this->unfoldEdge($tree, $edge, null, 1.0, (float) $total * $minShare, $path);
+
+        // Iterative: the depth follows the recursion in the profiled code, deeper than Xdebug's nesting limit.
+        // An entry is an edge to unfold with its parent node and scale, or a function ID that leaves the path.
+        /** @var list<array{Edge, Branch<Edge>|null, float}|non-empty-string> $stack */
+        $stack = \array_map(static fn(Edge $edge): array => [$edge, null, 1.0], \array_reverse($this->roots));
+        while ($stack !== []) {
+            $entry = \array_pop($stack);
+            if (\is_string($entry)) {
+                unset($path[$entry]);
+                continue;
+            }
+
+            [$edge, $parent, $scale] = $entry;
+            $wt = (float) $edge->cost->wt * $scale;
+            if ($wt < $minWt || isset($path[$edge->calleeId])) {
+                continue;
+            }
+
+            $id = 'n' . (\count($tree) + 1);
+            $tree->addItem(
+                new Edge(
+                    $edge->caller,
+                    $edge->callee,
+                    self::scaleCost($edge->cost, $scale, $parent?->item->cost),
+                    $edge->calleeId,
+                    $edge->callerId,
+                ),
+                $id,
+                $parent?->id,
+            );
+            /** @var Branch<Edge> $branch */
+            $branch = $tree->all[$id];
+
+            $calleeTotal = $this->inclusiveCost($edge->calleeId)->wt;
+            $childScale = $calleeTotal > 0 ? $wt / (float) $calleeTotal : $scale;
+
+            $path[$edge->calleeId] = true;
+            $stack[] = $edge->calleeId;
+            foreach (\array_reverse($this->callees($edge->calleeId)) as $child) {
+                $stack[] = [$child, $branch, $childScale];
+            }
         }
 
         return $tree;
-    }
-
-    /**
-     * @param Tree<Edge> $tree
-     * @param Branch<Edge>|null $parent
-     * @param float $scale Share of the edge's calls that belong to this node.
-     * @param array<non-empty-string, true> $path Function IDs of the ancestors, to stop on a cycle.
-     */
-    private function unfoldEdge(
-        Tree $tree,
-        Edge $edge,
-        ?Branch $parent,
-        float $scale,
-        float $minWt,
-        array &$path,
-    ): void {
-        $wt = (float) $edge->cost->wt * $scale;
-        if ($wt < $minWt || isset($path[$edge->calleeId])) {
-            return;
-        }
-
-        $cost = self::scaleCost($edge->cost, $scale, $parent?->item->cost);
-        $id = 'n' . (\count($tree) + 1);
-        $tree->addItem(
-            new Edge($edge->caller, $edge->callee, $cost, $edge->calleeId, $edge->callerId),
-            $id,
-            $parent?->id,
-        );
-        /** @var Branch<Edge> $branch */
-        $branch = $tree->all[$id];
-
-        $calleeTotal = $this->inclusiveCost($edge->calleeId)->wt;
-        $childScale = $calleeTotal > 0 ? $wt / (float) $calleeTotal : $scale;
-
-        $path[$edge->calleeId] = true;
-        foreach ($this->callees($edge->calleeId) as $child) {
-            $this->unfoldEdge($tree, $child, $branch, $childScale, $minWt, $path);
-        }
-        unset($path[$edge->calleeId]);
     }
 
     private static function scaleCost(Cost $cost, float $scale, ?Cost $parent): Cost

@@ -151,36 +151,51 @@ final class Mapper
     public function flameChart(Event $event): FlameChart
     {
         $roots = [];
-        $start = 0.0;
-        foreach ($event->payload->getProfile()->tree()->root as $branch) {
-            $roots[] = $span = self::span($branch, $start);
-            $start += $span->duration;
+
+        // Iterative: the depth follows the recursion in the profiled code, deeper than Xdebug's nesting limit
+        /** @var list<array{Branch<Edge>, float, FlameChart\Span|null}> $stack Node, its start and parent span */
+        $stack = self::layOut(\array_values($event->payload->getProfile()->tree()->root), 0.0, null);
+        while ($stack !== []) {
+            [$branch, $start, $parent] = \array_pop($stack);
+            $cost = $branch->item->cost;
+            $span = new FlameChart\Span(
+                name: $branch->item->callee,
+                start: $start,
+                duration: self::duration($cost),
+                cost: $cost,
+                color: Palette::flameChartSpan($cost->p_wt),
+            );
+            $parent === null ? $roots[] = $span : $parent->children[] = $span;
+            \array_push($stack, ...self::layOut($branch->children, $start, $span));
         }
 
         return new FlameChart($roots);
     }
 
     /**
-     * @param Branch<Edge> $branch
+     * Places the nodes one after another from the start.
+     *
+     * @param list<Branch<Edge>> $branches
+     *
+     * @return list<array{Branch<Edge>, float, FlameChart\Span|null}> In reverse order, to pop the first one first.
      */
-    private static function span(Branch $branch, float $start): FlameChart\Span
+    private static function layOut(array $branches, float $start, ?FlameChart\Span $parent): array
     {
-        $cost = $branch->item->cost;
-        $span = new FlameChart\Span(
-            name: $branch->item->callee,
-            start: $start,
-            duration: (float) $cost->wt / 1000.0,
-            cost: $cost,
-            color: Palette::flameChartSpan($cost->p_wt),
-        );
-
-        $childStart = $start;
-        foreach ($branch->children as $child) {
-            $span->children[] = $childSpan = self::span($child, $childStart);
-            $childStart += $childSpan->duration;
+        $result = [];
+        foreach ($branches as $branch) {
+            $result[] = [$branch, $start, $parent];
+            $start += self::duration($branch->item->cost);
         }
 
-        return $span;
+        return \array_reverse($result);
+    }
+
+    /**
+     * @return float Milliseconds.
+     */
+    private static function duration(Cost $cost): float
+    {
+        return (float) $cost->wt / 1000.0;
     }
     /**
      * @return array<string, TopFunctions\Func>
