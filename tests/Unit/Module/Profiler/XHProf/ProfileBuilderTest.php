@@ -16,6 +16,26 @@ use Testo\Test;
 #[Test]
 final class ProfileBuilderTest
 {
+    /**
+     * Raw xhprof output of:
+     *
+     * ```
+     * function bar($x) { if ($x > 0) { bar($x - 1); } }
+     * function foo() { for ($idx = 0; $idx < 2; $idx++) { bar($idx); $x = strlen("abc"); } }
+     * xhprof_enable();
+     * foo();
+     * $xhprof_data = xhprof_disable();
+     * ```
+     */
+    private const XHPROF_STUB = [
+        'foo==>bar' => ['ct' => 2, 'wt' => 37, 'cpu' => 0, 'mu' => 2208, 'pmu' => 0],
+        'foo==>strlen' => ['ct' => 2, 'wt' => 3, 'cpu' => 0, 'mu' => 624, 'pmu' => 0],
+        'bar==>bar@1' => ['ct' => 1, 'wt' => 2, 'cpu' => 0, 'mu' => 856, 'pmu' => 0],
+        'main()==>foo' => ['ct' => 1, 'wt' => 104, 'cpu' => 0, 'mu' => 4168, 'pmu' => 0],
+        'main()==>xhprof_disable' => ['ct' => 1, 'wt' => 1, 'cpu' => 0, 'mu' => 344, 'pmu' => 0],
+        'main()' => ['ct' => 1, 'wt' => 139, 'cpu' => 0, 'mu' => 5936, 'pmu' => 0],
+    ];
+
     public function testPassesDateMetadataAndTagsThrough(): void
     {
         $date = new \DateTimeImmutable('2024-01-02 03:04:05');
@@ -185,26 +205,6 @@ final class ProfileBuilderTest
         Assert::same($bar->children[0]->item->callee, 'bar');
         Assert::same($bar->children[0]->item->cost->wt, 2);
     }
-
-    /**
-     * Raw xhprof output of:
-     *
-     * ```
-     * function bar($x) { if ($x > 0) { bar($x - 1); } }
-     * function foo() { for ($idx = 0; $idx < 2; $idx++) { bar($idx); $x = strlen("abc"); } }
-     * xhprof_enable();
-     * foo();
-     * $xhprof_data = xhprof_disable();
-     * ```
-     */
-    private const XHPROF_STUB = [
-        'foo==>bar' => ['ct' => 2, 'wt' => 37, 'cpu' => 0, 'mu' => 2208, 'pmu' => 0],
-        'foo==>strlen' => ['ct' => 2, 'wt' => 3, 'cpu' => 0, 'mu' => 624, 'pmu' => 0],
-        'bar==>bar@1' => ['ct' => 1, 'wt' => 2, 'cpu' => 0, 'mu' => 856, 'pmu' => 0],
-        'main()==>foo' => ['ct' => 1, 'wt' => 104, 'cpu' => 0, 'mu' => 4168, 'pmu' => 0],
-        'main()==>xhprof_disable' => ['ct' => 1, 'wt' => 1, 'cpu' => 0, 'mu' => 344, 'pmu' => 0],
-        'main()' => ['ct' => 1, 'wt' => 139, 'cpu' => 0, 'mu' => 5936, 'pmu' => 0],
-    ];
 
     /**
      * @param array<non-empty-string, array{ct: int, wt: int, cpu: int, mu: int, pmu: int}> $calls

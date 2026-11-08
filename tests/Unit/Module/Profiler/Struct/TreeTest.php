@@ -17,6 +17,15 @@ use Testo\Test;
 #[Test]
 final class TreeTest
 {
+    public static function topNumbers(): iterable
+    {
+        yield [1];
+        yield [5];
+        yield [10];
+        yield [100];
+        yield [1000];
+    }
+
     public function testFromEdgesListBuildsHierarchy(): void
     {
         $tree = Tree::fromEdgesList(
@@ -147,15 +156,6 @@ final class TreeTest
 
         Assert::false(isset($branch->item));
         Assert::false(isset($branch->children));
-    }
-
-    public static function topNumbers(): iterable
-    {
-        yield [1];
-        yield [5];
-        yield [10];
-        yield [100];
-        yield [1000];
     }
 
     #[DataProvider('topNumbers')]

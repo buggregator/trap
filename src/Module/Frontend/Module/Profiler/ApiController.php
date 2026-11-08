@@ -20,16 +20,14 @@ trait ApiController
     private readonly EventStorage $eventsStorage;
 
     #[RegexpRoute(Method::Get, '#^api/profiler/(?<uuid>[a-f0-9-]++)/top$#i')]
-    #[
-        AssertSuccess(
-            Method::Get,
-            'api/profiler/0190402f-7eb2-7287-82a8-897a0091f58e/top?metric=excl_wt',
-            [
-                'uuid' => '0190402f-7eb2-7287-82a8-897a0091f58e',
-                'metric' => 'excl_wt',
-            ],
-        ),
-    ]
+    #[AssertSuccess(
+        Method::Get,
+        'api/profiler/0190402f-7eb2-7287-82a8-897a0091f58e/top?metric=excl_wt',
+        [
+            'uuid' => '0190402f-7eb2-7287-82a8-897a0091f58e',
+            'metric' => 'excl_wt',
+        ],
+    ),]
     public function profilerTop(string $uuid, #[QueryParam] string $metric = 'wt'): Message\TopFunctions
     {
         $event = $this->eventsStorage->get($uuid) ?? throw new \RuntimeException('Event not found.');
@@ -41,18 +39,16 @@ trait ApiController
     }
 
     #[RegexpRoute(Method::Get, '#^api/profiler/(?<uuid>[a-f0-9-]++)/call-graph$#i')]
-    #[
-        AssertSuccess(
-            Method::Get,
-            'api/profiler/0190402f-7eb2-7287-82a8-897a0091f58e/call-graph?threshold=1.1&percentage=15.1&metric=wt',
-            [
-                'uuid' => '0190402f-7eb2-7287-82a8-897a0091f58e',
-                'threshold' => 1.1,
-                'percentage' => 15.1,
-                'metric' => 'wt',
-            ],
-        ),
-    ]
+    #[AssertSuccess(
+        Method::Get,
+        'api/profiler/0190402f-7eb2-7287-82a8-897a0091f58e/call-graph?threshold=1.1&percentage=15.1&metric=wt',
+        [
+            'uuid' => '0190402f-7eb2-7287-82a8-897a0091f58e',
+            'threshold' => 1.1,
+            'percentage' => 15.1,
+            'metric' => 'wt',
+        ],
+    ),]
     public function profilerCallGraph(
         string $uuid,
         #[QueryParam] float $threshold = 1,
@@ -68,13 +64,11 @@ trait ApiController
     }
 
     #[RegexpRoute(Method::Get, '#^api/profiler/(?<uuid>[a-f0-9-]++)/flame-chart$#i')]
-    #[
-        AssertSuccess(
-            Method::Get,
-            'api/profiler/0190402f-7eb2-7287-82a8-897a0091f58e/flame-chart',
-            ['uuid' => '0190402f-7eb2-7287-82a8-897a0091f58e'],
-        ),
-    ]
+    #[AssertSuccess(
+        Method::Get,
+        'api/profiler/0190402f-7eb2-7287-82a8-897a0091f58e/flame-chart',
+        ['uuid' => '0190402f-7eb2-7287-82a8-897a0091f58e'],
+    ),]
     public function profilerFlameChart(string $uuid): Message\FlameChart
     {
         $event = $this->eventsStorage->get($uuid) ?? throw new \RuntimeException('Event not found.');

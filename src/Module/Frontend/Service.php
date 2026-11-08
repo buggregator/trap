@@ -83,8 +83,7 @@ final class Service
     }
 
     #[StaticRoute(Method::Delete, 'api/events')]
-    #[
-        AssertSuccess(Method::Delete, '/api/events'),
+    #[AssertSuccess(Method::Delete, '/api/events'),
         AssertFail(Method::Delete, 'api/events/'),
         AssertFail(Method::Delete, 'api/event'),]
     public function eventsDelete(array $uuids = [], ?string $type = null): Success
@@ -118,11 +117,9 @@ final class Service
     }
 
     #[StaticRoute(Method::Get, 'api/events')]
-    #[
-        AssertSuccess(Method::Get, '/api/events'),
+    #[AssertSuccess(Method::Get, '/api/events'),
         AssertFail(Method::Get, 'api/event'),
-        AssertFail(Method::Post, 'api/events'),
-    ]
+        AssertFail(Method::Post, 'api/events'),]
     public function eventsList(): EventCollection
     {
         $this->debug('List all events');
@@ -132,8 +129,7 @@ final class Service
     #[StaticRoute(Method::Get, 'api/settings')]
     #[AssertFail(Method::Get, 'api/setting'),
         AssertFail(Method::Post, 'api/settings'),
-        AssertSuccess(Method::Get, '/api/settings'),
-    ]
+        AssertSuccess(Method::Get, '/api/settings'),]
     public function settings(): Settings
     {
         $this->debug('List settings');
