@@ -11,6 +11,7 @@ use Buggregator\Trap\Module\Profiler\Struct\Tree;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Data\DataProvider;
+use Testo\Expect;
 use Testo\Test;
 
 #[Covers(Tree::class)]
@@ -42,6 +43,27 @@ final class TreeTest
         Assert::same($tree->all['d']->parent, $tree->all['b']);
         Assert::same($tree->all['a']->parent, null);
         Assert::same(\count($tree), 4);
+    }
+
+    public function testAddingDuplicateIdFails(): void
+    {
+        $tree = new Tree();
+        $tree->addItem(new \stdClass(), 'a', null);
+
+        Expect::exception(\LogicException::class)->withMessageContaining('Duplicate branch ID `a`.');
+        $tree->addItem(new \stdClass(), 'a', null);
+    }
+
+    public function testNumericIdsKeepHierarchy(): void
+    {
+        $tree = new Tree();
+        $tree->addItem(new \stdClass(), '1', null);
+        $tree->addItem(new \stdClass(), '2', '1');
+        $tree->addItem(new \stdClass(), '3', '2', prepend: true);
+
+        Assert::same($tree->all['3']->parent, $tree->all['2']);
+        Assert::same($tree->all['2']->parent, $tree->all['1']);
+        Assert::same(\array_map('strval', \array_keys($tree->all)), ['3', '1', '2']);
     }
 
     public function testEmptyEdgesListBuildsEmptyTree(): void

@@ -85,16 +85,21 @@ final class Tree implements \IteratorAggregate, \Countable
     }
 
     /**
-     * @param non-empty-string $id
+     * @param non-empty-string $id Unique in the tree: a node of a call tree, not a function.
      * @param non-empty-string|null $parentId
+     *
+     * @throws \LogicException When the ID is already taken.
      */
     public function addItem(object $item, string $id, ?string $parentId, bool $prepend = false): void
     {
+        \array_key_exists($id, $this->all) and throw new \LogicException("Duplicate branch ID `$id`.");
+
         /** @var TItem $item */
         $branch = new Branch($item, $id, $parentId);
-        $this->all = $prepend
-            ? [$id => $branch, ...$this->all]
-            : [...$this->all, $id => $branch];
+        // `+` and direct assignment keep numeric string keys, which a spread would renumber
+        $prepend
+            ? $this->all = [$id => $branch] + $this->all
+            : $this->all[$id] = $branch;
 
         if ($parentId === null) {
             $this->root[$id] = $branch;

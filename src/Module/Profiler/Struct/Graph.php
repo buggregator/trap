@@ -98,6 +98,110 @@ final class Graph implements \IteratorAggregate, \Countable
     }
 
     /**
+     * Unfolds the graph into a call tree from the roots.
+     *
+     * The tree is approximate: a function called from several callers is unfolded under each of them,
+     * with its callees scaled by the share of the caller in the function's total cost.
+     * Percentages are scaled the same way; deltas are against the parent node of the tree.
+     *
+     * @param float $minShare Nodes with a smaller share of the roots' wall time are dropped:
+     *        unfolding multiplies the nodes of shared functions.
+     *
+     * @return Tree<Edge> Node IDs are `n1`, `n2`, etc.
+     */
+    public function unfold(float $minShare = 0.0): Tree
+    {
+        $total = 0;
+        foreach ($this->roots as $edge) {
+            $total += $edge->cost->wt;
+        }
+
+        /** @var Tree<Edge> $tree */
+        $tree = new Tree();
+        $path = [];
+        foreach ($this->roots as $edge) {
+            $this->unfoldEdge($tree, $edge, null, 1.0, (float) $total * $minShare, $path);
+        }
+
+        return $tree;
+    }
+
+    /**
+     * @param Tree<Edge> $tree
+     * @param Branch<Edge>|null $parent
+     * @param float $scale Share of the edge's calls that belong to this node.
+     * @param array<non-empty-string, true> $path Function IDs of the ancestors, to stop on a cycle.
+     */
+    private function unfoldEdge(
+        Tree $tree,
+        Edge $edge,
+        ?Branch $parent,
+        float $scale,
+        float $minWt,
+        array &$path,
+    ): void {
+        $wt = (float) $edge->cost->wt * $scale;
+        if ($wt < $minWt || isset($path[$edge->calleeId])) {
+            return;
+        }
+
+        $cost = self::scaleCost($edge->cost, $scale, $parent?->item->cost);
+        $id = 'n' . (\count($tree) + 1);
+        $tree->addItem(
+            new Edge($edge->caller, $edge->callee, $cost, $edge->calleeId, $edge->callerId),
+            $id,
+            $parent?->id,
+        );
+        /** @var Branch<Edge> $branch */
+        $branch = $tree->all[$id];
+
+        $calleeTotal = $this->inclusiveCost($edge->calleeId)->wt;
+        $childScale = $calleeTotal > 0 ? $wt / (float) $calleeTotal : $scale;
+
+        $path[$edge->calleeId] = true;
+        foreach ($this->callees($edge->calleeId) as $child) {
+            $this->unfoldEdge($tree, $child, $branch, $childScale, $minWt, $path);
+        }
+        unset($path[$edge->calleeId]);
+    }
+
+    private static function scaleCost(Cost $cost, float $scale, ?Cost $parent): Cost
+    {
+        $result = new Cost(
+            self::scaleValue($cost->ct, $scale),
+            self::scaleValue($cost->wt, $scale),
+            self::scaleValue($cost->cpu, $scale),
+            self::scaleValue($cost->mu, $scale),
+            self::scaleValue($cost->pmu, $scale),
+        );
+        $result->p_ct = \round($cost->p_ct * $scale, 3);
+        $result->p_wt = \round($cost->p_wt * $scale, 3);
+        $result->p_cpu = \round($cost->p_cpu * $scale, 3);
+        $result->p_mu = \round($cost->p_mu * $scale, 3);
+        $result->p_pmu = \round($cost->p_pmu * $scale, 3);
+
+        if ($parent !== null) {
+            $result->d_ct = $result->ct - $parent->ct;
+            $result->d_wt = $result->wt - $parent->wt;
+            $result->d_cpu = $result->cpu - $parent->cpu;
+            $result->d_mu = $result->mu - $parent->mu;
+            $result->d_pmu = $result->pmu - $parent->pmu;
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param int<0, max> $value
+     *
+     * @return int<0, max>
+     */
+    private static function scaleValue(int $value, float $scale): int
+    {
+        return \max(0, (int) \round((float) $value * $scale));
+    }
+
+    /**
      * @return \Traversable<non-empty-string, Edge> Edges by `callerId==>calleeId` keys in the order of adding.
      */
     #[\Override]

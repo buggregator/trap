@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Frontend\Event;
 use Buggregator\Trap\Module\Frontend\Module\Profiler\Message\CallGraph;
 use Buggregator\Trap\Module\Frontend\Module\Profiler\Message\FlameChart;
 use Buggregator\Trap\Module\Frontend\Module\Profiler\Message\TopFunctions;
+use Buggregator\Trap\Module\Profiler\Struct\Branch;
 use Buggregator\Trap\Module\Profiler\Struct\Cost;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Graph;
@@ -19,12 +20,6 @@ use Buggregator\Trap\Proto\Frame\Profiler\Payload as ProfilerPayload;
  */
 final class Mapper
 {
-    /**
-     * Flame chart spans shorter than this share of the whole profile are dropped:
-     * they are invisible, and unfolding a call graph into a tree multiplies them.
-     */
-    private const FLAME_CHART_MIN_SHARE = 0.0001;
-
     /**
      * @return Event<ProfilerPayload>
      */
@@ -151,82 +146,42 @@ final class Mapper
     }
 
     /**
-     * Unfolds the call graph into a tree from the roots.
-     *
-     * A function called from several callers is unfolded under each of them, and its callees are scaled
-     * by the share of the caller in the function's total cost, so the spans of a subtree sum up to its root.
-     *
      * @param Event<ProfilerPayload> $event
      */
     public function flameChart(Event $event): FlameChart
     {
-        $profile = $event->payload->getProfile();
-        $graph = $profile->calls;
-
-        $total = 0;
-        foreach ($graph->roots() as $edge) {
-            $total += $edge->cost->wt;
-        }
-        $minWt = (float) $total * self::FLAME_CHART_MIN_SHARE;
-
         $roots = [];
         $start = 0.0;
-        foreach ($graph->roots() as $edge) {
-            $path = [];
-            $span = $this->unfoldSpan($graph, $profile->peaks, $edge, 1.0, $start, $minWt, $path);
-            if ($span !== null) {
-                $roots[] = $span;
-                $start += $span->duration;
-            }
+        foreach ($event->payload->getProfile()->tree()->root as $branch) {
+            $roots[] = $span = self::span($branch, $start);
+            $start += $span->duration;
         }
 
         return new FlameChart($roots);
     }
 
     /**
-     * @param float $scale Share of the edge's calls that belong to this span.
-     * @param array<non-empty-string, true> $path Function IDs of the ancestors.
+     * @param Branch<Edge> $branch
      */
-    private function unfoldSpan(
-        Graph $graph,
-        Peaks $peaks,
-        Edge $edge,
-        float $scale,
-        float $start,
-        float $minWt,
-        array &$path,
-    ): ?FlameChart\Span {
-        $wt = (float) $edge->cost->wt * $scale;
-        if ($wt < $minWt || isset($path[$edge->calleeId])) {
-            return null;
-        }
-
-        $cost = $scale === 1.0 ? $edge->cost : self::withPercents(self::scale($edge->cost, $scale), $peaks);
+    private static function span(Branch $branch, float $start): FlameChart\Span
+    {
+        $cost = $branch->item->cost;
         $span = new FlameChart\Span(
-            name: $edge->callee,
+            name: $branch->item->callee,
             start: $start,
-            duration: $wt / 1000.0,
+            duration: (float) $cost->wt / 1000.0,
             cost: $cost,
             color: Palette::flameChartSpan($cost->p_wt),
         );
 
-        $calleeTotal = $graph->inclusiveCost($edge->calleeId)->wt;
-        $childScale = $calleeTotal > 0 ? $wt / (float) $calleeTotal : $scale;
-
-        $path[$edge->calleeId] = true;
         $childStart = $start;
-        foreach ($graph->callees($edge->calleeId) as $child) {
-            $childSpan = $this->unfoldSpan($graph, $peaks, $child, $childScale, $childStart, $minWt, $path);
-            if ($childSpan !== null) {
-                $span->children[] = $childSpan;
-                $childStart += $childSpan->duration;
-            }
+        foreach ($branch->children as $child) {
+            $span->children[] = $childSpan = self::span($child, $childStart);
+            $childStart += $childSpan->duration;
         }
-        unset($path[$edge->calleeId]);
 
         return $span;
     }
-
     /**
      * @return array<string, TopFunctions\Func>
      */
@@ -276,27 +231,6 @@ final class Mapper
                 ],
             ),
         ];
-    }
-
-    private static function scale(Cost $cost, float $scale): Cost
-    {
-        return new Cost(
-            self::scaleValue($cost->ct, $scale),
-            self::scaleValue($cost->wt, $scale),
-            self::scaleValue($cost->cpu, $scale),
-            self::scaleValue($cost->mu, $scale),
-            self::scaleValue($cost->pmu, $scale),
-        );
-    }
-
-    /**
-     * @param int<0, max> $value
-     *
-     * @return int<0, max>
-     */
-    private static function scaleValue(int $value, float $scale): int
-    {
-        return \max(0, (int) \round((float) $value * $scale));
     }
 
     private static function withPercents(Cost $cost, Peaks $peaks): Cost

@@ -155,8 +155,8 @@ final class MapperTest
         [$a, $b] = $chart[0]['children'];
         $yUnderA = $a['children'][0]['children'][0];
         $yUnderB = $b['children'][0]['children'][0];
-        Assert::same([$yUnderA['name'], $yUnderA['duration'], $yUnderA['start']], ['y', 0.00125, 0]);
-        Assert::same([$yUnderB['name'], $yUnderB['duration'], $yUnderB['start']], ['y', 0.00375, 0.02]);
+        Assert::same([$yUnderA['name'], $yUnderA['duration'], $yUnderA['start']], ['y', 0.001, 0]);
+        Assert::same([$yUnderB['name'], $yUnderB['duration'], $yUnderB['start']], ['y', 0.004, 0.02]);
         Assert::same($b['start'], 0.02);
     }
     public function testFlameChartSpansAreColoredByWallTime(): void

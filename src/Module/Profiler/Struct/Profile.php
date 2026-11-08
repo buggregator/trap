@@ -47,8 +47,14 @@ final class Profile implements \JsonSerializable
     public string $uuid;
 
     /**
+     * Unfolded nodes with a smaller share of the profile are dropped: they are too small to show.
+     */
+    private const UNFOLD_MIN_SHARE = 0.0001;
+
+    /**
      * @param Metadata $metadata
      * @param array<non-empty-string, non-empty-string> $tags
+     * @param Tree<Edge>|null $tree Exact call tree, when the profiler records one.
      */
     public function __construct(
         public \DateTimeInterface $date = new \DateTimeImmutable(),
@@ -56,6 +62,7 @@ final class Profile implements \JsonSerializable
         public array $tags = [],
         ?Graph $calls = null,
         ?Peaks $peaks = null,
+        private ?Tree $tree = null,
     ) {
         $this->uuid = Uuid::uuid4();
         $this->calls = $calls ?? new Graph();
@@ -69,6 +76,16 @@ final class Profile implements \JsonSerializable
         } else {
             $this->peaks = $peaks;
         }
+    }
+
+    /**
+     * Call tree: the exact one when the profiler records it, otherwise unfolded from the call graph.
+     *
+     * @return Tree<Edge>
+     */
+    public function tree(): Tree
+    {
+        return $this->tree ??= $this->calls->unfold(self::UNFOLD_MIN_SHARE);
     }
 
     /**
