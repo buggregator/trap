@@ -226,6 +226,21 @@ final class MapperTest
         Assert::count($graph['edges'], 5);
     }
 
+    public function testCallGraphHidesCallsUnderThreshold(): void
+    {
+        $graph = self::json((new Mapper())->callGraph(self::event(self::SHARED_STUB), threshold: 15, percentage: 100));
+
+        Assert::array(self::edges($graph))->sameElementsAs(['main() => a: 20%', 'main() => b: 40%', 'b => x: 30%']);
+    }
+
+    public function testCallGraphKeepsHeaviestCallUnderThreshold(): void
+    {
+        $graph = self::json((new Mapper())->callGraph(self::event(self::SHARED_STUB), threshold: 35, percentage: 100));
+
+        // `main() => x` through the hidden `a` takes 10%
+        Assert::array(self::edges($graph))->sameElementsAs(['main() => b: 40%', 'b => x: 30%']);
+    }
+
     public function testTopFunctionsSumCallsFromAllCallers(): void
     {
         $top = self::json((new Mapper())->topFunctions(self::event(self::SHARED_STUB), 'wt'));
@@ -264,8 +279,8 @@ final class MapperTest
             'main => a: 10%',
             'main => b: 10%',
             'main => c: 10%',
+            // Both calls of `z` take 6%: the first one stays as the heaviest
             'a => z: 6%',
-            'c => z: 6%',
         ]);
     }
 
@@ -273,13 +288,11 @@ final class MapperTest
     {
         $graph = self::json((new Mapper())->callGraph(self::event(self::BYPASS_XHPROF), threshold: 8, percentage: 100));
 
-        // XHProf sums the calls of `j` from both callers: the share of `z` is estimated for `b` too
+        // XHProf sums the calls of `j` from both callers: `a => z` and `b => z` are estimated as 5% and 1%
         Assert::same(self::edges($graph), [
             'main() => a: 10%',
             'main() => b: 10%',
             'main() => c: 10%',
-            'a => z: 5%',
-            'b => z: 1%',
             'c => z: 6%',
         ]);
     }

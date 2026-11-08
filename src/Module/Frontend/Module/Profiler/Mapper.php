@@ -82,7 +82,8 @@ final class Mapper
 
     /**
      * @param Event<ProfilerPayload> $event
-     * @param float $threshold Functions with a share of the metric not above it are hidden (%).
+     * @param float $threshold Functions and calls with a share of the metric not above it are hidden (%).
+     *        A function keeps its heaviest incoming call, so it stays linked to the graph.
      * @param float $percentage Functions with a share of the metric from it are colored (%).
      */
     public function callGraph(
@@ -121,10 +122,26 @@ final class Mapper
             );
         }
 
-        foreach (self::visibleCalls($profile, $visible) as [$callerId, $calleeId, $cost]) {
+        $calls = self::visibleCalls($profile, $visible);
+        $percents = \array_map(
+            static fn(array $call): float => self::percentOf(self::withPercents($call[2], $profile->peaks), $metric),
+            $calls,
+        );
+        /** @var array<non-empty-string, int> $heaviest Index of the heaviest call by callee IDs */
+        $heaviest = [];
+        foreach ($calls as $i => [, $calleeId]) {
+            isset($heaviest[$calleeId]) && $percents[$i] <= $percents[$heaviest[$calleeId]]
+                or $heaviest[$calleeId] = $i;
+        }
+
+        foreach ($calls as $i => [$callerId, $calleeId]) {
+            if ($percents[$i] <= $threshold && $heaviest[$calleeId] !== $i) {
+                continue;
+            }
+
             $edges[] = new CallGraph\Edge(
                 color: $visible[$calleeId][1],
-                label: (string) self::percentOf(self::withPercents($cost, $profile->peaks), $metric) . '%',
+                label: (string) $percents[$i] . '%',
                 source: $visible[$callerId][0],
                 target: $visible[$calleeId][0],
             );

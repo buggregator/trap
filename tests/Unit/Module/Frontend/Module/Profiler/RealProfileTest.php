@@ -62,7 +62,8 @@ final class RealProfileTest
         $graph = self::json((new Mapper())->callGraph(self::event(), threshold: 0, percentage: 0));
 
         Assert::count($graph['nodes'], 1035);
-        Assert::count($graph['edges'], 2222);
+        // Of 2222 calls, those taking no wall time are hidden, except the only or heaviest call of a function
+        Assert::count($graph['edges'], 2071);
     }
 
     public function testDeepFlameChartIsEncoded(): void
