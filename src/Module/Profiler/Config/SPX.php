@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Config\Server\Files;
+namespace Buggregator\Trap\Module\Profiler\Config;
 
 use Buggregator\Trap\Application\Config\Internal\Attribute\InflectableConfig;
 use Buggregator\Trap\Application\Config\Internal\Attribute\PhpIni;
+use Buggregator\Trap\Config\Server\Files\ObserverConfig;
 
 /**
  * @internal

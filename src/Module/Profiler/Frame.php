@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler;
 
-use Buggregator\Trap\Proto\Frame as BaseFrame;
+use Buggregator\Trap\Proto\Frame as ProtoFrame;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Support\Json;
 
@@ -14,7 +14,7 @@ use Buggregator\Trap\Support\Json;
  * @internal
  * @psalm-internal Buggregator
  */
-final class Frame extends BaseFrame
+final class Frame extends ProtoFrame
 {
     public function __construct(
         public readonly Frame\Payload $payload,

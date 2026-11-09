@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Buggregator\Trap;
 
 use Buggregator\Trap\Config\Server\App;
-use Buggregator\Trap\Config\Server\Files\SPX as SPXFileConfig;
 use Buggregator\Trap\Config\Server\Frontend as FrontendConfig;
 use Buggregator\Trap\Config\Server\SocketServer;
 use Buggregator\Trap\Config\Server\TcpPorts;
 use Buggregator\Trap\Handler\Http\Handler\Websocket;
 use Buggregator\Trap\Handler\Http\Middleware;
+use Buggregator\Trap\Module\Profiler\Config\SPX as SPXFileConfig;
 use Buggregator\Trap\Module\Profiler\Config\XDebug as XDebugFileConfig;
 use Buggregator\Trap\Module\Profiler\Config\XHProf as XHProfFileConfig;
 use Buggregator\Trap\Proto\Buffer;

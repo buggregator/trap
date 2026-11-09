@@ -17,7 +17,7 @@ use Buggregator\Trap\Module\Frontend\Message\Projects;
 use Buggregator\Trap\Module\Frontend\Message\Settings;
 use Buggregator\Trap\Module\Frontend\Message\Success;
 use Buggregator\Trap\Module\Frontend\Message\Version;
-use Buggregator\Trap\Module\Profiler\Frontend\ApiController;
+use Buggregator\Trap\Module\Profiler\Frontend\ApiController as ProfilerApiController;
 use Buggregator\Trap\Module\Profiler\Frontend\Mapper;
 
 /**
@@ -25,7 +25,7 @@ use Buggregator\Trap\Module\Profiler\Frontend\Mapper;
  */
 final class Service
 {
-    use ApiController;
+    use ProfilerApiController;
 
     public function __construct(
         private readonly Logger $logger,

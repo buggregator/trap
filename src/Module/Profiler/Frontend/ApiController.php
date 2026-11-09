@@ -13,6 +13,9 @@ use Buggregator\Trap\Module\Frontend\Event;
 use Buggregator\Trap\Module\Frontend\EventStorage;
 use Buggregator\Trap\Module\Profiler\Frame\Payload as ProfilerPayload;
 
+/**
+ * @internal
+ */
 trait ApiController
 {
     private readonly Mapper $mapper;
