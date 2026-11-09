@@ -74,7 +74,8 @@ final class XDebug implements FileFilterInterface
                 ProfilerFrame\Payload::new(
                     type: ProfilerFrame\Type::XDebug,
                     callsProvider: function () use ($file): Profile {
-                        $content = \file_get_contents($file->path);
+                        // A byte over the limit is enough for the builder to reject a file that doesn't fit in memory
+                        $content = \file_get_contents($file->path, length: $this->profileBuilder->maxSize + 1);
                         $content === false and throw new \RuntimeException('Unable to read the profile file.');
 
                         return $this->profileBuilder->createProfile(

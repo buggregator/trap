@@ -35,10 +35,10 @@ final class ProfileBuilder
     public const MAX_SIZE = 64 * 1024 * 1024;
 
     /**
-     * @param positive-int $maxSize
+     * @param positive-int $maxSize Limit of the content size, gzipped and decompressed, in bytes.
      */
     public function __construct(
-        private readonly int $maxSize = self::MAX_SIZE,
+        public readonly int $maxSize = self::MAX_SIZE,
     ) {}
 
     /**

@@ -12,6 +12,7 @@ use Buggregator\Trap\Service\FilesObserver\FileInfo;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Data\DataSet;
+use Testo\Expect;
 use Testo\Lifecycle\AfterTest;
 use Testo\Lifecycle\BeforeTest;
 use Testo\Test;
@@ -100,6 +101,25 @@ final class XDebugTest
         \file_put_contents($path, "\x1f\x8b" . \str_repeat("\xff", 64));
 
         Assert::same(self::converter()->isReady(self::info($path)), true);
+    }
+
+    public function testRejectsFileOverMaxSize(): void
+    {
+        $path = $this->dir . '/cachegrind.out.1234';
+        \file_put_contents($path, \str_repeat((string) \file_get_contents(self::STUB), 4000));
+        $converter = new XDebug(new Logger(), new ProfileBuilder(maxSize: 100));
+        $frames = \iterator_to_array($converter->convert(self::info($path)), false);
+        \memory_reset_peak_usage();
+        $memory = \memory_get_usage();
+
+        try {
+            $frames[0]->payload->getProfile();
+            Assert::fail('The profile is not rejected.');
+        } catch (\InvalidArgumentException $e) {
+            Assert::same($e->getMessage(), 'The profile is larger than 100 bytes.');
+        }
+        // The file of 4 MB is not read whole
+        Assert::int(\memory_get_peak_usage() - $memory)->lessThan(1024 * 1024);
     }
 
     private static function info(string $path): FileInfo
