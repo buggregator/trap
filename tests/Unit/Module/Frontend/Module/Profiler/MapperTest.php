@@ -133,6 +133,67 @@ final class MapperTest
 
         CACHEGRIND;
 
+    /**
+     * `{main}` calls `C` that calls `A` that calls `B`, and calls `B` that calls `A`. The inner `A` and `B`
+     * allocate 50 KB each, the outer ones free 49 KB of it: a call takes more memory than its caller.
+     */
+    private const ISLAND_CACHEGRIND = <<<'CACHEGRIND'
+        version: 1
+        creator: xdebug 3.4.0 (PHP 8.4.23)
+        cmd: /app/island.php
+        part: 1
+        positions: line
+
+        events: Time_(10ns) Memory_(bytes)
+
+        fl=(1) /app/island.php
+        fn=(1) B
+        2 100 50000
+
+        fl=(1)
+        fn=(2) A
+        3 100 -49000
+        cfl=(1)
+        cfn=(1)
+        calls=1 0 0
+        3 100 50000
+
+        fl=(1)
+        fn=(3) C
+        4 100 0
+        cfl=(1)
+        cfn=(2)
+        calls=1 0 0
+        4 200 1000
+
+        fl=(1)
+        fn=(2)
+        3 100 50000
+
+        fl=(1)
+        fn=(1)
+        2 100 -49000
+        cfl=(1)
+        cfn=(2)
+        calls=1 0 0
+        2 100 50000
+
+        fl=(1)
+        fn=(4) {main}
+        1 100 0
+        cfl=(1)
+        cfn=(3)
+        calls=1 0 0
+        5 300 1000
+        cfl=(1)
+        cfn=(1)
+        calls=1 0 0
+        6 200 1000
+
+        summary: 900 2000
+
+        CACHEGRIND;
+
     public function testTopFunctionsSortedByExclusiveWallTime(): void
     {
         $top = self::json((new Mapper())->topFunctions(self::event(), 'excl_wt'));
@@ -295,6 +356,14 @@ final class MapperTest
             'main() => c: 10%',
             'c => z: 6%',
         ]);
+    }
+
+    public function testCallGraphLinksFunctionsCallingEachOtherToRoot(): void
+    {
+        $graph = self::json((new Mapper())->callGraph(self::xdebugEvent(self::ISLAND_CACHEGRIND), threshold: 3, percentage: 100, metric: 'mu'));
+
+        // The heaviest calls of `A` and `B` come from each other: the heaviest call from `{main}` links them to it
+        Assert::array(self::edges($graph))->sameElementsAs(['A => B: 100%', 'B => A: 100%', '{main} => B: 2%']);
     }
 
     private static function event(array $calls = self::XHPROF_STUB): Event

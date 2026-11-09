@@ -83,7 +83,7 @@ final class Mapper
     /**
      * @param Event<ProfilerPayload> $event
      * @param float $threshold Functions and calls with a share of the metric not above it are hidden (%).
-     *        A function keeps its heaviest incoming call, so it stays linked to the graph.
+     *        A function keeps its heaviest incoming call and a call from the roots, so it stays linked to the graph.
      * @param float $percentage Functions with a share of the metric from it are colored (%).
      */
     public function callGraph(
@@ -133,9 +133,14 @@ final class Mapper
             isset($heaviest[$calleeId]) && $percents[$i] <= $percents[$heaviest[$calleeId]]
                 or $heaviest[$calleeId] = $i;
         }
+        $kept = [];
+        foreach ($calls as $i => [, $calleeId]) {
+            $percents[$i] > $threshold || $heaviest[$calleeId] === $i and $kept[$i] = true;
+        }
+        $kept = self::linkToRoots($calls, $percents, $kept);
 
         foreach ($calls as $i => [$callerId, $calleeId]) {
-            if ($percents[$i] <= $threshold && $heaviest[$calleeId] !== $i) {
+            if (!isset($kept[$i])) {
                 continue;
             }
 
@@ -187,6 +192,55 @@ final class Mapper
         }
 
         return new FlameChart($roots);
+    }
+
+    /**
+     * Keeps the heaviest calls that link the functions unreachable from the roots, one at a time.
+     *
+     * The heaviest incoming calls alone may link functions only to each other: a call is not always
+     * cheaper than its caller, e.g. when the caller frees the memory the callee allocated.
+     *
+     * @param list<array{non-empty-string, non-empty-string, Cost}> $calls Caller ID, callee ID and cost.
+     * @param array<int, float> $percents Shares of the calls.
+     * @param array<int, true> $kept Indexes of the calls kept.
+     *
+     * @return array<int, true> Indexes of the calls kept.
+     */
+    private static function linkToRoots(array $calls, array $percents, array $kept): array
+    {
+        $callees = \array_flip(\array_column($calls, 1));
+        do {
+            /** @var array<non-empty-string, list<non-empty-string>> $callers Callees of the kept calls by caller IDs */
+            $callers = [];
+            foreach ($kept as $i => $_) {
+                $callers[$calls[$i][0]][] = $calls[$i][1];
+            }
+
+            /** @var list<non-empty-string> $stack */
+            $stack = \array_values(\array_unique(\array_filter(
+                \array_column($calls, 0),
+                static fn(string $id): bool => !isset($callees[$id]),
+            )));
+            $reached = \array_fill_keys($stack, true);
+            while (($callerId = \array_pop($stack)) !== null) {
+                foreach ($callers[$callerId] ?? [] as $calleeId) {
+                    if (!isset($reached[$calleeId])) {
+                        $reached[$calleeId] = true;
+                        $stack[] = $calleeId;
+                    }
+                }
+            }
+
+            $link = null;
+            foreach ($calls as $i => [$callerId, $calleeId]) {
+                isset($reached[$callerId]) && !isset($reached[$calleeId])
+                    && ($link === null || $percents[$i] > $percents[$link])
+                    and $link = $i;
+            }
+            $link === null or $kept[$link] = true;
+        } while ($link !== null);
+
+        return $kept;
     }
 
     /**
