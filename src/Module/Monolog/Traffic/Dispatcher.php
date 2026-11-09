@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Traffic\Dispatcher;
+namespace Buggregator\Trap\Module\Monolog\Traffic;
 
-use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Traffic\Dispatcher;
+use Buggregator\Trap\Module\Monolog\Frame;
+use Buggregator\Trap\Traffic\Dispatcher as DispatcherInterface;
 use Buggregator\Trap\Traffic\StreamClient;
 
 /**
  * @internal
  * @psalm-internal Buggregator\Trap
  */
-final class Monolog implements Dispatcher
+final class Dispatcher implements DispatcherInterface
 {
     /**
      * @throws \JsonException
@@ -26,7 +26,7 @@ final class Monolog implements Dispatcher
                 continue;
             }
 
-            yield new Frame\Monolog(
+            yield new Frame(
                 (array) \json_decode($line, true, 512, JSON_THROW_ON_ERROR),
                 $stream->getCreatedAt(),
             );

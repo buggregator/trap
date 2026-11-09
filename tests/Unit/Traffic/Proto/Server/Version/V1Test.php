@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Traffic\Proto\Server\Version;
 
+use Buggregator\Trap\Module\Monolog\Frame as MonologFrame;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Module\VarDumper\Frame as VarDumperFrame;
 use Buggregator\Trap\Proto\Frame;
@@ -42,7 +43,7 @@ final class V1Test
         $time = new \DateTimeImmutable(self::TIME);
 
         yield 'smtp' => [new Frame\Smtp(SmtpMessage::create(['FROM' => ['<a@b.c>']], ['Subject' => 'Hi']), $time)];
-        yield 'monolog' => [new Frame\Monolog(['message' => 'hello', 'level' => 200], $time)];
+        yield 'monolog' => [new MonologFrame(['message' => 'hello', 'level' => 200], $time)];
         yield 'var-dumper' => [new VarDumperFrame('dump', $time)];
         yield 'http' => [new Frame\Http(new ServerRequest('POST', 'http://localhost/path', ['Host' => ['localhost']], 'body'), $time)];
         yield 'sentry' => [new SentryStore(['type' => 'store', 'event_id' => 'abc', 'timestamp' => 1700000000], $time)];

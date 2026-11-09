@@ -80,7 +80,7 @@ final class Application implements Processable, Cancellable, Destroyable
                     [new Websocket()],
                 ),
                 new Traffic\Dispatcher\Smtp(),
-                new Traffic\Dispatcher\Monolog(),
+                new Module\Monolog\Traffic\Dispatcher(),
             ],
         ]);
         $this->processors[] = $inspector;
@@ -104,7 +104,7 @@ final class Application implements Processable, Cancellable, Destroyable
                         [$this->container->get(Module\Frontend\Http\RequestHandler::class)],
                     ),
                     new Traffic\Dispatcher\Smtp(),
-                    new Traffic\Dispatcher\Monolog(),
+                    new Module\Monolog\Traffic\Dispatcher(),
                 ],
             ]);
             $this->processors[] = $inspectorWithFrontend;

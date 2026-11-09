@@ -2,21 +2,22 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Sender\Console\Renderer;
+namespace Buggregator\Trap\Module\Monolog\Console;
 
+use Buggregator\Trap\Module\Monolog\Frame as MonologFrame;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
-use Buggregator\Trap\Sender\Console\Renderer;
+use Buggregator\Trap\Sender\Console\Renderer as RendererInterface;
 use Buggregator\Trap\Sender\Console\Support\Color;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * @implements Renderer<Frame\Monolog>
+ * @implements RendererInterface<MonologFrame>
  *
  * @internal
  */
-final class Monolog implements Renderer
+final class Renderer implements RendererInterface
 {
     #[\Override]
     public function isSupport(Frame $frame): bool
@@ -27,7 +28,7 @@ final class Monolog implements Renderer
     #[\Override]
     public function render(OutputInterface $output, Frame $frame): void
     {
-        \assert($frame instanceof Frame\Monolog);
+        \assert($frame instanceof MonologFrame);
 
         $payload = $frame->message;
         $level = (string) ($payload['level_name'] ?? 'DEBUG');

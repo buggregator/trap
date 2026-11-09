@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Sender\Console\Renderer;
 
-use Buggregator\Trap\Proto\Frame\Monolog;
+use Buggregator\Trap\Module\Monolog\Frame as Monolog;
 use Buggregator\Trap\Proto\Frame\Sentry\EnvelopeItem;
 use Buggregator\Trap\Proto\Frame\Sentry\SentryEnvelope as SentryEnvelopeFrame;
 use Buggregator\Trap\Sender\Console\Renderer\SentryEnvelope;

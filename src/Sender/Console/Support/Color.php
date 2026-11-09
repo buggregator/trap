@@ -8,7 +8,7 @@ namespace Buggregator\Trap\Sender\Console\Support;
  * Default terminal colors
  *
  * @internal
- * @psalm-internal Buggregator\Trap\Sender\Console
+ * @psalm-internal Buggregator\Trap
  */
 enum Color: string
 {

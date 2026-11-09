@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Sender;
 
+use Buggregator\Trap\Module\Monolog\Frame as MonologFrame;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Sender\RemoteSender;
 use Testo\Assert;
@@ -25,9 +26,9 @@ final class RemoteSenderTest
         $sender = $this->createSender();
 
         $sender->send([
-            new Frame\Monolog(['message' => 'first']),
+            new MonologFrame(['message' => 'first']),
             new Frame\Otlp\OtlpTraces([]),
-            new Frame\Monolog(['message' => 'second']),
+            new MonologFrame(['message' => 'second']),
         ]);
         $package = $this->receive($sender);
 
@@ -45,7 +46,7 @@ final class RemoteSenderTest
         $sender->send((static function (): \Generator {
             yield new Frame\Otlp\OtlpTraces([]);
         })());
-        $sender->send([new Frame\Monolog(['message' => 'after'])]);
+        $sender->send([new MonologFrame(['message' => 'after'])]);
         $package = $this->receive($sender);
 
         // The first package on the wire is the one sent after the OTLP-only batch.

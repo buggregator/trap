@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Module\Frontend\Mapper;
+namespace Buggregator\Trap\Module\Monolog\Frontend;
 
 use Buggregator\Trap\Module\Frontend\Event;
-use Buggregator\Trap\Proto\Frame\Monolog as MonologFrame;
+use Buggregator\Trap\Module\Monolog\Frame as MonologFrame;
 use Buggregator\Trap\Support\Uuid;
 
 /**
  * @internal
  */
-final class Monolog
+final class Mapper
 {
     public function map(MonologFrame $frame): Event
     {
