@@ -105,9 +105,4 @@ return $architecture
     // Registration point: UI asset routes of the Mailer module.
     ->skipClassViolation('Buggregator\Trap\Module\Frontend\Http\EventAssets', [
         'Buggregator\Trap\Module\Mailer\Frontend\AssetsController',
-    ])
-
-    // Layering problem: the core checks a Frontend-specific response header instead of its own no-dump header.
-    ->skipClassViolation('Buggregator\Trap\Handler\Http\Handler\Fallback', [
-        'Buggregator\Trap\Module\Frontend\Http\Pipeline',
     ]);
