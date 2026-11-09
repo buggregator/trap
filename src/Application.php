@@ -71,7 +71,7 @@ final class Application implements Processable, Cancellable, Destroyable
                     [
                         $this->container->get(Middleware\Resources::class),
                         $this->container->get(Middleware\DebugPage::class),
-                        $this->container->get(Middleware\RayRequestDump::class),
+                        $this->container->get(Module\Ray\Http\RayRequestDump::class),
                         $this->container->get(Module\Sentry\Http\SentryTrap::class),
                         $this->container->get(Module\Profiler\Http\XHProfTrap::class),
                         $this->container->get(Module\Profiler\Http\XDebugTrap::class),
@@ -95,7 +95,7 @@ final class Application implements Processable, Cancellable, Destroyable
                             $this->container->get(Module\Frontend\Http\Pipeline::class),
                             $this->container->get(Middleware\Resources::class),
                             $this->container->get(Middleware\DebugPage::class),
-                            $this->container->get(Middleware\RayRequestDump::class),
+                            $this->container->get(Module\Ray\Http\RayRequestDump::class),
                             $this->container->get(Module\Sentry\Http\SentryTrap::class),
                             $this->container->get(Module\Profiler\Http\XHProfTrap::class),
                             $this->container->get(Module\Profiler\Http\XDebugTrap::class),

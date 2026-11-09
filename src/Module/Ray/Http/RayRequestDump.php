@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Handler\Http\Middleware;
+namespace Buggregator\Trap\Module\Ray\Http;
 
 use Buggregator\Trap\Handler\Http\Middleware;
 use Nyholm\Psr7\Response;
