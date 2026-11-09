@@ -51,12 +51,14 @@ return $architecture
         'Buggregator\Trap\Module\Mailer\Frame',
         'Buggregator\Trap\Module\Monolog\Frame',
         'Buggregator\Trap\Module\Profiler\Frame',
+        'Buggregator\Trap\Module\Ray\Frame',
         'Buggregator\Trap\Module\Sentry\Frame',
         'Buggregator\Trap\Module\Tracing\Frame',
         'Buggregator\Trap\Module\VarDumper\Frame',
     ])
-    // Registration point: the remote sender drops OTLP frames, which protocol version 1 receivers reject.
+    // Registration point: the remote sender drops OTLP and Ray frames, which protocol version 1 receivers reject.
     ->skipClassViolation('Buggregator\Trap\Sender\RemoteSender', [
+        'Buggregator\Trap\Module\Ray\Frame',
         'Buggregator\Trap\Module\Tracing\Frame',
     ])
     // Registration point: console renderers of the modules.
@@ -64,6 +66,7 @@ return $architecture
         'Buggregator\Trap\Module\Mailer\Console\Renderer',
         'Buggregator\Trap\Module\Monolog\Console\Renderer',
         'Buggregator\Trap\Module\Profiler\Console\Renderer',
+        'Buggregator\Trap\Module\Ray\Console\Renderer',
         'Buggregator\Trap\Module\Sentry\Console\SentryEnvelope',
         'Buggregator\Trap\Module\Sentry\Console\SentryStore',
         'Buggregator\Trap\Module\Tracing\Console\Renderer',
@@ -78,6 +81,8 @@ return $architecture
         'Buggregator\Trap\Module\Monolog\Frontend\Mapper',
         'Buggregator\Trap\Module\Profiler\Frame',
         'Buggregator\Trap\Module\Profiler\Frontend\Mapper',
+        'Buggregator\Trap\Module\Ray\Frame',
+        'Buggregator\Trap\Module\Ray\Frontend\Mapper',
         'Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope',
         'Buggregator\Trap\Module\Sentry\Frame\SentryStore',
         'Buggregator\Trap\Module\Sentry\Frontend\EnvelopeMapper',
@@ -91,4 +96,5 @@ return $architecture
         'Buggregator\Trap\Module\Mailer\Frontend\ApiController',
         'Buggregator\Trap\Module\Mailer\Frontend\AssetsController',
         'Buggregator\Trap\Module\Profiler\Frontend\ApiController',
+        'Buggregator\Trap\Module\Ray\Frontend\LocksController',
     ]);

@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Module\Frontend;
 use Buggregator\Trap\Module\Mailer\Frontend\ApiController as MailerApiController;
 use Buggregator\Trap\Module\Mailer\Frontend\AssetsController as MailerAssetsController;
 use Buggregator\Trap\Module\Profiler\Frontend\ApiController as ProfilerApiController;
+use Buggregator\Trap\Module\Ray\Frontend\LocksController as RayLocksController;
 use Internal\Container\Container;
 
 /**
@@ -22,6 +23,7 @@ final class UiControllers
         Service::class,
         ProfilerApiController::class,
         MailerApiController::class,
+        RayLocksController::class,
     ];
     private const ASSETS = [
         MailerAssetsController::class,

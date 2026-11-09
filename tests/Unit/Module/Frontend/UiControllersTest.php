@@ -22,6 +22,8 @@ use Buggregator\Trap\Module\Profiler\Frame\Type;
 use Buggregator\Trap\Module\Profiler\Frontend\ApiController as ProfilerApiController;
 use Buggregator\Trap\Module\Profiler\Frontend\Mapper as ProfilerMapper;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
+use Buggregator\Trap\Module\Ray\Frontend\LocksController as RayLocksController;
+use Buggregator\Trap\Module\Ray\Lock\Locks;
 use Buggregator\Trap\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
 use Internal\Container\ObjectContainer;
@@ -37,6 +39,7 @@ use Testo\Test;
 #[Covers(MailerApiController::class)]
 #[Covers(MailerAssetsController::class)]
 #[Covers(ProfilerApiController::class)]
+#[Covers(RayLocksController::class)]
 #[Test]
 final class UiControllersTest
 {
@@ -46,7 +49,7 @@ final class UiControllersTest
 
         Assert::same(
             \array_map(static fn(object $c): string => $c::class, $controllers->api()),
-            [Service::class, ProfilerApiController::class, MailerApiController::class],
+            [Service::class, ProfilerApiController::class, MailerApiController::class, RayLocksController::class],
         );
         Assert::same(
             \array_map(static fn(object $c): string => $c::class, $controllers->assets()),
@@ -135,6 +138,47 @@ final class UiControllersTest
         Assert::same($file->getStatusCode(), 200);
         Assert::same($file->getHeaderLine('Content-Disposition'), 'attachment; filename="doc.pdf"');
         Assert::same((string) $file->getBody(), 'pdf');
+    }
+
+    /**
+     * The UI adds `token` and `project` to the data of every RPC call.
+     */
+    public function testRayLocksOverRpc(): void
+    {
+        $container = new ObjectContainer();
+        $locks = $container->get(Locks::class);
+        $locks->create('aaa');
+        $locks->create('bbb');
+        $rpc = $container->get(RPC::class);
+
+        $continue = $rpc->handleMessage(['method' => 'post:api/ray/locks/aaa', 'data' => ['token' => null, 'project' => 'default']]);
+        $stop = $rpc->handleMessage([
+            'method' => 'post:api/ray/locks/bbb',
+            'data' => ['token' => null, 'project' => 'default', 'stop_execution' => true],
+        ]);
+        $unknown = $rpc->handleMessage(['method' => 'post:api/ray/locks/ccc', 'data' => []]);
+
+        Assert::same(self::json($continue), ['data' => ['code' => 200, 'status' => true]]);
+        Assert::same(self::json($stop), ['data' => ['code' => 200, 'status' => true]]);
+        Assert::same(self::json($unknown), ['data' => ['code' => 200, 'status' => false]]);
+        Assert::false($locks->poll('aaa')?->stop);
+        Assert::true($locks->poll('bbb')?->stop);
+    }
+
+    public function testRayLocksOverHttp(): void
+    {
+        $container = new ObjectContainer();
+        $locks = $container->get(Locks::class);
+        $locks->create('aaa');
+
+        $response = $container->get(Pipeline::class)->handle(
+            new ServerRequest('POST', '/api/ray/locks/aaa', ['Content-Type' => 'application/json'], '{"stop_execution":true,"project":"default"}'),
+            static fn(): Response => new Response(404),
+        );
+
+        Assert::same($response->getStatusCode(), 200);
+        Assert::same(\json_decode((string) $response->getBody(), true), ['code' => 200, 'status' => true]);
+        Assert::true($locks->poll('aaa')?->stop);
     }
 
     private static function get(ObjectContainer $container, string $uri): ResponseInterface

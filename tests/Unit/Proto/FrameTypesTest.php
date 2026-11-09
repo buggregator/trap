@@ -11,6 +11,7 @@ use Buggregator\Trap\Module\Profiler\Frame as ProfilerFrame;
 use Buggregator\Trap\Module\Profiler\Frame\Payload;
 use Buggregator\Trap\Module\Profiler\Frame\Type as PayloadType;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
+use Buggregator\Trap\Module\Ray\Frame as RayFrame;
 use Buggregator\Trap\Module\Sentry\Frame as SentryFrame;
 use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope;
 use Buggregator\Trap\Module\Sentry\Frame\SentryStore;
@@ -44,6 +45,7 @@ final class FrameTypesTest
         yield [new SentryEnvelope([], []), 'sentry'];
         yield [new ProfilerFrame(Payload::new(PayloadType::XHProf, static fn(): Profile => new Profile())), 'profiler'];
         yield [new OtlpTraces([]), 'otlp'];
+        yield [new RayFrame('a1', []), 'ray'];
     }
 
     #[DataProvider('framesDataProvider')]
@@ -65,6 +67,7 @@ final class FrameTypesTest
         Assert::same($types->classOf('sentry'), SentryFrame::class);
         Assert::same($types->classOf('profiler'), ProfilerFrame::class);
         Assert::same($types->classOf('otlp'), TracingFrame::class);
+        Assert::same($types->classOf('ray'), RayFrame::class);
     }
 
     public function testDoesNotDecodeBinaryFrames(): void

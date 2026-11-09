@@ -14,7 +14,7 @@ use Buggregator\Trap\Module\Profiler\Config\XDebug;
 use Buggregator\Trap\Module\Profiler\Config\XHProf;
 use Buggregator\Trap\Module\Profiler\Http\XDebugTrap;
 use Buggregator\Trap\Module\Profiler\Http\XHProfTrap;
-use Buggregator\Trap\Module\Ray\Http\RayRequestDump;
+use Buggregator\Trap\Module\Ray\Http\RayTrap;
 use Buggregator\Trap\Module\Sentry\Http\SentryTrap;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap;
 use Buggregator\Trap\Module\VarDumper\Traffic\Dispatcher as VarDumperDispatcher;
@@ -102,7 +102,7 @@ final class ModulesTest
         Assert::same($dispatchers, [VarDumperDispatcher::class, MailerDispatcher::class, MonologDispatcher::class]);
         Assert::same(
             $middlewares,
-            [RayRequestDump::class, SentryTrap::class, XHProfTrap::class, XDebugTrap::class, OtlpTrap::class],
+            [RayTrap::class, SentryTrap::class, XHProfTrap::class, XDebugTrap::class, OtlpTrap::class],
         );
         Assert::same($configs, [XHProf::class, XDebug::class, SPX::class]);
     }

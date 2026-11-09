@@ -22,7 +22,7 @@ final class FrameHandler implements HandlerInterface
         private readonly ConnectionPool $connectionPool,
         private readonly EventStorage $eventsStorage,
     ) {
-        $this->frameMapper = new FrameMapper();
+        $this->frameMapper = new FrameMapper($eventsStorage);
     }
 
     #[\Override]
