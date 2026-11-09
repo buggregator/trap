@@ -17,7 +17,7 @@ final class FrameMapper
     public function map(Frame $frame): ?Event
     {
         return match ($frame::class) {
-            Frame\Otlp\OtlpTraces::class => null,
+            \Buggregator\Trap\Module\Tracing\Frame\OtlpTraces::class => null,
             \Buggregator\Trap\Module\VarDumper\Frame::class => (new \Buggregator\Trap\Module\VarDumper\Frontend\Mapper())->map($frame),
             Frame\Http::class => (new Mapper\HttpRequest())->map($frame),
             \Buggregator\Trap\Module\Mailer\Frame::class => (new \Buggregator\Trap\Module\Mailer\Frontend\Mapper())->map($frame),

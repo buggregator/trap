@@ -37,6 +37,7 @@ return $architecture
         'Buggregator\Trap\Module\Profiler\Http\XDebugTrap',
         'Buggregator\Trap\Module\Profiler\Http\XHProfTrap',
         'Buggregator\Trap\Module\Sentry\Http\SentryTrap',
+        'Buggregator\Trap\Module\Tracing\Http\OtlpTrap',
         'Buggregator\Trap\Module\VarDumper\Traffic\Dispatcher',
     ])
     // Registration point: the sender registry builds the Mailer file sender and passes the Tracing span store.
@@ -50,7 +51,12 @@ return $architecture
         'Buggregator\Trap\Module\Monolog\Frame',
         'Buggregator\Trap\Module\Profiler\Frame',
         'Buggregator\Trap\Module\Sentry\Frame',
+        'Buggregator\Trap\Module\Tracing\Frame',
         'Buggregator\Trap\Module\VarDumper\Frame',
+    ])
+    // Registration point: the remote sender drops OTLP frames, which protocol version 1 receivers reject.
+    ->skipClassViolation('Buggregator\Trap\Sender\RemoteSender', [
+        'Buggregator\Trap\Module\Tracing\Frame',
     ])
     // Registration point: console renderers of the modules.
     ->skipClassViolation('Buggregator\Trap\Sender\ConsoleSender', [
@@ -59,6 +65,7 @@ return $architecture
         'Buggregator\Trap\Module\Profiler\Console\Renderer',
         'Buggregator\Trap\Module\Sentry\Console\SentryEnvelope',
         'Buggregator\Trap\Module\Sentry\Console\SentryStore',
+        'Buggregator\Trap\Module\Tracing\Console\Renderer',
         'Buggregator\Trap\Module\Tracing\SpanStore',
         'Buggregator\Trap\Module\VarDumper\Console\Renderer',
     ])
@@ -78,6 +85,7 @@ return $architecture
         'Buggregator\Trap\Module\Sentry\Frame\SentryStore',
         'Buggregator\Trap\Module\Sentry\Frontend\EnvelopeMapper',
         'Buggregator\Trap\Module\Sentry\Frontend\StoreMapper',
+        'Buggregator\Trap\Module\Tracing\Frame\OtlpTraces',
         'Buggregator\Trap\Module\VarDumper\Frame',
         'Buggregator\Trap\Module\VarDumper\Frontend\Mapper',
     ])
@@ -110,8 +118,4 @@ return $architecture
         'Buggregator\Trap\Module\Frontend\ConnectionPool',
         'Buggregator\Trap\Module\Frontend\EventStorage',
         'Buggregator\Trap\Module\Frontend\FrameHandler',
-    ])
-    // Layering problem: the console renderer of OTLP traces lives in the core, not in the Tracing module.
-    ->skipClassViolation('Buggregator\Trap\Sender\Console\Renderer\OtlpTraces', [
-        'Buggregator\Trap\Module\Tracing\SpanStore',
     ]);

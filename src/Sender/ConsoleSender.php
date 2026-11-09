@@ -29,7 +29,7 @@ final class ConsoleSender implements Sender
         $renderer->register(new \Buggregator\Trap\Module\VarDumper\Console\Renderer());
         $renderer->register(new \Buggregator\Trap\Module\Sentry\Console\SentryStore());
         $renderer->register(new \Buggregator\Trap\Module\Sentry\Console\SentryEnvelope());
-        $renderer->register(new Renderer\OtlpTraces($spanStore ?? new SpanStore()));
+        $renderer->register(new \Buggregator\Trap\Module\Tracing\Console\Renderer($spanStore ?? new SpanStore()));
         $renderer->register(new \Buggregator\Trap\Module\Monolog\Console\Renderer());
         $renderer->register(new \Buggregator\Trap\Module\Mailer\Console\Renderer());
         $renderer->register(new Renderer\Http());

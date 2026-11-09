@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Tracing;
 
-use Buggregator\Trap\Config\Server\Traces as Config;
-use Buggregator\Trap\Proto\Frame\Otlp\Trace\Span;
+use Buggregator\Trap\Module\Tracing\Config\Traces as Config;
+use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
 
 /**
  * Spans received by the Trap process, kept so that spans of one trace that arrive in separate

@@ -91,7 +91,7 @@ final class V1 implements PayloadDecoder
                             ProtoType::HTTP->value => Frame\Http::fromString($payload, $date),
                             ProtoType::Sentry->value => \Buggregator\Trap\Module\Sentry\Frame::fromString($payload, $date),
                             ProtoType::Profiler->value => \Buggregator\Trap\Module\Profiler\Frame::fromString($payload, $date),
-                            ProtoType::Otlp->value => Frame\Otlp::fromString($payload, $date),
+                            ProtoType::Otlp->value => \Buggregator\Trap\Module\Tracing\Frame::fromString($payload, $date),
                             default => throw new \RuntimeException('Invalid type.'),
                         };
                     },

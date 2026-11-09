@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Sender;
 
 use Buggregator\Trap\Module\Monolog\Frame as MonologFrame;
-use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Sender\RemoteSender;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -27,7 +27,7 @@ final class RemoteSenderTest
 
         $sender->send([
             new MonologFrame(['message' => 'first']),
-            new Frame\Otlp\OtlpTraces([]),
+            new OtlpTraces([]),
             new MonologFrame(['message' => 'second']),
         ]);
         $package = $this->receive($sender);
@@ -44,7 +44,7 @@ final class RemoteSenderTest
         $sender = $this->createSender();
 
         $sender->send((static function (): \Generator {
-            yield new Frame\Otlp\OtlpTraces([]);
+            yield new OtlpTraces([]);
         })());
         $sender->send([new MonologFrame(['message' => 'after'])]);
         $package = $this->receive($sender);

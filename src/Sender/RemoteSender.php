@@ -35,7 +35,7 @@ final class RemoteSender extends SocketSender
     {
         $frames = \array_values(\array_filter(
             \is_array($frames) ? $frames : \iterator_to_array($frames, false),
-            static fn(Frame $frame): bool => !$frame instanceof Frame\Otlp,
+            static fn(Frame $frame): bool => !$frame instanceof \Buggregator\Trap\Module\Tracing\Frame,
         ));
 
         $frames === [] or parent::send($frames);
