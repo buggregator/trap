@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Mailer\Traffic;
 
 use Buggregator\Trap\Module\Mailer\Frame;
-use Buggregator\Trap\Traffic\Dispatcher as TrafficDispatcher;
+use Buggregator\Trap\Traffic\Dispatcher as DispatcherInterface;
 use Buggregator\Trap\Traffic\StreamClient;
 
 /**
  * @internal
  * @psalm-internal Buggregator\Trap
  */
-final class Dispatcher implements TrafficDispatcher
+final class Dispatcher implements DispatcherInterface
 {
     private const READY = 220;
     public const OK = 250;

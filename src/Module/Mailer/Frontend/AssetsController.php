@@ -14,6 +14,9 @@ use Buggregator\Trap\Module\Frontend\Event\EmbeddedFile;
 use Buggregator\Trap\Module\Frontend\EventStorage;
 use Nyholm\Psr7\Response;
 
+/**
+ * @internal
+ */
 trait AssetsController
 {
     private readonly Logger $logger;

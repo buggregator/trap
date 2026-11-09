@@ -8,7 +8,7 @@ use Buggregator\Trap\Proto\Frame;
 
 /**
  * @internal
- * @psalm-internal Buggregator\Trap\Traffic
+ * @psalm-internal Buggregator\Trap
  */
 interface Dispatcher
 {

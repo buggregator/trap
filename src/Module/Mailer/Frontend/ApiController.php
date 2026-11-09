@@ -12,6 +12,9 @@ use Buggregator\Trap\Module\Frontend\EventStorage;
 use Buggregator\Trap\Module\Frontend\Message\Success;
 use Buggregator\Trap\Module\Mailer\Frontend\Message\Attachments;
 
+/**
+ * @internal
+ */
 trait ApiController
 {
     private readonly EventStorage $eventsStorage;
