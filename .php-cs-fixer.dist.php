@@ -9,6 +9,7 @@ return \Spiral\CodeStyle\Builder::create()
     ->include(__DIR__ . '/src')
     ->include(__DIR__ . '/tests')
     ->include(__DIR__ . '/rector.php')
+    ->include(__DIR__ . '/structarmed.php')
     ->include(__FILE__)
     ->exclude(__DIR__ . '/src/Test/Proto')
     ->build();

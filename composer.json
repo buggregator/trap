@@ -52,6 +52,7 @@
         "symfony/var-dumper": "^6.3 || ^7 || ^8"
     },
     "require-dev": {
+        "boundwize/structarmed": "^0.21.8",
         "google/protobuf": "^3.25 || ^4.30 || ^v5.36.1",
         "llm/skills": "^1.14",
         "mockery/mockery": "^1.6",
@@ -106,6 +107,8 @@
         "psalm:ci": "psalm --output-format=github --shepherd --show-info=false --stats --threads=4",
         "refactor": "rector process --config=rector.php",
         "refactor:ci": "rector process --config=rector.php --dry-run --ansi",
+        "structarmed": "structarmed analyse",
+        "structarmed:ci": "structarmed analyse --no-progress",
         "test": "testo",
         "test:unit": "testo --suite=Unit",
         "test:arch": "testo --suite=Arch",
