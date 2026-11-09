@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Sender;
 
 use Buggregator\Trap\Module\Monolog\Frame as MonologFrame;
+use Buggregator\Trap\Module\Ray\Frame as RayFrame;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Sender\RemoteSender;
 use Testo\Assert;
@@ -21,13 +22,14 @@ final class RemoteSenderTest
     /** @var resource|null */
     private $server;
 
-    public function testSendsOnlyNonOtlpFrames(): void
+    public function testSendsNeitherOtlpNorRayFrames(): void
     {
         $sender = $this->createSender();
 
         $sender->send([
             new MonologFrame(['message' => 'first']),
             new OtlpTraces([]),
+            new RayFrame('a1', []),
             new MonologFrame(['message' => 'second']),
         ]);
         $package = $this->receive($sender);

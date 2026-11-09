@@ -200,6 +200,7 @@ final class Application implements Processable, Cancellable, Destroyable
         $this->container->set($wsSender);
         $this->container->set($wsSender->getEventStorage());
         $this->container->set($wsSender->getConnectionPool());
+        $this->container->get(Module\Frontend\UiChannel::class)->enable();
 
         if (!$separated) {
             return;

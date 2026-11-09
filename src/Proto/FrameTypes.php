@@ -27,6 +27,7 @@ final class FrameTypes
         Module\Sentry\Frame::TYPE => Module\Sentry\Frame::class,
         Module\Profiler\Frame::TYPE => Module\Profiler\Frame::class,
         Module\Tracing\Frame::TYPE => Module\Tracing\Frame::class,
+        Module\Ray\Frame::TYPE => Module\Ray\Frame::class,
     ];
 
     /**
