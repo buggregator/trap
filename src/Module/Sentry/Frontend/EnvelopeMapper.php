@@ -11,7 +11,7 @@ use Buggregator\Trap\Support\Uuid;
 /**
  * @internal
  */
-final class SentryEnvelope
+final class EnvelopeMapper
 {
     public function map(SentryFrame $frame): Event
     {

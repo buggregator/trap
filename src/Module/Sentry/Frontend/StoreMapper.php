@@ -11,7 +11,7 @@ use Buggregator\Trap\Support\Uuid;
 /**
  * @internal
  */
-final class SentryStore
+final class StoreMapper
 {
     public function map(SentryFrame $frame): Event
     {
