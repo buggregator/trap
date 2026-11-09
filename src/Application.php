@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap;
 
+use Buggregator\Trap\Application\Module\Modules;
 use Buggregator\Trap\Config\Server\App;
 use Buggregator\Trap\Config\Server\Frontend as FrontendConfig;
 use Buggregator\Trap\Config\Server\SocketServer;
 use Buggregator\Trap\Config\Server\TcpPorts;
 use Buggregator\Trap\Handler\Http\Handler\Websocket;
 use Buggregator\Trap\Handler\Http\Middleware;
-use Buggregator\Trap\Module\Profiler\Config\SPX as SPXFileConfig;
-use Buggregator\Trap\Module\Profiler\Config\XDebug as XDebugFileConfig;
-use Buggregator\Trap\Module\Profiler\Config\XHProf as XHProfFileConfig;
+use Buggregator\Trap\Handler\Http\ProvidesHttpMiddlewares;
 use Buggregator\Trap\Proto\Buffer;
+use Buggregator\Trap\Service\FilesObserver\ProvidesFileObservers;
 use Buggregator\Trap\Socket\Client;
 use Buggregator\Trap\Socket\Server;
 use Buggregator\Trap\Socket\SocketStream;
@@ -63,54 +63,35 @@ final class Application implements Processable, Cancellable, Destroyable
         );
         $withFrontend and $this->configureFrontend($feSeparated);
 
+        $modules = $this->container->get(Modules::class);
+        $middlewares = [
+            $this->container->get(Middleware\Resources::class),
+            $this->container->get(Middleware\DebugPage::class),
+            ...$this->httpMiddlewares($modules),
+        ];
+
         $inspectorWithFrontend = $inspector = $container->make(Inspector::class, [
-            'dispatchers' => [
-                // new Traffic\Dispatcher\WebSocket(),
-                new Module\VarDumper\Traffic\Dispatcher(),
-                new Traffic\Dispatcher\Http(
-                    [
-                        $this->container->get(Middleware\Resources::class),
-                        $this->container->get(Middleware\DebugPage::class),
-                        $this->container->get(Module\Ray\Http\RayRequestDump::class),
-                        $this->container->get(Module\Sentry\Http\SentryTrap::class),
-                        $this->container->get(Module\Profiler\Http\XHProfTrap::class),
-                        $this->container->get(Module\Profiler\Http\XDebugTrap::class),
-                        $this->container->get(Module\Tracing\Http\OtlpTrap::class),
-                    ],
-                    [new Websocket()],
-                ),
-                new Module\Mailer\Traffic\Dispatcher(),
-                new Module\Monolog\Traffic\Dispatcher(),
-            ],
+            'dispatchers' => $this->dispatchers(
+                $modules,
+                new Traffic\Dispatcher\Http($middlewares, [new Websocket()]),
+            ),
         ]);
         $this->processors[] = $inspector;
 
-
         if ($withFrontend && !$feSeparated) {
             $inspectorWithFrontend = $container->make(Inspector::class, [
-                'dispatchers' => [
-                    new Module\VarDumper\Traffic\Dispatcher(),
+                'dispatchers' => $this->dispatchers(
+                    $modules,
                     new Traffic\Dispatcher\Http(
-                        [
-                            $this->container->get(Module\Frontend\Http\Pipeline::class),
-                            $this->container->get(Middleware\Resources::class),
-                            $this->container->get(Middleware\DebugPage::class),
-                            $this->container->get(Module\Ray\Http\RayRequestDump::class),
-                            $this->container->get(Module\Sentry\Http\SentryTrap::class),
-                            $this->container->get(Module\Profiler\Http\XHProfTrap::class),
-                            $this->container->get(Module\Profiler\Http\XDebugTrap::class),
-                            $this->container->get(Module\Tracing\Http\OtlpTrap::class),
-                        ],
+                        [$this->container->get(Module\Frontend\Http\Pipeline::class), ...$middlewares],
                         [$this->container->get(Module\Frontend\Http\RequestHandler::class)],
                     ),
-                    new Module\Mailer\Traffic\Dispatcher(),
-                    new Module\Monolog\Traffic\Dispatcher(),
-                ],
+                ),
             ]);
             $this->processors[] = $inspectorWithFrontend;
         }
 
-        $this->configureFileObserver();
+        $this->configureFileObserver($modules);
 
         foreach ($map as $config) {
             $withFrontend && !$feSeparated && $config->protocol === 'tcp' && $config->port === $feConfig->port
@@ -279,14 +260,49 @@ final class Application implements Processable, Cancellable, Destroyable
         );
     }
 
-    private function configureFileObserver(): void
+    /**
+     * The core HTTP dispatcher goes before the modules' ones: the first dispatcher to recognize a stream
+     * takes it, and no module protocol can be taken for HTTP. {@see Traffic\Dispatcher\Binary} is the
+     * inspector's own fallback.
+     *
+     * @return list<Traffic\Dispatcher>
+     */
+    private function dispatchers(Modules $modules, Traffic\Dispatcher\Http $http): array
     {
-        $this->processors[] = $this->container->make(Service\FilesObserver::class, [
-            'configs' => [
-                $this->container->get(XHProfFileConfig::class),
-                $this->container->get(XDebugFileConfig::class),
-                $this->container->get(SPXFileConfig::class),
-            ],
-        ]);
+        $dispatchers = [$http];
+        foreach ($modules->implementing(Traffic\ProvidesDispatchers::class) as $module) {
+            foreach ($module->dispatchers() as $class) {
+                $dispatchers[] = $this->container->make($class);
+            }
+        }
+
+        return $dispatchers;
+    }
+
+    /**
+     * @return list<Middleware>
+     */
+    private function httpMiddlewares(Modules $modules): array
+    {
+        $middlewares = [];
+        foreach ($modules->implementing(ProvidesHttpMiddlewares::class) as $module) {
+            foreach ($module->httpMiddlewares() as $class) {
+                $middlewares[] = $this->container->get($class);
+            }
+        }
+
+        return $middlewares;
+    }
+
+    private function configureFileObserver(Modules $modules): void
+    {
+        $configs = [];
+        foreach ($modules->implementing(ProvidesFileObservers::class) as $module) {
+            foreach ($module->fileObserverConfigs() as $class) {
+                $configs[] = $this->container->get($class);
+            }
+        }
+
+        $this->processors[] = $this->container->make(Service\FilesObserver::class, ['configs' => $configs]);
     }
 }
