@@ -29,7 +29,7 @@ final class ProfileBuilderTest
                 'a:12' => ['x:10' => ['y:8' => ['php::str_repeat:2' => []]]],
                 'b:6' => [
                     'x:2' => ['y:1' => ['php::str_repeat:0' => []]],
-                    'x:1' => ['y:1' => ['php::str_repeat:0' => []]],
+                    'x:1' => ['y:0' => ['php::str_repeat:0' => []]],
                     'x:1 ' => ['y:1' => ['php::str_repeat:0' => []]],
                 ],
             ],
@@ -46,7 +46,7 @@ final class ProfileBuilderTest
             [['a', 1, 10], ['b', 3, 4]],
         );
         Assert::same($calls->callers('y')[0]->cost->ct, 4);
-        Assert::same($calls->callers('y')[0]->cost->wt, 11);
+        Assert::same($calls->callers('y')[0]->cost->wt, 10);
     }
 
     public function testMarksRecursionLevels(): void
@@ -77,6 +77,30 @@ final class ProfileBuilderTest
 
         $main = $profile->calls->roots()[0];
         Assert::same([$main->callee, $main->cost->wt, $main->cost->mu], ['{main}', 29, 64]);
+    }
+
+    public function testKeepsSumOfSubMicrosecondCallsExact(): void
+    {
+        $blocks = \str_repeat("fn=(1) f\n2 50 0\n\n", 1000)
+            . "fn=(2) {main}\n1 0 0\n" . \str_repeat("cfn=(1)\ncalls=1 0 0\n3 50 0\n", 1000);
+
+        $profile = (new ProfileBuilder())->createProfile(self::profile('Time_(10ns) Memory_(bytes)', $blocks));
+
+        $main = $profile->calls->roots()[0];
+        $f = $profile->calls->callers('f')[0];
+        Assert::same([$main->cost->wt, $f->cost->ct, $f->cost->wt], [500, 1000, 500]);
+    }
+
+    public function testCallNeverTakesLessThanItsChildren(): void
+    {
+        // 0.6 µs each: the children round up to 1 µs, while 1.2 µs of the parent would round down
+        $profile = (new ProfileBuilder())->createProfile(self::profile(
+            'Time_(10ns) Memory_(bytes)',
+            "fn=(1) a\n2 60 0\n\nfn=(2) b\n3 60 0\n\n"
+                . "fn=(3) {main}\n1 0 0\ncfn=(1)\ncalls=1 0 0\n2 60 0\ncfn=(2)\ncalls=1 0 0\n3 60 0\n",
+        ));
+
+        Assert::same(self::shape($profile->tree()), ['{main}:2' => ['a:1' => [], 'b:1' => []]]);
     }
 
     public function testReadsGzippedProfile(): void

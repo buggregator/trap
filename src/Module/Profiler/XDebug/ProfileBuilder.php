@@ -150,12 +150,38 @@ final class ProfileBuilder
     /**
      * Links the calls to their parents: the calls made from a call are the last ones ended before it.
      *
+     * Times are rounded to microseconds so that the sum over the calls of a caller-callee pair stays exact:
+     * rounding each call on its own adds up to a large error over many sub-microsecond calls,
+     * 1000 calls of 0.5 µs would take 1000 µs or none. So the rounding error of a pair is carried over to its next call.
+     * A call never takes less than its children, to keep the exclusive times non-negative;
+     * the excess is taken back from the next calls of the pair.
+     *
      * @param list<Call> $calls In the order they end.
      *
      * @return Tree<Edge>
      */
     private function buildTree(array $calls, float $timeDivisor): Tree
     {
+        /** @var array<string, int> $pairTime Inclusive time of the caller-callee pairs, in the profile units */
+        $pairTime = [];
+        /** @var array<string, int> $pairWt Microseconds given to the calls of the pairs */
+        $pairWt = [];
+        /** @var array<int, int<0, max>> $wt Microseconds of the calls by their object IDs */
+        $wt = [];
+        $round = static function (Call $call, string $caller) use (&$pairTime, &$pairWt, &$wt, $timeDivisor): void {
+            $children = 0;
+            foreach ($call->children as $child) {
+                $children += $wt[\spl_object_id($child)];
+            }
+
+            $pair = $caller . "\0" . $call->name;
+            $pairTime[$pair] = ($pairTime[$pair] ?? 0) + $call->time;
+            $given = $pairWt[$pair] ?? 0;
+            $value = \max($children, (int) \round((float) $pairTime[$pair] / $timeDivisor) - $given);
+            $pairWt[$pair] = $given + $value;
+            $wt[\spl_object_id($call)] = $value;
+        };
+
         /** @var list<Call> $ended Calls waiting for their caller */
         $ended = [];
         foreach ($calls as $call) {
@@ -169,10 +195,14 @@ final class ProfileBuilder
                 $child->name === $call->callees[$i] or throw new \InvalidArgumentException(
                     "Call of `{$call->name}` lists `{$call->callees[$i]}`, but `{$child->name}` ended there.",
                 );
+                $round($child, $call->name);
                 $call->time += $child->time;
                 $call->memory += $child->memory;
             }
             $ended[] = $call;
+        }
+        foreach ($ended as $call) {
+            $round($call, '');
         }
 
         /** @var Tree<Edge> $tree */
@@ -191,7 +221,7 @@ final class ProfileBuilder
                     callee: $call->name,
                     cost: new Cost(
                         ct: 1,
-                        wt: \max(0, (int) \round((float) $call->time / $timeDivisor)),
+                        wt: $wt[\spl_object_id($call)],
                         cpu: 0,
                         mu: \max(0, $call->memory),
                         pmu: 0,
