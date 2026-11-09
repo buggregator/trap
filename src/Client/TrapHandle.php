@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Client;
 
 use Buggregator\Trap\Client\Caster\Trace;
+use Buggregator\Trap\Client\Log\TrapLogger;
 use Buggregator\Trap\Client\TrapHandle\Counter;
 use Buggregator\Trap\Client\TrapHandle\Dumper as VarDumper;
 use Buggregator\Trap\Client\TrapHandle\StaticState;
-use Buggregator\Trap\Log\TrapLogger;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\VarDumper\Caster\TraceStub;
 
