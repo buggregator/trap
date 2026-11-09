@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Boundwize\StructArmed\Architecture;
 
-$sources = ['Mailer', 'Monolog', 'Profiler', 'Sentry', 'Tracing', 'VarDumper'];
+$sources = ['Mailer', 'Monolog', 'Profiler', 'Ray', 'Sentry', 'Tracing', 'VarDumper'];
 $channels = ['Frontend'];
 
 $architecture = Architecture::define()
@@ -36,6 +36,7 @@ return $architecture
         'Buggregator\Trap\Module\Profiler\Config\XHProf',
         'Buggregator\Trap\Module\Profiler\Http\XDebugTrap',
         'Buggregator\Trap\Module\Profiler\Http\XHProfTrap',
+        'Buggregator\Trap\Module\Ray\Http\RayRequestDump',
         'Buggregator\Trap\Module\Sentry\Http\SentryTrap',
         'Buggregator\Trap\Module\Tracing\Http\OtlpTrap',
         'Buggregator\Trap\Module\VarDumper\Traffic\Dispatcher',
