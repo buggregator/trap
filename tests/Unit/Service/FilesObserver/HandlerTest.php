@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Service\FilesObserver;
 
-use Buggregator\Trap\Config\Server\Files\XDebug as Config;
 use Buggregator\Trap\Logger;
-use Buggregator\Trap\Proto\Frame\Profiler;
+use Buggregator\Trap\Module\Profiler\Config\XDebug as Config;
+use Buggregator\Trap\Module\Profiler\Frame;
 use Buggregator\Trap\Service\FilesObserver\Handler;
 use Internal\Container\ObjectContainer;
 use Testo\Assert;
@@ -23,7 +23,7 @@ final class HandlerTest
 
     private string $dir;
 
-    /** @var list<Profiler> */
+    /** @var list<Frame> */
     private array $frames = [];
 
     private \Fiber $fiber;
@@ -81,7 +81,7 @@ final class HandlerTest
 
         $this->fiber = new \Fiber(function () use ($handler): void {
             foreach ($handler as $frame) {
-                $frame instanceof Profiler and $this->frames[] = $frame;
+                $frame instanceof Frame and $this->frames[] = $frame;
             }
         });
         $this->fiber->start();

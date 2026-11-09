@@ -1,0 +1,78 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Buggregator\Trap\Module\Profiler\FilesObserver;
+
+use Buggregator\Trap\Logger;
+use Buggregator\Trap\Module\Profiler\Frame as ProfilerFrame;
+use Buggregator\Trap\Module\Profiler\Struct\Profile;
+use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
+use Buggregator\Trap\Service\FilesObserver\FileInfo;
+use Buggregator\Trap\Service\FilesObserver\FrameConverter as FileFilterInterface;
+
+/**
+ * @psalm-type RawData = array<non-empty-string, array{
+ *      ct: int<0, max>,
+ *      wt: int<0, max>,
+ *      cpu: int<0, max>,
+ *      mu: int<0, max>,
+ *      pmu: int<0, max>
+ *  }>
+ *
+ * @internal
+ */
+final class XHProf implements FileFilterInterface
+{
+    public function __construct(
+        private readonly Logger $logger,
+        private readonly ProfileBuilder $profileBuilder,
+    ) {}
+
+    #[\Override]
+    public function validate(FileInfo $file): bool
+    {
+        return $file->getExtension() === 'xhprof';
+    }
+
+    /**
+     * XHProf saves a run with a single write when it ends.
+     */
+    #[\Override]
+    public function isReady(FileInfo $file): bool
+    {
+        return true;
+    }
+
+    /**
+     * @return \Traversable<int, ProfilerFrame>
+     */
+    #[\Override]
+    public function convert(FileInfo $file): \Traversable
+    {
+        try {
+            yield new ProfilerFrame(
+                ProfilerFrame\Payload::new(
+                    type: ProfilerFrame\Type::XHProf,
+                    callsProvider: function () use ($file): Profile {
+                        $content = \file_get_contents($file->path);
+                        $content === false and throw new \RuntimeException('Unable to read the profile file.');
+                        /** @var RawData $data */
+                        $data = \unserialize($content, ['allowed_classes' => false]);
+                        return $this->profileBuilder->createProfile(
+                            date: new \DateTimeImmutable('@' . $file->mtime),
+                            metadata: [
+                                'hostname' => (string) \gethostname(),
+                                'filename' => $file->getName(),
+                                'filesize' => $file->size,
+                            ],
+                            calls: $data,
+                        );
+                    },
+                ),
+            );
+        } catch (\Throwable $e) {
+            $this->logger->exception($e);
+        }
+    }
+}
