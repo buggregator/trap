@@ -1,0 +1,117 @@
+<?php
+
+declare(strict_types=1);
+
+use Boundwize\StructArmed\Architecture;
+
+$sources = ['Mailer', 'Monolog', 'Profiler', 'Sentry', 'Tracing', 'VarDumper'];
+$channels = ['Frontend'];
+
+$architecture = Architecture::define()
+    ->layer('Client', ['src/Client/', 'src/functions.php'])
+    ->layer('Support', 'src/Support/')
+    ->layer('Core', 'src/', ['src/Client/', 'src/functions.php', 'src/Support/', 'src/Module/']);
+
+foreach ([...$sources, ...$channels] as $module) {
+    $architecture->layer($module, "src/Module/{$module}/");
+}
+
+return $architecture
+    ->ruleset([
+        'Client' => [],
+        'Support' => [],
+        'Core' => ['Support'],
+        ...\array_fill_keys($channels, ['Core', 'Support']),
+        ...\array_fill_keys($sources, ['Core', 'Support', ...$channels]),
+    ])
+
+    // Registration point: the core wires modules by hand until modules register themselves through a contract.
+    ->skipClassViolation('Buggregator\Trap\Application', [
+        'Buggregator\Trap\Module\Frontend\Http\Pipeline',
+        'Buggregator\Trap\Module\Frontend\Http\RequestHandler',
+        'Buggregator\Trap\Module\Mailer\Traffic\Dispatcher',
+        'Buggregator\Trap\Module\Monolog\Traffic\Dispatcher',
+        'Buggregator\Trap\Module\Profiler\Config\SPX',
+        'Buggregator\Trap\Module\Profiler\Config\XDebug',
+        'Buggregator\Trap\Module\Profiler\Config\XHProf',
+        'Buggregator\Trap\Module\Profiler\Http\XDebugTrap',
+        'Buggregator\Trap\Module\Profiler\Http\XHProfTrap',
+        'Buggregator\Trap\Module\Sentry\Http\SentryTrap',
+        'Buggregator\Trap\Module\VarDumper\Traffic\Dispatcher',
+    ])
+    // Registration point: the sender registry builds the Mailer file sender and passes the Tracing span store.
+    ->skipClassViolation('Buggregator\Trap\Command\Run', [
+        'Buggregator\Trap\Module\Mailer\Sender\MailToFileSender',
+        'Buggregator\Trap\Module\Tracing\SpanStore',
+    ])
+    // Registration point: frame types of the protocol.
+    ->skipClassViolation('Buggregator\Trap\Proto\Server\Version\V1', [
+        'Buggregator\Trap\Module\Mailer\Frame',
+        'Buggregator\Trap\Module\Monolog\Frame',
+        'Buggregator\Trap\Module\Profiler\Frame',
+        'Buggregator\Trap\Module\Sentry\Frame',
+        'Buggregator\Trap\Module\VarDumper\Frame',
+    ])
+    // Registration point: console renderers of the modules.
+    ->skipClassViolation('Buggregator\Trap\Sender\ConsoleSender', [
+        'Buggregator\Trap\Module\Mailer\Console\Renderer',
+        'Buggregator\Trap\Module\Monolog\Console\Renderer',
+        'Buggregator\Trap\Module\Profiler\Console\Renderer',
+        'Buggregator\Trap\Module\Sentry\Console\SentryEnvelope',
+        'Buggregator\Trap\Module\Sentry\Console\SentryStore',
+        'Buggregator\Trap\Module\Tracing\SpanStore',
+        'Buggregator\Trap\Module\VarDumper\Console\Renderer',
+    ])
+    // Registration point: the files observer contract is typed with the Profiler frame.
+    ->skipClassViolation('Buggregator\Trap\Service\FilesObserver\FrameConverter', [
+        'Buggregator\Trap\Module\Profiler\Frame',
+    ])
+    // Registration point: frame-to-UI mappers of the source modules.
+    ->skipClassViolation('Buggregator\Trap\Module\Frontend\FrameMapper', [
+        'Buggregator\Trap\Module\Mailer\Frame',
+        'Buggregator\Trap\Module\Mailer\Frontend\Mapper',
+        'Buggregator\Trap\Module\Monolog\Frame',
+        'Buggregator\Trap\Module\Monolog\Frontend\Mapper',
+        'Buggregator\Trap\Module\Profiler\Frame',
+        'Buggregator\Trap\Module\Profiler\Frontend\Mapper',
+        'Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope',
+        'Buggregator\Trap\Module\Sentry\Frame\SentryStore',
+        'Buggregator\Trap\Module\Sentry\Frontend\EnvelopeMapper',
+        'Buggregator\Trap\Module\Sentry\Frontend\StoreMapper',
+        'Buggregator\Trap\Module\VarDumper\Frame',
+        'Buggregator\Trap\Module\VarDumper\Frontend\Mapper',
+    ])
+    // Registration point: UI API routes of the source modules.
+    ->skipClassViolation('Buggregator\Trap\Module\Frontend\Service', [
+        'Buggregator\Trap\Module\Mailer\Frontend\ApiController',
+        'Buggregator\Trap\Module\Mailer\Frontend\Message\Attachments',
+        'Buggregator\Trap\Module\Profiler\Frame\Payload',
+        'Buggregator\Trap\Module\Profiler\Frontend\ApiController',
+        'Buggregator\Trap\Module\Profiler\Frontend\Mapper',
+        'Buggregator\Trap\Module\Profiler\Frontend\Message\CallGraph',
+        'Buggregator\Trap\Module\Profiler\Frontend\Message\FlameChart',
+        'Buggregator\Trap\Module\Profiler\Frontend\Message\TopFunctions',
+    ])
+    // Registration point: UI asset routes of the Mailer module.
+    ->skipClassViolation('Buggregator\Trap\Module\Frontend\Http\EventAssets', [
+        'Buggregator\Trap\Module\Mailer\Frontend\AssetsController',
+    ])
+
+    // Layering problem: TrapLogger is used only by the client but lives in the core.
+    ->skipClassViolation('Buggregator\Trap\Client\TrapHandle', [
+        'Buggregator\Trap\Log\TrapLogger',
+    ])
+    // Layering problem: the core checks a Frontend-specific response header instead of its own no-dump header.
+    ->skipClassViolation('Buggregator\Trap\Handler\Http\Handler\Fallback', [
+        'Buggregator\Trap\Module\Frontend\Http\Pipeline',
+    ])
+    // Layering problem: the Frontend sender lives in the core, not in the Frontend module.
+    ->skipClassViolation('Buggregator\Trap\Sender\FrontendSender', [
+        'Buggregator\Trap\Module\Frontend\ConnectionPool',
+        'Buggregator\Trap\Module\Frontend\EventStorage',
+        'Buggregator\Trap\Module\Frontend\FrameHandler',
+    ])
+    // Layering problem: the console renderer of OTLP traces lives in the core, not in the Tracing module.
+    ->skipClassViolation('Buggregator\Trap\Sender\Console\Renderer\OtlpTraces', [
+        'Buggregator\Trap\Module\Tracing\SpanStore',
+    ]);

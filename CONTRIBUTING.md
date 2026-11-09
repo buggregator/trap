@@ -14,6 +14,8 @@
 
 **Server Code** (everything else): Internal code marked with `@internal`. Not subject to semver - breaking changes are allowed.
 
+Dependencies between the layers (client, support, core, modules) are declared in `structarmed.php`; run `composer structarmed` to check them.
+
 ## Versioning
 
 We use semantic versioning for the **Client API only**:

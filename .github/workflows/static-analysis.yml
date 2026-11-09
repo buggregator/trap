@@ -23,3 +23,36 @@ jobs:
         ['ubuntu-latest']
       php: >-
         ['8.2']
+
+  structarmed:
+    timeout-minutes: 4
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os:
+          - ubuntu-latest
+        php-version:
+          - '8.2'
+        dependencies:
+          - locked
+    steps:
+      - name: 📦 Check out the codebase
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: 🛠️ Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          ini-values: error_reporting=E_ALL
+          coverage: none
+
+      - name: 📥 Install dependencies with composer
+        uses: ramsey/composer-install@v3
+        with:
+          dependency-versions: ${{ matrix.dependencies }}
+
+      - name: 🏛️ Check architectural layer dependencies using boundwize/structarmed
+        run: composer structarmed:ci
