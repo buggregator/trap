@@ -25,22 +25,21 @@ return $architecture
         ...\array_fill_keys($sources, ['Core', 'Support', ...$channels]),
     ])
 
-    // Registration point: the core wires modules by hand until modules register themselves through a contract.
+    // The single place that names the module manifests: the module list.
+    ->skipClassViolation('Buggregator\Trap\Application\Module\Modules', [
+        'Buggregator\Trap\Module\Mailer\Module',
+        'Buggregator\Trap\Module\Monolog\Module',
+        'Buggregator\Trap\Module\Profiler\Module',
+        'Buggregator\Trap\Module\Ray\Module',
+        'Buggregator\Trap\Module\Sentry\Module',
+        'Buggregator\Trap\Module\Tracing\Module',
+        'Buggregator\Trap\Module\VarDumper\Module',
+    ])
+    // Registration point: the core wires the Frontend channel by hand.
     ->skipClassViolation('Buggregator\Trap\Application', [
         'Buggregator\Trap\Module\Frontend\Http\Pipeline',
         'Buggregator\Trap\Module\Frontend\Http\RequestHandler',
         'Buggregator\Trap\Module\Frontend\Sender\FrontendSender',
-        'Buggregator\Trap\Module\Mailer\Traffic\Dispatcher',
-        'Buggregator\Trap\Module\Monolog\Traffic\Dispatcher',
-        'Buggregator\Trap\Module\Profiler\Config\SPX',
-        'Buggregator\Trap\Module\Profiler\Config\XDebug',
-        'Buggregator\Trap\Module\Profiler\Config\XHProf',
-        'Buggregator\Trap\Module\Profiler\Http\XDebugTrap',
-        'Buggregator\Trap\Module\Profiler\Http\XHProfTrap',
-        'Buggregator\Trap\Module\Ray\Http\RayRequestDump',
-        'Buggregator\Trap\Module\Sentry\Http\SentryTrap',
-        'Buggregator\Trap\Module\Tracing\Http\OtlpTrap',
-        'Buggregator\Trap\Module\VarDumper\Traffic\Dispatcher',
     ])
     // Registration point: the sender registry builds the Mailer file sender and passes the Tracing span store.
     ->skipClassViolation('Buggregator\Trap\Command\Run', [
@@ -70,10 +69,6 @@ return $architecture
         'Buggregator\Trap\Module\Tracing\Console\Renderer',
         'Buggregator\Trap\Module\Tracing\SpanStore',
         'Buggregator\Trap\Module\VarDumper\Console\Renderer',
-    ])
-    // Registration point: the files observer contract is typed with the Profiler frame.
-    ->skipClassViolation('Buggregator\Trap\Service\FilesObserver\FrameConverter', [
-        'Buggregator\Trap\Module\Profiler\Frame',
     ])
     // Registration point: frame-to-UI mappers of the source modules.
     ->skipClassViolation('Buggregator\Trap\Module\Frontend\FrameMapper', [

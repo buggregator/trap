@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Service\FilesObserver;
 
-use Buggregator\Trap\Module\Profiler\Frame as ProfilerFrame;
+use Buggregator\Trap\Proto\Frame;
 
 /**
- * Converts file to {@see ProfilerFrame}.
+ * Converts a file into frames.
  *
  * @internal
  */
@@ -25,7 +25,7 @@ interface FrameConverter
     public function isReady(FileInfo $file): bool;
 
     /**
-     * @return iterable<int, ProfilerFrame>
+     * @return iterable<int, Frame>
      */
     public function convert(FileInfo $file): iterable;
 }
