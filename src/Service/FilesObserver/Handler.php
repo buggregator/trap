@@ -13,6 +13,7 @@ use Internal\Container\Container;
 /**
  * The handler is responsible for scanning files in a directory and converting them into frames.
  * It does it in a loop with a given interval.
+ * A file still being written is followed more often and converted as soon as it is complete.
  *
  * @see Config
  *
@@ -22,7 +23,17 @@ use Internal\Container\Container;
  */
 final class Handler implements \IteratorAggregate
 {
+    /** @var float Seconds between the checks of the files being written */
+    private const FOLLOW_INTERVAL = 1.0;
+
+    /** @var float Seconds a file being written may stay unchanged before it is dropped */
+    private const ABANDON_AFTER = 600.0;
+
     private readonly Timer $timer;
+    private readonly float $scanInterval;
+
+    /** @var array<non-empty-string, array{FileInfo, float}> Files being written: their last state and when it changed */
+    private array $pending = [];
 
     /** @var array<non-empty-string, FileInfo> */
     private array $cache = [];
@@ -40,7 +51,8 @@ final class Handler implements \IteratorAggregate
         $config->isValid() or throw new \InvalidArgumentException('Invalid configuration.');
 
         $this->path = $config->path;
-        $this->timer = new Timer($config->scanInterval);
+        $this->scanInterval = $config->scanInterval;
+        $this->timer = new Timer(\min(self::FOLLOW_INTERVAL, $config->scanInterval));
         /** @psalm-suppress InvalidArgument The config is matched by type, so a custom converter may name the parameter freely */
         $this->converter = $container->make($config->converterClass, [$config]);
     }
@@ -51,13 +63,54 @@ final class Handler implements \IteratorAggregate
     #[\Override]
     public function getIterator(): \Traversable
     {
+        $scannedAt = null;
         do {
-            foreach ($this->syncFiles() as $info) {
-                yield from $this->converter->convert($info);
+            if ($scannedAt === null || \microtime(true) - $scannedAt >= $this->scanInterval) {
+                $scannedAt = \microtime(true);
+                foreach ($this->syncFiles() as $info) {
+                    if ($this->converter->isReady($info)) {
+                        yield from $this->converter->convert($info);
+                    } else {
+                        $this->pending[$info->path] = [$info, \microtime(true)];
+                    }
+                }
             }
 
+            yield from $this->followPending();
             $this->timer->wait()->reset();
         } while (true);
+    }
+
+    /**
+     * Converts the files being written that are complete now.
+     *
+     * @return \Traversable<int, Frame>
+     */
+    private function followPending(): \Traversable
+    {
+        foreach ($this->pending as $path => [$last, $changedAt]) {
+            \clearstatcache(true, $path);
+            if (!\is_file($path)) {
+                unset($this->pending[$path]);
+                continue;
+            }
+
+            $info = FileInfo::fromSplFileInfo(new \SplFileInfo($path));
+            if ($info->size === $last->size && $info->mtime === $last->mtime) {
+                if (\microtime(true) - $changedAt > self::ABANDON_AFTER) {
+                    unset($this->pending[$path]);
+                    $this->logger->info('File `%s` stays incomplete, skipped.', $path);
+                }
+                continue;
+            }
+
+            if ($this->converter->isReady($info)) {
+                unset($this->pending[$path]);
+                yield from $this->converter->convert($info);
+            } else {
+                $this->pending[$path] = [$info, \microtime(true)];
+            }
+        }
     }
 
     /**

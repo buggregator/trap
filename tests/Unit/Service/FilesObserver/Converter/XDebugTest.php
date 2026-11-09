@@ -68,6 +68,47 @@ final class XDebugTest
         Assert::same(\count($profile->tree()), 15);
     }
 
+    #[DataSet([false], 'plain')]
+    #[DataSet([true], 'gzipped')]
+    public function testProfileIsReadyOnlyWhenWrittenCompletely(bool $gzip): void
+    {
+        $content = (string) \file_get_contents(self::STUB);
+        $data = $gzip ? (string) \gzencode($content) : $content;
+        $path = $this->dir . '/cachegrind.out.1234' . ($gzip ? '.gz' : '');
+        $converter = self::converter();
+
+        // The profiled request is in progress: the blocks of the calls not ended yet are missing
+        \file_put_contents($path, \substr($data, 0, \intdiv(\strlen($data), 2)));
+        Assert::same($converter->isReady(self::info($path)), false);
+
+        \file_put_contents($path, \substr($data, \intdiv(\strlen($data), 2)), \FILE_APPEND);
+        Assert::same($converter->isReady(self::info($path)), true);
+    }
+
+    public function testCompleteGzipStreamWithoutSummaryIsNotReady(): void
+    {
+        $path = $this->dir . '/cachegrind.out.1234.gz';
+        $content = (string) \file_get_contents(self::STUB);
+        \file_put_contents($path, \gzencode(\substr($content, 0, (int) \strrpos($content, 'summary:'))));
+
+        Assert::same(self::converter()->isReady(self::info($path)), false);
+    }
+
+    public function testCorruptedGzipIsReadyToReportTheError(): void
+    {
+        $path = $this->dir . '/cachegrind.out.1234.gz';
+        \file_put_contents($path, "\x1f\x8b" . \str_repeat("\xff", 64));
+
+        Assert::same(self::converter()->isReady(self::info($path)), true);
+    }
+
+    private static function info(string $path): FileInfo
+    {
+        \clearstatcache(true, $path);
+
+        return FileInfo::fromSplFileInfo(new \SplFileInfo($path));
+    }
+
     private static function converter(): XDebug
     {
         return new XDebug(new Logger(), new ProfileBuilder());
