@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Sender;
+namespace Buggregator\Trap\Module\Frontend\Sender;
 
 use Buggregator\Trap\Module\Frontend;
 use Buggregator\Trap\Processable;

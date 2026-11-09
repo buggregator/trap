@@ -27,7 +27,7 @@ final class Pipeline implements Middleware
 
     public function __construct(
         Logger $logger,
-        \Buggregator\Trap\Sender\FrontendSender $wsSender,
+        \Buggregator\Trap\Module\Frontend\Sender\FrontendSender $wsSender,
         Router $router,
     ) {
         // Build pipeline of handlers.
