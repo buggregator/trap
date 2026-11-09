@@ -51,6 +51,17 @@ final class XDebugTrapTest
         Assert::count($frames, 1);
     }
 
+    public function testRejectsGzippedBodyExpandingOverLimit(): void
+    {
+        $content = \file_get_contents(self::STUB);
+        $request = new ServerRequest('POST', '/api/profiler/xdebug', body: \gzencode($content));
+
+        [$response, $frames] = self::handle($request, new ProfileBuilder(maxSize: \strlen($content) - 1));
+
+        Assert::same($response->getStatusCode(), 400);
+        Assert::same($frames, []);
+    }
+
     public function testRejectsOtherContent(): void
     {
         [$response, $frames] = self::handle(new ServerRequest('POST', '/api/profiler/xdebug', body: '{"profile":{}}'));
@@ -70,9 +81,9 @@ final class XDebugTrapTest
     /**
      * @return array{ResponseInterface, list<mixed>} The response and the frames the middleware suspended with.
      */
-    private static function handle(ServerRequest $request): array
+    private static function handle(ServerRequest $request, ProfileBuilder $builder = new ProfileBuilder()): array
     {
-        $middleware = new XDebugTrap(new ProfileBuilder(), new Logger());
+        $middleware = new XDebugTrap($builder, new Logger());
         $fiber = new \Fiber(static fn(): ResponseInterface => $middleware->handle($request, static fn() => new Response(404)));
 
         $frames = [];

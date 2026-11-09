@@ -23,9 +23,6 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 final class XDebugTrap implements Middleware
 {
-    /** Xdebug writes a block per call, so its profiles are larger than XHProf ones. */
-    private const MAX_BODY_SIZE = 64 * 1024 * 1024;
-
     public function __construct(
         private readonly XDebugProfileBuilder $profileBuilder,
         private readonly Logger $logger,
@@ -49,7 +46,7 @@ final class XDebugTrap implements Middleware
     private function processStore(ServerRequestInterface $request): ResponseInterface
     {
         $size = $request->getBody()->getSize();
-        if ($size === null || $size > self::MAX_BODY_SIZE) {
+        if ($size === null || $size > XDebugProfileBuilder::MAX_SIZE) {
             return new Response(413);
         }
 

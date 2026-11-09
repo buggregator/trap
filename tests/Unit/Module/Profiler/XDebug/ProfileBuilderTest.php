@@ -112,6 +112,33 @@ final class ProfileBuilderTest
         Assert::same(\count($profile->tree()), 15);
     }
 
+    public function testReadsProfileOfMaxSize(): void
+    {
+        $content = \file_get_contents(self::STUB_DIR . '/shared.cachegrind');
+
+        $profile = (new ProfileBuilder(maxSize: \strlen($content)))->createProfile(\gzencode($content));
+
+        Assert::same(\count($profile->tree()), 15);
+    }
+
+    public function testRejectsGzipExpandingOverMaxSize(): void
+    {
+        $content = self::profile('Time_(10ns) Memory_(bytes)', \str_repeat("fn=(1) f\n2 50 0\n\n", 1000));
+        $gzip = \gzencode($content);
+        Assert::true(\strlen($gzip) < 1024);
+        Expect::exception(\InvalidArgumentException::class)->withMessageContaining('larger than 1024 bytes');
+
+        (new ProfileBuilder(maxSize: 1024))->createProfile($gzip);
+    }
+
+    public function testRejectsProfileOverMaxSize(): void
+    {
+        $content = \file_get_contents(self::STUB_DIR . '/shared.cachegrind');
+        Expect::exception(\InvalidArgumentException::class)->withMessageContaining('larger than');
+
+        (new ProfileBuilder(maxSize: \strlen($content) - 1))->createProfile($content);
+    }
+
     public function testPassesDateMetadataAndTagsThrough(): void
     {
         $date = new \DateTimeImmutable('2025-01-02 03:04:05');

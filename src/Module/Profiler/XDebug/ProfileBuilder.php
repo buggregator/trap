@@ -26,11 +26,27 @@ use Buggregator\Trap\Module\Profiler\Struct\Tree;
 final class ProfileBuilder
 {
     /**
+     * Size limit of a profile in bytes, both gzipped and decompressed.
+     *
+     * Xdebug writes a block per call, so its profiles are larger than XHProf ones.
+     * Parsing takes about 20 times the decompressed size in memory, and a gzipped profile expands
+     * about 10 times, up to hundreds of times when crafted: out of memory, the whole process dies.
+     */
+    public const MAX_SIZE = 64 * 1024 * 1024;
+
+    /**
+     * @param positive-int $maxSize
+     */
+    public function __construct(
+        private readonly int $maxSize = self::MAX_SIZE,
+    ) {}
+
+    /**
      * @param string $content Cachegrind data, gzipped or not.
      * @param Metadata $metadata
      * @param array<non-empty-string, non-empty-string> $tags
      *
-     * @throws \InvalidArgumentException When the content is not a profile written by Xdebug.
+     * @throws \InvalidArgumentException When the content is not a profile written by Xdebug or is too large.
      */
     public function createProfile(
         string $content,
@@ -38,9 +54,14 @@ final class ProfileBuilder
         array $metadata = [],
         array $tags = [],
     ): Profile {
+        $tooLarge = "the profile is larger than {$this->maxSize} bytes";
+        \strlen($content) > $this->maxSize and throw new \InvalidArgumentException(\ucfirst($tooLarge) . '.');
+
         if (\str_starts_with($content, "\x1f\x8b")) {
-            $content = @\gzdecode($content);
-            $content === false and throw new \InvalidArgumentException('Invalid gzip data.');
+            // Fails when the data expands over the limit, but checks it per output chunk, so it may overrun a little
+            $content = @\gzdecode($content, $this->maxSize);
+            $content === false and throw new \InvalidArgumentException("Invalid gzip data, or $tooLarge.");
+            \strlen($content) > $this->maxSize and throw new \InvalidArgumentException(\ucfirst($tooLarge) . '.');
         }
 
         return Profile::fromTree($this->buildTree(...$this->parse($content)), $date, $metadata, $tags);
