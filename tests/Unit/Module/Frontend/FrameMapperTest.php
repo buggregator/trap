@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend;
 
 use Buggregator\Trap\Module\Frontend\FrameMapper;
-use Buggregator\Trap\Proto\Frame\Otlp\OtlpTraces;
+use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
