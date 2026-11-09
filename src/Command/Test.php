@@ -9,6 +9,7 @@ use Buggregator\Trap\Logger;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -29,11 +30,30 @@ final class Test extends Command
     private Logger $logger;
 
     #[\Override]
+    public function configure(): void
+    {
+        $this->addOption('port', 'p', InputOption::VALUE_REQUIRED, 'Port of the Trap server', (string) $this->port);
+        $this->addOption('host', null, InputOption::VALUE_REQUIRED, 'Host of the Trap server', $this->addr);
+    }
+
+    #[\Override]
     protected function execute(
         InputInterface $input,
         OutputInterface $output,
     ): int {
         $this->logger = new Logger($output);
+
+        $port = \filter_var($input->getOption('port'), \FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 65535]]);
+        if ($port === false) {
+            $output->writeln(\sprintf(
+                '<error>Invalid port `%s`. It must be in range 1-65535.</error>',
+                (string) $input->getOption('port'),
+            ));
+            return Command::INVALID;
+        }
+
+        $this->port = $port;
+        $this->addr = (string) $input->getOption('host');
 
         // XHProf
         $this->sendContent('yii-xhprof.http');
