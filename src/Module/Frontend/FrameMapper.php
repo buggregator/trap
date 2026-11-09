@@ -20,7 +20,7 @@ final class FrameMapper
             Frame\Otlp\OtlpTraces::class => null,
             Frame\VarDumper::class => (new Mapper\VarDump())->map($frame),
             Frame\Http::class => (new Mapper\HttpRequest())->map($frame),
-            Frame\Smtp::class => (new Mapper\Smtp())->map($frame),
+            \Buggregator\Trap\Module\Mailer\Frame::class => (new \Buggregator\Trap\Module\Mailer\Frontend\Mapper())->map($frame),
             \Buggregator\Trap\Module\Sentry\Frame\SentryStore::class => (new \Buggregator\Trap\Module\Sentry\Frontend\StoreMapper())->map($frame),
             \Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope::class => (new \Buggregator\Trap\Module\Sentry\Frontend\EnvelopeMapper())->map($frame),
             Frame\Monolog::class => (new Mapper\Monolog())->map($frame),

@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Sender;
+namespace Buggregator\Trap\Module\Mailer\Sender;
 
+use Buggregator\Trap\Module\Mailer\Contact;
+use Buggregator\Trap\Module\Mailer\Frame as MailerFrame;
+use Buggregator\Trap\Module\Mailer\Message;
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Proto\Frame\Smtp;
 use Buggregator\Trap\Sender;
 use Buggregator\Trap\Support\FileSystem;
-use Buggregator\Trap\Traffic\Message;
-use Buggregator\Trap\Traffic\Message\Smtp\Contact;
 
 /**
  * @internal
@@ -30,7 +30,7 @@ class MailToFileSender implements Sender
     {
         /** @var Frame $frame */
         foreach ($frames as $frame) {
-            if (!$frame instanceof Smtp) {
+            if (!$frame instanceof MailerFrame) {
                 continue;
             }
 
@@ -64,7 +64,7 @@ class MailToFileSender implements Sender
     /**
      * @return list<non-empty-string>
      */
-    private static function fetchDirectories(Message\Smtp $message): array
+    private static function fetchDirectories(Message $message): array
     {
         return \array_values(\array_filter(
             \array_unique(

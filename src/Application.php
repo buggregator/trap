@@ -79,7 +79,7 @@ final class Application implements Processable, Cancellable, Destroyable
                     ],
                     [new Websocket()],
                 ),
-                new Traffic\Dispatcher\Smtp(),
+                new Module\Mailer\Traffic\Dispatcher(),
                 new Traffic\Dispatcher\Monolog(),
             ],
         ]);
@@ -103,7 +103,7 @@ final class Application implements Processable, Cancellable, Destroyable
                         ],
                         [$this->container->get(Module\Frontend\Http\RequestHandler::class)],
                     ),
-                    new Traffic\Dispatcher\Smtp(),
+                    new Module\Mailer\Traffic\Dispatcher(),
                     new Traffic\Dispatcher\Monolog(),
                 ],
             ]);
