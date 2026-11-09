@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Proto\Frame\Sentry;
+namespace Buggregator\Trap\Module\Sentry\Frame;
 
-use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Module\Sentry\Frame;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Support\Json;
 
@@ -18,7 +18,7 @@ use Buggregator\Trap\Support\Json;
  *     headers: array<array-key, mixed>
  * }
  */
-final class SentryEnvelope extends Frame\Sentry
+final class SentryEnvelope extends Frame
 {
     public const SENTRY_FRAME_TYPE = 'envelope';
 

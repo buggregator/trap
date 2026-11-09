@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Sender\Console\Renderer\Sentry;
+namespace Buggregator\Trap\Module\Sentry\Console;
 
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Buggregator\Trap\Support\Json;

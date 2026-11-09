@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Tests\Unit\Sender\Console\Renderer\Sentry;
+namespace Buggregator\Trap\Tests\Unit\Module\Sentry\Console;
 
-use Buggregator\Trap\Sender\Console\Renderer\Sentry\Header;
+use Buggregator\Trap\Module\Sentry\Console\Header;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Testo\Assert;
 use Testo\Codecov\Covers;

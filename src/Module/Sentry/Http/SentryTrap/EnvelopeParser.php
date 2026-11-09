@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Handler\Http\Middleware\SentryTrap;
+namespace Buggregator\Trap\Module\Sentry\Http\SentryTrap;
 
-use Buggregator\Trap\Proto\Frame\Sentry\EnvelopeItem;
-use Buggregator\Trap\Proto\Frame\Sentry\SentryEnvelope;
+use Buggregator\Trap\Module\Sentry\Frame\EnvelopeItem;
+use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope;
 use Buggregator\Trap\Support\StreamHelper;
 use Psr\Http\Message\StreamInterface;
 
 /**
  * @internal
- * @psalm-internal Buggregator\Trap\Handler\Http\Middleware
+ * @psalm-internal Buggregator\Trap\Module\Sentry\Http
  */
 final class EnvelopeParser
 {

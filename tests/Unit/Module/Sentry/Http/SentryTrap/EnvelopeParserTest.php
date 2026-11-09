@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Tests\Unit\Handler\Http\Middleware\SentryTrap;
+namespace Buggregator\Trap\Tests\Unit\Module\Sentry\Http\SentryTrap;
 
-use Buggregator\Trap\Handler\Http\Middleware\SentryTrap\EnvelopeParser;
+use Buggregator\Trap\Module\Sentry\Http\SentryTrap\EnvelopeParser;
 use Nyholm\Psr7\Stream;
 use Psr\Http\Message\StreamInterface;
 use Testo\Assert;

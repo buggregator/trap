@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Sender\Console\Renderer;
+namespace Buggregator\Trap\Module\Sentry\Console;
 
+use Buggregator\Trap\Module\Sentry\Frame\EnvelopeItem;
+use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope as SentryEnvelopeFrame;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\Renderer;
-use Buggregator\Trap\Sender\Console\Renderer\Sentry\Exceptions;
-use Buggregator\Trap\Sender\Console\Renderer\Sentry\Header;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * @implements Renderer<Frame\Sentry\SentryEnvelope>
+ * @implements Renderer<SentryEnvelopeFrame>
  *
  * @internal
  */
@@ -22,13 +22,13 @@ final class SentryEnvelope implements Renderer
     #[\Override]
     public function isSupport(Frame $frame): bool
     {
-        return $frame->type === ProtoType::Sentry && $frame instanceof Frame\Sentry\SentryEnvelope;
+        return $frame->type === ProtoType::Sentry && $frame instanceof SentryEnvelopeFrame;
     }
 
     #[\Override]
     public function render(OutputInterface $output, Frame $frame): void
     {
-        \assert($frame instanceof Frame\Sentry\SentryEnvelope);
+        \assert($frame instanceof SentryEnvelopeFrame);
 
         Common::renderHeader1($output, 'SENTRY', 'ENVELOPE');
         Header::renderMessageHeader($output, $frame->headers + ['timestamp' => $frame->time->format('U.u')]);
@@ -57,7 +57,7 @@ final class SentryEnvelope implements Renderer
     /**
      * Renders an item whose payload is not an event, e.g. an attachment stream.
      */
-    private function renderItemHeaders(OutputInterface $output, Frame\Sentry\EnvelopeItem $item): void
+    private function renderItemHeaders(OutputInterface $output, EnvelopeItem $item): void
     {
         $meta = [];
         isset($item->headers['filename']) and $meta['Filename'] = (string) $item->headers['filename'];
@@ -68,7 +68,7 @@ final class SentryEnvelope implements Renderer
         Common::renderMetadata($output, $meta);
     }
 
-    private function renderItem(OutputInterface $output, Frame\Sentry\EnvelopeItem $data): void
+    private function renderItem(OutputInterface $output, EnvelopeItem $data): void
     {
         if (\is_array($data->payload) && isset($data->payload['exceptions'])) {
             Exceptions::render($output, $data->payload['exceptions']);

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Tests\Unit\Handler\Http\Middleware;
+namespace Buggregator\Trap\Tests\Unit\Module\Sentry\Http;
 
-use Buggregator\Trap\Handler\Http\Middleware\SentryTrap;
-use Buggregator\Trap\Proto\Frame\Sentry;
-use Buggregator\Trap\Proto\Frame\Sentry\SentryEnvelope;
-use Buggregator\Trap\Proto\Frame\Sentry\SentryStore;
+use Buggregator\Trap\Module\Sentry\Frame;
+use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope;
+use Buggregator\Trap\Module\Sentry\Frame\SentryStore;
+use Buggregator\Trap\Module\Sentry\Http\SentryTrap;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
@@ -244,7 +244,7 @@ final class SentryTrapTest
 
     /**
      * @param \Closure(): Response $callback
-     * @return array{Response, list<Sentry>}
+     * @return array{Response, list<Frame>}
      */
     private function runInFiber(\Closure $callback): array
     {

@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Sender\Console\Renderer\Sentry;
+namespace Buggregator\Trap\Module\Sentry\Console;
 
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * @internal
- * @psalm-internal Buggregator\Trap\Sender\Console\Renderer
+ * @psalm-internal Buggregator\Trap\Module\Sentry\Console
  */
 final class Exceptions
 {

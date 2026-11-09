@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Tests\Unit\Sender\Console\Renderer;
+namespace Buggregator\Trap\Tests\Unit\Module\Sentry\Console;
 
+use Buggregator\Trap\Module\Sentry\Console\SentryEnvelope;
+use Buggregator\Trap\Module\Sentry\Frame\EnvelopeItem;
+use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope as SentryEnvelopeFrame;
 use Buggregator\Trap\Proto\Frame\Monolog;
-use Buggregator\Trap\Proto\Frame\Sentry\EnvelopeItem;
-use Buggregator\Trap\Proto\Frame\Sentry\SentryEnvelope as SentryEnvelopeFrame;
-use Buggregator\Trap\Sender\Console\Renderer\SentryEnvelope;
 use Nyholm\Psr7\Stream;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Testo\Assert;

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Handler\Http\Middleware;
+namespace Buggregator\Trap\Module\Sentry\Http;
 
 use Buggregator\Trap\Handler\Http\Middleware;
-use Buggregator\Trap\Handler\Http\Middleware\SentryTrap\EnvelopeParser;
 use Buggregator\Trap\Logger;
-use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Module\Sentry\Frame;
+use Buggregator\Trap\Module\Sentry\Http\SentryTrap\EnvelopeParser;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -16,7 +16,7 @@ use Psr\Http\Message\ServerRequestInterface;
  * @internal
  * @psalm-internal Buggregator\Trap
  *
- * @psalm-import-type SentryStoreMessage from Frame\Sentry\SentryStore
+ * @psalm-import-type SentryStoreMessage from Frame\SentryStore
  */
 final class SentryTrap implements Middleware
 {
@@ -100,7 +100,7 @@ final class SentryTrap implements Middleware
         $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
 
         \Fiber::suspend(
-            new Frame\Sentry\SentryStore(
+            new Frame\SentryStore(
                 message: $payload,
                 time: $time,
             ),

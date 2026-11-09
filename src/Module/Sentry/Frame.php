@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Proto\Frame;
+namespace Buggregator\Trap\Module\Sentry;
 
-use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Proto\Frame\Sentry\SentryEnvelope;
-use Buggregator\Trap\Proto\Frame\Sentry\SentryStore;
+use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope;
+use Buggregator\Trap\Module\Sentry\Frame\SentryStore;
+use Buggregator\Trap\Proto\Frame as ProtoFrame;
 use Buggregator\Trap\Support\Json;
 
 /**
  * @internal
  * @psalm-internal Buggregator
  *
- * @psalm-import-type SentryStoreMessage from Sentry\SentryStore
- * @psalm-import-type SentryEnvelopeMessage from Sentry\SentryEnvelope
+ * @psalm-import-type SentryStoreMessage from Frame\SentryStore
+ * @psalm-import-type SentryEnvelopeMessage from Frame\SentryEnvelope
  */
-abstract class Sentry extends Frame
+abstract class Frame extends ProtoFrame
 {
     #[\Override]
     final public static function fromString(string $payload, \DateTimeImmutable $time): static

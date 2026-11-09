@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Module\Frontend\Mapper;
+namespace Buggregator\Trap\Module\Sentry\Frontend;
 
 use Buggregator\Trap\Module\Frontend\Event;
-use Buggregator\Trap\Proto\Frame\Sentry\SentryStore as SentryFrame;
+use Buggregator\Trap\Module\Sentry\Frame\SentryStore as SentryFrame;
 use Buggregator\Trap\Support\Uuid;
 
 /**
  * @internal
  */
-final class SentryStore
+final class StoreMapper
 {
     public function map(SentryFrame $frame): Event
     {
