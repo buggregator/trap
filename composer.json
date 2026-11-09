@@ -1,22 +1,22 @@
 {
     "name": "buggregator/trap",
-    "description": "A simple and powerful tool for debugging PHP applications.",
+    "description": "Debug PHP from the console: trap() dumps and a small Buggregator server in PHP that receives VarDumper, Monolog, Sentry, Ray, SMTP and HTTP dumps — no Docker.",
     "license": "BSD-3-Clause",
     "type": "library",
     "keywords": [
+        "buggregator",
         "debug",
+        "dump",
+        "var-dumper",
+        "ray",
+        "sentry",
+        "monolog",
+        "smtp",
+        "http-dump",
+        "opentelemetry",
         "cli",
         "console",
-        "sentry",
-        "smtp",
-        "dump",
-        "binary dump",
-        "websockets",
-        "server",
-        "helper",
-        "dev",
-        "fibers",
-        "dumper"
+        "dev"
     ],
     "authors": [
         {
