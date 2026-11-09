@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Frontend;
 
 use Buggregator\Trap\Module\Frontend\FrameMapper;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
+use Internal\Container\ObjectContainer;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
@@ -16,6 +17,6 @@ final class FrameMapperTest
 {
     public function testSkipsOtlpTraces(): void
     {
-        Assert::null((new FrameMapper())->map(new OtlpTraces([])));
+        Assert::null((new FrameMapper(new ObjectContainer()))->map(new OtlpTraces([])));
     }
 }

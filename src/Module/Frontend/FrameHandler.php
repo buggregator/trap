@@ -15,15 +15,12 @@ use Buggregator\Trap\Support\Json;
  */
 final class FrameHandler implements HandlerInterface
 {
-    private readonly FrameMapper $frameMapper;
-
     public function __construct(
         private readonly Logger $logger,
         private readonly ConnectionPool $connectionPool,
         private readonly EventStorage $eventsStorage,
-    ) {
-        $this->frameMapper = new FrameMapper($eventsStorage);
-    }
+        private readonly FrameMapper $frameMapper,
+    ) {}
 
     #[\Override]
     public function handle(Frame $frame): void

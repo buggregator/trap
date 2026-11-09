@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender;
 
-use Buggregator\Trap\Module\Tracing\SpanStore;
+use Buggregator\Trap\Application\Module\Modules;
 use Buggregator\Trap\Sender;
 use Buggregator\Trap\Sender\Console\FrameHandler;
+use Buggregator\Trap\Sender\Console\ProvidesRenderers;
 use Buggregator\Trap\Sender\Console\Renderer;
+use Internal\Container\Container;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -20,25 +22,26 @@ final class ConsoleSender implements Sender
     ) {}
 
     /**
-     * @param SpanStore|null $spanStore Shared spans of the Trap process; null keeps them in this sender only.
+     * The renderers of the modules go first, in the module list order; the core ones last,
+     * with {@see Renderer\Plain} accepting any frame.
+     *
+     * @param Container $container Renderers get their dependencies from it, such as the spans shared
+     *        by the Trap process.
      */
-    public static function create(OutputInterface $output, ?SpanStore $spanStore = null): self
+    public static function create(OutputInterface $output, Container $container): self
     {
-        // Configure renderer
-        $renderer = new FrameHandler($output);
-        $renderer->register(new \Buggregator\Trap\Module\VarDumper\Console\Renderer());
-        $renderer->register(new \Buggregator\Trap\Module\Sentry\Console\SentryStore());
-        $renderer->register(new \Buggregator\Trap\Module\Sentry\Console\SentryEnvelope());
-        $renderer->register(new \Buggregator\Trap\Module\Tracing\Console\Renderer($spanStore ?? new SpanStore()));
-        $renderer->register(new \Buggregator\Trap\Module\Monolog\Console\Renderer());
-        $renderer->register(new \Buggregator\Trap\Module\Mailer\Console\Renderer());
-        $renderer->register(new \Buggregator\Trap\Module\Ray\Console\Renderer());
-        $renderer->register(new Renderer\Http());
-        $renderer->register(new \Buggregator\Trap\Module\Profiler\Console\Renderer());
-        $renderer->register(new Renderer\Binary());
-        $renderer->register(new Renderer\Plain());
+        $handler = new FrameHandler($output);
+        foreach ($container->get(Modules::class)->implementing(ProvidesRenderers::class) as $module) {
+            foreach ($module->renderers() as $class) {
+                $handler->register($container->make($class));
+            }
+        }
 
-        return new self($renderer);
+        $handler->register(new Renderer\Http());
+        $handler->register(new Renderer\Binary());
+        $handler->register(new Renderer\Plain());
+
+        return new self($handler);
     }
 
     #[\Override]

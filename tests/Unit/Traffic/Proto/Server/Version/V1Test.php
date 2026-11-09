@@ -15,6 +15,7 @@ use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Module\VarDumper\Frame as VarDumperFrame;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Server\Version\V1;
+use Internal\Container\ObjectContainer;
 use Nyholm\Psr7\ServerRequest;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -62,14 +63,14 @@ final class V1Test
     #[DataProvider('payloadsDataProvider')]
     public function testIsSuppoerted(string $payload, bool $isSupported): void
     {
-        $decoder = new V1();
+        $decoder = (new ObjectContainer())->get(V1::class);
 
         Assert::same($decoder->isSupport($payload), $isSupported);
     }
 
     public function testDecode(): void
     {
-        $decoder = new V1();
+        $decoder = (new ObjectContainer())->get(V1::class);
 
         $request = $decoder->decode('1|0.1|9a06581c-3bec-4cf1-8412-b2a40bb36a76|[{},{}]');
 
@@ -86,13 +87,13 @@ final class V1Test
     {
         Expect::exception(\InvalidArgumentException::class)->withMessage($message);
 
-        (new V1())->decode($payload);
+        (new ObjectContainer())->get(V1::class)->decode($payload);
     }
 
     #[DataProvider('framesDataProvider')]
     public function testParsedPayloadRestoresFrame(Frame $frame): void
     {
-        $request = (new V1())->decode('1|0.1|' . self::UUID . '|' . \json_encode([$frame], \JSON_THROW_ON_ERROR));
+        $request = (new ObjectContainer())->get(V1::class)->decode('1|0.1|' . self::UUID . '|' . \json_encode([$frame], \JSON_THROW_ON_ERROR));
 
         $frames = $request->getParsedPayload();
 
@@ -107,7 +108,7 @@ final class V1Test
     {
         $time = new \DateTimeImmutable(self::TIME);
         $payload = \json_encode([new VarDumperFrame('first', $time), new VarDumperFrame('second', $time)]);
-        $request = (new V1())->decode('1|0.1|' . self::UUID . '|' . $payload);
+        $request = (new ObjectContainer())->get(V1::class)->decode('1|0.1|' . self::UUID . '|' . $payload);
 
         $frames = $request->getParsedPayload();
 
@@ -117,7 +118,7 @@ final class V1Test
     public function testParsedPayloadRejectsUnsupportedFrameType(): never
     {
         $payload = \json_encode([['type' => 'binary', 'data' => \base64_encode('x'), 'time' => self::TIME]]);
-        $request = (new V1())->decode('1|0.1|' . self::UUID . '|' . $payload);
+        $request = (new ObjectContainer())->get(V1::class)->decode('1|0.1|' . self::UUID . '|' . $payload);
 
         Expect::exception(\RuntimeException::class)->withMessage('Invalid type.');
 
@@ -126,7 +127,7 @@ final class V1Test
 
     public function testParsedPayloadRejectsMalformedJson(): never
     {
-        $request = (new V1())->decode('1|0.1|' . self::UUID . '|[{');
+        $request = (new ObjectContainer())->get(V1::class)->decode('1|0.1|' . self::UUID . '|[{');
 
         Expect::exception(\JsonException::class);
 

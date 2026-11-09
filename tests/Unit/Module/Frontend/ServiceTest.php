@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend;
 
+use Buggregator\Trap\Application\Module\Modules;
 use Buggregator\Trap\Logger;
 use Buggregator\Trap\Module\Frontend\Event;
 use Buggregator\Trap\Module\Frontend\EventStorage;
 use Buggregator\Trap\Module\Frontend\Service;
+use Internal\Container\ObjectContainer;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
@@ -78,7 +80,7 @@ final class ServiceTest
 
         Assert::same(
             self::json($service->settings())['client']['events'],
-            ['var-dump', 'smtp', 'sentry', 'profiler', 'monolog', 'ray', 'http-dump'],
+            ['var-dump', 'smtp', 'monolog', 'ray', 'sentry', 'profiler', 'http-dump'],
         );
     }
 
@@ -93,7 +95,7 @@ final class ServiceTest
         $storage->add(new Event('s1', 'smtp', [], 2.0, project: 'shop'));
         $storage->add(new Event('d2', 'var-dump', [], 3.0));
 
-        return [new Service(new Logger(), $storage), $storage];
+        return [new Service(new Logger(), $storage, (new ObjectContainer())->get(Modules::class)), $storage];
     }
 
     /**

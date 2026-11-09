@@ -18,7 +18,8 @@ final class Modules
     /**
      * The only place that names the module manifests.
      *
-     * The list order is the order of what the modules provide: dispatchers, HTTP middlewares, file observers.
+     * The list order is the order of what the modules provide: dispatchers, HTTP middlewares, file observers,
+     * console renderers, UI controllers and event types.
      * The core places its own parts around the modules' ones.
      */
     private const LIST = [

@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend;
 
-use Buggregator\Trap\Module\Mailer\Frontend\ApiController as MailerApiController;
-use Buggregator\Trap\Module\Mailer\Frontend\AssetsController as MailerAssetsController;
-use Buggregator\Trap\Module\Profiler\Frontend\ApiController as ProfilerApiController;
-use Buggregator\Trap\Module\Ray\Frontend\LocksController as RayLocksController;
+use Buggregator\Trap\Application\Module\Modules;
 use Internal\Container\Container;
 
 /**
- * The controllers of the UI endpoints, in route matching order.
+ * The controllers of the UI endpoints, in route matching order: the Frontend's own first,
+ * then the modules' ones in the module list order.
  *
  * Controllers are container singletons: the HTTP router and the WebSocket RPC share them.
  *
@@ -19,16 +17,6 @@ use Internal\Container\Container;
  */
 final class UiControllers
 {
-    private const API = [
-        Service::class,
-        ProfilerApiController::class,
-        MailerApiController::class,
-        RayLocksController::class,
-    ];
-    private const ASSETS = [
-        MailerAssetsController::class,
-    ];
-
     public function __construct(
         private readonly Container $container,
     ) {}
@@ -40,7 +28,12 @@ final class UiControllers
      */
     public function api(): array
     {
-        return $this->controllers(self::API);
+        $classes = [Service::class];
+        foreach ($this->modules() as $module) {
+            $classes = [...$classes, ...$module->uiApiControllers()];
+        }
+
+        return $this->controllers($classes);
     }
 
     /**
@@ -50,7 +43,20 @@ final class UiControllers
      */
     public function assets(): array
     {
-        return $this->controllers(self::ASSETS);
+        $classes = [];
+        foreach ($this->modules() as $module) {
+            $classes = [...$classes, ...$module->uiAssetsControllers()];
+        }
+
+        return $this->controllers($classes);
+    }
+
+    /**
+     * @return list<ProvidesUi>
+     */
+    private function modules(): array
+    {
+        return $this->container->get(Modules::class)->implementing(ProvidesUi::class);
     }
 
     /**

@@ -11,6 +11,7 @@ use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Proto\Server\Version\V1;
 use Buggregator\Trap\Sender\EventsToFileSender;
 use Buggregator\Trap\Support\Json;
+use Internal\Container\ObjectContainer;
 use Testo\Assert;
 use Testo\Assert\ExpectException;
 use Testo\Codecov\Covers;
@@ -67,7 +68,7 @@ final class OtlpTracesTest
         $frame = $this->fixtureFrame();
         $payload = '1|1.16.1|' . '0f8fad5b-d9cb-469f-a165-70867728950e|[' . Json::encode($frame) . ']';
 
-        $frames = [...(new V1())->decode($payload)->getParsedPayload()];
+        $frames = [...(new ObjectContainer())->get(V1::class)->decode($payload)->getParsedPayload()];
 
         Assert::count($frames, 1);
         Assert::instanceOf($frames[0], OtlpTraces::class);

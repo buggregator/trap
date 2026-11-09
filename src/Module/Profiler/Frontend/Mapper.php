@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Profiler\Frontend;
 
 use Buggregator\Trap\Module\Frontend\Event;
+use Buggregator\Trap\Module\Frontend\EventMapper;
+use Buggregator\Trap\Module\Profiler\Frame as ProfilerFrame;
 use Buggregator\Trap\Module\Profiler\Frame\Payload as ProfilerPayload;
 use Buggregator\Trap\Module\Profiler\Frontend\Message\CallGraph;
 use Buggregator\Trap\Module\Profiler\Frontend\Message\FlameChart;
@@ -15,17 +17,21 @@ use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Graph;
 use Buggregator\Trap\Module\Profiler\Struct\Peaks;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
+use Buggregator\Trap\Proto\Frame;
 
 /**
  * @internal
  */
-final class Mapper
+final class Mapper implements EventMapper
 {
     /**
      * @return Event<ProfilerPayload>
      */
-    public function frameToEvent(\Buggregator\Trap\Module\Profiler\Frame $frame): Event
+    #[\Override]
+    public function map(Frame $frame): Event
     {
+        \assert($frame instanceof ProfilerFrame);
+
         return new Event(
             uuid: $frame->payload->getProfile()->uuid,
             type: 'profiler',

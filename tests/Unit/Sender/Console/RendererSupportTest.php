@@ -14,6 +14,8 @@ use Buggregator\Trap\Module\Profiler\Frame as ProfilerFrame;
 use Buggregator\Trap\Module\Profiler\Frame\Payload;
 use Buggregator\Trap\Module\Profiler\Frame\Type as PayloadType;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
+use Buggregator\Trap\Module\Ray\Console\Renderer as RayRenderer;
+use Buggregator\Trap\Module\Ray\Frame as RayFrame;
 use Buggregator\Trap\Module\Sentry\Console\SentryEnvelope as SentryEnvelopeRenderer;
 use Buggregator\Trap\Module\Sentry\Console\SentryStore as SentryStoreRenderer;
 use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope;
@@ -45,6 +47,7 @@ final class RendererSupportTest
         yield 'otlp' => [new TracingRenderer(new SpanStore()), ['otlp']];
         yield 'monolog' => [new MonologRenderer(), ['monolog']];
         yield 'smtp' => [new MailerRenderer(), ['smtp']];
+        yield 'ray' => [new RayRenderer(), ['ray']];
         yield 'http' => [new Renderer\Http(), ['http']];
         yield 'profiler' => [new ProfilerRenderer(), ['profiler']];
         yield 'binary' => [new Renderer\Binary(), ['binary']];
@@ -83,6 +86,7 @@ final class RendererSupportTest
             'otlp' => new OtlpTraces([]),
             'monolog' => new MonologFrame(['message' => 'hello']),
             'smtp' => new MailerFrame(MailerMessage::create(['FROM' => ['<a@b.c>']], ['Subject' => 'Hi'])),
+            'ray' => new RayFrame('a1', []),
             'http' => new Frame\Http(new ServerRequest('GET', 'http://localhost/')),
             'profiler' => new ProfilerFrame(Payload::new(PayloadType::XHProf, static fn(): Profile => new Profile())),
             'binary' => new Frame\Binary(Stream::create('binary')),

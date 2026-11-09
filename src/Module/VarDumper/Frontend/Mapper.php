@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\VarDumper\Frontend;
 
 use Buggregator\Trap\Module\Frontend\Event;
+use Buggregator\Trap\Module\Frontend\EventMapper;
 use Buggregator\Trap\Module\VarDumper\Frame as VarDumperFrame;
+use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Support\Uuid;
 use Symfony\Component\VarDumper\Cloner\Data;
 use Symfony\Component\VarDumper\Cloner\Stub;
@@ -14,10 +16,13 @@ use Symfony\Component\VarDumper\Dumper\HtmlDumper;
 /**
  * @internal
  */
-final class Mapper
+final class Mapper implements EventMapper
 {
-    public function map(VarDumperFrame $frame): Event
+    #[\Override]
+    public function map(Frame $frame): Event
     {
+        \assert($frame instanceof VarDumperFrame);
+
         $parsed = $this->parse($frame->dump);
 
         $dataContext = $parsed[0]->getContext();

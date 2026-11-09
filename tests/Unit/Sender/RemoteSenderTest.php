@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Monolog\Frame as MonologFrame;
 use Buggregator\Trap\Module\Ray\Frame as RayFrame;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Sender\RemoteSender;
+use Buggregator\Trap\Tests\Unit\Sender\Stub\LocalFrame;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Lifecycle\AfterTest;
@@ -39,6 +40,17 @@ final class RemoteSenderTest
         Assert::same($uuid, self::UUID);
         $frames = \json_decode($payload, true, 512, \JSON_THROW_ON_ERROR);
         Assert::same(\array_column($frames, 'type'), ['monolog', 'monolog']);
+    }
+
+    public function testSkipsFramesMarkedLocalOnly(): void
+    {
+        $sender = $this->createSender();
+
+        $sender->send([new LocalFrame(), new MonologFrame(['message' => 'kept'])]);
+        $package = $this->receive($sender);
+
+        $frames = \json_decode(\explode('|', \rtrim($package, "\n"), 4)[3], true, 512, \JSON_THROW_ON_ERROR);
+        Assert::same(\array_column($frames, 'type'), ['monolog']);
     }
 
     public function testSendsNothingForOnlyOtlpFrames(): void

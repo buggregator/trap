@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Frontend\Mapper;
 
 use Buggregator\Trap\Module\Frontend\Event;
+use Buggregator\Trap\Module\Frontend\EventMapper;
+use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Frame\Http as HttpFrame;
 use Buggregator\Trap\Support\Uuid;
 use Psr\Http\Message\UploadedFileInterface;
@@ -12,10 +14,15 @@ use Psr\Http\Message\UploadedFileInterface;
 /**
  * @internal
  */
-final class HttpRequest
+final class HttpRequest implements EventMapper
 {
-    public function map(HttpFrame $frame): Event
+    public const TYPE = 'http-dump';
+
+    #[\Override]
+    public function map(Frame $frame): Event
     {
+        \assert($frame instanceof HttpFrame);
+
         $request = $frame->request;
 
         $uri = \ltrim($request->getUri()->getPath(), '/');
@@ -24,7 +31,7 @@ final class HttpRequest
 
         return new Event(
             uuid: $uuid = Uuid::generate(),
-            type: 'http-dump',
+            type: self::TYPE,
             payload: [
                 'received_at' => $frame->time->format('Y-m-d H:i:s'),
                 'host' => $request->getHeaderLine('Host'),

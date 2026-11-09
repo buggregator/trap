@@ -15,7 +15,7 @@ use Buggregator\Trap\Proto\Server\Request;
 final class V1 implements PayloadDecoder
 {
     public function __construct(
-        private readonly FrameTypes $frameTypes = new FrameTypes(),
+        private readonly FrameTypes $frameTypes,
     ) {}
 
     #[\Override]

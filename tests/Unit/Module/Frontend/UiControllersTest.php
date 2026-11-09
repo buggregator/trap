@@ -49,7 +49,7 @@ final class UiControllersTest
 
         Assert::same(
             \array_map(static fn(object $c): string => $c::class, $controllers->api()),
-            [Service::class, ProfilerApiController::class, MailerApiController::class, RayLocksController::class],
+            [Service::class, MailerApiController::class, RayLocksController::class, ProfilerApiController::class],
         );
         Assert::same(
             \array_map(static fn(object $c): string => $c::class, $controllers->assets()),

@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Command;
 
 use Buggregator\Trap\Application;
+use Buggregator\Trap\Application\Module\Modules;
 use Buggregator\Trap\Bootstrap;
 use Buggregator\Trap\Config\Server\SocketServer;
 use Buggregator\Trap\Config\Server\TcpPorts;
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Logger;
-use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Sender;
 use Internal\Container\Container;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -94,17 +94,23 @@ final class Run extends Command implements SignalableCommandInterface
         return $servers;
     }
 
+    /**
+     * @param Container|null $container Without it, the senders get a container without configuration.
+     */
     public function createRegistry(OutputInterface $output, ?Container $container = null): Sender\SenderRegistry
     {
+        $container ??= Bootstrap::init()->finish();
         $registry = new Sender\SenderRegistry();
-        $registry->register('console', static fn(): Sender => Sender\ConsoleSender::create(
-            $output,
-            $container?->get(SpanStore::class),
-        ));
+        $registry->register('console', static fn(): Sender => Sender\ConsoleSender::create($output, $container));
         $registry->register('file', static fn(): Sender => new Sender\EventsToFileSender());
         $registry->register('file-body', static fn(): Sender => new Sender\BodyToFileSender());
-        $registry->register('mail-to-file', static fn(): Sender => new \Buggregator\Trap\Module\Mailer\Sender\MailToFileSender());
         $registry->register('server', static fn(): Sender => new Sender\RemoteSender(host: '127.0.0.1', port: 9099));
+
+        foreach ($container->get(Modules::class)->implementing(Sender\ProvidesSenders::class) as $module) {
+            foreach ($module->senders() as $name => $class) {
+                $registry->register($name, static fn(): Sender => $container->make($class));
+            }
+        }
 
         return $registry;
     }

@@ -11,15 +11,14 @@ use Buggregator\Trap\Info;
  */
 final class Settings implements \JsonSerializable
 {
-    /**
-     * Event types trap produces. The UI hides the others from its menu.
-     */
-    private const EVENTS = ['var-dump', 'smtp', 'sentry', 'profiler', 'monolog', 'ray', 'http-dump'];
-
     public readonly string $number;
 
-    public function __construct()
-    {
+    /**
+     * @param list<non-empty-string> $events Event types trap produces. The UI hides the others from its menu.
+     */
+    public function __construct(
+        private readonly array $events,
+    ) {
         $this->number = Info::version();
     }
 
@@ -33,7 +32,7 @@ final class Settings implements \JsonSerializable
             ],
             'version' => $this->number,
             'client' => [
-                'events' => self::EVENTS,
+                'events' => $this->events,
             ],
         ];
     }

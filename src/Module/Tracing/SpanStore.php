@@ -15,6 +15,8 @@ use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
  * and the least recently updated traces are dropped while the store holds more than `maxSpans` spans.
  * A single trace above `maxSpans` keeps only its most recently received spans, 90% of `maxSpans`.
  *
+ * One store serves the Trap process: get it from the container, which keeps it as a singleton.
+ *
  * @internal
  */
 final class SpanStore

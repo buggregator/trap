@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Proto;
 
-use Buggregator\Trap\Module;
+use Buggregator\Trap\Application\Module\Modules;
 
 /**
  * Frame types that a receiver decodes, by their wire type.
@@ -16,26 +16,23 @@ use Buggregator\Trap\Module;
  */
 final class FrameTypes
 {
-    /**
-     * The only place in the protocol that names module frames: a registration point in `structarmed.php`.
-     */
-    private const TYPES = [
-        Module\Mailer\Frame::TYPE => Module\Mailer\Frame::class,
-        Module\Monolog\Frame::TYPE => Module\Monolog\Frame::class,
-        Module\VarDumper\Frame::TYPE => Module\VarDumper\Frame::class,
-        Frame\Http::TYPE => Frame\Http::class,
-        Module\Sentry\Frame::TYPE => Module\Sentry\Frame::class,
-        Module\Profiler\Frame::TYPE => Module\Profiler\Frame::class,
-        Module\Tracing\Frame::TYPE => Module\Tracing\Frame::class,
-        Module\Ray\Frame::TYPE => Module\Ray\Frame::class,
-    ];
+    /** @var array<non-empty-string, class-string<Frame>> */
+    private readonly array $types;
 
-    /**
-     * @param array<non-empty-string, class-string<Frame>> $types Frame classes by their `TYPE`.
-     */
-    public function __construct(
-        private readonly array $types = self::TYPES,
-    ) {}
+    public function __construct(Modules $modules)
+    {
+        $types = [Frame\Http::TYPE => Frame\Http::class];
+        foreach ($modules->implementing(ProvidesFrameTypes::class) as $module) {
+            foreach ($module->frameTypes() as $type => $class) {
+                isset($types[$type]) and throw new \LogicException(
+                    \sprintf('Frame type `%s` of %s is already taken by %s.', $type, $class, $types[$type]),
+                );
+                $types[$type] = $class;
+            }
+        }
+
+        $this->types = $types;
+    }
 
     /**
      * @return class-string<Frame>|null

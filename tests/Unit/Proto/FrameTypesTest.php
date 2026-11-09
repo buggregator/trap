@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Proto;
 
+use Buggregator\Trap\Application\Module\Module;
+use Buggregator\Trap\Application\Module\Modules;
 use Buggregator\Trap\Module\Mailer\Frame as MailerFrame;
 use Buggregator\Trap\Module\Mailer\Message as MailerMessage;
 use Buggregator\Trap\Module\Monolog\Frame as MonologFrame;
@@ -20,11 +22,15 @@ use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Module\VarDumper\Frame as VarDumperFrame;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\FrameTypes;
+use Buggregator\Trap\Tests\Unit\Proto\Stub\ProvidingFrameTypes;
+use Buggregator\Trap\Tests\Unit\Proto\Stub\TakingHttpType;
+use Internal\Container\ObjectContainer;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Data\DataProvider;
+use Testo\Expect;
 use Testo\Test;
 
 #[Test]
@@ -58,7 +64,7 @@ final class FrameTypesTest
 
     public function testMapsDecodableTypesToFrameClasses(): void
     {
-        $types = new FrameTypes();
+        $types = self::types();
 
         Assert::same($types->classOf('smtp'), MailerFrame::class);
         Assert::same($types->classOf('monolog'), MonologFrame::class);
@@ -72,19 +78,38 @@ final class FrameTypesTest
 
     public function testDoesNotDecodeBinaryFrames(): void
     {
-        Assert::null((new FrameTypes())->classOf('binary'));
+        Assert::null(self::types()->classOf('binary'));
     }
 
     public function testReturnsNullForUnknownType(): void
     {
-        Assert::null((new FrameTypes())->classOf('unknown'));
+        Assert::null(self::types()->classOf('unknown'));
     }
 
-    public function testUsesGivenMap(): void
+    public function testTakesTypesFromModulesAndKeepsHttp(): void
     {
-        $types = new FrameTypes(['dump' => VarDumperFrame::class]);
+        $types = self::types([ProvidingFrameTypes::class]);
 
         Assert::same($types->classOf('dump'), VarDumperFrame::class);
+        Assert::same($types->classOf('http'), Frame\Http::class);
         Assert::null($types->classOf('var-dumper'));
+    }
+
+    public function testRejectsTakenType(): void
+    {
+        Expect::exception(\LogicException::class);
+
+        new FrameTypes((new ObjectContainer())->make(Modules::class, ['list' => [TakingHttpType::class]]));
+    }
+
+    /**
+     * @param list<class-string<Module>>|null $modules Null for the modules of the server.
+     */
+    private static function types(?array $modules = null): FrameTypes
+    {
+        $container = new ObjectContainer();
+        $modules === null or $container->set($container->make(Modules::class, ['list' => $modules]));
+
+        return $container->get(FrameTypes::class);
     }
 }

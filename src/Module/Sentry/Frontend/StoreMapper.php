@@ -5,16 +5,21 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Sentry\Frontend;
 
 use Buggregator\Trap\Module\Frontend\Event;
+use Buggregator\Trap\Module\Frontend\EventMapper;
 use Buggregator\Trap\Module\Sentry\Frame\SentryStore as SentryFrame;
+use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Support\Uuid;
 
 /**
  * @internal
  */
-final class StoreMapper
+final class StoreMapper implements EventMapper
 {
-    public function map(SentryFrame $frame): Event
+    #[\Override]
+    public function map(Frame $frame): Event
     {
+        \assert($frame instanceof SentryFrame);
+
         return new Event(
             uuid: Uuid::uuid4(),
             type: 'sentry',

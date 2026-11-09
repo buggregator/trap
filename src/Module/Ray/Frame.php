@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Ray;
 
 use Buggregator\Trap\Proto\Frame as ProtoFrame;
+use Buggregator\Trap\Sender\LocalOnlyFrame;
 use Buggregator\Trap\Support\Json;
 
 /**
@@ -17,7 +18,7 @@ use Buggregator\Trap\Support\Json;
  *
  * @psalm-type RayPayload = array{type: non-empty-string, content?: mixed, origin?: mixed, ...}
  */
-final class Frame extends ProtoFrame
+final class Frame extends ProtoFrame implements LocalOnlyFrame
 {
     public const TYPE = 'ray';
 

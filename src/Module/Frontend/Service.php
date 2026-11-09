@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend;
 
+use Buggregator\Trap\Application\Module\Modules;
 use Buggregator\Trap\Handler\Router\Attribute\AssertRouteFail as AssertFail;
 use Buggregator\Trap\Handler\Router\Attribute\AssertRouteSuccess as AssertSuccess;
 use Buggregator\Trap\Handler\Router\Attribute\RegexpRoute;
@@ -24,6 +25,7 @@ final class Service
     public function __construct(
         private readonly Logger $logger,
         private readonly EventStorage $eventsStorage,
+        private readonly Modules $modules,
     ) {}
 
     #[StaticRoute(Method::Get, 'api/version')]
@@ -138,7 +140,12 @@ final class Service
     public function settings(): Settings
     {
         $this->debug('List settings');
-        return new Settings();
+        $events = [];
+        foreach ($this->modules->implementing(ProvidesUi::class) as $module) {
+            $events = [...$events, ...$module->uiEventTypes()];
+        }
+
+        return new Settings([...$events, Mapper\HttpRequest::TYPE]);
     }
 
     private function debug(string $pattern, string ...$args): void

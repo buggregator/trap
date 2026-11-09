@@ -5,16 +5,21 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Sentry\Frontend;
 
 use Buggregator\Trap\Module\Frontend\Event;
+use Buggregator\Trap\Module\Frontend\EventMapper;
 use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope as SentryFrame;
+use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Support\Uuid;
 
 /**
  * @internal
  */
-final class EnvelopeMapper
+final class EnvelopeMapper implements EventMapper
 {
-    public function map(SentryFrame $frame): Event
+    #[\Override]
+    public function map(Frame $frame): Event
     {
+        \assert($frame instanceof SentryFrame);
+
         // todo: add support for multiple items
         isset($frame->items[0]) or throw new \InvalidArgumentException('SentryEnvelope has no items.');
         \is_array($frame->items[0]->payload) or throw new \InvalidArgumentException(

@@ -9,8 +9,7 @@ use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Support\Uuid;
 
 /**
- * OTLP and Ray frames are not sent: a receiver of protocol version 1 that does not know the `otlp` or `ray` type
- * rejects the whole package, the other frames in it included.
+ * Frames marked {@see LocalOnlyFrame} are not sent.
  *
  * @internal
  */
@@ -35,8 +34,7 @@ final class RemoteSender extends SocketSender
     {
         $frames = \array_values(\array_filter(
             \is_array($frames) ? $frames : \iterator_to_array($frames, false),
-            static fn(Frame $frame): bool => !$frame instanceof \Buggregator\Trap\Module\Tracing\Frame
-                && !$frame instanceof \Buggregator\Trap\Module\Ray\Frame,
+            static fn(Frame $frame): bool => !$frame instanceof LocalOnlyFrame,
         ));
 
         $frames === [] or parent::send($frames);

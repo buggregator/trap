@@ -5,19 +5,24 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Mailer\Frontend;
 
 use Buggregator\Trap\Module\Frontend\Event;
+use Buggregator\Trap\Module\Frontend\EventMapper;
 use Buggregator\Trap\Module\Mailer\Frame as SmtpFrame;
 use Buggregator\Trap\Module\Mailer\Message as SmtpMessage;
 use Buggregator\Trap\Module\Mailer\MessageFormat;
+use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Support\Uuid;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
 
 /**
  * @internal
  */
-final class Mapper
+final class Mapper implements EventMapper
 {
-    public function map(SmtpFrame $frame): Event
+    #[\Override]
+    public function map(Frame $frame): Event
     {
+        \assert($frame instanceof SmtpFrame);
+
         $message = $frame->message;
 
         $uuid = Uuid::generate();

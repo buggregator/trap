@@ -10,6 +10,7 @@ use Buggregator\Trap\Module\Frontend\FrameMapper;
 use Buggregator\Trap\Module\Ray\Frame;
 use Buggregator\Trap\Module\Ray\Frontend\Mapper;
 use Buggregator\Trap\Tests\Unit\Module\Ray\FrameTest;
+use Internal\Container\ObjectContainer;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
@@ -87,7 +88,7 @@ final class MapperTest
 
     public function testFrameMapperUsesTheRayMapper(): void
     {
-        $event = (new FrameMapper())->map(Frame::fromString(FrameTest::REQUEST, new \DateTimeImmutable()));
+        $event = (new FrameMapper(new ObjectContainer()))->map(Frame::fromString(FrameTest::REQUEST, new \DateTimeImmutable()));
 
         Assert::same($event?->type, 'ray');
     }

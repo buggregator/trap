@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Ray\Frontend;
 
 use Buggregator\Trap\Module\Frontend\Event;
+use Buggregator\Trap\Module\Frontend\EventMapper;
 use Buggregator\Trap\Module\Frontend\EventStorage;
 use Buggregator\Trap\Module\Ray\Frame as RayFrame;
+use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Support\Uuid;
 
 /**
@@ -14,7 +16,7 @@ use Buggregator\Trap\Support\Uuid;
  *
  * @internal
  */
-final class Mapper
+final class Mapper implements EventMapper
 {
     /**
      * UI event type of Ray events.
@@ -31,8 +33,11 @@ final class Mapper
      *
      * @return Event|null Null for `clear_all`, which deletes the stored Ray events instead.
      */
-    public function map(RayFrame $frame): ?Event
+    #[\Override]
+    public function map(Frame $frame): ?Event
     {
+        \assert($frame instanceof RayFrame);
+
         foreach ($frame->payloads as $payload) {
             if ($payload['type'] === 'clear_all') {
                 $this->clear();
