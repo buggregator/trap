@@ -29,6 +29,7 @@ return $architecture
     ->skipClassViolation('Buggregator\Trap\Application', [
         'Buggregator\Trap\Module\Frontend\Http\Pipeline',
         'Buggregator\Trap\Module\Frontend\Http\RequestHandler',
+        'Buggregator\Trap\Module\Frontend\Sender\FrontendSender',
         'Buggregator\Trap\Module\Mailer\Traffic\Dispatcher',
         'Buggregator\Trap\Module\Monolog\Traffic\Dispatcher',
         'Buggregator\Trap\Module\Profiler\Config\SPX',
@@ -104,15 +105,4 @@ return $architecture
     // Registration point: UI asset routes of the Mailer module.
     ->skipClassViolation('Buggregator\Trap\Module\Frontend\Http\EventAssets', [
         'Buggregator\Trap\Module\Mailer\Frontend\AssetsController',
-    ])
-
-    // Layering problem: TrapLogger is used only by the client but lives in the core.
-    ->skipClassViolation('Buggregator\Trap\Client\TrapHandle', [
-        'Buggregator\Trap\Log\TrapLogger',
-    ])
-    // Layering problem: the Frontend sender lives in the core, not in the Frontend module.
-    ->skipClassViolation('Buggregator\Trap\Sender\FrontendSender', [
-        'Buggregator\Trap\Module\Frontend\ConnectionPool',
-        'Buggregator\Trap\Module\Frontend\EventStorage',
-        'Buggregator\Trap\Module\Frontend\FrameHandler',
     ]);

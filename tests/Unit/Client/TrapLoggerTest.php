@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Client;
 
+use Buggregator\Trap\Client\Log\TrapLogger;
 use Buggregator\Trap\Client\TrapHandle;
-use Buggregator\Trap\Log\TrapLogger;
 use Buggregator\Trap\Tests\Unit\Client\Stub\CaptureFilter;
 use Psr\Log\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
