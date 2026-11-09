@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Traffic\Proto\Server\Version;
 
+use Buggregator\Trap\Module\Profiler\Frame\Payload;
+use Buggregator\Trap\Module\Profiler\Frame\Type as PayloadType;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Frame\Otlp\OtlpTraces;
-use Buggregator\Trap\Proto\Frame\Profiler\Payload;
-use Buggregator\Trap\Proto\Frame\Profiler\Type as PayloadType;
 use Buggregator\Trap\Proto\Frame\Sentry\SentryStore;
 use Buggregator\Trap\Proto\Server\Version\V1;
 use Buggregator\Trap\Traffic\Message\Smtp as SmtpMessage;
@@ -45,7 +45,7 @@ final class V1Test
         yield 'var-dumper' => [new Frame\VarDumper('dump', $time)];
         yield 'http' => [new Frame\Http(new ServerRequest('POST', 'http://localhost/path', ['Host' => ['localhost']], 'body'), $time)];
         yield 'sentry' => [new SentryStore(['type' => 'store', 'event_id' => 'abc', 'timestamp' => 1700000000], $time)];
-        yield 'profiler' => [new Frame\Profiler(
+        yield 'profiler' => [new \Buggregator\Trap\Module\Profiler\Frame(
             Payload::new(PayloadType::XHProf, static fn(): Profile => new Profile(
                 date: new \DateTimeImmutable('@1700000000'),
                 metadata: ['app_name' => 'app', 'hostname' => 'host', 'filename' => 'file'],
