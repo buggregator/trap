@@ -17,9 +17,9 @@ final class RPC
 
     public function __construct(
         private readonly Logger $logger,
-        Service $service,
+        UiControllers $controllers,
     ) {
-        $this->router = Router::new($service);
+        $this->router = Router::compose(...$controllers->api());
     }
 
     /**

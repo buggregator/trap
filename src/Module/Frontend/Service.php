@@ -15,21 +15,14 @@ use Buggregator\Trap\Module\Frontend\Message\Projects;
 use Buggregator\Trap\Module\Frontend\Message\Settings;
 use Buggregator\Trap\Module\Frontend\Message\Success;
 use Buggregator\Trap\Module\Frontend\Message\Version;
-use Buggregator\Trap\Module\Mailer\Frontend\ApiController as MailerApiController;
-use Buggregator\Trap\Module\Profiler\Frontend\ApiController as ProfilerApiController;
-use Buggregator\Trap\Module\Profiler\Frontend\Mapper;
 
 /**
  * @internal
  */
 final class Service
 {
-    use ProfilerApiController;
-    use MailerApiController;
-
     public function __construct(
         private readonly Logger $logger,
-        private readonly Mapper $mapper,
         private readonly EventStorage $eventsStorage,
     ) {}
 

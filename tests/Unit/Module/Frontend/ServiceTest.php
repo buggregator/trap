@@ -8,7 +8,6 @@ use Buggregator\Trap\Logger;
 use Buggregator\Trap\Module\Frontend\Event;
 use Buggregator\Trap\Module\Frontend\EventStorage;
 use Buggregator\Trap\Module\Frontend\Service;
-use Buggregator\Trap\Module\Profiler\Frontend\Mapper;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
@@ -94,7 +93,7 @@ final class ServiceTest
         $storage->add(new Event('s1', 'smtp', [], 2.0, project: 'shop'));
         $storage->add(new Event('d2', 'var-dump', [], 3.0));
 
-        return [new Service(new Logger(), new Mapper(), $storage), $storage];
+        return [new Service(new Logger(), $storage), $storage];
     }
 
     /**
