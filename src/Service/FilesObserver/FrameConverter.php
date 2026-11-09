@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Service\FilesObserver;
 
-use Buggregator\Trap\Proto\Frame\Profiler as ProfilerFrame;
+use Buggregator\Trap\Module\Profiler\Frame as ProfilerFrame;
 
 /**
  * Converts file to {@see ProfilerFrame}.

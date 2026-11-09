@@ -10,7 +10,7 @@ use Symfony\Component\Console\Terminal;
 
 /**
  * @internal
- * @psalm-internal Buggregator\Trap\Sender\Console
+ * @psalm-internal Buggregator\Trap
  */
 final class Tables
 {

@@ -24,7 +24,7 @@ final class FrameMapper
             \Buggregator\Trap\Module\Sentry\Frame\SentryStore::class => (new \Buggregator\Trap\Module\Sentry\Frontend\StoreMapper())->map($frame),
             \Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope::class => (new \Buggregator\Trap\Module\Sentry\Frontend\EnvelopeMapper())->map($frame),
             Frame\Monolog::class => (new Mapper\Monolog())->map($frame),
-            Frame\Profiler::class => (new Module\Profiler\Mapper())->frameToEvent($frame),
+            \Buggregator\Trap\Module\Profiler\Frame::class => (new \Buggregator\Trap\Module\Profiler\Frontend\Mapper())->frameToEvent($frame),
             default => throw new \InvalidArgumentException('Unknown frame type ' . $frame::class),
         };
     }

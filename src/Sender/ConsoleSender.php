@@ -33,7 +33,7 @@ final class ConsoleSender implements Sender
         $renderer->register(new Renderer\Monolog());
         $renderer->register(new Renderer\Smtp());
         $renderer->register(new Renderer\Http());
-        $renderer->register(new Renderer\Profiler());
+        $renderer->register(new \Buggregator\Trap\Module\Profiler\Console\Renderer());
         $renderer->register(new Renderer\Binary());
         $renderer->register(new Renderer\Plain());
 
