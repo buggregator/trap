@@ -17,10 +17,12 @@ use Nyholm\Psr7\Response;
 /**
  * @internal
  */
-trait AssetsController
+final class AssetsController
 {
-    private readonly Logger $logger;
-    private readonly EventStorage $eventsStorage;
+    public function __construct(
+        private readonly Logger $logger,
+        private readonly EventStorage $eventsStorage,
+    ) {}
 
     /**
      * @param non-empty-string $eventId

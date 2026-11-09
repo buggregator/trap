@@ -8,7 +8,6 @@ use Buggregator\Trap\Handler\Http\Handler\Fallback;
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Handler\Pipeline as MiddlewaresPipeline;
 use Buggregator\Trap\Info;
-use Buggregator\Trap\Logger;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -27,8 +26,7 @@ final class Pipeline implements Middleware
     private MiddlewaresPipeline $pipeline;
 
     public function __construct(
-        Logger $logger,
-        \Buggregator\Trap\Module\Frontend\Sender\FrontendSender $wsSender,
+        EventAssets $assets,
         Router $router,
     ) {
         // Build pipeline of handlers.
@@ -37,7 +35,7 @@ final class Pipeline implements Middleware
             [
                 new Cors(),
                 new StaticFiles(),
-                new EventAssets($logger, $wsSender->getEventStorage()),
+                $assets,
                 $router,
             ],
             /** @see Middleware::handle() */

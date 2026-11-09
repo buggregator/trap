@@ -17,9 +17,6 @@ final class Router
     /** @var array<class-string, self> */
     private static array $cache = [];
 
-    /** @var null|object Null for routes defined in static methods */
-    private ?object $object = null;
-
     /**
      * @param array<non-empty-string, list<RouteDto>> $routes Indexed by {@see Method}: Method => RouteDto[]
      */
@@ -131,6 +128,34 @@ final class Router
     }
 
     /**
+     * Create a router over the routes of several objects.
+     *
+     * A request is matched against the routes in the order of the objects, then of their methods.
+     *
+     * @throws \LogicException When an object has no routes, or routes of two objects collide: the same method
+     *         and path or pattern, or a static path matched by a pattern.
+     * @throws \Exception
+     */
+    public static function compose(object ...$objects): self
+    {
+        $index = \array_fill_keys(\array_column(Method::cases(), 'value'), []);
+        foreach ($objects as $object) {
+            foreach (self::new($object)->routes as $method => $routes) {
+                foreach ($routes as $route) {
+                    foreach ($index[$method] as $known) {
+                        self::assertNoCollision($known, $route);
+                    }
+                }
+
+                // Added after the check: routes of one object may overlap, as they do in one router
+                \array_push($index[$method], ...$routes);
+            }
+        }
+
+        return new self($index);
+    }
+
+    /**
      * Convert query parameter to the specified type.
      */
     public static function convertQueryParam(
@@ -219,18 +244,7 @@ final class Router
         $query = $components['query'] ?? '';
 
         foreach ($this->routes[$method->value] as $route) {
-            $rr = $route->route;
-            /** @psalm-suppress ArgumentTypeCoercion */
-            $match = match ($rr::class) {
-                Attribute\StaticRoute::class => $path === (string) $rr->path,
-                Attribute\RegexpRoute::class => \preg_match((string) $rr->regexp, $path, $matches) === 1
-                    ? \array_filter($matches, '\is_string', \ARRAY_FILTER_USE_KEY)
-                    : false,
-                default => throw new \LogicException(\sprintf(
-                    'Route type `%s` is not supported.',
-                    $route::class,
-                )),
-            };
+            $match = self::matchPath($route->route, $path);
 
             if ($match === false) {
                 continue;
@@ -240,7 +254,7 @@ final class Router
             \parse_str($query, $get);
 
             // Prepare callable
-            $object = $this->object;
+            $object = $route->object;
             return match (true) {
                 \is_callable($match) => $match,
                 default => static fn(mixed ...$args): mixed => ($mock ?? $route->method)->invokeArgs(
@@ -258,6 +272,72 @@ final class Router
         }
 
         return null;
+    }
+
+    /**
+     * Find the method that handles the specified method and path, without calling it.
+     */
+    public function resolve(Method $method, string $uri): ?\ReflectionMethod
+    {
+        $path = \ltrim(\parse_url($uri)['path'] ?? '', '/');
+
+        foreach ($this->routes[$method->value] as $route) {
+            if (self::matchPath($route->route, $path) !== false) {
+                return $route->method;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<array-key, string>|bool False when the path doesn't match; the named groups of a pattern
+     */
+    private static function matchPath(RouteAttribute $route, string $path): array|bool
+    {
+        /** @psalm-suppress ArgumentTypeCoercion */
+        return match ($route::class) {
+            Attribute\StaticRoute::class => $path === (string) $route->path,
+            Attribute\RegexpRoute::class => \preg_match((string) $route->regexp, $path, $matches) === 1
+                ? \array_filter($matches, '\is_string', \ARRAY_FILTER_USE_KEY)
+                : false,
+            default => throw new \LogicException(\sprintf(
+                'Route type `%s` is not supported.',
+                $route::class,
+            )),
+        };
+    }
+
+    /**
+     * Patterns are compared as strings: two different patterns matching the same path are not detected,
+     * except for a static path.
+     *
+     * @throws \LogicException
+     */
+    private static function assertNoCollision(RouteDto $known, RouteDto $new): void
+    {
+        $a = $known->route;
+        $b = $new->route;
+        $collides = match (true) {
+            $a instanceof Attribute\StaticRoute && $b instanceof Attribute\StaticRoute
+                => (string) $a->path === (string) $b->path,
+            $a instanceof Attribute\RegexpRoute && $b instanceof Attribute\RegexpRoute
+                => (string) $a->regexp === (string) $b->regexp,
+            $a instanceof Attribute\RegexpRoute && $b instanceof Attribute\StaticRoute
+                => self::matchPath($a, (string) $b->path) !== false,
+            $a instanceof Attribute\StaticRoute && $b instanceof Attribute\RegexpRoute
+                => self::matchPath($b, (string) $a->path) !== false,
+            default => false,
+        };
+
+        $collides and throw new \LogicException(\sprintf(
+            'Route %s of `%s::%s()` collides with the route of `%s::%s()`.',
+            $b->method->value,
+            $new->method->class,
+            $new->method->name,
+            $known->method->class,
+            $known->method->name,
+        ));
     }
 
     /**
@@ -373,8 +453,12 @@ final class Router
      */
     private function withObject(object $object): self
     {
-        $new = clone $this;
-        $new->object = $object;
-        return $new;
+        return new self(\array_map(
+            static fn(array $routes): array => \array_map(
+                static fn(RouteDto $route): RouteDto => new RouteDto($route->method, $route->route, $object),
+                $routes,
+            ),
+            $this->routes,
+        ));
     }
 }

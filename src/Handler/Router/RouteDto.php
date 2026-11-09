@@ -14,5 +14,7 @@ final class RouteDto
     public function __construct(
         public \ReflectionMethod $method,
         public Route $route,
+        /** Null for a static method or a route of a class rather than an object */
+        public ?object $object = null,
     ) {}
 }

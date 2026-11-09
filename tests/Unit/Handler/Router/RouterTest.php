@@ -11,9 +11,13 @@ use Buggregator\Trap\Handler\Router\Attribute\RegexpRoute;
 use Buggregator\Trap\Handler\Router\Attribute\Route as RouteAttribute;
 use Buggregator\Trap\Handler\Router\Attribute\StaticRoute;
 use Buggregator\Trap\Handler\Router\Method;
+use Buggregator\Trap\Handler\Router\RouteDto;
 use Buggregator\Trap\Handler\Router\Router;
+use Buggregator\Trap\Module\Frontend\UiControllers;
+use Internal\Container\ObjectContainer;
 use Testo\Assert;
 use Testo\Data\DataProvider;
+use Testo\Expect;
 use Testo\Test;
 
 #[Test]
@@ -22,8 +26,57 @@ final class RouterTest
     public static function routedClassesProvider(): iterable
     {
         yield 'self' => [self::class];
-        yield 'Frontend Service' => [\Buggregator\Trap\Module\Frontend\Service::class];
-        yield 'Frontend Event Assets' => [\Buggregator\Trap\Module\Frontend\Http\EventAssets::class];
+
+        $controllers = new UiControllers(new ObjectContainer());
+        foreach ([...$controllers->api(), ...$controllers->assets()] as $controller) {
+            yield $controller::class => [$controller::class];
+        }
+    }
+
+    public static function collidingObjectsProvider(): iterable
+    {
+        $staticRoute = static fn(): object => new class {
+            #[StaticRoute(Method::Get, 'api/events')]
+            public function list(): string
+            {
+                return 'static';
+            }
+        };
+
+        yield 'the same object twice' => [[$self = new self(), $self]];
+        yield 'two objects of the same class' => [[new self(), new self()]];
+        yield 'the same static path' => [[$staticRoute(), new class {
+            #[StaticRoute(Method::Get, 'api/events')]
+            public function list(): string
+            {
+                return 'other';
+            }
+        }]];
+        yield 'the same pattern' => [[
+            new class {
+                #[RegexpRoute(Method::Get, '#^api/event/(?<uuid>[a-f0-9-]++)$#i')]
+                public function show(string $uuid): string
+                {
+                    return $uuid;
+                }
+            },
+            new class {
+                #[RegexpRoute(Method::Get, '#^api/event/(?<uuid>[a-f0-9-]++)$#i')]
+                public function show(string $uuid): string
+                {
+                    return $uuid;
+                }
+            },
+        ]];
+        $pattern = new class {
+            #[RegexpRoute(Method::Get, '#^api/(?<name>[a-z]++)$#')]
+            public function any(string $name): string
+            {
+                return $name;
+            }
+        };
+        yield 'a pattern before a static path it matches' => [[$pattern, $staticRoute()]];
+        yield 'a static path before a pattern matching it' => [[$staticRoute(), $pattern]];
     }
 
     #[StaticRoute(Method::Get, 'public-static-static-route')]
@@ -112,6 +165,79 @@ final class RouterTest
 
         Assert::notNull($route = $router->match(Method::Delete, '/item/123e4567-e89b-12d3-a456-426614174000'));
         Assert::same($route(uuid: 'no-pasaran'), '123e4567-e89b-12d3-a456-426614174000');
+    }
+
+    public function testComposedRouterCallsMethodsOfTheirObjects(): void
+    {
+        $other = new class('other') {
+            public function __construct(
+                private readonly string $name,
+            ) {}
+
+            #[RegexpRoute(Method::Get, '#^other/(?<id>\d++)$#')]
+            public function show(string $id): string
+            {
+                return "$this->name:$id";
+            }
+        };
+
+        $router = Router::compose($this, $other);
+
+        Assert::same($router->match(Method::Get, '/public-static-route')(), 'public-static-route-result');
+        Assert::same($router->match(Method::Get, '/other/42')(), 'other:42');
+        Assert::same($router->match(Method::Delete, '/item/f00')(), 'f00');
+        Assert::null($router->match(Method::Get, '/unknown'));
+    }
+
+    public function testComposedRouterKeepsOrderOfObjectsThenMethods(): void
+    {
+        $first = new class {
+            #[StaticRoute(Method::Get, 'b')]
+            public function b(): void {}
+
+            #[StaticRoute(Method::Get, 'a')]
+            public function a(): void {}
+        };
+        $second = new class {
+            #[RegexpRoute(Method::Get, '#^c#')]
+            public function c(): void {}
+        };
+
+        $router = Router::compose($first, $second);
+        $order = (new \ReflectionProperty(Router::class, 'routes'))->getValue($router)[Method::Get->value];
+
+        Assert::same(
+            \array_map(static fn(RouteDto $route): string => $route->method->name, $order),
+            ['b', 'a', 'c'],
+        );
+        Assert::same($order[0]->object, $first);
+        Assert::same($order[2]->object, $second);
+    }
+
+    public function testResolveFindsMethodWithoutCallingIt(): void
+    {
+        $router = Router::compose($this);
+
+        Assert::same($router->resolve(Method::Get, '/private-route?x=1')?->name, 'privateRoute');
+        Assert::null($router->resolve(Method::Post, '/private-route'));
+    }
+
+    public function testComposeRejectsObjectWithoutRoutes(): void
+    {
+        Expect::exception(\LogicException::class)->withMessageContaining('has no routes');
+
+        Router::compose($this, new \stdClass());
+    }
+
+    /**
+     * @param list<object> $objects
+     */
+    #[DataProvider('collidingObjectsProvider')]
+    public function testComposeRejectsCollidingRoutes(array $objects): void
+    {
+        Expect::exception(\LogicException::class)->withMessageContaining('collides with the route of');
+
+        Router::compose(...$objects);
     }
 
     #[StaticRoute(Method::Get, 'public-static-route')]

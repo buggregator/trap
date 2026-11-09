@@ -7,9 +7,7 @@ namespace Buggregator\Trap\Module\Frontend\Http;
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Handler\Router\Method;
 use Buggregator\Trap\Handler\Router\Router as CommonRouter;
-use Buggregator\Trap\Logger;
-use Buggregator\Trap\Module\Frontend\EventStorage;
-use Buggregator\Trap\Module\Mailer\Frontend\AssetsController as MailerAssetsController;
+use Buggregator\Trap\Module\Frontend\UiControllers;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -20,15 +18,11 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 final class EventAssets implements Middleware
 {
-    use MailerAssetsController;
-
     private readonly CommonRouter $router;
 
-    public function __construct(
-        private readonly Logger $logger,
-        private readonly EventStorage $eventsStorage,
-    ) {
-        $this->router = CommonRouter::new($this);
+    public function __construct(UiControllers $controllers)
+    {
+        $this->router = CommonRouter::compose(...$controllers->assets());
     }
 
     #[\Override]

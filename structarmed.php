@@ -91,18 +91,9 @@ return $architecture
         'Buggregator\Trap\Module\VarDumper\Frame',
         'Buggregator\Trap\Module\VarDumper\Frontend\Mapper',
     ])
-    // Registration point: UI API routes of the source modules.
-    ->skipClassViolation('Buggregator\Trap\Module\Frontend\Service', [
+    // Registration point: UI endpoint controllers of the source modules.
+    ->skipClassViolation('Buggregator\Trap\Module\Frontend\UiControllers', [
         'Buggregator\Trap\Module\Mailer\Frontend\ApiController',
-        'Buggregator\Trap\Module\Mailer\Frontend\Message\Attachments',
-        'Buggregator\Trap\Module\Profiler\Frame\Payload',
-        'Buggregator\Trap\Module\Profiler\Frontend\ApiController',
-        'Buggregator\Trap\Module\Profiler\Frontend\Mapper',
-        'Buggregator\Trap\Module\Profiler\Frontend\Message\CallGraph',
-        'Buggregator\Trap\Module\Profiler\Frontend\Message\FlameChart',
-        'Buggregator\Trap\Module\Profiler\Frontend\Message\TopFunctions',
-    ])
-    // Registration point: UI asset routes of the Mailer module.
-    ->skipClassViolation('Buggregator\Trap\Module\Frontend\Http\EventAssets', [
         'Buggregator\Trap\Module\Mailer\Frontend\AssetsController',
+        'Buggregator\Trap\Module\Profiler\Frontend\ApiController',
     ]);
