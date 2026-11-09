@@ -10,6 +10,7 @@ use Buggregator\Trap\Config\Server\SocketServer;
 use Buggregator\Trap\Config\Server\TcpPorts;
 use Buggregator\Trap\Info;
 use Buggregator\Trap\Logger;
+use Buggregator\Trap\Module\Mailer;
 use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Sender;
 use Internal\Container\Container;
@@ -103,7 +104,7 @@ final class Run extends Command implements SignalableCommandInterface
         ));
         $registry->register('file', static fn(): Sender => new Sender\EventsToFileSender());
         $registry->register('file-body', static fn(): Sender => new Sender\BodyToFileSender());
-        $registry->register('mail-to-file', static fn(): Sender => new Sender\MailToFileSender());
+        $registry->register('mail-to-file', static fn(): Sender => new Mailer\Sender\MailToFileSender());
         $registry->register('server', static fn(): Sender => new Sender\RemoteSender(host: '127.0.0.1', port: 9099));
 
         return $registry;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Sender;
 
+use Buggregator\Trap\Module\Mailer;
 use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Sender;
 use Buggregator\Trap\Sender\Console\FrameHandler;
@@ -31,7 +32,7 @@ final class ConsoleSender implements Sender
         $renderer->register(new Renderer\SentryEnvelope());
         $renderer->register(new Renderer\OtlpTraces($spanStore ?? new SpanStore()));
         $renderer->register(new Renderer\Monolog());
-        $renderer->register(new Renderer\Smtp());
+        $renderer->register(new Mailer\Console\Renderer());
         $renderer->register(new Renderer\Http());
         $renderer->register(new Renderer\Profiler());
         $renderer->register(new Renderer\Binary());

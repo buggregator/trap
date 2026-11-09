@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Module\Frontend\Mapper;
+namespace Buggregator\Trap\Module\Mailer\Frontend;
 
 use Buggregator\Trap\Module\Frontend\Event;
-use Buggregator\Trap\Proto\Frame\Smtp as SmtpFrame;
+use Buggregator\Trap\Module\Mailer\Frame as SmtpFrame;
+use Buggregator\Trap\Module\Mailer\Message as SmtpMessage;
+use Buggregator\Trap\Module\Mailer\MessageFormat;
 use Buggregator\Trap\Support\Uuid;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
-use Buggregator\Trap\Traffic\Message\Smtp as SmtpMessage;
-use Buggregator\Trap\Traffic\Message\Smtp\MessageFormat;
 
 /**
  * @internal
  */
-final class Smtp
+final class Mapper
 {
     public function map(SmtpFrame $frame): Event
     {

@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Tests\Unit\Traffic\Dispatcher;
+namespace Buggregator\Trap\Tests\Unit\Module\Mailer\Traffic;
 
-use Buggregator\Trap\Proto\Frame\Smtp as SmtpFrame;
+use Buggregator\Trap\Module\Mailer\Frame as SmtpFrame;
+use Buggregator\Trap\Module\Mailer\Traffic\Dispatcher;
 use Buggregator\Trap\Test\Mock\StreamClientMock;
 use Buggregator\Trap\Tests\Unit\FiberTrait;
-use Buggregator\Trap\Traffic\Dispatcher\Smtp;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
 
-#[Covers(Smtp::class)]
-final class SmtpTest
+#[Covers(Dispatcher::class)]
+final class DispatcherTest
 {
     use FiberTrait;
 
@@ -24,7 +24,7 @@ final class SmtpTest
 
         $this->runInFiber(static function () use ($stream): void {
             $cnt = 0;
-            foreach ((new Smtp())->dispatch($stream) as $frame) {
+            foreach ((new Dispatcher())->dispatch($stream) as $frame) {
                 Assert::instanceOf($frame, SmtpFrame::class);
                 Assert::same($frame->message->getSubject(), 'Test email');
                 ++$cnt;
@@ -48,7 +48,7 @@ final class SmtpTest
 
         $this->runInFiber(static function () use ($stream): void {
             $cnt = 0;
-            foreach ((new Smtp())->dispatch($stream) as $frame) {
+            foreach ((new Dispatcher())->dispatch($stream) as $frame) {
                 Assert::instanceOf($frame, SmtpFrame::class);
                 Assert::same($frame->message->getSubject(), "Test email");
                 Assert::same($frame->message->getProtocol()['BCC'], ['user1@company.tld', 'user2@company.tld'], 'RSET should clear the buffered data.');
@@ -74,7 +74,7 @@ final class SmtpTest
 
         $this->runInFiber(static function () use ($stream): void {
             $i = 1;
-            foreach ((new Smtp())->dispatch($stream) as $frame) {
+            foreach ((new Dispatcher())->dispatch($stream) as $frame) {
                 Assert::instanceOf($frame, SmtpFrame::class);
                 Assert::same($frame->message->getSubject(), "Test email $i");
 

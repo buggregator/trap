@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Traffic\Message;
+namespace Buggregator\Trap\Module\Mailer;
 
+use Buggregator\Trap\Traffic\Message\Headers;
 use Buggregator\Trap\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
-use Buggregator\Trap\Traffic\Message\Smtp\Contact;
-use Buggregator\Trap\Traffic\Message\Smtp\MessageFormat;
+use Buggregator\Trap\Traffic\Message\StreamBody;
 use Psr\Http\Message\StreamInterface;
 
 /**
@@ -25,7 +25,7 @@ use Psr\Http\Message\StreamInterface;
  *
  * @internal
  */
-final class Smtp implements \JsonSerializable
+final class Message implements \JsonSerializable
 {
     use Headers;
     use StreamBody;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Proto\Server\Version;
 
+use Buggregator\Trap\Module\Mailer;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Server\Request;
 use Buggregator\Trap\ProtoType;
@@ -85,7 +86,7 @@ final class V1 implements PayloadDecoder
                         \assert($date !== false, 'Invalid date.');
 
                         return match ($item['type']) {
-                            ProtoType::SMTP->value => Frame\Smtp::fromString($payload, $date),
+                            ProtoType::SMTP->value => Mailer\Frame::fromString($payload, $date),
                             ProtoType::Monolog->value => Frame\Monolog::fromString($payload, $date),
                             ProtoType::VarDumper->value => Frame\VarDumper::fromString($payload, $date),
                             ProtoType::HTTP->value => Frame\Http::fromString($payload, $date),

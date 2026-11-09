@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Tests\Unit\Sender;
+namespace Buggregator\Trap\Tests\Unit\Module\Mailer\Sender;
 
 use Buggregator\Trap\Info;
-use Buggregator\Trap\Proto\Frame\Smtp as SmtpFrame;
-use Buggregator\Trap\Sender\MailToFileSender;
-use Buggregator\Trap\Traffic\Message\Smtp as SmtpMessage;
+use Buggregator\Trap\Module\Mailer\Frame as SmtpFrame;
+use Buggregator\Trap\Module\Mailer\Message as SmtpMessage;
+use Buggregator\Trap\Module\Mailer\Sender\MailToFileSender;
 use Testo\Assert;
 use Testo\Lifecycle\AfterTest;
 use Testo\Test;
 
 /**
- * @coversDefaultClass \Buggregator\Trap\Sender\MailToFileSender
+ * @coversDefaultClass \Buggregator\Trap\Module\Mailer\Sender\MailToFileSender
  */
 #[Test]
 final class MailToFileSenderTest

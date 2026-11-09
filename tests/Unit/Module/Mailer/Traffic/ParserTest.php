@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Tests\Unit\Traffic\Parser;
+namespace Buggregator\Trap\Tests\Unit\Module\Mailer\Traffic;
 
+use Buggregator\Trap\Module\Mailer\Message;
+use Buggregator\Trap\Module\Mailer\Traffic\Parser;
 use Buggregator\Trap\Test\Mock\StreamClientMock;
 use Buggregator\Trap\Tests\Unit\FiberTrait;
-use Buggregator\Trap\Traffic\Message;
-use Buggregator\Trap\Traffic\Parser;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Data\DataProvider;
 use Testo\Test;
 
-#[Covers(Parser\Smtp::class)]
-final class SmtpParserTest
+#[Covers(Parser::class)]
+final class ParserTest
 {
     use FiberTrait;
 
@@ -30,7 +30,7 @@ final class SmtpParserTest
     #[Test]
     public function testParseHeader(string $headerString, array $expected): void
     {
-        Assert::same(Parser\Smtp::parseHeaders($headerString), $expected);
+        Assert::same(Parser::parseHeaders($headerString), $expected);
     }
 
     #[Test]
@@ -204,7 +204,7 @@ final class SmtpParserTest
         Assert::count($message->getAttachments(), 1);
     }
 
-    private function parse(array|string $body, array $protocol = []): Message\Smtp
+    private function parse(array|string $body, array $protocol = []): Message
     {
         $stream = StreamClientMock::createFromGenerator(
             (static function () use ($body) {
@@ -215,6 +215,6 @@ final class SmtpParserTest
                 yield from $body;
             })(),
         );
-        return $this->runInFiber(static fn() => (new Parser\Smtp())->parseStream($protocol, $stream));
+        return $this->runInFiber(static fn() => (new Parser())->parseStream($protocol, $stream));
     }
 }

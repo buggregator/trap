@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Traffic\Parser;
+namespace Buggregator\Trap\Module\Mailer\Traffic;
 
+use Buggregator\Trap\Module\Mailer\Message;
 use Buggregator\Trap\Support\StreamHelper;
-use Buggregator\Trap\Traffic\Message;
 use Buggregator\Trap\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
+use Buggregator\Trap\Traffic\Parser\Http;
 use Buggregator\Trap\Traffic\StreamClient;
 use Psr\Http\Message\StreamInterface;
 
@@ -15,7 +16,7 @@ use Psr\Http\Message\StreamInterface;
  * Todo: parse and decrypt `Content-Transfer-Encoding: base64`, `Content-Transfer-Encoding: 7bit`
  * @internal
  */
-final class Smtp
+final class Parser
 {
     /**
      * @return array<array-key, non-empty-list<non-empty-string>>
@@ -60,7 +61,7 @@ final class Smtp
     /**
      * @param array<non-empty-string, list<string>> $protocol
      */
-    public function parseStream(array $protocol, StreamClient $stream): Message\Smtp
+    public function parseStream(array $protocol, StreamClient $stream): Message
     {
         $headerBlock = Http::getBlock($stream);
         $headers = self::parseHeaders($headerBlock);
@@ -69,7 +70,7 @@ final class Smtp
         $fileStream->write($headerBlock . "\r\n\r\n");
 
         // Create message with headers only.
-        $message = Message\Smtp::create($protocol, headers: $headers);
+        $message = Message::create($protocol, headers: $headers);
 
         // Defaults
         $endOfStream = ["\r\n.\r\n"];
@@ -140,7 +141,7 @@ final class Smtp
         return $written;
     }
 
-    private function processSingleBody(Message\Smtp $message, StreamInterface $stream): Message\Smtp
+    private function processSingleBody(Message $message, StreamInterface $stream): Message
     {
         $content = \preg_replace(["/^\.([^\r])/m", "/(\r\n\\.\r\n)$/D"], ['$1', ''], $stream->getContents());
 
@@ -153,7 +154,7 @@ final class Smtp
         return $message->withMessages([$body]);
     }
 
-    private function processMultipartForm(Message\Smtp $message, StreamInterface $stream): Message\Smtp
+    private function processMultipartForm(Message $message, StreamInterface $stream): Message
     {
         if (\preg_match('/boundary="?([^"\\s;]++)"?/', $message->getHeaderLine('Content-Type'), $matches) !== 1) {
             return $message;

@@ -2,29 +2,28 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Traffic\Dispatcher;
+namespace Buggregator\Trap\Module\Mailer\Traffic;
 
-use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Traffic\Dispatcher;
-use Buggregator\Trap\Traffic\Parser;
+use Buggregator\Trap\Module\Mailer\Frame;
+use Buggregator\Trap\Traffic\Dispatcher as TrafficDispatcher;
 use Buggregator\Trap\Traffic\StreamClient;
 
 /**
  * @internal
  * @psalm-internal Buggregator\Trap
  */
-final class Smtp implements Dispatcher
+final class Dispatcher implements TrafficDispatcher
 {
     private const READY = 220;
     public const OK = 250;
     public const CLOSING = 221;
     public const START_MAIL_INPUT = 354;
 
-    private Parser\Smtp $parser;
+    private Parser $parser;
 
     public function __construct(
     ) {
-        $this->parser = new Parser\Smtp();
+        $this->parser = new Parser();
     }
 
     // todo support Auth https://www.rfc-editor.org/rfc/rfc4954
@@ -56,7 +55,7 @@ final class Smtp implements Dispatcher
                 $stream->sendData($this->createResponse(self::START_MAIL_INPUT));
                 $message = $this->parser->parseStream($protocol, $stream);
                 $stream->sendData($this->createResponse(self::OK));
-                yield new Frame\Smtp($message, $stream->getCreatedAt());
+                yield new Frame($message, $stream->getCreatedAt());
                 $protocol = [];
                 unset($message);
             }

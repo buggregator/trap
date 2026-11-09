@@ -2,24 +2,24 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Tests\Unit\Module\Frontend\Mapper;
+namespace Buggregator\Trap\Tests\Unit\Module\Mailer\Frontend;
 
 use Buggregator\Trap\Module\Frontend\Event\AttachedFile;
 use Buggregator\Trap\Module\Frontend\Event\EmbeddedFile;
-use Buggregator\Trap\Module\Frontend\Mapper\Smtp;
-use Buggregator\Trap\Proto\Frame\Smtp as SmtpFrame;
+use Buggregator\Trap\Module\Mailer\Contact;
+use Buggregator\Trap\Module\Mailer\Frame as SmtpFrame;
+use Buggregator\Trap\Module\Mailer\Frontend\Mapper;
+use Buggregator\Trap\Module\Mailer\Message as SmtpMessage;
 use Buggregator\Trap\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Traffic\Message\Multipart\File;
-use Buggregator\Trap\Traffic\Message\Smtp as SmtpMessage;
-use Buggregator\Trap\Traffic\Message\Smtp\Contact;
 use Nyholm\Psr7\Stream;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
 
-#[Covers(Smtp::class)]
+#[Covers(Mapper::class)]
 #[Test]
-final class SmtpTest
+final class MapperTest
 {
     public function testMapsMessageToSmtpEvent(): void
     {
@@ -38,7 +38,7 @@ final class SmtpTest
         ])->withBody(Stream::create('raw body'));
         $time = new \DateTimeImmutable('2024-01-02 03:04:05.123456');
 
-        $event = (new Smtp())->map(new SmtpFrame($message, $time));
+        $event = (new Mapper())->map(new SmtpFrame($message, $time));
 
         Assert::same($event->type, 'smtp');
         Assert::string($event->uuid)->notSame('');
@@ -62,7 +62,7 @@ final class SmtpTest
     {
         $message = SmtpMessage::create(protocol: [], headers: []);
 
-        $event = (new Smtp())->map(new SmtpFrame($message));
+        $event = (new Mapper())->map(new SmtpFrame($message));
 
         Assert::same($event->payload['text'], '');
         Assert::same($event->payload['html'], '');
@@ -79,7 +79,7 @@ final class SmtpTest
             ])
             ->withAttachments([$attached, $embedded]);
 
-        $event = (new Smtp())->map(new SmtpFrame($message));
+        $event = (new Mapper())->map(new SmtpFrame($message));
 
         $assets = \iterator_to_array($event->assets);
         Assert::count($assets, 2);

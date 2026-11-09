@@ -2,22 +2,23 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Sender\Console\Renderer;
+namespace Buggregator\Trap\Module\Mailer\Console;
 
+use Buggregator\Trap\Module\Mailer\Frame as MailerFrame;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
-use Buggregator\Trap\Sender\Console\Renderer;
+use Buggregator\Trap\Sender\Console\Renderer as RendererInterface;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Buggregator\Trap\Sender\Console\Support\Files;
 use Buggregator\Trap\Support\Measure;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * @implements Renderer<Frame\Smtp>
+ * @implements RendererInterface<MailerFrame>
  *
  * @internal
  */
-final class Smtp implements Renderer
+final class Renderer implements RendererInterface
 {
     #[\Override]
     public function isSupport(Frame $frame): bool
@@ -28,7 +29,7 @@ final class Smtp implements Renderer
     #[\Override]
     public function render(OutputInterface $output, Frame $frame): void
     {
-        \assert($frame instanceof Frame\Smtp);
+        \assert($frame instanceof MailerFrame);
 
         Common::renderHeader1($output, 'SMTP');
         Common::renderMetadata($output, [

@@ -2,24 +2,23 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Proto\Frame;
+namespace Buggregator\Trap\Module\Mailer;
 
 use Buggregator\Trap\Proto\FilesCarrier;
-use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Proto\Frame as BaseFrame;
 use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Support\Json;
-use Buggregator\Trap\Traffic\Message;
 use Psr\Http\Message\StreamInterface;
 
 /**
  * @internal
  * @psalm-internal Buggregator
- * @psalm-import-type TArrayData from Message\Smtp
+ * @psalm-import-type TArrayData from Message
  */
-final class Smtp extends Frame implements FilesCarrier, \Buggregator\Trap\Proto\StreamCarrier
+final class Frame extends BaseFrame implements FilesCarrier, \Buggregator\Trap\Proto\StreamCarrier
 {
     public function __construct(
-        public readonly Message\Smtp $message,
+        public readonly Message $message,
         \DateTimeImmutable $time = new \DateTimeImmutable(),
     ) {
         parent::__construct(ProtoType::SMTP, $time);
@@ -30,7 +29,7 @@ final class Smtp extends Frame implements FilesCarrier, \Buggregator\Trap\Proto\
     {
         /** @var TArrayData $data */
         $data = \json_decode($payload, true, 64, \JSON_THROW_ON_ERROR);
-        $message = Message\Smtp::fromArray($data);
+        $message = Message::fromArray($data);
 
         return new self($message, $time);
     }

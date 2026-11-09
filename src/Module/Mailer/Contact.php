@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Traffic\Message\Smtp;
+namespace Buggregator\Trap\Module\Mailer;
 
 /**
  * @psalm-immutable
