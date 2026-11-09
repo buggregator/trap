@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Proto\Frame\Sentry;
+namespace Buggregator\Trap\Module\Sentry\Frame;
 
 use Buggregator\Trap\Support\Json;
 

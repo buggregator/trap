@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Traffic\Proto\Server\Version;
 
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
+use Buggregator\Trap\Module\Sentry\Frame\SentryStore;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Frame\Otlp\OtlpTraces;
 use Buggregator\Trap\Proto\Frame\Profiler\Payload;
 use Buggregator\Trap\Proto\Frame\Profiler\Type as PayloadType;
-use Buggregator\Trap\Proto\Frame\Sentry\SentryStore;
 use Buggregator\Trap\Proto\Server\Version\V1;
 use Buggregator\Trap\Traffic\Message\Smtp as SmtpMessage;
 use Nyholm\Psr7\ServerRequest;
