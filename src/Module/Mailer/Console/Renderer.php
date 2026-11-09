@@ -6,7 +6,6 @@ namespace Buggregator\Trap\Module\Mailer\Console;
 
 use Buggregator\Trap\Module\Mailer\Frame as MailerFrame;
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\Renderer as RendererInterface;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Buggregator\Trap\Sender\Console\Support\Files;
@@ -23,7 +22,7 @@ final class Renderer implements RendererInterface
     #[\Override]
     public function isSupport(Frame $frame): bool
     {
-        return $frame->type === ProtoType::SMTP;
+        return $frame instanceof MailerFrame;
     }
 
     #[\Override]

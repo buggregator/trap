@@ -7,7 +7,6 @@ namespace Buggregator\Trap\Module\Sentry\Console;
 use Buggregator\Trap\Module\Sentry\Frame\EnvelopeItem;
 use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope as SentryEnvelopeFrame;
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -22,7 +21,7 @@ final class SentryEnvelope implements Renderer
     #[\Override]
     public function isSupport(Frame $frame): bool
     {
-        return $frame->type === ProtoType::Sentry && $frame instanceof SentryEnvelopeFrame;
+        return $frame instanceof SentryEnvelopeFrame;
     }
 
     #[\Override]

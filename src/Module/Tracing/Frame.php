@@ -7,7 +7,6 @@ namespace Buggregator\Trap\Module\Tracing;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\Attributes;
 use Buggregator\Trap\Proto\Frame as ProtoFrame;
-use Buggregator\Trap\ProtoType;
 
 /**
  * OpenTelemetry signals received over OTLP. Each signal is its own subclass,
@@ -20,9 +19,11 @@ use Buggregator\Trap\ProtoType;
  */
 abstract class Frame extends ProtoFrame
 {
+    public const TYPE = 'otlp';
+
     public function __construct(\DateTimeImmutable $time = new \DateTimeImmutable())
     {
-        parent::__construct(ProtoType::Otlp, $time);
+        parent::__construct(self::TYPE, $time);
     }
 
     #[\Override]

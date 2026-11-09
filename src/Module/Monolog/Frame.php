@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Monolog;
 
 use Buggregator\Trap\Proto\Frame as ProtoFrame;
-use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Support\Json;
 
 /**
@@ -14,11 +13,13 @@ use Buggregator\Trap\Support\Json;
  */
 final class Frame extends ProtoFrame
 {
+    public const TYPE = 'monolog';
+
     public function __construct(
         public readonly array $message,
         \DateTimeImmutable $time = new \DateTimeImmutable(),
     ) {
-        parent::__construct(ProtoType::Monolog, $time);
+        parent::__construct(self::TYPE, $time);
     }
 
     #[\Override]

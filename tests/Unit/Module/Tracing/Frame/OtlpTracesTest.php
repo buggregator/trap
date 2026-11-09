@@ -9,7 +9,6 @@ use Buggregator\Trap\Module\Tracing\Frame;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Proto\Server\Version\V1;
-use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\EventsToFileSender;
 use Buggregator\Trap\Support\Json;
 use Testo\Assert;
@@ -32,7 +31,7 @@ final class OtlpTracesTest
         $restored = Frame::fromString((string) $frame, $frame->time);
 
         Assert::instanceOf($restored, OtlpTraces::class);
-        Assert::same($restored->type, ProtoType::Otlp);
+        Assert::same($restored->type, 'otlp');
         Assert::equals($restored, $frame);
         Assert::same((string) $restored, (string) $frame);
     }

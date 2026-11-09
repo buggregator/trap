@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Sentry\Frame;
 
 use Buggregator\Trap\Module\Sentry\Frame;
-use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Support\Json;
 
 /**
@@ -52,7 +51,7 @@ final class SentryStore extends Frame
         public readonly array $message,
         \DateTimeImmutable $time = new \DateTimeImmutable(),
     ) {
-        parent::__construct(ProtoType::Sentry, $time);
+        parent::__construct($time);
     }
 
     /**

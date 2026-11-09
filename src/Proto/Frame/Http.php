@@ -6,7 +6,6 @@ namespace Buggregator\Trap\Proto\Frame;
 
 use Buggregator\Trap\Proto\FilesCarrier;
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
@@ -21,6 +20,8 @@ use Psr\Http\Message\UploadedFileInterface as PsrUploadedFile;
  */
 final class Http extends Frame implements FilesCarrier, \Buggregator\Trap\Proto\StreamCarrier
 {
+    public const TYPE = 'http';
+
     /** @var int<0, max> */
     private readonly int $cachedSize;
 
@@ -33,7 +34,7 @@ final class Http extends Frame implements FilesCarrier, \Buggregator\Trap\Proto\
             static fn(int $carry, PsrUploadedFile $file): int => $carry + (int) $file->getSize(),
             0,
         ));
-        parent::__construct(type: ProtoType::HTTP, time: $time);
+        parent::__construct(self::TYPE, $time);
     }
 
     #[\Override]

@@ -6,7 +6,6 @@ namespace Buggregator\Trap\Module\Profiler\Console;
 
 use Buggregator\Trap\Module\Profiler\Frame as ProfilerFrame;
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\Renderer as RendererInterface;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Buggregator\Trap\Sender\Console\Support\Tables;
@@ -23,7 +22,7 @@ final class Renderer implements RendererInterface
     #[\Override]
     public function isSupport(Frame $frame): bool
     {
-        return $frame->type === ProtoType::Profiler;
+        return $frame instanceof ProfilerFrame;
     }
 
     /**
