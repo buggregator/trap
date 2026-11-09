@@ -27,13 +27,13 @@ final class ConsoleSender implements Sender
         // Configure renderer
         $renderer = new FrameHandler($output);
         $renderer->register(new Renderer\VarDumper());
-        $renderer->register(new Renderer\SentryStore());
-        $renderer->register(new Renderer\SentryEnvelope());
+        $renderer->register(new \Buggregator\Trap\Module\Sentry\Console\SentryStore());
+        $renderer->register(new \Buggregator\Trap\Module\Sentry\Console\SentryEnvelope());
         $renderer->register(new Renderer\OtlpTraces($spanStore ?? new SpanStore()));
         $renderer->register(new Renderer\Monolog());
         $renderer->register(new \Buggregator\Trap\Module\Mailer\Console\Renderer());
         $renderer->register(new Renderer\Http());
-        $renderer->register(new Renderer\Profiler());
+        $renderer->register(new \Buggregator\Trap\Module\Profiler\Console\Renderer());
         $renderer->register(new Renderer\Binary());
         $renderer->register(new Renderer\Plain());
 
