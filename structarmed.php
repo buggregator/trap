@@ -25,7 +25,7 @@ return $architecture
         ...\array_fill_keys($sources, ['Core', 'Support', ...$channels]),
     ])
 
-    // The single place that names the modules: the module list.
+    // The single place that names the module manifests: the module list.
     ->skipClassViolation('Buggregator\Trap\Application\Module\Modules', [
         'Buggregator\Trap\Module\Mailer\Module',
         'Buggregator\Trap\Module\Monolog\Module',
