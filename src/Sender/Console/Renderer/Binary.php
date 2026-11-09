@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender\Console\Renderer;
 
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Buggregator\Trap\Support\Measure;
@@ -59,7 +58,7 @@ final class Binary implements Renderer
     #[\Override]
     public function isSupport(Frame $frame): bool
     {
-        return $frame->type === ProtoType::Binary;
+        return $frame instanceof Frame\Binary;
     }
 
     #[\Override]

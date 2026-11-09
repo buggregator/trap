@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Sender\Console\Renderer;
 
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Color;
 use Buggregator\Trap\Sender\Console\Support\Common;
@@ -23,7 +22,7 @@ final class Http implements Renderer
     #[\Override]
     public function isSupport(Frame $frame): bool
     {
-        return $frame->type === ProtoType::HTTP;
+        return $frame instanceof Frame\Http;
     }
 
     #[\Override]

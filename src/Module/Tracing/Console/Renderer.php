@@ -10,7 +10,6 @@ use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\StatusCode;
 use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\Renderer as RendererInterface;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Buggregator\Trap\Support\Json;
@@ -58,7 +57,7 @@ final class Renderer implements RendererInterface
     #[\Override]
     public function isSupport(Frame $frame): bool
     {
-        return $frame->type === ProtoType::Otlp && $frame instanceof OtlpTraces;
+        return $frame instanceof OtlpTraces;
     }
 
     #[\Override]

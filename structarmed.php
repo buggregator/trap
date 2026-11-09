@@ -47,8 +47,8 @@ return $architecture
         'Buggregator\Trap\Module\Mailer\Sender\MailToFileSender',
         'Buggregator\Trap\Module\Tracing\SpanStore',
     ])
-    // Registration point: frame types of the protocol.
-    ->skipClassViolation('Buggregator\Trap\Proto\Server\Version\V1', [
+    // Registration point: the frame type registry maps wire types to the frame classes of the modules.
+    ->skipClassViolation('Buggregator\Trap\Proto\FrameTypes', [
         'Buggregator\Trap\Module\Mailer\Frame',
         'Buggregator\Trap\Module\Monolog\Frame',
         'Buggregator\Trap\Module\Profiler\Frame',

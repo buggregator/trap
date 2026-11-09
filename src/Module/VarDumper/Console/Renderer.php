@@ -6,7 +6,6 @@ namespace Buggregator\Trap\Module\VarDumper\Console;
 
 use Buggregator\Trap\Module\VarDumper\Frame as VarDumperFrame;
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\Renderer as RendererInterface;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -27,7 +26,7 @@ final class Renderer implements RendererInterface
     #[\Override]
     public function isSupport(Frame $frame): bool
     {
-        return $frame->type === ProtoType::VarDumper;
+        return $frame instanceof VarDumperFrame;
     }
 
     #[\Override]

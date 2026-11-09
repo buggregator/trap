@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Proto\Server\Version;
 
 use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Proto\FrameTypes;
 use Buggregator\Trap\Proto\Server\Request;
-use Buggregator\Trap\ProtoType;
 
 /**
  * @internal
@@ -14,6 +14,10 @@ use Buggregator\Trap\ProtoType;
  */
 final class V1 implements PayloadDecoder
 {
+    public function __construct(
+        private readonly FrameTypes $frameTypes = new FrameTypes(),
+    ) {}
+
     #[\Override]
     public function isSupport(string $payload): bool
     {
@@ -61,19 +65,21 @@ final class V1 implements PayloadDecoder
         // UUID
         $this->validateUuid($uuid);
 
+        $frameTypes = $this->frameTypes;
+
         return new Request(
             protocol: $protocol,
             client: $client,
             uuid: $uuid,
             payload: $payload,
-            payloadParser: static function (string $payload): iterable {
+            payloadParser: static function (string $payload) use ($frameTypes): iterable {
                 $data = \json_decode($payload, true, 8, \JSON_THROW_ON_ERROR);
                 if (!\is_array($data)) {
                     throw new \RuntimeException('Decoded data must be array.');
                 }
 
                 return \array_map(
-                    static function (array $item): Frame {
+                    static function (array $item) use ($frameTypes): Frame {
                         \assert(isset($item['type']) && \is_string($item['data']), 'Missing type.');
                         \assert(isset($item['data']) && \is_string($item['data']), 'Missing data.');
                         \assert(isset($item['time']) && \is_string($item['time']), 'Missing time.');
@@ -84,16 +90,10 @@ final class V1 implements PayloadDecoder
                         $date = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s.u', $item['time']);
                         \assert($date !== false, 'Invalid date.');
 
-                        return match ($item['type']) {
-                            ProtoType::SMTP->value => \Buggregator\Trap\Module\Mailer\Frame::fromString($payload, $date),
-                            ProtoType::Monolog->value => \Buggregator\Trap\Module\Monolog\Frame::fromString($payload, $date),
-                            ProtoType::VarDumper->value => \Buggregator\Trap\Module\VarDumper\Frame::fromString($payload, $date),
-                            ProtoType::HTTP->value => Frame\Http::fromString($payload, $date),
-                            ProtoType::Sentry->value => \Buggregator\Trap\Module\Sentry\Frame::fromString($payload, $date),
-                            ProtoType::Profiler->value => \Buggregator\Trap\Module\Profiler\Frame::fromString($payload, $date),
-                            ProtoType::Otlp->value => \Buggregator\Trap\Module\Tracing\Frame::fromString($payload, $date),
-                            default => throw new \RuntimeException('Invalid type.'),
-                        };
+                        $class = \is_string($item['type']) ? $frameTypes->classOf($item['type']) : null;
+                        $class === null and throw new \RuntimeException('Invalid type.');
+
+                        return $class::fromString($payload, $date);
                     },
                     $data,
                 );

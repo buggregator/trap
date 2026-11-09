@@ -25,7 +25,7 @@ final class Plain implements Renderer
     #[\Override]
     public function render(OutputInterface $output, Frame $frame): void
     {
-        Common::renderHeader1($output, $frame->type->value);
+        Common::renderHeader1($output, $frame->type);
 
         Common::renderMetadata($output, [
             'Time' => $frame->time->format('Y-m-d H:i:s.u'),

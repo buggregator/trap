@@ -6,7 +6,6 @@ namespace Buggregator\Trap\Module\Sentry\Console;
 
 use Buggregator\Trap\Module\Sentry\Frame\SentryStore as SentryStoreFrame;
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -21,7 +20,7 @@ final class SentryStore implements Renderer
     #[\Override]
     public function isSupport(Frame $frame): bool
     {
-        return $frame->type === ProtoType::Sentry && $frame instanceof SentryStoreFrame;
+        return $frame instanceof SentryStoreFrame;
     }
 
     #[\Override]

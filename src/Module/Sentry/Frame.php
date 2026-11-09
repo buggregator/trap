@@ -18,6 +18,13 @@ use Buggregator\Trap\Support\Json;
  */
 abstract class Frame extends ProtoFrame
 {
+    public const TYPE = 'sentry';
+
+    public function __construct(\DateTimeImmutable $time = new \DateTimeImmutable())
+    {
+        parent::__construct(self::TYPE, $time);
+    }
+
     #[\Override]
     final public static function fromString(string $payload, \DateTimeImmutable $time): static
     {

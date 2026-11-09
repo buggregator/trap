@@ -4,16 +4,19 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Proto;
 
-use Buggregator\Trap\ProtoType;
-
 /**
+ * A concrete frame declares its wire type as `public const TYPE` and passes it to this constructor.
+ *
  * @internal
  * @psalm-internal Buggregator
  */
 abstract class Frame implements \Stringable, \JsonSerializable
 {
+    /**
+     * @param non-empty-string $type
+     */
     public function __construct(
-        public readonly ProtoType $type,
+        public readonly string $type,
         public readonly \DateTimeImmutable $time = new \DateTimeImmutable(),
     ) {}
 

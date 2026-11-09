@@ -6,7 +6,6 @@ namespace Buggregator\Trap\Module\Mailer;
 
 use Buggregator\Trap\Proto\FilesCarrier;
 use Buggregator\Trap\Proto\Frame as ProtoFrame;
-use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Support\Json;
 use Psr\Http\Message\StreamInterface;
 
@@ -17,11 +16,13 @@ use Psr\Http\Message\StreamInterface;
  */
 final class Frame extends ProtoFrame implements FilesCarrier, \Buggregator\Trap\Proto\StreamCarrier
 {
+    public const TYPE = 'smtp';
+
     public function __construct(
         public readonly Message $message,
         \DateTimeImmutable $time = new \DateTimeImmutable(),
     ) {
-        parent::__construct(ProtoType::SMTP, $time);
+        parent::__construct(self::TYPE, $time);
     }
 
     #[\Override]

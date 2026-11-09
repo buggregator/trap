@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Proto\Frame;
 
 use Buggregator\Trap\Proto\Frame\Http;
-use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
@@ -24,7 +23,7 @@ final class HttpTest
 
         $frame = new Http($request);
 
-        Assert::same($frame->type, ProtoType::HTTP);
+        Assert::same($frame->type, 'http');
         Assert::same($frame->getSize(), 5);
         Assert::false($frame->hasFiles());
         Assert::same($frame->getFiles(), []);

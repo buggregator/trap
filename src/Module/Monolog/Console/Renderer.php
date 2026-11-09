@@ -6,7 +6,6 @@ namespace Buggregator\Trap\Module\Monolog\Console;
 
 use Buggregator\Trap\Module\Monolog\Frame as MonologFrame;
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Sender\Console\Renderer as RendererInterface;
 use Buggregator\Trap\Sender\Console\Support\Color;
 use Buggregator\Trap\Sender\Console\Support\Common;
@@ -22,7 +21,7 @@ final class Renderer implements RendererInterface
     #[\Override]
     public function isSupport(Frame $frame): bool
     {
-        return $frame->type === ProtoType::Monolog;
+        return $frame instanceof MonologFrame;
     }
 
     #[\Override]

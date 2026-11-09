@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Proto\Frame;
 
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\ProtoType;
 use Buggregator\Trap\Support\Json;
 use Psr\Http\Message\StreamInterface;
 
@@ -15,11 +14,13 @@ use Psr\Http\Message\StreamInterface;
  */
 final class Binary extends Frame implements \Buggregator\Trap\Proto\StreamCarrier
 {
+    public const TYPE = 'binary';
+
     public function __construct(
         public readonly StreamInterface $stream,
         \DateTimeImmutable $time = new \DateTimeImmutable(),
     ) {
-        parent::__construct(ProtoType::Binary, $time);
+        parent::__construct(self::TYPE, $time);
     }
 
     #[\Override]
