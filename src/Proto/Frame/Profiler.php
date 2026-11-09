@@ -17,7 +17,7 @@ use Buggregator\Trap\Support\Json;
 final class Profiler extends Frame
 {
     public function __construct(
-        public readonly Frame\Profiler\Payload $payload,
+        public readonly Profiler\Payload $payload,
         \DateTimeImmutable $time = new \DateTimeImmutable(),
     ) {
         parent::__construct(ProtoType::Profiler, $time);
@@ -29,7 +29,7 @@ final class Profiler extends Frame
         /** @var PayloadInput $data */
         $data = Json::decode($payload);
 
-        return new self(Frame\Profiler\Payload::fromArray($data), $time);
+        return new self(Profiler\Payload::fromArray($data), $time);
     }
 
     /**

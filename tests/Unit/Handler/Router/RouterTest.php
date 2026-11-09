@@ -22,20 +22,20 @@ final class RouterTest
     public static function routedClassesProvider(): iterable
     {
         yield 'self' => [self::class];
-        yield 'Frontend Service' => [\Buggregator\Trap\Sender\Frontend\Service::class];
-        yield 'Frontend Event Assets' => [\Buggregator\Trap\Sender\Frontend\Http\EventAssets::class];
+        yield 'Frontend Service' => [\Buggregator\Trap\Module\Frontend\Service::class];
+        yield 'Frontend Event Assets' => [\Buggregator\Trap\Module\Frontend\Http\EventAssets::class];
     }
 
-    #[StaticRoute(Method::Get, '/public-static-static-route')]
+    #[StaticRoute(Method::Get, 'public-static-static-route')]
     public static function publicStaticStaticRoute(): string
     {
         return 'public-static-static-route-result';
     }
 
-    #[AssertRouteSuccess(Method::Delete, '/item/f00', ['uuid' => 'f00'])]
-    #[AssertRouteSuccess(Method::Delete, '/item/fzzzzzzzzz', ['uuid' => 'f'])]
-    #[AssertRouteFail(Method::Get, '/item/f00')]
-    #[RegexpRoute(Method::Delete, '#^/item/(?<uuid>[a-f0-9-]++)#i')]
+    #[AssertRouteSuccess(Method::Delete, 'item/f00', ['uuid' => 'f00'])]
+    #[AssertRouteSuccess(Method::Delete, 'item/fzzzzzzzzz', ['uuid' => 'f'])]
+    #[AssertRouteFail(Method::Get, 'item/f00')]
+    #[RegexpRoute(Method::Delete, '#^item/(?<uuid>[a-f0-9-]++)#i')]
     public static function publicStaticRegexpRoute(string $uuid): string
     {
         return $uuid;
@@ -62,7 +62,7 @@ final class RouterTest
                 $asserts,
             );
 
-            Router::assert($routes, $asserts);
+            Router::assert($method, $routes, $asserts);
             Assert::true(true, (string) $method . ' passed');
         }
     }
@@ -114,16 +114,16 @@ final class RouterTest
         Assert::same($route(uuid: 'no-pasaran'), '123e4567-e89b-12d3-a456-426614174000');
     }
 
-    #[StaticRoute(Method::Get, '/public-static-route')]
+    #[StaticRoute(Method::Get, 'public-static-route')]
     public function publicStaticRoute(): string
     {
         return 'public-static-route-result';
     }
 
     #[AssertRouteSuccess(Method::Get, '/private-route')]
+    #[AssertRouteSuccess(Method::Get, 'private-route')]
     #[AssertRouteFail(Method::Post, '/private-route')]
-    #[AssertRouteFail(Method::Get, 'private-route')]
-    #[StaticRoute(Method::Get, '/private-route')]
+    #[StaticRoute(Method::Get, 'private-route')]
     private function privateRoute(): never
     {
         throw new \LogicException('This method should not be called.');

@@ -88,6 +88,30 @@ final class Cost implements \JsonSerializable
     }
 
     /**
+     * Sets the `p_*` metrics: shares of the peaks, %.
+     */
+    public function setPercentsOf(Peaks $peaks): void
+    {
+        $this->p_ct = self::percent($this->ct, $peaks->ct);
+        $this->p_wt = self::percent($this->wt, $peaks->wt);
+        $this->p_cpu = self::percent($this->cpu, $peaks->cpu);
+        $this->p_mu = self::percent($this->mu, $peaks->mu);
+        $this->p_pmu = self::percent($this->pmu, $peaks->pmu);
+    }
+
+    /**
+     * Sets the `d_*` metrics: differences from the parent's cost.
+     */
+    public function setDeltasTo(self $parent): void
+    {
+        $this->d_ct = $this->ct - $parent->ct;
+        $this->d_wt = $this->wt - $parent->wt;
+        $this->d_cpu = $this->cpu - $parent->cpu;
+        $this->d_mu = $this->mu - $parent->mu;
+        $this->d_pmu = $this->pmu - $parent->pmu;
+    }
+
+    /**
      * @return array{
      *     ct: int<0, max>,
      *     wt: int<0, max>,
@@ -126,5 +150,10 @@ final class Cost implements \JsonSerializable
             'd_mu' => $this->d_mu,
             'd_pmu' => $this->d_pmu,
         ];
+    }
+
+    private static function percent(int $value, int $total): float
+    {
+        return $total > 0 ? \round((float) $value / (float) $total * 100.0, 3) : 0.0;
     }
 }

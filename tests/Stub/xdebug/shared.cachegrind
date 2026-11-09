@@ -1,0 +1,126 @@
+version: 1
+creator: xdebug 3.4.0 (PHP 8.4.23)
+cmd: /app/shared.php
+part: 1
+positions: line
+
+events: Time_(10ns) Memory_(bytes)
+
+fl=(1) php:internal
+fn=(1) php::str_repeat
+2 180 1280
+
+fl=(2) /app/shared.php
+fn=(2) y
+2 610 40
+cfl=(1)
+cfn=(1)
+calls=1 0 0
+2 180 1280
+
+fl=(2)
+fn=(3) x
+3 240 0
+cfl=(2)
+cfn=(2)
+calls=1 0 0
+3 790 1320
+
+fl=(2)
+fn=(4) a
+4 160 0
+cfl=(2)
+cfn=(3)
+calls=1 0 0
+4 1030 1312
+
+fl=(1)
+fn=(1)
+2 20 1280
+
+fl=(2)
+fn=(2)
+2 70 40
+cfl=(1)
+cfn=(1)
+calls=1 0 0
+2 20 1280
+
+fl=(2)
+fn=(3)
+3 70 0
+cfl=(2)
+cfn=(2)
+calls=1 0 0
+3 90 1320
+
+fl=(1)
+fn=(1)
+2 10 1280
+
+fl=(2)
+fn=(2)
+2 50 40
+cfl=(1)
+cfn=(1)
+calls=1 0 0
+2 10 1280
+
+fl=(2)
+fn=(3)
+3 50 0
+cfl=(2)
+cfn=(2)
+calls=1 0 0
+3 60 1320
+
+fl=(1)
+fn=(1)
+2 10 1280
+
+fl=(2)
+fn=(2)
+2 50 40
+cfl=(1)
+cfn=(1)
+calls=1 0 0
+2 10 1280
+
+fl=(2)
+fn=(3)
+3 60 0
+cfl=(2)
+cfn=(2)
+calls=1 0 0
+3 60 1320
+
+fl=(2)
+fn=(5) b
+5 190 0
+cfl=(2)
+cfn=(3)
+calls=1 0 0
+5 160 1312
+cfl=(2)
+cfn=(3)
+calls=1 0 0
+5 110 1312
+cfl=(2)
+cfn=(3)
+calls=1 0 0
+5 120 1312
+
+fl=(2)
+fn=(6) {main}
+1 1330 0
+cfl=(2)
+cfn=(4)
+calls=1 0 0
+6 1190 1312
+cfl=(2)
+cfn=(5)
+calls=1 0 0
+7 580 1376
+
+summary: 9210 443144
+

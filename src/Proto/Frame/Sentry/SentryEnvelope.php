@@ -24,7 +24,7 @@ final class SentryEnvelope extends Frame\Sentry
 
     /**
      * @param array<array-key, mixed> $headers
-     * @param list<Frame\Sentry\EnvelopeItem> $items
+     * @param list<EnvelopeItem> $items
      */
     public function __construct(
         public readonly array $headers,

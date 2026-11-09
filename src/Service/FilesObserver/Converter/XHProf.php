@@ -36,6 +36,15 @@ final class XHProf implements FileFilterInterface
     }
 
     /**
+     * XHProf saves a run with a single write when it ends.
+     */
+    #[\Override]
+    public function isReady(FileInfo $file): bool
+    {
+        return true;
+    }
+
+    /**
      * @return \Traversable<int, ProfilerFrame>
      */
     #[\Override]

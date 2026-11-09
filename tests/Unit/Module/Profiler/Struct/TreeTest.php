@@ -5,15 +5,28 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Profiler\Struct;
 
 use Buggregator\Trap\Module\Profiler\Struct\Branch;
+use Buggregator\Trap\Module\Profiler\Struct\Cost;
+use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Tree;
 use Testo\Assert;
 use Testo\Codecov\Covers;
+use Testo\Data\DataProvider;
+use Testo\Expect;
 use Testo\Test;
 
 #[Covers(Tree::class)]
 #[Test]
 final class TreeTest
 {
+    public static function topNumbers(): iterable
+    {
+        yield [1];
+        yield [5];
+        yield [10];
+        yield [100];
+        yield [1000];
+    }
+
     public function testFromEdgesListBuildsHierarchy(): void
     {
         $tree = Tree::fromEdgesList(
@@ -32,6 +45,27 @@ final class TreeTest
         Assert::same(\count($tree), 4);
     }
 
+    public function testAddingDuplicateIdFails(): void
+    {
+        $tree = new Tree();
+        $tree->addItem(new \stdClass(), 'a', null);
+
+        Expect::exception(\LogicException::class)->withMessageContaining('Duplicate branch ID `a`.');
+        $tree->addItem(new \stdClass(), 'a', null);
+    }
+
+    public function testNumericIdsKeepHierarchy(): void
+    {
+        $tree = new Tree();
+        $tree->addItem(new \stdClass(), '1', null);
+        $tree->addItem(new \stdClass(), '2', '1');
+        $tree->addItem(new \stdClass(), '3', '2', prepend: true);
+
+        Assert::same($tree->all['3']->parent, $tree->all['2']);
+        Assert::same($tree->all['2']->parent, $tree->all['1']);
+        Assert::same(\array_map('strval', \array_keys($tree->all)), ['3', '1', '2']);
+    }
+
     public function testEmptyEdgesListBuildsEmptyTree(): void
     {
         $tree = Tree::fromEdgesList([], static fn(): string => 'x', static fn(): ?string => null);
@@ -47,8 +81,8 @@ final class TreeTest
         $child = self::node('c', 'p');
         $tree->addItem($child, 'c', 'p');
 
-        Assert::same(\array_keys($tree->lostChildren), ['c']);
-        Assert::same(\array_keys(\iterator_to_array($tree->iterateLostChildren())), ['c']);
+        Assert::same(self::ids($tree->lostChildren), ['c']);
+        Assert::same(self::ids($tree->iterateLostChildren()), ['c']);
 
         $tree->addItem(self::node('p'), 'p', null);
 
@@ -73,10 +107,10 @@ final class TreeTest
         $tree->addItem(self::node('root'), 'root', null);
         $tree->addItem(self::node('orphan', 'missing'), 'orphan', 'missing');
 
-        $lost = \iterator_to_array($tree->iterateLostChildren());
+        $lost = \iterator_to_array($tree->iterateLostChildren(), false);
 
-        Assert::same(\array_keys($lost), ['orphan']);
-        Assert::same($lost['orphan']->parentId, 'missing');
+        Assert::same(self::ids($lost), ['orphan']);
+        Assert::same($lost[0]->parentId, 'missing');
         Assert::same($tree->all['root']->children, []);
         Assert::same(\count($tree), 2);
     }
@@ -146,6 +180,27 @@ final class TreeTest
         Assert::false(isset($branch->children));
     }
 
+    #[DataProvider('topNumbers')]
+    public function testTop(int $top): void
+    {
+        $edges = self::generateEdges();
+        $tree = Tree::fromEdgesList(
+            $edges,
+            static fn(Edge $edge) => $edge->callee,
+            static fn(Edge $edge) => $edge->caller,
+        );
+
+        $result = $tree->top($top, static fn(Branch $a, Branch $b) => $b->item->cost->wt <=> $a->item->cost->wt);
+
+        Assert::count($result, \min($top, \count($edges)));
+
+        $topUnoptimized = \array_map(static fn(Edge $e) => $e->cost->wt, $edges);
+        \rsort($topUnoptimized);
+        $topUnoptimized = \array_slice($topUnoptimized, 0, $top);
+        $topVals = \array_map(static fn(Branch $b) => $b->item->cost->wt, $result);
+        Assert::same($topVals, $topUnoptimized);
+    }
+
     /**
      * r1 -> (a -> (a1, a2), b -> (b1)), r2 -> (c)
      *
@@ -205,5 +260,31 @@ final class TreeTest
         }
 
         return $ids;
+    }
+
+    /**
+     * @return array<Edge>
+     */
+    private static function generateEdges(int $multiplier = 20): array
+    {
+        $result = [];
+
+        for ($i = 0; $i < $multiplier; $i++) {
+            for ($j = 0; $j <= $i; $j++) {
+                $result[] = new Edge(
+                    $i === 0 ? null : 'item-' . ($i - 1) . "-$j",
+                    "item-$i-$j",
+                    new Cost(
+                        ct: (int) $i ** $i,
+                        wt: ($multiplier - $i) * 1000 + $j,
+                        cpu: ($multiplier - $i) * 10,
+                        mu: (int) $i * 1000,
+                        pmu: (int) $i * 1000,
+                    ),
+                );
+            }
+        }
+
+        return $result;
     }
 }

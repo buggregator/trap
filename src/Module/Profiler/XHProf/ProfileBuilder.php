@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\XHProf;
 
-use Buggregator\Trap\Module\Profiler\Struct\Branch;
 use Buggregator\Trap\Module\Profiler\Struct\Cost;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
-use Buggregator\Trap\Module\Profiler\Struct\Peaks;
+use Buggregator\Trap\Module\Profiler\Struct\Graph;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
-use Buggregator\Trap\Module\Profiler\Struct\Tree;
 
 /**
  * @psalm-type RawData = array<non-empty-string, array{
@@ -37,108 +35,52 @@ final class ProfileBuilder
         array $tags = [],
         array $calls = [],
     ): Profile {
-        [$tree, $peaks] = $this->dataToPayload($calls);
-        return new Profile(
-            date: $date,
-            metadata: $metadata,
-            tags: $tags,
-            calls: $tree,
-            peaks: $peaks,
-        );
+        return Profile::fromGraph($this->buildGraph($calls), $date, $metadata, $tags);
+    }
+
+    /**
+     * @param non-empty-string $id
+     *
+     * @return non-empty-string
+     */
+    private static function functionName(string $id): string
+    {
+        /** @var non-empty-string */
+        return \preg_replace('/@\d+$/', '', $id);
     }
 
     /**
      * @param RawData $data
-     * @return array{Tree<Edge>, Peaks}
      */
-    private function dataToPayload(array $data): array
+    private function buildGraph(array $data): Graph
     {
-        $peaks = new Peaks();
+        $graph = new Graph();
 
-        /** @var Tree<Edge> $tree */
-        $tree = new Tree();
-
-        !\array_key_exists('main()', $data) && \array_key_exists('value', $data) and $data['main()'] = $data['value'];
+        // Normalize root
+        if (!\array_key_exists('main()', $data) && \array_key_exists('value', $data)) {
+            $data['main()'] = $data['value'];
+        }
         unset($data['value']);
 
-        foreach (\array_reverse($data, true) as $key => $value) {
-            [$caller, $callee] = \explode('==>', $key, 2) + [1 => ''];
-            if ($callee === '') {
-                [$caller, $callee] = [null, $caller];
+        foreach ($data as $key => $value) {
+            [$callerId, $calleeId] = \explode('==>', $key, 2) + [1 => ''];
+            if ($calleeId === '') {
+                [$callerId, $calleeId] = [null, $callerId];
             }
-            $caller === '' and $caller = null;
-            \assert($callee !== '');
+            $callerId === '' and $callerId = null;
+            $calleeId === '' and throw new \RuntimeException('Invalid XHProf format.');
 
             $edge = new Edge(
-                caller: $caller,
-                callee: $callee,
+                caller: $callerId === null ? null : self::functionName($callerId),
+                callee: self::functionName($calleeId),
                 cost: Cost::fromArray($value),
+                calleeId: $calleeId,
+                callerId: $callerId,
             );
 
-            $peaks->update($edge->cost);
-            $tree->addItem($edge, $edge->callee, $edge->caller);
+            $graph->add($edge);
         }
 
-        // Add parents for lost children
-        $lostParents = [];
-        /** @var Branch<Edge> $branch */
-        foreach ($tree->iterateLostChildren() as $branch) {
-            \assert($branch->item->caller !== null);
-            ($lostParents[$branch->item->caller] ??= new Peaks())
-                ->add($branch->item->cost);
-        }
-        /** @var array<non-empty-string, Peaks> $lostParents */
-        foreach ($lostParents as $key => $peak) {
-            $edge = new Edge(
-                caller: null,
-                callee: $key,
-                cost: $peak->toCost(),
-            );
-            $tree->addItem($edge, $edge->callee, $edge->caller);
-        }
-        unset($lostParents);
-
-        /**
-         * Calc percentages and delta
-         * @var Branch<Edge> $branch Needed for IDE
-         */
-        foreach ($tree->getIterator() as $branch) {
-            $cost = $branch->item->cost;
-            $cost->p_cpu = $peaks->cpu > 0 ? \round((float) $cost->cpu / (float) $peaks->cpu * 100.0, 3) : 0;
-            $cost->p_ct = $peaks->ct > 0 ? \round((float) $cost->ct / (float) $peaks->ct * 100.0, 3) : 0;
-            $cost->p_mu = $peaks->mu > 0 ? \round((float) $cost->mu / (float) $peaks->mu * 100.0, 3) : 0;
-            $cost->p_pmu = $peaks->pmu > 0 ? \round((float) $cost->pmu / (float) $peaks->pmu * 100.0, 3) : 0;
-            $cost->p_wt = $peaks->wt > 0 ? \round((float) $cost->wt / (float) $peaks->wt * 100.0, 3) : 0;
-
-            if ($branch->parent !== null) {
-                $parentCost = $branch->parent->item->cost;
-                $cost->d_cpu = $cost->cpu - $parentCost->cpu;
-                $cost->d_ct = $cost->ct - $parentCost->ct;
-                $cost->d_mu = $cost->mu - $parentCost->mu;
-                $cost->d_pmu = $cost->pmu - $parentCost->pmu;
-                $cost->d_wt = $cost->wt - $parentCost->wt;
-            }
-        }
-
-        return [$tree, $peaks];
-
-        // return [
-        //     'edges' => \iterator_to_array(match ($this->config->algorithm) {
-        //         // Deep-first
-        //         0 => $tree->getItemsSortedV0(null),
-        //         // Deep-first with sorting by WT
-        //         1 => $tree->getItemsSortedV0(
-        //             static fn(Branch $a, Branch $b): int => $b->item->cost->wt <=> $a->item->cost->wt,
-        //         ),
-        //         // Level-by-level
-        //         2 => $tree->getItemsSortedV1(null),
-        //         // Level-by-level with sorting by WT
-        //         3 => $tree->getItemsSortedV1(
-        //             static fn(Branch $a, Branch $b): int => $b->item->cost->wt <=> $a->item->cost->wt,
-        //         ),
-        //         default => throw new \LogicException('Unknown XHProf sorting algorithm.'),
-        //     }),
-        //     'peaks' => $peaks,
-        // ];
+        return $graph;
     }
 }

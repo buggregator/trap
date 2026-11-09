@@ -6,9 +6,9 @@ namespace Buggregator\Trap\Sender\Console\Renderer;
 
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
+use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Renderer\Sentry\Exceptions;
 use Buggregator\Trap\Sender\Console\Renderer\Sentry\Header;
-use Buggregator\Trap\Sender\Console\Renderer;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Symfony\Component\Console\Output\OutputInterface;
 

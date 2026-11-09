@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Traffic\Dispatcher;
 
 use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Traffic\StreamClient;
 use Buggregator\Trap\Traffic\Dispatcher;
 use Buggregator\Trap\Traffic\Parser;
+use Buggregator\Trap\Traffic\StreamClient;
 
 /**
  * @internal

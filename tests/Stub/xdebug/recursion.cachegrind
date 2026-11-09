@@ -1,0 +1,46 @@
+version: 1
+creator: xdebug 3.4.0 (PHP 8.4.23)
+cmd: /app/recursion.php
+part: 1
+positions: line
+
+events: Time_(10ns) Memory_(bytes)
+
+fl=(2) /app/recursion.php
+fn=(1) bar
+2 280 0
+
+fl=(2)
+fn=(1)
+2 10 0
+
+fl=(2)
+fn=(1)
+2 240 32
+cfl=(2)
+cfn=(1)
+calls=1 0 0
+2 10 0
+
+fl=(2)
+fn=(2) foo
+3 1090 32
+cfl=(2)
+cfn=(1)
+calls=1 0 0
+3 280 0
+cfl=(2)
+cfn=(1)
+calls=1 0 0
+3 250 32
+
+fl=(2)
+fn=(3) {main}
+1 1230 0
+cfl=(2)
+cfn=(2)
+calls=1 0 0
+4 1620 64
+
+summary: 8110 443320
+
