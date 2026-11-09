@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Buggregator\Trap;
 
 use Buggregator\Trap\Config\Server\App;
-use Buggregator\Trap\Config\Server\Files\SPX as SPXFileConfig;
-use Buggregator\Trap\Config\Server\Files\XDebug as XDebugFileConfig;
-use Buggregator\Trap\Config\Server\Files\XHProf as XHProfFileConfig;
 use Buggregator\Trap\Config\Server\Frontend as FrontendConfig;
 use Buggregator\Trap\Config\Server\SocketServer;
 use Buggregator\Trap\Config\Server\TcpPorts;
 use Buggregator\Trap\Handler\Http\Handler\Websocket;
 use Buggregator\Trap\Handler\Http\Middleware;
+use Buggregator\Trap\Module\Profiler\Config\SPX as SPXFileConfig;
+use Buggregator\Trap\Module\Profiler\Config\XDebug as XDebugFileConfig;
+use Buggregator\Trap\Module\Profiler\Config\XHProf as XHProfFileConfig;
 use Buggregator\Trap\Proto\Buffer;
 use Buggregator\Trap\Socket\Client;
 use Buggregator\Trap\Socket\Server;
@@ -72,14 +72,14 @@ final class Application implements Processable, Cancellable, Destroyable
                         $this->container->get(Middleware\Resources::class),
                         $this->container->get(Middleware\DebugPage::class),
                         $this->container->get(Middleware\RayRequestDump::class),
-                        $this->container->get(Middleware\SentryTrap::class),
-                        $this->container->get(Middleware\XHProfTrap::class),
-                        $this->container->get(Middleware\XDebugTrap::class),
+                        $this->container->get(Module\Sentry\Http\SentryTrap::class),
+                        $this->container->get(Module\Profiler\Http\XHProfTrap::class),
+                        $this->container->get(Module\Profiler\Http\XDebugTrap::class),
                         $this->container->get(Middleware\OtlpTrap::class),
                     ],
                     [new Websocket()],
                 ),
-                new Traffic\Dispatcher\Smtp(),
+                new Module\Mailer\Traffic\Dispatcher(),
                 new Module\Monolog\Traffic\Dispatcher(),
             ],
         ]);
@@ -96,14 +96,14 @@ final class Application implements Processable, Cancellable, Destroyable
                             $this->container->get(Middleware\Resources::class),
                             $this->container->get(Middleware\DebugPage::class),
                             $this->container->get(Middleware\RayRequestDump::class),
-                            $this->container->get(Middleware\SentryTrap::class),
-                            $this->container->get(Middleware\XHProfTrap::class),
-                            $this->container->get(Middleware\XDebugTrap::class),
+                            $this->container->get(Module\Sentry\Http\SentryTrap::class),
+                            $this->container->get(Module\Profiler\Http\XHProfTrap::class),
+                            $this->container->get(Module\Profiler\Http\XDebugTrap::class),
                             $this->container->get(Middleware\OtlpTrap::class),
                         ],
                         [$this->container->get(Module\Frontend\Http\RequestHandler::class)],
                     ),
-                    new Traffic\Dispatcher\Smtp(),
+                    new Module\Mailer\Traffic\Dispatcher(),
                     new Module\Monolog\Traffic\Dispatcher(),
                 ],
             ]);

@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Traffic\Proto\Server\Version;
 
+use Buggregator\Trap\Module\Mailer\Frame as SmtpFrame;
+use Buggregator\Trap\Module\Mailer\Message as SmtpMessage;
 use Buggregator\Trap\Module\Monolog\Frame as MonologFrame;
+use Buggregator\Trap\Module\Profiler\Frame\Payload;
+use Buggregator\Trap\Module\Profiler\Frame\Type as PayloadType;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
+use Buggregator\Trap\Module\Sentry\Frame\SentryStore;
 use Buggregator\Trap\Module\VarDumper\Frame as VarDumperFrame;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Frame\Otlp\OtlpTraces;
-use Buggregator\Trap\Proto\Frame\Profiler\Payload;
-use Buggregator\Trap\Proto\Frame\Profiler\Type as PayloadType;
-use Buggregator\Trap\Proto\Frame\Sentry\SentryStore;
 use Buggregator\Trap\Proto\Server\Version\V1;
-use Buggregator\Trap\Traffic\Message\Smtp as SmtpMessage;
 use Nyholm\Psr7\ServerRequest;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -42,12 +43,12 @@ final class V1Test
     {
         $time = new \DateTimeImmutable(self::TIME);
 
-        yield 'smtp' => [new Frame\Smtp(SmtpMessage::create(['FROM' => ['<a@b.c>']], ['Subject' => 'Hi']), $time)];
+        yield 'smtp' => [new SmtpFrame(SmtpMessage::create(['FROM' => ['<a@b.c>']], ['Subject' => 'Hi']), $time)];
         yield 'monolog' => [new MonologFrame(['message' => 'hello', 'level' => 200], $time)];
         yield 'var-dumper' => [new VarDumperFrame('dump', $time)];
         yield 'http' => [new Frame\Http(new ServerRequest('POST', 'http://localhost/path', ['Host' => ['localhost']], 'body'), $time)];
         yield 'sentry' => [new SentryStore(['type' => 'store', 'event_id' => 'abc', 'timestamp' => 1700000000], $time)];
-        yield 'profiler' => [new Frame\Profiler(
+        yield 'profiler' => [new \Buggregator\Trap\Module\Profiler\Frame(
             Payload::new(PayloadType::XHProf, static fn(): Profile => new Profile(
                 date: new \DateTimeImmutable('@1700000000'),
                 metadata: ['app_name' => 'app', 'hostname' => 'host', 'filename' => 'file'],

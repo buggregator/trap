@@ -103,7 +103,7 @@ final class Run extends Command implements SignalableCommandInterface
         ));
         $registry->register('file', static fn(): Sender => new Sender\EventsToFileSender());
         $registry->register('file-body', static fn(): Sender => new Sender\BodyToFileSender());
-        $registry->register('mail-to-file', static fn(): Sender => new Sender\MailToFileSender());
+        $registry->register('mail-to-file', static fn(): Sender => new \Buggregator\Trap\Module\Mailer\Sender\MailToFileSender());
         $registry->register('server', static fn(): Sender => new Sender\RemoteSender(host: '127.0.0.1', port: 9099));
 
         return $registry;

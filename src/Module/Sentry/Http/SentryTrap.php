@@ -1,0 +1,111 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Buggregator\Trap\Module\Sentry\Http;
+
+use Buggregator\Trap\Handler\Http\Middleware;
+use Buggregator\Trap\Logger;
+use Buggregator\Trap\Module\Sentry\Frame;
+use Buggregator\Trap\Module\Sentry\Http\SentryTrap\EnvelopeParser;
+use Nyholm\Psr7\Response;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+
+/**
+ * @internal
+ * @psalm-internal Buggregator\Trap
+ *
+ * @psalm-import-type SentryStoreMessage from Frame\SentryStore
+ */
+final class SentryTrap implements Middleware
+{
+    private const MAX_BODY_SIZE = 2 * 1024 * 1024;
+
+    public function __construct(
+        private readonly ?Logger $logger = null,
+    ) {}
+
+    #[\Override]
+    public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
+    {
+        try {
+            // Detect Sentry envelope
+            if ($request->getHeaderLine('Content-Type') === 'application/x-sentry-envelope'
+                && \str_contains($request->getUri()->getPath(), '/envelope/')
+            ) {
+                return $this->processEnvelope($request);
+            }
+
+            if (\str_ends_with($request->getUri()->getPath(), '/store/')
+                && (
+                    $request->getHeaderLine('X-Buggregator-Event') === 'sentry'
+                    || $request->hasHeader('X-Sentry-Auth')
+                    || $request->getUri()->getUserInfo() === 'sentry'
+                )
+            ) {
+                return $this->processStore($request);
+            }
+        } catch (\JsonException) {
+            // Reject invalid JSON
+            return new Response(400);
+        } catch (\Throwable) {
+            // Reject invalid request
+            return new Response(400);
+        }
+
+        return $next($request);
+    }
+
+    /**
+     * @return Response
+     * @throws \Throwable
+     */
+    private function processEnvelope(ServerRequestInterface $request): ResponseInterface
+    {
+        $size = $request->getBody()->getSize();
+        if ($size === null || $size > self::MAX_BODY_SIZE) {
+            // Reject too big envelope
+            return new Response(413);
+        }
+
+        $request->getBody()->rewind();
+
+        /** @var mixed $time */
+        $time = $request->getAttribute('begin_at');
+        $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
+
+        try {
+            $frame = EnvelopeParser::parse($request->getBody(), $time);
+            \Fiber::suspend($frame);
+        } catch (\Throwable $e) {
+            $this->logger?->info('Sentry envelope parsing failed: %s', $e->getMessage());
+        }
+
+        return new Response(200);
+    }
+
+    private function processStore(ServerRequestInterface $request): ResponseInterface
+    {
+        $size = $request->getBody()->getSize();
+        if ($size === null || $size > self::MAX_BODY_SIZE) {
+            // Reject too big content
+            return new Response(413);
+        }
+        /** @var SentryStoreMessage $payload */
+        $payload = \json_decode((string) $request->getBody(), true, 96, \JSON_THROW_ON_ERROR);
+
+        /** @psalm-suppress MixedAssignment */
+        $time = $request->getAttribute('begin_at');
+        $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
+
+        \Fiber::suspend(
+            new Frame\SentryStore(
+                message: $payload,
+                time: $time,
+            ),
+        );
+
+        return new Response(200);
+    }
+}
