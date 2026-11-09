@@ -6,6 +6,8 @@ namespace Buggregator\Trap\Module\Ray\Http;
 
 use Buggregator\Trap\Handler\Http\Handler\Fallback;
 use Buggregator\Trap\Handler\Http\Middleware;
+use Buggregator\Trap\Logger;
+use Buggregator\Trap\Module\Frontend\UiChannel;
 use Buggregator\Trap\Module\Ray\Frame;
 use Buggregator\Trap\Module\Ray\Lock\Locks;
 use Buggregator\Trap\Support\Json;
@@ -21,6 +23,8 @@ use Psr\Http\Message\ServerRequestInterface;
  * - `GET /locks/{name}`: a paused client polls it every second. `active: true` keeps it paused,
  *   `stop_execution: true` makes it throw.
  *
+ * Locks are held only while the web UI runs: its buttons are the only way to release them.
+ *
  * @internal
  * @psalm-internal Buggregator\Trap
  */
@@ -28,8 +32,12 @@ final class RayTrap implements Middleware
 {
     private const MAX_BODY_SIZE = 10 * 1024 * 1024;
 
+    private bool $warnedNoUi = false;
+
     public function __construct(
         private readonly Locks $locks,
+        private readonly UiChannel $ui,
+        private readonly ?Logger $logger = null,
     ) {}
 
     #[\Override]
@@ -113,13 +121,35 @@ final class RayTrap implements Middleware
             return $fromClient ? new Response(400) : null;
         }
 
-        // Before the frame is handed over: the client polls the lock right after this response
-        foreach ($frame->lockNames() as $name) {
-            $this->locks->create($name);
-        }
+        $this->holdLocks($frame);
 
         \Fiber::suspend($frame);
 
         return new Response(200);
+    }
+
+    /**
+     * Called before the frame is handed over: the client polls the lock right after the response.
+     * Without the UI no lock is created, and the poll of an unknown lock lets the client continue.
+     */
+    private function holdLocks(Frame $frame): void
+    {
+        $names = $frame->lockNames();
+        if ($names === []) {
+            return;
+        }
+
+        if (!$this->ui->isEnabled()) {
+            $this->warnedNoUi or $this->logger?->status(
+                'Ray',
+                'pause() does not wait: continuing or stopping the execution needs the web UI (--ui).',
+            );
+            $this->warnedNoUi = true;
+            return;
+        }
+
+        foreach ($names as $name) {
+            $this->locks->create($name);
+        }
     }
 }

@@ -67,6 +67,41 @@ final class LocksTest
         Assert::true($locks->poll('abc', 103.0)?->stop);
     }
 
+    /**
+     * Clients pausing in the same second send the same lock name.
+     */
+    public function testSameNameJoinsPendingLock(): void
+    {
+        $locks = new Locks();
+        $locks->create('abc', 100.0);
+        $locks->create('abc', 100.5);
+
+        Assert::same($locks->count(), 1);
+        Assert::true($locks->resolve('abc', true, 101.0));
+        Assert::true($locks->poll('abc', 102.0)?->stop);
+    }
+
+    public function testSameNameDoesNotUndoResolution(): void
+    {
+        $locks = new Locks();
+        $locks->create('abc', 100.0);
+        $locks->resolve('abc', true, 100.5);
+
+        $locks->create('abc', 100.9);
+
+        Assert::true($locks->poll('abc', 101.0)?->stop);
+        Assert::false($locks->resolve('abc', false, 101.0));
+    }
+
+    public function testJoiningRefreshesPendingLock(): void
+    {
+        $locks = new Locks();
+        $locks->create('abc', 100.0);
+        $locks->create('abc', 100.0 + Locks::IDLE_TTL);
+
+        Assert::true($locks->poll('abc', 100.0 + Locks::IDLE_TTL * 2 - 1)?->isPending());
+    }
+
     public function testPendingLockExpiresWithoutPolls(): void
     {
         $locks = new Locks();

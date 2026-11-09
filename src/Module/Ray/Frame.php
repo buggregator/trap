@@ -56,8 +56,9 @@ final class Frame extends ProtoFrame
         \is_string($uuid) && $uuid !== '' or throw new \InvalidArgumentException('A Ray request must have a UUID.');
 
         $payloads = $data['payloads'] ?? null;
-        \is_array($payloads) && \array_is_list($payloads)
-            or throw new \InvalidArgumentException('Ray payloads must be a list.');
+        // The UI reads the type of the first payload
+        \is_array($payloads) && \array_is_list($payloads) && $payloads !== []
+            or throw new \InvalidArgumentException('Ray payloads must be a non-empty list.');
         foreach ($payloads as $item) {
             \is_array($item) && \is_string($item['type'] ?? null) && $item['type'] !== ''
                 or throw new \InvalidArgumentException('A Ray payload must have a type.');

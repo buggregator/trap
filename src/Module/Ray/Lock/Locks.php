@@ -42,6 +42,10 @@ final class Locks
     }
 
     /**
+     * spatie/ray names a lock `md5(time())`, so clients pausing in the same second send the same name, and
+     * their polls can't be told apart. They share one lock: a later create joins the existing lock, pending
+     * or resolved, and one Continue or Stop releases them all. Replacing it instead would undo a Stop.
+     *
      * @param float|null $now Unix time in seconds; the current time when null.
      */
     public function create(string $name, ?float $now = null): void
@@ -52,8 +56,13 @@ final class Locks
 
         $now ??= \microtime(true);
         $this->purge($now);
+        $existing = $this->locks[$name] ?? null;
+        if ($existing !== null) {
+            $existing->isPending() and $existing->seenAt = $now;
+            return;
+        }
+
         /** @var non-empty-string $name */
-        unset($this->locks[$name]);
         $this->locks[$name] = new Lock($now);
         // Not array_shift(): it renumbers names like "123", which PHP keeps as integer keys
         if (\count($this->locks) > self::MAX_LOCKS) {

@@ -49,7 +49,7 @@ final class RendererTest
             ->contains('log hello, array:1 ["a"]')
             ->contains('label mine')
             ->contains('exception RuntimeException: Boom')
-            ->contains('create_lock Execution paused')
+            ->contains('create_lock pause(), lock abc')
             ->contains('confetti');
     }
 }

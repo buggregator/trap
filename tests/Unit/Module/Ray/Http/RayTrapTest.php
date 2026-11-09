@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Ray\Http;
 
 use Buggregator\Trap\Handler\Http\Handler\Fallback;
+use Buggregator\Trap\Module\Frontend\UiChannel;
 use Buggregator\Trap\Module\Ray\Frame;
 use Buggregator\Trap\Module\Ray\Http\RayTrap;
 use Buggregator\Trap\Module\Ray\Lock\Locks;
@@ -26,7 +27,7 @@ final class RayTrapTest
 
     public function testAvailabilityCheckAnswersWithErrorAndIsNotDumped(): void
     {
-        [$response, $frames] = self::handle(new RayTrap(new Locks()), new ServerRequest('GET', '/_availability_check'));
+        [$response, $frames] = self::handle(new RayTrap(new Locks(), self::ui()), new ServerRequest('GET', '/_availability_check'));
 
         // spatie/ray treats any HTTP error status as "the server is available"
         Assert::same($response->getStatusCode(), 400);
@@ -40,7 +41,7 @@ final class RayTrapTest
         $time = new \DateTimeImmutable('2026-01-02 03:04:05');
         $request = (new ServerRequest('POST', '/', self::CLIENT, FrameTest::REQUEST))->withAttribute('begin_at', $time);
 
-        [$response, $frames] = self::handle(new RayTrap($locks), $request);
+        [$response, $frames] = self::handle(new RayTrap($locks, self::ui()), $request);
 
         Assert::same($response->getStatusCode(), 200);
         Assert::count($frames, 1);
@@ -49,11 +50,38 @@ final class RayTrapTest
         Assert::true($locks->poll(self::LOCK)?->isPending());
     }
 
+    /**
+     * Nothing could release a held client: the Continue and Stop buttons are in the UI.
+     */
+    public function testWithoutUiPauseDoesNotHoldClient(): void
+    {
+        $locks = new Locks();
+        $trap = new RayTrap($locks, new UiChannel());
+
+        [$response, $frames] = self::handle($trap, new ServerRequest('POST', '/', self::CLIENT, FrameTest::REQUEST));
+        [$poll] = self::handle($trap, new ServerRequest('GET', '/locks/' . self::LOCK, self::CLIENT));
+
+        Assert::same($response->getStatusCode(), 200);
+        Assert::count($frames, 1);
+        Assert::same($locks->count(), 0);
+        Assert::same(\json_decode((string) $poll->getBody(), true), ['active' => false, 'stop_execution' => false]);
+    }
+
+    public function testPassesEmptyPayloadListOn(): void
+    {
+        $request = new ServerRequest('POST', '/', ['Content-Type' => 'application/json'], '{"uuid":"abc","payloads":[]}');
+
+        [$response, $frames] = self::handle(new RayTrap(new Locks(), self::ui()), $request);
+
+        Assert::same($response->getStatusCode(), 404);
+        Assert::same($frames, []);
+    }
+
     public function testRecognizesPayloadsWithoutClientUserAgent(): void
     {
         $request = new ServerRequest('POST', '/', ['Content-Type' => 'application/json'], FrameTest::REQUEST);
 
-        [, $frames] = self::handle(new RayTrap(new Locks()), $request);
+        [, $frames] = self::handle(new RayTrap(new Locks(), self::ui()), $request);
 
         Assert::count($frames, 1);
     }
@@ -62,7 +90,7 @@ final class RayTrapTest
     {
         $request = new ServerRequest('POST', '/', ['Content-Type' => 'application/json'], '{"foo":"bar"}');
 
-        [$response, $frames] = self::handle(new RayTrap(new Locks()), $request);
+        [$response, $frames] = self::handle(new RayTrap(new Locks(), self::ui()), $request);
 
         Assert::same($response->getStatusCode(), 404);
         Assert::same($frames, []);
@@ -70,7 +98,7 @@ final class RayTrapTest
 
     public function testRejectsInvalidRequestOfClient(): void
     {
-        [$response, $frames] = self::handle(new RayTrap(new Locks()), new ServerRequest('POST', '/', self::CLIENT, '{'));
+        [$response, $frames] = self::handle(new RayTrap(new Locks(), self::ui()), new ServerRequest('POST', '/', self::CLIENT, '{'));
 
         Assert::same($response->getStatusCode(), 400);
         Assert::same($frames, []);
@@ -79,7 +107,7 @@ final class RayTrapTest
     public function testLockPollStates(): void
     {
         $locks = new Locks();
-        $trap = new RayTrap($locks);
+        $trap = new RayTrap($locks, self::ui());
         $poll = static fn(): array => \json_decode(
             (string) self::handle($trap, new ServerRequest('GET', '/locks/' . self::LOCK . '?hostname=box&project_name=', self::CLIENT))[0]->getBody(),
             true,
@@ -97,7 +125,7 @@ final class RayTrapTest
 
     public function testLockPollIsNotDumped(): void
     {
-        [$response, $frames] = self::handle(new RayTrap(new Locks()), new ServerRequest('GET', '/locks/abc', self::CLIENT));
+        [$response, $frames] = self::handle(new RayTrap(new Locks(), self::ui()), new ServerRequest('GET', '/locks/abc', self::CLIENT));
 
         Assert::same($response->getHeaderLine('Content-Type'), 'application/json');
         Assert::true($response->hasHeader(Fallback::NO_DUMP_HEADER));
@@ -106,7 +134,7 @@ final class RayTrapTest
 
     public function testUnknownLockPathOfOtherClientPassesOn(): void
     {
-        [$response] = self::handle(new RayTrap(new Locks()), new ServerRequest('GET', '/locks/abc'));
+        [$response] = self::handle(new RayTrap(new Locks(), self::ui()), new ServerRequest('GET', '/locks/abc'));
 
         Assert::same($response->getStatusCode(), 404);
     }
@@ -116,9 +144,17 @@ final class RayTrapTest
         $locks = new Locks();
         $locks->create('abc');
 
-        [$response] = self::handle(new RayTrap($locks), new ServerRequest('GET', '/locks/abc'));
+        [$response] = self::handle(new RayTrap($locks, self::ui()), new ServerRequest('GET', '/locks/abc'));
 
         Assert::same(\json_decode((string) $response->getBody(), true), ['active' => true, 'stop_execution' => false]);
+    }
+
+    private static function ui(): UiChannel
+    {
+        $ui = new UiChannel();
+        $ui->enable();
+
+        return $ui;
     }
 
     /**

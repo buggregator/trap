@@ -40,6 +40,7 @@ return $architecture
         'Buggregator\Trap\Module\Frontend\Http\Pipeline',
         'Buggregator\Trap\Module\Frontend\Http\RequestHandler',
         'Buggregator\Trap\Module\Frontend\Sender\FrontendSender',
+        'Buggregator\Trap\Module\Frontend\UiChannel',
     ])
     // Registration point: the sender registry builds the Mailer file sender and passes the Tracing span store.
     ->skipClassViolation('Buggregator\Trap\Command\Run', [

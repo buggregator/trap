@@ -21,6 +21,7 @@ final class FrameTest
     {
         yield 'not an object' => ['"text"'];
         yield 'no uuid' => ['{"payloads":[]}'];
+        yield 'no payloads' => ['{"uuid":"abc","payloads":[]}'];
         yield 'empty uuid' => ['{"uuid":"","payloads":[]}'];
         yield 'payloads not a list' => ['{"uuid":"a1","payloads":{"x":{"type":"log"}}}'];
         yield 'payload without type' => ['{"uuid":"a1","payloads":[{"content":[]}]}'];

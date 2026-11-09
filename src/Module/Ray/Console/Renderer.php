@@ -67,7 +67,7 @@ final class Renderer implements RendererInterface
             'custom' => self::labeled($content['label'] ?? '', self::text($content['content'] ?? '')),
             'label', 'color', 'size' => self::text($content[$type] ?? ''),
             'notify', 'json_string' => self::text($content['value'] ?? ''),
-            'create_lock' => 'Execution paused: continue or stop it in the UI',
+            'create_lock' => 'pause(), lock ' . self::text($content['name'] ?? ''),
             'exception' => self::labeled($content['class'] ?? '', self::text($content['message'] ?? '')),
             'table' => self::labeled($content['label'] ?? '', \count((array) ($content['values'] ?? [])) . ' rows'),
             'measure' => self::labeled($content['name'] ?? '', self::text($content['total_time'] ?? '') . ' ms'),
