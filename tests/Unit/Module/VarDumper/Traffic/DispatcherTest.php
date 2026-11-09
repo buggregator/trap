@@ -8,12 +8,11 @@ use Buggregator\Trap\Module\VarDumper\Traffic\Dispatcher;
 use Buggregator\Trap\Test\Mock\StreamClientMock;
 use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Testo\Assert;
+use Testo\Codecov\Covers;
 use Testo\Data\DataProvider;
 use Testo\Test;
 
-/**
- * @covers \Buggregator\Trap\Traffic\Dispatcher\Http
- */
+#[Covers(Dispatcher::class)]
 final class DispatcherTest
 {
     use FiberTrait;
