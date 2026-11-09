@@ -8,7 +8,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * @internal
- * @psalm-internal Buggregator\Trap\Sender\Console
+ * @psalm-internal Buggregator\Trap
  */
 final class Common
 {

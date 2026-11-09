@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Traffic\Proto\Server\Version;
 
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
+use Buggregator\Trap\Module\VarDumper\Frame as VarDumperFrame;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Proto\Frame\Otlp\OtlpTraces;
 use Buggregator\Trap\Proto\Frame\Profiler\Payload;
@@ -42,7 +43,7 @@ final class V1Test
 
         yield 'smtp' => [new Frame\Smtp(SmtpMessage::create(['FROM' => ['<a@b.c>']], ['Subject' => 'Hi']), $time)];
         yield 'monolog' => [new Frame\Monolog(['message' => 'hello', 'level' => 200], $time)];
-        yield 'var-dumper' => [new Frame\VarDumper('dump', $time)];
+        yield 'var-dumper' => [new VarDumperFrame('dump', $time)];
         yield 'http' => [new Frame\Http(new ServerRequest('POST', 'http://localhost/path', ['Host' => ['localhost']], 'body'), $time)];
         yield 'sentry' => [new SentryStore(['type' => 'store', 'event_id' => 'abc', 'timestamp' => 1700000000], $time)];
         yield 'profiler' => [new Frame\Profiler(
@@ -103,12 +104,12 @@ final class V1Test
     public function testParsedPayloadKeepsFrameOrder(): void
     {
         $time = new \DateTimeImmutable(self::TIME);
-        $payload = \json_encode([new Frame\VarDumper('first', $time), new Frame\VarDumper('second', $time)]);
+        $payload = \json_encode([new VarDumperFrame('first', $time), new VarDumperFrame('second', $time)]);
         $request = (new V1())->decode('1|0.1|' . self::UUID . '|' . $payload);
 
         $frames = $request->getParsedPayload();
 
-        Assert::same(\array_map(static fn(Frame\VarDumper $frame): string => $frame->dump, $frames), ['first', 'second']);
+        Assert::same(\array_map(static fn(VarDumperFrame $frame): string => $frame->dump, $frames), ['first', 'second']);
     }
 
     public function testParsedPayloadRejectsUnsupportedFrameType(): never

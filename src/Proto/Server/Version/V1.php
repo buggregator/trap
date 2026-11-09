@@ -87,7 +87,7 @@ final class V1 implements PayloadDecoder
                         return match ($item['type']) {
                             ProtoType::SMTP->value => Frame\Smtp::fromString($payload, $date),
                             ProtoType::Monolog->value => Frame\Monolog::fromString($payload, $date),
-                            ProtoType::VarDumper->value => Frame\VarDumper::fromString($payload, $date),
+                            ProtoType::VarDumper->value => \Buggregator\Trap\Module\VarDumper\Frame::fromString($payload, $date),
                             ProtoType::HTTP->value => Frame\Http::fromString($payload, $date),
                             ProtoType::Sentry->value => Frame\Sentry::fromString($payload, $date),
                             ProtoType::Profiler->value => Frame\Profiler::fromString($payload, $date),

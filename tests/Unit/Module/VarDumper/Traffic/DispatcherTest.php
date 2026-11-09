@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Tests\Unit\Traffic\Dispatcher;
+namespace Buggregator\Trap\Tests\Unit\Module\VarDumper\Traffic;
 
+use Buggregator\Trap\Module\VarDumper\Traffic\Dispatcher;
 use Buggregator\Trap\Test\Mock\StreamClientMock;
 use Buggregator\Trap\Tests\Unit\FiberTrait;
-use Buggregator\Trap\Traffic\Dispatcher\VarDumper;
 use Testo\Assert;
 use Testo\Data\DataProvider;
 use Testo\Test;
@@ -14,7 +14,7 @@ use Testo\Test;
 /**
  * @covers \Buggregator\Trap\Traffic\Dispatcher\Http
  */
-final class VarDumperTest
+final class DispatcherTest
 {
     use FiberTrait;
 
@@ -29,14 +29,14 @@ final class VarDumperTest
     #[Test]
     public function testDetect(string $data, ?bool $expected): void
     {
-        $dispatcher = new VarDumper();
+        $dispatcher = new Dispatcher();
         Assert::same($dispatcher->detect($data, new \DateTimeImmutable()), $expected);
     }
 
     #[Test]
     public function testDispatchFramesTime(): void
     {
-        $dispatcher = new VarDumper();
+        $dispatcher = new Dispatcher();
         $stream = StreamClientMock::createFromGenerator((static function (): \Generator {
             yield "ABC\n";
             yield "DEF\n";

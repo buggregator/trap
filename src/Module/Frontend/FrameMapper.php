@@ -18,7 +18,7 @@ final class FrameMapper
     {
         return match ($frame::class) {
             Frame\Otlp\OtlpTraces::class => null,
-            Frame\VarDumper::class => (new Mapper\VarDump())->map($frame),
+            \Buggregator\Trap\Module\VarDumper\Frame::class => (new \Buggregator\Trap\Module\VarDumper\Frontend\Mapper())->map($frame),
             Frame\Http::class => (new Mapper\HttpRequest())->map($frame),
             Frame\Smtp::class => (new Mapper\Smtp())->map($frame),
             Frame\Sentry\SentryStore::class => (new Mapper\SentryStore())->map($frame),

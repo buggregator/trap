@@ -26,7 +26,7 @@ final class ConsoleSender implements Sender
     {
         // Configure renderer
         $renderer = new FrameHandler($output);
-        $renderer->register(new Renderer\VarDumper());
+        $renderer->register(new \Buggregator\Trap\Module\VarDumper\Console\Renderer());
         $renderer->register(new Renderer\SentryStore());
         $renderer->register(new Renderer\SentryEnvelope());
         $renderer->register(new Renderer\OtlpTraces($spanStore ?? new SpanStore()));

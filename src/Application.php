@@ -66,7 +66,7 @@ final class Application implements Processable, Cancellable, Destroyable
         $inspectorWithFrontend = $inspector = $container->make(Inspector::class, [
             'dispatchers' => [
                 // new Traffic\Dispatcher\WebSocket(),
-                new Traffic\Dispatcher\VarDumper(),
+                new Module\VarDumper\Traffic\Dispatcher(),
                 new Traffic\Dispatcher\Http(
                     [
                         $this->container->get(Middleware\Resources::class),
@@ -89,7 +89,7 @@ final class Application implements Processable, Cancellable, Destroyable
         if ($withFrontend && !$feSeparated) {
             $inspectorWithFrontend = $container->make(Inspector::class, [
                 'dispatchers' => [
-                    new Traffic\Dispatcher\VarDumper(),
+                    new Module\VarDumper\Traffic\Dispatcher(),
                     new Traffic\Dispatcher\Http(
                         [
                             $this->container->get(Module\Frontend\Http\Pipeline::class),
