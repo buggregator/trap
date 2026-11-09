@@ -12,7 +12,6 @@ use Buggregator\Trap\Service\FilesObserver\FileInfo;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Data\DataSet;
-use Testo\Expect;
 use Testo\Lifecycle\AfterTest;
 use Testo\Lifecycle\BeforeTest;
 use Testo\Test;
@@ -86,6 +85,19 @@ final class XDebugTest
         Assert::same($converter->isReady(self::info($path)), true);
     }
 
+    public function testGzipFileWrittenAnewIsReadFromStart(): void
+    {
+        $path = $this->dir . '/cachegrind.out.1234.gz';
+        $converter = self::converter();
+        $old = (string) \gzencode(self::randomProfile(1, 3000));
+        \file_put_contents($path, \substr($old, 0, \intdiv(\strlen($old), 2)));
+        Assert::same($converter->isReady(self::info($path)), false);
+
+        // Another profile ends up at the same path: Xdebug reuses names of FPM workers
+        \file_put_contents($path, (string) \gzencode(self::randomProfile(2, 4000)));
+        Assert::same($converter->isReady(self::info($path)), true);
+    }
+
     public function testCompleteGzipStreamWithoutSummaryIsNotReady(): void
     {
         $path = $this->dir . '/cachegrind.out.1234.gz';
@@ -120,6 +132,22 @@ final class XDebugTest
         }
         // The file of 4 MB is not read whole
         Assert::int(\memory_get_peak_usage() - $memory)->lessThan(1024 * 1024);
+    }
+
+    /**
+     * A profile of calls with random names: compresses poorly, unlike real ones.
+     */
+    private static function randomProfile(int $seed, int $calls): string
+    {
+        \mt_srand($seed);
+        $content = "version: 1\ncreator: xdebug 3.4.0\ncmd: /app/x.php\npart: 1\npositions: line\n\n"
+            . "events: Time_(10ns) Memory_(bytes)\n\n";
+        for ($i = 1; $i <= $calls; ++$i) {
+            $content .= \sprintf("fl=(1) /app/f%d.php\nfn=(%d) f%d\n2 %d 0\n\n", \mt_rand(), $i, \mt_rand(), \mt_rand(1, 999));
+        }
+        \mt_srand();
+
+        return $content . "summary: 1 0\n\n";
     }
 
     private static function info(string $path): FileInfo
