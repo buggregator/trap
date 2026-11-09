@@ -106,10 +106,6 @@ return $architecture
         'Buggregator\Trap\Module\Mailer\Frontend\AssetsController',
     ])
 
-    // Layering problem: TrapLogger is used only by the client but lives in the core.
-    ->skipClassViolation('Buggregator\Trap\Client\TrapHandle', [
-        'Buggregator\Trap\Log\TrapLogger',
-    ])
     // Layering problem: the core checks a Frontend-specific response header instead of its own no-dump header.
     ->skipClassViolation('Buggregator\Trap\Handler\Http\Handler\Fallback', [
         'Buggregator\Trap\Module\Frontend\Http\Pipeline',
