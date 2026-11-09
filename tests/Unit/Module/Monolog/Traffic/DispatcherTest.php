@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Tests\Unit\Traffic\Dispatcher;
+namespace Buggregator\Trap\Tests\Unit\Module\Monolog\Traffic;
 
-use Buggregator\Trap\Traffic\Dispatcher\Monolog;
+use Buggregator\Trap\Module\Monolog\Traffic\Dispatcher;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Data\DataProvider;
 use Testo\Test;
 
 #[Test]
-#[Covers(Monolog::class)]
-final class MonologTest
+#[Covers(Dispatcher::class)]
+final class DispatcherTest
 {
     public static function detectProvider(): iterable
     {
@@ -29,7 +29,7 @@ final class MonologTest
     #[DataProvider('detectProvider')]
     public function testDetect(string $data, ?bool $expected): void
     {
-        $dispatcher = new Monolog();
+        $dispatcher = new Dispatcher();
 
         Assert::same($dispatcher->detect($data, new \DateTimeImmutable()), $expected);
     }

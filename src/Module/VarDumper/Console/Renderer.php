@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Sender\Console\Renderer;
+namespace Buggregator\Trap\Module\VarDumper\Console;
 
+use Buggregator\Trap\Module\VarDumper\Frame as VarDumperFrame;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\ProtoType;
-use Buggregator\Trap\Sender\Console\Renderer;
+use Buggregator\Trap\Sender\Console\Renderer as RendererInterface;
 use Buggregator\Trap\Sender\Console\Support\Common;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -17,11 +18,11 @@ use Symfony\Component\VarDumper\Command\Descriptor\DumpDescriptorInterface;
 use Symfony\Component\VarDumper\Dumper\CliDumper;
 
 /**
- * @implements Renderer<Frame\VarDumper>
+ * @implements RendererInterface<VarDumperFrame>
  *
  * @internal
  */
-final class VarDumper implements Renderer
+final class Renderer implements RendererInterface
 {
     #[\Override]
     public function isSupport(Frame $frame): bool
@@ -32,7 +33,7 @@ final class VarDumper implements Renderer
     #[\Override]
     public function render(OutputInterface $output, Frame $frame): void
     {
-        \assert($frame instanceof Frame\VarDumper);
+        \assert($frame instanceof VarDumperFrame);
 
         /** @var array{Data, array}|false $payload */
         $payload = @\unserialize((string) \base64_decode($frame->dump, true), ['allowed_classes' => [Data::class, Stub::class]]);

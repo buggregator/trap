@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Traffic\Dispatcher;
+namespace Buggregator\Trap\Module\VarDumper\Traffic;
 
-use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Traffic\Dispatcher;
+use Buggregator\Trap\Module\VarDumper\Frame;
+use Buggregator\Trap\Traffic\Dispatcher as DispatcherInterface;
 use Buggregator\Trap\Traffic\StreamClient;
 
 /**
  * @internal
  * @psalm-internal Buggregator\Trap
  */
-final class VarDumper implements Dispatcher
+final class Dispatcher implements DispatcherInterface
 {
     #[\Override]
     public function dispatch(StreamClient $stream): iterable
@@ -24,7 +24,7 @@ final class VarDumper implements Dispatcher
                 continue;
             }
 
-            yield new Frame\VarDumper($line);
+            yield new Frame($line);
         }
     }
 

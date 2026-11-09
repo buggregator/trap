@@ -18,12 +18,12 @@ final class FrameMapper
     {
         return match ($frame::class) {
             Frame\Otlp\OtlpTraces::class => null,
-            Frame\VarDumper::class => (new Mapper\VarDump())->map($frame),
+            \Buggregator\Trap\Module\VarDumper\Frame::class => (new \Buggregator\Trap\Module\VarDumper\Frontend\Mapper())->map($frame),
             Frame\Http::class => (new Mapper\HttpRequest())->map($frame),
             \Buggregator\Trap\Module\Mailer\Frame::class => (new \Buggregator\Trap\Module\Mailer\Frontend\Mapper())->map($frame),
             \Buggregator\Trap\Module\Sentry\Frame\SentryStore::class => (new \Buggregator\Trap\Module\Sentry\Frontend\StoreMapper())->map($frame),
             \Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope::class => (new \Buggregator\Trap\Module\Sentry\Frontend\EnvelopeMapper())->map($frame),
-            Frame\Monolog::class => (new Mapper\Monolog())->map($frame),
+            \Buggregator\Trap\Module\Monolog\Frame::class => (new \Buggregator\Trap\Module\Monolog\Frontend\Mapper())->map($frame),
             \Buggregator\Trap\Module\Profiler\Frame::class => (new \Buggregator\Trap\Module\Profiler\Frontend\Mapper())->frameToEvent($frame),
             default => throw new \InvalidArgumentException('Unknown frame type ' . $frame::class),
         };

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Sentry\Console;
 
+use Buggregator\Trap\Module\Monolog\Frame as Monolog;
 use Buggregator\Trap\Module\Sentry\Console\SentryEnvelope;
 use Buggregator\Trap\Module\Sentry\Frame\EnvelopeItem;
 use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope as SentryEnvelopeFrame;
-use Buggregator\Trap\Proto\Frame\Monolog;
 use Nyholm\Psr7\Stream;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Testo\Assert;

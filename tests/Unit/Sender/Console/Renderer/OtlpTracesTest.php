@@ -6,8 +6,8 @@ namespace Buggregator\Trap\Tests\Unit\Sender\Console\Renderer;
 
 use Buggregator\Trap\Handler\Http\Middleware\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Info;
+use Buggregator\Trap\Module\Monolog\Frame as Monolog;
 use Buggregator\Trap\Module\Tracing\SpanStore;
-use Buggregator\Trap\Proto\Frame\Monolog;
 use Buggregator\Trap\Proto\Frame\Otlp\OtlpTraces as OtlpTracesFrame;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\ResourceSpans;
 use Buggregator\Trap\Proto\Frame\Otlp\Trace\ScopeSpans;

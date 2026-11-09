@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Proto\Frame;
+namespace Buggregator\Trap\Module\VarDumper;
 
-use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Proto\Frame as ProtoFrame;
 use Buggregator\Trap\ProtoType;
 
 /**
  * @internal
  * @psalm-internal Buggregator
  */
-final class VarDumper extends Frame
+final class Frame extends ProtoFrame
 {
     public function __construct(
         public readonly string $dump,

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Module\Frontend\Mapper;
+namespace Buggregator\Trap\Module\VarDumper\Frontend;
 
 use Buggregator\Trap\Module\Frontend\Event;
-use Buggregator\Trap\Proto\Frame\VarDumper as VarDumperFrame;
+use Buggregator\Trap\Module\VarDumper\Frame as VarDumperFrame;
 use Buggregator\Trap\Support\Uuid;
 use Symfony\Component\VarDumper\Cloner\Data;
 use Symfony\Component\VarDumper\Cloner\Stub;
@@ -14,7 +14,7 @@ use Symfony\Component\VarDumper\Dumper\HtmlDumper;
 /**
  * @internal
  */
-final class VarDump
+final class Mapper
 {
     public function map(VarDumperFrame $frame): Event
     {
