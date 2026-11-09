@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend\Http;
 
+use Buggregator\Trap\Handler\Http\Handler\Fallback;
 use Buggregator\Trap\Handler\Http\Middleware;
 use Buggregator\Trap\Handler\Pipeline as MiddlewaresPipeline;
 use Buggregator\Trap\Info;
@@ -54,6 +55,8 @@ final class Pipeline implements Middleware
 
         return $response->getStatusCode() === 404
             ? $next($request)
-            : $response->withHeader(self::FRONTEND_HEADER, Info::version());
+            : $response
+                ->withHeader(self::FRONTEND_HEADER, Info::version())
+                ->withHeader(Fallback::NO_DUMP_HEADER, '1');
     }
 }

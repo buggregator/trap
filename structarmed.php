@@ -110,10 +110,6 @@ return $architecture
     ->skipClassViolation('Buggregator\Trap\Client\TrapHandle', [
         'Buggregator\Trap\Log\TrapLogger',
     ])
-    // Layering problem: the core checks a Frontend-specific response header instead of its own no-dump header.
-    ->skipClassViolation('Buggregator\Trap\Handler\Http\Handler\Fallback', [
-        'Buggregator\Trap\Module\Frontend\Http\Pipeline',
-    ])
     // Layering problem: the Frontend sender lives in the core, not in the Frontend module.
     ->skipClassViolation('Buggregator\Trap\Sender\FrontendSender', [
         'Buggregator\Trap\Module\Frontend\ConnectionPool',
