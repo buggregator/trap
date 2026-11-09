@@ -52,7 +52,7 @@ final class XDebug implements FileFilterInterface
                             date: new \DateTimeImmutable('@' . $file->mtime),
                             metadata: [
                                 'hostname' => (string) \gethostname(),
-                                'filename' => $file->getName(),
+                                'filename' => \basename($file->path),
                                 'filesize' => $file->size,
                             ],
                         );
