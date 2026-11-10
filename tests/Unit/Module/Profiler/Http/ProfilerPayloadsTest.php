@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Profiler\Http;
 
-use Buggregator\Trap\Logger;
 use Buggregator\Trap\Module\Profiler\Frame;
 use Buggregator\Trap\Module\Profiler\Http\XDebugTrap;
 use Buggregator\Trap\Module\Profiler\Http\XHProfTrap;
 use Buggregator\Trap\Module\Profiler\XDebug\ProfileBuilder as XDebugProfileBuilder;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder as XHProfProfileBuilder;
+use Buggregator\Trap\Server\Logger;
+use Buggregator\Trap\Server\Traffic\Dispatcher\Http;
 use Buggregator\Trap\Test\Mock\StreamClientMock;
-use Buggregator\Trap\Traffic\Dispatcher\Http;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;

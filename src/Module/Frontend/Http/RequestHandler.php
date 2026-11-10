@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend\Http;
 
-use Buggregator\Trap\Handler\Http\Emitter as HttpEmitter;
-use Buggregator\Trap\Handler\Http\RequestHandler as RequestHandlernterace;
 use Buggregator\Trap\Module\Frontend\ConnectionPool;
-use Buggregator\Trap\Traffic\StreamClient;
+use Buggregator\Trap\Server\Handler\Http\Emitter as HttpEmitter;
+use Buggregator\Trap\Server\Handler\Http\RequestHandler as RequestHandlernterace;
+use Buggregator\Trap\Server\Traffic\StreamClient;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ServerRequestInterface;
 

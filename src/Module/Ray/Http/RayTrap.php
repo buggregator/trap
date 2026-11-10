@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Ray\Http;
 
-use Buggregator\Trap\Handler\Http\Handler\Fallback;
-use Buggregator\Trap\Handler\Http\Middleware;
-use Buggregator\Trap\Logger;
 use Buggregator\Trap\Module\Frontend\UiChannel;
 use Buggregator\Trap\Module\Ray\Frame;
 use Buggregator\Trap\Module\Ray\Lock\Locks;
+use Buggregator\Trap\Server\Handler\Http\Handler\Fallback;
+use Buggregator\Trap\Server\Handler\Http\Middleware;
+use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;

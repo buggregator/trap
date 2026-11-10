@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Mailer\Console;
 
 use Buggregator\Trap\Module\Mailer\Frame as MailerFrame;
-use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Sender\Console\Renderer as RendererInterface;
-use Buggregator\Trap\Sender\Console\Support\Common;
-use Buggregator\Trap\Sender\Console\Support\Files;
+use Buggregator\Trap\Server\Proto\Frame;
+use Buggregator\Trap\Server\Sender\Console\Renderer as RendererInterface;
+use Buggregator\Trap\Server\Sender\Console\Support\Common;
+use Buggregator\Trap\Server\Sender\Console\Support\Files;
 use Buggregator\Trap\Support\Measure;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -55,8 +55,8 @@ final class Renderer implements RendererInterface
             $output->write($text->getValue(), true, OutputInterface::OUTPUT_NORMAL);
         }
 
-        /** @var list<\Buggregator\Trap\Traffic\Message\Multipart\File> $attachments */
-        /** @var list<\Buggregator\Trap\Traffic\Message\Multipart\File> $embeddings */
+        /** @var list<\Buggregator\Trap\Server\Traffic\Message\Multipart\File> $attachments */
+        /** @var list<\Buggregator\Trap\Server\Traffic\Message\Multipart\File> $embeddings */
         $attachments = $embeddings = [];
         foreach ($message->getAttachments() as $attach) {
             if ($attach->isEmbedded()) {
@@ -85,7 +85,7 @@ final class Renderer implements RendererInterface
         if ($embeddings !== []) {
             Common::renderHeader3($output, 'Embedded files');
 
-            \Buggregator\Trap\Sender\Console\Support\Tables::renderMultiColumnTable(
+            \Buggregator\Trap\Server\Sender\Console\Support\Tables::renderMultiColumnTable(
                 $output,
                 '',
                 \array_map(static fn($attach) => [

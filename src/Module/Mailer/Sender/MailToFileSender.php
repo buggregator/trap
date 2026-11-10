@@ -7,8 +7,8 @@ namespace Buggregator\Trap\Module\Mailer\Sender;
 use Buggregator\Trap\Module\Mailer\Contact;
 use Buggregator\Trap\Module\Mailer\Frame as MailerFrame;
 use Buggregator\Trap\Module\Mailer\Message;
-use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Sender;
+use Buggregator\Trap\Server\Proto\Frame;
+use Buggregator\Trap\Server\Sender;
 use Buggregator\Trap\Support\FileSystem;
 
 /**

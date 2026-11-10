@@ -20,7 +20,7 @@
         <RedundantCastGivenDocblockType errorLevel="suppress"/>
         <PropertyNotSetInConstructor errorLevel="suppress">
             <errorLevel type="suppress">
-                <directory name="src/Command"/>
+                <directory name="src/Server/Command"/>
             </errorLevel>
         </PropertyNotSetInConstructor>
     </issueHandlers>

@@ -11,10 +11,10 @@ use Buggregator\Trap\Module\Mailer\Frontend\AssetsController;
 use Buggregator\Trap\Module\Mailer\Frontend\Mapper;
 use Buggregator\Trap\Module\Mailer\Sender\MailToFileSender;
 use Buggregator\Trap\Module\Mailer\Traffic\Dispatcher;
-use Buggregator\Trap\Proto\ProvidesFrameTypes;
-use Buggregator\Trap\Sender\Console\ProvidesRenderers;
-use Buggregator\Trap\Sender\ProvidesSenders;
-use Buggregator\Trap\Traffic\ProvidesDispatchers;
+use Buggregator\Trap\Server\Proto\ProvidesFrameTypes;
+use Buggregator\Trap\Server\Sender\Console\ProvidesRenderers;
+use Buggregator\Trap\Server\Sender\ProvidesSenders;
+use Buggregator\Trap\Server\Traffic\ProvidesDispatchers;
 
 /**
  * @internal

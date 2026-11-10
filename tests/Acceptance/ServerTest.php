@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Acceptance;
 
-use Buggregator\Trap\Info;
+use Buggregator\Trap\Server\Info;
 use Buggregator\Trap\Tests\Acceptance\Support\TrapProcess;
 use Testo\Assert;
 use Testo\Lifecycle\AfterTest;

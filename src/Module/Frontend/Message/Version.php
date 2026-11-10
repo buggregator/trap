@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend\Message;
 
-use Buggregator\Trap\Info;
+use Buggregator\Trap\Server\Info;
 
 /**
  * @internal

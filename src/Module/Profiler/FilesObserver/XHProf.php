@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\FilesObserver;
 
-use Buggregator\Trap\Logger;
 use Buggregator\Trap\Module\Profiler\Frame as ProfilerFrame;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
-use Buggregator\Trap\Service\FilesObserver\FileInfo;
-use Buggregator\Trap\Service\FilesObserver\FrameConverter as FileFilterInterface;
+use Buggregator\Trap\Server\Logger;
+use Buggregator\Trap\Server\Service\FilesObserver\FileInfo;
+use Buggregator\Trap\Server\Service\FilesObserver\FrameConverter as FileFilterInterface;
 
 /**
  * @psalm-type RawData = array<non-empty-string, array{

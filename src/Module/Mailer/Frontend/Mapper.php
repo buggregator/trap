@@ -9,9 +9,9 @@ use Buggregator\Trap\Module\Frontend\EventMapper;
 use Buggregator\Trap\Module\Mailer\Frame as SmtpFrame;
 use Buggregator\Trap\Module\Mailer\Message as SmtpMessage;
 use Buggregator\Trap\Module\Mailer\MessageFormat;
-use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Server\Proto\Frame;
+use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
 use Buggregator\Trap\Support\Uuid;
-use Buggregator\Trap\Traffic\Message\Multipart\File;
 
 /**
  * @internal

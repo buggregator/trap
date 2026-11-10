@@ -3,8 +3,8 @@
 
 declare(strict_types=1);
 
-use Buggregator\Trap\Command;
-use Buggregator\Trap\Info;
+use Buggregator\Trap\Server\Command;
+use Buggregator\Trap\Server\Info;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\CommandLoader\FactoryCommandLoader;
 

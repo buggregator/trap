@@ -6,8 +6,8 @@ namespace Buggregator\Trap\Module\Frontend\Mapper;
 
 use Buggregator\Trap\Module\Frontend\Event;
 use Buggregator\Trap\Module\Frontend\EventMapper;
-use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Proto\Frame\Http as HttpFrame;
+use Buggregator\Trap\Server\Proto\Frame;
+use Buggregator\Trap\Server\Proto\Frame\Http as HttpFrame;
 use Buggregator\Trap\Support\Uuid;
 use Psr\Http\Message\UploadedFileInterface;
 

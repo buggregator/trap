@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Sentry;
 
-use Buggregator\Trap\Handler\Http\ProvidesHttpMiddlewares;
 use Buggregator\Trap\Module\Frontend\ProvidesUi;
 use Buggregator\Trap\Module\Sentry\Console\SentryEnvelope as EnvelopeRenderer;
 use Buggregator\Trap\Module\Sentry\Console\SentryStore as StoreRenderer;
@@ -13,8 +12,9 @@ use Buggregator\Trap\Module\Sentry\Frame\SentryStore;
 use Buggregator\Trap\Module\Sentry\Frontend\EnvelopeMapper;
 use Buggregator\Trap\Module\Sentry\Frontend\StoreMapper;
 use Buggregator\Trap\Module\Sentry\Http\SentryTrap;
-use Buggregator\Trap\Proto\ProvidesFrameTypes;
-use Buggregator\Trap\Sender\Console\ProvidesRenderers;
+use Buggregator\Trap\Server\Handler\Http\ProvidesHttpMiddlewares;
+use Buggregator\Trap\Server\Proto\ProvidesFrameTypes;
+use Buggregator\Trap\Server\Sender\Console\ProvidesRenderers;
 
 /**
  * @internal

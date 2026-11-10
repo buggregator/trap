@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Tracing\Config;
 
-use Buggregator\Trap\Bootstrap;
-use Buggregator\Trap\Info;
 use Buggregator\Trap\Module\Tracing\Config\Traces;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\SpanKind;
 use Buggregator\Trap\Module\Tracing\SpanStore;
+use Buggregator\Trap\Server\Bootstrap;
+use Buggregator\Trap\Server\Info;
 use Internal\Container\Container;
 use Testo\Assert;
 use Testo\Codecov\Covers;

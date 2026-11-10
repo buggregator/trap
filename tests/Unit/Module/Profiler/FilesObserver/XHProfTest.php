@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Profiler\FilesObserver;
 
-use Buggregator\Trap\Logger;
 use Buggregator\Trap\Module\Profiler\FilesObserver\XHProf;
 use Buggregator\Trap\Module\Profiler\Frame;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
-use Buggregator\Trap\Service\FilesObserver\FileInfo;
+use Buggregator\Trap\Server\Logger;
+use Buggregator\Trap\Server\Service\FilesObserver\FileInfo;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;

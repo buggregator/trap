@@ -7,7 +7,7 @@ namespace Buggregator\Trap\Module\Sentry\Frontend;
 use Buggregator\Trap\Module\Frontend\Event;
 use Buggregator\Trap\Module\Frontend\EventMapper;
 use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope as SentryFrame;
-use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Support\Uuid;
 
 /**

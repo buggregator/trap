@@ -10,7 +10,7 @@ $channels = ['Frontend'];
 $architecture = Architecture::define()
     ->layer('Client', ['src/Client/', 'src/functions.php'])
     ->layer('Support', 'src/Support/')
-    ->layer('Core', 'src/', ['src/Client/', 'src/functions.php', 'src/Support/', 'src/Module/']);
+    ->layer('Server', 'src/Server/');
 
 foreach ([...$sources, ...$channels] as $module) {
     $architecture->layer($module, "src/Module/{$module}/");
@@ -20,13 +20,13 @@ return $architecture
     ->ruleset([
         'Client' => [],
         'Support' => [],
-        'Core' => ['Support'],
-        ...\array_fill_keys($channels, ['Core', 'Support']),
-        ...\array_fill_keys($sources, ['Core', 'Support', ...$channels]),
+        'Server' => ['Support'],
+        ...\array_fill_keys($channels, ['Server', 'Support']),
+        ...\array_fill_keys($sources, ['Server', 'Support', ...$channels]),
     ])
 
     // The single place that names the module manifests: the module list.
-    ->skipClassViolation('Buggregator\Trap\Application\Module\Modules', [
+    ->skipClassViolation('Buggregator\Trap\Server\Application\Module\Modules', [
         'Buggregator\Trap\Module\Mailer\Module',
         'Buggregator\Trap\Module\Monolog\Module',
         'Buggregator\Trap\Module\Profiler\Module',
@@ -35,8 +35,8 @@ return $architecture
         'Buggregator\Trap\Module\Tracing\Module',
         'Buggregator\Trap\Module\VarDumper\Module',
     ])
-    // Registration point: the core wires the Frontend channel by hand.
-    ->skipClassViolation('Buggregator\Trap\Application', [
+    // Registration point: the server wires the Frontend channel by hand.
+    ->skipClassViolation('Buggregator\Trap\Server\Application', [
         'Buggregator\Trap\Module\Frontend\Http\Pipeline',
         'Buggregator\Trap\Module\Frontend\Http\RequestHandler',
         'Buggregator\Trap\Module\Frontend\Sender\FrontendSender',

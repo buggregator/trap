@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Ray\Frontend;
 
-use Buggregator\Trap\Handler\Router\Attribute\AssertRouteFail as AssertFail;
-use Buggregator\Trap\Handler\Router\Attribute\AssertRouteSuccess as AssertSuccess;
-use Buggregator\Trap\Handler\Router\Attribute\RegexpRoute;
-use Buggregator\Trap\Handler\Router\Method;
-use Buggregator\Trap\Logger;
 use Buggregator\Trap\Module\Frontend\Message\Success;
 use Buggregator\Trap\Module\Ray\Lock\Locks;
+use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteFail as AssertFail;
+use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteSuccess as AssertSuccess;
+use Buggregator\Trap\Server\Handler\Router\Attribute\RegexpRoute;
+use Buggregator\Trap\Server\Handler\Router\Method;
+use Buggregator\Trap\Server\Logger;
 
 /**
  * The buttons of a paused Ray event: the UI sends `post:api/ray/locks/{name}` with `stop_execution: true`

@@ -17,7 +17,7 @@ use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Graph;
 use Buggregator\Trap\Module\Profiler\Struct\Peaks;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
-use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Server\Proto\Frame;
 
 /**
  * @internal

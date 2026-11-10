@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Profiler\Console;
 
 use Buggregator\Trap\Module\Profiler\Frame as ProfilerFrame;
-use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Sender\Console\Renderer as RendererInterface;
-use Buggregator\Trap\Sender\Console\Support\Common;
-use Buggregator\Trap\Sender\Console\Support\Tables;
+use Buggregator\Trap\Server\Proto\Frame;
+use Buggregator\Trap\Server\Sender\Console\Renderer as RendererInterface;
+use Buggregator\Trap\Server\Sender\Console\Support\Common;
+use Buggregator\Trap\Server\Sender\Console\Support\Tables;
 use Buggregator\Trap\Support\Measure;
 use Symfony\Component\Console\Output\OutputInterface;
 

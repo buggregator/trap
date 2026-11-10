@@ -1,0 +1,20 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Buggregator\Trap\Server\Handler\Router;
+
+use Buggregator\Trap\Server\Handler\Router\Attribute\Route;
+
+/**
+ * @internal
+ */
+final class RouteDto
+{
+    public function __construct(
+        public \ReflectionMethod $method,
+        public Route $route,
+        /** Null for a static method or a route of a class rather than an object */
+        public ?object $object = null,
+    ) {}
+}

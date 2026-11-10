@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Frontend\Sender;
 
 use Buggregator\Trap\Module\Frontend;
-use Buggregator\Trap\Processable;
-use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Server\Processable;
+use Buggregator\Trap\Server\Proto\Frame;
 
 /**
  * @internal
  */
-final class FrontendSender implements \Buggregator\Trap\Sender, Processable
+final class FrontendSender implements \Buggregator\Trap\Server\Sender, Processable
 {
     public function __construct(
         private readonly Frontend\ConnectionPool $connectionPool,

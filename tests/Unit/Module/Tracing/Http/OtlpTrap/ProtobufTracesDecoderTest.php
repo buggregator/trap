@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Tracing\Http\OtlpTrap;
 
-use Buggregator\Trap\Info;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\SpanKind;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\StatusCode;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\LimitExceededException;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\ProtobufTracesDecoder;
+use Buggregator\Trap\Server\Info;
 use Opentelemetry\Proto\Collector\Trace\V1\ExportTraceServiceRequest;
 use Opentelemetry\Proto\Common\V1\AnyValue;
 use Opentelemetry\Proto\Common\V1\KeyValue;

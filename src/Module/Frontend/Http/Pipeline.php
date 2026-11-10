@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend\Http;
 
-use Buggregator\Trap\Handler\Http\Handler\Fallback;
-use Buggregator\Trap\Handler\Http\Middleware;
-use Buggregator\Trap\Handler\Pipeline as MiddlewaresPipeline;
-use Buggregator\Trap\Info;
+use Buggregator\Trap\Server\Handler\Http\Handler\Fallback;
+use Buggregator\Trap\Server\Handler\Http\Middleware;
+use Buggregator\Trap\Server\Handler\Pipeline as MiddlewaresPipeline;
+use Buggregator\Trap\Server\Info;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;

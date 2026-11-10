@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend;
 
-use Buggregator\Trap\Config\Server\Frontend\EventStorage as Config;
 use Buggregator\Trap\Module\Frontend\Event;
 use Buggregator\Trap\Module\Frontend\EventStorage;
+use Buggregator\Trap\Server\Config\Frontend\EventStorage as Config;
 use Buggregator\Trap\Support\Uuid;
 use Testo\Assert;
 use Testo\Test;

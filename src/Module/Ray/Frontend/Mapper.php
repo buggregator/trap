@@ -8,7 +8,7 @@ use Buggregator\Trap\Module\Frontend\Event;
 use Buggregator\Trap\Module\Frontend\EventMapper;
 use Buggregator\Trap\Module\Frontend\EventStorage;
 use Buggregator\Trap\Module\Ray\Frame as RayFrame;
-use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Support\Uuid;
 
 /**

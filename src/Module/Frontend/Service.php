@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend;
 
-use Buggregator\Trap\Application\Module\Modules;
-use Buggregator\Trap\Handler\Router\Attribute\AssertRouteFail as AssertFail;
-use Buggregator\Trap\Handler\Router\Attribute\AssertRouteSuccess as AssertSuccess;
-use Buggregator\Trap\Handler\Router\Attribute\RegexpRoute;
-use Buggregator\Trap\Handler\Router\Attribute\StaticRoute;
-use Buggregator\Trap\Handler\Router\Method;
-use Buggregator\Trap\Logger;
 use Buggregator\Trap\Module\Frontend\Message\EventCollection;
 use Buggregator\Trap\Module\Frontend\Message\Projects;
 use Buggregator\Trap\Module\Frontend\Message\Settings;
 use Buggregator\Trap\Module\Frontend\Message\Success;
 use Buggregator\Trap\Module\Frontend\Message\Version;
+use Buggregator\Trap\Server\Application\Module\Modules;
+use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteFail as AssertFail;
+use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteSuccess as AssertSuccess;
+use Buggregator\Trap\Server\Handler\Router\Attribute\RegexpRoute;
+use Buggregator\Trap\Server\Handler\Router\Attribute\StaticRoute;
+use Buggregator\Trap\Server\Handler\Router\Method;
+use Buggregator\Trap\Server\Logger;
 
 /**
  * @internal

@@ -6,7 +6,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Ray\Console;
 
 use Buggregator\Trap\Module\Ray\Console\Renderer;
 use Buggregator\Trap\Module\Ray\Frame;
-use Buggregator\Trap\Proto\Frame\Http;
+use Buggregator\Trap\Server\Proto\Frame\Http;
 use Nyholm\Psr7\ServerRequest;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Testo\Assert;

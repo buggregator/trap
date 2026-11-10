@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Ray\Http;
 
-use Buggregator\Trap\Handler\Http\Handler\Fallback;
 use Buggregator\Trap\Module\Frontend\UiChannel;
 use Buggregator\Trap\Module\Ray\Frame;
 use Buggregator\Trap\Module\Ray\Http\RayTrap;
 use Buggregator\Trap\Module\Ray\Lock\Locks;
+use Buggregator\Trap\Server\Handler\Http\Handler\Fallback;
 use Buggregator\Trap\Tests\Unit\Module\Ray\FrameTest;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;

@@ -6,7 +6,7 @@ namespace Buggregator\Trap\Module\Sentry;
 
 use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope;
 use Buggregator\Trap\Module\Sentry\Frame\SentryStore;
-use Buggregator\Trap\Proto\Frame as ProtoFrame;
+use Buggregator\Trap\Server\Proto\Frame as ProtoFrame;
 use Buggregator\Trap\Support\Json;
 
 /**

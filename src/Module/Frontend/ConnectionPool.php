@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend;
 
-use Buggregator\Trap\Logger;
 use Buggregator\Trap\Module\Frontend\Message\Connect;
 use Buggregator\Trap\Module\Frontend\Message\Response;
-use Buggregator\Trap\Processable;
+use Buggregator\Trap\Server\Logger;
+use Buggregator\Trap\Server\Processable;
+use Buggregator\Trap\Server\Traffic\StreamClient;
+use Buggregator\Trap\Server\Traffic\Websocket\Frame;
+use Buggregator\Trap\Server\Traffic\Websocket\Opcode;
+use Buggregator\Trap\Server\Traffic\Websocket\StreamReader;
 use Buggregator\Trap\Support\Json;
 use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Support\Uuid;
-use Buggregator\Trap\Traffic\StreamClient;
-use Buggregator\Trap\Traffic\Websocket\Frame;
-use Buggregator\Trap\Traffic\Websocket\Opcode;
-use Buggregator\Trap\Traffic\Websocket\StreamReader;
 
 /**
  * @internal

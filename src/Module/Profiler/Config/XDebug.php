@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\Config;
 
-use Buggregator\Trap\Application\Config\Internal\Attribute\Env;
-use Buggregator\Trap\Application\Config\Internal\Attribute\InflectableConfig;
-use Buggregator\Trap\Application\Config\Internal\Attribute\PhpIni;
-use Buggregator\Trap\Config\Server\Files\ObserverConfig;
 use Buggregator\Trap\Module\Profiler\FilesObserver\XDebug as Converter;
-use Buggregator\Trap\Service\FilesObserver\FrameConverter;
+use Buggregator\Trap\Server\Application\Config\Internal\Attribute\Env;
+use Buggregator\Trap\Server\Application\Config\Internal\Attribute\InflectableConfig;
+use Buggregator\Trap\Server\Application\Config\Internal\Attribute\PhpIni;
+use Buggregator\Trap\Server\Config\Files\ObserverConfig;
+use Buggregator\Trap\Server\Service\FilesObserver\FrameConverter;
 
 /**
  * Observes the explicit {@see $path}, or else {@see $outputDir} while the Xdebug profiler is on.

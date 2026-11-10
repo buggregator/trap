@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\VarDumper\Console;
 
 use Buggregator\Trap\Module\VarDumper\Frame as VarDumperFrame;
-use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Sender\Console\Renderer as RendererInterface;
-use Buggregator\Trap\Sender\Console\Support\Common;
+use Buggregator\Trap\Server\Proto\Frame;
+use Buggregator\Trap\Server\Sender\Console\Renderer as RendererInterface;
+use Buggregator\Trap\Server\Sender\Console\Support\Common;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;

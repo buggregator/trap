@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Sentry\Console;
 
 use Buggregator\Trap\Module\Sentry\Frame\SentryStore as SentryStoreFrame;
-use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Sender\Console\Renderer;
-use Buggregator\Trap\Sender\Console\Support\Common;
+use Buggregator\Trap\Server\Proto\Frame;
+use Buggregator\Trap\Server\Sender\Console\Renderer;
+use Buggregator\Trap\Server\Sender\Console\Support\Common;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend;
 
-use Buggregator\Trap\Application\Module\Modules;
+use Buggregator\Trap\Server\Application\Module\Modules;
 use Internal\Container\Container;
 
 /**

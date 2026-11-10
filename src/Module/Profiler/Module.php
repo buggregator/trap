@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler;
 
-use Buggregator\Trap\Handler\Http\ProvidesHttpMiddlewares;
 use Buggregator\Trap\Module\Frontend\ProvidesUi;
 use Buggregator\Trap\Module\Profiler\Config\SPX;
 use Buggregator\Trap\Module\Profiler\Config\XDebug;
@@ -14,9 +13,10 @@ use Buggregator\Trap\Module\Profiler\Frontend\ApiController;
 use Buggregator\Trap\Module\Profiler\Frontend\Mapper;
 use Buggregator\Trap\Module\Profiler\Http\XDebugTrap;
 use Buggregator\Trap\Module\Profiler\Http\XHProfTrap;
-use Buggregator\Trap\Proto\ProvidesFrameTypes;
-use Buggregator\Trap\Sender\Console\ProvidesRenderers;
-use Buggregator\Trap\Service\FilesObserver\ProvidesFileObservers;
+use Buggregator\Trap\Server\Handler\Http\ProvidesHttpMiddlewares;
+use Buggregator\Trap\Server\Proto\ProvidesFrameTypes;
+use Buggregator\Trap\Server\Sender\Console\ProvidesRenderers;
+use Buggregator\Trap\Server\Service\FilesObserver\ProvidesFileObservers;
 
 /**
  * @internal

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend\Stub;
 
-use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Server\Proto\Frame;
 
 /**
  * A frame class a module maps; {@see ChildFrame} extends it.

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Mailer\Sender;
 
-use Buggregator\Trap\Info;
 use Buggregator\Trap\Module\Mailer\Frame as SmtpFrame;
 use Buggregator\Trap\Module\Mailer\Message as SmtpMessage;
 use Buggregator\Trap\Module\Mailer\Sender\MailToFileSender;
+use Buggregator\Trap\Server\Info;
 use Testo\Assert;
 use Testo\Lifecycle\AfterTest;
 use Testo\Test;

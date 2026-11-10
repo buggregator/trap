@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Tracing;
 
-use Buggregator\Trap\Handler\Http\ProvidesHttpMiddlewares;
 use Buggregator\Trap\Module\Frontend\ProvidesUi;
 use Buggregator\Trap\Module\Tracing\Console\Renderer;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap;
-use Buggregator\Trap\Proto\ProvidesFrameTypes;
-use Buggregator\Trap\Sender\Console\ProvidesRenderers;
+use Buggregator\Trap\Server\Handler\Http\ProvidesHttpMiddlewares;
+use Buggregator\Trap\Server\Proto\ProvidesFrameTypes;
+use Buggregator\Trap\Server\Sender\Console\ProvidesRenderers;
 
 /**
  * @internal

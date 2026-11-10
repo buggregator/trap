@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend;
 
-use Buggregator\Trap\Application\Module\Module;
-use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Server\Application\Module\Module;
+use Buggregator\Trap\Server\Proto\Frame;
 
 /**
  * A module shown in the Buggregator UI.

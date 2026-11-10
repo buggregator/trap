@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend;
 
-use Buggregator\Trap\Application\Module\Modules;
-use Buggregator\Trap\Logger;
 use Buggregator\Trap\Module\Frontend\Event;
 use Buggregator\Trap\Module\Frontend\EventStorage;
 use Buggregator\Trap\Module\Frontend\Service;
+use Buggregator\Trap\Server\Application\Module\Modules;
+use Buggregator\Trap\Server\Logger;
 use Internal\Container\ObjectContainer;
 use Testo\Assert;
 use Testo\Codecov\Covers;

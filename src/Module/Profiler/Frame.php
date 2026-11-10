@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler;
 
-use Buggregator\Trap\Proto\Frame as ProtoFrame;
+use Buggregator\Trap\Server\Proto\Frame as ProtoFrame;
 use Buggregator\Trap\Support\Json;
 
 /**

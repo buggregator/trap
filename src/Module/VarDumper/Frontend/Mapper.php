@@ -7,7 +7,7 @@ namespace Buggregator\Trap\Module\VarDumper\Frontend;
 use Buggregator\Trap\Module\Frontend\Event;
 use Buggregator\Trap\Module\Frontend\EventMapper;
 use Buggregator\Trap\Module\VarDumper\Frame as VarDumperFrame;
-use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Support\Uuid;
 use Symfony\Component\VarDumper\Cloner\Data;
 use Symfony\Component\VarDumper\Cloner\Stub;

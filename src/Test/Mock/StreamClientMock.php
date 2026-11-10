@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Test\Mock;
 
+use Buggregator\Trap\Server\Traffic\StreamClient;
 use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Test\Mock\StreamClientMock\DisconnectCommand;
-use Buggregator\Trap\Traffic\StreamClient;
 
 /**
  * @internal
@@ -82,7 +82,7 @@ final class StreamClientMock implements StreamClient
     }
 
     /**
-     * Copy of {@see \Buggregator\Trap\Socket\SocketStream::fetchLine()}
+     * Copy of {@see \Buggregator\Trap\Server\Socket\SocketStream::fetchLine()}
      */
     public function fetchLine(): string
     {

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Profiler\Config;
 
-use Buggregator\Trap\Bootstrap;
 use Buggregator\Trap\Module\Profiler\Config\XDebug;
+use Buggregator\Trap\Server\Bootstrap;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Data\DataSet;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Acceptance\Support;
 
-use Buggregator\Trap\Info;
+use Buggregator\Trap\Server\Info;
 
 /**
  * Runs `bin/trap` as a subprocess in its own temporary working directory with a clean environment.

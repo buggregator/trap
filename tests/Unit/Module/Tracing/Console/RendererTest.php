@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Tracing\Console;
 
-use Buggregator\Trap\Info;
 use Buggregator\Trap\Module\Monolog\Frame as Monolog;
 use Buggregator\Trap\Module\Tracing\Console\Renderer;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces as OtlpTracesFrame;
@@ -14,6 +13,7 @@ use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\SpanKind;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Module\Tracing\SpanStore;
+use Buggregator\Trap\Server\Info;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Testo\Assert;

@@ -6,8 +6,8 @@ namespace Buggregator\Trap\Module\Tracing;
 
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\Attributes;
-use Buggregator\Trap\Proto\Frame as ProtoFrame;
-use Buggregator\Trap\Sender\LocalOnlyFrame;
+use Buggregator\Trap\Server\Proto\Frame as ProtoFrame;
+use Buggregator\Trap\Server\Sender\LocalOnlyFrame;
 
 /**
  * OpenTelemetry signals received over OTLP. Each signal is its own subclass,

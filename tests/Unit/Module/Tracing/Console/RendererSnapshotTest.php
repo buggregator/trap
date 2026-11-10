@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Tracing\Console;
 
-use Buggregator\Trap\Info;
 use Buggregator\Trap\Module\Tracing\Config\Traces;
 use Buggregator\Trap\Module\Tracing\Console\Renderer;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces as OtlpTracesFrame;
@@ -13,6 +12,7 @@ use Buggregator\Trap\Module\Tracing\Frame\Trace\ScopeSpans;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\SpanKind;
 use Buggregator\Trap\Module\Tracing\SpanStore;
+use Buggregator\Trap\Server\Info;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Testo\Assert;
 use Testo\Codecov\Covers;

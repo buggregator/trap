@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mailer;
 
-use Buggregator\Trap\Proto\FilesCarrier;
-use Buggregator\Trap\Proto\Frame as ProtoFrame;
+use Buggregator\Trap\Server\Proto\FilesCarrier;
+use Buggregator\Trap\Server\Proto\Frame as ProtoFrame;
 use Buggregator\Trap\Support\Json;
 use Psr\Http\Message\StreamInterface;
 
@@ -14,7 +14,7 @@ use Psr\Http\Message\StreamInterface;
  * @psalm-internal Buggregator
  * @psalm-import-type TArrayData from Message
  */
-final class Frame extends ProtoFrame implements FilesCarrier, \Buggregator\Trap\Proto\StreamCarrier
+final class Frame extends ProtoFrame implements FilesCarrier, \Buggregator\Trap\Server\Proto\StreamCarrier
 {
     public const TYPE = 'smtp';
 

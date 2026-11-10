@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend;
 
-use Buggregator\Trap\Application\Module\Modules;
-use Buggregator\Trap\Logger;
 use Buggregator\Trap\Module\Frontend\EventStorage;
 use Buggregator\Trap\Module\Frontend\FrameMapper;
 use Buggregator\Trap\Module\Frontend\Service;
 use Buggregator\Trap\Module\Frontend\UiControllers;
-use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Server\Application\Module\Modules;
+use Buggregator\Trap\Server\Logger;
+use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\ApiController;
 use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\AssetsController;
 use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\ChildFrame;

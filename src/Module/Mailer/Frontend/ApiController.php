@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mailer\Frontend;
 
-use Buggregator\Trap\Handler\Router\Attribute\AssertRouteSuccess as AssertSuccess;
-use Buggregator\Trap\Handler\Router\Attribute\RegexpRoute;
-use Buggregator\Trap\Handler\Router\Method;
-use Buggregator\Trap\Logger;
 use Buggregator\Trap\Module\Frontend\Event\AttachedFile;
 use Buggregator\Trap\Module\Frontend\EventStorage;
 use Buggregator\Trap\Module\Frontend\Message\Success;
 use Buggregator\Trap\Module\Mailer\Frontend\Message\Attachments;
+use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteSuccess as AssertSuccess;
+use Buggregator\Trap\Server\Handler\Router\Attribute\RegexpRoute;
+use Buggregator\Trap\Server\Handler\Router\Method;
+use Buggregator\Trap\Server\Logger;
 
 /**
  * @internal

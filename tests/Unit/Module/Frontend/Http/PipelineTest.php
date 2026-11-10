@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend\Http;
 
-use Buggregator\Trap\Handler\Http\Handler\Fallback;
 use Buggregator\Trap\Module\Frontend\Http\Pipeline;
+use Buggregator\Trap\Server\Handler\Http\Handler\Fallback;
 use Internal\Container\ObjectContainer;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;

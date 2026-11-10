@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend\Stub;
 
 use Buggregator\Trap\Module\Frontend\ProvidesUi;
-use Buggregator\Trap\Proto\Frame\Http;
+use Buggregator\Trap\Server\Proto\Frame\Http;
 
 /**
  * Takes the frame class and the event type of the Frontend's own HTTP dumps.

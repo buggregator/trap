@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\VarDumper\Traffic;
 
 use Buggregator\Trap\Module\VarDumper\Frame;
-use Buggregator\Trap\Traffic\Dispatcher as DispatcherInterface;
-use Buggregator\Trap\Traffic\StreamClient;
+use Buggregator\Trap\Server\Traffic\Dispatcher as DispatcherInterface;
+use Buggregator\Trap\Server\Traffic\StreamClient;
 
 /**
  * @internal

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend\Stub;
 
 use Buggregator\Trap\Module\Frontend\ProvidesUi;
-use Buggregator\Trap\Proto\Frame\Binary;
+use Buggregator\Trap\Server\Proto\Frame\Binary;
 
 final class UiModule implements ProvidesUi
 {

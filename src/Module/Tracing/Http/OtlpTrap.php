@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Tracing\Http;
 
-use Buggregator\Trap\Handler\Http\Handler\Fallback;
-use Buggregator\Trap\Handler\Http\Middleware;
-use Buggregator\Trap\Logger;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\LimitExceededException;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\ProtobufTracesDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\TracesDecoder;
+use Buggregator\Trap\Server\Handler\Http\Handler\Fallback;
+use Buggregator\Trap\Server\Handler\Http\Middleware;
+use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;

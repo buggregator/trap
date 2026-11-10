@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Tracing\Config;
 
-use Buggregator\Trap\Application\Config\Internal\Attribute\Env;
-use Buggregator\Trap\Application\Config\Internal\Attribute\InflectableConfig;
-use Buggregator\Trap\Application\Config\Internal\Attribute\XPath;
+use Buggregator\Trap\Server\Application\Config\Internal\Attribute\Env;
+use Buggregator\Trap\Server\Application\Config\Internal\Attribute\InflectableConfig;
+use Buggregator\Trap\Server\Application\Config\Internal\Attribute\XPath;
 
 /**
  * Limits of the in-memory store of received OpenTelemetry spans,

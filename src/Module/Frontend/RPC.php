@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend;
 
-use Buggregator\Trap\Handler\Router\Method;
-use Buggregator\Trap\Handler\Router\Router;
-use Buggregator\Trap\Logger;
+use Buggregator\Trap\Server\Handler\Router\Method;
+use Buggregator\Trap\Server\Handler\Router\Router;
+use Buggregator\Trap\Server\Logger;
 
 /**
  * @internal

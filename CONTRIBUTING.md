@@ -12,9 +12,9 @@
 
 **Client Code** (`src/Client/`): Public API that follows semantic versioning. Changes here affect how developers use the library.
 
-**Server Code** (everything else): Internal code marked with `@internal`. Not subject to semver - breaking changes are allowed.
+**Server Code** (`src/Server/`, the modules in `src/Module/` and `src/Support/`): Internal code marked with `@internal`. Not subject to semver - breaking changes are allowed.
 
-Dependencies between the layers (client, support, core, modules) are declared in `structarmed.php`; run `composer structarmed` to check them.
+Dependencies between the layers (client, support, server, modules) are declared in `structarmed.php`; run `composer structarmed` to check them.
 
 ## Versioning
 

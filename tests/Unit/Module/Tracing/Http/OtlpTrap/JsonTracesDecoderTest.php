@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Tracing\Http\OtlpTrap;
 
-use Buggregator\Trap\Info;
 use Buggregator\Trap\Module\Tracing\Frame;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\SpanKind;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\StatusCode;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\LimitExceededException;
+use Buggregator\Trap\Server\Info;
 use Testo\Assert;
 use Testo\Assert\ExpectException;
 use Testo\Codecov\Covers;

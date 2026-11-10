@@ -1,0 +1,53 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Buggregator\Trap\Server\Proto\Frame;
+
+use Buggregator\Trap\Server\Proto\Frame;
+use Buggregator\Trap\Support\Json;
+use Psr\Http\Message\StreamInterface;
+
+/**
+ * @internal
+ * @psalm-internal Buggregator
+ */
+final class Binary extends Frame implements \Buggregator\Trap\Server\Proto\StreamCarrier
+{
+    public const TYPE = 'binary';
+
+    public function __construct(
+        public readonly StreamInterface $stream,
+        \DateTimeImmutable $time = new \DateTimeImmutable(),
+    ) {
+        parent::__construct(self::TYPE, $time);
+    }
+
+    #[\Override]
+    public static function fromString(string $payload, \DateTimeImmutable $time): never
+    {
+        throw new \RuntimeException('Binary data can not be restored from string.');
+    }
+
+    #[\Override]
+    public function getSize(): int
+    {
+        return \max(0, (int) $this->stream->getSize());
+    }
+
+    #[\Override]
+    public function getStream(): StreamInterface
+    {
+        return $this->stream;
+    }
+
+    /**
+     * @throws \JsonException
+     */
+    public function __toString(): string
+    {
+        return Json::encode([
+            'size' => $this->getSize(),
+        ]);
+    }
+}

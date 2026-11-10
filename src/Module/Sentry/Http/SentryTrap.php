@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Sentry\Http;
 
-use Buggregator\Trap\Handler\Http\Middleware;
-use Buggregator\Trap\Logger;
 use Buggregator\Trap\Module\Sentry\Frame;
 use Buggregator\Trap\Module\Sentry\Http\SentryTrap\EnvelopeParser;
+use Buggregator\Trap\Server\Handler\Http\Middleware;
+use Buggregator\Trap\Server\Logger;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;

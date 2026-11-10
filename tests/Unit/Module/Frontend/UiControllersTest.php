@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend;
 
-use Buggregator\Trap\Handler\Router\Attribute\AssertRouteSuccess;
-use Buggregator\Trap\Handler\Router\Router;
 use Buggregator\Trap\Module\Frontend\Event;
 use Buggregator\Trap\Module\Frontend\EventStorage;
 use Buggregator\Trap\Module\Frontend\Http\Pipeline;
@@ -24,8 +22,10 @@ use Buggregator\Trap\Module\Profiler\Frontend\Mapper as ProfilerMapper;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
 use Buggregator\Trap\Module\Ray\Frontend\LocksController as RayLocksController;
 use Buggregator\Trap\Module\Ray\Lock\Locks;
-use Buggregator\Trap\Traffic\Message\Multipart\Field;
-use Buggregator\Trap\Traffic\Message\Multipart\File;
+use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteSuccess;
+use Buggregator\Trap\Server\Handler\Router\Router;
+use Buggregator\Trap\Server\Traffic\Message\Multipart\Field;
+use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
 use Internal\Container\ObjectContainer;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;

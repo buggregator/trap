@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Mailer\Traffic;
 
 use Buggregator\Trap\Module\Mailer\Message;
+use Buggregator\Trap\Server\Traffic\Message\Multipart\Field;
+use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
+use Buggregator\Trap\Server\Traffic\Parser\Http;
+use Buggregator\Trap\Server\Traffic\StreamClient;
 use Buggregator\Trap\Support\StreamHelper;
-use Buggregator\Trap\Traffic\Message\Multipart\Field;
-use Buggregator\Trap\Traffic\Message\Multipart\File;
-use Buggregator\Trap\Traffic\Parser\Http;
-use Buggregator\Trap\Traffic\StreamClient;
 use Psr\Http\Message\StreamInterface;
 
 /**

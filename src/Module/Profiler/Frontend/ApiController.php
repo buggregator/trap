@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\Frontend;
 
-use Buggregator\Trap\Handler\Router\Attribute\AssertRouteSuccess as AssertSuccess;
-use Buggregator\Trap\Handler\Router\Attribute\QueryParam;
-use Buggregator\Trap\Handler\Router\Attribute\RegexpRoute;
-use Buggregator\Trap\Handler\Router\Method;
 use Buggregator\Trap\Module\Frontend\Event;
 use Buggregator\Trap\Module\Frontend\EventStorage;
 use Buggregator\Trap\Module\Profiler\Frame\Payload as ProfilerPayload;
+use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteSuccess as AssertSuccess;
+use Buggregator\Trap\Server\Handler\Router\Attribute\QueryParam;
+use Buggregator\Trap\Server\Handler\Router\Attribute\RegexpRoute;
+use Buggregator\Trap\Server\Handler\Router\Method;
 
 /**
  * @internal

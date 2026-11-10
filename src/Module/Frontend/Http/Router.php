@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend\Http;
 
-use Buggregator\Trap\Handler\Http\Middleware;
-use Buggregator\Trap\Handler\Router\Method;
-use Buggregator\Trap\Handler\Router\Router as CommonRouter;
-use Buggregator\Trap\Logger;
 use Buggregator\Trap\Module\Frontend\UiControllers;
+use Buggregator\Trap\Server\Handler\Http\Middleware;
+use Buggregator\Trap\Server\Handler\Router\Method;
+use Buggregator\Trap\Server\Handler\Router\Router as CommonRouter;
+use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;

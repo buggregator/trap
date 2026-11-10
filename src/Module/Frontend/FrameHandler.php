@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend;
 
-use Buggregator\Trap\Logger;
 use Buggregator\Trap\Module\Frontend\Message\Push;
-use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Sender\FrameHandler as HandlerInterface;
+use Buggregator\Trap\Server\Logger;
+use Buggregator\Trap\Server\Proto\Frame;
+use Buggregator\Trap\Server\Sender\FrameHandler as HandlerInterface;
 use Buggregator\Trap\Support\Json;
 
 /**
@@ -39,7 +39,7 @@ final class FrameHandler implements HandlerInterface
         }
 
         // Send event to all connections
-        $this->connectionPool->send(\Buggregator\Trap\Traffic\Websocket\Frame::text(
+        $this->connectionPool->send(\Buggregator\Trap\Server\Traffic\Websocket\Frame::text(
             Json::encode(
                 new Push(
                     event: 'event.received',

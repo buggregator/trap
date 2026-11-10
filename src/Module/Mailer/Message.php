@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mailer;
 
-use Buggregator\Trap\Traffic\Message\Headers;
-use Buggregator\Trap\Traffic\Message\Multipart\Field;
-use Buggregator\Trap\Traffic\Message\Multipart\File;
-use Buggregator\Trap\Traffic\Message\StreamBody;
+use Buggregator\Trap\Server\Traffic\Message\Headers;
+use Buggregator\Trap\Server\Traffic\Message\Multipart\Field;
+use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
+use Buggregator\Trap\Server\Traffic\Message\StreamBody;
 use Psr\Http\Message\StreamInterface;
 
 /**

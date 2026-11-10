@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\Config;
 
-use Buggregator\Trap\Application\Config\Internal\Attribute\InflectableConfig;
-use Buggregator\Trap\Application\Config\Internal\Attribute\PhpIni;
-use Buggregator\Trap\Config\Server\Files\ObserverConfig;
+use Buggregator\Trap\Server\Application\Config\Internal\Attribute\InflectableConfig;
+use Buggregator\Trap\Server\Application\Config\Internal\Attribute\PhpIni;
+use Buggregator\Trap\Server\Config\Files\ObserverConfig;
 
 /**
  * @internal

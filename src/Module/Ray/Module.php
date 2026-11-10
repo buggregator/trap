@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Ray;
 
-use Buggregator\Trap\Handler\Http\ProvidesHttpMiddlewares;
 use Buggregator\Trap\Module\Frontend\ProvidesUi;
 use Buggregator\Trap\Module\Ray\Console\Renderer;
 use Buggregator\Trap\Module\Ray\Frontend\LocksController;
 use Buggregator\Trap\Module\Ray\Frontend\Mapper;
 use Buggregator\Trap\Module\Ray\Http\RayTrap;
-use Buggregator\Trap\Proto\ProvidesFrameTypes;
-use Buggregator\Trap\Sender\Console\ProvidesRenderers;
+use Buggregator\Trap\Server\Handler\Http\ProvidesHttpMiddlewares;
+use Buggregator\Trap\Server\Proto\ProvidesFrameTypes;
+use Buggregator\Trap\Server\Sender\Console\ProvidesRenderers;
 
 /**
  * @internal

@@ -6,7 +6,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Frontend\Stub;
 
 use Buggregator\Trap\Module\Frontend\Event;
 use Buggregator\Trap\Module\Frontend\EventMapper;
-use Buggregator\Trap\Proto\Frame;
+use Buggregator\Trap\Server\Proto\Frame;
 
 final class ChildMapper implements EventMapper
 {

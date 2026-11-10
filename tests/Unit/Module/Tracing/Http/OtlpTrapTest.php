@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Tracing\Http;
 
-use Buggregator\Trap\Handler\Http\Handler\Fallback;
-use Buggregator\Trap\Info;
-use Buggregator\Trap\Logger;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\ProtobufTracesDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\TracesDecoder;
-use Buggregator\Trap\Proto\Frame;
-use Buggregator\Trap\Traffic\StreamClient;
+use Buggregator\Trap\Server\Handler\Http\Handler\Fallback;
+use Buggregator\Trap\Server\Info;
+use Buggregator\Trap\Server\Logger;
+use Buggregator\Trap\Server\Proto\Frame;
+use Buggregator\Trap\Server\Traffic\StreamClient;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
