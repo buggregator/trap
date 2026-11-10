@@ -17,6 +17,6 @@ final class FrameMapperTest
 {
     public function testSkipsOtlpTraces(): void
     {
-        Assert::null((new FrameMapper(new ObjectContainer()))->map(new OtlpTraces([])));
+        Assert::null(((new ObjectContainer())->get(FrameMapper::class))->map(new OtlpTraces([])));
     }
 }

@@ -27,7 +27,7 @@ final class RouterTest
     {
         yield 'self' => [self::class];
 
-        $controllers = new UiControllers(new ObjectContainer());
+        $controllers = (new ObjectContainer())->get(UiControllers::class);
         foreach ([...$controllers->api(), ...$controllers->assets()] as $controller) {
             yield $controller::class => [$controller::class];
         }

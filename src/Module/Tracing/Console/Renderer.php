@@ -51,7 +51,7 @@ final class Renderer implements RendererInterface
     private int $budget = 0;
 
     public function __construct(
-        private readonly SpanStore $store = new SpanStore(),
+        private readonly SpanStore $store,
     ) {}
 
     #[\Override]

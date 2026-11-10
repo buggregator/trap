@@ -41,18 +41,16 @@ final class RunTest
         // The file senders create their directories in the working directory.
         \chdir($dir);
         try {
-            foreach ([new ObjectContainer(), null] as $container) {
-                $senders = (new Run())->createRegistry(new BufferedOutput(), $container)
-                    ->getSenders(['console', 'file', 'file-body', 'mail-to-file', 'server']);
+            $senders = (new Run())->createRegistry(new BufferedOutput(), new ObjectContainer())
+                ->getSenders(['console', 'file', 'file-body', 'mail-to-file', 'server']);
 
-                Assert::same(\array_map(static fn(object $sender): string => $sender::class, $senders), [
-                    ConsoleSender::class,
-                    EventsToFileSender::class,
-                    BodyToFileSender::class,
-                    MailToFileSender::class,
-                    RemoteSender::class,
-                ]);
-            }
+            Assert::same(\array_map(static fn(object $sender): string => $sender::class, $senders), [
+                ConsoleSender::class,
+                EventsToFileSender::class,
+                BodyToFileSender::class,
+                MailToFileSender::class,
+                RemoteSender::class,
+            ]);
         } finally {
             \chdir((string) $cwd);
             self::remove($dir);

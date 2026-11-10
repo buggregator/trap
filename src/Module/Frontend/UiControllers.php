@@ -18,6 +18,7 @@ use Internal\Container\Container;
 final class UiControllers
 {
     public function __construct(
+        private readonly Modules $modules,
         private readonly Container $container,
     ) {}
 
@@ -56,7 +57,7 @@ final class UiControllers
      */
     private function modules(): array
     {
-        return $this->container->get(Modules::class)->implementing(ProvidesUi::class);
+        return $this->modules->implementing(ProvidesUi::class);
     }
 
     /**

@@ -30,7 +30,7 @@ interface ProvidesUi extends Module
     public function uiAssetsControllers(): array;
 
     /**
-     * Matched by the exact frame class. A frame of a class missing in all the modules fails to map.
+     * A mapper also takes the subclasses of its frame class. A frame no mapper takes fails to map.
      *
      * @return array<class-string<Frame>, class-string<EventMapper>|null> Mappers by frame class;
      *         null for frames the UI has no event type for.

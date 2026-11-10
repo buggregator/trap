@@ -94,12 +94,8 @@ final class Run extends Command implements SignalableCommandInterface
         return $servers;
     }
 
-    /**
-     * @param Container|null $container Without it, the senders get a container without configuration.
-     */
-    public function createRegistry(OutputInterface $output, ?Container $container = null): Sender\SenderRegistry
+    public function createRegistry(OutputInterface $output, Container $container): Sender\SenderRegistry
     {
-        $container ??= Bootstrap::init()->finish();
         $registry = new Sender\SenderRegistry();
         $registry->register('console', static fn(): Sender => Sender\ConsoleSender::create($output, $container));
         $registry->register('file', static fn(): Sender => new Sender\EventsToFileSender());

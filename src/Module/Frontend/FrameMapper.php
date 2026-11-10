@@ -16,16 +16,19 @@ final class FrameMapper
     /** @var array<class-string<Frame>, class-string<EventMapper>|null> */
     private readonly array $mappers;
 
+    /** @var array<class-string<Frame>, class-string<EventMapper>|null> Mappers resolved by the exact frame class */
+    private array $resolved = [];
+
     /**
-     * @param Container $container Creates the mappers: the Ray mapper adds payloads to the stored
-     *        {@see EventStorage}, the one of the container.
+     * @param Container $container Creates the mappers, so they share its services, such as the {@see EventStorage}.
      */
     public function __construct(
+        Modules $modules,
         private readonly Container $container,
     ) {
         /** @var array<class-string<Frame>, class-string<EventMapper>|null> $mappers */
         $mappers = [Frame\Http::class => Mapper\HttpRequest::class];
-        foreach ($container->get(Modules::class)->implementing(ProvidesUi::class) as $module) {
+        foreach ($modules->implementing(ProvidesUi::class) as $module) {
             $mappers = [...$mappers, ...$module->uiEventMappers()];
         }
 
@@ -37,11 +40,32 @@ final class FrameMapper
      */
     public function map(Frame $frame): ?Event
     {
-        \array_key_exists($frame::class, $this->mappers) or throw new \InvalidArgumentException(
-            'Unknown frame type ' . $frame::class,
-        );
-        $class = $this->mappers[$frame::class];
+        $class = $this->mapperOf($frame);
 
         return $class === null ? null : $this->container->get($class)->map($frame);
+    }
+
+    /**
+     * The mapper of the frame class, or else of the first mapped class the frame extends.
+     *
+     * @return class-string<EventMapper>|null
+     */
+    private function mapperOf(Frame $frame): ?string
+    {
+        if (\array_key_exists($frame::class, $this->resolved)) {
+            return $this->resolved[$frame::class];
+        }
+
+        if (\array_key_exists($frame::class, $this->mappers)) {
+            return $this->resolved[$frame::class] = $this->mappers[$frame::class];
+        }
+
+        foreach ($this->mappers as $frameClass => $mapper) {
+            if (\is_a($frame, $frameClass)) {
+                return $this->resolved[$frame::class] = $mapper;
+            }
+        }
+
+        throw new \InvalidArgumentException('Unknown frame type ' . $frame::class);
     }
 }

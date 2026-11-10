@@ -11,6 +11,8 @@ use Buggregator\Trap\Module\Frontend\UiControllers;
 use Buggregator\Trap\Proto\Frame;
 use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\ApiController;
 use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\AssetsController;
+use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\ChildFrame;
+use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\ChildUiModule;
 use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\UiModule;
 use Internal\Container\ObjectContainer;
 use Nyholm\Psr7\ServerRequest;
@@ -31,7 +33,7 @@ final class UiContributionsTest
 {
     public function testControllersOfModulesFollowTheFrontendOnes(): void
     {
-        $controllers = new UiControllers(self::container());
+        $controllers = (self::container())->get(UiControllers::class);
 
         Assert::same(self::classes($controllers->api()), [Service::class, ApiController::class]);
         Assert::same(self::classes($controllers->assets()), [AssetsController::class]);
@@ -39,17 +41,32 @@ final class UiContributionsTest
 
     public function testMapsFramesWithMappersOfModulesAndItsOwn(): void
     {
-        $mapper = new FrameMapper(self::container());
+        $mapper = (self::container())->get(FrameMapper::class);
 
         Assert::same($mapper->map(new Frame\Binary(Stream::create('data')))?->type, 'binary');
         Assert::same($mapper->map(new Frame\Http(new ServerRequest('GET', 'http://localhost/')))?->type, 'http-dump');
+    }
+
+    public function testMapperTakesSubclassesOfItsFrame(): void
+    {
+        $mapper = (self::container())->get(FrameMapper::class);
+
+        Assert::same($mapper->map(new ChildFrame())?->type, 'binary');
+    }
+
+    public function testMapperOfExactFrameClassWinsOverParentOne(): void
+    {
+        $container = new ObjectContainer();
+        $container->set($container->make(Modules::class, ['list' => [UiModule::class, ChildUiModule::class]]));
+
+        Assert::same($container->get(FrameMapper::class)->map(new ChildFrame())?->type, 'child');
     }
 
     public function testFrameOfNoModuleFailsToMap(): void
     {
         Expect::exception(\InvalidArgumentException::class);
 
-        (new FrameMapper(new ObjectContainer()))->map(new Frame\Binary(Stream::create('data')));
+        ((new ObjectContainer())->get(FrameMapper::class))->map(new Frame\Binary(Stream::create('data')));
     }
 
     public function testSettingsListEventTypesOfModulesThenHttpDump(): void

@@ -45,7 +45,7 @@ final class UiControllersTest
 {
     public function testControllersInRouteMatchingOrder(): void
     {
-        $controllers = new UiControllers(new ObjectContainer());
+        $controllers = (new ObjectContainer())->get(UiControllers::class);
 
         Assert::same(
             \array_map(static fn(object $c): string => $c::class, $controllers->api()),
@@ -59,7 +59,7 @@ final class UiControllersTest
 
     public function testRoutesResolveToTheirControllersInComposedRouters(): void
     {
-        $controllers = new UiControllers(new ObjectContainer());
+        $controllers = (new ObjectContainer())->get(UiControllers::class);
 
         foreach ([$controllers->api(), $controllers->assets()] as $list) {
             $router = Router::compose(...$list);

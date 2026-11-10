@@ -21,7 +21,7 @@ final class UiModule implements ProvidesUi
 
     public function uiEventMappers(): array
     {
-        return [Binary::class => BinaryMapper::class];
+        return [Binary::class => BinaryMapper::class, ParentFrame::class => BinaryMapper::class];
     }
 
     public function uiEventTypes(): array

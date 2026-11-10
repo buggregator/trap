@@ -26,7 +26,7 @@ final class RendererTest
 {
     public function testSupportsOnlyOtlpTraces(): void
     {
-        $renderer = new Renderer();
+        $renderer = new Renderer(new SpanStore());
 
         Assert::true($renderer->isSupport(new OtlpTracesFrame([])));
         Assert::false($renderer->isSupport(new Monolog([])));
@@ -238,8 +238,8 @@ final class RendererTest
 
     public function testRendererWithoutSharedStoreKeepsItsOwnSpans(): void
     {
-        $first = new Renderer();
-        $second = new Renderer();
+        $first = new Renderer(new SpanStore());
+        $second = new Renderer(new SpanStore());
         $first->render(new BufferedOutput(), self::frame(self::span('1', null, 'root', 0, 100)));
 
         $output = $this->render(self::frame(self::span('2', '1', 'child', 10, 50)), renderer: $second);
@@ -329,7 +329,7 @@ final class RendererTest
     private function render(
         OtlpTracesFrame $frame,
         int $verbosity = OutputInterface::VERBOSITY_NORMAL,
-        Renderer $renderer = new Renderer(),
+        Renderer $renderer = new Renderer(new SpanStore()),
     ): string {
         $output = new BufferedOutput($verbosity);
         $renderer->render($output, $frame);

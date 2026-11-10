@@ -88,7 +88,7 @@ final class MapperTest
 
     public function testFrameMapperUsesTheRayMapper(): void
     {
-        $event = (new FrameMapper(new ObjectContainer()))->map(Frame::fromString(FrameTest::REQUEST, new \DateTimeImmutable()));
+        $event = ((new ObjectContainer())->get(FrameMapper::class))->map(Frame::fromString(FrameTest::REQUEST, new \DateTimeImmutable()));
 
         Assert::same($event?->type, 'ray');
     }
