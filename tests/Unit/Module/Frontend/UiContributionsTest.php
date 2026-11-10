@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend;
 
 use Buggregator\Trap\Application\Module\Modules;
+use Buggregator\Trap\Logger;
+use Buggregator\Trap\Module\Frontend\EventStorage;
 use Buggregator\Trap\Module\Frontend\FrameMapper;
 use Buggregator\Trap\Module\Frontend\Service;
 use Buggregator\Trap\Module\Frontend\UiControllers;
@@ -13,6 +15,7 @@ use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\ApiController;
 use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\AssetsController;
 use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\ChildFrame;
 use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\ChildUiModule;
+use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\TakingHttpUi;
 use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\UiModule;
 use Internal\Container\ObjectContainer;
 use Nyholm\Psr7\ServerRequest;
@@ -76,10 +79,40 @@ final class UiContributionsTest
         Assert::same($settings['client']['events'], ['binary', 'http-dump']);
     }
 
-    private static function container(): ObjectContainer
+    public function testMapperOfTakenFrameClassIsRejected(): void
+    {
+        $container = self::container(TakingHttpUi::class);
+
+        Expect::exception(\LogicException::class)->withMessageContaining('is already given by');
+
+        new FrameMapper($container->get(Modules::class), $container);
+    }
+
+    public function testDuplicateEventTypeIsRejected(): void
+    {
+        $modules = self::container(UiModule::class, UiModule::class)->get(Modules::class);
+
+        Expect::exception(\LogicException::class)->withMessageContaining('is already declared by');
+
+        new Service(new Logger(), new EventStorage(), $modules);
+    }
+
+    public function testHttpDumpEventTypeIsReserved(): void
+    {
+        $modules = self::container(TakingHttpUi::class)->get(Modules::class);
+
+        Expect::exception(\LogicException::class)->withMessageContaining('is reserved for HTTP dumps');
+
+        new Service(new Logger(), new EventStorage(), $modules);
+    }
+
+    /**
+     * @param class-string ...$modules
+     */
+    private static function container(string ...$modules): ObjectContainer
     {
         $container = new ObjectContainer();
-        $container->set($container->make(Modules::class, ['list' => [UiModule::class]]));
+        $container->set($container->make(Modules::class, ['list' => $modules === [] ? [UiModule::class] : $modules]));
 
         return $container;
     }

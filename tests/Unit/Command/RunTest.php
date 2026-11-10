@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Command;
 
+use Buggregator\Trap\Application\Module\Modules;
 use Buggregator\Trap\Command\Run;
 use Buggregator\Trap\Module\Mailer\Sender\MailToFileSender;
 use Buggregator\Trap\Sender\BodyToFileSender;
 use Buggregator\Trap\Sender\ConsoleSender;
 use Buggregator\Trap\Sender\EventsToFileSender;
 use Buggregator\Trap\Sender\RemoteSender;
+use Buggregator\Trap\Tests\Unit\Command\Stub\TakingConsoleSender;
 use Internal\Container\ObjectContainer;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Output\BufferedOutput;
@@ -62,6 +64,16 @@ final class RunTest
         Expect::exception(\InvalidArgumentException::class)->withMessage('Unknown sender type `nosuch`.');
 
         (new Run())->createRegistry(new BufferedOutput(), new ObjectContainer())->getSenders(['nosuch']);
+    }
+
+    public function testModuleSenderCannotTakeCoreName(): void
+    {
+        $container = new ObjectContainer();
+        $container->set($container->make(Modules::class, ['list' => [TakingConsoleSender::class]]));
+
+        Expect::exception(\LogicException::class)->withMessageContaining('Sender `console`');
+
+        (new Run())->createRegistry(new BufferedOutput(), $container);
     }
 
     private static function remove(string $path): void

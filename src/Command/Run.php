@@ -102,8 +102,14 @@ final class Run extends Command implements SignalableCommandInterface
         $registry->register('file-body', static fn(): Sender => new Sender\BodyToFileSender());
         $registry->register('server', static fn(): Sender => new Sender\RemoteSender(host: '127.0.0.1', port: 9099));
 
+        /** @var array<non-empty-string, string> $owners Who gave the sender of each name */
+        $owners = \array_fill_keys(['console', 'file', 'file-body', 'server'], 'the core');
         foreach ($container->get(Modules::class)->implementing(Sender\ProvidesSenders::class) as $module) {
             foreach ($module->senders() as $name => $class) {
+                isset($owners[$name]) and throw new \LogicException(
+                    \sprintf('Sender `%s` of %s is already given by %s.', $name, $module::class, $owners[$name]),
+                );
+                $owners[$name] = $module::class;
                 $registry->register($name, static fn(): Sender => $container->make($class));
             }
         }

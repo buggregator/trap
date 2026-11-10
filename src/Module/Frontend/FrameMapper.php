@@ -28,8 +28,19 @@ final class FrameMapper
     ) {
         /** @var array<class-string<Frame>, class-string<EventMapper>|null> $mappers */
         $mappers = [Frame\Http::class => Mapper\HttpRequest::class];
+        /** @var array<class-string<Frame>, class-string> $owners Who gave the mapper of each frame class */
+        $owners = [Frame\Http::class => self::class];
         foreach ($modules->implementing(ProvidesUi::class) as $module) {
-            $mappers = [...$mappers, ...$module->uiEventMappers()];
+            foreach ($module->uiEventMappers() as $frameClass => $mapper) {
+                isset($owners[$frameClass]) and throw new \LogicException(\sprintf(
+                    'The UI event mapper of %s from %s is already given by %s.',
+                    $frameClass,
+                    $module::class,
+                    $owners[$frameClass],
+                ));
+                $owners[$frameClass] = $module::class;
+                $mappers[$frameClass] = $mapper;
+            }
         }
 
         $this->mappers = $mappers;

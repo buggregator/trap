@@ -22,11 +22,32 @@ use Buggregator\Trap\Module\Frontend\Message\Version;
  */
 final class Service
 {
+    /** @var list<non-empty-string> UI event types the modules and the Frontend produce */
+    private readonly array $eventTypes;
+
     public function __construct(
         private readonly Logger $logger,
         private readonly EventStorage $eventsStorage,
-        private readonly Modules $modules,
-    ) {}
+        Modules $modules,
+    ) {
+        /** @var array<non-empty-string, class-string> $owners Who declared each event type */
+        $owners = [];
+        foreach ($modules->implementing(ProvidesUi::class) as $module) {
+            foreach ($module->uiEventTypes() as $type) {
+                isset($owners[$type]) and throw new \LogicException(
+                    \sprintf('UI event type `%s` of %s is already declared by %s.', $type, $module::class, $owners[$type]),
+                );
+                $owners[$type] = $module::class;
+            }
+        }
+
+        isset($owners[Mapper\HttpRequest::TYPE]) and throw new \LogicException(\sprintf(
+            'UI event type `%s` of %s is reserved for HTTP dumps.',
+            Mapper\HttpRequest::TYPE,
+            $owners[Mapper\HttpRequest::TYPE],
+        ));
+        $this->eventTypes = [...\array_keys($owners), Mapper\HttpRequest::TYPE];
+    }
 
     #[StaticRoute(Method::Get, 'api/version')]
     public function version(): Version
@@ -140,12 +161,8 @@ final class Service
     public function settings(): Settings
     {
         $this->debug('List settings');
-        $events = [];
-        foreach ($this->modules->implementing(ProvidesUi::class) as $module) {
-            $events = [...$events, ...$module->uiEventTypes()];
-        }
 
-        return new Settings([...$events, Mapper\HttpRequest::TYPE]);
+        return new Settings($this->eventTypes);
     }
 
     private function debug(string $pattern, string ...$args): void
