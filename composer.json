@@ -116,6 +116,6 @@
         "test:unit": "testo --suite=Unit",
         "test:arch": "testo --suite=Arch",
         "test:acceptance": "testo --suite=Acceptance",
-        "test:bench": "@php -d memory_limit=-1 -d xdebug.mode=off vendor/bin/testo --suite=Bench"
+        "test:bench": "@php -d memory_limit=-1 -d zend.enable_gc=0 -d xdebug.mode=off vendor/bin/testo --suite=Bench"
     }
 }

@@ -230,6 +230,8 @@ Environment variables can also be used to set endpoints:
 `TRAP_MEMORY_LIMIT` raises PHP's `memory_limit` when it is lower (default: `512M`; `-1` for no limit; empty to keep it).
 Large profiles get as many call tree nodes as the memory left affords, and are compacted past that.
 
+`TRAP_GC_INTERVAL` sets how often, in seconds, the server collects garbage cycles in place of PHP's cycle collector (default: `30`; `0` keeps PHP's collector).
+
 ### OpenTelemetry traces
 
 Trap receives traces exported over OTLP/HTTP (`POST /v1/traces`) on any of its ports

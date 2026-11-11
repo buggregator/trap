@@ -88,9 +88,15 @@ final class Application implements Processable, Cancellable, Destroyable
         /** @var App $config */
         $config = $this->container->get(App::class);
         $sleep = \max(50, $config->mainLoopInterval);
+        $gc = $config->gcInterval > 0 ? new Timer($config->gcInterval) : null;
+        $gc === null or \gc_disable();
 
         while (true) {
             $this->process($this->senders);
+            if ($gc?->isReady()) {
+                \gc_collect_cycles();
+                $gc->reset();
+            }
             \usleep($sleep);
         }
     }
