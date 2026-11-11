@@ -45,32 +45,38 @@ final class Graph implements \IteratorAggregate, \Countable
     {
         /** @var array<non-empty-string, array{Edge, int, int, int, int, int}> $sums Edges with summed metrics */
         $sums = [];
-        foreach ($tree->getIterator() as $branch) {
+        foreach ($tree->all as $branch) {
             $edge = $branch->item;
             $cost = $edge->cost;
             $key = ($edge->callerId ?? '') . '==>' . $edge->calleeId;
-            $sum = $sums[$key] ?? [$edge, 0, 0, 0, 0, 0];
-            $sums[$key] = [
-                $sum[0],
-                $sum[1] + $cost->ct,
-                $sum[2] + $cost->wt,
-                $sum[3] + $cost->cpu,
-                $sum[4] + $cost->mu,
-                $sum[5] + $cost->pmu,
-            ];
+            // Summed in place: a new array per node would be allocated and the old one freed
+            if (isset($sums[$key])) {
+                $sums[$key][1] += $cost->ct;
+                $sums[$key][2] += $cost->wt;
+                $sums[$key][3] += $cost->cpu;
+                $sums[$key][4] += $cost->mu;
+                $sums[$key][5] += $cost->pmu;
+            } else {
+                $sums[$key] = [$edge, $cost->ct, $cost->wt, $cost->cpu, $cost->mu, $cost->pmu];
+            }
             $timeSlice?->tick();
         }
 
         $graph = new self();
-        foreach ($sums as [$edge, $ct, $wt, $cpu, $mu, $pmu]) {
-            $graph->add(new Edge(
+        // By reference, to free the sums as the edges are made
+        foreach ($sums as $key => &$sum) {
+            [$edge, $ct, $wt, $cpu, $mu, $pmu] = $sum;
+            $sum = null;
+            $graph->addKeyed($key, new Edge(
                 $edge->caller,
                 $edge->callee,
                 new Cost(\max(0, $ct), \max(0, $wt), \max(0, $cpu), \max(0, $mu), \max(0, $pmu)),
                 $edge->calleeId,
                 $edge->callerId,
             ));
+            $timeSlice?->tick();
         }
+        unset($sum, $sums);
 
         return $graph;
     }
@@ -114,12 +120,7 @@ final class Graph implements \IteratorAggregate, \Countable
         $key = ($edge->callerId ?? '') . '==>' . $edge->calleeId;
         \array_key_exists($key, $this->edges) and throw new \LogicException("Duplicate edge `$key`.");
 
-        $this->edges[$key] = $edge;
-        unset($this->inclusiveCosts[$edge->calleeId]);
-        $this->incoming[$edge->calleeId][] = $edge;
-        $edge->callerId === null
-            ? $this->roots[] = $edge
-            : $this->outgoing[$edge->callerId][] = $edge;
+        $this->addKeyed($key, $edge);
     }
 
     /**
@@ -298,5 +299,18 @@ final class Graph implements \IteratorAggregate, \Countable
     private static function scaleValue(int $value, float $scale): int
     {
         return \max(0, (int) \round((float) $value * $scale));
+    }
+
+    /**
+     * @param non-empty-string $key The edge's key, not taken.
+     */
+    private function addKeyed(string $key, Edge $edge): void
+    {
+        $this->edges[$key] = $edge;
+        unset($this->inclusiveCosts[$edge->calleeId]);
+        $this->incoming[$edge->calleeId][] = $edge;
+        $edge->callerId === null
+            ? $this->roots[] = $edge
+            : $this->outgoing[$edge->callerId][] = $edge;
     }
 }

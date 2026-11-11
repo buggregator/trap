@@ -108,6 +108,27 @@ final class Nodes
     }
 
     /**
+     * Adds a sample to node 0 and to the nodes of its stack, down to the first folded one, which sums the rest.
+     *
+     * @param list<int> $stack Frames from the root.
+     */
+    public function sample(array $stack, float $value, int $count): void
+    {
+        $tree = $this->tree;
+        $tree->value[0] += $value;
+        $tree->count[0] += $count;
+        $node = 0;
+        foreach ($stack as $frame) {
+            $node = $this->byPath[$node * $this->frameCount + $frame] ?? $this->child($node, $frame);
+            $tree->value[$node] += $value;
+            $tree->count[$node] += $count;
+            if ($tree->frame[$node] < self::TOP) {
+                return;
+            }
+        }
+    }
+
+    /**
      * @param int $parent A node that is not folded.
      *
      * @return int A new child, not merged with the children of the same frame: a call of an evented profile.

@@ -92,11 +92,12 @@ final class Cost implements \JsonSerializable
      */
     public function setPercentsOf(Peaks $peaks): void
     {
-        $this->p_ct = self::percent($this->ct, $peaks->ct);
-        $this->p_wt = self::percent($this->wt, $peaks->wt);
-        $this->p_cpu = self::percent($this->cpu, $peaks->cpu);
-        $this->p_mu = self::percent($this->mu, $peaks->mu);
-        $this->p_pmu = self::percent($this->pmu, $peaks->pmu);
+        // Not a call per metric: this runs for every node and edge of a profile
+        $this->p_ct = $peaks->ct > 0 ? \round((float) $this->ct / (float) $peaks->ct * 100.0, 3) : 0.0;
+        $this->p_wt = $peaks->wt > 0 ? \round((float) $this->wt / (float) $peaks->wt * 100.0, 3) : 0.0;
+        $this->p_cpu = $peaks->cpu > 0 ? \round((float) $this->cpu / (float) $peaks->cpu * 100.0, 3) : 0.0;
+        $this->p_mu = $peaks->mu > 0 ? \round((float) $this->mu / (float) $peaks->mu * 100.0, 3) : 0.0;
+        $this->p_pmu = $peaks->pmu > 0 ? \round((float) $this->pmu / (float) $peaks->pmu * 100.0, 3) : 0.0;
     }
 
     /**
@@ -150,10 +151,5 @@ final class Cost implements \JsonSerializable
             'd_mu' => $this->d_mu,
             'd_pmu' => $this->d_pmu,
         ];
-    }
-
-    private static function percent(int $value, int $total): float
-    {
-        return $total > 0 ? \round((float) $value / (float) $total * 100.0, 3) : 0.0;
     }
 }

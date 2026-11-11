@@ -43,6 +43,9 @@ final class FlatTree
         public readonly bool $inclusiveCounts,
     ) {}
 
+    /**
+     * @param int $parent A node added before, or -1 for a root: the compaction reads the depths in one pass.
+     */
     public function add(int $parent, int $frame, float $value = 0.0, int $count = 0, float $memory = 0.0): int
     {
         $this->frame[] = $frame;

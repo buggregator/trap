@@ -39,6 +39,9 @@ final class ProfileBuilder
      */
     public const MAX_SIZE = 64 * 1024 * 1024;
 
+    /** Bytes of the content split into lines at a time. */
+    private const CHUNK = 256 * 1024;
+
     /**
      * @param positive-int $maxSize Limit of the content size, gzipped and decompressed, in bytes.
      * @param positive-int|null $maxNodes Limit of the tree nodes, over which the tree is compacted;
@@ -96,22 +99,26 @@ final class ProfileBuilder
     /**
      * Resolves a name compressed as `(id) name` on the first use and `(id)` afterward.
      *
-     * @param array<string, non-empty-string> $names
+     * @param array<string, non-empty-string> $names Names by their compressed forms: `(id)`.
      *
      * @return non-empty-string
      */
     private static function name(string $value, array &$names): string
     {
-        if (\preg_match('/^\((\d+)\)(?: (.+))?$/', $value, $m) !== 1) {
+        if (isset($names[$value])) {
+            return $names[$value];
+        }
+
+        if ($value === '' || $value[0] !== '(' || \preg_match('/^\((\d+)\)(?: (.+))?$/', $value, $m) !== 1) {
             $value === '' and throw new \InvalidArgumentException('Empty function name.');
             return $value;
         }
 
         if (isset($m[2]) && $m[2] !== '') {
-            return $names[$m[1]] = $m[2];
+            return $names["($m[1])"] = $m[2];
         }
 
-        return $names[$m[1]] ?? throw new \InvalidArgumentException("Unknown function name ID `{$m[1]}`.");
+        throw new \InvalidArgumentException("Unknown function name ID `{$m[1]}`.");
     }
 
     /**
@@ -186,17 +193,34 @@ final class ProfileBuilder
     private static function buildTree(Nodes $nodes, array $names, ?TimeSlice $timeSlice): Tree
     {
         $flat = $nodes->tree;
-        $children = $flat->children();
+        // Children as linked lists, the last child first: popped from a stack, they come in their order.
+        // A node is added after its parent.
+        $size = $flat->size();
+        /** @var array<int, int> $first */
+        $first = \array_fill(0, $size, -1);
+        /** @var array<int, int> $next */
+        $next = \array_fill(0, $size, -1);
+        for ($node = 1; $node < $size; ++$node) {
+            $parent = $flat->parent[$node];
+            $next[$node] = $first[$parent];
+            $first[$parent] = $node;
+        }
 
         /** @var Tree<Edge> $tree */
         $tree = new Tree();
 
         // Iterative: the depth follows the recursion in the profiled code, deeper than Xdebug's nesting limit.
         // Node 0 holds the roots.
-        /** @var list<array{int, Branch<Edge>|null}> $stack */
-        $stack = \array_map(static fn(int $node): array => [$node, null], \array_reverse($children[0] ?? []));
+        /** @var list<int> $stack */
+        $stack = [];
+        for ($child = $first[0]; $child !== -1; $child = $next[$child]) {
+            $stack[] = $child;
+        }
+        /** @var list<Branch<Edge>|null> $callers Parent branches of the nodes in the stack */
+        $callers = \array_fill(0, \count($stack), null);
         while ($stack !== []) {
-            [$node, $parent] = \array_pop($stack);
+            $node = \array_pop($stack);
+            $parent = \array_pop($callers);
 
             $id = 'n' . (\count($tree) + 1);
             $tree->addItem(
@@ -221,10 +245,10 @@ final class ProfileBuilder
 
             /** @var Branch<Edge> $branch */
             $branch = $tree->all[$id];
-            foreach (\array_reverse($children[$node] ?? []) as $child) {
-                $stack[] = [$child, $branch];
+            for ($child = $first[$node]; $child !== -1; $child = $next[$child]) {
+                $stack[] = $child;
+                $callers[] = $branch;
             }
-            unset($children[$node]);
             $timeSlice?->tick();
         }
 
@@ -240,7 +264,7 @@ final class ProfileBuilder
         \str_starts_with($content, 'version:') && \str_contains($content, "\ncreator: xdebug")
             or throw new \InvalidArgumentException('Not a cachegrind profile written by Xdebug.');
 
-        /** @var array<string, non-empty-string> $names Function names by their compressed IDs */
+        /** @var array<string, non-empty-string> $names Function names by their compressed forms */
         $names = [];
         $linker = null;
         $current = null;
@@ -248,45 +272,54 @@ final class ProfileBuilder
         $callee = null;
         $expectCost = false;
 
-        // Line by line, not split at once: the array of lines would take more memory than the calls
+        // Split by chunks, not at once: the array of all the lines would take more memory than the calls
         $length = \strlen($content);
         for ($offset = 0; $offset < $length; $offset = $end + 1) {
-            $end = \strpos($content, "\n", $offset);
+            $end = $offset + self::CHUNK >= $length ? false : \strpos($content, "\n", $offset + self::CHUNK);
             $end === false and $end = $length;
-            $line = \rtrim(\substr($content, $offset, $end - $offset), "\r");
-            if ($line === '') {
-                continue;
-            }
+            foreach (\explode("\n", \substr($content, $offset, $end - $offset)) as $line) {
+                if ($line === '') {
+                    continue;
+                }
+                $line[-1] === "\r" and $line = \rtrim($line, "\r");
+                if ($line === '') {
+                    continue;
+                }
 
-            if (\str_starts_with($line, 'events:')) {
-                $linker ??= new CallLinker(self::timeDivisor($line), $timeSlice);
-                continue;
-            }
+                // By the first byte: a line of one kind can't be a cost line, which starts with a digit or a sign
+                switch ($line[0]) {
+                    case 'e':
+                        \str_starts_with($line, 'events:')
+                            and $linker ??= new CallLinker(self::timeDivisor($line), $timeSlice);
+                        continue 2;
+                    case 'f':
+                        if (\str_starts_with($line, 'fn=')) {
+                            $current === null or ($linker ?? throw self::noEvents())->end($current);
+                            $current = new Call(self::name(\substr($line, 3), $names));
+                            $expectCost = true;
+                            $callee = null;
+                        }
+                        continue 2;
+                    case 'c':
+                        if (\str_starts_with($line, 'cfn=')) {
+                            $callee = self::name(\substr($line, 4), $names);
+                        } elseif (\str_starts_with($line, 'calls=')) {
+                            $expectCost = true;
+                        }
+                        continue 2;
+                }
 
-            if (\str_starts_with($line, 'fn=')) {
-                $current === null or ($linker ?? throw self::noEvents())->end($current);
-                $current = new Call(self::name(\substr($line, 3), $names));
-                $expectCost = true;
-                $callee = null;
-                continue;
-            }
-
-            if (\str_starts_with($line, 'cfn=')) {
-                $callee = self::name(\substr($line, 4), $names);
-                continue;
-            }
-
-            if (\str_starts_with($line, 'calls=')) {
-                $expectCost = true;
-                continue;
-            }
-
-            if ($expectCost && $current !== null && \preg_match('/^[+-]?\d+ (-?\d+) (-?\d+)/', $line, $m) === 1) {
-                $expectCost = false;
+                if (!$expectCost || $current === null) {
+                    continue;
+                }
                 if ($callee === null) {
-                    $current->time = (int) $m[1];
-                    $current->memory = (int) $m[2];
-                } else {
+                    if (\preg_match('/^[+-]?\d+ (-?\d+) (-?\d+)/', $line, $m) === 1) {
+                        $expectCost = false;
+                        $current->time = (int) $m[1];
+                        $current->memory = (int) $m[2];
+                    }
+                } elseif (\preg_match('/^[+-]?\d+ -?\d+ -?\d+/', $line) === 1) {
+                    $expectCost = false;
                     $current->callees[] = $callee;
                     $callee = null;
                 }

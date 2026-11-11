@@ -49,19 +49,19 @@ final class CallLinker
     /** @var list<int> Calls waiting for their caller */
     private array $ended = [];
 
-    /** @var array<int, int> Inclusive time of the waiting calls, in the profile units */
+    /** @var list<int> Inclusive time of the waiting calls, in the profile units, in the order of `$ended` */
     private array $time = [];
 
-    /** @var array<int, int> Microseconds of the callees of the waiting calls */
+    /** @var list<int> Microseconds of the callees of the waiting calls, in the order of `$ended` */
     private array $calleesWt = [];
 
-    /** @var array<int, int> Calls in the subtrees of the waiting calls */
+    /** @var list<int> Calls in the subtrees of the waiting calls, in the order of `$ended` */
     private array $size = [];
 
-    /** @var array<string, int> Inclusive time of the caller-callee pairs, in the profile units */
+    /** @var array<int, array<int, int>> Inclusive time of the caller-callee pairs by function IDs, in the profile units */
     private array $pairTime = [];
 
-    /** @var array<string, int> Microseconds given to the calls of the pairs */
+    /** @var array<int, array<int, int>> Microseconds given to the calls of the pairs by function IDs */
     private array $pairWt = [];
 
     /**
@@ -84,7 +84,7 @@ final class CallLinker
         );
 
         $node = \count($this->function);
-        $this->function[] = $this->ids[$name] ??= \array_push($this->names, $name) - 1;
+        $this->function[] = $function = $this->ids[$name] ??= \array_push($this->names, $name) - 1;
         $this->caller[] = -1;
         $this->wt[] = 0;
         $this->offset[] = 0;
@@ -92,31 +92,34 @@ final class CallLinker
         $memory = $call->memory;
         $calleesWt = 0;
         $size = 1;
-        // Not `array_splice()`: it copies the rest, and a function may make a million calls
-        $children = $count === 0 ? [] : \array_slice($this->ended, -$count);
-        for ($i = 0; $i < $count; ++$i) {
-            \array_pop($this->ended);
-        }
-        foreach ($children as $i => $child) {
+        $base = \count($this->ended) - $count;
+        for ($i = 0, $at = $base; $i < $count; ++$i, ++$at) {
+            $child = $this->ended[$at];
             $childName = $this->names[$this->function[$child]];
             $childName === $call->callees[$i] or throw new \InvalidArgumentException(
                 "Call of `$name` lists `{$call->callees[$i]}`, but `$childName` ended there.",
             );
-            $this->round($child, $name);
-            $time += $this->time[$child];
+            $this->round($child, $function, $this->time[$at], $this->calleesWt[$at]);
+            $time += $this->time[$at];
             $memory += $this->memory[$child];
             $calleesWt += $this->wt[$child];
             $this->caller[$child] = $node;
             $this->offset[$child] = $size;
-            $size += $this->size[$child];
-            unset($this->time[$child], $this->calleesWt[$child], $this->size[$child]);
+            $size += $this->size[$at];
+        }
+        // Not `array_splice()`: it copies the rest, and a function may make a million calls
+        for ($i = 0; $i < $count; ++$i) {
+            \array_pop($this->ended);
+            \array_pop($this->time);
+            \array_pop($this->calleesWt);
+            \array_pop($this->size);
         }
 
         $this->memory[] = $memory;
-        $this->time[$node] = $time;
-        $this->calleesWt[$node] = $calleesWt;
-        $this->size[$node] = $size;
         $this->ended[] = $node;
+        $this->time[] = $time;
+        $this->calleesWt[] = $calleesWt;
+        $this->size[] = $size;
         $this->timeSlice?->tick();
     }
 
@@ -126,10 +129,10 @@ final class CallLinker
     public function finish(): void
     {
         $offset = 0;
-        foreach ($this->ended as $node) {
-            $this->round($node, '');
+        foreach ($this->ended as $at => $node) {
+            $this->round($node, -1, $this->time[$at], $this->calleesWt[$at]);
             $this->offset[$node] = $offset;
-            $offset += $this->size[$node];
+            $offset += $this->size[$at];
         }
         $this->ended = $this->time = $this->calleesWt = $this->size = $this->pairTime = $this->pairWt = [];
     }
@@ -155,16 +158,19 @@ final class CallLinker
         return $order;
     }
 
-    private function round(int $node, string $caller): void
+    /**
+     * @param int $caller Function ID of the caller; -1 for a root.
+     * @param int $time Inclusive time of the call, in the profile units.
+     * @param int $calleesWt Microseconds of its callees.
+     */
+    private function round(int $node, int $caller, int $time, int $calleesWt): void
     {
-        $pair = $caller . "\0" . $this->names[$this->function[$node]];
-        $this->pairTime[$pair] = ($this->pairTime[$pair] ?? 0) + $this->time[$node];
-        $given = $this->pairWt[$pair] ?? 0;
-        $value = \max(
-            $this->calleesWt[$node],
-            (int) \round((float) $this->pairTime[$pair] / $this->timeDivisor) - $given,
-        );
-        $this->pairWt[$pair] = $given + $value;
+        $callee = $this->function[$node];
+        $time += $this->pairTime[$caller][$callee] ?? 0;
+        $this->pairTime[$caller][$callee] = $time;
+        $given = $this->pairWt[$caller][$callee] ?? 0;
+        $value = \max($calleesWt, (int) \round((float) $time / $this->timeDivisor) - $given);
+        $this->pairWt[$caller][$callee] = $given + $value;
         $this->wt[$node] = $value;
     }
 }

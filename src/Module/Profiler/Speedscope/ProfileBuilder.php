@@ -295,7 +295,6 @@ final class ProfileBuilder
         \count($samples) === \count($weights)
             or throw new \InvalidArgumentException('The numbers of samples and weights differ.');
 
-        $tree = $nodes->tree;
         $total = 0.0;
         // Not `foreach`: it would hold the array, and the samples could not be freed one by one
         for ($i = 0, $length = \count($samples); $i < $length; ++$i) {
@@ -322,23 +321,9 @@ final class ProfileBuilder
             $total += \max($value, (float) $count);
             $total <= self::MAX_VALUE or throw new \InvalidArgumentException('The weights are too large.');
 
-            $tree->value[0] += $value;
-            $tree->count[0] += $count;
             $stack === [] and ++$nodes->emptyStacks;
             // The frames under a folded node are in it, and still validated
-            $node = 0;
-            $folded = false;
-            /** @var mixed $index */
-            foreach ($stack as $index) {
-                $index = $frames->id($index);
-                if ($folded) {
-                    continue;
-                }
-                $node = $nodes->child($node, $index);
-                $tree->value[$node] += $value;
-                $tree->count[$node] += $count;
-                $folded = $nodes->isFolded($node);
-            }
+            $nodes->sample($frames->path($stack), $value, $count);
             $nodes->timeSlice?->tick();
         }
     }
@@ -487,52 +472,89 @@ final class ProfileBuilder
     private static function buildTree(Nodes $nodes, int $root, string $rootName, Frames $frames, string $metric): Tree
     {
         $tree = $nodes->tree;
-        $name = static fn(int $node): string => $node === $root ? $rootName : self::nodeName($nodes, $frames, $node);
+        $frameOf = $tree->frame;
+        $parentOf = $tree->parent;
+        $valueOf = $tree->value;
+
+        // Names by IDs: a pair of names is keyed by an integer, not by a string built per node
+        $names = $frames->names;
+        $nameIds = \array_flip($names);
+        foreach ([Profile::TRUNCATED, Profile::OTHER, self::ROOT, $rootName] as $marker) {
+            isset($nameIds[$marker]) or $nameIds[$marker] = \array_push($names, $marker) - 1;
+        }
+        /** @var array<int, int> $markerIds */
+        $markerIds = [
+            FlatTree::TRUNCATED => $nameIds[Profile::TRUNCATED],
+            FlatTree::OTHER => $nameIds[Profile::OTHER],
+            Nodes::TOP => $nameIds[self::ROOT],
+        ];
+        $rootId = $nameIds[$rootName];
+        unset($nameIds);
+        // The ID that stands for no caller
+        $none = \count($names);
+        $span = $none + 1;
 
         // A node is added after its parent: in the reversed order the children come before their parents
         $last = $tree->size() - 1;
+        /** @var array<int, int> $nameOf */
+        $nameOf = \array_fill(0, $last + 1, 0);
+        for ($node = $root; $node <= $last; ++$node) {
+            $frame = $frameOf[$node];
+            $nameOf[$node] = $frame >= 0 ? $frame : $markerIds[$frame];
+        }
+        $nameOf[$root] = $rootId;
+
         /** @var array<int, int<0, max>> $rounded */
-        $rounded = [];
+        $rounded = \array_fill(0, $last + 1, 0);
         /** @var array<int, int<0, max>> $childrenSum */
-        $childrenSum = [];
-        /** @var array<string, float> $pairValue */
+        $childrenSum = \array_fill(0, $last + 1, 0);
+        /** @var array<int, float> $pairValue */
         $pairValue = [];
-        /** @var array<string, int<0, max>> $pairRounded */
+        /** @var array<int, int<0, max>> $pairRounded */
         $pairRounded = [];
         for ($node = $last; $node >= $root; --$node) {
-            $parent = $tree->parent[$node];
-            $pair = ($node === $root ? '' : $name($parent)) . "\0" . $name($node);
-            $pairValue[$pair] = ($pairValue[$pair] ?? 0.0) + $tree->value[$node];
+            $parent = $parentOf[$node];
+            $pair = ($node === $root ? $none : $nameOf[$parent]) * $span + $nameOf[$node];
+            $pairValue[$pair] = ($pairValue[$pair] ?? 0.0) + $valueOf[$node];
             $given = $pairRounded[$pair] ?? 0;
-            $value = \max($childrenSum[$node] ?? 0, (int) \round($pairValue[$pair]) - $given);
+            $value = \max($childrenSum[$node], (int) \round($pairValue[$pair]) - $given);
             $pairRounded[$pair] = $given + $value;
             $rounded[$node] = $value;
-            $node === $root or $childrenSum[$parent] = ($childrenSum[$parent] ?? 0) + $value;
+            $node === $root or $childrenSum[$parent] += $value;
             $nodes->timeSlice?->tick();
         }
-        unset($childrenSum, $pairValue, $pairRounded);
+        unset($childrenSum, $pairValue, $pairRounded, $valueOf);
 
-        /** @var array<int, list<int>> $children */
-        $children = [];
+        // Children as linked lists, the last child first: popped from a stack, they come in their order
+        /** @var array<int, int> $first */
+        $first = \array_fill(0, $last + 1, -1);
+        /** @var array<int, int> $next */
+        $next = \array_fill(0, $last + 1, -1);
         for ($node = $root + 1; $node <= $last; ++$node) {
-            $children[$tree->parent[$node]][] = $node;
+            $parent = $parentOf[$node];
+            $next[$node] = $first[$parent];
+            $first[$parent] = $node;
         }
 
         /** @var Tree<Edge> $result */
         $result = new Tree();
-        /** @var list<array{int, Branch<Edge>|null}> $stack */
-        $stack = [[$root, null]];
+        $count = $tree->count;
+        /** @var list<int> $stack */
+        $stack = [$root];
+        /** @var list<Branch<Edge>|null> $callers Parent branches of the nodes in the stack */
+        $callers = [null];
         while ($stack !== []) {
-            [$node, $parent] = \array_pop($stack);
+            $node = \array_pop($stack);
+            $parent = \array_pop($callers);
             $value = $rounded[$node];
 
             $id = 'n' . (\count($result) + 1);
             $result->addItem(
                 new Edge(
                     caller: $parent?->item->callee,
-                    callee: $name($node),
+                    callee: $names[$nameOf[$node]],
                     cost: new Cost(
-                        ct: \max(0, $tree->count[$node]),
+                        ct: \max(0, $count[$node]),
                         wt: $metric === 'mu' ? 0 : $value,
                         cpu: $metric === 'cpu' ? $value : 0,
                         mu: $metric === 'mu' ? $value : 0,
@@ -545,10 +567,10 @@ final class ProfileBuilder
 
             /** @var Branch<Edge> $branch */
             $branch = $result->all[$id];
-            foreach (\array_reverse($children[$node] ?? []) as $child) {
-                $stack[] = [$child, $branch];
+            for ($child = $first[$node]; $child !== -1; $child = $next[$child]) {
+                $stack[] = $child;
+                $callers[] = $branch;
             }
-            unset($children[$node]);
             $nodes->timeSlice?->tick();
         }
 

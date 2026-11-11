@@ -40,11 +40,13 @@ final class Compactor
         array &$pruned = [],
     ): array {
         $size = $tree->size();
-        $map = self::rebuild($tree, $pinned);
+        $longestRun = 0;
+        $map = self::rebuild($tree, $pinned, longestRun: $longestRun);
         $report->merged += $size - $tree->size();
         $pinned = self::remapSet($pinned, $map);
 
-        if ($tree->size() > $target) {
+        // With no deeper recursion the merged tree would be copied as it is
+        if ($tree->size() > $target && $longestRun > self::RECURSION_DEPTH) {
             $size = $tree->size();
             $step = self::rebuild($tree, $pinned, collapse: true);
             $report->collapsed += $size - $tree->size();
@@ -70,6 +72,7 @@ final class Compactor
      * @param array<int, bool>|null $kept Nodes to keep by index: the others are summed in an `(other)` node of their parent.
      * @param list<array{int, int}> $pruned Gets the new parents and the frames of the pruned children.
      * @param int $folded Gets the number of the nodes summed in `(other)` nodes.
+     * @param int $longestRun Gets the most calls of the same function in a row in the new tree.
      *
      * @return array<int, int> New indexes by old ones.
      */
@@ -80,72 +83,102 @@ final class Compactor
         ?array $kept = null,
         array &$pruned = [],
         int &$folded = 0,
+        int &$longestRun = 0,
     ): array {
-        $result = new FlatTree($tree->inclusiveCounts);
-        $size = $tree->size();
+        $frames = $tree->frame;
+        $parents = $tree->parent;
+        $values = $tree->value;
+        $memories = $tree->memory;
+        $counts = $tree->count;
+        $inclusiveCounts = $tree->inclusiveCounts;
+        /** @var array<int, int> $newFrame */
+        $newFrame = [];
+        /** @var array<int, int> $newParent */
+        $newParent = [];
+        /** @var array<int, float> $newValue */
+        $newValue = [];
+        /** @var array<int, float> $newMemory */
+        $newMemory = [];
+        /** @var array<int, int> $newCount */
+        $newCount = [];
+        $size = \count($frames);
         $map = $size === 0 ? [] : \array_fill(0, $size, -1);
         /** @var array<int, int> $run Calls of the same function in a row down to a new node */
         $run = [];
         /** @var array<int, int> $byKey New nodes by new parents and frames */
         $byKey = [];
-        $multiplier = ($tree->frame === [] ? 0 : \max($tree->frame)) + 4;
+        $multiplier = ($frames === [] ? 0 : \max($frames)) + 4;
 
         foreach (self::topDown($tree) as $node) {
-            $frame = $tree->frame[$node];
-            $parent = $tree->parent[$node];
+            $frame = $frames[$node];
+            $parent = $parents[$node];
             if ($parent === -1) {
-                $map[$node] = $result->add(-1, $frame, $tree->value[$node], $tree->count[$node], $tree->memory[$node]);
-                $run[$map[$node]] = 1;
+                $map[$node] = $target = \count($newFrame);
+                $newFrame[] = $frame;
+                $newParent[] = -1;
+                $newValue[] = $values[$node];
+                $newMemory[] = $memories[$node];
+                $newCount[] = $counts[$node];
+                $run[$target] = 1;
                 continue;
             }
 
-            $newParent = $map[$parent];
+            $to = $map[$parent];
             // Under a pruned node: the costs are in it already, except the calls of the nodes below
             if ($kept !== null && !$kept[$parent]) {
-                $map[$node] = $newParent;
-                $tree->inclusiveCounts or $result->count[$newParent] += $tree->count[$node];
+                $map[$node] = $to;
+                $inclusiveCounts or $newCount[$to] += $counts[$node];
                 ++$folded;
                 continue;
             }
 
             if ($kept !== null && !$kept[$node]) {
                 ++$folded;
-                $frame >= 0 and $pruned[] = [$newParent, $frame];
+                $frame >= 0 and $pruned[] = [$to, $frame];
                 $frame = FlatTree::OTHER;
-            } elseif ($collapse && !isset($pinned[$node]) && $frame >= 0 && $frame === $result->frame[$newParent]
-                && $run[$newParent] >= self::RECURSION_DEPTH
+            } elseif ($collapse && $frame >= 0 && $frame === $newFrame[$to] && $run[$to] >= self::RECURSION_DEPTH
+                && !isset($pinned[$node])
             ) {
                 // The caller's inclusive costs hold the call already
-                $map[$node] = $newParent;
-                $tree->inclusiveCounts or $result->count[$newParent] += $tree->count[$node];
+                $map[$node] = $to;
+                $inclusiveCounts or $newCount[$to] += $counts[$node];
                 continue;
             }
 
-            $key = $newParent * $multiplier + $frame + 3;
+            $key = $to * $multiplier + $frame + 3;
             $target = $byKey[$key] ?? null;
             if ($target === null) {
-                $target = $byKey[$key] = $result->add($newParent, $frame);
-                $run[$target] = $frame === $result->frame[$newParent] ? $run[$newParent] + 1 : 1;
+                $target = $byKey[$key] = \count($newFrame);
+                $newFrame[] = $frame;
+                $newParent[] = $to;
+                $newValue[] = 0.0;
+                $newMemory[] = 0.0;
+                $newCount[] = 0;
+                $run[$target] = $length = $frame === $newFrame[$to] ? $run[$to] + 1 : 1;
+                $length > $longestRun and $longestRun = $length;
             }
-            $result->value[$target] += $tree->value[$node];
-            $result->memory[$target] += $tree->memory[$node];
-            $result->count[$target] += $tree->count[$node];
+            $newValue[$target] += $values[$node];
+            $newMemory[$target] += $memories[$node];
+            $newCount[$target] += $counts[$node];
             $map[$node] = $target;
         }
+        unset($frames, $parents, $values, $memories, $counts, $byKey, $run);
 
-        $tree->frame = $result->frame;
-        $tree->parent = $result->parent;
-        $tree->value = $result->value;
-        $tree->memory = $result->memory;
-        $tree->count = $result->count;
+        $tree->frame = $newFrame;
+        $tree->parent = $newParent;
+        $tree->value = $newValue;
+        $tree->memory = $newMemory;
+        $tree->count = $newCount;
 
         return $map;
     }
 
     /**
      * The nodes of the largest values that, with the `(other)` nodes the rest needs, fit the target.
-     * A node's value is inclusive and the tree is in the order of {@see self::rebuild()}, parents first:
-     * of equal values the first ones are kept, so the ancestors of a kept node are kept too.
+     *
+     * The nodes are ranked by value, and of equal values the first ones go first. The kept ones are the first
+     * of the ranking, the roots and the pinned nodes with their ancestors; the number of the ranked ones
+     * is lowered until the kept nodes and the `(other)` nodes of their parents fit.
      *
      * @param int<1, max> $target
      * @param array<int, true> $pinned
@@ -154,42 +187,139 @@ final class Compactor
      */
     private static function hottest(FlatTree $tree, int $target, array $pinned): array
     {
+        $parents = $tree->parent;
+        $size = \count($parents);
         // A profile of no time, such as one of sample counts, is ranked by the counts
         $values = \array_sum($tree->value) > 0.0 ? $tree->value : \array_map('floatval', $tree->count);
-        $sorted = $values;
-        \rsort($sorted);
-        $size = \count($values);
+        // The sort is stable: of equal values the first node goes first
+        \arsort($values);
+        $ranked = \array_keys($values);
+        unset($values);
+        $rank = \array_fill(0, $size, 0);
+        foreach ($ranked as $position => $node) {
+            $rank[$node] = $position;
+        }
+
+        $forced = \array_fill(0, $size, false);
+        // Whether every node ranks after its parent, as with inclusive values
+        $closed = true;
+        foreach ($parents as $node => $parent) {
+            if ($parent === -1) {
+                $forced[$node] = true;
+            } elseif ($rank[$parent] > $rank[$node]) {
+                $closed = false;
+            }
+        }
+        foreach ($pinned as $node => $_) {
+            $forced[$node] = true;
+        }
+        unset($rank);
 
         $limit = \min($target, $size);
+        return $closed
+            ? self::hottestClosed($parents, $ranked, $forced, $pinned, $target, $limit)
+            : self::hottestAny($parents, $ranked, $forced, $pinned, $target, $limit);
+    }
+
+    /**
+     * The first ranked nodes have all their ancestors among them, so the kept set only loses nodes
+     * as the limit is lowered: the count of the kept and `(other)` nodes is updated node by node.
+     *
+     * @param array<int, int> $parents
+     * @param list<int> $ranked
+     * @param array<int, bool> $forced Roots and pinned nodes.
+     * @param array<int, true> $pinned
+     * @param int<1, max> $target
+     * @param int<0, max> $limit
+     *
+     * @return array<int, bool>
+     */
+    private static function hottestClosed(
+        array $parents,
+        array $ranked,
+        array $forced,
+        array $pinned,
+        int $target,
+        int $limit,
+    ): array {
+        // The ancestors of the pinned nodes are kept whatever the limit: a kept ranked node has its ancestors kept
+        foreach ($pinned as $node => $_) {
+            for ($up = $parents[$node]; $up !== -1 && !$forced[$up]; $up = $parents[$up]) {
+                $forced[$up] = true;
+            }
+        }
+
+        $kept = $forced;
+        for ($position = 0; $position < $limit; ++$position) {
+            $kept[$ranked[$position]] = true;
+        }
+
+        /** @var array<int, int> $dropped Dropped children by parents */
+        $dropped = \array_fill(0, \count($parents), 0);
+        $count = 0;
+        foreach ($parents as $node => $parent) {
+            $kept[$node] ? ++$count : ++$dropped[$parent];
+        }
+        foreach ($dropped as $node => $children) {
+            // A parent with a dropped child gets an `(other)` node
+            $children > 0 && $kept[$node] and ++$count;
+        }
+
+        while ($count > $target && $limit > 1) {
+            $next = \max(1, \min($limit - 1, (int) \ceil($limit * $target / $count)));
+            for ($position = $limit - 1; $position >= $next; --$position) {
+                $node = $ranked[$position];
+                if ($forced[$node]) {
+                    continue;
+                }
+                $kept[$node] = false;
+                --$count;
+                $dropped[$node] > 0 and --$count;
+                $parent = $parents[$node];
+                ++$dropped[$parent] === 1 && $kept[$parent] and ++$count;
+            }
+            $limit = $next;
+        }
+
+        return $kept;
+    }
+
+    /**
+     * A ranked node may go before its parent: the kept set is made anew for every limit.
+     *
+     * @param array<int, int> $parents
+     * @param list<int> $ranked
+     * @param array<int, bool> $forced Roots and pinned nodes.
+     * @param array<int, true> $pinned
+     * @param int<1, max> $target
+     * @param int<0, max> $limit
+     *
+     * @return array<int, bool>
+     */
+    private static function hottestAny(
+        array $parents,
+        array $ranked,
+        array $forced,
+        array $pinned,
+        int $target,
+        int $limit,
+    ): array {
+        $size = \count($parents);
         do {
-            $threshold = $sorted[\max(0, $limit - 1)];
-            $kept = \array_fill(0, $size, false);
-            $count = 0;
-            $ties = $limit;
-            foreach ($values as $node => $value) {
-                if ($value > $threshold) {
-                    $kept[$node] = true;
-                    --$ties;
-                }
-            }
-            foreach ($values as $node => $value) {
-                if ($ties > 0 && $value === $threshold && !$kept[$node]) {
-                    $kept[$node] = true;
-                    --$ties;
-                }
-            }
-            foreach ($tree->parent as $node => $parent) {
-                ($parent === -1 || isset($pinned[$node])) and $kept[$node] = true;
+            $kept = $forced;
+            for ($position = 0; $position < $limit; ++$position) {
+                $kept[$ranked[$position]] = true;
             }
             foreach ($pinned as $node => $_) {
-                for ($up = $tree->parent[$node]; $up !== -1 && !$kept[$up]; $up = $tree->parent[$up]) {
+                for ($up = $parents[$node]; $up !== -1 && !$kept[$up]; $up = $parents[$up]) {
                     $kept[$up] = true;
                 }
             }
 
             // A parent with a dropped child gets an `(other)` node
             $hasOther = \array_fill(0, $size, false);
-            foreach ($tree->parent as $node => $parent) {
+            $count = 0;
+            foreach ($parents as $node => $parent) {
                 if ($kept[$node]) {
                     ++$count;
                 } elseif ($kept[$parent] && !$hasOther[$parent]) {
@@ -216,25 +346,29 @@ final class Compactor
             return [];
         }
 
-        $depth = \array_fill(0, $size, -1);
+        // A node comes after its parent: the depths are known in one pass
+        $parents = $tree->parent;
+        /** @var array<int, int> $depth */
+        $depth = [];
+        /** @var array<int, int> $levels */
         $levels = [];
+        $ordered = true;
+        $previous = 0;
         for ($node = 0; $node < $size; ++$node) {
-            if ($depth[$node] === -1) {
-                // Up to an ancestor of known depth, then down
-                $path = [];
-                for ($up = $node; $up !== -1 && $depth[$up] === -1; $up = $tree->parent[$up]) {
-                    $path[] = $up;
-                }
-                $level = $up === -1 ? -1 : $depth[$up];
-                for ($i = \count($path) - 1; $i >= 0; --$i) {
-                    $depth[$path[$i]] = ++$level;
-                    $levels[$level] = ($levels[$level] ?? 0) + 1;
-                }
-            }
+            $parent = $parents[$node];
+            $level = $parent === -1 ? 0 : $depth[$parent] + 1;
+            $depth[] = $level;
+            $levels[$level] = ($levels[$level] ?? 0) + 1;
+            $level < $previous and $ordered = false;
+            $previous = $level;
+        }
+        if ($ordered) {
+            return \range(0, $size - 1);
         }
 
         // Counting sort by depth; ascending indexes in each level keep the siblings in their order
         \ksort($levels);
+        /** @var array<int, int> $start */
         $start = [];
         $position = 0;
         foreach ($levels as $level => $count) {

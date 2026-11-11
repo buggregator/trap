@@ -45,6 +45,25 @@ final class Frames
     }
 
     /**
+     * @param list<mixed> $stack Frame indexes.
+     *
+     * @return list<int<0, max>> Function IDs of the frames.
+     *
+     * @throws \InvalidArgumentException When there is no such frame.
+     */
+    public function path(array $stack): array
+    {
+        $ids = $this->ids;
+        $path = [];
+        /** @var mixed $index */
+        foreach ($stack as $index) {
+            $path[] = \is_int($index) && isset($ids[$index]) ? $ids[$index] : $this->id($index);
+        }
+
+        return $path;
+    }
+
+    /**
      * @return int<0, max> Number of functions.
      */
     public function count(): int
