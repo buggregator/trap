@@ -22,4 +22,12 @@ final class App
      */
     #[Env('TRAP_MAIN_LOOP_INTERVAL')]
     public int $mainLoopInterval = 100;
+
+    /**
+     * Memory limit the server raises PHP's `memory_limit` to when it is lower, as `512M`, `1G` or `-1`;
+     * an empty value leaves it as it is. Profiles get as many call tree nodes as the memory left affords:
+     * PHP's default 128M gives a large profile about 25 thousand nodes, 512M about 190 thousand.
+     */
+    #[Env('TRAP_MEMORY_LIMIT')]
+    public string $memoryLimit = '512M';
 }

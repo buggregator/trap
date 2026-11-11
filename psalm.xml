@@ -32,6 +32,9 @@
             <directory name="tests"/>
         </ignoreFiles>
     </projectFiles>
+    <stubs>
+        <file name="tests/Stubs/profilers.phpstub"/>
+    </stubs>
     <forbiddenFunctions>
         <function name="dd"/>
         <function name="exit"/>

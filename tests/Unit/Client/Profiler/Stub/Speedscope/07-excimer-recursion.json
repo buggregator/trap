@@ -1,0 +1,42 @@
+{
+    "$schema": "https://www.speedscope.app/file-format-schema.json",
+    "exporter": "Excimer",
+    "shared": {
+        "frames": [
+            {
+                "name": "/app/fib.php",
+                "file": "/app/fib.php"
+            },
+            {
+                "name": "fib",
+                "file": "/app/fib.php"
+            },
+            {
+                "name": "isEven",
+                "file": "/app/fib.php"
+            },
+            {
+                "name": "isOdd",
+                "file": "/app/fib.php"
+            }
+        ]
+    },
+    "profiles": [
+        {
+            "type": "sampled",
+            "name": "",
+            "unit": "nanoseconds",
+            "startValue": 0,
+            "endValue": 5000000,
+            "samples": [
+                [0, 1, 1, 1],
+                [0, 1, 1],
+                [0, 1, 1, 1, 1],
+                [0, 2, 3, 2, 3],
+                [0, 2, 3, 2],
+                [0, 2]
+            ],
+            "weights": [1000000, 1000000, 1000000, 1000000, 1000000, 1000000]
+        }
+    ]
+}

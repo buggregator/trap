@@ -1,0 +1,44 @@
+{
+    "$schema": "https://www.speedscope.app/file-format-schema.json",
+    "exporter": "Excimer",
+    "shared": {
+        "frames": [
+            {
+                "name": "/app/bin/weather.php",
+                "file": "/app/bin/weather.php"
+            },
+            {
+                "name": "App\\Bootstrap::boot",
+                "file": "/app/src/Bootstrap.php"
+            },
+            {
+                "name": "App\\Service\\Weather::fetch",
+                "file": "/app/src/Service/Weather.php"
+            },
+            {
+                "name": "App\\Http\\Client::send",
+                "file": "/app/src/Http/Client.php"
+            },
+            {
+                "name": "App\\Cache::retry",
+                "file": "/app/src/Cache.php"
+            }
+        ]
+    },
+    "profiles": [
+        {
+            "type": "sampled",
+            "name": "",
+            "unit": "nanoseconds",
+            "startValue": 0,
+            "endValue": 255000000,
+            "samples": [
+                [0, 1],
+                [0, 2, 3],
+                [0, 2],
+                [0, 4]
+            ],
+            "weights": [1000000, 250000000, 1000000, 3000000]
+        }
+    ]
+}

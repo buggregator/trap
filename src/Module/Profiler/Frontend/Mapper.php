@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Frontend\Event;
 use Buggregator\Trap\Module\Frontend\EventMapper;
 use Buggregator\Trap\Module\Profiler\Frame as ProfilerFrame;
 use Buggregator\Trap\Module\Profiler\Frame\Payload as ProfilerPayload;
+use Buggregator\Trap\Module\Profiler\Frame\Type as ProfilerPayloadType;
 use Buggregator\Trap\Module\Profiler\Frontend\Message\CallGraph;
 use Buggregator\Trap\Module\Profiler\Frontend\Message\FlameChart;
 use Buggregator\Trap\Module\Profiler\Frontend\Message\TopFunctions;
@@ -75,7 +76,7 @@ final class Mapper implements EventMapper
                     key: 'ct',
                     label: 'CT',
                     sortable: true,
-                    description: 'Calls',
+                    description: self::countsSamples($event->payload) ? 'Samples with the function on the stack' : 'Calls',
                     values: [new TopFunctions\Value(key: 'ct', format: 'number')],
                 ),
                 ...self::metricColumns($profile->peaks, 'cpu', 'CPU', 'CPU time (ms)', 'ms'),
@@ -100,6 +101,7 @@ final class Mapper implements EventMapper
     ): CallGraph {
         $profile = $event->payload->getProfile();
         $graph = $profile->calls;
+        $samples = self::countsSamples($event->payload);
         $nodes = [];
         $edges = [];
         /** @var array<non-empty-string, array{non-empty-string, string}> $visible Node IDs and colors by function IDs */
@@ -120,7 +122,11 @@ final class Mapper implements EventMapper
 
             $nodes[] = new CallGraph\Node(
                 id: $id,
-                name: $cost->ct > 0 ? \sprintf('%s (%dx)', $name, $cost->ct) : $name,
+                name: match (true) {
+                    $cost->ct === 0 => $name,
+                    $samples => \sprintf('%s (%d %s)', $name, $cost->ct, $cost->ct === 1 ? 'sample' : 'samples'),
+                    default => \sprintf('%s (%dx)', $name, $cost->ct),
+                },
                 cost: $cost,
                 metrics: new CallGraph\Metrics(cost: self::costOf($cost, $metric), percents: $percent),
                 color: $color,
@@ -340,6 +346,15 @@ final class Mapper implements EventMapper
     private static function duration(Cost $cost): float
     {
         return (float) $cost->wt / 1000.0;
+    }
+
+    /**
+     * A sampling profiler counts the samples a function is on the stack in, not its calls.
+     */
+    private static function countsSamples(ProfilerPayload $payload): bool
+    {
+        return $payload->type === ProfilerPayloadType::Speedscope
+            && ($payload->getProfile()->metadata['profile_type'] ?? null) === 'sampled';
     }
 
     /**

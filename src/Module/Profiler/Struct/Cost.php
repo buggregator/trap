@@ -49,9 +49,9 @@ final class Cost implements \JsonSerializable
      * @param array{
      *     ct: int<0, max>,
      *     wt: int<0, max>,
-     *     cpu: int<0, max>,
-     *     mu: int<0, max>,
-     *     pmu: int<0, max>,
+     *     cpu?: int<0, max>,
+     *     mu?: int<0, max>,
+     *     pmu?: int<0, max>,
      *     p_ct?: float,
      *     p_wt?: float,
      *     p_cpu?: float,
@@ -69,9 +69,9 @@ final class Cost implements \JsonSerializable
         $self = new self(
             $data['ct'],
             $data['wt'],
-            $data['cpu'],
-            $data['mu'],
-            $data['pmu'],
+            $data['cpu'] ?? 0,
+            $data['mu'] ?? 0,
+            $data['pmu'] ?? 0,
         );
         $self->p_ct = $data['p_ct'] ?? 0;
         $self->p_wt = $data['p_wt'] ?? 0;

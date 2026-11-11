@@ -7,6 +7,11 @@ use Testo\Application\Config\FinderConfig;
 use Testo\Application\Config\SuiteConfig;
 use Testo\Bridge\Mockery\MockeryPlugin;
 
+// Benchmarks take a minute: only a run that names their suite loads it, `composer test:bench`
+/** @var list<string> $argv */
+$argv = $_SERVER['argv'] ?? [];
+$bench = \in_array('--suite=Bench', $argv, true);
+
 return new ApplicationConfig(
     src: new FinderConfig(
         include: ['src'],
@@ -25,6 +30,7 @@ return new ApplicationConfig(
             name: 'Acceptance',
             location: ['tests/Acceptance'],
         ),
+        ...($bench ? [new SuiteConfig(name: 'Bench', location: ['tests/Bench'])] : []),
     ],
     plugins: [
         new MockeryPlugin(),

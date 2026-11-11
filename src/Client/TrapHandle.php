@@ -6,6 +6,10 @@ namespace Buggregator\Trap\Client;
 
 use Buggregator\Trap\Client\Caster\Trace;
 use Buggregator\Trap\Client\Log\TrapLogger;
+use Buggregator\Trap\Client\Profiler\Excimer;
+use Buggregator\Trap\Client\Profiler\Internal\Driver;
+use Buggregator\Trap\Client\Profiler\Profiling;
+use Buggregator\Trap\Client\Profiler\XHProf;
 use Buggregator\Trap\Client\TrapHandle\Counter;
 use Buggregator\Trap\Client\TrapHandle\Dumper as VarDumper;
 use Buggregator\Trap\Client\TrapHandle\StaticState;
@@ -51,6 +55,43 @@ final class TrapHandle
     public static function logger(string $channel = 'trap'): LoggerInterface
     {
         return self::$loggers[$channel] ??= self::createLogger($channel);
+    }
+
+    /**
+     * Configure profiling of a piece of code with any available profiler. Nothing runs until
+     * {@see Profiling::run()} or {@see Profiling::start()}.
+     *
+     * ```php
+     * $result = trap()::profile(new Excimer(clock: Clock::Cpu))
+     *     ->name('checkout')
+     *     ->sample(0.1)
+     *     ->toFile('var/profiles/checkout.speedscope.json')
+     *     ->run(fn() => $app->handle($request));
+     *
+     * $session = trap()::profile()->toTrap()->start();
+     * // ...
+     * $profile = $session->stop();
+     * ```
+     *
+     * Without a profiler given, the first available one is taken: Excimer, then XHProf
+     * (ext-xhprof, then ext-tideways_xhprof). If none is available, the code runs unprofiled
+     * and a warning is dumped to Trap once. Profiles can not nest: one started while another
+     * is running is skipped, with a warning dumped once. A profile without samples (a run shorter
+     * than the sampling period) is not delivered.
+     *
+     * XHProf takes over an xhprof or tideways session already profiling the whole request
+     * (XHGui, a prepend file) and ends it on stop; that can't be detected.
+     *
+     * Xdebug is not supported here: it can't start its profiler at runtime for a part of a request.
+     * Profile whole requests with `xdebug.mode=profile` and a trigger instead; Trap picks up the
+     * cachegrind files Xdebug writes.
+     *
+     * @param Excimer|XHProf|null $profiler The profiler with its options.
+     */
+    public static function profile(?Driver $profiler = null): Profiling
+    {
+        /** @psalm-suppress InternalMethod */
+        return Profiling::create($profiler);
     }
 
     /**

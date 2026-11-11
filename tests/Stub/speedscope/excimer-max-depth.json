@@ -1,0 +1,45 @@
+{
+    "$schema": "https://www.speedscope.app/file-format-schema.json",
+    "exporter": "Excimer",
+    "shared": {
+        "frames": [
+            {
+                "name": "excimer_truncated",
+                "file": "excimer fake file"
+            },
+            {
+                "name": "foo_6",
+                "file": "/data/maxDepth.php"
+            },
+            {
+                "name": "foo_7",
+                "file": "/data/maxDepth.php"
+            },
+            {
+                "name": "foo_8",
+                "file": "/data/maxDepth.php"
+            },
+            {
+                "name": "foo_9",
+                "file": "/data/maxDepth.php"
+            },
+            {
+                "name": "foo_10",
+                "file": "/data/maxDepth.php"
+            }
+        ]
+    },
+    "profiles": [
+        {
+            "type": "sampled",
+            "name": "",
+            "unit": "nanoseconds",
+            "startValue": 0,
+            "endValue": 0,
+            "samples": [
+                [0, 1, 2, 3, 4, 5]
+            ],
+            "weights": [100000000]
+        }
+    ]
+}

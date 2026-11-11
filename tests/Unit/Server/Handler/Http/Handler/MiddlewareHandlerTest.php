@@ -24,6 +24,9 @@ final class MiddlewareHandlerTest
 {
     private string $sent = '';
 
+    /** Times the handler gave the control back to the server */
+    private int $suspensions = 0;
+
     #[BeforeTest]
     public function resetSent(): void
     {
@@ -50,6 +53,30 @@ final class MiddlewareHandlerTest
         Assert::same($frames, [$frame]);
         Assert::string($this->sent)->startsWith('HTTP/1.1 202');
         Assert::string($this->sent)->contains('accepted');
+    }
+
+    public function testMiddlewareSuspendingWithoutValueIsResumed(): void
+    {
+        $frame = new Frame\Binary(Stream::create('payload'));
+        $this->handle(self::middleware(static function () use ($frame): ResponseInterface {
+            \Fiber::suspend($frame);
+            return new Response(200, body: 'stored');
+        }));
+        $withoutPauses = $this->suspensions;
+        $this->sent = '';
+
+        $frames = $this->handle(self::middleware(static function () use ($frame): ResponseInterface {
+            // As a long build does to let the other fibers run
+            \Fiber::suspend();
+            \Fiber::suspend();
+            \Fiber::suspend($frame);
+            return new Response(200, body: 'stored');
+        }));
+
+        Assert::same($frames, [$frame]);
+        Assert::same($this->suspensions, $withoutPauses + 2);
+        Assert::string($this->sent)->startsWith('HTTP/1.1 200');
+        Assert::string($this->sent)->contains('stored');
     }
 
     public function testResponseWithoutFrameIsOnlyEmitted(): void
@@ -101,7 +128,9 @@ final class MiddlewareHandlerTest
         // The handler suspends its fiber between steps.
         $fiber = new \Fiber(static fn(): array => \iterator_to_array($frames, false));
         $fiber->start();
+        $this->suspensions = 0;
         while (!$fiber->isTerminated()) {
+            ++$this->suspensions;
             $fiber->resume();
         }
 

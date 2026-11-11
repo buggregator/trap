@@ -1,5 +1,16 @@
 {
     "symbol-whitelist": [
+        "EXCIMER_CPU",
+        "EXCIMER_REAL",
+        "ExcimerProfiler",
+        "TIDEWAYS_XHPROF_FLAGS_CPU",
+        "TIDEWAYS_XHPROF_FLAGS_MEMORY",
+        "tideways_xhprof_disable",
+        "tideways_xhprof_enable",
+        "XHPROF_FLAGS_CPU",
+        "XHPROF_FLAGS_MEMORY",
+        "xhprof_disable",
+        "xhprof_enable",
         "Buggregator\\Trap\\Test\\Proto\\Message_Foo",
         "Buggregator\\Trap\\Test\\Proto\\Message_Header",
         "Buggregator\\Trap\\Test\\Proto\\Message_Metadata",

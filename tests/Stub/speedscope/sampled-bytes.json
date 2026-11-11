@@ -1,0 +1,27 @@
+{
+    "$schema": "https://www.speedscope.app/file-format-schema.json",
+    "shared": {
+        "frames": [
+            {
+                "name": "main"
+            },
+            {
+                "name": "alloc"
+            }
+        ]
+    },
+    "profiles": [
+        {
+            "type": "sampled",
+            "name": "heap",
+            "unit": "bytes",
+            "startValue": 0,
+            "endValue": 3072,
+            "samples": [
+                [0, 1],
+                [0]
+            ],
+            "weights": [2048, 1024]
+        }
+    ]
+}

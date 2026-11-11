@@ -1,0 +1,45 @@
+<?php
+
+// Signatures of the optional profiler extensions used by the client, for static analysis only.
+
+const EXCIMER_REAL = 0;
+const EXCIMER_CPU = 1;
+
+class ExcimerProfiler
+{
+    public function setPeriod(float $period): void {}
+    public function setEventType(int $eventType): void {}
+    public function setMaxDepth(int $maxDepth): void {}
+    public function start(): void {}
+    public function stop(): void {}
+    public function getLog(): ExcimerLog {}
+}
+
+class ExcimerLog implements Countable
+{
+    /** @return int<0, max> The number of log entries: distinct stacks with their event counts. */
+    public function count(): int {}
+
+    public function formatCollapsed(): string {}
+    /**
+     * @return array{
+     *     shared?: array{frames?: array<array-key, array{name?: string, file?: string, line?: int}>},
+     *     profiles?: list<array{type?: string, unit?: string, samples?: list<list<array-key>>, weights?: list<int|float>}>
+     * }
+     */
+    public function getSpeedscopeData(): array {}
+}
+
+const XHPROF_FLAGS_CPU = 2;
+const XHPROF_FLAGS_MEMORY = 4;
+
+function xhprof_enable(int $flags = 0, array $options = []): void {}
+
+function xhprof_disable(): array {}
+
+const TIDEWAYS_XHPROF_FLAGS_MEMORY = 6;
+const TIDEWAYS_XHPROF_FLAGS_CPU = 1;
+
+function tideways_xhprof_enable(int $flags = 0): void {}
+
+function tideways_xhprof_disable(): array {}

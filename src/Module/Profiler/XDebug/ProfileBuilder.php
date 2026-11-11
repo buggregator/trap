@@ -4,17 +4,22 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\XDebug;
 
+use Buggregator\Trap\Module\Profiler\Compaction\FlatTree;
+use Buggregator\Trap\Module\Profiler\Compaction\NodeBudget;
+use Buggregator\Trap\Module\Profiler\Compaction\Nodes;
+use Buggregator\Trap\Module\Profiler\Compaction\Report;
 use Buggregator\Trap\Module\Profiler\Struct\Branch;
 use Buggregator\Trap\Module\Profiler\Struct\Cost;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Module\Profiler\Struct\Tree;
+use Buggregator\Trap\Support\TimeSlice;
 
 /**
  * Builds a profile from Xdebug profiler output in the cachegrind format.
  *
  * Xdebug writes a block per call when the call ends, and the block lists the calls made from it in their order.
- * So the blocks come in post-order, and the exact call tree is restored from them.
+ * So the blocks come in post-order, and the exact call tree is restored from them, see {@see CallLinker}.
  *
  * @link https://xdebug.org/docs/profiler
  * @link https://valgrind.org/docs/manual/cl-format.html
@@ -29,22 +34,27 @@ final class ProfileBuilder
      * Size limit of a profile in bytes, both gzipped and decompressed.
      *
      * Xdebug writes a block per call, so its profiles are larger than XHProf ones.
-     * Parsing takes about 20 times the decompressed size in memory, and a gzipped profile expands
+     * Parsing takes about 5 times the decompressed size in memory, and a gzipped profile expands
      * about 10 times, up to hundreds of times when crafted: out of memory, the whole process dies.
      */
     public const MAX_SIZE = 64 * 1024 * 1024;
 
     /**
      * @param positive-int $maxSize Limit of the content size, gzipped and decompressed, in bytes.
+     * @param positive-int|null $maxNodes Limit of the tree nodes, over which the tree is compacted;
+     *        by default, what the memory left affords when the build starts, see {@see NodeBudget}.
      */
     public function __construct(
         public readonly int $maxSize = self::MAX_SIZE,
+        public readonly ?int $maxNodes = null,
     ) {}
 
     /**
      * @param string $content Cachegrind data, gzipped or not.
-     * @param Metadata $metadata
+     * @param Metadata $metadata Gets `compacted` when the tree was over the node limit: what
+     *        {@see Report::toArray()} tells and the `limit`.
      * @param array<non-empty-string, non-empty-string> $tags
+     * @param TimeSlice|null $timeSlice Lets other fibers run during a long build.
      *
      * @throws \InvalidArgumentException When the content is not a profile written by Xdebug or is too large.
      */
@@ -53,6 +63,7 @@ final class ProfileBuilder
         \DateTimeInterface $date = new \DateTimeImmutable(),
         array $metadata = [],
         array $tags = [],
+        ?TimeSlice $timeSlice = null,
     ): Profile {
         $tooLarge = "the profile is larger than {$this->maxSize} bytes";
         \strlen($content) > $this->maxSize and throw new \InvalidArgumentException(\ucfirst($tooLarge) . '.');
@@ -64,7 +75,22 @@ final class ProfileBuilder
             \strlen($content) > $this->maxSize and throw new \InvalidArgumentException(\ucfirst($tooLarge) . '.');
         }
 
-        return Profile::fromTree($this->buildTree(...$this->parse($content)), $date, $metadata, $tags);
+        $linker = $this->link($content, $timeSlice);
+        unset($content);
+        // The calls read take their memory first
+        $limit = $this->maxNodes ?? NodeBudget::nodes();
+        $nodes = self::nodes($linker, $limit, $timeSlice);
+        $names = $linker->names;
+        unset($linker);
+        if (!$nodes->report->isEmpty()) {
+            $nodes->report->measure($nodes->tree);
+            $metadata['compacted'] = $nodes->report->toArray() + ['limit' => $limit];
+        }
+        $tree = self::buildTree($nodes, $names, $timeSlice);
+        unset($nodes);
+
+        /** @var Metadata $metadata */
+        return Profile::fromTree($tree, $date, $metadata, $tags, $timeSlice);
     }
 
     /**
@@ -103,37 +129,142 @@ final class ProfileBuilder
         };
     }
 
-    /**
-     * @return array{list<Call>, float} Calls in the order they end, and the divisor of time to microseconds.
-     */
-    private function parse(string $content): array
+    private static function noEvents(): \InvalidArgumentException
     {
-        $lines = \preg_split('/\r?\n/', $content) ?: [];
-        \str_starts_with($lines[0] ?? '', 'version:') && \str_contains($content, "\ncreator: xdebug")
+        return new \InvalidArgumentException('No `events` line in the profile.');
+    }
+
+    /**
+     * Puts the calls in a tree, from the roots down: a node per call while they fit the node limit;
+     * otherwise the calls of the same function on the same path are merged from the start, and the tree
+     * is compacted further when it outgrows the limit.
+     *
+     * @param positive-int $limit
+     */
+    private static function nodes(CallLinker $linker, int $limit, ?TimeSlice $timeSlice): Nodes
+    {
+        $merge = \count($linker->function) > $limit;
+        $nodes = new Nodes($limit, \count($linker->names), calls: true, timeSlice: $timeSlice);
+        $tree = $nodes->tree;
+        /** @var list<int> $path Calls of the path to the current one; their nodes are in `$nodes->open` */
+        $path = [];
+        foreach ($linker->preOrder() as $call) {
+            $caller = $linker->caller[$call];
+            while ($path !== [] && $path[\array_key_last($path)] !== $caller) {
+                \array_pop($path);
+                \array_pop($nodes->open);
+            }
+
+            $parent = $nodes->open === [] ? 0 : $nodes->open[\array_key_last($nodes->open)];
+            if ($nodes->isFolded($parent)) {
+                // The caller's folded node holds the time already
+                $node = $parent;
+            } else {
+                $size = $tree->size();
+                $node = $merge ? $nodes->child($parent, $linker->function[$call]) : $nodes->call($parent, $linker->function[$call]);
+                $merge && $tree->size() === $size && !$nodes->isFolded($node) and ++$nodes->report->merged;
+                $tree->value[$node] += (float) $linker->wt[$call];
+                $tree->memory[$node] += (float) $linker->memory[$call];
+            }
+            ++$tree->count[$node];
+            $caller === -1 and $tree->value[0] += (float) $linker->wt[$call];
+            $path[] = $call;
+            $nodes->open[] = $node;
+            $timeSlice?->tick();
+        }
+        $nodes->open = [];
+        $nodes->compact();
+
+        return $nodes;
+    }
+
+    /**
+     * @param list<non-empty-string> $names Function names by IDs.
+     *
+     * @return Tree<Edge> Node IDs follow the pre-order; siblings keep the call order.
+     */
+    private static function buildTree(Nodes $nodes, array $names, ?TimeSlice $timeSlice): Tree
+    {
+        $flat = $nodes->tree;
+        $children = $flat->children();
+
+        /** @var Tree<Edge> $tree */
+        $tree = new Tree();
+
+        // Iterative: the depth follows the recursion in the profiled code, deeper than Xdebug's nesting limit.
+        // Node 0 holds the roots.
+        /** @var list<array{int, Branch<Edge>|null}> $stack */
+        $stack = \array_map(static fn(int $node): array => [$node, null], \array_reverse($children[0] ?? []));
+        while ($stack !== []) {
+            [$node, $parent] = \array_pop($stack);
+
+            $id = 'n' . (\count($tree) + 1);
+            $tree->addItem(
+                new Edge(
+                    caller: $parent?->item->callee,
+                    callee: match ($frame = $flat->frame[$node]) {
+                        FlatTree::OTHER => Profile::OTHER,
+                        FlatTree::TRUNCATED => Profile::TRUNCATED,
+                        default => $names[$frame],
+                    },
+                    cost: new Cost(
+                        ct: \max(0, $flat->count[$node]),
+                        wt: \max(0, (int) \round($flat->value[$node])),
+                        cpu: 0,
+                        mu: \max(0, (int) \round($flat->memory[$node])),
+                        pmu: 0,
+                    ),
+                ),
+                $id,
+                $parent?->id,
+            );
+
+            /** @var Branch<Edge> $branch */
+            $branch = $tree->all[$id];
+            foreach (\array_reverse($children[$node] ?? []) as $child) {
+                $stack[] = [$child, $branch];
+            }
+            unset($children[$node]);
+            $timeSlice?->tick();
+        }
+
+        return $tree;
+    }
+
+    /**
+     * Reads the calls and links each to its caller as soon as the caller ends.
+     *
+     */
+    private function link(string $content, ?TimeSlice $timeSlice): CallLinker
+    {
+        \str_starts_with($content, 'version:') && \str_contains($content, "\ncreator: xdebug")
             or throw new \InvalidArgumentException('Not a cachegrind profile written by Xdebug.');
 
         /** @var array<string, non-empty-string> $names Function names by their compressed IDs */
         $names = [];
-        $timeDivisor = null;
-        /** @var list<Call> $calls */
-        $calls = [];
+        $linker = null;
         $current = null;
         /** @var non-empty-string|null $callee Function of the next cost line, if it describes a call */
         $callee = null;
         $expectCost = false;
 
-        foreach ($lines as $line) {
+        // Line by line, not split at once: the array of lines would take more memory than the calls
+        $length = \strlen($content);
+        for ($offset = 0; $offset < $length; $offset = $end + 1) {
+            $end = \strpos($content, "\n", $offset);
+            $end === false and $end = $length;
+            $line = \rtrim(\substr($content, $offset, $end - $offset), "\r");
             if ($line === '') {
                 continue;
             }
 
             if (\str_starts_with($line, 'events:')) {
-                $timeDivisor = self::timeDivisor($line);
+                $linker ??= new CallLinker(self::timeDivisor($line), $timeSlice);
                 continue;
             }
 
             if (\str_starts_with($line, 'fn=')) {
-                $current === null or $calls[] = $current;
+                $current === null or ($linker ?? throw self::noEvents())->end($current);
                 $current = new Call(self::name(\substr($line, 3), $names));
                 $expectCost = true;
                 $callee = null;
@@ -161,104 +292,11 @@ final class ProfileBuilder
                 }
             }
         }
-        $current === null or $calls[] = $current;
 
-        $timeDivisor === null and throw new \InvalidArgumentException('No `events` line in the profile.');
+        $linker ??= throw self::noEvents();
+        $current === null or $linker->end($current);
+        $linker->finish();
 
-        return [$calls, $timeDivisor];
-    }
-
-    /**
-     * Links the calls to their parents: the calls made from a call are the last ones ended before it.
-     *
-     * Times are rounded to microseconds so that the sum over the calls of a caller-callee pair stays exact:
-     * rounding each call on its own adds up to a large error over many sub-microsecond calls,
-     * 1000 calls of 0.5 µs would take 1000 µs or none. So the rounding error of a pair is carried over to its next call.
-     * A call never takes less than its children, to keep the exclusive times non-negative;
-     * the excess is taken back from the next calls of the pair.
-     *
-     * @param list<Call> $calls In the order they end.
-     *
-     * @return Tree<Edge>
-     */
-    private function buildTree(array $calls, float $timeDivisor): Tree
-    {
-        /** @var array<string, int> $pairTime Inclusive time of the caller-callee pairs, in the profile units */
-        $pairTime = [];
-        /** @var array<string, int> $pairWt Microseconds given to the calls of the pairs */
-        $pairWt = [];
-        /** @var array<int, int<0, max>> $wt Microseconds of the calls by their object IDs */
-        $wt = [];
-        $round = static function (Call $call, string $caller) use (&$pairTime, &$pairWt, &$wt, $timeDivisor): void {
-            $children = 0;
-            foreach ($call->children as $child) {
-                $children += $wt[\spl_object_id($child)];
-            }
-
-            $pair = $caller . "\0" . $call->name;
-            $pairTime[$pair] = ($pairTime[$pair] ?? 0) + $call->time;
-            $given = $pairWt[$pair] ?? 0;
-            $value = \max($children, (int) \round((float) $pairTime[$pair] / $timeDivisor) - $given);
-            $pairWt[$pair] = $given + $value;
-            $wt[\spl_object_id($call)] = $value;
-        };
-
-        /** @var list<Call> $ended Calls waiting for their caller */
-        $ended = [];
-        foreach ($calls as $call) {
-            $count = \count($call->callees);
-            $count > \count($ended) and throw new \InvalidArgumentException(
-                "Call of `{$call->name}` lists more calls than ended before it.",
-            );
-
-            $call->children = $count === 0 ? [] : \array_splice($ended, -$count);
-            foreach ($call->children as $i => $child) {
-                $child->name === $call->callees[$i] or throw new \InvalidArgumentException(
-                    "Call of `{$call->name}` lists `{$call->callees[$i]}`, but `{$child->name}` ended there.",
-                );
-                $round($child, $call->name);
-                $call->time += $child->time;
-                $call->memory += $child->memory;
-            }
-            $ended[] = $call;
-        }
-        foreach ($ended as $call) {
-            $round($call, '');
-        }
-
-        /** @var Tree<Edge> $tree */
-        $tree = new Tree();
-
-        // Iterative: the depth follows the recursion in the profiled code, deeper than Xdebug's nesting limit
-        /** @var list<array{Call, Branch<Edge>|null}> $stack */
-        $stack = \array_map(static fn(Call $call): array => [$call, null], \array_reverse($ended));
-        while ($stack !== []) {
-            [$call, $parent] = \array_pop($stack);
-
-            $id = 'n' . (\count($tree) + 1);
-            $tree->addItem(
-                new Edge(
-                    caller: $parent?->item->callee,
-                    callee: $call->name,
-                    cost: new Cost(
-                        ct: 1,
-                        wt: $wt[\spl_object_id($call)],
-                        cpu: 0,
-                        mu: \max(0, $call->memory),
-                        pmu: 0,
-                    ),
-                ),
-                $id,
-                $parent?->id,
-            );
-
-            /** @var Branch<Edge> $branch */
-            $branch = $tree->all[$id];
-            foreach (\array_reverse($call->children) as $child) {
-                $stack[] = [$child, $branch];
-            }
-        }
-
-        return $tree;
+        return $linker;
     }
 }

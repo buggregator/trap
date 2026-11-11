@@ -1,0 +1,34 @@
+{
+    "$schema": "https://www.speedscope.app/file-format-schema.json",
+    "shared": {
+        "frames": [
+            {
+                "name": "<module>",
+                "file": "app.py"
+            },
+            {
+                "name": "render",
+                "file": "html.py"
+            },
+            {
+                "name": "render",
+                "file": "json.py"
+            }
+        ]
+    },
+    "profiles": [
+        {
+            "type": "sampled",
+            "name": "py",
+            "unit": "milliseconds",
+            "startValue": 0,
+            "endValue": 30,
+            "samples": [
+                [0, 1],
+                [0, 2],
+                [0, 2]
+            ],
+            "weights": [10, 10, 10]
+        }
+    ]
+}

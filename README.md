@@ -227,6 +227,9 @@ Environment variables can also be used to set endpoints:
 - `TRAP_TCP_HOST` - for the TCP host (default: `127.0.0.1`)
 - `TRAP_UI_PORT` - for the web interface: `8080`
 
+`TRAP_MEMORY_LIMIT` raises PHP's `memory_limit` when it is lower (default: `512M`; `-1` for no limit; empty to keep it).
+Large profiles get as many call tree nodes as the memory left affords, and are compacted past that.
+
 ### OpenTelemetry traces
 
 Trap receives traces exported over OTLP/HTTP (`POST /v1/traces`) on any of its ports

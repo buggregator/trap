@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\FilesObserver;
 
+use Buggregator\Trap\Module\Profiler\Compaction\Report;
 use Buggregator\Trap\Module\Profiler\Frame as ProfilerFrame;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Module\Profiler\XDebug\ProfileBuilder;
@@ -76,12 +77,14 @@ final class XDebug implements FileFilterInterface
             yield new ProfilerFrame(
                 ProfilerFrame\Payload::new(
                     type: ProfilerFrame\Type::XDebug,
+                    // Built when the profile is first shown, in whatever fiber that is: it can't wait for a lock.
+                    // The node budget it gets is what the memory left affords.
                     callsProvider: function () use ($file): Profile {
                         // A byte over the limit is enough for the builder to reject a file that doesn't fit in memory
                         $content = \file_get_contents($file->path, length: $this->profileBuilder->maxSize + 1);
                         $content === false and throw new \RuntimeException('Unable to read the profile file.');
 
-                        return $this->profileBuilder->createProfile(
+                        $profile = $this->profileBuilder->createProfile(
                             content: $content,
                             date: new \DateTimeImmutable('@' . $file->mtime),
                             metadata: [
@@ -90,6 +93,17 @@ final class XDebug implements FileFilterInterface
                                 'filesize' => $file->size,
                             ],
                         );
+
+                        /** @var mixed $compacted */
+                        $compacted = $profile->metadata['compacted'] ?? null;
+                        \is_array($compacted) and $this->logger->warning(
+                            'XDebug: %s is compacted to %d call tree nodes: %s.',
+                            \basename($file->path),
+                            (int) ($compacted['limit'] ?? 0),
+                            Report::summarize($compacted),
+                        );
+
+                        return $profile;
                     },
                 ),
             );

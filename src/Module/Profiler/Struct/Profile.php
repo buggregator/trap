@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\Struct;
 
+use Buggregator\Trap\Support\TimeSlice;
 use Buggregator\Trap\Support\Uuid;
 
 /**
@@ -43,6 +44,16 @@ final class Profile implements \JsonSerializable
      * Unfolded nodes with a smaller share of the profile are dropped: they are too small to show.
      */
     private const UNFOLD_MIN_SHARE = 0.0001;
+
+    /**
+     * Name of the node that sums what came past the limit of the raw call tree.
+     */
+    public const TRUNCATED = '(truncated)';
+
+    /**
+     * Name of the node that sums the cold subtrees pruned from its parent.
+     */
+    public const OTHER = '(other)';
 
     public Peaks $peaks;
     public Graph $calls;
@@ -102,24 +113,28 @@ final class Profile implements \JsonSerializable
     /**
      * Builds a profile of a profiler that records the call tree.
      *
-     * @param Tree<Edge> $tree Nodes with raw costs and function names; recursion levels are added here.
+     * @param Tree<Edge> $tree Nodes with raw costs and function names; recursion levels are added here,
+     *        replacing the items of the tree.
      * @param Metadata $metadata
      * @param array<non-empty-string, non-empty-string> $tags
+     * @param TimeSlice|null $timeSlice Lets other fibers run during a long build.
      */
     public static function fromTree(
         Tree $tree,
         \DateTimeInterface $date = new \DateTimeImmutable(),
         array $metadata = [],
         array $tags = [],
+        ?TimeSlice $timeSlice = null,
     ): self {
-        $tree = self::withRecursionLevels($tree);
-        $calls = Graph::fromTree($tree);
+        self::addRecursionLevels($tree, $timeSlice);
+        $calls = Graph::fromTree($tree, $timeSlice);
         $peaks = self::peaksOf($calls);
         $calls->setPercentsAndDeltas($peaks);
 
         foreach ($tree->getIterator() as $branch) {
             $branch->item->cost->setPercentsOf($peaks);
             $branch->parent === null or $branch->item->cost->setDeltasTo($branch->parent->item->cost);
+            $timeSlice?->tick();
         }
 
         return new self($date, $metadata, $tags, $calls, $peaks, $tree);
@@ -187,48 +202,51 @@ final class Profile implements \JsonSerializable
     }
 
     /**
-     * Copies the tree, marking nested calls of a function with their level: `foo`, `foo@1`, `foo@2`.
+     * Marks nested calls of a function with their level: `foo`, `foo@1`, `foo@2`.
+     *
+     * One pass from the roots, counting the calls of each function on the path to the current node.
      *
      * @param Tree<Edge> $tree
-     *
-     * @return Tree<Edge>
      */
-    private static function withRecursionLevels(Tree $tree): Tree
+    private static function addRecursionLevels(Tree $tree, ?TimeSlice $timeSlice): void
     {
-        /** @var Tree<Edge> $result */
-        $result = new Tree();
+        /** @var array<non-empty-string, int<1, max>> $onPath */
+        $onPath = [];
+        /** @var array<non-empty-string, array<int, non-empty-string>> $ids One string per level, not per node */
+        $ids = [];
 
-        // Iterative: the depth follows the recursion in the profiled code, deeper than Xdebug's nesting limit
-        /** @var list<array{Branch<Edge>, Branch<Edge>|null}> $stack Source node and the copy of its parent */
-        $stack = \array_map(static fn(Branch $branch): array => [$branch, null], \array_reverse(\array_values($tree->root)));
+        // Iterative: the depth follows the recursion in the profiled code, deeper than Xdebug's nesting limit.
+        // A string entry is a function leaving the path.
+        /** @var list<Branch<Edge>|non-empty-string> $stack */
+        $stack = \array_reverse(\array_values($tree->root));
         while ($stack !== []) {
-            [$branch, $parent] = \array_pop($stack);
-            $edge = $branch->item;
-
-            $level = 0;
-            for ($p = $parent; $p !== null; $p = $p->parent) {
-                $p->item->callee === $edge->callee and ++$level;
+            $entry = \array_pop($stack);
+            if (\is_string($entry)) {
+                if ($onPath[$entry] === 1) {
+                    unset($onPath[$entry]);
+                } else {
+                    --$onPath[$entry];
+                }
+                continue;
             }
 
-            $result->addItem(
-                new Edge(
-                    caller: $parent?->item->callee,
-                    callee: $edge->callee,
-                    cost: $edge->cost,
-                    calleeId: $level === 0 ? $edge->callee : "{$edge->callee}@$level",
-                    callerId: $parent?->item->calleeId,
-                ),
-                $branch->id,
-                $parent?->id,
-            );
-
-            /** @var Branch<Edge> $copy */
-            $copy = $result->all[$branch->id];
-            foreach (\array_reverse($branch->children) as $child) {
-                $stack[] = [$child, $copy];
+            $edge = $entry->item;
+            $callee = $edge->callee;
+            $level = $onPath[$callee] ?? 0;
+            $calleeId = $level === 0 ? $callee : $ids[$callee][$level] ??= "$callee@$level";
+            $parent = $entry->parent?->item;
+            if ($calleeId !== $edge->calleeId || $parent?->calleeId !== $edge->callerId) {
+                $entry->item = new Edge($parent?->callee, $callee, $edge->cost, $calleeId, $parent?->calleeId);
             }
+
+            if ($entry->children !== []) {
+                $onPath[$callee] = $level + 1;
+                $stack[] = $callee;
+                foreach (\array_reverse($entry->children) as $child) {
+                    $stack[] = $child;
+                }
+            }
+            $timeSlice?->tick();
         }
-
-        return $result;
     }
 }

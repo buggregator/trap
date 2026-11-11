@@ -84,4 +84,26 @@ final class StackTrace
 
         return $stack;
     }
+
+    /**
+     * Returns where the Trap client was entered from: the file and line of the outermost
+     * client method call in the current chain.
+     *
+     * @return array{file?: string, line?: int}
+     */
+    public static function callSite(): array
+    {
+        $site = [];
+        foreach (\debug_backtrace(\DEBUG_BACKTRACE_IGNORE_ARGS) as $frame) {
+            if (!\str_starts_with($frame['class'] ?? '', 'Buggregator\\Trap\\Client\\')) {
+                break;
+            }
+
+            $site = [];
+            isset($frame['file']) and $site['file'] = $frame['file'];
+            isset($frame['line']) and $site['line'] = $frame['line'];
+        }
+
+        return $site;
+    }
 }

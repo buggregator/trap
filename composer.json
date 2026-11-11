@@ -65,7 +65,10 @@
         "vimeo/psalm": "^6 || ^7"
     },
     "suggest": {
+        "ext-excimer": "To profile code with trap()::profile() using the Excimer sampling profiler",
         "ext-simplexml": "To load trap.xml",
+        "ext-tideways_xhprof": "To profile code with trap()::profile() using XHProf",
+        "ext-xhprof": "To profile code with trap()::profile() using XHProf",
         "google/protobuf": "To receive OpenTelemetry traces encoded as OTLP/HTTP protobuf (with open-telemetry/gen-otlp-protobuf)",
         "open-telemetry/gen-otlp-protobuf": "To receive OpenTelemetry traces encoded as OTLP/HTTP protobuf",
         "roxblnfk/unpoly": "If you want to remove unnecessary PHP polyfills depend on PHP version."
@@ -112,6 +115,7 @@
         "test": "testo",
         "test:unit": "testo --suite=Unit",
         "test:arch": "testo --suite=Arch",
-        "test:acceptance": "testo --suite=Acceptance"
+        "test:acceptance": "testo --suite=Acceptance",
+        "test:bench": "@php -d memory_limit=-1 -d xdebug.mode=off vendor/bin/testo --suite=Bench"
     }
 }

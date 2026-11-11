@@ -46,6 +46,7 @@ final class FrameMapper
         // The UI has no event type for raw binary streams; a module may still give one.
         \array_key_exists(Frame\Binary::class, $mappers) or $mappers[Frame\Binary::class] = null;
 
+        /** @var array<class-string<Frame>, class-string<EventMapper>|null> $mappers */
         $this->mappers = $mappers;
     }
 

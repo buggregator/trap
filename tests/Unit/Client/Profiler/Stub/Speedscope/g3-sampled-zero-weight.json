@@ -1,0 +1,28 @@
+{
+    "$schema": "https://www.speedscope.app/file-format-schema.json",
+    "shared": {
+        "frames": [
+            {
+                "name": "main"
+            },
+            {
+                "name": "a"
+            }
+        ]
+    },
+    "profiles": [
+        {
+            "type": "sampled",
+            "name": "zero",
+            "unit": "nanoseconds",
+            "startValue": 0,
+            "endValue": 1000000,
+            "samples": [
+                [0, 1],
+                [0, 1],
+                [0]
+            ],
+            "weights": [1000000, 0, 0]
+        }
+    ]
+}

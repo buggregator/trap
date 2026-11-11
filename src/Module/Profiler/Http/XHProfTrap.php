@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\Http;
 
+use Buggregator\Trap\Module\Profiler\BuildLock;
+use Buggregator\Trap\Module\Profiler\BuildQueueFull;
 use Buggregator\Trap\Module\Profiler\Frame;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder as XHProfProfileBuilder;
@@ -32,6 +34,7 @@ final class XHProfTrap implements Middleware
     public function __construct(
         private readonly XHProfProfileBuilder $profileBuilder,
         private readonly Logger $logger,
+        private readonly BuildLock $lock,
     ) {}
 
     #[\Override]
@@ -43,6 +46,9 @@ final class XHProfTrap implements Middleware
             ) {
                 return $this->processStore($request);
             }
+        } catch (BuildQueueFull $e) {
+            $this->logger->warning('XHProf: profile rejected with 503: %s', \lcfirst($e->getMessage()));
+            return new Response(503, body: $e->getMessage());
         } catch (\JsonException $e) {
             // Reject invalid JSON
             $this->logger->exception($e, important: true);
@@ -68,8 +74,11 @@ final class XHProfTrap implements Middleware
             return new Response(413);
         }
 
+        // Decoded, a profile takes about 10 times its JSON: it waits for the other builds
         /** @var XHProfMessage $payload */
-        $payload = \json_decode((string) $request->getBody(), true, 96, \JSON_THROW_ON_ERROR);
+        $payload = $this->lock->run(
+            static fn(): mixed => \json_decode((string) $request->getBody(), true, 96, \JSON_THROW_ON_ERROR),
+        );
 
         \is_array($payload['profile'] ?? null) && \is_array($payload['tags'] ?? null)
         or throw new \InvalidArgumentException('Invalid payload');

@@ -70,6 +70,18 @@ final class ProfileBuilderTest
         Assert::same(self::edge($profile, 'b')->caller, 'a');
     }
 
+    public function testMetricsNotMeasuredAreZero(): void
+    {
+        // XHProf without the CPU and memory flags records calls and wall time only
+        $profile = self::build([
+            'main()==>a' => ['ct' => 2, 'wt' => 60],
+            'main()' => ['ct' => 1, 'wt' => 100],
+        ]);
+
+        $cost = self::edge($profile, 'a')->cost;
+        Assert::same([$cost->ct, $cost->wt, $cost->cpu, $cost->mu, $cost->pmu], [2, 60, 0, 0, 0]);
+    }
+
     public function testKeepsEveryCallerOfSharedCallee(): void
     {
         $profile = self::build([

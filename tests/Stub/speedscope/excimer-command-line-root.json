@@ -1,0 +1,31 @@
+{
+    "$schema": "https://www.speedscope.app/file-format-schema.json",
+    "exporter": "Excimer",
+    "shared": {
+        "frames": [
+            {
+                "name": "Command_line_code",
+                "file": "Command line code"
+            },
+            {
+                "name": "work",
+                "file": "Command line code"
+            }
+        ]
+    },
+    "profiles": [
+        {
+            "type": "sampled",
+            "name": "",
+            "unit": "nanoseconds",
+            "startValue": 0,
+            "endValue": 2000000,
+            "samples": [
+                [0, 1],
+                [0, 1],
+                [0]
+            ],
+            "weights": [1000000, 1000000, 1000000]
+        }
+    ]
+}

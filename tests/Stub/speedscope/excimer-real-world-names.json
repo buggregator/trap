@@ -1,0 +1,77 @@
+{
+    "$schema": "https://www.speedscope.app/file-format-schema.json",
+    "exporter": "Excimer",
+    "shared": {
+        "frames": [
+            {
+                "name": "/app/public/index.php",
+                "file": "/app/public/index.php"
+            },
+            {
+                "name": "Symfony\\Component\\HttpKernel\\Kernel::handle",
+                "file": "/app/vendor/symfony/http-kernel/Kernel.php"
+            },
+            {
+                "name": "App\\Util\\Str::slug",
+                "file": "/app/src/Util/Str.php"
+            },
+            {
+                "name": "{closure:/app/src/Kernel.php(42)}",
+                "file": "/app/src/Kernel.php"
+            },
+            {
+                "name": "/app/config/bootstrap.php",
+                "file": "/app/config/bootstrap.php"
+            },
+            {
+                "name": "/app/src/Rules.php(17)_:_eval()'d_code",
+                "file": "/app/src/Rules.php(17) : eval()'d code"
+            },
+            {
+                "name": "{closure:/app/src/Rules.php(17)_:_eval()'d_code(3)}",
+                "file": "/app/src/Rules.php(17) : eval()'d code"
+            },
+            {
+                "name": "class@anonymous_/app/src/Listener.php:12$0::__invoke",
+                "file": "/app/src/Listener.php"
+            },
+            {
+                "name": "Psr\\Log\\AbstractLogger@anonymous_/app/src/Log.php:8$1::log",
+                "file": "/app/src/Log.php"
+            },
+            {
+                "name": "App\\Repository\\UserRepository::iterate",
+                "file": "/app/src/Repository/UserRepository.php"
+            },
+            {
+                "name": "App\\Ünïcödé\\Сервис::處理",
+                "file": "/app/src/Ünïcödé/Сервис.php"
+            },
+            {
+                "name": "App\\Infrastructure\\Persistence\\Doctrine\\Repository\\Customer\\Loyalty\\Program\\VeryLongAndDescriptiveCustomerLoyaltyProgramMembershipTierRecalculationRepositoryImplementation::findAllMembershipsEligibleForTierRecalculationGroupedByRegionAndCurrencyWithPessimisticLock",
+                "file": "/app/src/Infrastructure/Repo.php"
+            }
+        ]
+    },
+    "profiles": [
+        {
+            "type": "sampled",
+            "name": "",
+            "unit": "nanoseconds",
+            "startValue": 0,
+            "endValue": 8000000,
+            "samples": [
+                [0, 1, 3, 2],
+                [0, 4],
+                [0, 1, 5, 6],
+                [0, 1, 7],
+                [0, 1, 7, 8],
+                [0, 1, 9],
+                [0, 1, 10],
+                [0, 1, 11],
+                [0, 1, 3, 2]
+            ],
+            "weights": [1000000, 1000000, 1000000, 1000000, 1000000, 1000000, 1000000, 1000000, 1000000]
+        }
+    ]
+}

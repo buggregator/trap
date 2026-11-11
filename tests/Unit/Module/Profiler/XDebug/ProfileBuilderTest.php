@@ -189,6 +189,38 @@ final class ProfileBuilderTest
         ));
     }
 
+    public function testMergesCallsOfSameFunctionOnSamePathOverNodeLimit(): void
+    {
+        $blocks = "fn=(1) x\n1 1 0\n\nfn=(2) y\n1 2 4\n\nfn=(3) handle\n1 4 0\n" . self::calls(1, 2) . "\n"
+            . "fn=(1)\n1 8 0\n\nfn=(2)\n1 16 4\n\nfn=(3)\n1 32 0\n" . self::calls(1, 2) . "\n"
+            . "fn=(4) {main}\n1 0 0\n" . self::calls(3, 3);
+
+        $profile = (new ProfileBuilder(maxNodes: 4))->createProfile(self::profile('Time Memory_(bytes)', $blocks));
+
+        // 7 calls, 4 call paths
+        Assert::same(self::shape($profile->tree()), ['{main}:63' => ['handle:63' => ['x:9' => [], 'y:18' => []]]]);
+        Assert::same($profile->calls->callers('handle')[0]->cost->ct, 2);
+        Assert::same($profile->calls->callers('y')[0]->cost->mu, 8);
+        Assert::same($profile->metadata['compacted']['merged'], 3);
+    }
+
+    public function testPrunesColdCallsOverNodeLimit(): void
+    {
+        $blocks = "fn=(1) a\n1 1 0\n\nfn=(2) b\n1 2 0\n\nfn=(3) c\n1 4 0\n\nfn=(4) d\n1 8 0\n\n"
+            . "fn=(5) {main}\n1 16 0\n" . self::calls(1, 2, 3, 4);
+
+        $profile = (new ProfileBuilder(maxNodes: 3))->createProfile(self::profile('Time Memory_(bytes)', $blocks));
+
+        Assert::same(self::shape($profile->tree()), ['{main}:31' => ['(other):7' => [], 'd:8' => []]]);
+        Assert::same($profile->calls->callers('(other)')[0]->cost->ct, 3);
+        Assert::same($profile->metadata['compacted']['pruned'], 3);
+    }
+
+    private static function calls(int ...$ids): string
+    {
+        return \implode('', \array_map(static fn(int $id): string => "cfn=($id)\ncalls=1 0 0\n1 0 0\n", $ids));
+    }
+
     private static function build(string $stub): Profile
     {
         return (new ProfileBuilder())->createProfile(\file_get_contents(self::STUB_DIR . '/' . $stub));

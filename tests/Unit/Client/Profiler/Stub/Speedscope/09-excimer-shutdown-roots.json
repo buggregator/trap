@@ -1,0 +1,46 @@
+{
+    "$schema": "https://www.speedscope.app/file-format-schema.json",
+    "exporter": "Excimer",
+    "shared": {
+        "frames": [
+            {
+                "name": "/app/public/index.php",
+                "file": "/app/public/index.php"
+            },
+            {
+                "name": "App\\Kernel::handle",
+                "file": "/app/src/Kernel.php"
+            },
+            {
+                "name": "{closure:/app/public/index.php(7)}",
+                "file": "/app/public/index.php"
+            },
+            {
+                "name": "Monolog\\Handler\\BufferHandler::__destruct",
+                "file": "/app/vendor/monolog/monolog/src/Monolog/Handler/BufferHandler.php"
+            },
+            {
+                "name": "Monolog\\Handler\\BufferHandler::close",
+                "file": "/app/vendor/monolog/monolog/src/Monolog/Handler/BufferHandler.php"
+            }
+        ]
+    },
+    "profiles": [
+        {
+            "type": "sampled",
+            "name": "",
+            "unit": "nanoseconds",
+            "startValue": 0,
+            "endValue": 5000000,
+            "samples": [
+                [0, 1],
+                [0, 1],
+                [0, 1],
+                [2],
+                [3, 4],
+                [3, 4]
+            ],
+            "weights": [1000000, 1000000, 1000000, 1000000, 1000000, 1000000]
+        }
+    ]
+}

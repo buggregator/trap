@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\Http;
 
+use Buggregator\Trap\Module\Profiler\BuildLock;
+use Buggregator\Trap\Module\Profiler\BuildQueueFull;
+use Buggregator\Trap\Module\Profiler\Compaction\Report;
 use Buggregator\Trap\Module\Profiler\Frame;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Module\Profiler\XDebug\ProfileBuilder as XDebugProfileBuilder;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Logger;
+use Buggregator\Trap\Support\TimeSlice;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -26,6 +30,7 @@ final class XDebugTrap implements Middleware
     public function __construct(
         private readonly XDebugProfileBuilder $profileBuilder,
         private readonly Logger $logger,
+        private readonly BuildLock $lock,
     ) {}
 
     #[\Override]
@@ -37,6 +42,9 @@ final class XDebugTrap implements Middleware
 
         try {
             return $this->processStore($request);
+        } catch (BuildQueueFull $e) {
+            $this->logger->warning('XDebug: profile rejected with 503: %s', \lcfirst($e->getMessage()));
+            return new Response(503, body: $e->getMessage());
         } catch (\Throwable $e) {
             $this->logger->exception($e, important: true);
             return new Response(400, body: $e->getMessage());
@@ -71,8 +79,23 @@ final class XDebugTrap implements Middleware
         $time = $request->getAttribute('begin_at');
         $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
 
-        // Parse before accepting, to reject what is not a profile
-        $profile = $this->profileBuilder->createProfile($content, $time, $metadata, $tags);
+        // Parse before accepting, to reject what is not a profile; one build at a time, the other fibers run meanwhile
+        $profile = $this->lock->run(fn(): Profile => $this->profileBuilder->createProfile(
+            $content,
+            $time,
+            $metadata,
+            $tags,
+            new TimeSlice(),
+        ));
+        unset($content);
+
+        /** @var mixed $compacted */
+        $compacted = $profile->metadata['compacted'] ?? null;
+        \is_array($compacted) and $this->logger->warning(
+            'XDebug: the profile is compacted to %d call tree nodes: %s.',
+            (int) ($compacted['limit'] ?? 0),
+            Report::summarize($compacted),
+        );
 
         \Fiber::suspend(
             new Frame(

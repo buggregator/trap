@@ -9,6 +9,7 @@ use Buggregator\Trap\Module\Profiler\Frame\Payload;
 use Buggregator\Trap\Module\Profiler\Frame\Type;
 use Buggregator\Trap\Module\Profiler\Frontend\Mapper;
 use Buggregator\Trap\Module\Profiler\Frontend\Palette;
+use Buggregator\Trap\Module\Profiler\Speedscope\ProfileBuilder as SpeedscopeProfileBuilder;
 use Buggregator\Trap\Module\Profiler\XDebug\ProfileBuilder as XDebugProfileBuilder;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
 use Testo\Assert;
@@ -237,6 +238,23 @@ final class MapperTest
         $graph = self::json((new Mapper())->callGraph(self::event()));
 
         Assert::same(\array_column($graph['toolbar'], 'metric'), ['wt', 'mu']);
+    }
+
+    public function testSampledProfileShowsSamplesAndOnlyTime(): void
+    {
+        $profile = (new SpeedscopeProfileBuilder())->createProfile([
+            'shared' => ['frames' => [['name' => 'main'], ['name' => 'foo']]],
+            'profiles' => [['type' => 'sampled', 'unit' => 'milliseconds', 'samples' => [[0, 1], [0]], 'weights' => [1, 1]]],
+        ]);
+        $event = new Event($profile->uuid, 'profiler', Payload::new(Type::Speedscope, static fn() => $profile), 0.0);
+
+        $top = self::json((new Mapper())->topFunctions($event, 'wt'));
+        $graph = self::json((new Mapper())->callGraph($event, threshold: 0));
+
+        Assert::same(\array_column($top['schema'], 'key'), ['function', 'ct', 'wt', 'excl_wt']);
+        Assert::same($top['schema'][1]['description'], 'Samples with the function on the stack');
+        Assert::same(\array_column($graph['toolbar'], 'metric'), ['wt']);
+        Assert::same(\array_column(\array_column($graph['nodes'], 'data'), 'name'), ['main() (2 samples)', 'foo (1 sample)']);
     }
 
     public function testCallGraphFiltersAndColorsNodes(): void

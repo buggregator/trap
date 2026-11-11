@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\Struct;
 
+use Buggregator\Trap\Support\TimeSlice;
+
 /**
  * Call graph of a profile: functions are nodes, {@see Edge}s link callers to callees.
  *
@@ -35,10 +37,11 @@ final class Graph implements \IteratorAggregate, \Countable
      * Sums the nodes of an exact call tree by caller and callee pairs.
      *
      * @param Tree<Edge> $tree Items carry function IDs with recursion levels, so the graph has no cycles.
+     * @param TimeSlice|null $timeSlice Lets other fibers run during a long build.
      *
      * @return self Edges without percentages and deltas: see {@see self::setPercentsAndDeltas()}.
      */
-    public static function fromTree(Tree $tree): self
+    public static function fromTree(Tree $tree, ?TimeSlice $timeSlice = null): self
     {
         /** @var array<non-empty-string, array{Edge, int, int, int, int, int}> $sums Edges with summed metrics */
         $sums = [];
@@ -55,6 +58,7 @@ final class Graph implements \IteratorAggregate, \Countable
                 $sum[4] + $cost->mu,
                 $sum[5] + $cost->pmu,
             ];
+            $timeSlice?->tick();
         }
 
         $graph = new self();

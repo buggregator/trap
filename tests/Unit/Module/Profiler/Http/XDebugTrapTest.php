@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Profiler\Http;
 
+use Buggregator\Trap\Module\Profiler\BuildLock;
 use Buggregator\Trap\Module\Profiler\Frame;
 use Buggregator\Trap\Module\Profiler\Http\XDebugTrap;
 use Buggregator\Trap\Module\Profiler\XDebug\ProfileBuilder;
@@ -11,6 +12,7 @@ use Buggregator\Trap\Server\Logger;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;
 use Psr\Http\Message\ResponseInterface;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
@@ -78,21 +80,54 @@ final class XDebugTrapTest
         Assert::same($frames, []);
     }
 
-    /**
-     * @return array{ResponseInterface, list<mixed>} The response and the frames the middleware suspended with.
-     */
-    private static function handle(ServerRequest $request, ProfileBuilder $builder = new ProfileBuilder()): array
+    public function testWarnsThatProfileIsCompacted(): void
     {
-        $middleware = new XDebugTrap($builder, new Logger());
+        $request = new ServerRequest('POST', '/api/profiler/xdebug', body: \file_get_contents(self::STUB));
+
+        [$response, $frames, $log] = self::handle($request, new ProfileBuilder(maxNodes: 3));
+
+        Assert::same($response->getStatusCode(), 200);
+        Assert::true(\count($frames[0]->payload->getProfile()->tree()) < 15);
+        Assert::string($log)->matchesRegex(
+            '/XDebug: the profile is compacted to 3 call tree nodes: \d+ nodes merged into calls of the same function/',
+        );
+    }
+
+    public function testRejectsProfileWhenTooManyBuildsWait(): void
+    {
+        $lock = new BuildLock(maxWaiting: 0);
+        $building = new \Fiber(static fn() => $lock->run(static fn() => \Fiber::suspend()));
+        $building->start();
+        $request = new ServerRequest('POST', '/api/profiler/xdebug', body: \file_get_contents(self::STUB));
+
+        [$response, $frames, $log] = self::handle($request, lock: $lock);
+
+        Assert::same($response->getStatusCode(), 503);
+        Assert::same($frames, []);
+        Assert::string($log)->contains('XDebug: profile rejected with 503: 0 profile builds are waiting already.');
+    }
+
+    /**
+     * @return array{ResponseInterface, list<mixed>, string} The response, the frames the middleware suspended with
+     *         and the log.
+     */
+    private static function handle(
+        ServerRequest $request,
+        ProfileBuilder $builder = new ProfileBuilder(),
+        BuildLock $lock = new BuildLock(),
+    ): array {
+        $output = new BufferedOutput();
+        $middleware = new XDebugTrap($builder, new Logger($output), $lock);
         $fiber = new \Fiber(static fn(): ResponseInterface => $middleware->handle($request, static fn() => new Response(404)));
 
+        // A null lets the other fibers run during a long build
         $frames = [];
         $frame = $fiber->start();
         while (!$fiber->isTerminated()) {
-            $frames[] = $frame;
+            $frame === null or $frames[] = $frame;
             $frame = $fiber->resume();
         }
 
-        return [$fiber->getReturn(), $frames];
+        return [$fiber->getReturn(), $frames, $output->fetch()];
     }
 }

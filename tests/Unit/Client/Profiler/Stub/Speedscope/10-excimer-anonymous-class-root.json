@@ -1,0 +1,30 @@
+{
+    "$schema": "https://www.speedscope.app/file-format-schema.json",
+    "exporter": "Excimer",
+    "shared": {
+        "frames": [
+            {
+                "name": "class@anonymous_/app/bootstrap.php:10$0::flush",
+                "file": "/app/bootstrap.php"
+            },
+            {
+                "name": "App\\Metrics\\Exporter::send",
+                "file": "/app/src/Metrics/Exporter.php"
+            }
+        ]
+    },
+    "profiles": [
+        {
+            "type": "sampled",
+            "name": "",
+            "unit": "nanoseconds",
+            "startValue": 0,
+            "endValue": 1000000,
+            "samples": [
+                [0, 1],
+                [0]
+            ],
+            "weights": [1000000, 1000000]
+        }
+    ]
+}

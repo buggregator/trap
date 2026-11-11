@@ -7,11 +7,13 @@ namespace Buggregator\Trap\Server\Command;
 use Buggregator\Trap\Server\Application;
 use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Bootstrap;
+use Buggregator\Trap\Server\Config\App;
 use Buggregator\Trap\Server\Config\SocketServer;
 use Buggregator\Trap\Server\Config\TcpPorts;
 use Buggregator\Trap\Server\Info;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Sender;
+use Buggregator\Trap\Support\MemoryLimit;
 use Internal\Container\Container;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -168,6 +170,8 @@ final class Run extends Command implements SignalableCommandInterface
                 inputArguments: $input->getArguments(),
                 environment: \getenv(),
             )->finish();
+            $limit = $container->get(App::class)->memoryLimit;
+            MemoryLimit::raise($limit) and $this->logger->info('Memory limit raised to %s.', $limit);
             $container->set($input, InputInterface::class);
             $container->set($output, OutputInterface::class);
             $container->set($this->logger);

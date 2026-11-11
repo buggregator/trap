@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Profiler\Http;
 
+use Buggregator\Trap\Module\Profiler\BuildLock;
 use Buggregator\Trap\Module\Profiler\Frame;
 use Buggregator\Trap\Module\Profiler\Http\XHProfTrap;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
@@ -69,7 +70,7 @@ final class XHProfTrapTest
      */
     private static function handle(ServerRequest $request): array
     {
-        $middleware = new XHProfTrap(new ProfileBuilder(), new Logger());
+        $middleware = new XHProfTrap(new ProfileBuilder(), new Logger(), new BuildLock());
         $fiber = new \Fiber(static fn(): ResponseInterface => $middleware->handle($request, static fn() => new Response(404)));
 
         $frames = [];

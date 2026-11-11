@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Profiler\Http;
 
+use Buggregator\Trap\Module\Profiler\BuildLock;
 use Buggregator\Trap\Module\Profiler\Frame;
+use Buggregator\Trap\Module\Profiler\Http\SpeedscopeTrap;
 use Buggregator\Trap\Module\Profiler\Http\XDebugTrap;
 use Buggregator\Trap\Module\Profiler\Http\XHProfTrap;
+use Buggregator\Trap\Module\Profiler\Speedscope\ProfileBuilder as SpeedscopeProfileBuilder;
 use Buggregator\Trap\Module\Profiler\XDebug\ProfileBuilder as XDebugProfileBuilder;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder as XHProfProfileBuilder;
 use Buggregator\Trap\Server\Logger;
@@ -21,6 +24,7 @@ use Testo\Test;
  */
 #[Covers(XHProfTrap::class)]
 #[Covers(XDebugTrap::class)]
+#[Covers(SpeedscopeTrap::class)]
 #[Test]
 final class ProfilerPayloadsTest
 {
@@ -50,9 +54,42 @@ final class ProfilerPayloadsTest
         Assert::same(\count($profile->calls), 1908);
     }
 
+    public function testSpeedscopePayloadSurvivesFrameRoundTrip(): void
+    {
+        $body = \json_encode([
+            '$schema' => SpeedscopeProfileBuilder::SCHEMA,
+            'exporter' => 'Excimer',
+            'shared' => ['frames' => [['name' => 'Foo::bar', 'file' => '/app/src/Foo.php'], ['name' => 'main']]],
+            'profiles' => [[
+                'type' => 'sampled',
+                'unit' => 'nanoseconds',
+                'samples' => [[1, 0], [1]],
+                'weights' => [1000000, 2000000],
+            ]],
+        ]);
+        $raw = "POST /api/profiler/speedscope?app_name=app&hostname=host&tags%5Benv%5D=dev HTTP/1.1\r\n"
+            . "Host: 127.0.0.1:8000\r\nConnection: close\r\nContent-Type: application/json\r\n"
+            . 'Content-Length: ' . \strlen($body) . "\r\n\r\n" . $body;
+
+        $frame = self::dispatchRaw($raw);
+        $restored = Frame::fromString((string) $frame, $frame->time);
+
+        Assert::same($restored->payload->type, Frame\Type::Speedscope);
+        $profile = $restored->payload->getProfile();
+        Assert::same($profile->metadata['app_name'], 'app');
+        Assert::same($profile->metadata['hostname'], 'host');
+        Assert::same($profile->tags, ['env' => 'dev']);
+        Assert::same($profile->peaks->jsonSerialize(), ['ct' => 2, 'wt' => 3000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0]);
+        Assert::same($profile->uuid, $frame->payload->getProfile()->uuid);
+    }
+
     private static function dispatch(string $payload): Frame
     {
-        $raw = (string) \file_get_contents(self::PAYLOADS . '/' . $payload);
+        return self::dispatchRaw((string) \file_get_contents(self::PAYLOADS . '/' . $payload));
+    }
+
+    private static function dispatchRaw(string $raw): Frame
+    {
         $stream = StreamClientMock::createFromGenerator((static function () use ($raw): \Generator {
             foreach (\str_split($raw, 4096) as $chunk) {
                 yield $chunk;
@@ -62,8 +99,9 @@ final class ProfilerPayloadsTest
             }
         })());
         $dispatcher = new Http([
-            new XHProfTrap(new XHProfProfileBuilder(), new Logger()),
-            new XDebugTrap(new XDebugProfileBuilder(), new Logger()),
+            new XHProfTrap(new XHProfProfileBuilder(), new Logger(), $lock = new BuildLock()),
+            new XDebugTrap(new XDebugProfileBuilder(), new Logger(), $lock),
+            new SpeedscopeTrap(new SpeedscopeProfileBuilder(), new Logger(), $lock),
         ], []);
 
         $fiber = new \Fiber(static fn(): array => \iterator_to_array($dispatcher->dispatch($stream), false));
