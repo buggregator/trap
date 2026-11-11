@@ -24,7 +24,7 @@ class ExcimerLog implements Countable
     /**
      * @return array{
      *     shared?: array{frames?: array<array-key, array{name?: string, file?: string, line?: int}>},
-     *     profiles?: list<array{type?: string, unit?: string, samples?: list<list<array-key>>, weights?: list<int|float>}>
+     *     profiles?: list<array{type?: string, unit?: string, samples?: list<list<int<0, max>>>, weights?: list<int|float>}>
      * }
      */
     public function getSpeedscopeData(): array {}

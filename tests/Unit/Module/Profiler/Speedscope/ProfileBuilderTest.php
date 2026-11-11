@@ -347,6 +347,63 @@ final class ProfileBuilderTest
         Assert::same($profile->metadata['compacted']['merged'], 5);
     }
 
+    public function testCompactsAgainOnceDeepRecursionEnds(): void
+    {
+        // 10,300 nested calls are open, so pinned, at the first compaction; the later calls must still get nodes
+        $frames = [['name' => 'main'], ['name' => 'rec']];
+        $events = [['type' => 'O', 'at' => 0, 'frame' => 0]];
+        $at = 0;
+        for ($i = 0; $i < 10_300; ++$i) {
+            $events[] = ['type' => 'O', 'at' => ++$at, 'frame' => 1];
+        }
+        for ($i = 0; $i < 10_300; ++$i) {
+            $events[] = ['type' => 'C', 'at' => ++$at, 'frame' => 1];
+        }
+        for ($i = 0; $i < 1200; ++$i) {
+            $frame = 2 + $i % 1000;
+            $frames[$frame] = ['name' => "f$frame"];
+            $events[] = ['type' => 'O', 'at' => ++$at, 'frame' => $frame];
+            $events[] = ['type' => 'C', 'at' => ++$at, 'frame' => $frame];
+        }
+        $events[] = ['type' => 'C', 'at' => ++$at, 'frame' => 0];
+
+        $profile = (new ProfileBuilder(maxNodes: 100))->createProfile([
+            'shared' => ['frames' => $frames],
+            'profiles' => [['type' => 'evented', 'unit' => 'microseconds', 'events' => $events]],
+        ]);
+
+        Assert::same($profile->metadata['compacted']['truncated'], 0);
+        Assert::same(self::totalCount($profile), 1 + 10_300 + 1200);
+        Assert::same($profile->calls->roots()[0]->cost->wt, $at);
+    }
+
+    public function testCountsCallsMadeUnderFoldedCall(): void
+    {
+        // 10,100 functions calling `g` fill the raw tree: a compaction prunes some into `(other)`, and the later
+        // calls of those functions go there, with the calls of `g` they make
+        $frames = [['name' => 'main'], ['name' => 'g']];
+        $events = [['type' => 'O', 'at' => 0, 'frame' => 0]];
+        $at = 0;
+        foreach ([\range(0, 10_099), \range(0, 99)] as $round) {
+            foreach ($round as $i) {
+                $frames[2 + $i] = ['name' => "f$i"];
+                $events[] = ['type' => 'O', 'at' => ++$at, 'frame' => 2 + $i];
+                $events[] = ['type' => 'O', 'at' => ++$at, 'frame' => 1];
+                $events[] = ['type' => 'C', 'at' => ++$at, 'frame' => 1];
+                $events[] = ['type' => 'C', 'at' => ++$at, 'frame' => 2 + $i];
+            }
+        }
+        $events[] = ['type' => 'C', 'at' => ++$at, 'frame' => 0];
+
+        $profile = (new ProfileBuilder(maxNodes: 10))->createProfile([
+            'shared' => ['frames' => $frames],
+            'profiles' => [['type' => 'evented', 'unit' => 'microseconds', 'events' => $events]],
+        ]);
+
+        Assert::same(self::totalCount($profile), 1 + 2 * 10_200);
+        Assert::same($profile->calls->roots()[0]->cost->wt, $at);
+    }
+
     public function testLetsOtherFibersRunWhileBuilding(): void
     {
         $document = self::sampled(\array_fill(0, 1000, [2, 0, 1]), \array_fill(0, 1000, 1000));
@@ -393,6 +450,19 @@ final class ProfileBuilderTest
             'unit' => 'nanoseconds',
             'events' => [['type' => 'O', 'at' => 0, 'frame' => 2], ['type' => 'C', 'at' => 1, 'frame' => 0]],
         ]]));
+    }
+
+    /**
+     * Calls of a per-call profile: the counts of all the tree nodes.
+     */
+    private static function totalCount(Profile $profile): int
+    {
+        $count = 0;
+        foreach ($profile->tree()->all as $branch) {
+            $count += $branch->item->cost->ct;
+        }
+
+        return $count;
     }
 
     private static function build(array $document): Profile

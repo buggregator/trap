@@ -46,11 +46,7 @@ final class SpeedscopeTrap implements Middleware
 
         try {
             $own = \str_ends_with($request->getUri()->getPath(), self::PATH);
-            // The decoding takes memory too: it waits for the other builds
-            $response = $own || $this->mentionsSchema($request) ? $this->lock->run(function () use ($request, $own) {
-                $document = $own ? null : $this->detect($request);
-                return $own || $document !== null ? $this->processStore($request, self::take($document)) : null;
-            }) : null;
+            $response = $own || $this->startsWithSchema($request) ? $this->processStore($request, $own) : null;
             if ($response !== null) {
                 return $response;
             }
@@ -79,9 +75,11 @@ final class SpeedscopeTrap implements Middleware
     }
 
     /**
-     * Other modules' JSON requests pass here too: only a body that mentions the schema is decoded.
+     * Other modules' JSON requests pass here too: only a body that starts with the speedscope `$schema`,
+     * as speedscope, Excimer and `json_encode()` write it, is decoded. Other speedscope documents go to
+     * {@see self::PATH}.
      */
-    private function mentionsSchema(ServerRequestInterface $request): bool
+    private function startsWithSchema(ServerRequestInterface $request): bool
     {
         $size = $request->getBody()->getSize();
         if ($size === null || $size > $this->profileBuilder->maxSize
@@ -90,9 +88,15 @@ final class SpeedscopeTrap implements Middleware
             return false;
         }
 
-        $content = (string) $request->getBody();
+        $body = $request->getBody();
+        $body->rewind();
+        $head = $body->read(256);
+        $body->rewind();
         // `json_encode()` escapes the slashes of the URL by default
-        return \str_contains($content, 'file-format-schema.json') && \str_contains($content, 'speedscope.app');
+        return \preg_match(
+            '~^\s*\{\s*"\$schema"\s*:\s*"https:(?:\\\\?/){2}www\.speedscope\.app\\\\?/file-format-schema\.json"~',
+            $head,
+        ) === 1;
     }
 
     /**
@@ -110,9 +114,11 @@ final class SpeedscopeTrap implements Middleware
     }
 
     /**
-     * @param array|null $document Already decoded document, if any.
+     * @param bool $own The request came to {@see self::PATH}: what isn't a speedscope profile is rejected.
+     *
+     * @return ResponseInterface|null Null when the request is not a speedscope one.
      */
-    private function processStore(ServerRequestInterface $request, ?array $document): ResponseInterface
+    private function processStore(ServerRequestInterface $request, bool $own): ?ResponseInterface
     {
         $size = $request->getBody()->getSize();
         if ($size === null || $size > $this->profileBuilder->maxSize) {
@@ -152,18 +158,25 @@ final class SpeedscopeTrap implements Middleware
         $time = $request->getAttribute('begin_at');
         $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
 
-        // Built before accepting, to reject what is not a profile. The builder gets the only reference
-        // to the document, to free it while building, and lets the other fibers run meanwhile.
-        $profile = $this->profileBuilder->createProfile(
-            self::take($document) ?? $this->profileBuilder->decode((string) $request->getBody()),
-            $time,
-            $metadata,
-            $tags,
-            $name,
-            cpuClock: $clock === 'cpu',
-            period: $period,
-            timeSlice: new TimeSlice(),
-        );
+        // Built before accepting, to reject what is not a profile. The decoding takes memory too, so one at a time;
+        // the builder gets the only reference to the document, to free it while building,
+        // and lets the other fibers run meanwhile.
+        $profile = $this->lock->run(function () use ($request, $own, $time, $metadata, $tags, $name, $clock, $period) {
+            $document = $own ? $this->profileBuilder->decode((string) $request->getBody()) : $this->detect($request);
+            return $document === null ? null : $this->profileBuilder->createProfile(
+                self::take($document) ?? [],
+                $time,
+                $metadata,
+                $tags,
+                $name,
+                cpuClock: $clock === 'cpu',
+                period: $period,
+                timeSlice: new TimeSlice(),
+            );
+        });
+        if ($profile === null) {
+            return null;
+        }
 
         /** @var mixed $compacted */
         $compacted = $profile->metadata['compacted'] ?? null;

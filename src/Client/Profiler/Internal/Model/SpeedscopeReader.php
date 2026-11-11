@@ -14,7 +14,7 @@ namespace Buggregator\Trap\Client\Profiler\Internal\Model;
  *
  * @psalm-type SpeedscopeDocument = array{
  *     shared?: array{frames?: array<array-key, array{name?: string, file?: string, line?: int}>},
- *     profiles?: list<array{type?: string, unit?: string, samples?: list<list<array-key>>, weights?: list<int|float>}>,
+ *     profiles?: list<array{type?: string, unit?: string, samples?: list<list<int<0, max>>>, weights?: list<int|float>}>,
  *     activeProfileIndex?: int
  * }
  *
@@ -37,9 +37,7 @@ final class SpeedscopeReader
      */
     public static function read(array $document, float $period, bool $cpu): CallTree
     {
-        $tree = new CallTree($cpu
-            ? [Metric::WallTime, Metric::CpuTime, Metric::Samples]
-            : [Metric::WallTime, Metric::Samples]);
+        $tree = new CallTree();
 
         $profiles = $document['profiles'] ?? [];
         $profile = $profiles[$document['activeProfileIndex'] ?? 0] ?? $profiles[0] ?? [];
@@ -91,11 +89,11 @@ final class SpeedscopeReader
             $node = $common === 0 ? CallTree::ROOT : $nodes[$common - 1];
             for ($j = $common; $j < $depth; ++$j) {
                 $index = $stack[$j];
-                $node = $tree->node($node, $names[$index] ?? '(unknown)', $files[$index] ?? null, $index);
+                $node = $tree->node($node, $index, $names[$index] ?? '(unknown)', $files[$index] ?? null);
                 $nodes[] = $node;
             }
 
-            $tree->add($node, wt: $time, cpu: $cpu ? $time : 0, samples: $samples);
+            $tree->add($node, $time, $cpu ? $time : 0, \max(0, $samples));
             $previous = $stack;
         }
 

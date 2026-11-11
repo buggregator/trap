@@ -7,9 +7,11 @@ namespace Buggregator\Trap\Tests\Unit\Client\Profiler;
 use Buggregator\Trap\Client\Profiler\Clock;
 use Buggregator\Trap\Client\Profiler\Excimer;
 use Buggregator\Trap\Client\Profiler\Format;
+use Buggregator\Trap\Client\Profiler\Internal\Warnings;
 use Buggregator\Trap\Client\Profiler\XHProf;
 use Buggregator\Trap\Client\TrapHandle;
 use Buggregator\Trap\Tests\Unit\Client\Base;
+use Buggregator\Trap\Tests\Unit\Client\Profiler\Stub\LogCapture;
 use Testo\Assert;
 use Testo\Core\Exception\SkipTest;
 use Testo\Expect;
@@ -38,9 +40,18 @@ final class DriverTest extends Base
         \extension_loaded('excimer') || \function_exists('xhprof_enable') || \function_exists('tideways_xhprof_enable')
         and throw new SkipTest('a profiler extension is loaded');
 
-        $result = TrapHandle::profile()->run(static fn(): int => 5);
+        $log = new LogCapture();
+        Warnings::$logger = $log;
+
+        try {
+            $result = TrapHandle::profile()->run(static fn(): int => 5);
+        } finally {
+            Warnings::$logger = null;
+        }
 
         Assert::same($result, 5);
+        // Logged once per process: an earlier test may have taken it.
+        $log->records === [] or Assert::string($log->messages())->contains('No profiler is available');
     }
 
     public function excimerReportsItsOptions(): void

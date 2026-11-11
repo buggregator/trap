@@ -24,6 +24,9 @@ final class Nodes
     /** Nodes of the raw tree, by the node limit of the profile. */
     public const RAW_FACTOR = 2;
 
+    /** Raw limits the tree may grow to with what the compaction can't take. */
+    public const HARD_FACTOR = 4;
+
     public readonly FlatTree $tree;
     public readonly Report $report;
 
@@ -50,6 +53,12 @@ final class Nodes
 
     private bool $truncating = false;
 
+    /** Size of the tree that gets it compacted */
+    private int $threshold;
+
+    /** @var int<0, max> Samples or calls folded since the truncation started or was last tried */
+    private int $folds = 0;
+
     /**
      * @param positive-int $maxNodes Node limit of the profile.
      * @param int<0, max> $frameCount
@@ -65,12 +74,13 @@ final class Nodes
         $this->tree->add(-1, self::TOP);
         $this->report = new Report();
         // A sample may be a thousand frames deep: a small limit would compact on every sample
-        $this->rawLimit = \max($maxNodes * self::RAW_FACTOR, $maxNodes + 10_000);
+        $this->rawLimit = $this->threshold = \max($maxNodes * self::RAW_FACTOR, $maxNodes + 10_000);
     }
 
     /**
+     * @param int $parent A node that is not folded.
+     *
      * @return int The child of the frame, added when the parent has none; a folded child past the limits.
-     *         -1 when the compaction folded the parent: the parent's node holds the sample already.
      */
     public function child(int $parent, int $frame): int
     {
@@ -80,16 +90,14 @@ final class Nodes
             return $node;
         }
 
-        if ($this->tree->size() >= $this->rawLimit) {
-            $parent = $this->makeRoom($parent);
-            if ($parent === -1 || $this->truncating) {
-                return $parent === -1 ? -1 : $this->truncatedChild($parent);
-            }
-            $key = $parent * $this->frameCount + $frame;
-            $node = $this->byPath[$key] ?? null;
-            if ($node !== null) {
-                return $node;
-            }
+        if (!$this->room($parent)) {
+            return $this->truncatedChild($parent);
+        }
+        // The compaction may have moved the parent, or merged a sibling of the frame into it
+        $key = $parent * $this->frameCount + $frame;
+        $node = $this->byPath[$key] ?? null;
+        if ($node !== null) {
+            return $node;
         }
 
         if (isset($this->routes[$key])) {
@@ -100,19 +108,14 @@ final class Nodes
     }
 
     /**
+     * @param int $parent A node that is not folded.
+     *
      * @return int A new child, not merged with the children of the same frame: a call of an evented profile.
-     *         A folded child past the limits; -1 when the compaction folded the parent.
+     *         A folded child past the limits.
      */
     public function call(int $parent, int $frame): int
     {
-        if ($this->tree->size() >= $this->rawLimit) {
-            $parent = $this->makeRoom($parent);
-            if ($parent === -1 || $this->truncating) {
-                return $parent === -1 ? -1 : $this->truncatedChild($parent);
-            }
-        }
-
-        return $this->tree->add($parent, $frame);
+        return $this->room($parent) ? $this->tree->add($parent, $frame) : $this->truncatedChild($parent);
     }
 
     /**
@@ -145,21 +148,51 @@ final class Nodes
     }
 
     /**
-     * @return int The parent's new index, or -1 when it was folded.
+     * Whether a node may be added, compacting the tree when it is time.
+     *
+     * @param int $parent Gets the parent's new index when the tree is compacted.
+     */
+    private function room(int &$parent): bool
+    {
+        if ($this->truncating) {
+            // No node is added meanwhile: the compaction is tried again after as many folded samples or calls
+            if (++$this->folds < $this->rawLimit) {
+                return false;
+            }
+            $this->folds = 0;
+        } elseif ($this->tree->size() < $this->threshold) {
+            return true;
+        }
+
+        $parent = $this->makeRoom($parent);
+        return !$this->truncating;
+    }
+
+    /**
+     * Compacts the tree, and sets when to try again.
+     *
+     * What the compaction can't take is pinned: the open calls, the roots. The tree may then grow to twice that,
+     * up to {@see self::HARD_FACTOR} times the raw limit; past that, the new nodes go to `(truncated)` nodes
+     * until the raw limit is reached again, when the compaction is tried again, as calls may have ended.
+     *
+     * @return int The parent's new index: pinned, it is kept, though maybe merged into a sibling.
      */
     private function makeRoom(int $parent): int
     {
-        if ($this->truncating) {
-            return $parent;
-        }
-
         $map = $this->compactTo($this->maxNodes + 1, $parent);
         $this->update($map);
-        // Pinned, the parent is kept: it may only have been merged into a sibling
         $parent = $map[$parent];
-        $this->truncating = $this->tree->size() > (float) $this->rawLimit * 0.9;
 
-        return $this->isFolded($parent) ? -1 : $parent;
+        $size = $this->tree->size();
+        $hardLimit = $this->rawLimit * self::HARD_FACTOR;
+        $this->truncating = $size >= $hardLimit;
+        $this->threshold = match (true) {
+            $this->truncating => $hardLimit,
+            (float) $size > (float) $this->rawLimit * 0.9 => \min(2 * $size, $hardLimit),
+            default => $this->rawLimit,
+        };
+
+        return $parent;
     }
 
     /**
@@ -171,7 +204,11 @@ final class Nodes
     {
         $pinned = [$pin => true];
         foreach ($this->open as $node) {
-            $node >= 0 and $pinned[$node] = true;
+            $pinned[$node] = true;
+        }
+        // The roots of the profile are kept, not pruned into an `(other)` node of node 0
+        foreach ($this->tree->parent as $node => $parent) {
+            $parent === 0 and $pinned[$node] = true;
         }
 
         $pruned = [];
@@ -210,7 +247,7 @@ final class Nodes
         }
 
         foreach ($this->open as $i => $node) {
-            $this->open[$i] = $node === -1 ? -1 : $map[$node];
+            $this->open[$i] = $map[$node];
         }
     }
 

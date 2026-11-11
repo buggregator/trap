@@ -19,8 +19,11 @@ final class ServerSender
 {
     public const DEFAULT_URL = 'http://127.0.0.1:8000/api/profiler/store';
 
-    /** Headers the HTTP client writes itself; a second copy would make the request ambiguous. */
-    private const RESERVED = ['host', 'content-length', 'connection', 'transfer-encoding'];
+    /**
+     * Headers the HTTP client writes itself, where a second copy would make the request ambiguous, and `Expect`:
+     * the client reads only the final status line, never an interim `100 Continue`.
+     */
+    private const RESERVED = ['host', 'content-length', 'connection', 'transfer-encoding', 'expect'];
 
     /**
      * @param 'http'|'https' $scheme
@@ -52,7 +55,8 @@ final class ServerSender
         $url ??= Env::get('TRAP_PROFILER_SERVER');
         $url === null || $url === '' and $url = self::DEFAULT_URL;
 
-        // The path and query go into the request line as they are, where spaces and control characters break it.
+        // The path and query go into the request line, where spaces and control characters break it;
+        // bytes above ASCII are percent-encoded below instead.
         \preg_match('/[\x00-\x20\x7F]/', $url) === 0
         or throw new \InvalidArgumentException(\sprintf('Invalid profiler server URL `%s`: spaces and control characters must be encoded.', $url));
 
@@ -77,10 +81,12 @@ final class ServerSender
         foreach ($headers as $name => $value) {
             $name = (string) $name;
             $key = \strtolower($name);
-            $name !== '' && \strpbrk($name, "\r\n: ") === false && ($value === null || \strpbrk($value, "\r\n") === false)
-            or throw new \InvalidArgumentException(\sprintf('Invalid HTTP header `%s`.', $name));
+            // RFC 9110: a name is a token; a value has no control characters but the horizontal tab.
+            \preg_match('/^[!#$%&\'*+\-.^_`|~0-9A-Za-z]+$/D', $name) === 1
+            && ($value === null || \preg_match('/[\x00-\x08\x0A-\x1F\x7F]/', $value) === 0)
+            or throw new \InvalidArgumentException(\sprintf('Invalid HTTP header `%s`.', \addcslashes($name, "\0..\37\177")));
             \in_array($key, self::RESERVED, true)
-            and throw new \InvalidArgumentException(\sprintf('The `%s` header is set by the client and can not be passed.', $name));
+            and throw new \InvalidArgumentException(\sprintf('The `%s` header can not be passed: the client manages it.', $name));
 
             if ($value === null) {
                 unset($merged[$key]);
@@ -89,15 +95,17 @@ final class ServerSender
             }
         }
 
-        $path = $parts['path'] ?? '';
+        /** @var array<non-empty-string, string> $headers Names are validated tokens. */
+        $headers = \array_column($merged, 1, 0);
+        $path = self::encodeNonAscii($parts['path'] ?? '');
 
         return new self(
             scheme: $scheme,
             host: $host,
             port: $port,
             path: $path === '' ? '/' : $path,
-            query: $parts['query'] ?? '',
-            headers: \array_column($merged, 1, 0),
+            query: self::encodeNonAscii($parts['query'] ?? ''),
+            headers: $headers,
             format: $format,
         );
     }
@@ -122,5 +130,17 @@ final class ServerSender
         } catch (\Throwable) {
             // Profiling must never break the application.
         }
+    }
+
+    /**
+     * Percent-encodes the bytes above ASCII, which a request line can't carry raw; the rest stays as written.
+     */
+    private static function encodeNonAscii(string $part): string
+    {
+        return \preg_replace_callback(
+            '/[\x80-\xFF]/',
+            static fn(array $match): string => \sprintf('%%%02X', \ord($match[0])),
+            $part,
+        ) ?? $part;
     }
 }

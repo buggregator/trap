@@ -6,7 +6,6 @@ namespace Buggregator\Trap\Tests\Unit\Client\Profiler\Model;
 
 use Buggregator\Trap\Client\Profiler\Internal\Model\CallGraph;
 use Buggregator\Trap\Client\Profiler\Internal\Model\CallTree;
-use Buggregator\Trap\Client\Profiler\Internal\Model\Metric;
 use Buggregator\Trap\Client\Profiler\Internal\Model\SpeedscopeReader;
 use Buggregator\Trap\Client\Profiler\Internal\Model\XHProfWriter;
 use Testo\Assert;
@@ -113,7 +112,7 @@ final class ConversionTest
     {
         $document = \json_decode((string) \file_get_contents(self::FIXTURES . $fixture . '.json'), true);
 
-        $xhprof = XHProfWriter::write(SpeedscopeReader::read($document, $period, false)->toGraph());
+        $xhprof = self::xhprof(SpeedscopeReader::read($document, $period, false)->toGraph());
 
         $actual = \array_map(static fn(array $entry): string => "{$entry['ct']}/{$entry['wt']}", $xhprof);
         \ksort($actual);
@@ -125,7 +124,7 @@ final class ConversionTest
     {
         $document = \json_decode((string) \file_get_contents(self::FIXTURES . '08-excimer-real-world-names.json'), true);
 
-        $xhprof = XHProfWriter::write(SpeedscopeReader::read($document, 0.001, false)->toGraph());
+        $xhprof = self::xhprof(SpeedscopeReader::read($document, 0.001, false)->toGraph());
 
         Assert::same($xhprof['main()']['ct'], 9);
         Assert::array($xhprof)->hasKeys(
@@ -143,7 +142,7 @@ final class ConversionTest
     {
         $document = self::document([['/app/run.php', '/app/run.php'], ['foo', '/app/run.php']], [[0, 1]], [20]);
 
-        $xhprof = XHProfWriter::write(SpeedscopeReader::read($document, 0.01, true)->toGraph());
+        $xhprof = self::xhprof(SpeedscopeReader::read($document, 0.01, true)->toGraph());
 
         Assert::same($xhprof, [
             'main()' => ['ct' => 2, 'wt' => 20000, 'cpu' => 20000, 'mu' => 0, 'pmu' => 0],
@@ -156,8 +155,8 @@ final class ConversionTest
         $document = self::document([['/app/my script.php', '/app/my script.php'], ['foo', null]], [[0, 1]], [1]);
         $notFileScope = self::document([['/app/run.php', '/app/other.php'], ['foo', null]], [[0, 1]], [1]);
 
-        $mapped = XHProfWriter::write(SpeedscopeReader::read(self::spaced($document), 0.001, false)->toGraph());
-        $wrapped = XHProfWriter::write(SpeedscopeReader::read($notFileScope, 0.001, false)->toGraph());
+        $mapped = self::xhprof(SpeedscopeReader::read(self::spaced($document), 0.001, false)->toGraph());
+        $wrapped = self::xhprof(SpeedscopeReader::read($notFileScope, 0.001, false)->toGraph());
 
         Assert::same(\array_keys($mapped), ['main()', 'main()==>foo']);
         Assert::same(\array_keys($wrapped), ['main()', 'main()==>/app/run.php', '/app/run.php==>foo']);
@@ -167,7 +166,7 @@ final class ConversionTest
     {
         $document = self::document([['/app/run.php', '/app/run.php'], ['foo', null]], [[0, 1], [0]], [3, 1], 'none');
 
-        $xhprof = XHProfWriter::write(SpeedscopeReader::read($document, 0.002, false)->toGraph());
+        $xhprof = self::xhprof(SpeedscopeReader::read($document, 0.002, false)->toGraph());
 
         Assert::same($xhprof['main()']['ct'], 4);
         Assert::same($xhprof['main()']['wt'], 8000);
@@ -178,7 +177,7 @@ final class ConversionTest
     {
         $document = self::document([['/app/run.php', '/app/run.php']], [[0]], [0.1]);
 
-        $xhprof = XHProfWriter::write(SpeedscopeReader::read($document, 0.001, false)->toGraph());
+        $xhprof = self::xhprof(SpeedscopeReader::read($document, 0.001, false)->toGraph());
 
         Assert::same($xhprof['main()']['ct'], 1);
     }
@@ -195,34 +194,31 @@ final class ConversionTest
         ]);
     }
 
-    public function jsonMatchesTheArray(): void
-    {
-        $document = \json_decode((string) \file_get_contents(self::FIXTURES . '03-excimer-truncated-mixed.json'), true);
-        $graph = SpeedscopeReader::read($document, 0.001, false)->toGraph();
-
-        Assert::same(\json_decode(XHProfWriter::json($graph), true), XHProfWriter::write($graph));
-    }
-
     public function emptyDocumentGivesOnlyMain(): void
     {
-        $xhprof = XHProfWriter::write(SpeedscopeReader::read([], 0.001, false)->toGraph());
+        $xhprof = self::xhprof(SpeedscopeReader::read([], 0.001, false)->toGraph());
 
         Assert::same($xhprof, ['main()' => ['ct' => 0, 'wt' => 0, 'cpu' => 0, 'mu' => 0, 'pmu' => 0]]);
     }
 
-    public function measuredCallsAndMemoryAreWritten(): void
+    public function hugeFrameIndexesStayApart(): void
     {
-        $tree = new CallTree([Metric::WallTime, Metric::Calls, Metric::Memory, Metric::PeakMemory]);
-        $main = $tree->node(CallTree::ROOT, 'main()');
-        $tree->add($main, wt: 6, mu: 60, pmu: 150, ct: 1, samples: 7);
-        $tree->add($tree->node($main, 'foo'), wt: 4, mu: 40, pmu: 50, ct: 3);
+        $document = self::document([['/app/run.php', '/app/run.php']], [[0, 1 << 24], [0, (1 << 24) + 1], [0, 1 << 24]], [1, 1, 1]);
 
-        $xhprof = XHProfWriter::write($tree->toGraph());
+        $tree = SpeedscopeReader::read($document, 0.001, false);
 
-        Assert::same($xhprof, [
-            'main()' => ['ct' => 4, 'wt' => 10, 'cpu' => 0, 'mu' => 100, 'pmu' => 200],
-            'main()==>foo' => ['ct' => 3, 'wt' => 4, 'cpu' => 0, 'mu' => 40, 'pmu' => 50],
-        ]);
+        // Both unknown frames are `(unknown)` and merge into one pair, but they are distinct tree nodes.
+        Assert::same(self::xhprof($tree->toGraph())['main()==>(unknown)']['ct'], 3);
+        Assert::same($tree->node(0, 1 << 24, '(unknown)'), 1);
+        Assert::same($tree->node(0, (1 << 24) + 1, '(unknown)'), 2);
+    }
+
+    /**
+     * @return array<string, array{ct: int, wt: int, cpu: int, mu: int, pmu: int}>
+     */
+    private static function xhprof(CallGraph $graph): array
+    {
+        return \json_decode(XHProfWriter::json($graph), true, flags: \JSON_THROW_ON_ERROR);
     }
 
     /**

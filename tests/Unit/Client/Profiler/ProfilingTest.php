@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Client\Profiler;
 
 use Buggregator\Trap\Client\Profiler\Format;
+use Buggregator\Trap\Client\Profiler\Internal\Warnings;
 use Buggregator\Trap\Client\Profiler\Profile;
 use Buggregator\Trap\Client\Profiler\Profiling;
 use Buggregator\Trap\Client\Profiler\Session;
@@ -12,6 +13,7 @@ use Buggregator\Trap\Client\TrapHandle;
 use Buggregator\Trap\Tests\Unit\Client\Base;
 use Buggregator\Trap\Tests\Unit\Client\Profiler\Stub\FakeDriver;
 use Buggregator\Trap\Tests\Unit\Client\Profiler\Stub\HttpCatcher;
+use Buggregator\Trap\Tests\Unit\Client\Profiler\Stub\LogCapture;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Data\DataSet;
@@ -30,6 +32,7 @@ final class ProfilingTest extends Base
 {
     private static HttpCatcher $trap;
     private string $dir = '';
+    private LogCapture $log;
 
     #[BeforeClass]
     public static function startTrap(): void
@@ -50,6 +53,8 @@ final class ProfilingTest extends Base
         \putenv('TRAP_PROFILER_HOST=127.0.0.1');
         \putenv('TRAP_PROFILER_PORT=' . self::$trap->port);
         self::$trap->requests();
+        $this->log = new LogCapture();
+        Warnings::$logger = $this->log;
     }
 
     #[AfterTest]
@@ -59,6 +64,7 @@ final class ProfilingTest extends Base
         \putenv('TRAP_PROFILER_PORT');
         \putenv('TRAP_PROFILER_APP_NAME');
         \putenv('TRAP_PROFILER_SERVER');
+        Warnings::$logger = null;
         self::removeDir($this->dir);
     }
 
@@ -156,12 +162,41 @@ final class ProfilingTest extends Base
         Assert::count(self::$trap->requests(), 1);
     }
 
-    public function sendsASmallPeriodInFixedNotation(): void
+    #[DataSet([0.001, '0.001'])]
+    #[DataSet([0.00001, '0.00001'], 'exponent notation in PHP')]
+    #[DataSet([1.0e-10, '0.0000000001'], 'rounded to 0 by 9 decimals')]
+    #[DataSet([1.25e-12, '0.00000000000125'])]
+    #[DataSet([0.25, '0.25'])]
+    #[DataSet([2, '2'], 'an integer')]
+    #[DataSet([10.5, '10.5'])]
+    #[DataSet([1.5e20, '150000000000000000000'])]
+    public function sendsThePeriodInPlainDecimals(int|float $period, string $expected): void
     {
-        TrapHandle::profile(new FakeDriver(options: ['period' => 0.00001]))->run(static fn() => null);
+        TrapHandle::profile(new FakeDriver(options: ['period' => $period]))->run(static fn() => null);
 
         [$head] = self::parse(self::$trap->requests());
-        Assert::string($head[0])->contains('period=0.00001 ');
+        Assert::string($head[0])->contains("period={$expected} ");
+    }
+
+    public function failingStartRunsTheCallableAndWarns(): void
+    {
+        $driver = new FakeDriver(name: 'broken-' . \bin2hex(\random_bytes(4)), startError: new \ErrorException('no CPU clock'));
+        $called = false;
+        $profiling = TrapHandle::profile($driver)->to(static function () use (&$called): void {
+            $called = true;
+        });
+
+        $result = $profiling->run(static fn(): int => 11);
+        $profile = $profiling->start()->stop();
+
+        Assert::same($result, 11);
+        Assert::null($profile);
+        Assert::false($called);
+        Assert::same($driver->started, 2);
+        Assert::count($this->log->records, 1);
+        Assert::string($this->log->messages())->contains($driver->name())->contains('no CPU clock');
+        Assert::same($this->log->records[0]['context']['reason'], 'start');
+        Assert::notNull(TrapHandle::profile(new FakeDriver())->to(static fn() => null)->start()->stop());
     }
 
     public function toServerSendsBuggregatorJsonByDefault(): void
@@ -237,6 +272,7 @@ final class ProfilingTest extends Base
     #[DataSet(['content-length'])]
     #[DataSet(['Connection'])]
     #[DataSet(['Transfer-Encoding'])]
+    #[DataSet(['Expect'])]
     public function toServerRejectsReservedHeaders(string $name): never
     {
         Expect::exception(\InvalidArgumentException::class)->withMessageContaining("`{$name}` header");
@@ -244,11 +280,45 @@ final class ProfilingTest extends Base
         TrapHandle::profile(FakeDriver::xhprof())->toServer(headers: [$name => 'x']);
     }
 
+    #[DataSet(["X-Bad\tName", 'x'], 'tab in the name')]
+    #[DataSet(['X-Bad Name', 'x'], 'space in the name')]
+    #[DataSet(['X-Bad:Name', 'x'], 'colon in the name')]
+    #[DataSet(['X-Ünicode', 'x'], 'non-ASCII name')]
+    #[DataSet(['X-Token', "a\0b"], 'NUL in the value')]
+    #[DataSet(['X-Token', "a\nb"], 'line feed in the value')]
+    #[DataSet(['X-Token', "a\x7Fb"], 'DEL in the value')]
+    public function toServerRejectsInvalidHeaders(string $name, string $value): never
+    {
+        Expect::exception(\InvalidArgumentException::class)->withMessageContaining('Invalid HTTP header');
+
+        TrapHandle::profile(FakeDriver::xhprof())->toServer(headers: [$name => $value]);
+    }
+
+    public function toServerAcceptsATabInAHeaderValue(): void
+    {
+        $url = 'http://127.0.0.1:' . self::$trap->port . '/api/profiler/store';
+
+        TrapHandle::profile(FakeDriver::xhprof())->toServer($url, headers: ['X-Token' => "a\tb"])->run(static fn() => null);
+
+        [$head] = self::parse(self::$trap->requests());
+        Assert::contains($head, "X-Token: a\tb");
+    }
+
     public function toServerRejectsAUrlWithSpaces(): never
     {
         Expect::exception(\InvalidArgumentException::class)->withMessageContaining('must be encoded');
 
         TrapHandle::profile(FakeDriver::xhprof())->toServer('http://127.0.0.1:8000/a b');
+    }
+
+    public function toServerPercentEncodesNonAsciiBytes(): void
+    {
+        $url = 'http://127.0.0.1:' . self::$trap->port . '/профиль/store?app=café&raw=%41';
+
+        TrapHandle::profile(FakeDriver::xhprof())->toServer($url)->run(static fn() => null);
+
+        [$head] = self::parse(self::$trap->requests());
+        Assert::same($head[0], 'POST /%D0%BF%D1%80%D0%BE%D1%84%D0%B8%D0%BB%D1%8C/store?app=caf%C3%A9&raw=%41 HTTP/1.1');
     }
 
     public function toServerKeepsTheColonOfAnEmptyPassword(): void
@@ -382,7 +452,7 @@ final class ProfilingTest extends Base
         Assert::same($driver->started, 0);
         Assert::false($called);
         Assert::false(\is_dir($this->dir));
-        Assert::null(self::$lastData);
+        Assert::same($this->log->records, []);
     }
 
     public function conditionCallableIsEvaluatedOnEveryRun(): void
@@ -424,8 +494,10 @@ final class ProfilingTest extends Base
         Assert::null($profile);
         Assert::same($driver->started, 0);
         Assert::false($called);
-        Assert::notNull(self::$lastData);
-        Assert::string(\print_r(self::$lastData->getValue(), true))->contains($driver->name());
+        Assert::count($this->log->records, 1);
+        Assert::same($this->log->records[0]['level'], 'warning');
+        Assert::string($this->log->messages())->contains($driver->name());
+        Assert::same($this->log->records[0]['context'], ['driver' => $driver->name(), 'reason' => 'unavailable']);
     }
 
     public function runInsideRunIsSkipped(): void
@@ -475,7 +547,7 @@ final class ProfilingTest extends Base
 
         Assert::same($result, 3);
         Assert::false($evaluated);
-        Assert::string(\print_r(self::$lastData?->getValue(), true))->notContains($missing->name());
+        Assert::string($this->log->messages())->notContains($missing->name());
     }
 
     public function failingProfilerDoesNotReplaceTheCallableException(): never
@@ -518,7 +590,7 @@ final class ProfilingTest extends Base
         Assert::null($profile);
         Assert::false($called);
         Assert::same(self::$trap->requests(), []);
-        Assert::string(\print_r(self::$lastData?->getValue(), true))->contains($driver->name())->contains('period');
+        Assert::string($this->log->messages())->contains($driver->name())->contains('period');
     }
 
     public function sessionStopDeliversOnceAndReturnsTheSameProfile(): void

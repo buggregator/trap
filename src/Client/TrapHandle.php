@@ -74,10 +74,11 @@ final class TrapHandle
      * ```
      *
      * Without a profiler given, the first available one is taken: Excimer, then XHProf
-     * (ext-xhprof, then ext-tideways_xhprof). If none is available, the code runs unprofiled
-     * and a warning is dumped to Trap once. Profiles can not nest: one started while another
-     * is running is skipped, with a warning dumped once. A profile without samples (a run shorter
-     * than the sampling period) is not delivered.
+     * (ext-xhprof, then ext-tideways_xhprof). If none is available or it fails to start, the code
+     * runs unprofiled. Profiles can not nest: one started while another is running is skipped.
+     * A profile without samples (a run shorter than the sampling period) is not delivered.
+     * Each of these cases logs a warning once per process to the `trap.profiler` channel of
+     * {@see self::logger()}.
      *
      * XHProf takes over an xhprof or tideways session already profiling the whole request
      * (XHGui, a prepend file) and ends it on stop; that can't be detected.

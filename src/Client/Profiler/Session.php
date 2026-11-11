@@ -7,7 +7,7 @@ namespace Buggregator\Trap\Client\Profiler;
 use Buggregator\Trap\Client\Profiler\Internal\Env;
 use Buggregator\Trap\Client\Profiler\Internal\Recording;
 use Buggregator\Trap\Client\Profiler\Internal\Settings;
-use Buggregator\Trap\Client\TrapHandle;
+use Buggregator\Trap\Client\Profiler\Internal\Warnings;
 use Buggregator\Trap\Client\TrapHandle\StackTrace;
 
 /**
@@ -22,9 +22,6 @@ final class Session
 {
     /** Whether any profile is running; profilers can't nest. */
     private static bool $running = false;
-
-    /** @var array<non-empty-string, true> */
-    private static array $warned = [];
 
     private bool $stopped = false;
     private ?Profile $profile = null;
@@ -51,7 +48,11 @@ final class Session
     {
         // Checked first, so that a nested profile is skipped whatever the conditions and the extensions.
         if (self::$running) {
-            self::warn('nested', 'A profile is already running, and profiles can not nest: the inner one is skipped.');
+            Warnings::once(
+                'nested',
+                'A profile is already running, and profiles can not nest: the inner one is skipped.',
+                ['reason' => 'nested'],
+            );
             return new self($settings, null);
         }
 
@@ -63,16 +64,32 @@ final class Session
         if ($driver === null || !$driver->isAvailable()) {
             $requested = $settings->requested;
             $requested === null
-                ? self::warn('unavailable', 'No profiler is available: install ext-excimer, ext-xhprof or ext-tideways_xhprof. The code runs without profiling.')
-                : self::warn(
+                ? Warnings::once(
+                    'unavailable',
+                    'No profiler is available: install ext-excimer, ext-xhprof or ext-tideways_xhprof. The code runs without profiling.',
+                    ['reason' => 'unavailable'],
+                )
+                : Warnings::once(
                     'unavailable:' . $requested->name(),
                     \sprintf('The `%s` profiler is not available. The code runs without profiling.', $requested->name()),
+                    ['driver' => $requested->name(), 'reason' => 'unavailable'],
                 );
             return new self($settings, null);
         }
 
         $site = StackTrace::callSite();
-        $recording = $driver->start();
+        try {
+            $recording = $driver->start();
+        } catch (\Throwable $e) {
+            // E.g. a clock the system lacks, or a warning that an error handler turned into an exception.
+            Warnings::once(
+                'start:' . $driver->name(),
+                \sprintf('The `%s` profiler failed to start: %s The code runs without profiling.', $driver->name(), $e->getMessage()),
+                ['driver' => $driver->name(), 'reason' => 'start', 'exception' => $e],
+            );
+            return new self($settings, null);
+        }
+
         self::$running = true;
 
         return new self($settings, $recording, $site['file'] ?? null, $site['line'] ?? null);
@@ -124,11 +141,11 @@ final class Session
         \assert($driver !== null);
 
         if ($recorded->isEmpty()) {
-            self::warn('empty:' . $driver->name(), \sprintf(
+            Warnings::once('empty:' . $driver->name(), \sprintf(
                 'The `%s` profile is empty and is not delivered: a run shorter than the sampling period gets no samples. '
                 . 'Try a smaller `period`.',
                 $driver->name(),
-            ));
+            ), ['driver' => $driver->name(), 'reason' => 'empty']);
             return null;
         }
 
@@ -162,21 +179,5 @@ final class Session
         } catch (\Throwable) {
             // No exception may leave a destructor.
         }
-    }
-
-    /**
-     * Dumps the message to Trap once per process.
-     *
-     * @param non-empty-string $key
-     */
-    private static function warn(string $key, string $message): void
-    {
-        if (isset(self::$warned[$key])) {
-            return;
-        }
-
-        self::$warned[$key] = true;
-        /** @psalm-suppress InternalMethod */
-        TrapHandle::fromArray(['Profiler' => $message]);
     }
 }

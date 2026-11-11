@@ -325,20 +325,19 @@ final class ProfileBuilder
             $tree->value[0] += $value;
             $tree->count[0] += $count;
             $stack === [] and ++$nodes->emptyStacks;
-            // The frames under a folded node are still validated
+            // The frames under a folded node are in it, and still validated
             $node = 0;
+            $folded = false;
             /** @var mixed $index */
             foreach ($stack as $index) {
                 $index = $frames->id($index);
-                if ($node === -1) {
+                if ($folded) {
                     continue;
                 }
                 $node = $nodes->child($node, $index);
-                if ($node !== -1) {
-                    $tree->value[$node] += $value;
-                    $tree->count[$node] += $count;
-                    $nodes->isFolded($node) and $node = -1;
-                }
+                $tree->value[$node] += $value;
+                $tree->count[$node] += $count;
+                $folded = $nodes->isFolded($node);
             }
             $nodes->timeSlice?->tick();
         }
@@ -357,9 +356,10 @@ final class ProfileBuilder
         \is_array($events) && \array_is_list($events)
             or throw new \InvalidArgumentException('An evented profile needs an `events` list.');
 
-        // Calls over the node limit are summed in a folded node, and the calls made from them are dropped: node -1.
+        // Calls over the node limit are summed in a folded node, and so are the calls made from them,
+        // which add their count, but not their time: the time of the outer call holds it.
         // The nodes of the open calls are in `$nodes->open`, to follow the compactions.
-        /** @var list<array{int, float}> $open Frame index and the time it was opened at */
+        /** @var list<array{int, float, bool}> $open Frame index, the time it was opened at, whether to add it */
         $open = [];
         $tree = $nodes->tree;
         // More calls than the node limit: the calls of the same function on the same path are merged from the start
@@ -383,26 +383,27 @@ final class ProfileBuilder
                 case 'O':
                     $parent = $nodes->open === [] ? 0 : $nodes->open[\array_key_last($nodes->open)];
                     $size = $tree->size();
+                    $inside = $nodes->isFolded($parent);
                     $node = match (true) {
-                        $parent === -1 || $nodes->isFolded($parent) => -1,
+                        $inside => $parent,
                         $merge => $nodes->child($parent, $index),
                         default => $nodes->call($parent, $index),
                     };
-                    $merge && $node !== -1 && $tree->size() === $size && !$nodes->isFolded($node)
+                    $merge && !$inside && $tree->size() === $size && !$nodes->isFolded($node)
                         and ++$nodes->report->merged;
-                    $node === -1 or ++$tree->count[$node];
+                    ++$tree->count[$node];
                     $nodes->open[] = $node;
-                    $open[] = [$index, (float) $at];
+                    $open[] = [$index, (float) $at, !$inside];
                     break;
                 case 'C':
-                    [$opened, $from] = \array_pop($open) ?? throw new \InvalidArgumentException(
+                    [$opened, $from, $measured] = \array_pop($open) ?? throw new \InvalidArgumentException(
                         "Event $i closes `{$frames->names[$index]}`, but no frame is open.",
                     );
                     $opened === $index or throw new \InvalidArgumentException(
                         "Event $i closes `{$frames->names[$index]}`, but `{$frames->names[$opened]}` is open.",
                     );
-                    $node = \array_pop($nodes->open) ?? -1;
-                    $node === -1 or $tree->value[$node] += ((float) $at - $from) * $scale;
+                    $node = (int) \array_pop($nodes->open);
+                    $measured and $tree->value[$node] += ((float) $at - $from) * $scale;
                     break;
                 default:
                     throw new \InvalidArgumentException("Event $i is neither `O` nor `C`.");
@@ -413,9 +414,8 @@ final class ProfileBuilder
         /** @var mixed $end */
         $end = $profile['endValue'] ?? null;
         $end = \is_int($end) || \is_float($end) ? \max((float) $end, $last) : $last;
-        foreach ($open as $i => [, $from]) {
-            $node = $nodes->open[$i];
-            $node === -1 or $tree->value[$node] += ($end - $from) * $scale;
+        foreach ($open as $i => [, $from, $measured]) {
+            $measured and $tree->value[$nodes->open[$i]] += ($end - $from) * $scale;
         }
         $nodes->open = [];
 

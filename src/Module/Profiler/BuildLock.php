@@ -23,6 +23,9 @@ final class BuildLock
 
     private bool $taken = false;
 
+    /** Object ID of the fiber that took the lock; null when not taken, or taken outside a fiber */
+    private ?int $holder = null;
+
     /** @var list<int> Tickets of the waiting builds, in the order they came */
     private array $waiting = [];
 
@@ -43,6 +46,7 @@ final class BuildLock
      * @return T
      *
      * @throws BuildQueueFull When the waiting line is full.
+     * @throws \LogicException When the fiber holds the lock already: it would wait for itself.
      */
     public function run(\Closure $build): mixed
     {
@@ -50,7 +54,10 @@ final class BuildLock
         try {
             return $build();
         } finally {
-            $locked and $this->taken = false;
+            if ($locked) {
+                $this->taken = false;
+                $this->holder = null;
+            }
         }
     }
 
@@ -59,11 +66,20 @@ final class BuildLock
      */
     private function acquire(): bool
     {
+        $fiber = \Fiber::getCurrent();
+        $id = $fiber === null ? null : \spl_object_id($fiber);
+        // Not kept: a waiting fiber that holds itself is not freed when its owner drops it
+        unset($fiber);
+        $this->taken && $id !== null && $this->holder === $id and throw new \LogicException(
+            'The fiber holds the profile build lock already: the lock is not reentrant.',
+        );
+
         if (!$this->taken && $this->waiting === []) {
+            $this->holder = $id;
             return $this->taken = true;
         }
 
-        if (\Fiber::getCurrent() === null) {
+        if ($id === null) {
             return false;
         }
 
@@ -82,6 +98,7 @@ final class BuildLock
             $this->waiting = \array_values(\array_diff($this->waiting, [$ticket]));
         }
 
+        $this->holder = $id;
         return $this->taken = true;
     }
 }

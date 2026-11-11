@@ -65,18 +65,46 @@ final class XHProfTrapTest
         Assert::same($frames, []);
     }
 
+    public function testRejectsProfileWhenTooManyBuildsWait(): void
+    {
+        $lock = new BuildLock(maxWaiting: 0);
+        $building = new \Fiber(static fn() => $lock->run(static fn() => \Fiber::suspend()));
+        $building->start();
+        $request = new ServerRequest('POST', '/api/profiler/store', body: \file_get_contents(self::STUB));
+
+        [$response, $frames] = self::handle($request, $lock);
+
+        Assert::same($response->getStatusCode(), 503);
+        Assert::same($frames, []);
+    }
+
+    public function testBuildsProfileBeforeAccepting(): void
+    {
+        $lock = new BuildLock();
+        $request = new ServerRequest('POST', '/api/profiler/store', body: \file_get_contents(self::STUB));
+
+        [, $frames] = self::handle($request, $lock);
+        $building = new \Fiber(static fn() => $lock->run(static fn(): string => 'free'));
+        $building->start();
+
+        // Built under the lock, the profile is ready: showing it builds nothing
+        Assert::same($building->getReturn(), 'free');
+        Assert::same(\count($frames[0]->payload->getProfile()->calls), 2223);
+    }
+
     /**
      * @return array{ResponseInterface, list<mixed>} The response and the frames the middleware suspended with.
      */
-    private static function handle(ServerRequest $request): array
+    private static function handle(ServerRequest $request, BuildLock $lock = new BuildLock()): array
     {
-        $middleware = new XHProfTrap(new ProfileBuilder(), new Logger(), new BuildLock());
+        $middleware = new XHProfTrap(new ProfileBuilder(), new Logger(), $lock);
         $fiber = new \Fiber(static fn(): ResponseInterface => $middleware->handle($request, static fn() => new Response(404)));
 
+        // A null lets the other fibers run during a long build
         $frames = [];
         $frame = $fiber->start();
         while (!$fiber->isTerminated()) {
-            $frames[] = $frame;
+            $frame === null or $frames[] = $frame;
             $frame = $fiber->resume();
         }
 

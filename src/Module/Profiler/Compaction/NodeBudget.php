@@ -51,7 +51,12 @@ final class NodeBudget
      */
     public static function nodes(?string $limit = null, ?int $usage = null): int
     {
-        $bytes = $limit === null ? MemoryLimit::current() : MemoryLimit::parse($limit);
+        try {
+            $bytes = $limit === null ? MemoryLimit::current() : MemoryLimit::parse($limit);
+        } catch (\InvalidArgumentException) {
+            // A limit we can't read may be low
+            return self::MIN_NODES;
+        }
         if ($bytes === null) {
             return self::MAX_NODES;
         }

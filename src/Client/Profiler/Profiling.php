@@ -130,7 +130,8 @@ final class Profiling
      *
      * XHProf goes as the Buggregator `/api/profiler/store` JSON with the metadata inside.
      * Speedscope (`application/json`) and Collapsed (`text/plain`) go as the bare document,
-     * with the metadata added to the URL query: `app_name`, `hostname`, `name`, `clock`, `tags[...]`.
+     * with the metadata added to the URL query: `app_name`, `hostname`, `name`, `clock`, `period` (seconds)
+     * and `tags[...]`.
      *
      * ```php
      * ->toServer('http://profiler@buggregator:8000/api/profiler/store')
@@ -139,12 +140,15 @@ final class Profiling
      *
      * @param non-empty-string|null $url An http or https URL; userinfo is sent as Basic authorization.
      *        Defaults to the `TRAP_PROFILER_SERVER` env variable, then `http://127.0.0.1:8000/api/profiler/store`.
+     *        Bytes above ASCII in the path and query are percent-encoded.
      * @param array<non-empty-string, string|null> $headers Merged over `X-Buggregator-Event: profiler`,
      *        `Content-Type` and, with userinfo, `Authorization`; names are case-insensitive and a null value
-     *        removes the header. `Host`, `Content-Length`, `Connection` and `Transfer-Encoding` are not allowed.
+     *        removes the header. `Host`, `Content-Length`, `Connection`, `Transfer-Encoding` and `Expect`
+     *        are not allowed.
      *
-     * @throws \InvalidArgumentException When the profiler can't produce the format, or on an invalid URL or header.
-     *         URLs with spaces or control characters are rejected: encode them.
+     * @throws \InvalidArgumentException When the profiler can't produce the format, or on an invalid URL or header:
+     *         a URL with spaces or control characters (encode them), a header name that is not an RFC 9110 token,
+     *         or a value with control characters other than the tab.
      */
     public function toServer(
         ?string $url = null,

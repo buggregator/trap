@@ -216,6 +216,15 @@ final class ProfileBuilderTest
         Assert::same($profile->metadata['compacted']['pruned'], 3);
     }
 
+    public function testKeepsRootOfProfileUnderAnyLimit(): void
+    {
+        $blocks = "fn=(1) a\n1 1 0\n\nfn=(2) b\n1 2 0\n\nfn=(3) {main}\n1 4 0\n" . self::calls(1, 2);
+
+        $profile = (new ProfileBuilder(maxNodes: 1))->createProfile(self::profile('Time Memory_(bytes)', $blocks));
+
+        Assert::same(self::shape($profile->tree()), ['{main}:7' => ['(other):3' => []]]);
+    }
+
     private static function calls(int ...$ids): string
     {
         return \implode('', \array_map(static fn(int $id): string => "cfn=($id)\ncalls=1 0 0\n1 0 0\n", $ids));

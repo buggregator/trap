@@ -70,6 +70,33 @@ final class BuildLockTest
         $third->start();
     }
 
+    public function testRefusesNestedBuildInSameFiber(): void
+    {
+        $lock = new BuildLock();
+        $fiber = new \Fiber(static fn() => $lock->run(static fn() => $lock->run(static fn() => null)));
+
+        Expect::exception(\LogicException::class)->withMessageContaining('not reentrant');
+
+        $fiber->start();
+    }
+
+    public function testNestedBuildRefusalReleasesLock(): void
+    {
+        $lock = new BuildLock();
+        $fiber = new \Fiber(static function () use ($lock): void {
+            try {
+                $lock->run(static fn() => $lock->run(static fn() => null));
+            } catch (\LogicException) {
+            }
+        });
+        $fiber->start();
+
+        $next = $this->build($lock, 'next', steps: 1);
+        self::runAll([$next]);
+
+        Assert::same($this->log, ['next0']);
+    }
+
     public function testBuildOutsideFiberRunsAtOnce(): void
     {
         $lock = new BuildLock();

@@ -11,6 +11,7 @@ use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder as XHProfProfileBuilder;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Logger;
+use Buggregator\Trap\Support\TimeSlice;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -74,33 +75,38 @@ final class XHProfTrap implements Middleware
             return new Response(413);
         }
 
-        // Decoded, a profile takes about 10 times its JSON: it waits for the other builds
-        /** @var XHProfMessage $payload */
-        $payload = $this->lock->run(
-            static fn(): mixed => \json_decode((string) $request->getBody(), true, 96, \JSON_THROW_ON_ERROR),
-        );
-
-        \is_array($payload['profile'] ?? null) && \is_array($payload['tags'] ?? null)
-        or throw new \InvalidArgumentException('Invalid payload');
-
-        $metadata = $payload;
-        unset($metadata['profile'], $metadata['tags'], $metadata['date']);
-
         /** @var mixed $time */
         $time = $request->getAttribute('begin_at');
         $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
 
-        /** @psalm-suppress MixedArgumentTypeCoercion */
+        // Built before accepting, one at a time: decoded, a profile takes about 10 times its JSON.
+        // Its call graph has no more edges than the body has entries, and the call tree is unfolded
+        // from it later with a share limit, see Profile::tree().
+        $profile = $this->lock->run(function () use ($request, $time): Profile {
+            /** @var XHProfMessage $payload */
+            $payload = \json_decode((string) $request->getBody(), true, 96, \JSON_THROW_ON_ERROR);
+
+            \is_array($payload['profile'] ?? null) && \is_array($payload['tags'] ?? null)
+            or throw new \InvalidArgumentException('Invalid payload');
+
+            $metadata = $payload;
+            unset($metadata['profile'], $metadata['tags'], $metadata['date']);
+
+            /** @psalm-suppress MixedArgumentTypeCoercion */
+            return $this->profileBuilder->createProfile(
+                date: $time,
+                metadata: $metadata,
+                tags: $payload['tags'] ?? [],
+                calls: $payload['profile'] ?? [],
+                timeSlice: new TimeSlice(),
+            );
+        });
+
         \Fiber::suspend(
             new Frame(
                 payload: Frame\Payload::new(
                     type: Frame\Type::XHProf,
-                    callsProvider: fn(): Profile => $this->profileBuilder->createProfile(
-                        date: $time,
-                        metadata: $metadata,
-                        tags: $payload['tags'] ?? [],
-                        calls: $payload['profile'] ?? [],
-                    ),
+                    callsProvider: static fn(): Profile => $profile,
                 ),
                 time: $time,
             ),

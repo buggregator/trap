@@ -14,7 +14,8 @@ namespace Buggregator\Trap\Module\Profiler\Compaction;
  *    of their parent, until the tree is down to the target.
  *
  * The inclusive costs of the kept nodes don't change, and a folded node takes the costs of what it replaces.
- * Roots are kept as they are: a root may be a call waiting for its caller.
+ * The nodes with no parent are kept as they are, and so are the pinned ones with their ancestors:
+ * {@see Nodes} pins the open calls and the roots of the profile, the children of its node 0.
  *
  * @internal
  */

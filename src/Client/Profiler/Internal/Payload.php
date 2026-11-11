@@ -32,12 +32,38 @@ final class Payload
             'hostname' => $meta->hostname,
             'name' => $meta->name,
             'clock' => \is_string($clock) ? $clock : null,
-            // Fixed notation: a float would turn into `1.0E-5`.
-            'period' => \is_float($period) || \is_int($period)
-                ? \rtrim(\rtrim(\sprintf('%.9F', $period), '0'), '.')
-                : null,
+            'period' => \is_float($period) || \is_int($period) ? self::decimal((float) $period) : null,
             'tags' => $meta->tags,
         ], '', '&', \PHP_QUERY_RFC3986);
+    }
+
+    /**
+     * Writes a non-negative number in plain decimal notation with all its significant digits:
+     * a float would be written as `1.0E-10`, and a fixed number of decimals rounds a tiny period to `0`.
+     */
+    public static function decimal(float $value): string
+    {
+        // The shortest representation that reads back as the same float.
+        $repr = \var_export($value, true);
+        if (\preg_match('/^(\d+)(?:\.(\d*))?(?:E([+-]?\d+))?$/i', $repr, $match) !== 1) {
+            return $repr;
+        }
+
+        $integer = $match[1];
+        $fraction = \rtrim($match[2] ?? '', '0');
+        $digits = \ltrim($integer . $fraction, '0');
+        if ($digits === '') {
+            return '0';
+        }
+
+        // The position of the decimal point within the significant digits.
+        $point = \strlen($integer) + (int) ($match[3] ?? 0) - (\strlen($integer . $fraction) - \strlen($digits));
+
+        return match (true) {
+            $point <= 0 => '0.' . \str_repeat('0', -$point) . $digits,
+            $point >= \strlen($digits) => $digits . \str_repeat('0', $point - \strlen($digits)),
+            default => \substr($digits, 0, $point) . '.' . \substr($digits, $point),
+        };
     }
 
     /**

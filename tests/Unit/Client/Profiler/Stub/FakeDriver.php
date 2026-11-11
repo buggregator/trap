@@ -36,6 +36,7 @@ final class FakeDriver implements Driver
         private readonly array $options = ['clock' => 'cpu', 'period' => 0.001],
         public readonly bool $empty = false,
         public readonly ?\Throwable $stopError = null,
+        public readonly ?\Throwable $startError = null,
     ) {}
 
     public static function xhprof(): self
@@ -75,6 +76,7 @@ final class FakeDriver implements Driver
     public function start(): Recording
     {
         ++$this->started;
+        $this->startError === null or throw $this->startError;
 
         return new class($this) implements Recording {
             public function __construct(
@@ -93,9 +95,9 @@ final class FakeDriver implements Driver
                 ];
                 $formats = $this->driver->formats();
                 if ($formats[0] === Format::Speedscope && \in_array(Format::XHProf, $formats, true)) {
-                    $data[Format::XHProf->value] = \json_encode((object) XHProfWriter::write(
+                    $data[Format::XHProf->value] = XHProfWriter::json(
                         SpeedscopeReader::read(\json_decode(FakeDriver::SPEEDSCOPE, true), 0.001, false)->toGraph(),
-                    ));
+                    );
                 }
 
                 $encoders = [];

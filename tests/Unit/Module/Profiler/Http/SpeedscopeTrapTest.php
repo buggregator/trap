@@ -181,6 +181,39 @@ final class SpeedscopeTrapTest
         Assert::string($log)->contains('Speedscope: profile rejected with 503: 0 profile builds are waiting already.');
     }
 
+    public function testReleasesLockBeforePassingFrameOut(): void
+    {
+        $lock = new BuildLock(maxWaiting: 0);
+        $middleware = new SpeedscopeTrap(new ProfileBuilder(), new Logger(), $lock);
+        $request = self::request('/api/profiler/speedscope', self::document());
+        $fiber = new \Fiber(static fn(): ResponseInterface => $middleware->handle($request, static fn() => new Response(404)));
+
+        $frame = $fiber->start();
+        while ($frame === null && !$fiber->isTerminated()) {
+            $frame = $fiber->resume();
+        }
+
+        Assert::instanceOf($frame, Frame::class);
+        Assert::same($lock->run(static fn(): string => 'free'), 'free');
+        $other = new \Fiber(static fn() => $lock->run(static fn(): string => 'free'));
+        $other->start();
+        Assert::same($other->getReturn(), 'free');
+    }
+
+    public function testDoesNotQueueJsonThatOnlyMentionsSchema(): void
+    {
+        $lock = new BuildLock(maxWaiting: 0);
+        $building = new \Fiber(static fn() => $lock->run(static fn() => \Fiber::suspend()));
+        $building->start();
+        $body = ['message' => 'see ' . ProfileBuilder::SCHEMA] + self::document();
+
+        [$response, $frames, $log] = self::handle(self::request('/api/other', $body), lock: $lock);
+
+        Assert::same($response->getStatusCode(), 404);
+        Assert::same($frames, []);
+        Assert::same($log, '');
+    }
+
     private static function document(): array
     {
         return [

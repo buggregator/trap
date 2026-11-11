@@ -29,6 +29,17 @@ final class NodeBudgetTest
         Assert::same(NodeBudget::nodes('128M', 120 << 20), NodeBudget::MIN_NODES);
     }
 
+    public function testGivesMinimumWhenLimitIsUnreadable(): void
+    {
+        Assert::same(NodeBudget::nodes('lots', 0), NodeBudget::MIN_NODES);
+        Assert::same(NodeBudget::nodes('-2', 0), NodeBudget::MIN_NODES);
+    }
+
+    public function testReadsHexadecimalLimit(): void
+    {
+        Assert::same(NodeBudget::nodes('0x20000000', 40 << 20), NodeBudget::nodes('512M', 40 << 20));
+    }
+
     public function testGivesMaximumWithoutLimit(): void
     {
         Assert::same(NodeBudget::nodes('-1', 1 << 30), NodeBudget::MAX_NODES);

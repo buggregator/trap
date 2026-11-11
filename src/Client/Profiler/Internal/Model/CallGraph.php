@@ -23,24 +23,8 @@ final class CallGraph
     /** @var array<int, int> CPU microseconds by pair id. */
     private array $cpu = [];
 
-    /** @var array<int, int> Memory by pair id. */
-    private array $mu = [];
-
-    /** @var array<int, int> Peak memory by pair id. */
-    private array $pmu = [];
-
-    /** @var array<int, int> Calls by pair id. */
-    private array $ct = [];
-
     /** @var array<int, int> Samples by pair id. */
     private array $samples = [];
-
-    /**
-     * @param list<Metric> $metrics The metrics the profile measured.
-     */
-    public function __construct(
-        public readonly array $metrics,
-    ) {}
 
     /**
      * Adds the costs to the pair, creating it when missing.
@@ -49,10 +33,8 @@ final class CallGraph
      * @param non-empty-string $callee
      * @param int $wt Microseconds.
      * @param int $cpu Microseconds.
-     * @param int $mu Bytes.
-     * @param int $pmu Bytes.
      */
-    public function add(?string $caller, string $callee, int $wt, int $cpu, int $mu, int $pmu, int $ct, int $samples): void
+    public function add(?string $caller, string $callee, int $wt, int $cpu, int $samples): void
     {
         $key = $caller === null ? $callee : "{$caller}==>{$callee}";
         $id = $this->keys[$key] ?? null;
@@ -61,18 +43,12 @@ final class CallGraph
             $this->keys[$key] = $id;
             $this->wt[$id] = $wt;
             $this->cpu[$id] = $cpu;
-            $this->mu[$id] = $mu;
-            $this->pmu[$id] = $pmu;
-            $this->ct[$id] = $ct;
             $this->samples[$id] = $samples;
             return;
         }
 
         $this->wt[$id] += $wt;
         $this->cpu[$id] += $cpu;
-        $this->mu[$id] += $mu;
-        $this->pmu[$id] += $pmu;
-        $this->ct[$id] += $ct;
         $this->samples[$id] += $samples;
     }
 
@@ -86,11 +62,10 @@ final class CallGraph
     }
 
     /**
-     * @return array{array<int, int>, array<int, int>, array<int, int>, array<int, int>, array<int, int>, array<int, int>}
-     *         Inclusive wt, cpu, mu, pmu, ct and samples, each by pair id.
+     * @return array{array<int, int>, array<int, int>, array<int, int>} Inclusive wt, cpu and samples, each by pair id.
      */
     public function costs(): array
     {
-        return [$this->wt, $this->cpu, $this->mu, $this->pmu, $this->ct, $this->samples];
+        return [$this->wt, $this->cpu, $this->samples];
     }
 }

@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Profiler\Struct\Cost;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Graph;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
+use Buggregator\Trap\Support\TimeSlice;
 
 /**
  * @psalm-type RawData = array<non-empty-string, array{
@@ -28,14 +29,16 @@ final class ProfileBuilder
      * @param Metadata $metadata
      * @param RawData $calls
      * @param array<non-empty-string, non-empty-string> $tags
+     * @param TimeSlice|null $timeSlice Lets other fibers run during a long build.
      */
     public function createProfile(
         \DateTimeInterface $date = new \DateTimeImmutable(),
         array $metadata = [],
         array $tags = [],
         array $calls = [],
+        ?TimeSlice $timeSlice = null,
     ): Profile {
-        return Profile::fromGraph($this->buildGraph($calls), $date, $metadata, $tags);
+        return Profile::fromGraph($this->buildGraph($calls, $timeSlice), $date, $metadata, $tags);
     }
 
     /**
@@ -52,7 +55,7 @@ final class ProfileBuilder
     /**
      * @param RawData $data
      */
-    private function buildGraph(array $data): Graph
+    private function buildGraph(array $data, ?TimeSlice $timeSlice): Graph
     {
         $graph = new Graph();
 
@@ -79,6 +82,7 @@ final class ProfileBuilder
             );
 
             $graph->add($edge);
+            $timeSlice?->tick();
         }
 
         return $graph;
