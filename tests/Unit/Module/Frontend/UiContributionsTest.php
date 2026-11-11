@@ -16,6 +16,7 @@ use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\ApiController;
 use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\AssetsController;
 use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\ChildFrame;
 use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\ChildUiModule;
+use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\ParentFrame;
 use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\TakingHttpUi;
 use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\UiModule;
 use Internal\Container\ObjectContainer;
@@ -68,7 +69,12 @@ final class UiContributionsTest
     {
         Expect::exception(\InvalidArgumentException::class);
 
-        ((new ObjectContainer())->get(FrameMapper::class))->map(new Frame\Binary(Stream::create('data')));
+        self::emptyContainer()->get(FrameMapper::class)->map(new ParentFrame());
+    }
+
+    public function testBinaryFrameOfNoModuleIsSkipped(): void
+    {
+        Assert::null(self::emptyContainer()->get(FrameMapper::class)->map(new Frame\Binary(Stream::create('data'))));
     }
 
     public function testSettingsListEventTypesOfModules(): void
@@ -94,6 +100,14 @@ final class UiContributionsTest
         Expect::exception(\LogicException::class)->withMessageContaining('is already declared by');
 
         new Service(new Logger(), new EventStorage(), $modules);
+    }
+
+    private static function emptyContainer(): ObjectContainer
+    {
+        $container = new ObjectContainer();
+        $container->set($container->make(Modules::class, ['list' => []]));
+
+        return $container;
     }
 
     /**
