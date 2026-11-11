@@ -8,12 +8,14 @@ use Buggregator\Trap\Module\Frontend\UiChannel;
 use Buggregator\Trap\Module\Ray\Frame;
 use Buggregator\Trap\Module\Ray\Http\RayTrap;
 use Buggregator\Trap\Module\Ray\Lock\Locks;
-use Buggregator\Trap\Server\Handler\Http\Handler\Fallback;
+use Buggregator\Trap\Server\Handler\Http\Handler\MiddlewareHandler;
+use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Tests\Unit\Module\Ray\FrameTest;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
@@ -31,7 +33,6 @@ final class RayTrapTest
 
         // spatie/ray treats any HTTP error status as "the server is available"
         Assert::same($response->getStatusCode(), 400);
-        Assert::true($response->hasHeader(Fallback::NO_DUMP_HEADER));
         Assert::same($frames, []);
     }
 
@@ -98,10 +99,16 @@ final class RayTrapTest
 
     public function testRejectsInvalidRequestOfClient(): void
     {
-        [$response, $frames] = self::handle(new RayTrap(new Locks(), self::ui()), new ServerRequest('POST', '/', self::CLIENT, '{'));
+        $output = new BufferedOutput();
+
+        [$response, $frames] = self::handle(
+            new RayTrap(new Locks(), self::ui(), new Logger($output)),
+            new ServerRequest('POST', '/', self::CLIENT, '{'),
+        );
 
         Assert::same($response->getStatusCode(), 400);
         Assert::same($frames, []);
+        Assert::string($output->fetch())->contains('Ray: request rejected with 400: not a Ray payload.');
     }
 
     public function testLockPollStates(): void
@@ -128,7 +135,6 @@ final class RayTrapTest
         [$response, $frames] = self::handle(new RayTrap(new Locks(), self::ui()), new ServerRequest('GET', '/locks/abc', self::CLIENT));
 
         Assert::same($response->getHeaderLine('Content-Type'), 'application/json');
-        Assert::true($response->hasHeader(Fallback::NO_DUMP_HEADER));
         Assert::same($frames, []);
     }
 
@@ -158,7 +164,7 @@ final class RayTrapTest
     }
 
     /**
-     * Runs the middleware the way {@see Fallback} does: in a fiber that suspends with frames.
+     * Runs the middleware the way {@see MiddlewareHandler} does: in a fiber that suspends with frames.
      *
      * @return array{ResponseInterface, list<Frame>}
      */

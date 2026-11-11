@@ -64,7 +64,7 @@ final class XHProfTrap implements Middleware
     {
         $size = $request->getBody()->getSize();
         if ($size === null || $size > self::MAX_BODY_SIZE) {
-            // Reject too big content
+            $this->logger->warning('XHProf: profile rejected with 413: the body is too large.');
             return new Response(413);
         }
 

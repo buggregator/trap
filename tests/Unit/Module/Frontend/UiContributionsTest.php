@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Frontend\EventStorage;
 use Buggregator\Trap\Module\Frontend\FrameMapper;
 use Buggregator\Trap\Module\Frontend\Service;
 use Buggregator\Trap\Module\Frontend\UiControllers;
+use Buggregator\Trap\Module\HttpDump\Module as HttpDumpModule;
 use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Proto\Frame;
@@ -18,7 +19,6 @@ use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\ChildUiModule;
 use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\TakingHttpUi;
 use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\UiModule;
 use Internal\Container\ObjectContainer;
-use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -26,7 +26,7 @@ use Testo\Expect;
 use Testo\Test;
 
 /**
- * The Frontend takes controllers, mappers and event types from the modules and adds its own.
+ * The Frontend takes controllers, mappers and event types from the modules.
  */
 #[Covers(UiControllers::class)]
 #[Covers(FrameMapper::class)]
@@ -42,12 +42,11 @@ final class UiContributionsTest
         Assert::same(self::classes($controllers->assets()), [AssetsController::class]);
     }
 
-    public function testMapsFramesWithMappersOfModulesAndItsOwn(): void
+    public function testMapsFramesWithMappersOfModules(): void
     {
         $mapper = (self::container())->get(FrameMapper::class);
 
         Assert::same($mapper->map(new Frame\Binary(Stream::create('data')))?->type, 'binary');
-        Assert::same($mapper->map(new Frame\Http(new ServerRequest('GET', 'http://localhost/')))?->type, 'http-dump');
     }
 
     public function testMapperTakesSubclassesOfItsFrame(): void
@@ -72,16 +71,16 @@ final class UiContributionsTest
         ((new ObjectContainer())->get(FrameMapper::class))->map(new Frame\Binary(Stream::create('data')));
     }
 
-    public function testSettingsListEventTypesOfModulesThenHttpDump(): void
+    public function testSettingsListEventTypesOfModules(): void
     {
-        $settings = self::container()->get(Service::class)->settings()->jsonSerialize();
+        $settings = self::container(UiModule::class, HttpDumpModule::class)->get(Service::class)->settings()->jsonSerialize();
 
         Assert::same($settings['client']['events'], ['binary', 'http-dump']);
     }
 
     public function testMapperOfTakenFrameClassIsRejected(): void
     {
-        $container = self::container(TakingHttpUi::class);
+        $container = self::container(HttpDumpModule::class, TakingHttpUi::class);
 
         Expect::exception(\LogicException::class)->withMessageContaining('is already given by');
 
@@ -93,15 +92,6 @@ final class UiContributionsTest
         $modules = self::container(UiModule::class, UiModule::class)->get(Modules::class);
 
         Expect::exception(\LogicException::class)->withMessageContaining('is already declared by');
-
-        new Service(new Logger(), new EventStorage(), $modules);
-    }
-
-    public function testHttpDumpEventTypeIsReserved(): void
-    {
-        $modules = self::container(TakingHttpUi::class)->get(Modules::class);
-
-        Expect::exception(\LogicException::class)->withMessageContaining('is reserved for HTTP dumps');
 
         new Service(new Logger(), new EventStorage(), $modules);
     }

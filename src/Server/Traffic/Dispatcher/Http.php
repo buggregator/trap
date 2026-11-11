@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Server\Traffic\Dispatcher;
 
-use Buggregator\Trap\Server\Handler\Http\Handler\Fallback;
+use Buggregator\Trap\Server\Handler\Http\Handler\MiddlewareHandler;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Handler\Http\RequestHandler;
 use Buggregator\Trap\Server\Handler\Pipeline;
@@ -40,8 +40,7 @@ final class Http implements Dispatcher
         // Init HTTP parser.
         $this->parser = new Parser\Http();
 
-        // Add default fallback handler at the end of pipeline.
-        $handlers[] = new Fallback($middlewares);
+        $handlers[] = new MiddlewareHandler($middlewares);
 
         // Build pipeline of handlers.
         $this->pipeline = Pipeline::build(

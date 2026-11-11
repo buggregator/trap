@@ -47,6 +47,7 @@ final class XDebugTrap implements Middleware
     {
         $size = $request->getBody()->getSize();
         if ($size === null || $size > XDebugProfileBuilder::MAX_SIZE) {
+            $this->logger->warning('XDebug: profile rejected with 413: the body is too large.');
             return new Response(413);
         }
 

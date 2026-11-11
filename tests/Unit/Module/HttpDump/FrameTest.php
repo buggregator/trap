@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Tests\Unit\Server\Proto\Frame;
+namespace Buggregator\Trap\Tests\Unit\Module\HttpDump;
 
-use Buggregator\Trap\Server\Proto\Frame\Http;
+use Buggregator\Trap\Module\HttpDump\Frame;
 use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
@@ -13,15 +13,15 @@ use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
 
-#[Covers(Http::class)]
+#[Covers(Frame::class)]
 #[Test]
-final class HttpTest
+final class FrameTest
 {
     public function testFrameWithoutFiles(): void
     {
         $request = new ServerRequest('POST', 'http://localhost/foo', [], 'hello');
 
-        $frame = new Http($request);
+        $frame = new Frame($request);
 
         Assert::same($frame->type, 'http');
         Assert::same($frame->getSize(), 5);
@@ -39,7 +39,7 @@ final class HttpTest
         $files = ['single' => $a, 'many' => [$b, ['deep' => $c]]];
         $request = (new ServerRequest('POST', '/upload', [], 'body'))->withUploadedFiles($files);
 
-        $frame = new Http($request);
+        $frame = new Frame($request);
 
         Assert::true($frame->hasFiles());
         Assert::same($frame->getFiles(), $files);
@@ -53,7 +53,7 @@ final class HttpTest
             ->withCookieParams(['sid' => 'abc'])
             ->withQueryParams(['x' => '1']);
 
-        $data = Json::decode((string) new Http($request));
+        $data = Json::decode((string) new Frame($request));
 
         Assert::same($data['method'], 'PUT');
         Assert::same($data['uri'], 'http://example.com/path?x=1');
@@ -72,9 +72,9 @@ final class HttpTest
         $request = (new ServerRequest('POST', 'http://example.com/a?b=c', ['Content-Type' => 'text/plain'], 'text', '1.0', ['SERVER_PORT' => '80']))
             ->withCookieParams(['k' => 'v'])
             ->withQueryParams(['b' => 'c']);
-        $frame = new Http($request, $time);
+        $frame = new Frame($request, $time);
 
-        $restored = Http::fromString((string) $frame, $time);
+        $restored = Frame::fromString((string) $frame, $time);
 
         Assert::same((string) $restored, (string) $frame);
         Assert::same($restored->time, $time);
@@ -86,7 +86,7 @@ final class HttpTest
 
     public function testFromStringAppliesDefaults(): void
     {
-        $frame = Http::fromString('{}', new \DateTimeImmutable());
+        $frame = Frame::fromString('{}', new \DateTimeImmutable());
 
         Assert::same($frame->request->getMethod(), 'GET');
         Assert::same((string) $frame->request->getUri(), '/');
@@ -101,7 +101,7 @@ final class HttpTest
 
     public function testFromStringBuildsUploadedFiles(): void
     {
-        $path = \dirname(__DIR__, 4) . '/Stub/buggregator.png';
+        $path = \dirname(__DIR__, 3) . '/Stub/buggregator.png';
         $payload = Json::encode([
             'body' => 'xy',
             'uploadedFiles' => [
@@ -114,7 +114,7 @@ final class HttpTest
             ],
         ]);
 
-        $frame = Http::fromString($payload, new \DateTimeImmutable());
+        $frame = Frame::fromString($payload, new \DateTimeImmutable());
 
         $file = $frame->getFiles()['doc'];
         Assert::instanceOf($file, UploadedFile::class);
@@ -130,9 +130,9 @@ final class HttpTest
     {
         $request = (new ServerRequest('POST', '/upload'))
             ->withUploadedFiles(['doc' => $this->uploadedFile('abc', 'doc.txt')]);
-        $frame = new Http($request);
+        $frame = new Frame($request);
 
-        $restored = Http::fromString((string) $frame, $frame->time);
+        $restored = Frame::fromString((string) $frame, $frame->time);
 
         $file = $restored->getFiles()['doc'];
         Assert::same((string) $file->getStream(), 'abc');
@@ -146,9 +146,9 @@ final class HttpTest
             'many' => [$this->uploadedFile('aaa', 'a.txt'), ['deep' => $this->uploadedFile("\x00\xff", 'b.bin')]],
             'failed' => $failed,
         ]);
-        $frame = new Http($request);
+        $frame = new Frame($request);
 
-        $restored = Http::fromString((string) $frame, $frame->time);
+        $restored = Frame::fromString((string) $frame, $frame->time);
 
         $files = $restored->request->getUploadedFiles();
         Assert::same((string) $files['many'][0]->getStream(), 'aaa');
@@ -166,7 +166,7 @@ final class HttpTest
     {
         $payload = Json::encode(['uploadedFiles' => ['doc' => [], 'many' => [[], 'not a file']]]);
 
-        $frame = Http::fromString($payload, new \DateTimeImmutable());
+        $frame = Frame::fromString($payload, new \DateTimeImmutable());
 
         Assert::false($frame->hasFiles());
     }

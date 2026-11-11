@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Console;
 use Buggregator\Trap\Module\Console\ConsoleSender;
 use Buggregator\Trap\Module\Console\FrameHandler;
 use Buggregator\Trap\Module\Console\Renderer;
+use Buggregator\Trap\Module\HttpDump\Console\Renderer as HttpDumpRenderer;
 use Buggregator\Trap\Module\Mailer\Console\Renderer as MailerRenderer;
 use Buggregator\Trap\Module\Monolog\Console\Renderer as MonologRenderer;
 use Buggregator\Trap\Module\Profiler\Console\Renderer as ProfilerRenderer;
@@ -40,7 +41,7 @@ final class ConsoleSenderTest
             SentryEnvelopeRenderer::class,
             ProfilerRenderer::class,
             TracingRenderer::class,
-            Renderer\Http::class,
+            HttpDumpRenderer::class,
             Renderer\Binary::class,
             Renderer\Plain::class,
         ]);

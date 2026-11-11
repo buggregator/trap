@@ -46,11 +46,8 @@ final class SentryTrap implements Middleware
             ) {
                 return $this->processStore($request);
             }
-        } catch (\JsonException) {
-            // Reject invalid JSON
-            return new Response(400);
-        } catch (\Throwable) {
-            // Reject invalid request
+        } catch (\Throwable $e) {
+            $this->logger?->warning('Sentry: request rejected with 400: %s', $e->getMessage());
             return new Response(400);
         }
 
@@ -65,7 +62,7 @@ final class SentryTrap implements Middleware
     {
         $size = $request->getBody()->getSize();
         if ($size === null || $size > self::MAX_BODY_SIZE) {
-            // Reject too big envelope
+            $this->logger?->warning('Sentry: envelope rejected with 413: the body is too large.');
             return new Response(413);
         }
 
@@ -79,7 +76,7 @@ final class SentryTrap implements Middleware
             $frame = EnvelopeParser::parse($request->getBody(), $time);
             \Fiber::suspend($frame);
         } catch (\Throwable $e) {
-            $this->logger?->info('Sentry envelope parsing failed: %s', $e->getMessage());
+            $this->logger?->warning('Sentry: envelope dropped, parsing failed: %s', $e->getMessage());
         }
 
         return new Response(200);
@@ -89,7 +86,7 @@ final class SentryTrap implements Middleware
     {
         $size = $request->getBody()->getSize();
         if ($size === null || $size > self::MAX_BODY_SIZE) {
-            // Reject too big content
+            $this->logger?->warning('Sentry: event rejected with 413: the body is too large.');
             return new Response(413);
         }
         /** @var SentryStoreMessage $payload */

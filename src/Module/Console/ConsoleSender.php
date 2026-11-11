@@ -32,7 +32,6 @@ final class ConsoleSender implements Sender
             }
         }
 
-        $this->handler->register(new Renderer\Http());
         $this->handler->register(new Renderer\Binary());
         $this->handler->register(new Renderer\Plain());
     }

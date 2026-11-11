@@ -23,6 +23,7 @@ final class Modules
      * The core places its own parts around the modules' ones.
      *
      * Channels go first: a source module that takes a sender name is then the one reported.
+     * The HTTP dump goes last: its middleware ends the HTTP pipeline.
      */
     private const LIST = [
         \Buggregator\Trap\Module\Console\Module::class,
@@ -36,6 +37,7 @@ final class Modules
         \Buggregator\Trap\Module\Sentry\Module::class,
         \Buggregator\Trap\Module\Profiler\Module::class,
         \Buggregator\Trap\Module\Tracing\Module::class,
+        \Buggregator\Trap\Module\HttpDump\Module::class,
     ];
 
     /** @var list<Module> */

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Tests\Unit\Module\Frontend\Mapper;
+namespace Buggregator\Trap\Tests\Unit\Module\HttpDump\Frontend;
 
 use Buggregator\Trap\Module\Frontend\Event\AttachedFile;
-use Buggregator\Trap\Module\Frontend\Mapper\HttpRequest;
-use Buggregator\Trap\Server\Proto\Frame\Http as HttpFrame;
+use Buggregator\Trap\Module\HttpDump\Frame as HttpFrame;
+use Buggregator\Trap\Module\HttpDump\Frontend\Mapper;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
 use Nyholm\Psr7\UploadedFile;
@@ -14,9 +14,9 @@ use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
 
-#[Covers(HttpRequest::class)]
+#[Covers(Mapper::class)]
 #[Test]
-final class HttpRequestTest
+final class MapperTest
 {
     public function testMapsRequestWithRawBody(): void
     {
@@ -25,7 +25,7 @@ final class HttpRequestTest
             ->withCookieParams(['sid' => 'abc']);
         $time = new \DateTimeImmutable('2024-01-02 03:04:05.123456');
 
-        $event = (new HttpRequest())->map(new HttpFrame($request, $time));
+        $event = (new Mapper())->map(new HttpFrame($request, $time));
 
         Assert::same($event->type, 'http-dump');
         Assert::string($event->uuid)->notSame('');
@@ -48,7 +48,7 @@ final class HttpRequestTest
         $request = (new ServerRequest('POST', '/form', [], 'a=1&b=2'))
             ->withParsedBody(['a' => '1', 'b' => '2']);
 
-        $event = (new HttpRequest())->map(new HttpFrame($request));
+        $event = (new Mapper())->map(new HttpFrame($request));
 
         Assert::same($event->payload['request']['body'], '');
         Assert::same($event->payload['request']['post'], ['a' => '1', 'b' => '2']);
@@ -62,7 +62,7 @@ final class HttpRequestTest
         $request = (new ServerRequest('POST', '/upload'))
             ->withUploadedFiles(['single' => $a, 'many' => [['deep' => $b]]]);
 
-        $event = (new HttpRequest())->map(new HttpFrame($request));
+        $event = (new Mapper())->map(new HttpFrame($request));
 
         $assets = \iterator_to_array($event->assets);
         Assert::count($assets, 2);

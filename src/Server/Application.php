@@ -8,7 +8,6 @@ use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Config\App;
 use Buggregator\Trap\Server\Config\SocketServer;
 use Buggregator\Trap\Server\Config\TcpPorts;
-use Buggregator\Trap\Server\Handler\Http\Handler\Websocket;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Handler\Http\ProvidesHttpMiddlewares;
 use Buggregator\Trap\Server\Proto\Buffer;
@@ -60,14 +59,13 @@ final class Application implements Processable, Cancellable, Destroyable
         $modules = $this->container->get(Modules::class);
         $middlewares = [
             $this->container->get(Middleware\Resources::class),
-            $this->container->get(Middleware\DebugPage::class),
             ...$this->httpMiddlewares($modules),
         ];
 
         $inspector = $container->make(Inspector::class, [
             'dispatchers' => $this->dispatchers(
                 $modules,
-                new Traffic\Dispatcher\Http($middlewares, [new Websocket()]),
+                new Traffic\Dispatcher\Http($middlewares),
             ),
         ]);
         $this->processors[] = $inspector;

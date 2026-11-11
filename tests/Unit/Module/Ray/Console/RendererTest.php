@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Ray\Console;
 
+use Buggregator\Trap\Module\HttpDump\Frame as HttpFrame;
 use Buggregator\Trap\Module\Ray\Console\Renderer;
 use Buggregator\Trap\Module\Ray\Frame;
-use Buggregator\Trap\Server\Proto\Frame\Http;
 use Nyholm\Psr7\ServerRequest;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Testo\Assert;
@@ -20,7 +20,7 @@ final class RendererTest
     public function testSupportsRayFramesOnly(): void
     {
         Assert::true((new Renderer())->isSupport(new Frame('a1', [])));
-        Assert::false((new Renderer())->isSupport(new Http(new ServerRequest('GET', '/'))));
+        Assert::false((new Renderer())->isSupport(new HttpFrame(new ServerRequest('GET', '/'))));
     }
 
     public function testSummarizesPayloads(): void

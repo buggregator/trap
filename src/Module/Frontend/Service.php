@@ -22,7 +22,7 @@ use Buggregator\Trap\Server\Logger;
  */
 final class Service
 {
-    /** @var list<non-empty-string> UI event types the modules and the Frontend produce */
+    /** @var list<non-empty-string> UI event types the modules produce */
     private readonly array $eventTypes;
 
     public function __construct(
@@ -41,12 +41,7 @@ final class Service
             }
         }
 
-        isset($owners[Mapper\HttpRequest::TYPE]) and throw new \LogicException(\sprintf(
-            'UI event type `%s` of %s is reserved for HTTP dumps.',
-            Mapper\HttpRequest::TYPE,
-            $owners[Mapper\HttpRequest::TYPE],
-        ));
-        $this->eventTypes = [...\array_keys($owners), Mapper\HttpRequest::TYPE];
+        $this->eventTypes = \array_keys($owners);
     }
 
     #[StaticRoute(Method::Get, 'api/version')]

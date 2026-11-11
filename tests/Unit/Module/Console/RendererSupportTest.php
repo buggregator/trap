@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Console;
 
 use Buggregator\Trap\Module\Console\Renderer;
+use Buggregator\Trap\Module\HttpDump\Console\Renderer as HttpDumpRenderer;
+use Buggregator\Trap\Module\HttpDump\Frame as HttpFrame;
 use Buggregator\Trap\Module\Mailer\Console\Renderer as MailerRenderer;
 use Buggregator\Trap\Module\Mailer\Frame as MailerFrame;
 use Buggregator\Trap\Module\Mailer\Message as MailerMessage;
@@ -48,7 +50,7 @@ final class RendererSupportTest
         yield 'monolog' => [new MonologRenderer(), ['monolog']];
         yield 'smtp' => [new MailerRenderer(), ['smtp']];
         yield 'ray' => [new RayRenderer(), ['ray']];
-        yield 'http' => [new Renderer\Http(), ['http']];
+        yield 'http' => [new HttpDumpRenderer(), ['http']];
         yield 'profiler' => [new ProfilerRenderer(), ['profiler']];
         yield 'binary' => [new Renderer\Binary(), ['binary']];
     }
@@ -87,7 +89,7 @@ final class RendererSupportTest
             'monolog' => new MonologFrame(['message' => 'hello']),
             'smtp' => new MailerFrame(MailerMessage::create(['FROM' => ['<a@b.c>']], ['Subject' => 'Hi'])),
             'ray' => new RayFrame('a1', []),
-            'http' => new Frame\Http(new ServerRequest('GET', 'http://localhost/')),
+            'http' => new HttpFrame(new ServerRequest('GET', 'http://localhost/')),
             'profiler' => new ProfilerFrame(Payload::new(PayloadType::XHProf, static fn(): Profile => new Profile())),
             'binary' => new Frame\Binary(Stream::create('binary')),
         ];

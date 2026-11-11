@@ -8,7 +8,6 @@ use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\LimitExceededException;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\ProtobufTracesDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\TracesDecoder;
-use Buggregator\Trap\Server\Handler\Http\Handler\Fallback;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Support\Json;
@@ -28,7 +27,6 @@ use Symfony\Component\Console\Formatter\OutputFormatter;
  *
  * Only requests with an OTLP content type (JSON or protobuf) are handled. Other requests to these paths,
  * such as a form posted to `/api/v1/logs`, go down the pipeline and are dumped as HTTP requests.
- * Handled requests that produce no frame, rejected ones included, are not dumped.
  *
  * @internal
  * @psalm-internal Buggregator\Trap
@@ -143,17 +141,15 @@ final class OtlpTrap implements Middleware
      */
     private static function error(string $mediaType, int $status, int $code, string $message): ResponseInterface
     {
-        $headers = [Fallback::NO_DUMP_HEADER => '1'];
-
         return $mediaType === ProtobufTracesDecoder::CONTENT_TYPE
             ? new Response(
                 $status,
-                ['Content-Type' => ProtobufTracesDecoder::CONTENT_TYPE] + $headers,
+                ['Content-Type' => ProtobufTracesDecoder::CONTENT_TYPE],
                 self::encodeStatus($code, $message),
             )
             : new Response(
                 $status,
-                ['Content-Type' => JsonTracesDecoder::CONTENT_TYPE] + $headers,
+                ['Content-Type' => JsonTracesDecoder::CONTENT_TYPE],
                 Json::encode(['code' => $code, 'message' => $message]),
             );
     }
@@ -203,8 +199,8 @@ final class OtlpTrap implements Middleware
         }
 
         return self::mediaType($request) === ProtobufTracesDecoder::CONTENT_TYPE
-            ? new Response(200, ['Content-Type' => ProtobufTracesDecoder::CONTENT_TYPE, Fallback::NO_DUMP_HEADER => '1'])
-            : new Response(200, ['Content-Type' => 'application/json', Fallback::NO_DUMP_HEADER => '1'], '{}');
+            ? new Response(200, ['Content-Type' => ProtobufTracesDecoder::CONTENT_TYPE])
+            : new Response(200, ['Content-Type' => 'application/json'], '{}');
     }
 
     private function processTraces(ServerRequestInterface $request): ResponseInterface
@@ -244,7 +240,7 @@ final class OtlpTrap implements Middleware
         }
 
         if ($frame->countSpans() === 0) {
-            return $decoder->createSuccessResponse()->withHeader(Fallback::NO_DUMP_HEADER, '1');
+            return $decoder->createSuccessResponse();
         }
 
         \Fiber::suspend($frame);

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Server\Application\Module;
 
+use Buggregator\Trap\Module\HttpDump\Http\DebugPage;
+use Buggregator\Trap\Module\HttpDump\Http\Dump;
 use Buggregator\Trap\Module\Mailer\Traffic\Dispatcher as MailerDispatcher;
 use Buggregator\Trap\Module\Monolog\Traffic\Dispatcher as MonologDispatcher;
 use Buggregator\Trap\Module\Profiler\Config\SPX;
@@ -102,7 +104,7 @@ final class ModulesTest
         Assert::same($dispatchers, [VarDumperDispatcher::class, MailerDispatcher::class, MonologDispatcher::class]);
         Assert::same(
             $middlewares,
-            [RayTrap::class, SentryTrap::class, XHProfTrap::class, XDebugTrap::class, OtlpTrap::class],
+            [RayTrap::class, SentryTrap::class, XHProfTrap::class, XDebugTrap::class, OtlpTrap::class, DebugPage::class, Dump::class],
         );
         Assert::same($configs, [XHProf::class, XDebug::class, SPX::class]);
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Server\Traffic\Proto\Server\Version;
 
+use Buggregator\Trap\Module\HttpDump\Frame as HttpFrame;
 use Buggregator\Trap\Module\Mailer\Frame as SmtpFrame;
 use Buggregator\Trap\Module\Mailer\Message as SmtpMessage;
 use Buggregator\Trap\Module\Monolog\Frame as MonologFrame;
@@ -47,7 +48,7 @@ final class V1Test
         yield 'smtp' => [new SmtpFrame(SmtpMessage::create(['FROM' => ['<a@b.c>']], ['Subject' => 'Hi']), $time)];
         yield 'monolog' => [new MonologFrame(['message' => 'hello', 'level' => 200], $time)];
         yield 'var-dumper' => [new VarDumperFrame('dump', $time)];
-        yield 'http' => [new Frame\Http(new ServerRequest('POST', 'http://localhost/path', ['Host' => ['localhost']], 'body'), $time)];
+        yield 'http' => [new HttpFrame(new ServerRequest('POST', 'http://localhost/path', ['Host' => ['localhost']], 'body'), $time)];
         yield 'sentry' => [new SentryStore(['type' => 'store', 'event_id' => 'abc', 'timestamp' => 1700000000], $time)];
         yield 'profiler' => [new \Buggregator\Trap\Module\Profiler\Frame(
             Payload::new(PayloadType::XHProf, static fn(): Profile => new Profile(

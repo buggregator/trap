@@ -15,19 +15,16 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
- * Simple fallback handler that runs {@see Pipeline} of {@see Middleware} and emits {@see ResponseInterface}.
+ * The last request handler: runs the {@see Pipeline} of {@see Middleware} and emits its response.
+ *
+ * A middleware passes frames out by suspending the fiber it runs in. A request no middleware
+ * answers gets 404.
  *
  * @internal
  * @psalm-internal Buggregator\Trap
  */
-final class Fallback implements RequestHandler
+final class MiddlewareHandler implements RequestHandler
 {
-    /**
-     * A middleware sets this response header when the request must not be dumped as an HTTP frame
-     * although it produced no frame. The header is not sent to the client.
-     */
-    public const NO_DUMP_HEADER = 'X-Trap-No-Dump';
-
     /** @var Pipeline<Middleware, ResponseInterface> */
     private readonly Pipeline $pipeline;
 
@@ -49,12 +46,6 @@ final class Fallback implements RequestHandler
     #[\Override]
     public function handle(StreamClient $streamClient, ServerRequestInterface $request, callable $next): iterable
     {
-        /** @var mixed $time */
-        $time = $request->getAttribute('begin_at');
-        $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
-        $gotFrame = false;
-        $response = null;
-
         try {
             $fiber = new \Fiber(($this->pipeline)(...));
             do {
@@ -62,12 +53,11 @@ final class Fallback implements RequestHandler
                 $got = $fiber->isStarted() ? $fiber->resume() : $fiber->start($request);
 
                 if ($got instanceof Frame) {
-                    $gotFrame = true;
                     yield $got;
                 }
 
                 if ($got instanceof ResponseInterface) {
-                    HttpEmitter::emit($streamClient, $got->withoutHeader(self::NO_DUMP_HEADER));
+                    HttpEmitter::emit($streamClient, $got);
                 }
 
                 if ($fiber->isTerminated()) {
@@ -77,7 +67,7 @@ final class Fallback implements RequestHandler
                         throw new \RuntimeException('Invalid response type.');
                     }
 
-                    HttpEmitter::emit($streamClient, $response->withoutHeader(self::NO_DUMP_HEADER));
+                    HttpEmitter::emit($streamClient, $response);
                     break;
                 }
 
@@ -88,17 +78,6 @@ final class Fallback implements RequestHandler
             HttpEmitter::emit($streamClient, new Response(500));
         } finally {
             $streamClient->disconnect();
-        }
-
-        if ($response instanceof ResponseInterface && $response->hasHeader(self::NO_DUMP_HEADER)) {
-            return;
-        }
-
-        if (!$gotFrame) {
-            yield new Frame\Http(
-                $request,
-                $time,
-            );
         }
     }
 }

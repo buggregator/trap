@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Server\Handler\Http\Middleware;
+namespace Buggregator\Trap\Module\HttpDump\Http;
 
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Nyholm\Psr7\Response;
@@ -10,6 +10,8 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
+ * A test form at any path ending with `_debug`; the form posts to `_debug/bar`, which is dumped.
+ *
  * @internal
  * @psalm-internal Buggregator\Trap
  */
@@ -49,10 +51,9 @@ final class DebugPage implements Middleware
             );
         }
 
-        // if (\str_ends_with($request->getUri()->getPath(), '_debug/bar')) {
-        //     return new Response(301, ['Location' => '/_debug?success=1']);
-        // }
         if (\str_ends_with($request->getUri()->getPath(), '_debug/bar')) {
+            $next($request);
+
             return new Response(200, body: 'Hello World!');
         }
 

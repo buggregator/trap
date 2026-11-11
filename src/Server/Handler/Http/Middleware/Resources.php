@@ -28,8 +28,9 @@ final class Resources implements Middleware
         if (\preg_match('#^/resources/([a-zA-Z0-9.\\-\\[\\]() _]+?\\.([a-zA-Z0-4]++))$#', $path, $matches)) {
             $file = \sprintf("%s/resources/public/%s", Info::TRAP_ROOT, $matches[1]);
 
+            // Not ours: the request of an application that has its own `/resources/`.
             if (!\is_file($file)) {
-                return new Response(404);
+                return $next($request);
             }
 
             $type = match ($matches[2]) {

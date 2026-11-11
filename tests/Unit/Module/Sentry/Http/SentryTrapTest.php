@@ -8,11 +8,13 @@ use Buggregator\Trap\Module\Sentry\Frame;
 use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope;
 use Buggregator\Trap\Module\Sentry\Frame\SentryStore;
 use Buggregator\Trap\Module\Sentry\Http\SentryTrap;
+use Buggregator\Trap\Server\Logger;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Data\DataProvider;
@@ -155,13 +157,15 @@ final class SentryTrapTest
             headers: ['X-Sentry-Auth' => 'test'],
             body: 'invalid json',
         );
+        $output = new BufferedOutput();
 
         // Act
-        $middleware = new SentryTrap();
+        $middleware = new SentryTrap(new Logger($output));
         $result = $middleware->handle($request, static fn() => new Response(500));
 
         // Assert
         Assert::same($result->getStatusCode(), 400);
+        Assert::string($output->fetch())->contains('Sentry: request rejected with 400: Syntax error');
     }
 
     public function testHandleReturns400OnGeneralException(): void
@@ -193,13 +197,15 @@ final class SentryTrapTest
             uri: '/api/sentry/store/',
             headers: ['X-Sentry-Auth' => 'test'],
         )->withBody($body);
+        $output = new BufferedOutput();
 
         // Act
-        $middleware = new SentryTrap();
+        $middleware = new SentryTrap(new Logger($output));
         $result = $middleware->handle($request, static fn() => new Response(500));
 
         // Assert
         Assert::same($result->getStatusCode(), 413);
+        Assert::string($output->fetch())->contains('Sentry: event rejected with 413');
     }
 
     public function testProcessStoreUsesBeginAtAttribute(): void

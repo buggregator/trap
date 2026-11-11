@@ -27,9 +27,9 @@ final class FrameMapper
         private readonly Container $container,
     ) {
         /** @var array<class-string<Frame>, class-string<EventMapper>|null> $mappers */
-        $mappers = [Frame\Http::class => Mapper\HttpRequest::class];
+        $mappers = [];
         /** @var array<class-string<Frame>, class-string> $owners Who gave the mapper of each frame class */
-        $owners = [Frame\Http::class => self::class];
+        $owners = [];
         foreach ($modules->implementing(ProvidesUi::class) as $module) {
             foreach ($module->uiEventMappers() as $frameClass => $mapper) {
                 isset($owners[$frameClass]) and throw new \LogicException(\sprintf(

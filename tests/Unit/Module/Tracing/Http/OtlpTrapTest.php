@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Tracing\Http;
 
+use Buggregator\Trap\Module\HttpDump\Frame as HttpFrame;
+use Buggregator\Trap\Module\HttpDump\Http\Dump;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\ProtobufTracesDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\TracesDecoder;
-use Buggregator\Trap\Server\Handler\Http\Handler\Fallback;
+use Buggregator\Trap\Server\Handler\Http\Handler\MiddlewareHandler;
 use Buggregator\Trap\Server\Info;
 use Buggregator\Trap\Server\Logger;
-use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Server\Traffic\StreamClient;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;
@@ -86,7 +87,6 @@ final class OtlpTrapTest
 
         Assert::same($result->getStatusCode(), 200);
         Assert::same((string) $result->getBody(), $response);
-        Assert::true($result->hasHeader(Fallback::NO_DUMP_HEADER));
         Assert::same($frames, []);
     }
 
@@ -115,7 +115,6 @@ final class OtlpTrapTest
         Assert::same($response->getStatusCode(), 200);
         Assert::same($response->getHeaderLine('Content-Type'), $contentType);
         Assert::same((string) $response->getBody(), $body);
-        Assert::true($response->hasHeader(Fallback::NO_DUMP_HEADER));
         Assert::same($frames, []);
         Assert::same(\substr_count($output->fetch(), "OTLP: $signal are not supported yet"), 1);
     }
@@ -129,7 +128,6 @@ final class OtlpTrapTest
         [$response] = $this->handleInFiber($this->request(body: $body, contentType: $contentType), $middleware);
 
         Assert::same($response->getStatusCode(), $status);
-        Assert::true($response->hasHeader(Fallback::NO_DUMP_HEADER));
         Assert::same(\substr_count($output->fetch(), "OTLP: traces request rejected with $status: "), 1);
     }
 
@@ -394,7 +392,6 @@ final class OtlpTrapTest
 
         Assert::same($jsonResponse->getStatusCode(), 413);
         Assert::same(\json_decode((string) $jsonResponse->getBody(), true), ['code' => 8, 'message' => 'Too many spans in one request, the limit is 3.']);
-        Assert::true($jsonResponse->hasHeader(Fallback::NO_DUMP_HEADER));
         Assert::same($protobufResponse->getStatusCode(), 413);
         Assert::same(self::decodeStatus((string) $protobufResponse->getBody()), [8, 'Too many spans in one request, the limit is 3.']);
         Assert::same([...$jsonFrames, ...$protobufFrames], []);
@@ -456,17 +453,16 @@ final class OtlpTrapTest
 
         Assert::same($response->getStatusCode(), 415);
         Assert::string((string) $response->getBody())->contains('application/json');
-        Assert::true($response->hasHeader(Fallback::NO_DUMP_HEADER));
         Assert::same($frames, []);
     }
 
-    public function testFormPostedToLogsPathIsDumpedAsHttp(): void
+    public function testFormPostedToLogsPathGoesOnToTheDump(): void
     {
         $request = $this->request(uri: '/api/v1/logs', body: 'a=1', contentType: 'application/x-www-form-urlencoded');
         $client = \Mockery::mock(StreamClient::class)->shouldIgnoreMissing();
         $client->shouldReceive('sendData')->andReturn(true);
 
-        $frames = (new Fallback([new OtlpTrap()]))->handle($client, $request, static fn(): array => []);
+        $frames = (new MiddlewareHandler([new OtlpTrap(), new Dump()]))->handle($client, $request, static fn(): array => []);
         $fiber = new \Fiber(static fn(): array => \iterator_to_array($frames, false));
         $fiber->start();
         while (!$fiber->isTerminated()) {
@@ -474,7 +470,7 @@ final class OtlpTrapTest
         }
 
         Assert::count($fiber->getReturn(), 1);
-        Assert::instanceOf($fiber->getReturn()[0], Frame\Http::class);
+        Assert::instanceOf($fiber->getReturn()[0], HttpFrame::class);
     }
 
     /**

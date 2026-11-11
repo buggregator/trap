@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Module\Frontend\Mapper;
+namespace Buggregator\Trap\Module\HttpDump\Frontend;
 
 use Buggregator\Trap\Module\Frontend\Event;
 use Buggregator\Trap\Module\Frontend\EventMapper;
+use Buggregator\Trap\Module\HttpDump\Frame as HttpFrame;
 use Buggregator\Trap\Server\Proto\Frame;
-use Buggregator\Trap\Server\Proto\Frame\Http as HttpFrame;
 use Buggregator\Trap\Support\Uuid;
 use Psr\Http\Message\UploadedFileInterface;
 
 /**
  * @internal
  */
-final class HttpRequest implements EventMapper
+final class Mapper implements EventMapper
 {
     public const TYPE = 'http-dump';
 

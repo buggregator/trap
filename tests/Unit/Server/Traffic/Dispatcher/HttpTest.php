@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Server\Traffic\Dispatcher;
 
+use Buggregator\Trap\Module\HttpDump\Frame as HttpFrame;
+use Buggregator\Trap\Module\HttpDump\Http\Dump;
 use Buggregator\Trap\Server\Handler\Http\RequestHandler;
 use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Server\Traffic\Dispatcher\Http;
@@ -72,15 +74,22 @@ final class HttpTest
         Assert::same($dispatcher->detect($data, new \DateTimeImmutable()), $expected);
     }
 
-    public function testDispatchYieldsHttpFrameAndRespondsWithFallback(): void
+    public function testRequestNoMiddlewareAnswersGets404AndNoFrame(): void
+    {
+        $frames = $this->dispatch(new Http(), $this->createStream());
+
+        Assert::same($frames, []);
+        Assert::string($this->sent)->startsWith('HTTP/1.1 404');
+    }
+
+    public function testDumpMiddlewareGetsBeginAt(): void
     {
         $stream = $this->createStream();
 
-        $frames = $this->dispatch(new Http(), $stream);
+        $frames = $this->dispatch(new Http([new Dump()]), $stream);
 
         Assert::count($frames, 1);
-        Assert::instanceOf($frames[0], Frame\Http::class);
-        Assert::same($frames[0]->request->getMethod(), 'GET');
+        Assert::instanceOf($frames[0], HttpFrame::class);
         Assert::same($frames[0]->request->getUri()->getPath(), '/foo');
         Assert::same($frames[0]->time, $stream->getCreatedAt());
         Assert::string($this->sent)->startsWith('HTTP/1.1 404');
@@ -94,7 +103,7 @@ final class HttpTest
         Assert::string($this->sent)->startsWith('HTTP/1.1 404');
     }
 
-    public function testCustomHandlerRunsBeforeFallbackAndGetsBeginAt(): void
+    public function testCustomHandlerRunsBeforeMiddlewaresAndGetsBeginAt(): void
     {
         $stream = $this->createStream();
         $handler = new class implements RequestHandler {
@@ -103,7 +112,7 @@ final class HttpTest
             public function handle(StreamClient $streamClient, ServerRequestInterface $request, callable $next): iterable
             {
                 $this->request = $request;
-                yield new Frame\Http($request);
+                yield new HttpFrame($request);
                 $streamClient->disconnect();
             }
         };
@@ -113,7 +122,7 @@ final class HttpTest
         Assert::count($frames, 1);
         Assert::same($frames[0]->request, $handler->request);
         Assert::same($handler->request?->getAttribute('begin_at'), $stream->getCreatedAt());
-        Assert::same($this->sent, '', 'The fallback handler must not respond.');
+        Assert::same($this->sent, '', 'The middleware handler must not respond.');
     }
 
     private function createStream(): StreamClient
@@ -137,7 +146,7 @@ final class HttpTest
      */
     private function dispatch(Http $dispatcher, StreamClient $stream): array
     {
-        // The fallback handler suspends its fiber between steps.
+        // The middleware handler suspends its fiber between steps.
         $fiber = new \Fiber(static fn(): array => \iterator_to_array($dispatcher->dispatch($stream), false));
         $fiber->start();
         while (!$fiber->isTerminated()) {

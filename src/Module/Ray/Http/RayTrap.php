@@ -7,7 +7,6 @@ namespace Buggregator\Trap\Module\Ray\Http;
 use Buggregator\Trap\Module\Frontend\UiChannel;
 use Buggregator\Trap\Module\Ray\Frame;
 use Buggregator\Trap\Module\Ray\Lock\Locks;
-use Buggregator\Trap\Server\Handler\Http\Handler\Fallback;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Support\Json;
@@ -46,7 +45,7 @@ final class RayTrap implements Middleware
         $path = $request->getUri()->getPath();
 
         if (\str_ends_with($path, '_availability_check')) {
-            return new Response(400, [Fallback::NO_DUMP_HEADER => '1']);
+            return new Response(400);
         }
 
         $fromClient = self::isRayClient($request);
@@ -65,10 +64,6 @@ final class RayTrap implements Middleware
         return $next($request);
     }
 
-    /**
-     * spatie/ray sends the `Ray 1.0` user agent; other clients may mark a request with the header
-     * Buggregator uses to detect an event type.
-     */
     private static function isRayClient(ServerRequestInterface $request): bool
     {
         return \stripos($request->getHeaderLine('User-Agent'), 'ray') === 0
@@ -82,6 +77,17 @@ final class RayTrap implements Middleware
     }
 
     /**
+     * spatie/ray sends the `Ray 1.0` user agent; other clients may mark a request with the header
+     * Buggregator uses to detect an event type.
+     */
+    private function reject(int $status, string $reason): ResponseInterface
+    {
+        $this->logger?->warning('Ray: request rejected with %d: %s', $status, $reason);
+
+        return new Response($status);
+    }
+
+    /**
      * An unknown lock answers `active: false`: a client paused before a restart of trap continues
      * instead of waiting forever.
      */
@@ -91,7 +97,7 @@ final class RayTrap implements Middleware
 
         return new Response(
             200,
-            ['Content-Type' => 'application/json', Fallback::NO_DUMP_HEADER => '1'],
+            ['Content-Type' => 'application/json'],
             Json::encode([
                 'active' => $lock?->isPending() ?? false,
                 'stop_execution' => $lock?->stop === true,
@@ -108,7 +114,7 @@ final class RayTrap implements Middleware
     {
         $size = $request->getBody()->getSize();
         if ($size === null || $size > self::MAX_BODY_SIZE) {
-            return $fromClient ? new Response(413) : null;
+            return $fromClient ? $this->reject(413, 'the body is too large.') : null;
         }
 
         /** @var mixed $time */
@@ -118,7 +124,7 @@ final class RayTrap implements Middleware
         try {
             $frame = Frame::fromString((string) $request->getBody(), $time);
         } catch (\JsonException|\InvalidArgumentException) {
-            return $fromClient ? new Response(400) : null;
+            return $fromClient ? $this->reject(400, 'not a Ray payload.') : null;
         }
 
         $this->holdLocks($frame);

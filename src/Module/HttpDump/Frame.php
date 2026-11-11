@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Server\Proto\Frame;
+namespace Buggregator\Trap\Module\HttpDump;
 
 use Buggregator\Trap\Server\Proto\FilesCarrier;
-use Buggregator\Trap\Server\Proto\Frame;
+use Buggregator\Trap\Server\Proto\Frame as ProtoFrame;
+use Buggregator\Trap\Server\Proto\StreamCarrier;
 use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
@@ -18,7 +19,7 @@ use Psr\Http\Message\UploadedFileInterface as PsrUploadedFile;
  * @internal
  * @psalm-internal Buggregator
  */
-final class Http extends Frame implements FilesCarrier, \Buggregator\Trap\Server\Proto\StreamCarrier
+final class Frame extends ProtoFrame implements FilesCarrier, StreamCarrier
 {
     public const TYPE = 'http';
 

@@ -21,7 +21,7 @@ final class FrameTypes
 
     public function __construct(Modules $modules)
     {
-        $types = [Frame\Http::TYPE => Frame\Http::class];
+        $types = [];
         foreach ($modules->implementing(ProvidesFrameTypes::class) as $module) {
             foreach ($module->frameTypes() as $type => $class) {
                 isset($types[$type]) and throw new \LogicException(

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Server;
 
+use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -41,6 +42,15 @@ final class Logger
     public function debug(string $message, string|int|float|bool ...$values): void
     {
         $this->echo("\033[34m" . self::format($message, $values) . "\033[0m\n");
+    }
+
+    /**
+     * Printed at the default verbosity, for what the user must notice, such as a rejected request.
+     * Console tags in the message are printed as they are.
+     */
+    public function warning(string $message, string|int|float|bool ...$values): void
+    {
+        $this->echo("\033[33m" . OutputFormatter::escape(self::format($message, $values)) . "\033[0m\n", false);
     }
 
     public function error(string $message, string|int|float|bool ...$values): void

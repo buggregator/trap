@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Boundwize\StructArmed\Architecture;
 
-$sources = ['Mailer', 'Monolog', 'Profiler', 'Ray', 'Sentry', 'Tracing', 'VarDumper'];
+$sources = ['HttpDump', 'Mailer', 'Monolog', 'Profiler', 'Ray', 'Sentry', 'Tracing', 'VarDumper'];
 $channels = ['Console', 'Files', 'Frontend', 'Remote'];
 
 $architecture = Architecture::define()
@@ -30,6 +30,7 @@ return $architecture
         'Buggregator\Trap\Module\Console\Module',
         'Buggregator\Trap\Module\Files\Module',
         'Buggregator\Trap\Module\Frontend\Module',
+        'Buggregator\Trap\Module\HttpDump\Module',
         'Buggregator\Trap\Module\Mailer\Module',
         'Buggregator\Trap\Module\Monolog\Module',
         'Buggregator\Trap\Module\Profiler\Module',

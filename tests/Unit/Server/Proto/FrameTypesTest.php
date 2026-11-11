@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Server\Proto;
 
+use Buggregator\Trap\Module\HttpDump\Frame as HttpFrame;
+use Buggregator\Trap\Module\HttpDump\Module as HttpDumpModule;
 use Buggregator\Trap\Module\Mailer\Frame as MailerFrame;
 use Buggregator\Trap\Module\Mailer\Message as MailerMessage;
 use Buggregator\Trap\Module\Monolog\Frame as MonologFrame;
@@ -43,7 +45,7 @@ final class FrameTypesTest
     public static function framesDataProvider(): iterable
     {
         yield [new VarDumperFrame('dump'), 'var-dumper'];
-        yield [new Frame\Http(new ServerRequest('GET', 'http://localhost/')), 'http'];
+        yield [new HttpFrame(new ServerRequest('GET', 'http://localhost/')), 'http'];
         yield [new MailerFrame(MailerMessage::create([], [])), 'smtp'];
         yield [new MonologFrame([]), 'monolog'];
         yield [new Frame\Binary(Stream::create('binary')), 'binary'];
@@ -69,7 +71,7 @@ final class FrameTypesTest
         Assert::same($types->classOf('smtp'), MailerFrame::class);
         Assert::same($types->classOf('monolog'), MonologFrame::class);
         Assert::same($types->classOf('var-dumper'), VarDumperFrame::class);
-        Assert::same($types->classOf('http'), Frame\Http::class);
+        Assert::same($types->classOf('http'), HttpFrame::class);
         Assert::same($types->classOf('sentry'), SentryFrame::class);
         Assert::same($types->classOf('profiler'), ProfilerFrame::class);
         Assert::same($types->classOf('otlp'), TracingFrame::class);
@@ -86,12 +88,12 @@ final class FrameTypesTest
         Assert::null(self::types()->classOf('unknown'));
     }
 
-    public function testTakesTypesFromModulesAndKeepsHttp(): void
+    public function testTakesTypesOnlyFromModules(): void
     {
         $types = self::types([ProvidingFrameTypes::class]);
 
         Assert::same($types->classOf('dump'), VarDumperFrame::class);
-        Assert::same($types->classOf('http'), Frame\Http::class);
+        Assert::null($types->classOf('http'));
         Assert::null($types->classOf('var-dumper'));
     }
 
@@ -99,7 +101,7 @@ final class FrameTypesTest
     {
         Expect::exception(\LogicException::class);
 
-        new FrameTypes((new ObjectContainer())->make(Modules::class, ['list' => [TakingHttpType::class]]));
+        new FrameTypes((new ObjectContainer())->make(Modules::class, ['list' => [HttpDumpModule::class, TakingHttpType::class]]));
     }
 
     /**

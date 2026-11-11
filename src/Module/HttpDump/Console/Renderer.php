@@ -2,37 +2,38 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Module\Console\Renderer;
+namespace Buggregator\Trap\Module\HttpDump\Console;
 
-use Buggregator\Trap\Module\Console\Renderer;
+use Buggregator\Trap\Module\Console\Renderer as RendererInterface;
 use Buggregator\Trap\Module\Console\Support\Color;
 use Buggregator\Trap\Module\Console\Support\Common;
 use Buggregator\Trap\Module\Console\Support\Files;
+use Buggregator\Trap\Module\HttpDump\Frame as HttpFrame;
 use Buggregator\Trap\Server\Proto\Frame;
 use Psr\Http\Message\UploadedFileInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * @implements Renderer<Frame\Http>
+ * @implements RendererInterface<HttpFrame>
  *
  * @internal
  */
-final class Http implements Renderer
+final class Renderer implements RendererInterface
 {
     #[\Override]
     public function isSupport(Frame $frame): bool
     {
-        return $frame instanceof Frame\Http;
+        return $frame instanceof HttpFrame;
     }
 
     #[\Override]
     public function render(OutputInterface $output, Frame $frame): void
     {
-        \assert($frame instanceof Frame\Http);
+        \assert($frame instanceof HttpFrame);
         $this->renderData($output, $frame);
     }
 
-    private function renderData(OutputInterface $output, Frame\Http $frame): void
+    private function renderData(OutputInterface $output, HttpFrame $frame): void
     {
         $request = $frame->request;
         $body = $request->getBody();
