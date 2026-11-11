@@ -104,8 +104,9 @@ final class XHProf implements Driver
             #[\Override]
             public function stop(): Recorded
             {
-                /** @var array<string, array<string, int|float>> $data */
+                /** @var array<string, array<string, int|float>>|null $data Null when the session was disabled elsewhere. */
                 $data = $this->extension === 'xhprof' ? xhprof_disable() : tideways_xhprof_disable();
+                $data = \is_array($data) ? $data : [];
 
                 return new Recorded([
                     Format::XHProf->value => static fn(): string => \json_encode(

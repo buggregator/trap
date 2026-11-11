@@ -14,7 +14,7 @@ use Buggregator\Trap\Client\TrapHandle\StackTrace;
  * Profiling started by {@see Profiling::start()}, running until {@see stop()}.
  *
  * Only one profile runs at a time in a process: a profile started while another one runs is skipped.
- * A session that is never stopped is stopped and delivered when destroyed, with all errors dropped.
+ * A session that is never stopped is stopped and delivered when destroyed.
  *
  * @api
  */
@@ -98,7 +98,7 @@ final class Session
     /**
      * Stops profiling, delivers the profile and returns it.
      *
-     * Every destination runs; the first error of a file or custom destination is thrown after them.
+     * Errors of the profiler and of the destinations are logged, never thrown.
      * Later calls return the same profile without delivering it again.
      *
      * @return Profile|null Null when nothing was profiled, and then nothing is delivered: the condition was false,
@@ -107,15 +107,13 @@ final class Session
      */
     public function stop(): ?Profile
     {
-        return $this->finish(quiet: false);
+        return $this->finish();
     }
 
     /**
-     * @param bool $quiet Drop the errors of the profiler and of the destinations.
-     *
      * @internal
      */
-    public function finish(bool $quiet): ?Profile
+    public function finish(): ?Profile
     {
         if ($this->stopped) {
             return $this->profile;
@@ -132,7 +130,8 @@ final class Session
         try {
             $recorded = $recording->stop();
         } catch (\Throwable $e) {
-            return $quiet ? null : throw $e;
+            Warnings::error(\sprintf('The `%s` profiler failed to stop', (string) $this->settings->driver?->name()), $e);
+            return null;
         } finally {
             self::$running = false;
         }
@@ -167,7 +166,7 @@ final class Session
             peakMemory: \max(0, \memory_get_peak_usage()),
         ));
 
-        $this->settings->deliver($this->profile, $quiet);
+        $this->settings->deliver($this->profile);
 
         return $this->profile;
     }
@@ -175,7 +174,7 @@ final class Session
     public function __destruct()
     {
         try {
-            $this->finish(quiet: true);
+            $this->finish();
         } catch (\Throwable) {
             // No exception may leave a destructor.
         }

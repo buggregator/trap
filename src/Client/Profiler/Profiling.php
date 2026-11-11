@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Client\Profiler;
 
 use Buggregator\Trap\Client\Profiler\Internal\Driver;
-use Buggregator\Trap\Client\Profiler\Internal\Recorded;
 use Buggregator\Trap\Client\Profiler\Internal\ServerSender;
 use Buggregator\Trap\Client\Profiler\Internal\Settings;
 use Buggregator\Trap\Client\Profiler\Internal\TrapSender;
@@ -85,18 +84,18 @@ final class Profiling
      * Without a format, it is guessed from the file name: `*.speedscope.json` is Speedscope;
      * `*.txt`, `*.folded` and `*.collapsed` are Collapsed; `*.xhprof` is XHProf;
      * anything else gets the native format of the profiler.
+     * The format is preferred: a profiler that can't produce it writes its native format,
+     * as XHProf writes no Speedscope.
      *
      * @param non-empty-string $path
-     *
-     * @throws \InvalidArgumentException When the profiler can't produce the format.
      */
     public function toFile(string $path, ?Format $format = null): self
     {
         $format ??= self::guessFormat($path);
-        $this->checkFormat($format);
 
         $this->settings->destinations[] = static function (Profile $profile) use ($path, $format): void {
-            $data = $profile->encode($format ?? $profile->formats()[0]);
+            $formats = $profile->formats();
+            $data = $profile->encode(\in_array($format, $formats, true) ? $format : $formats[0]);
             $dir = \dirname($path);
             \is_dir($dir) or @\mkdir($dir, 0777, true);
             @\file_put_contents($path, $data, \LOCK_EX) === false
@@ -126,7 +125,7 @@ final class Profiling
 
     /**
      * Sends the profile to any HTTP server in the chosen format; by default, XHProf to a local Buggregator Server.
-     * Delivery errors are ignored.
+     * The format is preferred: a profiler that can't produce it sends its native format. Delivery errors are ignored.
      *
      * XHProf goes as the Buggregator `/api/profiler/store` JSON with the metadata inside.
      * Speedscope (`application/json`) and Collapsed (`text/plain`) go as the bare document,
@@ -146,7 +145,7 @@ final class Profiling
      *        removes the header. `Host`, `Content-Length`, `Connection`, `Transfer-Encoding` and `Expect`
      *        are not allowed.
      *
-     * @throws \InvalidArgumentException When the profiler can't produce the format, or on an invalid URL or header:
+     * @throws \InvalidArgumentException On an invalid URL or header:
      *         a URL with spaces or control characters (encode them), a header name that is not an RFC 9110 token,
      *         or a value with control characters other than the tab.
      */
@@ -155,7 +154,6 @@ final class Profiling
         Format $format = Format::XHProf,
         array $headers = [],
     ): self {
-        $this->checkFormat($format);
         $sender = ServerSender::create($url, $format, $headers);
 
         $this->settings->destinations[] = static function (Profile $profile) use ($sender): void {
@@ -186,9 +184,8 @@ final class Profiling
     /**
      * Profiles the callable, delivers the profile and returns the callable result.
      *
-     * If the callable throws, the profile is delivered and the exception is rethrown;
-     * profiler and destination errors are dropped then so as not to replace it. Otherwise all the destinations
-     * run and the first error of a file or custom destination is thrown after them.
+     * If the callable throws, the profile is delivered and the exception is rethrown.
+     * Errors of the profiler and of the destinations are logged, never thrown.
      * While another profile runs, the callable just runs.
      *
      * @template T
@@ -204,7 +201,7 @@ final class Profiling
         try {
             $result = $callable();
         } catch (\Throwable $e) {
-            $session->finish(quiet: true);
+            $session->finish();
             throw $e;
         }
 
@@ -246,21 +243,5 @@ final class Profiling
             \str_ends_with($name, '.xhprof') => Format::XHProf,
             default => null,
         };
-    }
-
-    /**
-     * @param Format|null $format Null means the native format.
-     *
-     * @throws \InvalidArgumentException When the profiler can't produce the format.
-     */
-    private function checkFormat(?Format $format): void
-    {
-        $driver = $this->settings->driver;
-        if ($driver === null || !$driver->isAvailable()) {
-            return;
-        }
-
-        $formats = $driver->formats();
-        $format === null || \in_array($format, $formats, true) or throw Recorded::unsupported($format, $formats);
     }
 }

@@ -78,7 +78,7 @@ final class TrapHandle
      * runs unprofiled. Profiles can not nest: one started while another is running is skipped.
      * A profile without samples (a run shorter than the sampling period) is not delivered.
      * Each of these cases logs a warning once per process to the `trap.profiler` channel of
-     * {@see self::logger()}.
+     * {@see self::logger()}; errors of the profiler and of the destinations are logged there too, never thrown.
      *
      * XHProf takes over an xhprof or tideways session already profiling the whole request
      * (XHGui, a prepend file) and ends it on stop; that can't be detected.

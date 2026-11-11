@@ -39,15 +39,13 @@ final class Settings
     {
         $if = $this->if instanceof \Closure ? (bool) ($this->if)() : $this->if;
 
-        return $if && ($this->sample >= 1.0 || \mt_rand() / \mt_getrandmax() < $this->sample);
+        return $if && ($this->sample >= 1.0 || \random_int(0, \PHP_INT_MAX - 1) / \PHP_INT_MAX < $this->sample);
     }
 
     /**
-     * Runs every destination, or sends to Trap when none is configured.
-     *
-     * @param bool $quiet Drop the destination errors instead of rethrowing the first one.
+     * Runs every destination, or sends to Trap when none is configured; their errors are logged.
      */
-    public function deliver(Profile $profile, bool $quiet): void
+    public function deliver(Profile $profile): void
     {
         $destinations = $this->destinations === []
             ? [static function (Profile $profile): void {
@@ -55,15 +53,12 @@ final class Settings
             }]
             : $this->destinations;
 
-        $error = null;
         foreach ($destinations as $destination) {
             try {
                 $destination($profile);
             } catch (\Throwable $e) {
-                $error ??= $e;
+                Warnings::error(\sprintf('The `%s` profile was not delivered', $profile->metadata()->driver), $e);
             }
         }
-
-        $error === null || $quiet or throw $error;
     }
 }

@@ -360,12 +360,26 @@ final class ProfilingTest extends Base
         Assert::contains($head, 'Content-Type: text/plain; charset=utf-8');
     }
 
-    public function toServerRejectsAnUnreachableFormat(): never
+    public function toServerSendsTheNativeFormatInPlaceOfAnUnsupportedOne(): void
     {
-        Expect::exception(\InvalidArgumentException::class)
-            ->withMessage('The profile can not be encoded as Speedscope; available formats: XHProf.');
+        $url = 'http://127.0.0.1:' . self::$trap->port . '/profiles';
 
-        TrapHandle::profile(FakeDriver::xhprof())->toServer(format: Format::Speedscope);
+        TrapHandle::profile(new FakeDriver())->name('job')->toServer($url)->run(static fn() => null);
+
+        [$head, $body] = self::parse(self::$trap->requests());
+        Assert::string($head[0])->startsWith('POST /profiles?');
+        Assert::contains($head, 'Content-Type: application/json');
+        Assert::same($body, FakeDriver::SPEEDSCOPE);
+    }
+
+    public function toServerOmitsAContentTypeRemovedByNull(): void
+    {
+        $url = 'http://127.0.0.1:' . self::$trap->port . '/folded';
+
+        TrapHandle::profile(new FakeDriver())->toServer($url, Format::Collapsed, ['Content-Type' => null])->run(static fn() => null);
+
+        [$head] = self::parse(self::$trap->requests());
+        Assert::same(\preg_grep('/^content-type:/i', $head), []);
     }
 
     public function toServerRejectsANonHttpUrl(): never
@@ -411,23 +425,56 @@ final class ProfilingTest extends Base
             ->run(static fn() => throw new \RuntimeException('callable'));
     }
 
-    public function destinationErrorIsThrownAfterAllDestinations(): never
+    public function destinationErrorsAreLoggedAndTheOtherDestinationsRun(): void
     {
         $called = false;
 
-        Expect::exception(\LogicException::class)->withMessage('first');
+        $result = TrapHandle::profile(new FakeDriver())
+            ->to(static fn() => throw new \LogicException('first destination'))
+            ->to(static fn() => throw new \LogicException('second destination'))
+            ->to(static function () use (&$called): void {
+                $called = true;
+            })
+            ->run(static fn(): int => 5);
 
-        try {
-            TrapHandle::profile(new FakeDriver())
-                ->to(static fn() => throw new \LogicException('first'))
-                ->to(static fn() => throw new \LogicException('second'))
-                ->to(static function () use (&$called): void {
-                    $called = true;
-                })
-                ->run(static fn() => null);
-        } finally {
-            Assert::true($called);
-        }
+        Assert::same($result, 5);
+        Assert::true($called);
+        Assert::string($this->log->messages())
+            ->contains('The `fake` profile was not delivered: first destination')
+            ->contains('The `fake` profile was not delivered: second destination');
+        Assert::same($this->log->records[0]['level'], 'error');
+    }
+
+    public function unwritableFileIsLogged(): void
+    {
+        $file = $this->dir . '/profile.txt';
+        \mkdir($file, 0777, true);
+
+        $result = TrapHandle::profile(new FakeDriver())->toFile($file)->run(static fn(): int => 6);
+
+        Assert::same($result, 6);
+        Assert::string($this->log->messages())->contains("Unable to write the profile to `{$file}`");
+    }
+
+    public function failingProfilerIsLoggedOnStop(): void
+    {
+        $driver = new FakeDriver(stopError: new \RuntimeException('stop failed on stop()'));
+
+        $profile = TrapHandle::profile($driver)->to(static fn() => null)->start()->stop();
+
+        Assert::null($profile);
+        Assert::string($this->log->messages())->contains('The `fake` profiler failed to stop: stop failed on stop()');
+    }
+
+    public function samplingKeepsTheSeededRandomSequence(): void
+    {
+        \mt_srand(42);
+        $expected = [\mt_rand(), \mt_rand()];
+
+        \mt_srand(42);
+        TrapHandle::profile(new FakeDriver())->sample(0.5)->to(static fn() => null)->run(static fn() => null);
+
+        Assert::same([\mt_rand(), \mt_rand()], $expected);
     }
 
     #[DataSet([false, 1.0], 'condition is false')]
@@ -649,12 +696,22 @@ final class ProfilingTest extends Base
         Assert::same(\file_get_contents($file), FakeDriver::COLLAPSED);
     }
 
-    public function toFileRejectsAnUnsupportedFormat(): never
+    public function toFileWritesTheNativeFormatInPlaceOfAnUnsupportedOne(): void
     {
-        Expect::exception(\InvalidArgumentException::class)
-            ->withMessage('The profile can not be encoded as XHProf; available formats: Speedscope, Collapsed.');
+        $file = $this->dir . '/profile.speedscope.json';
 
-        TrapHandle::profile(new FakeDriver())->toFile($this->dir . '/profile.xhprof');
+        TrapHandle::profile(FakeDriver::xhprof())->toFile($file)->run(static fn() => null);
+
+        Assert::same(\file_get_contents($file), FakeDriver::XHPROF);
+    }
+
+    public function unavailableProfilerTakesAnyFormat(): void
+    {
+        $profiling = TrapHandle::profile(new FakeDriver([Format::XHProf], available: false))
+            ->toFile($this->dir . '/profile.speedscope.json')
+            ->toServer(format: Format::Collapsed);
+
+        Assert::same($profiling->run(static fn() => 'ran'), 'ran');
     }
 
     public function encodeRejectsAnUnsupportedFormat(): never

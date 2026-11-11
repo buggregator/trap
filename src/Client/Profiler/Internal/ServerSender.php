@@ -30,6 +30,7 @@ final class ServerSender
      * @param int<1, 65535> $port
      * @param non-empty-string $path
      * @param array<non-empty-string, string> $headers
+     * @param bool $contentType Whether to add the `Content-Type` of the format sent; false when the caller set or removed it.
      */
     private function __construct(
         private readonly string $scheme,
@@ -39,10 +40,12 @@ final class ServerSender
         private readonly string $query,
         private readonly array $headers,
         private readonly Format $format,
+        private readonly bool $contentType,
         private readonly HttpClient $http = new HttpClient(),
     ) {}
 
     /**
+     * @param Format $format Preferred: a profile that can't be encoded so goes in its native format.
      * @param string|null $url Null takes the `TRAP_PROFILER_SERVER` env variable, then {@see DEFAULT_URL}.
      *        Userinfo turns into Basic authorization.
      * @param array<string, string|null> $headers Merged over the generated ones, case-insensitively;
@@ -70,7 +73,6 @@ final class ServerSender
 
         $merged = [
             'x-buggregator-event' => ['X-Buggregator-Event', 'profiler'],
-            'content-type' => ['Content-Type', $format === Format::Collapsed ? 'text/plain; charset=utf-8' : 'application/json'],
         ];
         if (isset($parts['user'])) {
             // RFC 7617: the colon stays when the password is empty.
@@ -78,9 +80,11 @@ final class ServerSender
             $merged['authorization'] = ['Authorization', 'Basic ' . \base64_encode($userinfo)];
         }
 
+        $contentType = true;
         foreach ($headers as $name => $value) {
             $name = (string) $name;
             $key = \strtolower($name);
+            $key === 'content-type' and $contentType = false;
             // RFC 9110: a name is a token; a value has no control characters but the horizontal tab.
             \preg_match('/^[!#$%&\'*+\-.^_`|~0-9A-Za-z]+$/D', $name) === 1
             && ($value === null || \preg_match('/[\x00-\x08\x0A-\x1F\x7F]/', $value) === 0)
@@ -107,16 +111,23 @@ final class ServerSender
             query: self::encodeNonAscii($parts['query'] ?? ''),
             headers: $headers,
             format: $format,
+            contentType: $contentType,
         );
     }
 
     public function send(Profile $profile): void
     {
         try {
-            [$body, $query] = match ($this->format) {
+            $formats = $profile->formats();
+            $format = \in_array($this->format, $formats, true) ? $this->format : $formats[0];
+            [$body, $query] = match ($format) {
                 Format::XHProf => [Payload::store($profile), ''],
-                default => [$profile->encode($this->format), Payload::query($profile)],
+                default => [$profile->encode($format), Payload::query($profile)],
             };
+            $headers = $this->headers;
+            $this->contentType and $headers['Content-Type'] = $format === Format::Collapsed
+                ? 'text/plain; charset=utf-8'
+                : 'application/json';
 
             $query = \implode('&', \array_filter([$this->query, $query], static fn(string $part): bool => $part !== ''));
             $this->http->post(
@@ -124,7 +135,7 @@ final class ServerSender
                 $this->host,
                 $this->port,
                 $this->path . ($query === '' ? '' : '?' . $query),
-                $this->headers,
+                $headers,
                 $body,
             );
         } catch (\Throwable) {
