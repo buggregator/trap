@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Server\Command\Stub;
 
-use Buggregator\Trap\Server\Sender\EventsToFileSender;
+use Buggregator\Trap\Module\Files\EventsToFileSender;
 use Buggregator\Trap\Server\Sender\ProvidesSenders;
 
 /**

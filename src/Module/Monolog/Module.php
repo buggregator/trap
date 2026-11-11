@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Monolog;
 
+use Buggregator\Trap\Module\Console\ProvidesRenderers;
 use Buggregator\Trap\Module\Frontend\ProvidesUi;
 use Buggregator\Trap\Module\Monolog\Console\Renderer;
 use Buggregator\Trap\Module\Monolog\Frontend\Mapper;
 use Buggregator\Trap\Module\Monolog\Traffic\Dispatcher;
 use Buggregator\Trap\Server\Proto\ProvidesFrameTypes;
-use Buggregator\Trap\Server\Sender\Console\ProvidesRenderers;
 use Buggregator\Trap\Server\Traffic\ProvidesDispatchers;
 
 /**

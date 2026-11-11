@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Sentry\Console;
 
+use Buggregator\Trap\Module\Console\Renderer;
+use Buggregator\Trap\Module\Console\Support\Common;
 use Buggregator\Trap\Module\Sentry\Frame\EnvelopeItem;
 use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope as SentryEnvelopeFrame;
 use Buggregator\Trap\Server\Proto\Frame;
-use Buggregator\Trap\Server\Sender\Console\Renderer;
-use Buggregator\Trap\Server\Sender\Console\Support\Common;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**

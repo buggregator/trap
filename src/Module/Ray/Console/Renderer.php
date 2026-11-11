@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Ray\Console;
 
+use Buggregator\Trap\Module\Console\Renderer as RendererInterface;
+use Buggregator\Trap\Module\Console\Support\Common;
 use Buggregator\Trap\Module\Ray\Frame as RayFrame;
 use Buggregator\Trap\Server\Proto\Frame;
-use Buggregator\Trap\Server\Sender\Console\Renderer as RendererInterface;
-use Buggregator\Trap\Server\Sender\Console\Support\Common;
 use Buggregator\Trap\Support\Json;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Output\OutputInterface;

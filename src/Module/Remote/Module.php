@@ -1,0 +1,19 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Buggregator\Trap\Module\Remote;
+
+use Buggregator\Trap\Server\Sender\ProvidesSenders;
+
+/**
+ * @internal
+ */
+final class Module implements ProvidesSenders
+{
+    #[\Override]
+    public function senders(): array
+    {
+        return ['server' => RemoteSender::class];
+    }
+}

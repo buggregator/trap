@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Tracing\Frame;
 
+use Buggregator\Trap\Module\Files\EventsToFileSender;
 use Buggregator\Trap\Module\Tracing\Frame;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Server\Info;
 use Buggregator\Trap\Server\Proto\Server\Version\V1;
-use Buggregator\Trap\Server\Sender\EventsToFileSender;
 use Buggregator\Trap\Support\Json;
 use Internal\Container\ObjectContainer;
 use Testo\Assert;

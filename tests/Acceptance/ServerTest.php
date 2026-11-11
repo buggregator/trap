@@ -66,6 +66,22 @@ final class ServerTest
         Assert::same($event['payload']['request']['uri'], 'acceptance/orders');
     }
 
+    public function testUiOnTrafficPortServesUiAndCapturesRequests(): void
+    {
+        $trap = $this->trap = TrapProcess::start(
+            'shared-ui',
+            ["--port=$this->port", '--sender=file', "--ui=$this->port"],
+            ['TRAP_TCP_PORTS' => (string) $this->port, 'TRAP_UI_PORT' => (string) $this->port],
+            [$this->port],
+        );
+
+        [$status] = TrapProcess::http($this->port, 'POST', '/acceptance/shared', '{"order":"acceptance-shared"}');
+
+        Assert::same($status, 404);
+        $event = $trap->waitForUiEvent($this->port, 'http-dump');
+        Assert::same($event['payload']['request']['uri'], 'acceptance/shared');
+    }
+
     public function testVarDumperDumpFromTrapFunctionIsCaptured(): void
     {
         $trap = $this->startTrap('var-dumper');

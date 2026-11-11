@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mailer;
 
+use Buggregator\Trap\Module\Console\ProvidesRenderers;
 use Buggregator\Trap\Module\Frontend\ProvidesUi;
 use Buggregator\Trap\Module\Mailer\Console\Renderer;
 use Buggregator\Trap\Module\Mailer\Frontend\ApiController;
@@ -12,7 +13,6 @@ use Buggregator\Trap\Module\Mailer\Frontend\Mapper;
 use Buggregator\Trap\Module\Mailer\Sender\MailToFileSender;
 use Buggregator\Trap\Module\Mailer\Traffic\Dispatcher;
 use Buggregator\Trap\Server\Proto\ProvidesFrameTypes;
-use Buggregator\Trap\Server\Sender\Console\ProvidesRenderers;
 use Buggregator\Trap\Server\Sender\ProvidesSenders;
 use Buggregator\Trap\Server\Traffic\ProvidesDispatchers;
 

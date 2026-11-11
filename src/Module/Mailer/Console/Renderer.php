@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mailer\Console;
 
+use Buggregator\Trap\Module\Console\Renderer as RendererInterface;
+use Buggregator\Trap\Module\Console\Support\Common;
+use Buggregator\Trap\Module\Console\Support\Files;
 use Buggregator\Trap\Module\Mailer\Frame as MailerFrame;
 use Buggregator\Trap\Server\Proto\Frame;
-use Buggregator\Trap\Server\Sender\Console\Renderer as RendererInterface;
-use Buggregator\Trap\Server\Sender\Console\Support\Common;
-use Buggregator\Trap\Server\Sender\Console\Support\Files;
 use Buggregator\Trap\Support\Measure;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -85,7 +85,7 @@ final class Renderer implements RendererInterface
         if ($embeddings !== []) {
             Common::renderHeader3($output, 'Embedded files');
 
-            \Buggregator\Trap\Server\Sender\Console\Support\Tables::renderMultiColumnTable(
+            \Buggregator\Trap\Module\Console\Support\Tables::renderMultiColumnTable(
                 $output,
                 '',
                 \array_map(static fn($attach) => [

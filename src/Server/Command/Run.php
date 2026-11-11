@@ -94,23 +94,19 @@ final class Run extends Command implements SignalableCommandInterface
         return $servers;
     }
 
-    public function createRegistry(OutputInterface $output, Container $container): Sender\SenderRegistry
+    public function createRegistry(Container $container): Sender\SenderRegistry
     {
         $registry = new Sender\SenderRegistry();
-        $registry->register('console', static fn(): Sender => Sender\ConsoleSender::create($output, $container));
-        $registry->register('file', static fn(): Sender => new Sender\EventsToFileSender());
-        $registry->register('file-body', static fn(): Sender => new Sender\BodyToFileSender());
-        $registry->register('server', static fn(): Sender => new Sender\RemoteSender(host: '127.0.0.1', port: 9099));
 
-        /** @var array<non-empty-string, string> $owners Who gave the sender of each name */
-        $owners = \array_fill_keys(['console', 'file', 'file-body', 'server'], 'the core');
+        /** @var array<non-empty-string, class-string> $owners Who gave the sender of each name */
+        $owners = [];
         foreach ($container->get(Modules::class)->implementing(Sender\ProvidesSenders::class) as $module) {
             foreach ($module->senders() as $name => $class) {
                 isset($owners[$name]) and throw new \LogicException(
                     \sprintf('Sender `%s` of %s is already given by %s.', $name, $module::class, $owners[$name]),
                 );
                 $owners[$name] = $module::class;
-                $registry->register($name, static fn(): Sender => $container->make($class));
+                $registry->register($name, static fn(): Sender => $container->get($class));
             }
         }
 
@@ -163,7 +159,8 @@ final class Run extends Command implements SignalableCommandInterface
             $output->write(Info::LOGO_CLI_COLOR . "\n", true, OutputInterface::OUTPUT_RAW);
 
             /** @var non-empty-string[] $senders */
-            $senders = (array) $input->getOption('sender');
+            $senders = \array_filter((array) $input->getOption('sender'));
+            $input->getOption('ui') === false or $senders[] = 'ui';
 
             $container = Bootstrap::init()->withConfig(
                 xml: \dirname(__DIR__, 3) . '/trap.xml',
@@ -171,14 +168,14 @@ final class Run extends Command implements SignalableCommandInterface
                 inputArguments: $input->getArguments(),
                 environment: \getenv(),
             )->finish();
-            $registry = $this->createRegistry($output, $container);
-            $container->set($registry);
             $container->set($input, InputInterface::class);
+            $container->set($output, OutputInterface::class);
             $container->set($this->logger);
+            $registry = $this->createRegistry($container);
+            $container->set($registry);
             $this->app = $container->get(Application::class, [
                 'map' => $this->getServers($container),
-                'senders' => $registry->getSenders(\array_filter($senders)),
-                'withFrontend' => $input->getOption('ui') !== false,
+                'senders' => $registry->getSenders(\array_values(\array_unique($senders))),
             ]);
 
 

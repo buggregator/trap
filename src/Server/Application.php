@@ -4,16 +4,15 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Server;
 
-use Buggregator\Trap\Module\Frontend;
 use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Config\App;
-use Buggregator\Trap\Server\Config\Frontend as FrontendConfig;
 use Buggregator\Trap\Server\Config\SocketServer;
 use Buggregator\Trap\Server\Config\TcpPorts;
 use Buggregator\Trap\Server\Handler\Http\Handler\Websocket;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Handler\Http\ProvidesHttpMiddlewares;
 use Buggregator\Trap\Server\Proto\Buffer;
+use Buggregator\Trap\Server\Sender\ServesHttp;
 use Buggregator\Trap\Server\Service\FilesObserver\ProvidesFileObservers;
 use Buggregator\Trap\Server\Socket\Client;
 use Buggregator\Trap\Server\Socket\Server;
@@ -49,20 +48,14 @@ final class Application implements Processable, Cancellable, Destroyable
         private readonly Container $container,
         array $map = [],
         private array $senders = [],
-        bool $withFrontend = true,
     ) {
         $this->logger = $this->container->get(Logger::class);
         $this->buffer = new Buffer(bufferSize: 10485760, timer: 0.1);
         $this->container->set($this->buffer);
 
-        // Frontend
-        $feConfig = $this->container->get(FrontendConfig::class);
-        $feSeparated = !\in_array(
-            $feConfig->port,
-            \array_map(static fn(SocketServer $item): ?int => $item->protocol === 'tcp' ? $item->port : null, $map),
-            true,
-        );
-        $withFrontend and $this->configureFrontend($feSeparated);
+        foreach ($this->senders as $sender) {
+            $sender instanceof Processable and $this->processors[] = $sender;
+        }
 
         $modules = $this->container->get(Modules::class);
         $middlewares = [
@@ -71,7 +64,7 @@ final class Application implements Processable, Cancellable, Destroyable
             ...$this->httpMiddlewares($modules),
         ];
 
-        $inspectorWithFrontend = $inspector = $container->make(Inspector::class, [
+        $inspector = $container->make(Inspector::class, [
             'dispatchers' => $this->dispatchers(
                 $modules,
                 new Traffic\Dispatcher\Http($middlewares, [new Websocket()]),
@@ -79,25 +72,16 @@ final class Application implements Processable, Cancellable, Destroyable
         ]);
         $this->processors[] = $inspector;
 
-        if ($withFrontend && !$feSeparated) {
-            $inspectorWithFrontend = $container->make(Inspector::class, [
-                'dispatchers' => $this->dispatchers(
-                    $modules,
-                    new Traffic\Dispatcher\Http(
-                        [$this->container->get(Frontend\Http\Pipeline::class), ...$middlewares],
-                        [$this->container->get(Frontend\Http\RequestHandler::class)],
-                    ),
-                ),
-            ]);
-            $this->processors[] = $inspectorWithFrontend;
-        }
+        $sharedPorts = $this->configureHttpEndpoints($map, $modules, $middlewares);
 
         $this->configureFileObserver($modules);
 
         foreach ($map as $config) {
-            $withFrontend && !$feSeparated && $config->protocol === 'tcp' && $config->port === $feConfig->port
-                ? $this->prepareServerFiber($config, $inspectorWithFrontend, $this->logger)
-                : $this->prepareServerFiber($config, $inspector, $this->logger);
+            $this->prepareServerFiber(
+                $config,
+                $config->protocol === 'tcp' ? $sharedPorts[$config->port] ?? $inspector : $inspector,
+                $this->logger,
+            );
         }
     }
 
@@ -106,12 +90,6 @@ final class Application implements Processable, Cancellable, Destroyable
         /** @var App $config */
         $config = $this->container->get(App::class);
         $sleep = \max(50, $config->mainLoopInterval);
-        foreach ($this->senders as $sender) {
-            \assert($sender instanceof Sender);
-            if ($sender instanceof Processable) {
-                $this->processors[] = $sender;
-            }
-        }
 
         while (true) {
             $this->process($this->senders);
@@ -195,37 +173,68 @@ final class Application implements Processable, Cancellable, Destroyable
         });
     }
 
-    private function configureFrontend(bool $separated): void
+    /**
+     * Listens on the HTTP endpoints of the senders.
+     *
+     * @param SocketServer[] $map
+     * @param list<Middleware> $middlewares
+     *
+     * @return array<int, Inspector> Inspectors for the listened TCP ports that an endpoint shares, by port.
+     */
+    private function configureHttpEndpoints(array $map, Modules $modules, array $middlewares): array
     {
-        $this->processors[] = $this->senders[] = $wsSender = $this->container->get(Frontend\Sender\FrontendSender::class);
-        $this->container->set($wsSender);
-        $this->container->set($wsSender->getEventStorage());
-        $this->container->set($wsSender->getConnectionPool());
-        $this->container->get(Frontend\UiChannel::class)->enable();
-
-        if (!$separated) {
-            return;
-        }
-
-        // Separated port
-        $inspector = $this->container->make(Inspector::class, [
-            'dispatchers' => [
-                new Traffic\Dispatcher\Http(
-                    [$this->container->get(Frontend\Http\Pipeline::class)],
-                    [$this->container->get(Frontend\Http\RequestHandler::class)],
-                    silentMode: true,
-                ),
-            ],
-        ]);
-        $this->processors[] = $inspector;
+        $tcpPorts = \array_map(
+            static fn(SocketServer $item): ?int => $item->protocol === 'tcp' ? $item->port : null,
+            $map,
+        );
         /** @var TcpPorts $tcpConfig */
         $tcpConfig = $this->container->get(TcpPorts::class);
-        $config = $this->container->get(FrontendConfig::class);
-        $this->prepareServerFiber(
-            new SocketServer(port: $config->port, host: $config->host, pollingInterval: $tcpConfig->pollingInterval),
-            $inspector,
-            $this->logger,
-        );
+
+        /** @var array<int, class-string> $owners */
+        $owners = [];
+        $shared = [];
+        foreach ($this->senders as $sender) {
+            if (!$sender instanceof ServesHttp) {
+                continue;
+            }
+
+            $endpoint = $sender->httpEndpoint();
+            isset($owners[$endpoint->port]) and throw new \LogicException(\sprintf(
+                'HTTP endpoint of %s takes port %d of %s.',
+                $sender::class,
+                $endpoint->port,
+                $owners[$endpoint->port],
+            ));
+            $owners[$endpoint->port] = $sender::class;
+
+            if (\in_array($endpoint->port, $tcpPorts, true)) {
+                $this->processors[] = $shared[$endpoint->port] = $this->container->make(Inspector::class, [
+                    'dispatchers' => $this->dispatchers(
+                        $modules,
+                        new Traffic\Dispatcher\Http([...$endpoint->middlewares, ...$middlewares], $endpoint->handlers),
+                    ),
+                ]);
+                continue;
+            }
+
+            $inspector = $this->container->make(Inspector::class, [
+                'dispatchers' => [
+                    new Traffic\Dispatcher\Http($endpoint->middlewares, $endpoint->handlers, silentMode: true),
+                ],
+            ]);
+            $this->processors[] = $inspector;
+            $this->prepareServerFiber(
+                new SocketServer(
+                    port: $endpoint->port,
+                    host: $endpoint->host,
+                    pollingInterval: $tcpConfig->pollingInterval,
+                ),
+                $inspector,
+                $this->logger,
+            );
+        }
+
+        return $shared;
     }
 
     /**

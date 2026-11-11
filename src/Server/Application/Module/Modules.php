@@ -21,8 +21,14 @@ final class Modules
      * The list order is the order of what the modules provide: dispatchers, HTTP middlewares, file observers,
      * console renderers, UI controllers and event types.
      * The core places its own parts around the modules' ones.
+     *
+     * Channels go first: a source module that takes a sender name is then the one reported.
      */
     private const LIST = [
+        \Buggregator\Trap\Module\Console\Module::class,
+        \Buggregator\Trap\Module\Files\Module::class,
+        \Buggregator\Trap\Module\Remote\Module::class,
+        \Buggregator\Trap\Module\Frontend\Module::class,
         \Buggregator\Trap\Module\VarDumper\Module::class,
         \Buggregator\Trap\Module\Mailer\Module::class,
         \Buggregator\Trap\Module\Monolog\Module::class,

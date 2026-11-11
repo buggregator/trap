@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\VarDumper;
 
+use Buggregator\Trap\Module\Console\ProvidesRenderers;
 use Buggregator\Trap\Module\Frontend\ProvidesUi;
 use Buggregator\Trap\Module\VarDumper\Console\Renderer;
 use Buggregator\Trap\Module\VarDumper\Frontend\Mapper;
 use Buggregator\Trap\Module\VarDumper\Traffic\Dispatcher;
 use Buggregator\Trap\Server\Proto\ProvidesFrameTypes;
-use Buggregator\Trap\Server\Sender\Console\ProvidesRenderers;
 use Buggregator\Trap\Server\Traffic\ProvidesDispatchers;
 
 /**

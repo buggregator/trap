@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Tracing\Console;
 
+use Buggregator\Trap\Module\Console\Renderer as RendererInterface;
+use Buggregator\Trap\Module\Console\Support\Common;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\ResourceSpans;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\StatusCode;
 use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Server\Proto\Frame;
-use Buggregator\Trap\Server\Sender\Console\Renderer as RendererInterface;
-use Buggregator\Trap\Server\Sender\Console\Support\Common;
 use Buggregator\Trap\Support\Json;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Output\OutputInterface;
