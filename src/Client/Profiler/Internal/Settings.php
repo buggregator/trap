@@ -44,8 +44,8 @@ final class Settings
 
         try {
             return \random_int(0, \PHP_INT_MAX - 1) / \PHP_INT_MAX < $this->sample;
-        } catch (\Throwable $e) {
-            Warnings::error('No randomness to sample profiles', $e);
+        } catch (\Throwable $throwable) {
+            Warnings::error('No randomness to sample profiles', $throwable);
             return false;
         }
     }

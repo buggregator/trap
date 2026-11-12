@@ -110,7 +110,7 @@ final class Excimer implements Driver
                         $log->getSpeedscopeData(),
                         \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_INVALID_UTF8_SUBSTITUTE,
                     ),
-                    Format::Collapsed->value => static fn(): string => $log->formatCollapsed(),
+                    Format::Collapsed->value => $log->formatCollapsed(...),
                     Format::XHProf->value => static fn(): string => XHProfWriter::json(
                         SpeedscopeReader::read($log->getSpeedscopeData(), $period, $cpu)->toGraph(),
                     ),

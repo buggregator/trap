@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Client\Profiler;
 
+use Buggregator\Trap\Client\Profiler\Internal\Driver;
 use Buggregator\Trap\Client\Profiler\Internal\Env;
 use Buggregator\Trap\Client\Profiler\Internal\Recording;
 use Buggregator\Trap\Client\Profiler\Internal\Settings;
@@ -61,18 +62,18 @@ final class Session
         }
 
         $driver = $settings->driver;
-        if ($driver === null || !$driver->isAvailable()) {
+        if (!$driver instanceof Driver || !$driver->isAvailable()) {
             $requested = $settings->requested;
-            $requested === null
+            $requested instanceof Driver
                 ? Warnings::once(
-                    'unavailable',
-                    'No profiler is available: install ext-excimer, ext-xhprof or ext-tideways_xhprof. The code runs without profiling.',
-                    ['reason' => 'unavailable'],
-                )
-                : Warnings::once(
                     'unavailable:' . $requested->name(),
                     \sprintf('The `%s` profiler is not available. The code runs without profiling.', $requested->name()),
                     ['driver' => $requested->name(), 'reason' => 'unavailable'],
+                )
+                : Warnings::once(
+                    'unavailable',
+                    'No profiler is available: install ext-excimer, ext-xhprof or ext-tideways_xhprof. The code runs without profiling.',
+                    ['reason' => 'unavailable'],
                 );
             return new self($settings, null);
         }
@@ -80,12 +81,12 @@ final class Session
         $site = StackTrace::callSite();
         try {
             $recording = $driver->start();
-        } catch (\Throwable $e) {
+        } catch (\Throwable $throwable) {
             // E.g. a clock the system lacks, or a warning that an error handler turned into an exception.
             Warnings::once(
                 'start:' . $driver->name(),
-                \sprintf('The `%s` profiler failed to start: %s The code runs without profiling.', $driver->name(), $e->getMessage()),
-                ['driver' => $driver->name(), 'reason' => 'start', 'exception' => $e],
+                \sprintf('The `%s` profiler failed to start: %s The code runs without profiling.', $driver->name(), $throwable->getMessage()),
+                ['driver' => $driver->name(), 'reason' => 'start', 'exception' => $throwable],
             );
             return new self($settings, null);
         }
@@ -121,7 +122,7 @@ final class Session
 
         $this->stopped = true;
         $recording = $this->recording;
-        if ($recording === null) {
+        if (!$recording instanceof Recording) {
             return null;
         }
 
@@ -129,15 +130,15 @@ final class Session
         $this->recording = null;
         try {
             $recorded = $recording->stop();
-        } catch (\Throwable $e) {
-            Warnings::error(\sprintf('The `%s` profiler failed to stop', (string) $this->settings->driver?->name()), $e);
+        } catch (\Throwable $throwable) {
+            Warnings::error(\sprintf('The `%s` profiler failed to stop', (string) $this->settings->driver?->name()), $throwable);
             return null;
         } finally {
             self::$running = false;
         }
 
         $driver = $this->settings->driver;
-        \assert($driver !== null);
+        \assert($driver instanceof Driver);
 
         if ($recorded->isEmpty()) {
             Warnings::once('empty:' . $driver->name(), \sprintf(
@@ -166,8 +167,8 @@ final class Session
                 duration: $duration,
                 peakMemory: \max(0, \memory_get_peak_usage()),
             ));
-        } catch (\Throwable $e) {
-            Warnings::error(\sprintf('The `%s` profile was not made', $driver->name()), $e);
+        } catch (\Throwable $throwable) {
+            Warnings::error(\sprintf('The `%s` profile was not made', $driver->name()), $throwable);
             return null;
         }
 

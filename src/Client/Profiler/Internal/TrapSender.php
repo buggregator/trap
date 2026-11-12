@@ -67,7 +67,7 @@ final class TrapSender
         $formats = $profile->formats();
         match (true) {
             \in_array(Format::Speedscope, $formats, true) => $this->post(
-                '/api/profiler/speedscope' . self::withQuery(Payload::query($profile)),
+                '/api/profiler/speedscope' . $this->withQuery(Payload::query($profile)),
                 $profile->encode(Format::Speedscope),
             ),
             \in_array(Format::XHProf, $formats, true) => $this->post('/api/profiler/store', Payload::store($profile)),
@@ -75,7 +75,7 @@ final class TrapSender
         };
     }
 
-    private static function withQuery(string $query): string
+    private function withQuery(string $query): string
     {
         return $query === '' ? '' : '?' . $query;
     }

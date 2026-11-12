@@ -52,7 +52,7 @@ final class XHProf implements Driver
     #[\Override]
     public function isAvailable(): bool
     {
-        return self::extension() !== null;
+        return $this->extension() !== null;
     }
 
     /**
@@ -71,7 +71,7 @@ final class XHProf implements Driver
     public function options(): array
     {
         return [
-            'extension' => self::extension(),
+            'extension' => $this->extension(),
             'memory' => $this->memory,
             'cpu' => $this->cpu,
             'ignored' => $this->ignored,
@@ -84,7 +84,7 @@ final class XHProf implements Driver
     #[\Override]
     public function start(): Recording
     {
-        $extension = self::extension() ?? throw new \LogicException('Neither ext-xhprof nor ext-tideways_xhprof is loaded.');
+        $extension = $this->extension() ?? throw new \LogicException('Neither ext-xhprof nor ext-tideways_xhprof is loaded.');
         if ($extension === 'xhprof') {
             xhprof_enable(
                 ($this->memory ? \XHPROF_FLAGS_MEMORY : 0) | ($this->cpu ? \XHPROF_FLAGS_CPU : 0),
@@ -122,7 +122,7 @@ final class XHProf implements Driver
     /**
      * @return 'xhprof'|'tideways_xhprof'|null
      */
-    private static function extension(): ?string
+    private function extension(): ?string
     {
         return match (true) {
             \function_exists('xhprof_enable') => 'xhprof',

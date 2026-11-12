@@ -24,7 +24,7 @@ final class Profiling
 
     private function __construct(?Driver $profiler)
     {
-        $this->settings = new Settings($profiler, $profiler ?? self::detect());
+        $this->settings = new Settings($profiler, $profiler ?? $this->detect());
     }
 
     /**
@@ -91,7 +91,7 @@ final class Profiling
      */
     public function toFile(string $path, ?Format $format = null): self
     {
-        $format ??= self::guessFormat($path);
+        $format ??= $this->guessFormat($path);
 
         $this->settings->destinations[] = static function (Profile $profile) use ($path, $format): void {
             $formats = $profile->formats();
@@ -200,9 +200,9 @@ final class Profiling
 
         try {
             $result = $callable();
-        } catch (\Throwable $e) {
+        } catch (\Throwable $throwable) {
             $session->finish();
-            throw $e;
+            throw $throwable;
         }
 
         $session->stop();
@@ -220,7 +220,7 @@ final class Profiling
         return Session::open(clone $this->settings);
     }
 
-    private static function detect(): ?Driver
+    private function detect(): ?Driver
     {
         foreach ([new Excimer(), new XHProf()] as $driver) {
             if ($driver->isAvailable()) {
@@ -231,7 +231,7 @@ final class Profiling
         return null;
     }
 
-    private static function guessFormat(string $path): ?Format
+    private function guessFormat(string $path): ?Format
     {
         $name = \strtolower(\basename($path));
 

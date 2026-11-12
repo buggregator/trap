@@ -3,7 +3,7 @@
 `excimer-*.json` are shaped as `ExcimerLog::getSpeedscopeData()` writes them (Excimer 1.2): frames are `{name, file}`
 deduplicated by both, `unit` is `nanoseconds`, and a weight is the number of timer events times the period.
 They are made by hand after Excimer's `excimer_log.c` and its tests: `excimer-cpu.json` models `tests/cpu.phpt`
-and `excimer-max-depth.json` models `tests/maxDepth.phpt` (https://github.com/wikimedia/mediawiki-php-excimer).
+and `excimer-max-depth.json` models `tests/maxDepth.phpt` (<https://github.com/wikimedia/mediawiki-php-excimer>).
 
 - `excimer-cpu.json` — closures named by file and line, a method, a file-scope root; 0.1 s period.
 - `excimer-max-depth.json` — the whole stack is over the max depth: the outer frames are one `excimer_truncated` frame.
@@ -25,5 +25,5 @@ Other exporters' shapes, made by hand:
 - `sampled-zero-weight.json` — samples of zero weight.
 - `same-name-different-files.json` — two `render` frames of different files.
 
-`upstream/simple.speedscope.json` is a sample of speedscope (https://github.com/jlfwong/speedscope,
+`upstream/simple.speedscope.json` is a sample of speedscope (<https://github.com/jlfwong/speedscope>,
 `sample/profiles/speedscope/0.0.1/simple.speedscope.json`), MIT license: see `upstream/LICENSE-speedscope-MIT`.
