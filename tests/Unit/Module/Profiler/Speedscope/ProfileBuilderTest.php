@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Profiler\Speedscope;
 
+use Buggregator\Trap\Module\Profiler\Compaction\Nodes;
+use Buggregator\Trap\Module\Profiler\Speedscope\Frames;
 use Buggregator\Trap\Module\Profiler\Speedscope\ProfileBuilder;
 use Buggregator\Trap\Module\Profiler\Struct\Branch;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
@@ -17,6 +19,8 @@ use Testo\Expect;
 use Testo\Test;
 
 #[Covers(ProfileBuilder::class)]
+#[Covers(Frames::class)]
+#[Covers(Nodes::class)]
 #[Test]
 final class ProfileBuilderTest
 {
@@ -450,6 +454,55 @@ final class ProfileBuilderTest
             'unit' => 'nanoseconds',
             'events' => [['type' => 'O', 'at' => 0, 'frame' => 2], ['type' => 'C', 'at' => 1, 'frame' => 0]],
         ]]));
+    }
+
+    public function testPutsSeveralEventedRootsUnderMainSpanningThem(): void
+    {
+        $profile = self::build(self::document([[
+            'type' => 'evented',
+            'unit' => 'microseconds',
+            'events' => [
+                ['type' => 'O', 'at' => 0, 'frame' => 2],
+                ['type' => 'C', 'at' => 3, 'frame' => 2],
+                ['type' => 'O', 'at' => 5, 'frame' => 0],
+                ['type' => 'C', 'at' => 9, 'frame' => 0],
+            ],
+        ]]));
+
+        Assert::same(self::shape($profile->tree()), ['main():7:1' => ['run:3:1' => [], 'Foo::bar:4:1' => []]]);
+    }
+
+    #[DataSet([['profiles' => []]])]
+    #[DataSet([['profiles' => ['type' => 'sampled']]])]
+    #[DataSet([[]])]
+    public function testRejectsDocumentWithoutProfiles(array $document): never
+    {
+        Expect::exception(\InvalidArgumentException::class)->withMessage('No `profiles` in the document.');
+
+        self::build(['shared' => ['frames' => self::FRAMES]] + $document);
+    }
+
+    #[DataSet([['weights' => [1000]], 'needs `samples` and `weights` lists'])]
+    #[DataSet([['samples' => [[2]], 'weights' => null], 'needs `samples` and `weights` lists'])]
+    #[DataSet([['samples' => [[2]], 'weights' => [-1]], 'Weight 0 is not a non-negative number'])]
+    #[DataSet([['samples' => [[2]], 'weights' => ['5']], 'Weight 0 is not a non-negative number'])]
+    public function testRejectsInvalidSamples(array $profile, string $message): never
+    {
+        Expect::exception(\InvalidArgumentException::class)->withMessageContaining($message);
+
+        self::build(self::document([$profile + ['type' => 'sampled', 'unit' => 'nanoseconds']]));
+    }
+
+    #[DataSet([null, 'needs an `events` list'])]
+    #[DataSet([['first' => ['type' => 'O', 'at' => 0, 'frame' => 2]], 'needs an `events` list'])]
+    #[DataSet([[['type' => 'C', 'at' => 0, 'frame' => 0]], 'Event 0 closes `Foo::bar`, but no frame is open'])]
+    #[DataSet([[['type' => 'X', 'at' => 0, 'frame' => 0]], 'Event 0 is neither `O` nor `C`'])]
+    #[DataSet([[['type' => 'O', 'at' => 0, 'frame' => 2], ['type' => 'C', 'at' => 1.0e16, 'frame' => 2]], 'event times are too large'])]
+    public function testRejectsInvalidEvents(mixed $events, string $message): never
+    {
+        Expect::exception(\InvalidArgumentException::class)->withMessageContaining($message);
+
+        self::build(self::document([['type' => 'evented', 'unit' => 'microseconds', 'events' => $events]]));
     }
 
     /**

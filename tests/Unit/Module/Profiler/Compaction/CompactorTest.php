@@ -9,9 +9,12 @@ use Buggregator\Trap\Module\Profiler\Compaction\FlatTree;
 use Buggregator\Trap\Module\Profiler\Compaction\Report;
 use Testo\Assert;
 use Testo\Codecov\Covers;
+use Testo\Data\DataSet;
 use Testo\Test;
 
 #[Covers(Compactor::class)]
+#[Covers(FlatTree::class)]
+#[Covers(Report::class)]
 #[Test]
 final class CompactorTest
 {
@@ -117,6 +120,64 @@ final class CompactorTest
         Assert::same($tree->frame[$tree->parent[$map[$open]]], 2);
     }
 
+    public function testNeverDropsPinnedNodeRankedAmongTheTrimmed(): void
+    {
+        $tree = new FlatTree(inclusiveCounts: false);
+        $main = $tree->add(-1, 0, 100.0, 1);
+        $open = $tree->add($main, 1, 90.0, 1);
+        $tree->add($main, 2, 50.0, 1);
+        $tree->add($main, 3, 40.0, 1);
+
+        $map = Compactor::compact($tree, 2, new Report(), pinned: [$open => true]);
+
+        // Over the target: a pinned node is kept whatever it costs
+        Assert::same(self::shape($tree), ['0:100:1' => ['1:90:1' => [], '-3:90:2' => []]]);
+        Assert::same($tree->frame[$map[$open]], 1);
+    }
+
+    public function testPrunesByCountsWhenChildOutranksItsParent(): void
+    {
+        // A profile of no time: the self counts rank `hot` before its caller `a`
+        $tree = new FlatTree(inclusiveCounts: false);
+        $main = $tree->add(-1, 0, 0.0, 1);
+        $a = $tree->add($main, 1, 0.0, 1);
+        $hot = $tree->add($a, 2, 0.0, 10);
+        $tree->add($main, 3, 0.0, 3);
+        $tree->add($main, 4, 0.0, 2);
+
+        $map = Compactor::compact($tree, 4, new Report());
+
+        // `hot` goes with its dropped caller into the `(other)` node
+        Assert::same(self::shape($tree), ['0:0:1' => ['-3:0:13' => [], '3:0:3' => []]]);
+        Assert::same($map[$hot], $map[$a]);
+    }
+
+    public function testKeepsAncestorsOfPinnedNodeOutrankingThem(): void
+    {
+        $tree = new FlatTree(inclusiveCounts: false);
+        $main = $tree->add(-1, 0, 0.0, 1);
+        $a = $tree->add($main, 1, 0.0, 1);
+        $open = $tree->add($a, 2, 0.0, 10);
+        $tree->add($main, 3, 0.0, 3);
+        $tree->add($main, 4, 0.0, 2);
+
+        $map = Compactor::compact($tree, 4, new Report(), pinned: [$open => true]);
+
+        Assert::same(self::shape($tree), ['0:0:1' => ['1:0:1' => ['2:0:10' => []], '-3:0:5' => []]]);
+        Assert::same($tree->parent[$map[$open]], $map[$a]);
+    }
+
+    public function testCompactsEmptyTree(): void
+    {
+        $tree = new FlatTree(inclusiveCounts: false);
+
+        $map = Compactor::compact($tree, 1, $report = new Report());
+
+        Assert::same($map, []);
+        Assert::same($tree->size(), 0);
+        Assert::true($report->isEmpty());
+    }
+
     public function testLeavesTreeWithinTargetAsItIs(): void
     {
         $tree = new FlatTree(inclusiveCounts: true);
@@ -128,6 +189,51 @@ final class CompactorTest
 
         Assert::same($map, [0, 1, 2]);
         Assert::true($report->isEmpty());
+    }
+
+    public function testMeasuresShareOfRootValueInFoldedNodes(): void
+    {
+        // Node 0 holds the roots; the folded nodes sit at any depth
+        $tree = new FlatTree(inclusiveCounts: false);
+        $holder = $tree->add(-1, 0, 0.0, 0);
+        $a = $tree->add($holder, 1, 60.0, 1);
+        $tree->add($holder, 2, 20.0, 1);
+        $tree->add($a, FlatTree::OTHER, 5.0, 1);
+        $tree->add($a, FlatTree::TRUNCATED, 2.5, 1);
+
+        ($report = new Report())->measure($tree);
+
+        Assert::same($report->folded, 9.4);
+        Assert::same($report->toArray()['folded'], 9.4);
+    }
+
+    public function testMeasuresNothingFoldedInTreeOfNoValue(): void
+    {
+        $tree = new FlatTree(inclusiveCounts: false);
+        $holder = $tree->add(-1, 0, 0.0, 0);
+        $tree->add($holder, FlatTree::OTHER, 0.0, 3);
+        $report = new Report();
+        $report->folded = 50.0;
+
+        $report->measure($tree);
+
+        Assert::same($report->folded, 0.0);
+    }
+
+    #[DataSet([[], ''], 'nothing written')]
+    #[DataSet([['merged' => 0, 'collapsed' => 0, 'pruned' => 0, 'truncated' => 0, 'folded' => 0.0], ''], 'all zero')]
+    #[DataSet([['merged' => 2], '2 nodes merged into calls of the same function'], 'merged only')]
+    #[DataSet([
+        ['merged' => 1, 'collapsed' => 2, 'pruned' => 3, 'truncated' => 4, 'folded' => 12.5],
+        '1 nodes merged into calls of the same function, 2 nodes of recursion merged into their callers, '
+        . '3 nodes of cold subtrees summed in `(other)`, 4 samples or calls summed in `(truncated)`, '
+        . '12.5% of the time in the folded nodes',
+    ], 'all parts')]
+    #[DataSet([['pruned' => '3', 'truncated' => -1, 'folded' => 7], ''], 'values of wrong type or sign')]
+    #[DataSet([['folded' => 0.5], '0.5% of the time in the folded nodes'], 'folded only')]
+    public function testSummarizesWrittenReport(array $data, string $expected): void
+    {
+        Assert::same(Report::summarize($data), $expected);
     }
 
     /**

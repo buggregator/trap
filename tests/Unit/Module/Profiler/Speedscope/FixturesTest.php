@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Profiler\Speedscope;
 
+use Buggregator\Trap\Module\Profiler\Compaction\Nodes;
+use Buggregator\Trap\Module\Profiler\Speedscope\Frames;
 use Buggregator\Trap\Module\Profiler\Speedscope\ProfileBuilder;
 use Buggregator\Trap\Module\Profiler\Struct\Branch;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
@@ -16,6 +18,8 @@ use Testo\Test;
  * Documents shaped as Excimer and other exporters write them, see `tests/Stub/speedscope/README.md`.
  */
 #[Covers(ProfileBuilder::class)]
+#[Covers(Frames::class)]
+#[Covers(Nodes::class)]
 #[Test]
 final class FixturesTest
 {

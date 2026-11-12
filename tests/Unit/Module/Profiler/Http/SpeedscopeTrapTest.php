@@ -11,6 +11,7 @@ use Buggregator\Trap\Module\Profiler\Speedscope\ProfileBuilder;
 use Buggregator\Trap\Server\Logger;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;
+use Nyholm\Psr7\Stream;
 use Psr\Http\Message\ResponseInterface;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Testo\Assert;
@@ -212,6 +213,40 @@ final class SpeedscopeTrapTest
         Assert::same($response->getStatusCode(), 404);
         Assert::same($frames, []);
         Assert::same($log, '');
+    }
+
+    #[DataSet(['{"$schema":"https://www.speedscope.app/file-format-schema.json","profiles":['], 'broken JSON')]
+    #[DataSet(['{"$schema":"https://www.speedscope.app/file-format-schema.json","$schema":"other"}'], 'schema overridden')]
+    public function testPassesThroughWhatOnlyStartsLikeSpeedscope(string $body): void
+    {
+        $request = new ServerRequest('POST', '/', ['Content-Type' => 'application/json'], $body);
+
+        [$response, $frames, $log] = self::handle($request);
+
+        Assert::same($response->getStatusCode(), 404);
+        Assert::same($frames, []);
+        Assert::same($log, '');
+    }
+
+    public function testAnswersUnexpectedErrorWith400(): void
+    {
+        $file = \tempnam(\sys_get_temp_dir(), 'trap');
+        $resource = \fopen($file, 'w');
+        \fwrite($resource, \json_encode(self::document()));
+        // A write-only body: reading it fails with a `RuntimeException`
+        $request = new ServerRequest('POST', '/', ['Content-Type' => 'application/json'], Stream::create($resource));
+
+        try {
+            [$response, $frames, $log] = self::handle($request);
+        } finally {
+            \fclose($resource);
+            \unlink($file);
+        }
+
+        Assert::same($response->getStatusCode(), 400);
+        Assert::same((string) $response->getBody(), 'Cannot read from non-readable stream');
+        Assert::same($frames, []);
+        Assert::string($log)->contains('Cannot read from non-readable stream');
     }
 
     private static function document(): array

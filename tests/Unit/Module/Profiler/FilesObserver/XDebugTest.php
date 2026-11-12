@@ -9,6 +9,7 @@ use Buggregator\Trap\Module\Profiler\Frame;
 use Buggregator\Trap\Module\Profiler\XDebug\ProfileBuilder;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Service\FilesObserver\FileInfo;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Data\DataSet;
@@ -113,6 +114,40 @@ final class XDebugTest
         \file_put_contents($path, "\x1f\x8b" . \str_repeat("\xff", 64));
 
         Assert::same(self::converter()->isReady(self::info($path)), true);
+    }
+
+    public function testFileRemovedBeforeCheckIsNotReady(): void
+    {
+        $file = new FileInfo($this->dir . '/cachegrind.out.1234', 1, 0, 0);
+
+        Assert::same(self::converter()->isReady($file), false);
+    }
+
+    public function testWarnsWhenProfileIsCompacted(): void
+    {
+        $path = $this->dir . '/cachegrind.out.1234';
+        \copy(self::STUB, $path);
+        $output = new BufferedOutput();
+        $converter = new XDebug(new Logger($output), new ProfileBuilder(maxNodes: 5));
+
+        $profile = \iterator_to_array($converter->convert(self::info($path)), false)[0]->payload->getProfile();
+
+        Assert::true(\is_array($profile->metadata['compacted'] ?? null));
+        Assert::string($output->fetch())->ignoringAnsi()
+            ->contains('XDebug: cachegrind.out.1234 is compacted to 5 call tree nodes: ');
+    }
+
+    public function testProfileWithinNodeLimitLogsNothing(): void
+    {
+        $path = $this->dir . '/cachegrind.out.1234';
+        \copy(self::STUB, $path);
+        $output = new BufferedOutput();
+        $converter = new XDebug(new Logger($output), new ProfileBuilder(maxNodes: 1000));
+
+        $profile = \iterator_to_array($converter->convert(self::info($path)), false)[0]->payload->getProfile();
+
+        Assert::same(\array_key_exists('compacted', $profile->metadata), false);
+        Assert::same($output->fetch(), '');
     }
 
     public function testRejectsFileOverMaxSize(): void

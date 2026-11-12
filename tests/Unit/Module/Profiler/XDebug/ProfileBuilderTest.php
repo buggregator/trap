@@ -4,17 +4,24 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Profiler\XDebug;
 
+use Buggregator\Trap\Module\Profiler\Compaction\Nodes;
 use Buggregator\Trap\Module\Profiler\Struct\Branch;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Module\Profiler\Struct\Tree;
+use Buggregator\Trap\Module\Profiler\XDebug\Call;
+use Buggregator\Trap\Module\Profiler\XDebug\CallLinker;
 use Buggregator\Trap\Module\Profiler\XDebug\ProfileBuilder;
 use Testo\Assert;
 use Testo\Codecov\Covers;
+use Testo\Data\DataSet;
 use Testo\Expect;
 use Testo\Test;
 
 #[Covers(ProfileBuilder::class)]
+#[Covers(CallLinker::class)]
+#[Covers(Call::class)]
+#[Covers(Nodes::class)]
 #[Test]
 final class ProfileBuilderTest
 {
@@ -223,6 +230,99 @@ final class ProfileBuilderTest
         $profile = (new ProfileBuilder(maxNodes: 1))->createProfile(self::profile('Time Memory_(bytes)', $blocks));
 
         Assert::same(self::shape($profile->tree()), ['{main}:7' => ['(other):3' => []]]);
+    }
+
+    #[DataSet(['Time_(ns)', 5000, 5], 'nanoseconds')]
+    #[DataSet(['Time_(10ns)', 500, 5], 'tens of nanoseconds')]
+    #[DataSet(['Time_(µs)', 5, 5], 'microseconds')]
+    #[DataSet(['Time', 5, 5], 'unitless time in microseconds')]
+    public function testConvertsTimeUnitToMicroseconds(string $unit, int $time, int $wt): void
+    {
+        $profile = (new ProfileBuilder())->createProfile(self::profile("$unit Memory_(bytes)", "fn=(1) {main}\n1 $time 0\n"));
+
+        Assert::same($profile->calls->roots()[0]->cost->wt, $wt);
+    }
+
+    public function testReadsUncompressedNames(): void
+    {
+        $profile = (new ProfileBuilder())->createProfile(self::profile(
+            'Time Memory_(bytes)',
+            "fn=foo\n1 2 0\n\nfn={main}\n1 5 0\ncfn=foo\ncalls=1 0 0\n1 2 0\n",
+        ));
+
+        Assert::same(self::shape($profile->tree()), ['{main}:7' => ['foo:2' => []]]);
+    }
+
+    #[DataSet(["fn=\n1 5 0\n", 'Empty function name.'], 'empty name')]
+    #[DataSet(["fn=(1) {main}\n1 5 0\ncfn=(7)\ncalls=1 0 0\n1 2 0\n", 'Unknown function name ID `7`.'], 'ID never defined')]
+    public function testRejectsInvalidFunctionName(string $blocks, string $message): void
+    {
+        Expect::exception(\InvalidArgumentException::class)->withMessage($message);
+
+        (new ProfileBuilder())->createProfile(self::profile('Time Memory_(bytes)', $blocks));
+    }
+
+    #[DataSet(["fn=(1) a\n1 1 0\n"], 'no call ends before the end')]
+    #[DataSet(["fn=(1) a\n1 1 0\n\nfn=(2) {main}\n1 2 0\ncfn=(1)\ncalls=1 0 0\n1 1 0\n"], 'a call ends before')]
+    public function testRejectsProfileWithoutEvents(string $blocks): void
+    {
+        Expect::exception(\InvalidArgumentException::class)->withMessage('No `events` line in the profile.');
+
+        (new ProfileBuilder())->createProfile(
+            "version: 1\ncreator: xdebug 3.4.0 (PHP 8.4.0)\ncmd: /app/a.php\npart: 1\npositions: line\n\n$blocks",
+        );
+    }
+
+    public function testReadsCrlfLineEndings(): void
+    {
+        $content = \str_replace("\r\n", "\n", \file_get_contents(self::STUB_DIR . '/shared.cachegrind'));
+
+        $profile = (new ProfileBuilder())->createProfile(\str_replace("\n", "\r\n", $content));
+
+        Assert::same(self::shape($profile->tree()), self::shape(self::build('shared.cachegrind')->tree()));
+    }
+
+    public function testReadsCallStraddlingChunkBoundary(): void
+    {
+        $count = 10_000;
+        $content = self::profile(
+            'Time Memory_(bytes)',
+            \str_repeat("fn=(1) f\n2 3 0\n\n", $count)
+                . "fn=(2) {main}\n1 7 0\n" . \str_repeat("cfn=(1)\ncalls=1 0 0\n2 3 0\n", $count),
+        );
+        // The first 256 KB chunk ends after the `calls=` line of a call, its cost line starts the next chunk
+        $chunk = 256 * 1024;
+        $start = \strrpos(\substr($content, 0, $chunk), "\n") + 1;
+        Assert::same(\substr($content, $start, \strpos($content, "\n", $chunk) - $start), 'calls=1 0 0');
+
+        $profile = (new ProfileBuilder())->createProfile($content);
+
+        $f = $profile->calls->callers('f')[0];
+        Assert::same([$f->caller, $f->cost->ct, $f->cost->wt], ['{main}', $count, 3 * $count]);
+        Assert::same($profile->calls->roots()[0]->cost->wt, 3 * $count + 7);
+        Assert::same(\count($profile->tree()), $count + 1);
+    }
+
+    public function testSumsCallsPastHardNodeLimitIntoTruncatedNode(): void
+    {
+        // The compaction keeps the roots, so past the hard limit the next roots and their callees are truncated
+        $count = 41_000;
+        $blocks = '';
+        for ($i = 1; $i <= $count; ++$i) {
+            $blocks .= "fn=($i) r$i\n1 1 0\n\n";
+        }
+        $leaf = $count + 1;
+        $top = $count + 2;
+        $blocks .= "fn=($leaf) leaf\n1 2 0\n\nfn=($top) top\n1 5 0\ncfn=($leaf)\ncalls=1 0 0\n1 2 0\n";
+
+        $profile = (new ProfileBuilder(maxNodes: 1))->createProfile(self::profile('Time Memory_(bytes)', $blocks));
+
+        $truncated = $profile->calls->callers(Profile::TRUNCATED);
+        Assert::count($truncated, 1);
+        Assert::null($truncated[0]->caller);
+        Assert::same($profile->calls->callers('leaf'), []);
+        Assert::same($profile->calls->callers('top'), []);
+        Assert::true($profile->metadata['compacted']['truncated'] > 0);
     }
 
     private static function calls(int ...$ids): string
