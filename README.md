@@ -108,6 +108,7 @@ Buggregator Trap boasts a much wider range of handlers ("traps") for debug messa
 - Monolog,
 - Sentry,
 - OpenTelemetry traces (OTLP/HTTP),
+- Profilers: XHProf, Xdebug, Excimer (Speedscope), pprof,
 - SMTP,
 - HTTP dumps,
 - Ray,
@@ -231,6 +232,98 @@ Environment variables can also be used to set endpoints:
 Large profiles get as many call tree nodes as the memory left affords, and are compacted past that.
 
 `TRAP_GC_INTERVAL` sets how often, in seconds, the server collects garbage cycles in place of PHP's cycle collector (default: `30`; `0` keeps PHP's collector).
+
+### Profiling
+
+Profile a piece of code with `trap()::profile()`. One API covers the profilers, and the profile goes to Trap
+by default:
+
+```php
+use Buggregator\Trap\Client\Profiler\Clock;
+use Buggregator\Trap\Client\Profiler\Excimer;
+use Buggregator\Trap\Client\Profiler\Format;
+use Buggregator\Trap\Client\Profiler\XHProf;
+
+// Profile a callable and get its result
+$result = trap()::profile()->run(fn() => $app->handle($request));
+
+// Choose the profiler with its options, name and tag the profile, profile one request of ten
+trap()::profile(new Excimer(period: 0.001, clock: Clock::Cpu))
+    ->name('checkout')
+    ->tags(['env' => 'stage'])
+    ->sample(0.1)
+    ->run(fn() => $checkout->handle($order));
+
+// Or start and stop it around any code; a session stops when it is destroyed
+$session = trap()::profile(new XHProf(memory: true, cpu: true))->start();
+try {
+    $app->run();
+} finally {
+    $session->stop();
+}
+```
+
+Profilers:
+
+- [Excimer](https://www.mediawiki.org/wiki/Excimer) (`ext-excimer`): a sampling profiler, cheap enough for
+  production. `period` is the sampling interval in seconds, `clock` is wall or CPU time.
+- XHProf (`ext-xhprof` or `ext-tideways_xhprof`): counts every call with wall time and, optionally, CPU time
+  and memory. It takes over an XHProf session already running, such as one started by XHGui.
+
+Without a profiler given, the first available one is used: Excimer, then XHProf.
+Xdebug can't be started from code for a part of a request: profile whole requests with `xdebug.mode=profile`
+and let Trap pick up its files (see below).
+
+Destinations, as many as needed:
+
+- `->toTrap(?host, ?port)` sends the profile in the profiler's own format (the default destination).
+- `->toFile($path, ?Format)` writes a file. The format is taken from the name when not given:
+  `*.speedscope.json`, `*.txt` or `*.folded` (collapsed stacks), `*.xhprof`, `*.pb.gz` or `*.pprof`.
+- `->toServer(?url, Format = Format::XHProf, headers: [])` sends the profile to any HTTP server, by default to
+  a Buggregator Server at `http://127.0.0.1:8000/api/profiler/store`. Userinfo in the URL becomes Basic
+  authorization.
+- `->to(fn(Profile $profile) => ...)` passes the profile to your code, e.g. `$profile->encode(Format::Pprof)`.
+
+A format is preferred, not required: Excimer converts its samples to every format, while XHProf, which keeps no
+stacks, gives XHProf in place of Speedscope, collapsed stacks or pprof.
+
+Profiling never breaks the profiled code. Nested profiles, a missing profiler, a profile too short to have
+samples and delivery errors are logged once per process to the `trap.profiler` channel of `trap()::logger()`,
+which falls back to STDERR when Trap is not running; only invalid options throw.
+`->if($condition)` turns profiling off, e.g. outside a dev environment.
+
+The client takes these environment variables:
+
+- `TRAP_PROFILER_HOST` and `TRAP_PROFILER_PORT` - where `toTrap()` sends (default: `127.0.0.1:9912`)
+- `TRAP_PROFILER_SERVER` - the default URL of `toServer()`
+- `TRAP_PROFILER_APP_NAME` - the application name in the profile metadata
+
+Trap receives profiles on any of its ports:
+
+| Endpoint                         | Format                                                                      |
+|----------------------------------|-----------------------------------------------------------------------------|
+| `POST /api/profiler/store`       | XHProf, as Buggregator Server takes it                                      |
+| `POST /api/profiler/xdebug`      | Xdebug cachegrind files                                                     |
+| `POST /api/profiler/speedscope`  | Speedscope JSON, e.g. from Excimer; also any JSON starting with `$schema`   |
+| `POST /api/profiler/pprof`       | pprof, gzipped or not, from any language: Go, Java, Python, Rust and so on  |
+
+Speedscope and pprof take the metadata in the query: `name`, `app_name`, `hostname` and `tags[key]=value`;
+Speedscope also takes `clock` and `period`. For example, a Go service:
+
+```bash
+curl -s http://localhost:6060/debug/pprof/profile?seconds=10 \
+  | curl --data-binary @- 'http://127.0.0.1:9912/api/profiler/pprof?app_name=billing'
+```
+
+Trap also picks up profiler files from a directory:
+
+- `TRAP_XHPROF_PATH` - XHProf files, by default from `xhprof.output_dir`
+- `TRAP_XDEBUG_PATH` - Xdebug cachegrind files, by default from `xdebug.output_dir` while `xdebug.mode`
+  includes `profile`
+
+Large profiles are compacted to the memory Trap has (see `TRAP_MEMORY_LIMIT` above): calls of the same function
+are merged, deep recursion is collapsed and the coldest calls are folded into `(other)` nodes;
+the profile metadata tells how much was folded. One profile is built at a time.
 
 ### OpenTelemetry traces
 
