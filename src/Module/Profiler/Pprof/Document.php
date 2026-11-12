@@ -25,20 +25,44 @@ final class Document
     /** Frames a sample may have, inlined ones included. */
     public const MAX_STACK_DEPTH = 16_384;
 
+    /**
+     * Lines of a location: the calls inlined into each other at an address. Compilers inline a few levels
+     * (Go profiles have up to 5); each line costs a tree step in every sample of the location.
+     */
+    public const MAX_INLINED_LINES = 256;
+
+    /**
+     * Frames all the samples may have together, each a step of the build: the build holds a lock, and a few bytes
+     * of a sample may refer to thousands of frames. Go profiles have under a frame per byte, about 8 million
+     * at {@see ProfileBuilder::MAX_INFLATED_SIZE}; the limit holds the build to a few seconds.
+     */
+    public const MAX_FRAMES = 20_000_000;
+
     /** Estimated bytes a string of the table takes besides its content. */
     private const STRING_BYTES = 64;
 
-    /** Estimated bytes an entry of a table takes, and an inlined line of a location. */
+    /** Estimated bytes an entry of a small table takes: a sample type or a mapping. */
     private const ENTRY_BYTES = 160;
 
-    private const LINE_BYTES = 24;
+    /** Estimated bytes a function takes: its frame, its name and the file it is told apart by. */
+    private const FUNCTION_BYTES = 250;
+
+    /** Estimated bytes a location of one frame takes. */
+    private const LOCATION_BYTES = 48;
+
+    /** Estimated bytes the list of the frames of a location of several lines takes, and a frame in it. */
+    private const FRAME_LIST_BYTES = 256;
+
+    private const FRAME_BYTES = 32;
 
     /**
      * @param list<array{string, string}> $sampleTypes Types and units of the sample values.
      * @param list<non-empty-string> $names Frame names by IDs.
      * @param array<non-empty-string, true> $fileScope Names of the frames of file-scope code: named by their file.
-     * @param array<int, list<int<0, max>>> $locations Frame IDs by location IDs, the outermost first.
+     * @param array<int, int<0, max>|list<int<0, max>>> $locations Frame IDs by location IDs, the outermost first;
+     *        the frame ID itself for a location of one frame.
      * @param array{string, string}|null $periodType
+     * @param positive-int $maxFrames
      */
     private function __construct(
         private readonly string $data,
@@ -51,6 +75,7 @@ final class Document
         public readonly ?array $periodType,
         public readonly int $timeNanos,
         public readonly int $durationNanos,
+        private readonly int $maxFrames,
     ) {}
 
     /**
@@ -58,10 +83,11 @@ final class Document
      *
      * @param positive-int $maxDecodedSize Limit of the estimated memory the tables take decoded, in bytes:
      *        an entry of a few bytes takes a hundred of them decoded.
+     * @param positive-int $maxFrames Limit of the frames of all the samples, inlined ones included.
      *
      * @throws \InvalidArgumentException When the data is not a valid profile or is over the limit.
      */
-    public static function read(string $data, int $maxDecodedSize): self
+    public static function read(string $data, int $maxDecodedSize, int $maxFrames = self::MAX_FRAMES): self
     {
         $end = \strlen($data);
         $offset = 0;
@@ -75,13 +101,11 @@ final class Document
         $time = 0;
         $duration = 0;
         $default = 0;
-        /** @var array<int, array{int, int, int}> $functions Name, system name and file name indexes by IDs */
-        $functions = [];
         /** @var array<int, int> $mappings File name indexes by IDs */
         $mappings = [];
-        /** @var array<int, array{list<int>, int, int}> $locations Function IDs of the lines, mapping ID and address */
-        $locations = [];
 
+        // Functions and locations are only counted here: they are read into frames once the strings,
+        // which go after them, are known, so that only the frames are held.
         while ($offset < $end) {
             [$field, $type] = Wire::tag($data, $offset, $end);
             switch ($field) {
@@ -95,14 +119,13 @@ final class Document
                     $estimate += self::ENTRY_BYTES;
                     break;
                 case 4:
-                    [$id, $location] = self::location($data, $offset, Wire::message($data, $offset, $end, $type));
-                    $locations[$id] = $location;
-                    $estimate += self::ENTRY_BYTES + 2 * self::LINE_BYTES * \count($location[0]);
+                    $lines = \count(self::location($data, $offset, Wire::message($data, $offset, $end, $type))[1]);
+                    $estimate += self::LOCATION_BYTES
+                        + ($lines > 1 ? self::FRAME_LIST_BYTES + self::FRAME_BYTES * $lines : 0);
                     break;
                 case 5:
-                    [$id, $function] = self::function($data, $offset, Wire::message($data, $offset, $end, $type));
-                    $functions[$id] = $function;
-                    $estimate += self::ENTRY_BYTES;
+                    $offset = Wire::message($data, $offset, $end, $type);
+                    $estimate += self::FUNCTION_BYTES;
                     break;
                 case 6:
                     $to = Wire::message($data, $offset, $end, $type);
@@ -140,8 +163,7 @@ final class Document
         /** @param array{int, int} $pair */
         $valueType = static fn(array $pair): array => [$string($pair[0]), $string($pair[1])];
 
-        [$names, $fileScope, $frames] = self::frames($functions, $mappings, $locations, $string);
-        unset($functions, $mappings);
+        [$names, $fileScope, $frames] = self::frames($data, $mappings, $string);
 
         return new self(
             data: $data,
@@ -154,6 +176,7 @@ final class Document
             periodType: $periodType === null ? null : $valueType($periodType),
             timeNanos: $time,
             durationNanos: $duration,
+            maxFrames: $maxFrames,
         );
     }
 
@@ -161,7 +184,8 @@ final class Document
      * @return \Generator<int, array{list<int<0, max>>, list<int>}> Frame IDs from the root, and the values,
      *         by sample indexes.
      *
-     * @throws \InvalidArgumentException When a sample is malformed.
+     * @throws \InvalidArgumentException When a sample is malformed, is deeper than {@see self::MAX_STACK_DEPTH},
+     *         or the samples have more frames than the limit.
      */
     public function samples(): \Generator
     {
@@ -171,6 +195,7 @@ final class Document
         $end = \strlen($data);
         $offset = 0;
         $index = 0;
+        $total = 0;
         while ($offset < $end) {
             [$field, $type] = Wire::tag($data, $offset, $end);
             if ($field !== 2) {
@@ -201,10 +226,18 @@ final class Document
                 $frames = $locations[$ids[$i]] ?? throw new \InvalidArgumentException(
                     "Sample $index refers to unknown location {$ids[$i]}.",
                 );
+                if (\is_int($frames)) {
+                    $path[] = $frames;
+                    continue;
+                }
+                \count($path) + \count($frames) <= self::MAX_STACK_DEPTH or throw new \InvalidArgumentException(
+                    "Sample $index is deeper than " . self::MAX_STACK_DEPTH . ' frames.',
+                );
                 \array_push($path, ...$frames);
             }
-            \count($path) <= self::MAX_STACK_DEPTH or throw new \InvalidArgumentException(
-                "Sample $index is deeper than " . self::MAX_STACK_DEPTH . ' frames.',
+            $total += \count($path);
+            $total <= $this->maxFrames or throw new \InvalidArgumentException(
+                "The samples have more than {$this->maxFrames} frames together, inlined ones included.",
             );
 
             yield $index++ => [$path, $values];
@@ -250,8 +283,10 @@ final class Document
     }
 
     /**
-     * @return array{int, array{list<int>, int, int}} The ID; the function IDs of the lines, the mapping ID
-     *         and the address.
+     * @return array{int, list<int>, int, int} The ID, the function IDs of the lines, the mapping ID and the address.
+     *
+     * @throws \InvalidArgumentException When the location is malformed or has more than
+     *         {@see self::MAX_INLINED_LINES} lines.
      */
     private static function location(string $data, int &$offset, int $end): array
     {
@@ -272,6 +307,9 @@ final class Document
                     $address = Wire::int($data, $offset, $end, $wire);
                     break;
                 case 4:
+                    \count($lines) < self::MAX_INLINED_LINES or throw new \InvalidArgumentException(
+                        "Location $id has more than " . self::MAX_INLINED_LINES . ' lines of inlined calls.',
+                    );
                     $to = Wire::message($data, $offset, $end, $wire);
                     $function = 0;
                     while ($offset < $to) {
@@ -287,11 +325,11 @@ final class Document
             }
         }
 
-        return [$id, [$lines, $mapping, $address]];
+        return [$id, $lines, $mapping, $address];
     }
 
     /**
-     * @return array{int, array{int, int, int}} The ID; the name, system name and file name indexes.
+     * @return array{int, int, int, int} The ID; the name, system name and file name indexes.
      */
     private static function function(string $data, int &$offset, int $end): array
     {
@@ -310,31 +348,59 @@ final class Document
             };
         }
 
-        return [$id, [$name, $systemName, $file]];
+        return [$id, $name, $systemName, $file];
     }
 
     /**
-     * @param array<int, array{int, int, int}> $functions
+     * @return \Generator<int, int> Ends of the messages of a top-level field by their starts.
+     */
+    private static function messages(string $data, int $field): \Generator
+    {
+        $end = \strlen($data);
+        $offset = 0;
+        while ($offset < $end) {
+            [$tagField, $type] = Wire::tag($data, $offset, $end);
+            if ($tagField !== $field) {
+                Wire::skip($data, $offset, $end, $type);
+                continue;
+            }
+
+            $to = Wire::message($data, $offset, $end, $type);
+            yield $offset => $to;
+            $offset = $to;
+        }
+    }
+
+    /**
+     * Reads the functions and the locations into frames.
+     *
      * @param array<int, int> $mappings
-     * @param array<int, array{list<int>, int, int}> $locations
      * @param \Closure(int): string $string
      *
-     * @return array{list<non-empty-string>, array<non-empty-string, true>, array<int, list<int<0, max>>>}
+     * @return array{list<non-empty-string>, array<non-empty-string, true>, array<int, int<0, max>|list<int<0, max>>>}
      *         The frame names, the names of file-scope code and the frames of the locations.
      */
-    private static function frames(array $functions, array $mappings, array $locations, \Closure $string): array
+    private static function frames(string $data, array $mappings, \Closure $string): array
     {
-        /** @var array<int, array{non-empty-string, string}> $read Names and files by function IDs */
-        $read = [];
-        /** @var array<non-empty-string, array<string, true>> $files Files by names */
-        $files = [];
-        foreach ($functions as $id => [$name, $systemName, $file]) {
+        /**
+         * @return array{int, non-empty-string, string} The ID, the name and the file.
+         */
+        $readFunction = static function (int $at, int $to) use ($data, $string): array {
+            [$id, $name, $systemName, $file] = self::function($data, $at, $to);
             $name = $string($name);
             $name === '' and $name = $string($systemName);
             $name === '' and $name = StackTree::UNKNOWN;
-            $file = $string($file);
-            $read[$id] = [$name, $file];
-            $files[$name][$file] = true;
+
+            return [$id, $name, $string($file)];
+        };
+
+        // The file of a name, false for a name of several files
+        /** @var array<non-empty-string, string|false> $fileOf */
+        $fileOf = [];
+        foreach (self::messages($data, 5) as $at => $to) {
+            [, $name, $file] = $readFunction($at, $to);
+            $known = $fileOf[$name] ?? $file;
+            $fileOf[$name] = $known === $file ? $file : false;
         }
 
         $names = [];
@@ -351,25 +417,27 @@ final class Document
 
         /** @var array<int, int<0, max>> $functionFrames */
         $functionFrames = [];
-        foreach ($read as $id => [$name, $file]) {
+        foreach (self::messages($data, 5) as $at => $to) {
+            [$id, $name, $file] = $readFunction($at, $to);
             $file !== '' && $name === $file and $fileScope[$name] = true;
-            $functionFrames[$id] = $frameOf(\count($files[$name]) > 1 && $file !== '' ? "$name ($file)" : $name);
+            $functionFrames[$id] = $frameOf($fileOf[$name] === false && $file !== '' ? "$name ($file)" : $name);
         }
-        unset($read, $files);
+        unset($fileOf);
 
-        /** @var array<int, list<int<0, max>>> $frames */
+        /** @var array<int, int<0, max>|list<int<0, max>>> $frames */
         $frames = [];
-        foreach ($locations as $id => [$lines, $mapping, $address]) {
+        foreach (self::messages($data, 4) as $at => $to) {
+            [$id, $lines, $mapping, $address] = self::location($data, $at, $to);
             if ($lines === []) {
                 $file = $mapping === 0 ? '' : $string($mappings[$mapping] ?? throw new \InvalidArgumentException(
                     "Location $id refers to unknown mapping $mapping.",
                 ));
                 $hex = \sprintf('0x%x', $address);
-                $frames[$id] = [$frameOf(match (true) {
+                $frames[$id] = $frameOf(match (true) {
                     $file !== '' => "$file+$hex",
                     $address !== 0 => $hex,
                     default => StackTree::UNKNOWN,
-                })];
+                });
                 continue;
             }
 
@@ -383,7 +451,7 @@ final class Document
                         "Location $id refers to unknown function $function.",
                     );
             }
-            $frames[$id] = $list;
+            $frames[$id] = \count($list) === 1 ? $list[0] : $list;
         }
 
         return [$names, $fileScope, $frames];

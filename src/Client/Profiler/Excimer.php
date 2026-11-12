@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Client\Profiler;
 
 use Buggregator\Trap\Client\Profiler\Internal\Driver;
+use Buggregator\Trap\Client\Profiler\Internal\Model\CallTree;
 use Buggregator\Trap\Client\Profiler\Internal\Model\PprofWriter;
 use Buggregator\Trap\Client\Profiler\Internal\Model\SpeedscopeReader;
 use Buggregator\Trap\Client\Profiler\Internal\Model\XHProfWriter;
@@ -114,6 +115,10 @@ final class Excimer implements Driver
                 $period = $this->period;
                 $cpu = $this->cpu;
                 $startedAt = $this->startedAt;
+                $tree = null;
+                $read = static function () use (&$tree, $log, $period, $cpu): CallTree {
+                    return $tree ??= SpeedscopeReader::read($log->getSpeedscopeData(), $period, $cpu);
+                };
 
                 // Excimer copies names and paths byte for byte, so they need not be valid UTF-8.
                 return new Recorded([
@@ -122,11 +127,9 @@ final class Excimer implements Driver
                         \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_INVALID_UTF8_SUBSTITUTE,
                     ),
                     Format::Collapsed->value => $log->formatCollapsed(...),
-                    Format::XHProf->value => static fn(): string => XHProfWriter::json(
-                        SpeedscopeReader::read($log->getSpeedscopeData(), $period, $cpu)->toGraph(),
-                    ),
+                    Format::XHProf->value => static fn(): string => XHProfWriter::json($read()->toGraph()),
                     Format::Pprof->value => static fn(): string => PprofWriter::encode(
-                        SpeedscopeReader::read($log->getSpeedscopeData(), $period, $cpu),
+                        $read(),
                         $period,
                         $cpu,
                         $startedAt,

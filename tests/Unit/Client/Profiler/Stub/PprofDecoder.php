@@ -13,7 +13,9 @@ namespace Buggregator\Trap\Tests\Unit\Client\Profiler\Stub;
  *     strings: list<string>,
  *     sample_type: list<array{string, string}>,
  *     samples: list<array{locations: list<int>, values: list<int>}>,
+ *     mappings: array<int, array{filename: string, has_functions: bool, has_filenames: bool}>,
  *     locations: array<int, list<int>>,
+ *     location_mappings: array<int, int>,
  *     functions: array<int, array{name: string, system_name: string, filename: string}>,
  *     time_nanos: int,
  *     duration_nanos: int,
@@ -36,7 +38,6 @@ final class PprofDecoder
         }
 
         $fields = self::fields($data, [1 => 2, 2 => 2, 3 => 2, 4 => 2, 5 => 2, 6 => 2, 9 => 0, 10 => 0, 11 => 2, 12 => 0, 14 => 0]);
-        isset($fields[3]) and throw new \UnexpectedValueException('No mappings are expected.');
 
         /** @var list<string> $strings */
         $strings = $fields[6] ?? [];
@@ -56,9 +57,22 @@ final class PprofDecoder
             ];
         }
 
+        $mappings = [];
+        foreach ($fields[3] ?? [] as $message) {
+            $mapping = self::fields((string) $message, [1 => 0, 5 => 0, 7 => 0, 8 => 0]);
+            $id = self::single($mapping, 1);
+            isset($mappings[$id]) and throw new \UnexpectedValueException("Duplicate mapping {$id}.");
+            $mappings[$id] = [
+                'filename' => $string(self::single($mapping, 5)),
+                'has_functions' => self::single($mapping, 7) === 1,
+                'has_filenames' => self::single($mapping, 8) === 1,
+            ];
+        }
+
         $locations = [];
+        $locationMappings = [];
         foreach ($fields[4] ?? [] as $message) {
-            $location = self::fields((string) $message, [1 => 0, 4 => 2]);
+            $location = self::fields((string) $message, [1 => 0, 2 => 0, 4 => 2]);
             $lines = [];
             foreach ($location[4] ?? [] as $line) {
                 $lines[] = self::single(self::fields((string) $line, [1 => 0]), 1);
@@ -66,6 +80,9 @@ final class PprofDecoder
             $id = self::single($location, 1);
             isset($locations[$id]) and throw new \UnexpectedValueException("Duplicate location {$id}.");
             $locations[$id] = $lines;
+            $mapping = self::single($location, 2);
+            isset($mappings[$mapping]) or throw new \UnexpectedValueException("No mapping {$mapping}.");
+            $locationMappings[$id] = $mapping;
         }
 
         $functions = [];
@@ -85,7 +102,9 @@ final class PprofDecoder
             'strings' => $strings,
             'sample_type' => \array_map(static fn(int|string $m): array => $valueType((string) $m), $fields[1] ?? []),
             'samples' => $samples,
+            'mappings' => $mappings,
             'locations' => $locations,
+            'location_mappings' => $locationMappings,
             'functions' => $functions,
             'time_nanos' => self::single($fields, 9),
             'duration_nanos' => self::single($fields, 10),

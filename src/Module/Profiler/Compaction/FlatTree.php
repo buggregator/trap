@@ -76,6 +76,19 @@ final class FlatTree
     }
 
     /**
+     * @return array<int, float> What the nodes weigh by index: the time, or the memory in a profile of no time,
+     *         as a heap profile, or else the counts.
+     */
+    public function weights(): array
+    {
+        return match (true) {
+            \array_sum($this->value) > 0.0 => $this->value,
+            \array_sum($this->memory) > 0.0 => $this->memory,
+            default => \array_map('floatval', $this->count),
+        };
+    }
+
+    /**
      * @return array<int, list<int>> Children by parents in the order they were added; roots under -1.
      */
     public function children(): array

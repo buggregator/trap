@@ -10,7 +10,8 @@ namespace Buggregator\Trap\Client\Profiler\Internal\Model;
  *
  * Every sample has two values: `samples/count` and the sampled time in `wall/nanoseconds` or `cpu/nanoseconds`,
  * the default one. A sample is made per distinct stack; a location is made per function, without lines.
- * The stacks are rooted at `main()`, as in the XHProf conversion.
+ * The stacks are rooted at `main()`, as in the XHProf conversion. All locations belong to one mapping
+ * named by the file of `main()`.
  *
  * @internal
  */
@@ -18,13 +19,14 @@ final class PprofWriter
 {
     private const VARINT = 0;
     private const LENGTH_DELIMITED = 2;
+    private const MAPPING = 1;
 
     /**
      * @param float $period Sampling period in seconds.
-     * @param bool $cpu Whether the samples were taken by CPU time.
+     * @param bool $cpu Whether the samples were taken by CPU time: the time values are the CPU time, not the wall time.
      * @param int<0, max> $timeNanos Profile start as Unix time in nanoseconds; 0 when unknown.
      * @param int<0, max> $durationNanos 0 when unknown.
-     * @param bool|null $gzip Null compresses when ext-zlib is available.
+     * @param bool $gzip Takes effect only when ext-zlib is available.
      */
     public static function encode(
         CallTree $tree,
@@ -32,7 +34,7 @@ final class PprofWriter
         bool $cpu,
         int $timeNanos = 0,
         int $durationNanos = 0,
-        ?bool $gzip = null,
+        bool $gzip = true,
     ): string {
         /** @var array<array-key, int> $strings Indexes by string; numeric strings turn into integer keys. */
         $strings = ['' => 0];
@@ -45,10 +47,9 @@ final class PprofWriter
         $lastFunction = 0;
         $functions = '';
         $locations = '';
-        /** @var array<int, int> $locationOf Location ids by node id. */
-        $locationOf = [];
-        /** @var array<int, int|null> $parentOf */
-        $parentOf = [];
+        $mainFile = 0;
+        /** @var array<int, string> $pathOf Packed leaf-first location ids of the path to a node, by node id. */
+        $pathOf = [];
         /** @var array<string, array{int, int}> $stacks Samples and nanoseconds by packed leaf-first location ids. */
         $stacks = [];
 
@@ -60,41 +61,49 @@ final class PprofWriter
             int $wt,
             int $cpuTime,
             int $samples,
-        ) use ($string, &$functionIds, &$lastFunction, &$functions, &$locations, &$locationOf, &$parentOf, &$stacks): void {
+        ) use ($string, $cpu, &$functionIds, &$lastFunction, &$functions, &$locations, &$mainFile, &$pathOf, &$stacks): void {
             $file ??= '';
             $function = $functionIds[$file][$name] ?? null;
             if ($function === null) {
                 $function = ++$lastFunction;
                 $functionIds[$file][$name] = $function;
                 $nameIndex = $string($name);
+                $fileIndex = $string($file);
                 $functions .= self::message(5, self::uint(1, $function)
                     . self::uint(2, $nameIndex)
                     . self::uint(3, $nameIndex)
-                    . self::uint(4, $string($file)));
+                    . self::uint(4, $fileIndex));
                 // One location per function: the location id is the function id.
-                $locations .= self::message(4, self::uint(1, $function) . self::message(4, self::uint(1, $function)));
+                $locations .= self::message(4, self::uint(1, $function)
+                    . self::uint(2, self::MAPPING)
+                    . self::message(4, self::uint(1, $function)));
+                $parent === null and $mainFile = $fileIndex;
             }
 
-            $locationOf[$id] = $function;
-            $parentOf[$id] = $parent;
-            if ($samples === 0 && $wt === 0) {
+            // A parent comes before its children, so its path is ready.
+            $path = $pathOf[$id] = self::varint($function) . ($parent === null ? '' : $pathOf[$parent]);
+            $time = $cpu ? $cpuTime : $wt;
+            if ($samples === 0 && $time === 0) {
                 return;
             }
 
-            $packed = '';
-            for ($node = $id; $node !== null; $node = $parentOf[$node]) {
-                $packed .= self::varint($locationOf[$node]);
-            }
-
-            $stack = $stacks[$packed] ?? [0, 0];
-            $stacks[$packed] = [$stack[0] + $samples, $stack[1] + $wt * 1000];
+            $stack = $stacks[$path] ?? [0, 0];
+            $stacks[$path] = [$stack[0] + $samples, $stack[1] + $time];
         });
+        unset($pathOf);
 
         $samples = '';
-        foreach ($stacks as $packed => [$count, $nanoseconds]) {
-            $samples .= self::message(2, self::bytes(1, (string) $packed)
+        foreach ($stacks as $path => [$count, $nanoseconds]) {
+            $samples .= self::message(2, self::bytes(1, (string) $path)
                 . self::bytes(2, self::varint($count) . self::varint($nanoseconds)));
         }
+        unset($stacks);
+
+        // pprof tools warn that the main binary filename is not available without a mapping.
+        $mapping = self::message(3, self::uint(1, self::MAPPING)
+            . self::uint(5, $mainFile)
+            . self::uint(7, 1)
+            . self::uint(8, 1));
 
         $countType = self::message(1, self::uint(1, $string('samples')) . self::uint(2, $string('count')));
         $timeType = self::uint(1, $timeIndex = $string($cpu ? 'cpu' : 'wall')) . self::uint(2, $string('nanoseconds'));
@@ -107,6 +116,7 @@ final class PprofWriter
         $profile = $countType
             . self::message(1, $timeType)
             . $samples
+            . $mapping
             . $locations
             . $functions
             . $table
@@ -116,8 +126,7 @@ final class PprofWriter
             . self::uint(12, \max(0, (int) \round($period * 1e9)))
             . self::uint(14, $timeIndex);
 
-        $gzip ??= \function_exists('gzencode');
-        $compressed = $gzip ? \gzencode($profile) : false;
+        $compressed = $gzip && \function_exists('gzencode') ? \gzencode($profile) : false;
 
         return $compressed === false ? $profile : $compressed;
     }

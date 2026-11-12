@@ -25,6 +25,8 @@ use Buggregator\Trap\Server\Proto\Frame;
  */
 final class Mapper implements EventMapper
 {
+    private const SAMPLES = 'samples';
+
     /**
      * @return Event<ProfilerPayload>
      */
@@ -76,7 +78,11 @@ final class Mapper implements EventMapper
                     key: 'ct',
                     label: 'CT',
                     sortable: true,
-                    description: self::countsSamples($event->payload) ? 'Samples with the function on the stack' : 'Calls',
+                    description: match ($countType = self::countType($event->payload)) {
+                        null => 'Calls',
+                        self::SAMPLES => 'Samples with the function on the stack',
+                        default => "$countType of the function and its callees",
+                    },
                     values: [new TopFunctions\Value(key: 'ct', format: 'number')],
                 ),
                 ...self::metricColumns($profile->peaks, 'cpu', 'CPU', 'CPU time (ms)', 'ms'),
@@ -101,7 +107,7 @@ final class Mapper implements EventMapper
     ): CallGraph {
         $profile = $event->payload->getProfile();
         $graph = $profile->calls;
-        $samples = self::countsSamples($event->payload);
+        $countType = self::countType($event->payload);
         $nodes = [];
         $edges = [];
         /** @var array<non-empty-string, array{non-empty-string, string}> $visible Node IDs and colors by function IDs */
@@ -124,8 +130,10 @@ final class Mapper implements EventMapper
                 id: $id,
                 name: match (true) {
                     $cost->ct === 0 => $name,
-                    $samples => \sprintf('%s (%d %s)', $name, $cost->ct, $cost->ct === 1 ? 'sample' : 'samples'),
-                    default => \sprintf('%s (%dx)', $name, $cost->ct),
+                    $countType === null => \sprintf('%s (%dx)', $name, $cost->ct),
+                    $countType === self::SAMPLES
+                        => \sprintf('%s (%d %s)', $name, $cost->ct, $cost->ct === 1 ? 'sample' : 'samples'),
+                    default => \sprintf('%s (%d %s)', $name, $cost->ct, $countType),
                 },
                 cost: $cost,
                 metrics: new CallGraph\Metrics(cost: self::costOf($cost, $metric), percents: $percent),
@@ -349,13 +357,24 @@ final class Mapper implements EventMapper
     }
 
     /**
-     * A sampling profiler counts the samples a function is on the stack in, not its calls.
+     * A sampling profiler counts the samples a function is on the stack in, not its calls; a pprof profile may count
+     * something else by its sample type, such as the allocated objects of a heap profile.
+     *
+     * @return non-empty-string|null The sample type, {@see self::SAMPLES} for the samples, null for the calls.
      */
-    private static function countsSamples(ProfilerPayload $payload): bool
+    private static function countType(ProfilerPayload $payload): ?string
     {
-        return $payload->type === ProfilerPayloadType::Pprof
-            || $payload->type === ProfilerPayloadType::Speedscope
-            && ($payload->getProfile()->metadata['profile_type'] ?? null) === 'sampled';
+        $metadata = $payload->getProfile()->metadata;
+        if ($payload->type === ProfilerPayloadType::Pprof) {
+            /** @var mixed $type */
+            $type = $metadata['count_type'] ?? null;
+
+            return \is_string($type) && $type !== '' && \preg_match('/samples?$/i', $type) !== 1 ? $type : self::SAMPLES;
+        }
+
+        return $payload->type === ProfilerPayloadType::Speedscope && ($metadata['profile_type'] ?? null) === 'sampled'
+            ? self::SAMPLES
+            : null;
     }
 
     /**

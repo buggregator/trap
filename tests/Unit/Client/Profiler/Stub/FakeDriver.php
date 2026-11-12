@@ -54,7 +54,7 @@ final class FakeDriver implements Driver
 
     /**
      * Like Excimer: Speedscope and Collapsed natively, XHProf and pprof converted from the Speedscope document
-     * with a 1 ms period.
+     * with a 1 ms period and the clock of the options.
      */
     public static function excimer(): self
     {
@@ -82,6 +82,14 @@ final class FakeDriver implements Driver
         return $this->options;
     }
 
+    /**
+     * Whether the converted profiles are sampled by CPU time, as the `clock` option says.
+     */
+    public function isCpuClock(): bool
+    {
+        return ($this->options['clock'] ?? null) === 'cpu';
+    }
+
     public function start(): Recording
     {
         ++$this->started;
@@ -104,16 +112,16 @@ final class FakeDriver implements Driver
                     Format::Pprof->value => '',
                 ];
                 $formats = $this->driver->formats();
+                $cpu = $this->driver->isCpuClock();
+                $tree = SpeedscopeReader::read(\json_decode(FakeDriver::SPEEDSCOPE, true), 0.001, $cpu);
                 if ($formats[0] === Format::Speedscope && \in_array(Format::XHProf, $formats, true)) {
-                    $data[Format::XHProf->value] = XHProfWriter::json(
-                        SpeedscopeReader::read(\json_decode(FakeDriver::SPEEDSCOPE, true), 0.001, false)->toGraph(),
-                    );
+                    $data[Format::XHProf->value] = XHProfWriter::json($tree->toGraph());
                 }
                 if (\in_array(Format::Pprof, $formats, true)) {
                     $data[Format::Pprof->value] = PprofWriter::encode(
-                        SpeedscopeReader::read(\json_decode(FakeDriver::SPEEDSCOPE, true), 0.001, false),
+                        $tree,
                         0.001,
-                        false,
+                        $cpu,
                         FakeDriver::STARTED_AT,
                         FakeDriver::DURATION,
                     );

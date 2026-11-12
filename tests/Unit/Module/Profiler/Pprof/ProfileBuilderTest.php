@@ -132,15 +132,21 @@ final class ProfileBuilderTest
     {
         $types = [['alloc_objects', 'count'], ['alloc_space', 'bytes'], ['inuse_objects', 'count'], ['inuse_space', 'bytes']];
         $costs = [];
-        foreach ([null, 'inuse_space'] as $default) {
+        foreach (['alloc_space', 'inuse_space', null] as $default) {
             $pprof = new PprofProfile($types);
             $pprof->defaultSampleType = $default;
             $pprof->sample([$pprof->frame('main.alloc')], [10, 1024, 2, 256]);
-            $cost = self::build($pprof)->calls->roots()[0]->cost;
-            $costs[] = [$cost->ct, $cost->mu, $cost->wt];
+            $profile = self::build($pprof);
+            $cost = $profile->calls->roots()[0]->cost;
+            $costs[] = [$cost->ct, $cost->mu, $cost->wt, $profile->metadata['count_type']];
         }
 
-        Assert::same($costs, [[10, 1024, 0], [2, 256, 0]]);
+        // With no default, the last type is the default, as Go's heap profile is read by `go tool pprof`
+        Assert::same($costs, [
+            [10, 1024, 0, 'alloc_objects'],
+            [2, 256, 0, 'inuse_objects'],
+            [2, 256, 0, 'inuse_objects'],
+        ]);
     }
 
     public function testTakesDefaultSampleTypeOverFirstOfSameCost(): void
@@ -274,6 +280,7 @@ final class ProfileBuilderTest
             'app_name' => 'shop',
             'profile_type' => 'sampled',
             'sample_types' => 'samples/count, cpu/nanoseconds',
+            'count_type' => 'samples',
             'clock' => 'cpu',
             'period' => 10_000_000,
             'period_type' => 'cpu/nanoseconds',
@@ -345,6 +352,96 @@ final class ProfileBuilderTest
         $pprof->sample(\array_fill(0, 6000, $location), [1, 1000]);
 
         Expect::exception(\InvalidArgumentException::class)->withMessageContaining('deeper than 16384 frames');
+
+        self::build($pprof);
+    }
+
+    public function testRejectsDeepSampleBeforeExpandingItsLocations(): void
+    {
+        $pprof = new PprofProfile();
+        $location = $pprof->location(\array_fill(0, Document::MAX_INLINED_LINES, $pprof->function('inlined')));
+        // Four million frames, were they expanded
+        $pprof->sample(\array_fill(0, Document::MAX_STACK_DEPTH, $location), [1, 1000]);
+        $builder = new ProfileBuilder();
+        $document = $builder->decode($pprof->encode());
+        // PHP 8.1 has no reset of the peak: only the message is checked there
+        $measured = \function_exists('memory_reset_peak_usage');
+        $measured and \memory_reset_peak_usage();
+        $memory = \memory_get_usage();
+
+        try {
+            $builder->createProfile($document);
+            Assert::fail('The sample is not rejected.');
+        } catch (\InvalidArgumentException $e) {
+            Assert::string($e->getMessage())->contains('Sample 0 is deeper than 16384 frames');
+        }
+
+        $measured and Assert::true(\memory_get_peak_usage() - $memory < 16 * 1024 * 1024);
+    }
+
+    public function testReadsLocationOfMostInlinedLines(): void
+    {
+        $pprof = new PprofProfile();
+        $location = $pprof->location(\array_fill(0, Document::MAX_INLINED_LINES, $pprof->function('inlined')));
+        $pprof->sample([$location], [1, 1000]);
+
+        Assert::same(self::build($pprof)->peaks->ct, 1);
+    }
+
+    public function testRejectsLocationOfTooManyInlinedLines(): never
+    {
+        $pprof = new PprofProfile();
+        $location = $pprof->location(\array_fill(0, Document::MAX_INLINED_LINES + 1, $pprof->function('inlined')));
+        $pprof->sample([$location], [1, 1000]);
+
+        Expect::exception(\InvalidArgumentException::class)
+            ->withMessage('Location 1 has more than 256 lines of inlined calls.');
+
+        (new ProfileBuilder())->decode($pprof->encode());
+    }
+
+    public function testRejectsSamplesOverFrameLimit(): never
+    {
+        $pprof = new PprofProfile();
+        $location = $pprof->location(\array_fill(0, 4, $pprof->function('inlined')));
+        // A sample takes 8 frames of the 20: the third is over the limit
+        $pprof->sample([$location, $location], [1, 1000])
+            ->sample([$location, $location], [1, 1000])
+            ->sample([$location, $location], [1, 1000]);
+        $builder = new ProfileBuilder(maxFrames: 20);
+
+        Expect::exception(\InvalidArgumentException::class)
+            ->withMessage('The samples have more than 20 frames together, inlined ones included.');
+
+        $builder->createProfile($builder->decode($pprof->encode()));
+    }
+
+    public function testReadsSamplesUpToFrameLimit(): void
+    {
+        $pprof = new PprofProfile();
+        $location = $pprof->location(\array_fill(0, 4, $pprof->function('inlined')));
+        $pprof->sample([$location, $location], [1, 1000])->sample([$location, $location], [1, 1000]);
+        $builder = new ProfileBuilder(maxFrames: 16);
+
+        Assert::same($builder->createProfile($builder->decode($pprof->encode()))->peaks->ct, 2);
+    }
+
+    public function testIgnoresNegativeValuesOfTypesNotTaken(): void
+    {
+        $pprof = new PprofProfile([['samples', 'count'], ['cpu', 'nanoseconds'], ['delta', 'widgets']]);
+        $pprof->sample([$pprof->frame('main')], [1, 1000, -7]);
+
+        Assert::same(self::build($pprof)->peaks->ct, 1);
+    }
+
+    public function testRejectsNegativeValueOfTakenType(): never
+    {
+        $pprof = new PprofProfile([['alloc_objects', 'count'], ['alloc_space', 'bytes']]);
+        $main = $pprof->frame('main');
+        $pprof->sample([$main], [1, 512])->sample([$main], [1, -512]);
+
+        Expect::exception(\InvalidArgumentException::class)
+            ->withMessage('Sample 1 has a negative alloc_space: a diff profile is not supported.');
 
         self::build($pprof);
     }

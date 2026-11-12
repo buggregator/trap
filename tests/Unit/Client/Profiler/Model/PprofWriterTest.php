@@ -8,6 +8,7 @@ use Buggregator\Trap\Client\Profiler\Internal\Model\CallTree;
 use Buggregator\Trap\Client\Profiler\Internal\Model\PprofWriter;
 use Buggregator\Trap\Client\Profiler\Internal\Model\SpeedscopeReader;
 use Buggregator\Trap\Client\Profiler\Internal\Model\XHProfWriter;
+use Buggregator\Trap\Module\Profiler\Pprof\ProfileBuilder;
 use Buggregator\Trap\Tests\Unit\Client\Profiler\Stub\PprofDecoder;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -164,6 +165,82 @@ final class PprofWriterTest
             $profile['functions'],
         );
         Assert::same(\count($keys), \count(\array_unique($keys)));
+    }
+
+    #[DataSet(['01-excimer-cpu-phpt', 0.1])]
+    #[DataSet(['03-excimer-truncated-mixed', 0.001])]
+    #[DataSet(['04-excimer-overrun-event-count', 0.001])]
+    #[DataSet(['07-excimer-recursion', 0.001])]
+    #[DataSet(['08-excimer-real-world-names', 0.001])]
+    #[DataSet(['09-excimer-shutdown-roots', 0.001])]
+    #[DataSet(['13-excimer-empty-stack', 0.001])]
+    public function serverReadsTheTotalsOfXHProf(string $fixture, float $period): void
+    {
+        $document = \json_decode((string) \file_get_contents(self::FIXTURES . $fixture . '.json'), true);
+        $builder = new ProfileBuilder();
+
+        foreach ([false, true] as $cpu) {
+            $tree = SpeedscopeReader::read($document, $period, $cpu);
+            $main = \json_decode(XHProfWriter::json($tree->toGraph()), true)['main()'];
+
+            $profile = $builder->createProfile($builder->decode(PprofWriter::encode($tree, $period, $cpu)));
+
+            Assert::same($profile->metadata['clock'] ?? null, $cpu ? 'cpu' : 'wall');
+            Assert::same([$profile->peaks->ct, $profile->peaks->wt], [$main['ct'], $main['wt']]);
+            Assert::same($profile->peaks->cpu, $main['cpu']);
+        }
+    }
+
+    public function timeIsExactForAPeriodOfFractionalMicroseconds(): void
+    {
+        // Excimer weighs a sample by its event count times the period in nanoseconds.
+        $document = [
+            'shared' => ['frames' => [['name' => 'a', 'file' => '/x.php'], ['name' => 'b', 'file' => '/x.php']]],
+            'profiles' => [['type' => 'sampled', 'unit' => 'nanoseconds', 'samples' => [[0, 1], [0, 1], [0]], 'weights' => [1500, 3000, 1500]]],
+        ];
+        $tree = SpeedscopeReader::read($document, 0.0000015, false);
+
+        $profile = PprofDecoder::profile(PprofWriter::encode($tree, 0.0000015, false));
+
+        Assert::same($profile['period'], 1500);
+        Assert::same(PprofDecoder::stacks($profile), ['main();a' => '1/1500', 'main();a;b' => '3/4500']);
+    }
+
+    public function cpuClockWritesTheCpuTime(): void
+    {
+        $tree = new CallTree();
+        $tree->add($tree->node(CallTree::ROOT, 0, 'work'), 3_000_000, 1_000_000, 1);
+
+        Assert::same(PprofDecoder::stacks(PprofDecoder::profile(PprofWriter::encode($tree, 0.001, true))), ['main();work' => '1/1000000']);
+        Assert::same(PprofDecoder::stacks(PprofDecoder::profile(PprofWriter::encode($tree, 0.001, false))), ['main();work' => '1/3000000']);
+    }
+
+    #[DataSet(['01-excimer-cpu-phpt', '/data/cpu.php'], 'the script of main()')]
+    #[DataSet(['09-excimer-shutdown-roots', ''], 'no script')]
+    public function locationsBelongToOneMapping(string $fixture, string $filename): void
+    {
+        $profile = PprofDecoder::profile(PprofWriter::encode(self::tree($fixture, 0.001), 0.001, false));
+
+        Assert::same($profile['mappings'], [1 => ['filename' => $filename, 'has_functions' => true, 'has_filenames' => true]]);
+        Assert::same(\array_unique($profile['location_mappings']), [1 => 1]);
+    }
+
+    public function deepStacksAreWritten(): void
+    {
+        $depth = 2000;
+        $samples = [];
+        for ($i = 1; $i <= 200; ++$i) {
+            $samples[] = \range(0, $depth - $i);
+        }
+        $frames = \array_map(static fn(int $i): array => ['name' => "f{$i}", 'file' => '/deep.php'], \range(0, $depth));
+        $document = ['shared' => ['frames' => $frames], 'profiles' => [['type' => 'sampled', 'unit' => 'nanoseconds', 'samples' => $samples, 'weights' => \array_fill(0, 200, 1_000_000)]]];
+        $tree = SpeedscopeReader::read($document, 0.001, false);
+
+        $profile = PprofDecoder::profile(PprofWriter::encode($tree, 0.001, false));
+
+        Assert::count($profile['samples'], 200);
+        Assert::same(\max(\array_map(static fn(array $sample): int => \count($sample['locations']), $profile['samples'])), $depth + 1);
+        Assert::same(\array_sum(\array_map(static fn(array $sample): int => $sample['values'][1], $profile['samples'])), 200_000_000);
     }
 
     public function functionsAreSharedBetweenStacks(): void

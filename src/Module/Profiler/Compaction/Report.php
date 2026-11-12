@@ -23,7 +23,7 @@ final class Report
     /** Samples or calls summed in `(truncated)` nodes, past the limit of the raw tree. */
     public int $truncated = 0;
 
-    /** Share of the value of the roots in the folded nodes, %. */
+    /** Share of the profile in the folded nodes, %: of the time, or the memory, or the counts. */
     public float $folded = 0.0;
 
     /**
@@ -45,7 +45,7 @@ final class Report
 
         /** @var mixed $folded */
         $folded = $data['folded'] ?? 0.0;
-        \is_float($folded) && $folded > 0.0 and $parts[] = "$folded% of the time in the folded nodes";
+        \is_float($folded) && $folded > 0.0 and $parts[] = "$folded% of the profile in the folded nodes";
 
         return \implode(', ', $parts);
     }
@@ -70,14 +70,18 @@ final class Report
     }
 
     /**
-     * Takes the share of the value in the folded nodes of the compacted tree, node 0 holding the roots.
+     * Takes the share of the folded nodes of the compacted tree, node 0 holding the roots, in what the compaction
+     * ranks the nodes by: see {@see FlatTree::weights()}.
      */
     public function measure(FlatTree $tree): void
     {
+        $weights = $tree->weights();
+        // Calls of a node alone sum up over all the nodes, not over the roots
+        $exclusive = !$tree->inclusiveCounts && \array_sum($tree->value) <= 0.0 && \array_sum($tree->memory) <= 0.0;
         $total = $folded = 0.0;
         foreach ($tree->frame as $node => $frame) {
-            $tree->parent[$node] === 0 and $total += $tree->value[$node];
-            ($frame === FlatTree::OTHER || $frame === FlatTree::TRUNCATED) and $folded += $tree->value[$node];
+            ($exclusive ? $node > 0 : $tree->parent[$node] === 0) and $total += $weights[$node];
+            ($frame === FlatTree::OTHER || $frame === FlatTree::TRUNCATED) and $folded += $weights[$node];
         }
 
         $this->folded = $total > 0.0 ? \round($folded / $total * 100.0, 1) : 0.0;

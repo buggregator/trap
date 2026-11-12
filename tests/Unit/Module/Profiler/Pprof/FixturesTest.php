@@ -33,6 +33,7 @@ final class FixturesTest
         Assert::same($profile->metadata, [
             'profile_type' => 'sampled',
             'sample_types' => 'samples/count, cpu/nanoseconds',
+            'count_type' => 'samples',
             'clock' => 'cpu',
             'period' => 10_000_000,
             'period_type' => 'cpu/nanoseconds',

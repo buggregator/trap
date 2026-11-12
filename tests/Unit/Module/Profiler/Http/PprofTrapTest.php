@@ -49,6 +49,7 @@ final class PprofTrapTest
             'hostname' => 'host',
             'profile_type' => 'sampled',
             'sample_types' => 'samples/count, cpu/nanoseconds',
+            'count_type' => 'samples',
             'clock' => 'cpu',
             'period' => 10_000_000,
             'period_type' => 'cpu/nanoseconds',
@@ -113,6 +114,19 @@ final class PprofTrapTest
 
         Assert::same($response->getStatusCode(), 400);
         Assert::string($log)->contains('Pprof: profile rejected with 400: invalid gzip data.');
+    }
+
+    public function testRejectsProfileOverFrameLimit(): void
+    {
+        [$response, $frames, $log] = self::handle(
+            self::request('/api/profiler/pprof', self::profile()),
+            new ProfileBuilder(maxFrames: 1),
+        );
+
+        Assert::same($response->getStatusCode(), 400);
+        Assert::same((string) $response->getBody(), 'The samples have more than 1 frames together, inlined ones included.');
+        Assert::same($frames, []);
+        Assert::string($log)->contains('Pprof: profile rejected with 400: the samples have more than 1 frames');
     }
 
     public function testWarnsThatProfileIsCompacted(): void

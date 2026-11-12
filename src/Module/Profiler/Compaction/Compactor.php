@@ -196,12 +196,7 @@ final class Compactor
     {
         $parents = $tree->parent;
         $size = \count($parents);
-        // A profile of no time is ranked by the memory, as a heap profile, or else by the counts
-        $values = match (true) {
-            \array_sum($tree->value) > 0.0 => $tree->value,
-            \array_sum($tree->memory) > 0.0 => $tree->memory,
-            default => \array_map('floatval', $tree->count),
-        };
+        $values = $tree->weights();
         // The sort is stable: of equal values the first node goes first
         \arsort($values);
         $ranked = \array_keys($values);

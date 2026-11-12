@@ -6,7 +6,7 @@ namespace Buggregator\Trap\Client\Profiler\Internal\Model;
 
 /**
  * Call paths from the roots of a sampled profile, each node with the costs spent in it alone (self costs):
- * wall time, CPU time and samples.
+ * wall time and CPU time in nanoseconds, and samples.
  *
  * Nodes are integer ids into flat lists rather than objects: a profile of a large application has
  * hundreds of thousands of nodes, built inside the profiled process. A child always gets a larger id
@@ -43,10 +43,10 @@ final class CallTree
     /** @var array<array-key, int> Child ids by a key made of the parent id and the child key. */
     private array $index = [];
 
-    /** @var list<int> Self microseconds by node id. */
+    /** @var list<int> Self wall nanoseconds by node id. */
     private array $wt = [];
 
-    /** @var list<int> Self CPU microseconds by node id. */
+    /** @var list<int> Self CPU nanoseconds by node id. */
     private array $cpu = [];
 
     /** @var list<int> Self samples by node id. */
@@ -86,8 +86,8 @@ final class CallTree
     /**
      * Adds self costs to a node, or to {@see ROOT} for costs of no function.
      *
-     * @param int<0, max> $wt Microseconds.
-     * @param int<0, max> $cpu Microseconds.
+     * @param int<0, max> $wt Nanoseconds.
+     * @param int<0, max> $cpu Nanoseconds.
      * @param int<0, max> $samples
      */
     public function add(int $node, int $wt, int $cpu, int $samples): void
@@ -106,6 +106,7 @@ final class CallTree
 
     /**
      * Folds the paths into caller to callee pairs with inclusive costs, rooted at `main()` as in XHProf.
+     * Times are in microseconds, rounded per node before they are summed up.
      *
      * A single root that is file-scope code becomes `main()`; otherwise the roots, a truncated stack's
      * `excimer_truncated` among them, go under a `main()` with the total. Pair costs are summed over
@@ -115,8 +116,13 @@ final class CallTree
     {
         $count = \count($this->names);
         $parents = $this->parents;
-        [$wt, $cpu, $samples] = [$this->wt, $this->cpu, $this->samples];
-        [$totalWt, $totalCpu, $totalSamples] = $this->unattributed;
+        $microseconds = static fn(int $nanoseconds): int => \intdiv($nanoseconds + 500, 1000);
+        $wt = \array_map($microseconds, $this->wt);
+        $cpu = \array_map($microseconds, $this->cpu);
+        $samples = $this->samples;
+        $totalWt = $microseconds($this->unattributed[0]);
+        $totalCpu = $microseconds($this->unattributed[1]);
+        $totalSamples = $this->unattributed[2];
 
         // Children have larger ids than their parents: one backward pass sums the costs up and links the children,
         // each prepended to its siblings, so that they come out in the order they were added.
@@ -203,7 +209,7 @@ final class CallTree
      * as the parent. Any other root is given `main()` as the parent. Every node comes after its parent.
      *
      * @param callable(int, int|null, non-empty-string, string|null, int, int, int): void $visit
-     *        Takes the node id, the parent id, name, file, wt and cpu in microseconds, and samples.
+     *        Takes the node id, the parent id, name, file, wt and cpu in nanoseconds, and samples.
      */
     public function walk(callable $visit): void
     {

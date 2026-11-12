@@ -24,8 +24,10 @@ use Buggregator\Trap\Support\TimeSlice;
  *   when there is no other time;
  * - `bytes` give `mu`, inclusive like the memory of an Xdebug call;
  * - other types are not shown.
- * Of several types for a cost, the default sample type is taken, then a type of the same prefix
- * (`inuse_objects` for `inuse_space`), then the first one. Samples whose taken values are all zero are skipped.
+ * Of several types for a cost, the default sample type is taken (the last type when the profile tells none,
+ * as `profile.proto` says), then a type of the same prefix (`inuse_objects` for `inuse_space`), then the first one.
+ * Samples whose taken values are all zero are skipped. A taken value may not be negative, as in a diff profile:
+ * the tree holds no negative costs.
  *
  * @psalm-import-type Metadata from Profile
  *
@@ -42,8 +44,8 @@ final class ProfileBuilder
     public const MAX_INFLATED_SIZE = 32 * 1024 * 1024;
 
     /**
-     * Limit of the estimated memory the tables of a profile take decoded, in bytes, see {@see Document::read()}.
-     * With the protobuf it is read from, it keeps the decoding under PHP's default 128 MB memory limit.
+     * Limit of the estimated memory the tables of a profile take decoded, besides the protobuf they are read from,
+     * in bytes, see {@see Document::read()}.
      */
     private const MAX_DECODED_SIZE = 32 * 1024 * 1024;
 
@@ -74,11 +76,13 @@ final class ProfileBuilder
      * @param positive-int $maxInflatedSize Limit of the decompressed size in bytes.
      * @param positive-int|null $maxNodes Limit of the tree nodes, over which the tree is compacted;
      *        by default, what the memory left affords when the build starts, see {@see NodeBudget}.
+     * @param positive-int $maxFrames Limit of the frames of all the samples, see {@see Document::MAX_FRAMES}.
      */
     public function __construct(
         public readonly int $maxSize = self::MAX_SIZE,
         public readonly int $maxInflatedSize = self::MAX_INFLATED_SIZE,
         public readonly ?int $maxNodes = null,
+        public readonly int $maxFrames = Document::MAX_FRAMES,
     ) {}
 
     /**
@@ -92,11 +96,12 @@ final class ProfileBuilder
             and throw new \InvalidArgumentException("The profile is larger than {$this->maxSize} bytes.");
         \str_starts_with($content, self::GZIP_MAGIC) and $content = $this->inflate($content);
 
-        return Document::read($content, self::MAX_DECODED_SIZE);
+        return Document::read($content, self::MAX_DECODED_SIZE, $this->maxFrames);
     }
 
     /**
-     * @param Metadata $metadata Gets `profile_type`, `sample_types`, `clock` when time is measured, and `period`,
+     * @param Metadata $metadata Gets `profile_type`, `sample_types`, `count_type` (the sample type `ct` comes from,
+     *        if any), `clock` when time is measured, and `period`,
      *        `period_type`, `time_nanos`, `duration_nanos` when the profile tells them. Gets `compacted` too
      *        when the tree was over the node limit: what {@see Report::toArray()} tells and the `limit`.
      * @param array<non-empty-string, non-empty-string> $tags
@@ -121,6 +126,7 @@ final class ProfileBuilder
             static fn(array $type): string => "$type[0]/$type[1]",
             $document->sampleTypes,
         ));
+        $ct === null or $metadata['count_type'] = $document->sampleTypes[$ct[0]][0];
         $wt === null && $cpu === null or $metadata['clock'] = $wt === null ? 'cpu' : 'wall';
         if ($document->period > 0) {
             $metadata['period'] = $document->period;
@@ -142,9 +148,14 @@ final class ProfileBuilder
         $limit = $this->maxNodes ?? NodeBudget::nodes();
         $nodes = new Nodes($limit, \count($document->names), timeSlice: $timeSlice);
         $totals = [0.0, 0.0, 0.0, 0.0];
+        $used = \array_column(\array_filter([$ct, $time, $separateCpu, $mu]), 0);
         foreach ($document->samples() as $index => [$path, $values]) {
-            foreach ($values as $value) {
-                $value >= 0 or throw new \InvalidArgumentException("Sample $index has a negative value.");
+            foreach ($used as $i) {
+                $values[$i] >= 0 or throw new \InvalidArgumentException(\sprintf(
+                    'Sample %d has a negative %s: a diff profile is not supported.',
+                    $index,
+                    $document->sampleTypes[$i][0],
+                ));
             }
             $count = $ct === null ? 1 : $values[$ct[0]];
             $value = $time === null ? 0.0 : (float) $values[$time[0]] * $timeScale;
@@ -201,7 +212,10 @@ final class ProfileBuilder
             $cost === null or $candidates[$cost][] = $i;
         }
 
-        $default = $document->defaultSampleType;
+        $last = \array_key_last($document->sampleTypes);
+        $default = $document->defaultSampleType !== '' || $last === null
+            ? $document->defaultSampleType
+            : $document->sampleTypes[$last][0];
         $prefix = $this->prefix($default);
         $result = [];
         foreach ($candidates as $cost => $indexes) {

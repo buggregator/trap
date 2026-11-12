@@ -275,6 +275,24 @@ final class MapperTest
         Assert::same(\array_column(\array_column($graph['nodes'], 'data'), 'name'), ['main() (2 samples)', 'foo (1 sample)']);
     }
 
+    public function testPprofHeapProfileShowsObjects(): void
+    {
+        $pprof = new PprofProfile([['inuse_objects', 'count'], ['inuse_space', 'bytes']]);
+        $pprof->sample([$pprof->frame('foo'), $pprof->frame('main')], [3, 512])->sample([2], [1, 256]);
+        $builder = new PprofProfileBuilder();
+        $profile = $builder->createProfile($builder->decode($pprof->encode()));
+        $event = new Event($profile->uuid, 'profiler', Payload::new(Type::Pprof, static fn() => $profile), 0.0);
+
+        $top = self::json((new Mapper())->topFunctions($event, 'mu'));
+        $graph = self::json((new Mapper())->callGraph($event, threshold: 0, metric: 'mu'));
+
+        Assert::same($top['schema'][1]['description'], 'inuse_objects of the function and its callees');
+        Assert::same(
+            \array_column(\array_column($graph['nodes'], 'data'), 'name'),
+            ['main() (4 inuse_objects)', 'foo (3 inuse_objects)'],
+        );
+    }
+
     public function testCallGraphFiltersAndColorsNodes(): void
     {
         $graph = self::json((new Mapper())->callGraph(self::event(), threshold: 1, percentage: 15, metric: 'wt'));

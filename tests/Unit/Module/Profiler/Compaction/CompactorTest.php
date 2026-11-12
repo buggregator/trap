@@ -207,11 +207,39 @@ final class CompactorTest
         Assert::same($report->toArray()['folded'], 9.4);
     }
 
-    public function testMeasuresNothingFoldedInTreeOfNoValue(): void
+    public function testMeasuresMemoryInFoldedNodesOfTreeOfNoTime(): void
     {
+        // A heap profile: the counts are allocated objects, ranked after the memory
+        $tree = new FlatTree(inclusiveCounts: true);
+        $holder = $tree->add(-1, 0, 0.0, 12, 100.0);
+        $main = $tree->add($holder, 1, 0.0, 12, 100.0);
+        $tree->add($main, 2, 0.0, 3, 75.0);
+        $tree->add($main, FlatTree::OTHER, 0.0, 9, 25.0);
+
+        ($report = new Report())->measure($tree);
+
+        Assert::same($report->folded, 25.0);
+    }
+
+    public function testMeasuresCallsInFoldedNodesOverAllNodes(): void
+    {
+        // Calls of a node alone: the roots don't sum their callees
         $tree = new FlatTree(inclusiveCounts: false);
         $holder = $tree->add(-1, 0, 0.0, 0);
-        $tree->add($holder, FlatTree::OTHER, 0.0, 3);
+        $main = $tree->add($holder, 1, 0.0, 1);
+        $tree->add($main, 2, 0.0, 2);
+        $tree->add($main, FlatTree::OTHER, 0.0, 1);
+
+        ($report = new Report())->measure($tree);
+
+        Assert::same($report->folded, 25.0);
+    }
+
+    public function testMeasuresNothingFoldedInTreeOfNoCost(): void
+    {
+        $tree = new FlatTree(inclusiveCounts: true);
+        $holder = $tree->add(-1, 0, 0.0, 0);
+        $tree->add($holder, FlatTree::OTHER, 0.0, 0);
         $report = new Report();
         $report->folded = 50.0;
 
@@ -227,10 +255,10 @@ final class CompactorTest
         ['merged' => 1, 'collapsed' => 2, 'pruned' => 3, 'truncated' => 4, 'folded' => 12.5],
         '1 nodes merged into calls of the same function, 2 nodes of recursion merged into their callers, '
         . '3 nodes of cold subtrees summed in `(other)`, 4 samples or calls summed in `(truncated)`, '
-        . '12.5% of the time in the folded nodes',
+        . '12.5% of the profile in the folded nodes',
     ], 'all parts')]
     #[DataSet([['pruned' => '3', 'truncated' => -1, 'folded' => 7], ''], 'values of wrong type or sign')]
-    #[DataSet([['folded' => 0.5], '0.5% of the time in the folded nodes'], 'folded only')]
+    #[DataSet([['folded' => 0.5], '0.5% of the profile in the folded nodes'], 'folded only')]
     public function testSummarizesWrittenReport(array $data, string $expected): void
     {
         Assert::same(Report::summarize($data), $expected);

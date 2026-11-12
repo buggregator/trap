@@ -22,12 +22,12 @@ namespace Buggregator\Trap\Client\Profiler\Internal\Model;
  */
 final class SpeedscopeReader
 {
-    /** Microseconds in a time unit. */
+    /** Nanoseconds in a time unit. */
     private const UNITS = [
-        'nanoseconds' => 0.001,
-        'microseconds' => 1.0,
-        'milliseconds' => 1_000.0,
-        'seconds' => 1_000_000.0,
+        'nanoseconds' => 1.0,
+        'microseconds' => 1_000.0,
+        'milliseconds' => 1_000_000.0,
+        'seconds' => 1_000_000_000.0,
     ];
 
     /**
@@ -55,7 +55,7 @@ final class SpeedscopeReader
 
         $weights = $profile['weights'] ?? [];
         $scale = self::UNITS[$profile['unit'] ?? 'none'] ?? null;
-        $periodMicroseconds = $period * 1_000_000.0;
+        $periodNanoseconds = $period * 1e9;
 
         // Consecutive samples share most of their stack: the nodes of the common prefix are reused.
         $previous = [];
@@ -68,15 +68,15 @@ final class SpeedscopeReader
 
             if ($scale === null) {
                 // A unitless weight is an event count.
-                $microseconds = $weight * $periodMicroseconds;
+                $nanoseconds = $weight * $periodNanoseconds;
                 $samples = (int) \round($weight);
             } else {
                 // Excimer weighs a stack by its event count times the period, so the count is their quotient.
-                $microseconds = $weight * $scale;
-                $samples = \max(1, (int) \round($microseconds / $periodMicroseconds));
+                $nanoseconds = $weight * $scale;
+                $samples = \max(1, (int) \round($nanoseconds / $periodNanoseconds));
             }
 
-            $time = \max(0, (int) \round($microseconds));
+            $time = \max(0, (int) \round($nanoseconds));
 
             $depth = \count($stack);
             $common = 0;

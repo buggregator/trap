@@ -230,8 +230,8 @@ final class ProfilingTest extends Base
         Assert::contains($head, 'X-Buggregator-Event: profiler');
         $payload = \json_decode($body, true, flags: \JSON_THROW_ON_ERROR);
         Assert::same($payload['profile'], [
-            'main()' => ['ct' => 2, 'wt' => 2000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
-            'main()==>foo' => ['ct' => 2, 'wt' => 2000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()' => ['ct' => 2, 'wt' => 2000, 'cpu' => 2000, 'mu' => 0, 'pmu' => 0],
+            'main()==>foo' => ['ct' => 2, 'wt' => 2000, 'cpu' => 2000, 'mu' => 0, 'pmu' => 0],
         ]);
         Assert::same($payload['tags'], ['name' => 'job']);
         Assert::same($payload['hostname'], \gethostname());
@@ -402,7 +402,9 @@ final class ProfilingTest extends Base
         Assert::same($head[0], "POST /pprof?project=shop&{$query} HTTP/1.1");
         Assert::contains($head, 'Content-Type: application/octet-stream');
         Assert::contains($head, 'Content-Length: ' . \strlen($body));
-        Assert::same(PprofDecoder::stacks(PprofDecoder::profile($body)), ['main();foo' => '2/2000000']);
+        $profile = PprofDecoder::profile($body);
+        Assert::same($profile['default_sample_type'], 'cpu');
+        Assert::same(PprofDecoder::stacks($profile), ['main();foo' => '2/2000000']);
     }
 
     public function toServerSendsXHProfInPlaceOfPprof(): void
@@ -442,7 +444,7 @@ final class ProfilingTest extends Base
 
         Assert::same(
             \json_decode((string) \file_get_contents($file), true),
-            ['main()' => ['ct' => 2, 'wt' => 2000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0], 'main()==>foo' => ['ct' => 2, 'wt' => 2000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0]],
+            ['main()' => ['ct' => 2, 'wt' => 2000, 'cpu' => 2000, 'mu' => 0, 'pmu' => 0], 'main()==>foo' => ['ct' => 2, 'wt' => 2000, 'cpu' => 2000, 'mu' => 0, 'pmu' => 0]],
         );
     }
 
@@ -742,7 +744,7 @@ final class ProfilingTest extends Base
         TrapHandle::profile(FakeDriver::excimer())->toFile($file)->run(static fn() => null);
 
         $profile = PprofDecoder::profile((string) \file_get_contents($file));
-        Assert::true($profile['gzip']);
+        Assert::same($profile['gzip'], \extension_loaded('zlib'));
         Assert::same(PprofDecoder::stacks($profile), ['main();foo' => '2/2000000']);
         Assert::same($profile['functions'][1]['filename'], '/app/index.php');
         Assert::same([$profile['time_nanos'], $profile['duration_nanos']], [FakeDriver::STARTED_AT, FakeDriver::DURATION]);
