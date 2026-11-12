@@ -61,6 +61,8 @@ final class NodeBudget
             return self::MAX_NODES;
         }
 
+        // The server collects garbage cycles on a timer only; the ones left since would count as memory in use
+        $usage === null && !\gc_enabled() and \gc_collect_cycles();
         $free = $bytes - ($usage ?? \memory_get_usage()) - (int) ((float) $bytes * self::HEADROOM) - self::RESERVE;
         return \max(self::MIN_NODES, \min(self::MAX_NODES, \intdiv(\max(0, $free), self::BYTES_PER_NODE)));
     }

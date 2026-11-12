@@ -37,6 +37,7 @@ final class FakeDriver implements Driver
         public readonly bool $empty = false,
         public readonly ?\Throwable $stopError = null,
         public readonly ?\Throwable $startError = null,
+        public readonly ?\Throwable $optionsError = null,
     ) {}
 
     public static function xhprof(): self
@@ -70,6 +71,7 @@ final class FakeDriver implements Driver
 
     public function options(): array
     {
+        $this->optionsError === null or throw $this->optionsError;
         return $this->options;
     }
 

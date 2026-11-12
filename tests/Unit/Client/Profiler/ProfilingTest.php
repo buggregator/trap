@@ -5,7 +5,15 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Client\Profiler;
 
 use Buggregator\Trap\Client\Profiler\Format;
+use Buggregator\Trap\Client\Profiler\Internal\Env;
+use Buggregator\Trap\Client\Profiler\Internal\HttpClient;
+use Buggregator\Trap\Client\Profiler\Internal\Payload;
+use Buggregator\Trap\Client\Profiler\Internal\Recorded;
+use Buggregator\Trap\Client\Profiler\Internal\ServerSender;
+use Buggregator\Trap\Client\Profiler\Internal\Settings;
+use Buggregator\Trap\Client\Profiler\Internal\TrapSender;
 use Buggregator\Trap\Client\Profiler\Internal\Warnings;
+use Buggregator\Trap\Client\Profiler\Metadata;
 use Buggregator\Trap\Client\Profiler\Profile;
 use Buggregator\Trap\Client\Profiler\Profiling;
 use Buggregator\Trap\Client\Profiler\Session;
@@ -28,6 +36,15 @@ use Testo\Test;
 #[Covers(Profiling::class)]
 #[Covers(Session::class)]
 #[Covers(Profile::class)]
+#[Covers(Settings::class)]
+#[Covers(Warnings::class)]
+#[Covers(Env::class)]
+#[Covers(Payload::class)]
+#[Covers(TrapSender::class)]
+#[Covers(ServerSender::class)]
+#[Covers(HttpClient::class)]
+#[Covers(Recorded::class)]
+#[Covers(Metadata::class)]
 final class ProfilingTest extends Base
 {
     private static HttpCatcher $trap;
@@ -55,6 +72,7 @@ final class ProfilingTest extends Base
         self::$trap->requests();
         $this->log = new LogCapture();
         Warnings::$logger = $this->log;
+        Warnings::reset();
     }
 
     #[AfterTest]
@@ -431,7 +449,7 @@ final class ProfilingTest extends Base
 
         $result = TrapHandle::profile(new FakeDriver())
             ->to(static fn() => throw new \LogicException('first destination'))
-            ->to(static fn() => throw new \LogicException('second destination'))
+            ->to(static fn() => throw new \RuntimeException('second destination'))
             ->to(static function () use (&$called): void {
                 $called = true;
             })
@@ -721,6 +739,69 @@ final class ProfilingTest extends Base
         Expect::exception(\InvalidArgumentException::class)->withMessageContaining('available formats: XHProf');
 
         $profile?->encode(Format::Speedscope);
+    }
+
+    public function serverErrorStatusIsLogged(): void
+    {
+        $url = 'http://127.0.0.1:' . self::$trap->port . '/status/503';
+
+        $result = TrapHandle::profile(FakeDriver::xhprof())->toServer($url)->run(static fn(): int => 7);
+
+        Assert::same($result, 7);
+        Assert::count(self::$trap->requests(), 1);
+        Assert::string($this->log->messages())->contains('The `fake` profile was not delivered: 127.0.0.1:')
+            ->contains('answered 503 Status');
+    }
+
+    public function unreachableTrapIsLogged(): void
+    {
+        $server = \stream_socket_server('tcp://127.0.0.1:0');
+        \assert($server !== false);
+        $port = (int) \substr((string) \strrchr((string) \stream_socket_get_name($server, false), ':'), 1);
+        \fclose($server);
+
+        $result = TrapHandle::profile(new FakeDriver())->toTrap('127.0.0.1', $port)->run(static fn(): int => 8);
+
+        Assert::same($result, 8);
+        Assert::string($this->log->messages())->contains("Unable to connect to 127.0.0.1:{$port}");
+    }
+
+    public function profileThatCanNotBeMadeIsLoggedAndNotDelivered(): void
+    {
+        $called = false;
+        $driver = new FakeDriver(optionsError: new \RuntimeException('no options'));
+
+        $profile = TrapHandle::profile($driver)->to(static function () use (&$called): void {
+            $called = true;
+        })->start()->stop();
+
+        Assert::null($profile);
+        Assert::false($called);
+        Assert::string($this->log->messages())->contains('The `fake` profile was not made: no options');
+    }
+
+    public function sameErrorIsLoggedOncePerExceptionClass(): void
+    {
+        $profiling = TrapHandle::profile(new FakeDriver());
+        $profiling->to(static fn() => throw new \RuntimeException('id ' . \bin2hex(\random_bytes(4))));
+
+        $profiling->run(static fn() => null);
+        $profiling->run(static fn() => null);
+
+        Assert::count($this->log->records, 1);
+    }
+
+    public function nonScalarEnvValueIsIgnored(): void
+    {
+        $_ENV['TRAP_PROFILER_APP_NAME'] = ['shop'];
+
+        try {
+            $profile = TrapHandle::profile(new FakeDriver())->to(static fn() => null)->start()->stop();
+        } finally {
+            unset($_ENV['TRAP_PROFILER_APP_NAME']);
+        }
+
+        Assert::null($profile?->metadata()->appName);
     }
 
     public function metadataDescribesTheProfile(): void

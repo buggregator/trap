@@ -148,23 +148,28 @@ final class Session
             return null;
         }
 
-        $appName = Env::get('TRAP_PROFILER_APP_NAME');
-        $hostname = \gethostname();
+        try {
+            $appName = Env::get('TRAP_PROFILER_APP_NAME');
+            $hostname = @\gethostname();
 
-        /** @psalm-suppress InternalMethod */
-        $this->profile = new Profile($recorded, new Metadata(
-            name: $this->settings->name,
-            tags: $this->settings->tags,
-            appName: $appName === '' ? null : $appName,
-            hostname: $hostname === false ? null : $hostname,
-            date: $this->date,
-            file: $this->file,
-            line: $this->line,
-            driver: $driver->name(),
-            options: $driver->options(),
-            duration: $duration,
-            peakMemory: \max(0, \memory_get_peak_usage()),
-        ));
+            /** @psalm-suppress InternalMethod */
+            $this->profile = new Profile($recorded, new Metadata(
+                name: $this->settings->name,
+                tags: $this->settings->tags,
+                appName: $appName === '' ? null : $appName,
+                hostname: $hostname === false ? null : $hostname,
+                date: $this->date,
+                file: $this->file,
+                line: $this->line,
+                driver: $driver->name(),
+                options: $driver->options(),
+                duration: $duration,
+                peakMemory: \max(0, \memory_get_peak_usage()),
+            ));
+        } catch (\Throwable $e) {
+            Warnings::error(\sprintf('The `%s` profile was not made', $driver->name()), $e);
+            return null;
+        }
 
         $this->settings->deliver($this->profile);
 

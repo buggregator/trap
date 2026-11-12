@@ -38,8 +38,16 @@ final class Settings
     public function shouldProfile(): bool
     {
         $if = $this->if instanceof \Closure ? (bool) ($this->if)() : $this->if;
+        if (!$if || $this->sample >= 1.0) {
+            return $if;
+        }
 
-        return $if && ($this->sample >= 1.0 || \random_int(0, \PHP_INT_MAX - 1) / \PHP_INT_MAX < $this->sample);
+        try {
+            return \random_int(0, \PHP_INT_MAX - 1) / \PHP_INT_MAX < $this->sample;
+        } catch (\Throwable $e) {
+            Warnings::error('No randomness to sample profiles', $e);
+            return false;
+        }
     }
 
     /**

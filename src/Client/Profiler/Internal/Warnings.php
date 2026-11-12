@@ -26,6 +26,14 @@ final class Warnings
     private static array $sent = [];
 
     /**
+     * Forgets what was logged, for tests.
+     */
+    public static function reset(): void
+    {
+        self::$sent = [];
+    }
+
+    /**
      * @param non-empty-string $kind Logged once per process.
      * @param array<string, mixed> $context
      */
@@ -35,11 +43,12 @@ final class Warnings
     }
 
     /**
-     * Logs an error of the profiler or a destination, once per process for each message.
+     * Logs an error of the profiler or a destination, once per process for each message and exception class:
+     * exception messages carry paths, ids and addresses that would log each failure again and keep its key.
      */
     public static function error(string $message, \Throwable $e): void
     {
-        self::log('error', 'error:' . $message . "\0" . $e->getMessage(), \sprintf('%s: %s', $message, $e->getMessage()), [
+        self::log('error', 'error:' . $message . "\0" . $e::class, \sprintf('%s: %s', $message, $e->getMessage()), [
             'exception' => $e::class,
             'file' => $e->getFile() . ':' . $e->getLine(),
         ]);

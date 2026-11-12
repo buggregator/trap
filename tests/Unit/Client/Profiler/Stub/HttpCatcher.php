@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Client\Profiler\Stub;
 
 /**
- * An HTTP server in a child process that answers `200 OK` to every request and reports the raw requests.
+ * An HTTP server in a child process that reports the raw requests. It answers `200 OK`, or the status
+ * a `/status/{code}` path asks for.
  *
  * It runs in another process because the sender waits for the response before it returns.
  */
@@ -25,7 +26,8 @@ final class HttpCatcher
             while (strlen($body) < $length && !feof($client)) {
                 $body .= fread($client, 8192);
             }
-            fwrite($client, "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+            $status = preg_match('~^POST /status/(\d{3}) ~', $head, $m) ? "{$m[1]} Status" : '200 OK';
+            fwrite($client, "HTTP/1.1 {$status}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
             fclose($client);
             echo base64_encode("{$head}\r\n\r\n{$body}"), "\n";
         }

@@ -12,7 +12,10 @@ final class Env
     public static function get(string $name): ?string
     {
         if (\array_key_exists($name, $_ENV)) {
-            return (string) $_ENV[$name];
+            // Code may put anything into `$_ENV`
+            /** @var mixed $value */
+            $value = $_ENV[$name];
+            return \is_scalar($value) ? (string) $value : null;
         }
 
         $value = \getenv($name, true);

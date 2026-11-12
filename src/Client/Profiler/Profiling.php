@@ -106,7 +106,7 @@ final class Profiling
     }
 
     /**
-     * Sends the profile to Trap over HTTP. Delivery errors are ignored.
+     * Sends the profile to Trap over HTTP. Delivery errors are logged.
      *
      * @param non-empty-string|null $host Defaults to the `TRAP_PROFILER_HOST` env variable, then `127.0.0.1`.
      * @param int|null $port From 1 to 65535. Defaults to the `TRAP_PROFILER_PORT` env variable, then `9912`.
@@ -125,7 +125,7 @@ final class Profiling
 
     /**
      * Sends the profile to any HTTP server in the chosen format; by default, XHProf to a local Buggregator Server.
-     * The format is preferred: a profiler that can't produce it sends its native format. Delivery errors are ignored.
+     * The format is preferred: a profiler that can't produce it sends its native format. Delivery errors are logged.
      *
      * XHProf goes as the Buggregator `/api/profiler/store` JSON with the metadata inside.
      * Speedscope (`application/json`) and Collapsed (`text/plain`) go as the bare document,

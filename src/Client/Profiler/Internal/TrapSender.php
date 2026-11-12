@@ -8,7 +8,7 @@ use Buggregator\Trap\Client\Profiler\Format;
 use Buggregator\Trap\Client\Profiler\Profile;
 
 /**
- * Posts a profile in its native format to the Trap HTTP endpoints, swallowing every error.
+ * Posts a profile in its native format to the Trap HTTP endpoints.
  *
  * @internal
  */
@@ -59,22 +59,20 @@ final class TrapSender
     /**
      * Sends a recorded profile: Speedscope when the profiler produces it, XHProf otherwise.
      * Profiles Trap has no endpoint for are dropped.
+     *
+     * @throws \RuntimeException When the profile is not delivered.
      */
     public function send(Profile $profile): void
     {
-        try {
-            $formats = $profile->formats();
-            match (true) {
-                \in_array(Format::Speedscope, $formats, true) => $this->post(
-                    '/api/profiler/speedscope' . self::withQuery(Payload::query($profile)),
-                    $profile->encode(Format::Speedscope),
-                ),
-                \in_array(Format::XHProf, $formats, true) => $this->post('/api/profiler/store', Payload::store($profile)),
-                default => null,
-            };
-        } catch (\Throwable) {
-            // Profiling must never break the application.
-        }
+        $formats = $profile->formats();
+        match (true) {
+            \in_array(Format::Speedscope, $formats, true) => $this->post(
+                '/api/profiler/speedscope' . self::withQuery(Payload::query($profile)),
+                $profile->encode(Format::Speedscope),
+            ),
+            \in_array(Format::XHProf, $formats, true) => $this->post('/api/profiler/store', Payload::store($profile)),
+            default => null,
+        };
     }
 
     private static function withQuery(string $query): string
