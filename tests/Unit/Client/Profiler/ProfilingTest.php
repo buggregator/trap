@@ -22,6 +22,7 @@ use Buggregator\Trap\Tests\Unit\Client\Base;
 use Buggregator\Trap\Tests\Unit\Client\Profiler\Stub\FakeDriver;
 use Buggregator\Trap\Tests\Unit\Client\Profiler\Stub\HttpCatcher;
 use Buggregator\Trap\Tests\Unit\Client\Profiler\Stub\LogCapture;
+use Buggregator\Trap\Tests\Unit\Client\Profiler\Stub\PprofDecoder;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Data\DataSet;
@@ -390,6 +391,32 @@ final class ProfilingTest extends Base
         Assert::same($body, FakeDriver::SPEEDSCOPE);
     }
 
+    public function toServerSendsPprofAsBinaryWithTheMetadataInTheQuery(): void
+    {
+        $url = 'http://127.0.0.1:' . self::$trap->port . '/pprof?project=shop';
+
+        TrapHandle::profile(FakeDriver::excimer())->name('job')->toServer($url, Format::Pprof)->run(static fn() => null);
+
+        [$head, $body] = self::parse(self::$trap->requests());
+        $query = \http_build_query(['hostname' => \gethostname(), 'name' => 'job', 'clock' => 'cpu', 'period' => '0.001'], '', '&', \PHP_QUERY_RFC3986);
+        Assert::same($head[0], "POST /pprof?project=shop&{$query} HTTP/1.1");
+        Assert::contains($head, 'Content-Type: application/octet-stream');
+        Assert::contains($head, 'Content-Length: ' . \strlen($body));
+        Assert::same(PprofDecoder::stacks(PprofDecoder::profile($body)), ['main();foo' => '2/2000000']);
+    }
+
+    public function toServerSendsXHProfInPlaceOfPprof(): void
+    {
+        $url = 'http://127.0.0.1:' . self::$trap->port . '/api/profiler/store';
+
+        TrapHandle::profile(FakeDriver::xhprof())->toServer($url, Format::Pprof)->run(static fn() => null);
+
+        [$head, $body] = self::parse(self::$trap->requests());
+        Assert::same($head[0], 'POST /api/profiler/store HTTP/1.1');
+        Assert::contains($head, 'Content-Type: application/json');
+        Assert::same(\json_decode($body, true)['profile'], \json_decode(FakeDriver::XHPROF, true));
+    }
+
     public function toServerOmitsAContentTypeRemovedByNull(): void
     {
         $url = 'http://127.0.0.1:' . self::$trap->port . '/folded';
@@ -703,6 +730,31 @@ final class ProfilingTest extends Base
         TrapHandle::profile(new FakeDriver())->toFile($file)->run(static fn() => null);
 
         Assert::same(\file_get_contents($file), $expected);
+    }
+
+    #[DataSet(['profile.pb.gz'], 'pb.gz')]
+    #[DataSet(['profile.pb'], 'pb')]
+    #[DataSet(['cpu.PPROF'], 'pprof in upper case')]
+    public function toFileGuessesPprof(string $name): void
+    {
+        $file = $this->dir . '/' . $name;
+
+        TrapHandle::profile(FakeDriver::excimer())->toFile($file)->run(static fn() => null);
+
+        $profile = PprofDecoder::profile((string) \file_get_contents($file));
+        Assert::true($profile['gzip']);
+        Assert::same(PprofDecoder::stacks($profile), ['main();foo' => '2/2000000']);
+        Assert::same($profile['functions'][1]['filename'], '/app/index.php');
+        Assert::same([$profile['time_nanos'], $profile['duration_nanos']], [FakeDriver::STARTED_AT, FakeDriver::DURATION]);
+    }
+
+    public function toFileWritesTheNativeFormatInPlaceOfPprof(): void
+    {
+        $file = $this->dir . '/profile.pb.gz';
+
+        TrapHandle::profile(FakeDriver::xhprof())->toFile($file)->run(static fn() => null);
+
+        Assert::same(\file_get_contents($file), FakeDriver::XHPROF);
     }
 
     public function toFileTakesAnExplicitFormat(): void

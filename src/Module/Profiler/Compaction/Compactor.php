@@ -89,6 +89,7 @@ final class Compactor
         $parents = $tree->parent;
         $values = $tree->value;
         $memories = $tree->memory;
+        $cpus = $tree->cpu;
         $counts = $tree->count;
         $inclusiveCounts = $tree->inclusiveCounts;
         /** @var array<int, int> $newFrame */
@@ -99,6 +100,8 @@ final class Compactor
         $newValue = [];
         /** @var array<int, float> $newMemory */
         $newMemory = [];
+        /** @var array<int, float> $newCpu */
+        $newCpu = [];
         /** @var array<int, int> $newCount */
         $newCount = [];
         $size = \count($frames);
@@ -118,6 +121,7 @@ final class Compactor
                 $newParent[] = -1;
                 $newValue[] = $values[$node];
                 $newMemory[] = $memories[$node];
+                $newCpu[] = $cpus[$node];
                 $newCount[] = $counts[$node];
                 $run[$target] = 1;
                 continue;
@@ -153,21 +157,24 @@ final class Compactor
                 $newParent[] = $to;
                 $newValue[] = 0.0;
                 $newMemory[] = 0.0;
+                $newCpu[] = 0.0;
                 $newCount[] = 0;
                 $run[$target] = $length = $frame === $newFrame[$to] ? $run[$to] + 1 : 1;
                 $length > $longestRun and $longestRun = $length;
             }
             $newValue[$target] += $values[$node];
             $newMemory[$target] += $memories[$node];
+            $newCpu[$target] += $cpus[$node];
             $newCount[$target] += $counts[$node];
             $map[$node] = $target;
         }
-        unset($frames, $parents, $values, $memories, $counts, $byKey, $run);
+        unset($frames, $parents, $values, $memories, $cpus, $counts, $byKey, $run);
 
         $tree->frame = $newFrame;
         $tree->parent = $newParent;
         $tree->value = $newValue;
         $tree->memory = $newMemory;
+        $tree->cpu = $newCpu;
         $tree->count = $newCount;
 
         return $map;
@@ -189,8 +196,12 @@ final class Compactor
     {
         $parents = $tree->parent;
         $size = \count($parents);
-        // A profile of no time, such as one of sample counts, is ranked by the counts
-        $values = \array_sum($tree->value) > 0.0 ? $tree->value : \array_map('floatval', $tree->count);
+        // A profile of no time is ranked by the memory, as a heap profile, or else by the counts
+        $values = match (true) {
+            \array_sum($tree->value) > 0.0 => $tree->value,
+            \array_sum($tree->memory) > 0.0 => $tree->memory,
+            default => \array_map('floatval', $tree->count),
+        };
         // The sort is stable: of equal values the first node goes first
         \arsort($values);
         $ranked = \array_keys($values);

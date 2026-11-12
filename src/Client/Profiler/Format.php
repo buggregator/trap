@@ -7,7 +7,7 @@ namespace Buggregator\Trap\Client\Profiler;
 /**
  * Encodings a {@see Profile} can be written in.
  *
- * Excimer gives Speedscope and Collapsed natively and converts to XHProf; XHProf gives XHProf only:
+ * Excimer gives Speedscope and Collapsed natively and converts to XHProf and pprof; XHProf gives XHProf only:
  * its call pairs can't be turned back into the stacks the other formats need.
  *
  * @api
@@ -28,4 +28,10 @@ enum Format: string
      * JSON of the XHProf array: `{"caller==>callee": {"ct": …, "wt": …, "cpu"?, "mu"?, "pmu"?}}`.
      */
     case XHProf = 'xhprof';
+
+    /**
+     * pprof protobuf ({@link https://github.com/google/pprof}), gzip-compressed when ext-zlib is available:
+     * `samples/count` and `wall/nanoseconds` or `cpu/nanoseconds` per stack, as `go tool pprof` reads it.
+     */
+    case Pprof = 'pprof';
 }

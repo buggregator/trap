@@ -59,7 +59,7 @@ final class DriverTest extends Base
         $driver = new Excimer(period: 0.01, clock: Clock::Cpu, maxDepth: 64);
 
         Assert::same($driver->options(), ['period' => 0.01, 'clock' => 'cpu', 'max_depth' => 64]);
-        Assert::same($driver->formats(), [Format::Speedscope, Format::Collapsed, Format::XHProf]);
+        Assert::same($driver->formats(), [Format::Speedscope, Format::Collapsed, Format::XHProf, Format::Pprof]);
     }
 
     public function excimerRejectsANonPositivePeriod(): never

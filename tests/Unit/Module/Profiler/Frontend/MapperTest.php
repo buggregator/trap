@@ -9,9 +9,11 @@ use Buggregator\Trap\Module\Profiler\Frame\Payload;
 use Buggregator\Trap\Module\Profiler\Frame\Type;
 use Buggregator\Trap\Module\Profiler\Frontend\Mapper;
 use Buggregator\Trap\Module\Profiler\Frontend\Palette;
+use Buggregator\Trap\Module\Profiler\Pprof\ProfileBuilder as PprofProfileBuilder;
 use Buggregator\Trap\Module\Profiler\Speedscope\ProfileBuilder as SpeedscopeProfileBuilder;
 use Buggregator\Trap\Module\Profiler\XDebug\ProfileBuilder as XDebugProfileBuilder;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
+use Buggregator\Trap\Tests\Unit\Module\Profiler\Pprof\Stub\PprofProfile;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
@@ -254,6 +256,22 @@ final class MapperTest
         Assert::same(\array_column($top['schema'], 'key'), ['function', 'ct', 'wt', 'excl_wt']);
         Assert::same($top['schema'][1]['description'], 'Samples with the function on the stack');
         Assert::same(\array_column($graph['toolbar'], 'metric'), ['wt']);
+        Assert::same(\array_column(\array_column($graph['nodes'], 'data'), 'name'), ['main() (2 samples)', 'foo (1 sample)']);
+    }
+
+    public function testPprofProfileShowsSamples(): void
+    {
+        $pprof = new PprofProfile([['samples', 'count'], ['alloc_space', 'bytes']]);
+        $pprof->sample([$pprof->frame('foo'), $pprof->frame('main')], [1, 512])->sample([2], [1, 256]);
+        $builder = new PprofProfileBuilder();
+        $profile = $builder->createProfile($builder->decode($pprof->encode()));
+        $event = new Event($profile->uuid, 'profiler', Payload::new(Type::Pprof, static fn() => $profile), 0.0);
+
+        $top = self::json((new Mapper())->topFunctions($event, 'mu'));
+        $graph = self::json((new Mapper())->callGraph($event, threshold: 0, metric: 'mu'));
+
+        Assert::same(\array_column($top['schema'], 'key'), ['function', 'ct', 'mu', 'excl_mu']);
+        Assert::same($top['schema'][1]['description'], 'Samples with the function on the stack');
         Assert::same(\array_column(\array_column($graph['nodes'], 'data'), 'name'), ['main() (2 samples)', 'foo (1 sample)']);
     }
 

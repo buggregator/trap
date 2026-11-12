@@ -6,9 +6,11 @@ namespace Buggregator\Trap\Tests\Unit\Module\Profiler\Http;
 
 use Buggregator\Trap\Module\Profiler\BuildLock;
 use Buggregator\Trap\Module\Profiler\Frame;
+use Buggregator\Trap\Module\Profiler\Http\PprofTrap;
 use Buggregator\Trap\Module\Profiler\Http\SpeedscopeTrap;
 use Buggregator\Trap\Module\Profiler\Http\XDebugTrap;
 use Buggregator\Trap\Module\Profiler\Http\XHProfTrap;
+use Buggregator\Trap\Module\Profiler\Pprof\ProfileBuilder as PprofProfileBuilder;
 use Buggregator\Trap\Module\Profiler\Speedscope\ProfileBuilder as SpeedscopeProfileBuilder;
 use Buggregator\Trap\Module\Profiler\XDebug\ProfileBuilder as XDebugProfileBuilder;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder as XHProfProfileBuilder;
@@ -25,6 +27,7 @@ use Testo\Test;
 #[Covers(XHProfTrap::class)]
 #[Covers(XDebugTrap::class)]
 #[Covers(SpeedscopeTrap::class)]
+#[Covers(PprofTrap::class)]
 #[Test]
 final class ProfilerPayloadsTest
 {
@@ -83,6 +86,23 @@ final class ProfilerPayloadsTest
         Assert::same($profile->uuid, $frame->payload->getProfile()->uuid);
     }
 
+    public function testGzippedPprofPayloadSurvivesFrameRoundTrip(): void
+    {
+        $body = (string) \file_get_contents(__DIR__ . '/../../../../Stub/pprof/upstream/fib.pb.gz');
+        $raw = "POST /api/profiler/pprof?app_name=app&tags%5Benv%5D=dev HTTP/1.1\r\n"
+            . "Host: 127.0.0.1:8000\r\nConnection: close\r\nContent-Type: application/octet-stream\r\n"
+            . 'Content-Length: ' . \strlen($body) . "\r\n\r\n" . $body;
+
+        $frame = self::dispatchRaw($raw);
+        $restored = Frame::fromString((string) $frame, $frame->time);
+
+        Assert::same($restored->payload->type, Frame\Type::Pprof);
+        $profile = $restored->payload->getProfile();
+        Assert::same($profile->metadata['app_name'], 'app');
+        Assert::same($profile->tags, ['env' => 'dev']);
+        Assert::same($profile->peaks->jsonSerialize(), ['ct' => 2974, 'wt' => 29_740_000, 'cpu' => 29_740_000, 'mu' => 0, 'pmu' => 0]);
+    }
+
     private static function dispatch(string $payload): Frame
     {
         return self::dispatchRaw((string) \file_get_contents(self::PAYLOADS . '/' . $payload));
@@ -102,6 +122,7 @@ final class ProfilerPayloadsTest
             new XHProfTrap(new XHProfProfileBuilder(), new Logger(), $lock = new BuildLock()),
             new XDebugTrap(new XDebugProfileBuilder(), new Logger(), $lock),
             new SpeedscopeTrap(new SpeedscopeProfileBuilder(), new Logger(), $lock),
+            new PprofTrap(new PprofProfileBuilder(), new Logger(), $lock),
         ], []);
 
         $fiber = new \Fiber(static fn(): array => \iterator_to_array($dispatcher->dispatch($stream), false));

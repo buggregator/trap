@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Bench\Module\Profiler;
 
+use Buggregator\Trap\Module\Profiler\Pprof\ProfileBuilder as PprofBuilder;
 use Buggregator\Trap\Module\Profiler\Speedscope\ProfileBuilder as SpeedscopeBuilder;
 use Buggregator\Trap\Module\Profiler\XDebug\ProfileBuilder as XDebugBuilder;
 use Buggregator\Trap\Tests\Bench\Module\Profiler\Stub\Documents;
@@ -33,6 +34,7 @@ final class ProfileBuildBench
             'speedscope 40k varied samples, 155k nodes' => [self::class, 'speedscopeLarge'],
             'speedscope 1000 samples at max depth 1000' => [self::class, 'speedscopeMaxDepth'],
             'speedscope 10k deep recursive samples' => [self::class, 'speedscopeDeepRecursion'],
+            'pprof 40k varied gzipped samples, 149k nodes' => [self::class, 'pprofLarge'],
             'xdebug 100k calls' => [self::class, 'xdebugLarge'],
         ],
         calls: 1,
@@ -52,6 +54,7 @@ final class ProfileBuildBench
             'xdebug 400k random calls to 50k nodes' => [self::class, 'xdebugRandomCompacted'],
             'xdebug 400k calls of a loop to 50k nodes' => [self::class, 'xdebugLoopCompacted'],
             'speedscope 1000 samples at max depth 1000 to 100 nodes' => [self::class, 'speedscopeMaxDepthCompacted'],
+            'pprof 40k varied gzipped samples to 30k nodes' => [self::class, 'pprofLargeCompacted'],
         ],
         calls: 1,
         iterations: 3,
@@ -100,6 +103,31 @@ final class ProfileBuildBench
     public static function xdebugLoopCompacted(): void
     {
         self::xdebug('xdebug-loop', static fn(): string => Documents::cachegrindLoop(400_000), 50_000);
+    }
+
+    public static function pprofLarge(): void
+    {
+        self::pprof('pprof', static fn(): string => Documents::pprofFramework(40_000));
+    }
+
+    public static function pprofLargeCompacted(): void
+    {
+        self::pprof('pprof', static fn(): string => Documents::pprofFramework(40_000), 30_000);
+    }
+
+    /**
+     * Decodes as well as builds: the protobuf is read sample by sample during the build.
+     *
+     * @param non-empty-string $key
+     * @param \Closure(): string $generate
+     * @param positive-int $maxNodes
+     */
+    private static function pprof(string $key, \Closure $generate, int $maxNodes = self::UNLIMITED): void
+    {
+        /** @var string $content */
+        $content = self::$documents[$key] ??= $generate();
+        $builder = new PprofBuilder(maxNodes: $maxNodes);
+        $builder->createProfile($builder->decode($content));
     }
 
     /**

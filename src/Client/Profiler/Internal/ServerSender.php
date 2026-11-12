@@ -10,7 +10,7 @@ use Buggregator\Trap\Client\Profiler\Profile;
 /**
  * Posts a profile in a chosen format to any HTTP server.
  *
- * XHProf goes as the Buggregator store JSON with the metadata inside; Speedscope and Collapsed go
+ * XHProf goes as the Buggregator store JSON with the metadata inside; Speedscope, Collapsed and pprof go
  * as the bare document with the metadata in the query.
  *
  * @internal
@@ -127,9 +127,11 @@ final class ServerSender
             default => [$profile->encode($format), Payload::query($profile)],
         };
         $headers = $this->headers;
-        $this->contentType and $headers['Content-Type'] = $format === Format::Collapsed
-            ? 'text/plain; charset=utf-8'
-            : 'application/json';
+        $this->contentType and $headers['Content-Type'] = match ($format) {
+            Format::Collapsed => 'text/plain; charset=utf-8',
+            Format::Pprof => 'application/octet-stream',
+            default => 'application/json',
+        };
 
         $query = \implode('&', \array_filter([$this->query, $query], static fn(string $part): bool => $part !== ''));
         $this->http->post(

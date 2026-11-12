@@ -353,7 +353,8 @@ final class Mapper implements EventMapper
      */
     private static function countsSamples(ProfilerPayload $payload): bool
     {
-        return $payload->type === ProfilerPayloadType::Speedscope
+        return $payload->type === ProfilerPayloadType::Pprof
+            || $payload->type === ProfilerPayloadType::Speedscope
             && ($payload->getProfile()->metadata['profile_type'] ?? null) === 'sampled';
     }
 

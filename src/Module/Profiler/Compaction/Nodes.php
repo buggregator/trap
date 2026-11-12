@@ -111,17 +111,36 @@ final class Nodes
      * Adds a sample to node 0 and to the nodes of its stack, down to the first folded one, which sums the rest.
      *
      * @param list<int> $stack Frames from the root.
+     * @param float $memory Bytes, see {@see FlatTree::$memory}.
+     * @param float $cpu CPU time when the value is the wall time, see {@see FlatTree::$cpu}.
      */
-    public function sample(array $stack, float $value, int $count): void
+    public function sample(array $stack, float $value, int $count, float $memory = 0.0, float $cpu = 0.0): void
     {
         $tree = $this->tree;
         $tree->value[0] += $value;
         $tree->count[0] += $count;
         $node = 0;
+        // The common single-value path stays free of the other sums
+        if ($memory === 0.0 && $cpu === 0.0) {
+            foreach ($stack as $frame) {
+                $node = $this->byPath[$node * $this->frameCount + $frame] ?? $this->child($node, $frame);
+                $tree->value[$node] += $value;
+                $tree->count[$node] += $count;
+                if ($tree->frame[$node] < self::TOP) {
+                    return;
+                }
+            }
+            return;
+        }
+
+        $tree->memory[0] += $memory;
+        $tree->cpu[0] += $cpu;
         foreach ($stack as $frame) {
             $node = $this->byPath[$node * $this->frameCount + $frame] ?? $this->child($node, $frame);
             $tree->value[$node] += $value;
             $tree->count[$node] += $count;
+            $tree->memory[$node] += $memory;
+            $tree->cpu[$node] += $cpu;
             if ($tree->frame[$node] < self::TOP) {
                 return;
             }

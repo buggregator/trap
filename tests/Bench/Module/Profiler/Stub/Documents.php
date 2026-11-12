@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Bench\Module\Profiler\Stub;
 
 use Buggregator\Trap\Module\Profiler\Speedscope\ProfileBuilder;
+use Buggregator\Trap\Tests\Unit\Module\Profiler\Pprof\Stub\PprofProfile;
 
 /**
  * Generates large profiles in code: multi-megabyte files are not worth committing.
@@ -43,6 +44,39 @@ final class Documents
         }
 
         return self::sampled($frames, $stacks, $weights);
+    }
+
+    /**
+     * Gzipped pprof profile of the same shape as {@see self::framework()}, as the Datadog profiler writes it:
+     * count, wall time, CPU time and allocated bytes, the leaves inlined in pairs into one location.
+     */
+    public static function pprofFramework(int $samples): string
+    {
+        \mt_srand(42);
+        $pprof = new PprofProfile([['sample', 'count'], ['wall-time', 'nanoseconds'], ['cpu-time', 'nanoseconds'], ['alloc-size', 'bytes']]);
+        $base = [$pprof->frame('<?php', '/app/public/index.php')];
+        for ($i = 1; $i < 45; $i++) {
+            $base[] = $pprof->frame("Vendor\\Framework\\Layer$i\\Middleware$i::process", "/app/vendor/framework/src/Layer$i.php");
+        }
+        $leaves = [];
+        for ($i = 0; $i < 400; $i++) {
+            $leaves[] = $pprof->function('App\\Domain\\Module' . ($i % 40) . "\\Service$i::handle", "/app/src/Domain/Service$i.php");
+        }
+        $inlined = [];
+        for ($i = 0; $i < 400; $i++) {
+            $inlined[] = $pprof->location([$leaves[$i], $leaves[($i * 7 + 1) % 400]]);
+        }
+
+        for ($s = 0; $s < $samples; $s++) {
+            $stack = \array_slice($base, 0, \mt_rand(5, 44));
+            for ($k = \mt_rand(1, 4); $k > 0; $k--) {
+                $stack[] = $inlined[\mt_rand(0, 399)];
+            }
+            $count = \mt_rand(1, 100) === 1 ? \mt_rand(2, 50) : 1;
+            $pprof->sample(\array_reverse($stack), [$count, $count * 10_000_000, $count * 9_000_000, \mt_rand(0, 4096)]);
+        }
+
+        return (string) \gzencode($pprof->encode());
     }
 
     /**

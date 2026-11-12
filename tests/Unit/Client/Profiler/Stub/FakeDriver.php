@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Tests\Unit\Client\Profiler\Stub;
 
 use Buggregator\Trap\Client\Profiler\Format;
 use Buggregator\Trap\Client\Profiler\Internal\Driver;
+use Buggregator\Trap\Client\Profiler\Internal\Model\PprofWriter;
 use Buggregator\Trap\Client\Profiler\Internal\Model\SpeedscopeReader;
 use Buggregator\Trap\Client\Profiler\Internal\Model\XHProfWriter;
 use Buggregator\Trap\Client\Profiler\Internal\Recorded;
@@ -21,6 +22,12 @@ final class FakeDriver implements Driver
         . '"profiles":[{"type":"sampled","name":"","unit":"none","startValue":0,"endValue":2,"samples":[[0,1]],"weights":[2]}]}';
     public const COLLAPSED = "main;foo;bar 3\nmain;baz 1\n";
     public const XHPROF = '{"main()":{"ct":1,"wt":10},"main()==>foo":{"ct":2,"wt":7}}';
+
+    /** Start of the pprof profile, Unix time in nanoseconds. */
+    public const STARTED_AT = 1_731_400_000_123_456_000;
+
+    /** Duration of the pprof profile in nanoseconds. */
+    public const DURATION = 2_500_000;
 
     public int $started = 0;
     public int $stopped = 0;
@@ -46,12 +53,12 @@ final class FakeDriver implements Driver
     }
 
     /**
-     * Like Excimer: Speedscope and Collapsed natively, XHProf converted from the Speedscope document
+     * Like Excimer: Speedscope and Collapsed natively, XHProf and pprof converted from the Speedscope document
      * with a 1 ms period.
      */
     public static function excimer(): self
     {
-        return new self([Format::Speedscope, Format::Collapsed, Format::XHProf]);
+        return new self([Format::Speedscope, Format::Collapsed, Format::XHProf, Format::Pprof]);
     }
 
     public function name(): string
@@ -94,11 +101,21 @@ final class FakeDriver implements Driver
                     Format::Speedscope->value => FakeDriver::SPEEDSCOPE,
                     Format::Collapsed->value => FakeDriver::COLLAPSED,
                     Format::XHProf->value => FakeDriver::XHPROF,
+                    Format::Pprof->value => '',
                 ];
                 $formats = $this->driver->formats();
                 if ($formats[0] === Format::Speedscope && \in_array(Format::XHProf, $formats, true)) {
                     $data[Format::XHProf->value] = XHProfWriter::json(
                         SpeedscopeReader::read(\json_decode(FakeDriver::SPEEDSCOPE, true), 0.001, false)->toGraph(),
+                    );
+                }
+                if (\in_array(Format::Pprof, $formats, true)) {
+                    $data[Format::Pprof->value] = PprofWriter::encode(
+                        SpeedscopeReader::read(\json_decode(FakeDriver::SPEEDSCOPE, true), 0.001, false),
+                        0.001,
+                        false,
+                        FakeDriver::STARTED_AT,
+                        FakeDriver::DURATION,
                     );
                 }
 

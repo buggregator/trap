@@ -32,6 +32,9 @@ final class FlatTree
     /** @var array<int, float> Inclusive memory in bytes */
     public array $memory = [];
 
+    /** @var array<int, float> Inclusive CPU time in microseconds, when `value` holds the wall time */
+    public array $cpu = [];
+
     /** @var array<int, int> Samples with the node on the stack, or calls */
     public array $count = [];
 
@@ -46,12 +49,19 @@ final class FlatTree
     /**
      * @param int $parent A node added before, or -1 for a root: the compaction reads the depths in one pass.
      */
-    public function add(int $parent, int $frame, float $value = 0.0, int $count = 0, float $memory = 0.0): int
-    {
+    public function add(
+        int $parent,
+        int $frame,
+        float $value = 0.0,
+        int $count = 0,
+        float $memory = 0.0,
+        float $cpu = 0.0,
+    ): int {
         $this->frame[] = $frame;
         $this->parent[] = $parent;
         $this->value[] = $value;
         $this->memory[] = $memory;
+        $this->cpu[] = $cpu;
         $this->count[] = $count;
 
         return \count($this->frame) - 1;

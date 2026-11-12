@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Profiler\Speedscope;
 
 use Buggregator\Trap\Module\Profiler\Compaction\Nodes;
+use Buggregator\Trap\Module\Profiler\Compaction\StackTree;
 use Buggregator\Trap\Module\Profiler\Speedscope\Frames;
 use Buggregator\Trap\Module\Profiler\Speedscope\ProfileBuilder;
 use Buggregator\Trap\Module\Profiler\Struct\Branch;
@@ -21,6 +22,7 @@ use Testo\Test;
 #[Covers(ProfileBuilder::class)]
 #[Covers(Frames::class)]
 #[Covers(Nodes::class)]
+#[Covers(StackTree::class)]
 #[Test]
 final class ProfileBuilderTest
 {

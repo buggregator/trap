@@ -11,6 +11,7 @@ use Buggregator\Trap\Module\Monolog\Traffic\Dispatcher as MonologDispatcher;
 use Buggregator\Trap\Module\Profiler\Config\SPX;
 use Buggregator\Trap\Module\Profiler\Config\XDebug;
 use Buggregator\Trap\Module\Profiler\Config\XHProf;
+use Buggregator\Trap\Module\Profiler\Http\PprofTrap;
 use Buggregator\Trap\Module\Profiler\Http\SpeedscopeTrap;
 use Buggregator\Trap\Module\Profiler\Http\XDebugTrap;
 use Buggregator\Trap\Module\Profiler\Http\XHProfTrap;
@@ -111,6 +112,7 @@ final class ModulesTest
                 XHProfTrap::class,
                 XDebugTrap::class,
                 SpeedscopeTrap::class,
+                PprofTrap::class,
                 OtlpTrap::class,
                 DebugPage::class,
                 Dump::class,

@@ -82,8 +82,8 @@ final class Profiling
      * Writes the profile to a file, creating missing directories.
      *
      * Without a format, it is guessed from the file name: `*.speedscope.json` is Speedscope;
-     * `*.txt`, `*.folded` and `*.collapsed` are Collapsed; `*.xhprof` is XHProf;
-     * anything else gets the native format of the profiler.
+     * `*.txt`, `*.folded` and `*.collapsed` are Collapsed; `*.xhprof` is XHProf; `*.pb.gz`, `*.pb` and `*.pprof`
+     * are pprof; anything else gets the native format of the profiler.
      * The format is preferred: a profiler that can't produce it writes its native format,
      * as XHProf writes no Speedscope.
      *
@@ -128,9 +128,9 @@ final class Profiling
      * The format is preferred: a profiler that can't produce it sends its native format. Delivery errors are logged.
      *
      * XHProf goes as the Buggregator `/api/profiler/store` JSON with the metadata inside.
-     * Speedscope (`application/json`) and Collapsed (`text/plain`) go as the bare document,
-     * with the metadata added to the URL query: `app_name`, `hostname`, `name`, `clock`, `period` (seconds)
-     * and `tags[...]`.
+     * Speedscope (`application/json`), Collapsed (`text/plain`) and pprof (`application/octet-stream`)
+     * go as the bare document, with the metadata added to the URL query: `app_name`, `hostname`, `name`, `clock`,
+     * `period` (seconds) and `tags[...]`.
      *
      * ```php
      * ->toServer('http://profiler@buggregator:8000/api/profiler/store')
@@ -241,6 +241,9 @@ final class Profiling
             \str_ends_with($name, '.folded'),
             \str_ends_with($name, '.collapsed') => Format::Collapsed,
             \str_ends_with($name, '.xhprof') => Format::XHProf,
+            \str_ends_with($name, '.pb.gz'),
+            \str_ends_with($name, '.pb'),
+            \str_ends_with($name, '.pprof') => Format::Pprof,
             default => null,
         };
     }

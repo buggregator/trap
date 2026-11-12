@@ -4,15 +4,11 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\Speedscope;
 
-use Buggregator\Trap\Module\Profiler\Compaction\FlatTree;
 use Buggregator\Trap\Module\Profiler\Compaction\NodeBudget;
 use Buggregator\Trap\Module\Profiler\Compaction\Nodes;
 use Buggregator\Trap\Module\Profiler\Compaction\Report;
-use Buggregator\Trap\Module\Profiler\Struct\Branch;
-use Buggregator\Trap\Module\Profiler\Struct\Cost;
-use Buggregator\Trap\Module\Profiler\Struct\Edge;
+use Buggregator\Trap\Module\Profiler\Compaction\StackTree;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
-use Buggregator\Trap\Module\Profiler\Struct\Tree;
 use Buggregator\Trap\Support\TimeSlice;
 
 /**
@@ -29,9 +25,7 @@ use Buggregator\Trap\Support\TimeSlice;
  *   and the `at` values of an evented profile are taken as microseconds, to keep the durations relative.
  *
  * Frames are told apart by name, as in the other profiles, which have nothing else to tell functions by;
- * a frame with no name is `(unknown)`. A single root that is file-scope code becomes `main()`, as an XHProf root,
- * and takes the samples with an empty stack. Otherwise the roots of stacks that start at different frames,
- * and samples with an empty stack, go under a synthetic `main()`.
+ * a frame with no name is `(unknown)`. The roots are taken as {@see StackTree} tells.
  *
  * Over the node limit, the samples or calls that would add nodes are summed in a `(truncated)` node of the parent.
  *
@@ -58,15 +52,6 @@ final class ProfileBuilder
      * the size of the JSON. The server runs under PHP's default 128 MB memory limit.
      */
     private const MAX_DECODED_SIZE = 64 * 1024 * 1024;
-
-    /** Name of the root over several roots or file-scope code, as XHProf names its root. */
-    public const ROOT = 'main()';
-
-    /** Name of a frame that has none. */
-    public const UNKNOWN = '(unknown)';
-
-    /** Names of file-scope code besides file paths: Xdebug's, a `main` frame, Excimer's for `php -r`. */
-    private const FILE_SCOPE = [self::ROOT, '{main}', 'main', 'Command_line_code', 'Standard_input_code', 'php_shell_code'];
 
     /**
      * Limit of the summed microseconds or counts: floats hold integers exactly up to 2^53,
@@ -199,15 +184,19 @@ final class ProfileBuilder
         }
         unset($profile);
         $nodes->compact();
-        [$root, $rootName] = self::root($nodes, $frames, $fileScope, $type === 'evented')
+        [$root, $rootName] = StackTree::root($nodes, $frames->names, $fileScope, $type === 'evented')
             ?? throw new \InvalidArgumentException('The profile has no samples.');
         if (!$nodes->report->isEmpty()) {
             $nodes->report->measure($nodes->tree);
             $metadata['compacted'] = $nodes->report->toArray() + ['limit' => $limit];
         }
 
-        $metric = $unit === 'bytes' ? 'mu' : ($cpuClock ? 'cpu' : 'wt');
-        $tree = self::buildTree($nodes, $root, $rootName, $frames, $metric);
+        $metrics = match (true) {
+            $unit === 'bytes' => ['mu' => 'value'],
+            $cpuClock => ['wt' => 'value', 'cpu' => 'value'],
+            default => ['wt' => 'value'],
+        };
+        $tree = StackTree::build($nodes, $root, $rootName, $frames->names, $metrics);
         unset($nodes);
 
         /** @var Metadata $metadata */
@@ -237,7 +226,7 @@ final class ProfileBuilder
             \is_array($frame) or throw new \InvalidArgumentException("Frame $i is not an object.");
             /** @var mixed $name */
             $name = $frame['name'] ?? null;
-            $name = \is_string($name) && $name !== '' ? $name : self::UNKNOWN;
+            $name = \is_string($name) && $name !== '' ? $name : StackTree::UNKNOWN;
             /** @var mixed $file */
             $file = $frame['file'] ?? null;
             $file = \is_string($file) ? $file : '';
@@ -409,47 +398,6 @@ final class ProfileBuilder
     }
 
     /**
-     * @param array<non-empty-string, true> $fileScope Names of the frames of file-scope code.
-     *
-     * @return array{int, non-empty-string}|null The root node and its name, or null when the profile is empty.
-     *         Several roots, and samples with an empty stack, which belong to no root, go under node 0.
-     */
-    private static function root(Nodes $nodes, Frames $frames, array $fileScope, bool $evented): ?array
-    {
-        $tree = $nodes->tree;
-        $roots = $nodes->roots();
-        if (\count($roots) === 1) {
-            $root = $roots[0];
-            $name = self::nodeName($nodes, $frames, $root);
-            if (\in_array($name, self::FILE_SCOPE, true) || isset($fileScope[$name])) {
-                // The script takes the samples with an empty stack as its own time
-                if ($nodes->emptyStacks > 0) {
-                    $tree->value[$root] = $tree->value[0];
-                    $tree->count[$root] = $tree->count[0];
-                }
-                return [$root, self::ROOT];
-            }
-            if ($nodes->emptyStacks === 0) {
-                return [$root, $name];
-            }
-        }
-
-        if ($roots === [] && $nodes->emptyStacks === 0) {
-            return null;
-        }
-
-        // Node 0 sums the sampled stacks; an evented `main()` is a call that spans its children
-        if ($evented) {
-            $tree->count[0] = 1;
-            foreach ($roots as $node) {
-                $tree->value[0] += $tree->value[$node];
-            }
-        }
-
-        return [0, self::ROOT];
-    }
-
-    /**
      * @return non-empty-string|null
      */
     private static function name(mixed $value): ?string
@@ -457,136 +405,5 @@ final class ProfileBuilder
         $value = \is_string($value) ? \trim($value) : '';
 
         return $value === '' ? null : $value;
-    }
-
-    /**
-     * Rounds the values to integers, keeping the sums of caller-callee pairs exact as the Xdebug builder does:
-     * the rounding error of a pair is carried over to its next node, and a node never takes less than its children.
-     *
-     * @param int $root Node 0 or the single root: all the nodes after it are its descendants.
-     * @param non-empty-string $rootName
-     * @param 'wt'|'cpu'|'mu' $metric Cost the values go to; `cpu` repeats them in `wt`.
-     *
-     * @return Tree<Edge> Node IDs follow the pre-order: `n1` is the root.
-     */
-    private static function buildTree(Nodes $nodes, int $root, string $rootName, Frames $frames, string $metric): Tree
-    {
-        $tree = $nodes->tree;
-        $frameOf = $tree->frame;
-        $parentOf = $tree->parent;
-        $valueOf = $tree->value;
-
-        // Names by IDs: a pair of names is keyed by an integer, not by a string built per node
-        $names = $frames->names;
-        $nameIds = \array_flip($names);
-        foreach ([Profile::TRUNCATED, Profile::OTHER, self::ROOT, $rootName] as $marker) {
-            isset($nameIds[$marker]) or $nameIds[$marker] = \array_push($names, $marker) - 1;
-        }
-        /** @var array<int, int> $markerIds */
-        $markerIds = [
-            FlatTree::TRUNCATED => $nameIds[Profile::TRUNCATED],
-            FlatTree::OTHER => $nameIds[Profile::OTHER],
-            Nodes::TOP => $nameIds[self::ROOT],
-        ];
-        $rootId = $nameIds[$rootName];
-        unset($nameIds);
-        // The ID that stands for no caller
-        $none = \count($names);
-        $span = $none + 1;
-
-        // A node is added after its parent: in the reversed order the children come before their parents
-        $last = $tree->size() - 1;
-        /** @var array<int, int> $nameOf */
-        $nameOf = \array_fill(0, $last + 1, 0);
-        for ($node = $root; $node <= $last; ++$node) {
-            $frame = $frameOf[$node];
-            $nameOf[$node] = $frame >= 0 ? $frame : $markerIds[$frame];
-        }
-        $nameOf[$root] = $rootId;
-
-        /** @var array<int, int<0, max>> $rounded */
-        $rounded = \array_fill(0, $last + 1, 0);
-        /** @var array<int, int<0, max>> $childrenSum */
-        $childrenSum = \array_fill(0, $last + 1, 0);
-        /** @var array<int, float> $pairValue */
-        $pairValue = [];
-        /** @var array<int, int<0, max>> $pairRounded */
-        $pairRounded = [];
-        for ($node = $last; $node >= $root; --$node) {
-            $parent = $parentOf[$node];
-            $pair = ($node === $root ? $none : $nameOf[$parent]) * $span + $nameOf[$node];
-            $pairValue[$pair] = ($pairValue[$pair] ?? 0.0) + $valueOf[$node];
-            $given = $pairRounded[$pair] ?? 0;
-            $value = \max($childrenSum[$node], (int) \round($pairValue[$pair]) - $given);
-            $pairRounded[$pair] = $given + $value;
-            $rounded[$node] = $value;
-            $node === $root or $childrenSum[$parent] += $value;
-            $nodes->timeSlice?->tick();
-        }
-        unset($childrenSum, $pairValue, $pairRounded, $valueOf);
-
-        // Children as linked lists, the last child first: popped from a stack, they come in their order
-        /** @var array<int, int> $first */
-        $first = \array_fill(0, $last + 1, -1);
-        /** @var array<int, int> $next */
-        $next = \array_fill(0, $last + 1, -1);
-        for ($node = $root + 1; $node <= $last; ++$node) {
-            $parent = $parentOf[$node];
-            $next[$node] = $first[$parent];
-            $first[$parent] = $node;
-        }
-
-        /** @var Tree<Edge> $result */
-        $result = new Tree();
-        $count = $tree->count;
-        /** @var list<int> $stack */
-        $stack = [$root];
-        /** @var list<Branch<Edge>|null> $callers Parent branches of the nodes in the stack */
-        $callers = [null];
-        while ($stack !== []) {
-            $node = \array_pop($stack);
-            $parent = \array_pop($callers);
-            $value = $rounded[$node];
-
-            $id = 'n' . (\count($result) + 1);
-            $result->addItem(
-                new Edge(
-                    caller: $parent?->item->callee,
-                    callee: $names[$nameOf[$node]],
-                    cost: new Cost(
-                        ct: \max(0, $count[$node]),
-                        wt: $metric === 'mu' ? 0 : $value,
-                        cpu: $metric === 'cpu' ? $value : 0,
-                        mu: $metric === 'mu' ? $value : 0,
-                        pmu: 0,
-                    ),
-                ),
-                $id,
-                $parent?->id,
-            );
-
-            /** @var Branch<Edge> $branch */
-            $branch = $result->all[$id];
-            for ($child = $first[$node]; $child !== -1; $child = $next[$child]) {
-                $stack[] = $child;
-                $callers[] = $branch;
-            }
-            $nodes->timeSlice?->tick();
-        }
-
-        return $result;
-    }
-
-    /**
-     * @return non-empty-string
-     */
-    private static function nodeName(Nodes $nodes, Frames $frames, int $node): string
-    {
-        return match ($frame = $nodes->tree->frame[$node]) {
-            FlatTree::TRUNCATED => Profile::TRUNCATED,
-            FlatTree::OTHER => Profile::OTHER,
-            Nodes::TOP => self::ROOT,
-            default => $frames->names[$frame],
-        };
     }
 }

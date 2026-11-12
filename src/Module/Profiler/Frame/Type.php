@@ -14,4 +14,5 @@ enum Type: string
     case XDebug = 'XDebug';
     case SPX = 'SPX';
     case Speedscope = 'Speedscope';
+    case Pprof = 'Pprof';
 }

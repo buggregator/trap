@@ -196,6 +196,52 @@ final class CallTree
     }
 
     /**
+     * Visits the nodes with their self costs, rooted at `main()` as in {@see toGraph()}.
+     *
+     * `main()` comes first, as {@see ROOT} without a parent, with the costs of no function. A single root that is
+     * file-scope code is merged into it: `main()` takes its file and costs, and its children are given `main()`
+     * as the parent. Any other root is given `main()` as the parent. Every node comes after its parent.
+     *
+     * @param callable(int, int|null, non-empty-string, string|null, int, int, int): void $visit
+     *        Takes the node id, the parent id, name, file, wt and cpu in microseconds, and samples.
+     */
+    public function walk(callable $visit): void
+    {
+        [$wt, $cpu, $samples] = $this->unattributed;
+        $file = null;
+
+        // The first node is always a root.
+        $merged = \count($this->names) > 0
+            && \count(\array_keys($this->parents, self::ROOT, true)) === 1
+            && $this->isFileScope(0) ? 0 : null;
+        if ($merged !== null) {
+            $wt += $this->wt[$merged];
+            $cpu += $this->cpu[$merged];
+            $samples += $this->samples[$merged];
+            $file = $this->files[$merged];
+        }
+
+        $visit(self::ROOT, null, self::MAIN, $file, $wt, $cpu, $samples);
+
+        foreach ($this->names as $id => $name) {
+            if ($id === $merged) {
+                continue;
+            }
+
+            $parent = $this->parents[$id];
+            $visit(
+                $id,
+                $parent === $merged ? self::ROOT : $parent,
+                $name,
+                $this->files[$id],
+                $this->wt[$id],
+                $this->cpu[$id],
+                $this->samples[$id],
+            );
+        }
+    }
+
+    /**
      * Excimer names file-scope code by its file, with spaces and NUL bytes turned into `_`.
      */
     private function isFileScope(int $id): bool
