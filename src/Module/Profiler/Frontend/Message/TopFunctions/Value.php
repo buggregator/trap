@@ -15,6 +15,7 @@ final class Value implements \JsonSerializable
         public readonly ?string $type = null,
     ) {}
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [

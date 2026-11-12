@@ -8,7 +8,7 @@ namespace Buggregator\Trap\Module\Tracing\Frame\Trace;
  * @internal
  * @psalm-internal Buggregator
  *
- * @psalm-import-type Attributes from Attributes
+ * @psalm-import-type AttributeMap from Attributes
  * @psalm-import-type SpanEventData from SpanEvent
  * @psalm-import-type SpanLinkData from SpanLink
  * @psalm-import-type SpanStatusData from SpanStatus
@@ -22,7 +22,7 @@ namespace Buggregator\Trap\Module\Tracing\Frame\Trace;
  *     kind: int<0, 5>,
  *     startTimeUnixNano: int,
  *     endTimeUnixNano: int,
- *     attributes: Attributes,
+ *     attributes: AttributeMap,
  *     droppedAttributesCount: int<0, max>,
  *     events: list<SpanEventData>,
  *     droppedEventsCount: int<0, max>,
@@ -37,7 +37,7 @@ final class Span implements \JsonSerializable
      * @param non-empty-string $traceId Lowercase hex, 32 chars.
      * @param non-empty-string $spanId Lowercase hex, 16 chars.
      * @param non-empty-string|null $parentSpanId Null for a root span.
-     * @param Attributes $attributes
+     * @param AttributeMap $attributes
      * @param list<SpanEvent> $events
      * @param list<SpanLink> $links
      * @param int<0, max> $droppedAttributesCount

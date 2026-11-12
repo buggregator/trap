@@ -7,7 +7,7 @@ namespace Buggregator\Trap\Module\Frontend;
 use Buggregator\Trap\Module\Frontend\Event\Asset;
 
 /**
- * @template TPayload as \JsonSerializable
+ * @template TPayload of array|\JsonSerializable
  * @internal
  */
 final class Event implements \JsonSerializable

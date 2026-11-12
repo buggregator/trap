@@ -20,6 +20,7 @@ final class Column implements \JsonSerializable
         public readonly array $values,
     ) {}
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [

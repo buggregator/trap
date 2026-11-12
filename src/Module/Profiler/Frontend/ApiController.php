@@ -60,7 +60,7 @@ final class ApiController
     ): Message\CallGraph {
         $event = $this->eventsStorage->get($uuid) ?? throw new \RuntimeException('Event not found.');
 
-        $event?->payload instanceof ProfilerPayload or throw new \RuntimeException('Invalid payload type.');
+        $event->payload instanceof ProfilerPayload or throw new \RuntimeException('Invalid payload type.');
         /** @var Event<ProfilerPayload> $event */
 
         return $this->mapper->callGraph($event, $threshold, $percentage, $metric);
@@ -76,7 +76,7 @@ final class ApiController
     {
         $event = $this->eventsStorage->get($uuid) ?? throw new \RuntimeException('Event not found.');
 
-        $event?->payload instanceof ProfilerPayload or throw new \RuntimeException('Invalid payload type.');
+        $event->payload instanceof ProfilerPayload or throw new \RuntimeException('Invalid payload type.');
         /** @var Event<ProfilerPayload> $event */
 
         return $this->mapper->flameChart($event);

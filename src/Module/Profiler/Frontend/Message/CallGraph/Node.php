@@ -20,6 +20,7 @@ final class Node implements \JsonSerializable
         public readonly string $textColor,
     ) {}
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [

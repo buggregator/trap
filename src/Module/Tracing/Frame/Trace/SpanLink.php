@@ -8,13 +8,13 @@ namespace Buggregator\Trap\Module\Tracing\Frame\Trace;
  * @internal
  * @psalm-internal Buggregator
  *
- * @psalm-import-type Attributes from Attributes
+ * @psalm-import-type AttributeMap from Attributes
  * @psalm-type SpanLinkData = array{
  *     traceId: non-empty-string,
  *     spanId: non-empty-string,
  *     traceState: string,
  *     flags: int,
- *     attributes: Attributes,
+ *     attributes: AttributeMap,
  *     droppedAttributesCount: int<0, max>
  * }
  */
@@ -23,7 +23,7 @@ final class SpanLink implements \JsonSerializable
     /**
      * @param non-empty-string $traceId Lowercase hex, 32 chars.
      * @param non-empty-string $spanId Lowercase hex, 16 chars.
-     * @param Attributes $attributes
+     * @param AttributeMap $attributes
      * @param int<0, max> $droppedAttributesCount
      */
     public function __construct(

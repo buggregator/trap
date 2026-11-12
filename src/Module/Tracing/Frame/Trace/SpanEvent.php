@@ -8,18 +8,18 @@ namespace Buggregator\Trap\Module\Tracing\Frame\Trace;
  * @internal
  * @psalm-internal Buggregator
  *
- * @psalm-import-type Attributes from Attributes
+ * @psalm-import-type AttributeMap from Attributes
  * @psalm-type SpanEventData = array{
  *     timeUnixNano: int,
  *     name: string,
- *     attributes: Attributes,
+ *     attributes: AttributeMap,
  *     droppedAttributesCount: int<0, max>
  * }
  */
 final class SpanEvent implements \JsonSerializable
 {
     /**
-     * @param Attributes $attributes
+     * @param AttributeMap $attributes
      * @param int<0, max> $droppedAttributesCount
      */
     public function __construct(

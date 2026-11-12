@@ -42,7 +42,7 @@ final class AssetsController
         }
 
         /** @var string $html */
-        $html = $event->payload['html'] ?? '';
+        $html = \is_array($event->payload) ? $event->payload['html'] ?? '' : '';
 
         return new Response(
             200,

@@ -19,7 +19,7 @@ use Psr\Http\Message\StreamInterface;
 final class Parser
 {
     /**
-     * @return array<array-key, non-empty-list<non-empty-string>>
+     * @return array<non-empty-string, list<non-empty-string>>
      */
     public static function parseHeaders(string $headersBlock): array
     {

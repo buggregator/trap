@@ -4,13 +4,10 @@ declare(strict_types=1);
 
 use Rector\CodeQuality\Rector\ClassMethod\InlineArrayReturnAssignRector;
 use Rector\CodeQuality\Rector\Expression\InlineIfToExplicitIfRector;
-use Rector\CodeQuality\Rector\Identical\FlipTypeControlToUseExclusiveTypeRector;
 use Rector\CodeQuality\Rector\LogicalAnd\LogicalToBooleanRector;
 use Rector\CodingStyle\Rector\ClassLike\NewlineBetweenClassLikeStmtsRector;
-use Rector\CodingStyle\Rector\PostInc\PostIncDecToPreIncDecRector;
 use Rector\CodingStyle\Rector\Stmt\NewlineAfterStatementRector;
 use Rector\Config\RectorConfig;
-use Rector\TypeDeclaration\Rector\BooleanAnd\BinaryOpNullableToInstanceofRector;
 use Rector\ValueObject\PhpVersion;
 
 return RectorConfig::configure()
@@ -39,10 +36,7 @@ return RectorConfig::configure()
     )->withSkip([
         NewlineAfterStatementRector::class,
         InlineArrayReturnAssignRector::class,
-        PostIncDecToPreIncDecRector::class,
         InlineIfToExplicitIfRector::class,
         LogicalToBooleanRector::class,
-        BinaryOpNullableToInstanceofRector::class,
-        FlipTypeControlToUseExclusiveTypeRector::class,
         NewlineBetweenClassLikeStmtsRector::class,
     ]);

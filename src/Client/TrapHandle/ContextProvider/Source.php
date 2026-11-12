@@ -33,7 +33,7 @@ final class Source implements ContextProviderInterface
     ) {}
 
     /**
-     * @psalm-suppress MixedAssignment, MixedMethodCall, MixedArrayAccess, MixedArrayOffset, MixedOperand, RiskyTruthyFalsyComparison
+     * @psalm-suppress MixedAssignment, MixedMethodCall, MixedArrayAccess, MixedArrayOffset, MixedOperand, RiskyTruthyFalsyComparison, TypeDoesNotContainType
      *         twig/twig and symfony/http-kernel are optional dependencies that are not installed, so their calls are untyped
      */
     #[\Override]

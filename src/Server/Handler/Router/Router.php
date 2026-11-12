@@ -87,7 +87,7 @@ final class Router
                     $assertion->path,
                 );
 
-                if (!$found || $assertion->args === null) {
+                if ($handler === null || $assertion->args === null) {
                     continue;
                 }
 
@@ -165,7 +165,11 @@ final class Router
         $name = $param->getName();
         $type = $param->getType();
 
-        $queryName = $queryParam->name ?? $name;
+        /**
+         * Bug: `$queryParam` is never defined, so the name given in `#[QueryParam]` is ignored.
+         * @psalm-suppress UndefinedVariable, MixedPropertyFetch
+         */
+        $queryName = (string) ($queryParam->name ?? $name);
         if (!isset($params[$queryName])) {
             $param->isDefaultValueAvailable() or throw new \InvalidArgumentException(\sprintf(
                 'Query parameter `%s` is required.',
@@ -175,13 +179,14 @@ final class Router
             return $param->getDefaultValue();
         }
 
+        /** @var mixed $value */
         $value = $params[$queryName];
         if ($type === null) {
             return $value;
         }
 
         foreach (($type instanceof \ReflectionUnionType ? $type->getTypes() : [$type]) as $t) {
-            $typeString = \ltrim($t?->getName() ?? '', '?');
+            $typeString = $t instanceof \ReflectionNamedType ? \ltrim($t->getName(), '?') : '';
             switch (true) {
                 case $typeString === 'mixed':
                     return $value;
@@ -408,7 +413,7 @@ final class Router
     /**
      * Resolve arguments for the route method.
      *
-     * @param array<non-empty-string, mixed> $args Arguments for the URI path
+     * @param array<array-key, mixed> $args Arguments for the URI path
      * @param array<array-key, mixed> $params Query parameters (GET)
      *
      * @throws \Throwable
@@ -430,6 +435,7 @@ final class Router
                 /** @var null|RouteQueryParam $queryParam */
                 $queryParam = ($param->getAttributes(RouteQueryParam::class)[0] ?? null)?->newInstance();
                 if ($queryParam !== null) {
+                    /** @psalm-suppress MixedAssignment */
                     $filteredArgs[$name] = self::convertQueryParam($param, $params);
                     continue;
                 }

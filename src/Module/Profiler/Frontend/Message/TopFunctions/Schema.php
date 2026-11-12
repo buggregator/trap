@@ -16,6 +16,7 @@ final class Schema implements \JsonSerializable
         private array $columns,
     ) {}
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         return $this->columns;

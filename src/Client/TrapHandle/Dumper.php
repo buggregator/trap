@@ -48,7 +48,7 @@ final class Dumper
      */
     public static function setDumper(?DataDumperInterface $dumper = null): \Closure
     {
-        if ($dumper === null) {
+        if (!$dumper instanceof DataDumperInterface) {
             return self::registerHandler();
         }
 
