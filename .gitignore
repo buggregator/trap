@@ -6,5 +6,7 @@
 !/.idea/icon.svg
 /runtime/
 /vendor/
+/tools/*/vendor/
+/tools/*/composer.lock
 /.env
 *.log
