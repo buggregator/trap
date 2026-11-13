@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Support;
 
-use Http\Message\Encoding\GzipDecodeStream;
 use Nyholm\Psr7\Stream;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
@@ -18,6 +17,7 @@ final class StreamHelper
     private const CHUNK_SIZE = 1 * 1024 * 1024; // 1 Mb
     private const WRITE_STREAM_CHUNK_SIZE = 8 * 1024 * 1024; // 8 Mb
     private const MAX_FILE_MEMORY_SIZE = 4 * 1024 * 1024; // 4MB
+    private const INFLATE_CHUNK_SIZE = 64 * 1024; // 64 KB
 
     /**
      * @param non-empty-string $substr
@@ -116,12 +116,33 @@ final class StreamHelper
         }
     }
 
+    /**
+     * Replace a gzip-compressed request body with the inflated one.
+     *
+     * Corrupted data ends the body at the last byte inflated before the error.
+     *
+     * @throws \RuntimeException When there is no zlib extension.
+     */
     public static function unzipBody(ServerRequestInterface $request): ServerRequestInterface
     {
-        $gzippedStream = new GzipDecodeStream($request->getBody());
+        \function_exists('inflate_init') or throw new \RuntimeException(
+            'The request body is gzip-compressed, but the server has no zlib extension.',
+        );
+        $context = \inflate_init(\ZLIB_ENCODING_GZIP);
+        $context === false and throw new \RuntimeException('Unable to initialize inflating.');
 
+        $from = $request->getBody();
         $stream = self::createFileStream();
-        StreamHelper::writeStream($gzippedStream, $stream, \PHP_INT_MAX);
+        while (!$from->eof() && \inflate_get_status($context) !== \ZLIB_STREAM_END) {
+            $data = @\inflate_add($context, $from->read(self::INFLATE_CHUNK_SIZE), \ZLIB_SYNC_FLUSH);
+            if ($data === false) {
+                break;
+            }
+
+            $stream->write($data);
+            unset($data);
+            \Fiber::suspend();
+        }
 
         return $request->withBody($stream);
     }
