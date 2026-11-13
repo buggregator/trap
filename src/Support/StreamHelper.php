@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Support;
 
+use Buggregator\Trap\Support\Stream\ConcurrentReadStream;
 use Buggregator\Trap\Support\Stream\SizeLimitExceeded;
 use Nyholm\Psr7\Stream;
 use Psr\Http\Message\ServerRequestInterface;
@@ -188,21 +189,12 @@ final class StreamHelper
 
     /**
      * Wrap a {@see StreamInterface} to read it concurrently.
-     * The new stream will tell and seek the origin stream automatically to read it sequentially.
-     *
-     * TODO: implement
+     * The new stream keeps its own read position and seeks the origin stream before each read.
      *
      * @throws \InvalidArgumentException If the stream is not seekable.
      */
     public static function concurrentReadStream(StreamInterface $stream): StreamInterface
     {
-        if (!$stream->isSeekable()) {
-            throw new \InvalidArgumentException('Cannot read concurrently a non seekable stream.');
-        }
-
-        // TODO: implement
-        // The idea is to create a new stream class that will store the current read position and seek the origin stream
-        // before reading the next chunk.
-        return $stream;
+        return new ConcurrentReadStream($stream);
     }
 }

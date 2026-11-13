@@ -38,15 +38,11 @@ trait FiberTrait
         }
         do {
             foreach ($fibers as $key => $fiber) {
-                try {
-                    if ($fiber->isTerminated()) {
-                        unset($fibers[$key]);
-                        continue;
-                    }
-                    $fiber->resume();
-                } catch (\Throwable) {
+                if ($fiber->isTerminated()) {
                     unset($fibers[$key]);
+                    continue;
                 }
+                $fiber->resume();
             }
         } while (\count($fibers) > 0);
     }
