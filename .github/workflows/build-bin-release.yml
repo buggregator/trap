@@ -35,6 +35,7 @@ concurrency:
 
 env:
   RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name }}
+  SPC_VERSION: 2.8.5
 
 jobs:
   build-unix:
@@ -161,7 +162,7 @@ jobs:
 
       - name: Download SPC for macOS ARM64
         run: |
-          curl -fsSL -o .build/bin/spc https://dl.static-php.dev/static-php-cli/spc-bin/nightly/spc-macos-aarch64
+          curl -fsSL "https://github.com/crazywhalecc/static-php-cli/releases/download/${SPC_VERSION}/spc-macos-aarch64.tar.gz" | tar -xz -C .build/bin spc
           chmod +x .build/bin/spc
 
       - name: Download required PHP extensions
@@ -254,7 +255,7 @@ jobs:
 
       - name: Download SPC for macOS AMD64
         run: |
-          curl -fsSL -o .build/bin/spc https://dl.static-php.dev/static-php-cli/spc-bin/nightly/spc-macos-x86_64
+          curl -fsSL "https://github.com/crazywhalecc/static-php-cli/releases/download/${SPC_VERSION}/spc-macos-x86_64.tar.gz" | tar -xz -C .build/bin spc
           chmod +x .build/bin/spc
 
       - name: Download box tool
@@ -352,7 +353,7 @@ jobs:
 
       - name: Download SPC for Windows
         run: |
-          Invoke-WebRequest -Uri "https://dl.static-php.dev/static-php-cli/spc-bin/nightly/spc-windows-x64.exe" -OutFile ".build/bin/spc.exe"
+          Invoke-WebRequest -Uri "https://github.com/crazywhalecc/static-php-cli/releases/download/$env:SPC_VERSION/spc-windows-x64.exe" -OutFile ".build/bin/spc.exe"
 
       - name: Download required PHP extensions
         run: .build/bin/spc.exe download micro --for-extensions=ctype,dom,filter,libxml,mbstring,phar,simplexml,sockets,tokenizer,xml,xmlwriter --with-php=8.3 --prefer-pre-built
