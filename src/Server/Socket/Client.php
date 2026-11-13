@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Server\Socket;
 
 use Buggregator\Trap\Server\Socket\Exception\ClientDisconnected;
+use Buggregator\Trap\Support\Activity;
 use Buggregator\Trap\Support\Timer;
 use Internal\Destroy\Destroyable;
 
@@ -18,8 +19,14 @@ final class Client implements Destroyable
     /** @var string[] */
     private array $writeQueue = [];
 
-    private string $readBuffer = '';
     private bool $toDisconnect = false;
+
+    /** The main loop has seen the socket ready */
+    private bool $ready = false;
+
+    /** The send buffer is full: the client doesn't read until it is written */
+    private bool $writeBlocked = false;
+
     private \Closure $onPayload;
     private \Closure $onClose;
     private Timer $selectTimer;
@@ -67,7 +74,6 @@ final class Client implements Destroyable
         // Unlink all closures and free resources.
         unset($this->onClose, $this->onPayload);
         $this->writeQueue = [];
-        $this->readBuffer = '';
     }
 
     public function disconnect(): void
@@ -75,11 +81,41 @@ final class Client implements Destroyable
         $this->toDisconnect = true;
     }
 
+    /**
+     * Makes the client check its socket on the next resume instead of after the select period.
+     */
+    public function wake(): void
+    {
+        $this->ready = true;
+    }
+
+    public function getSocket(): \Socket
+    {
+        return $this->socket;
+    }
+
+    /**
+     * @return \Socket|null The socket while the client reads it.
+     */
+    public function readableSocket(): ?\Socket
+    {
+        return $this->writeBlocked ? null : $this->socket;
+    }
+
+    /**
+     * @return \Socket|null The socket while the client has data to write.
+     */
+    public function writableSocket(): ?\Socket
+    {
+        return $this->writeQueue === [] ? null : $this->socket;
+    }
+
     public function process(): void
     {
         $this->onInit();
 
         do {
+            $progress = $this->ready = false;
             $read = [$this->socket];
             $write = [$this->socket];
             $except = [$this->socket];
@@ -89,12 +125,13 @@ final class Client implements Destroyable
 
             /** @psalm-suppress RedundantCondition */
             if ($read !== []) {
-                $this->readMessage();
+                $progress = $this->readMessage();
             }
 
             /** @psalm-suppress RedundantCondition */
             if ($write !== [] && $this->writeQueue !== []) {
                 $this->writeQueue();
+                $progress = true;
             }
 
             /** @psalm-suppress RedundantCondition */
@@ -108,8 +145,20 @@ final class Client implements Destroyable
 
                 throw new ClientDisconnected();
             }
-            \Fiber::suspend();
-            $this->selectTimer->reset()->wait();
+
+            // More data may be waiting: select again on the next iteration
+            if ($progress) {
+                Activity::report();
+                \Fiber::suspend();
+                continue;
+            }
+
+            // Select again after the period, or once the main loop sees the socket ready or there is data to write
+            $this->selectTimer->reset();
+            /** @psalm-suppress RedundantCondition The properties change while the fiber is suspended */
+            do {
+                \Fiber::suspend();
+            } while (!$this->ready && $this->writeQueue === [] && !$this->toDisconnect && !$this->selectTimer->isReady());
         } while (true);
     }
 
@@ -161,76 +210,75 @@ final class Client implements Destroyable
 
     private function writeQueue(): void
     {
-        foreach ($this->writeQueue as $data) {
-            $length = \strlen($data);
-            $written = 0;
-            while ($written < $length) {
-                $result = \socket_write($this->socket, \substr($data, $written));
-                if ($result === false) {
-                    $errno = \socket_last_error($this->socket);
-                    // If the send buffer is temporarily full, suspend the fiber and retry
-                    if ($errno === \SOCKET_EAGAIN || $errno === \SOCKET_EWOULDBLOCK) {
-                        \socket_clear_error($this->socket);
-                        \Fiber::suspend();
-                        continue;
-                    }
-                    // Unrecoverable error, stop writing
-                    break 2;
+        // The queue is read on each pass: more data can be sent while the fiber is suspended
+        while ($this->writeQueue !== []) {
+            $data = $this->writeQueue[0];
+            $result = @\socket_write($this->socket, $data);
+            if ($result === false) {
+                $errno = \socket_last_error($this->socket);
+                // If the send buffer is temporarily full, suspend the fiber and retry
+                if ($errno === \SOCKET_EAGAIN || $errno === \SOCKET_EWOULDBLOCK) {
+                    \socket_clear_error($this->socket);
+                    $this->writeBlocked = true;
+                    \Fiber::suspend();
+                    continue;
                 }
-                $written += $result;
+                // Unrecoverable error, stop writing
+                break;
+            }
+
+            // The main loop has taken the writable socket
+            Activity::report();
+            if ($result < \strlen($data)) {
+                $this->writeQueue[0] = \substr($data, $result);
+            } else {
+                \array_shift($this->writeQueue);
             }
         }
         \socket_set_nonblock($this->socket);
 
+        $this->writeBlocked = false;
         $this->writeQueue = [];
 
         $this->toDisconnect and throw new ClientDisconnected();
     }
 
-    private function readMessage(): void
-    {
-        $payload = $this->readBytes($this->payloadSize, true);
-
-        if ($payload === '') {
-            return;
-        }
-        $this->processPayload($payload);
-    }
-
     /**
-     * @param positive-int $length
+     * Reads what the socket has, up to the payload size.
+     *
+     * @return bool Whether anything was read.
      */
-    private function readBytes(int $length, bool $canBeLess = false): string
+    private function readMessage(): bool
     {
-        while (($left = $length - \strlen($this->readBuffer)) > 0) {
+        $payload = '';
+        while (($left = $this->payloadSize - \strlen($payload)) > 0) {
             $data = '';
             $read = @\socket_recv($this->socket, $data, $left, 0);
+            // The data is null when the peer has closed the connection
             /** @psalm-suppress TypeDoesNotContainNull */
             if ($read === false || $data === null) {
-                if ($this->readBuffer !== '') {
-                    $result = $this->readBuffer;
-                    $this->readBuffer = '';
-                    return $result;
-                }
                 $errNo = \socket_last_error($this->socket);
+                if ($errNo === \SOCKET_EAGAIN || $errNo === \SOCKET_EWOULDBLOCK) {
+                    \socket_clear_error($this->socket);
+                    break;
+                }
+
+                // The read data goes first: the next iteration fails again
+                if ($payload !== '') {
+                    break;
+                }
+
                 throw new \RuntimeException('Socket read failed [' . $errNo . ']: ' . \socket_strerror($errNo));
             }
 
-            if ($canBeLess) {
-                return $data;
-            }
-
-            if ($data === '') {
-                \Fiber::suspend();
-                continue;
-            }
-
-            $this->readBuffer .= $data;
+            $payload .= $data;
         }
 
-        $result = \substr($this->readBuffer, 0, $length);
-        $this->readBuffer = \substr($this->readBuffer, $length);
+        if ($payload === '') {
+            return false;
+        }
 
-        return $result;
+        $this->processPayload($payload);
+        return true;
     }
 }

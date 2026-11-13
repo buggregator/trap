@@ -17,6 +17,8 @@ use Buggregator\Trap\Server\Socket\Client;
 use Buggregator\Trap\Server\Socket\Server;
 use Buggregator\Trap\Server\Socket\SocketStream;
 use Buggregator\Trap\Server\Traffic\Inspector;
+use Buggregator\Trap\Support\Activity;
+use Buggregator\Trap\Support\LoopPacer;
 use Buggregator\Trap\Support\Timer;
 use Internal\Container\Container;
 use Internal\Destroy\Destroyable;
@@ -90,6 +92,7 @@ final class Application implements Processable, Cancellable, Destroyable
         $sleep = \max(50, $config->mainLoopInterval);
         $gc = $config->gcInterval > 0 ? new Timer($config->gcInterval) : null;
         $gc === null or \gc_disable();
+        $pacer = new LoopPacer($sleep);
 
         while (true) {
             $this->process($this->senders);
@@ -97,7 +100,12 @@ final class Application implements Processable, Cancellable, Destroyable
                 \gc_collect_cycles();
                 $gc->reset();
             }
-            \usleep($sleep);
+            $ready = $pacer->pause(Activity::take(), $this->sockets(...));
+            if ($ready !== []) {
+                foreach ($this->servers as $server) {
+                    $server->wake($ready);
+                }
+            }
         }
     }
 
@@ -239,6 +247,21 @@ final class Application implements Processable, Cancellable, Destroyable
         }
 
         return $shared;
+    }
+
+    /**
+     * @return array{list<\Socket>, list<\Socket>} Sockets to wait for reading and for writing.
+     */
+    private function sockets(): array
+    {
+        $read = $write = [];
+        foreach ($this->servers as $server) {
+            [$serverRead, $serverWrite] = $server->getSockets();
+            $read = [...$read, ...$serverRead];
+            $write = [...$write, ...$serverWrite];
+        }
+
+        return [$read, $write];
     }
 
     /**
