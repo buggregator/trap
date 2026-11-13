@@ -19,12 +19,23 @@ on:  # yamllint disable-line rule:truthy
   release:
     types:
       - published
+  # Builds without a release: the archives are kept as workflow artifacts.
+  pull_request:
+    paths:
+      - .github/workflows/build-bin-release.yml
+      - Dockerfile
+      - box.json.dist
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name }}
+  SPC_VERSION: 2.8.5
 
 jobs:
   build-unix:
@@ -47,6 +58,7 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -59,7 +71,8 @@ jobs:
       - name: Extract version from tag
         id: get_version
         run: |
-          VERSION=${RELEASE_TAG#v}
+          VERSION=${RELEASE_TAG:-dev}
+          VERSION=${VERSION#v}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "{\"version\": \"$VERSION\", \"type\":\"bin\"}" > version.json
 
@@ -85,22 +98,30 @@ jobs:
           docker cp $container_id:/.output/trap ./dist/trap
           docker rm $container_id
 
-      - name: Zip output
-        uses: ksm2/archive-action@v1
-        with:
-          root-directory: dist
-          format: "tar.gz"
-          name: trap-${{ env.VERSION }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}
+      - name: Archive executable
+        run: >-
+          tar --format=ustar --owner=0 --group=0 --numeric-owner -C dist
+          -czf "trap-${VERSION}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}.tar.gz" trap
 
       - name: 📤 Upload release assets
+        if: env.RELEASE_TAG != ''
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           files: |
             ./trap-${{ env.VERSION }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}.tar.gz
 
+      - name: 📤 Upload artifact
+        if: env.RELEASE_TAG == ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: trap-${{ env.VERSION }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}
+          path: ./trap-${{ env.VERSION }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
   build-macos-arm64:
-    runs-on: macos-14
+    runs-on: macos-15
     permissions:
       contents: write
     name: 📦 Build macOS ARM64
@@ -123,7 +144,8 @@ jobs:
         id: get_version
         shell: bash
         run: |
-          VERSION=${RELEASE_TAG#v}
+          VERSION=${RELEASE_TAG:-dev}
+          VERSION=${VERSION#v}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "{\"version\": \"$VERSION\", \"type\":\"bin\"}" > version.json
 
@@ -140,7 +162,7 @@ jobs:
 
       - name: Download SPC for macOS ARM64
         run: |
-          curl -fsSL -o .build/bin/spc https://dl.static-php.dev/static-php-cli/spc-bin/nightly/spc-macos-aarch64
+          curl -fsSL "https://github.com/crazywhalecc/static-php-cli/releases/download/${SPC_VERSION}/spc-macos-aarch64.tar.gz" | tar -xz -C .build/bin spc
           chmod +x .build/bin/spc
 
       - name: Download required PHP extensions
@@ -174,22 +196,30 @@ jobs:
           chmod +x dist/trap
           dist/trap --help
 
-      - name: Zip output
-        uses: ksm2/archive-action@v1
-        with:
-          root-directory: dist
-          format: "tar.gz"
-          name: trap-${{ env.VERSION }}-darwin-arm64
+      - name: Archive executable
+        run: >-
+          tar --format ustar --uid 0 --gid 0 --numeric-owner --no-mac-metadata -C dist
+          -czf "trap-${VERSION}-darwin-arm64.tar.gz" trap
 
       - name: 📤 Upload release assets
+        if: env.RELEASE_TAG != ''
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           files: |
             ./trap-${{ env.VERSION }}-darwin-arm64.tar.gz
 
+      - name: 📤 Upload artifact
+        if: env.RELEASE_TAG == ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: trap-${{ env.VERSION }}-darwin-arm64
+          path: ./trap-${{ env.VERSION }}-darwin-arm64.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
   build-macos-amd64:
-    runs-on: macos-latest
+    runs-on: macos-15-intel
     permissions:
       contents: write
     name: 📦 Build macOS (x64)
@@ -212,7 +242,8 @@ jobs:
         id: get_version
         shell: bash
         run: |
-          VERSION=${RELEASE_TAG#v}
+          VERSION=${RELEASE_TAG:-dev}
+          VERSION=${VERSION#v}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "{\"version\": \"$VERSION\", \"type\":\"bin\"}" > version.json
 
@@ -224,7 +255,7 @@ jobs:
 
       - name: Download SPC for macOS AMD64
         run: |
-          curl -fsSL -o .build/bin/spc https://dl.static-php.dev/static-php-cli/spc-bin/nightly/spc-macos-x86_64
+          curl -fsSL "https://github.com/crazywhalecc/static-php-cli/releases/download/${SPC_VERSION}/spc-macos-x86_64.tar.gz" | tar -xz -C .build/bin spc
           chmod +x .build/bin/spc
 
       - name: Download box tool
@@ -232,25 +263,14 @@ jobs:
           curl -fsSL -o .build/bin/box.phar https://github.com/box-project/box/releases/download/4.6.6/box.phar
           chmod +x .build/bin/box.phar
 
-      - name: Install Intel Homebrew for AMD64
-        run: |
-          # Check if we need to install Intel Homebrew
-          if [[ ! -d "/usr/local/Homebrew" ]]; then
-            echo "Installing Intel (x86_64) version of Homebrew"
-            arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-          fi
-
       - name: Download required PHP extensions
         run: |
-          # For AMD64, ensure we're using the Intel Homebrew
-          export PATH="/usr/local/bin:$PATH"
           .build/bin/spc download micro --for-extensions=ctype,dom,filter,libxml,mbstring,phar,simplexml,sockets,tokenizer,xml,xmlwriter --with-php=8.3 --prefer-pre-built
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
       - name: Verify environment is ready
         run: |
-          export PATH="/usr/local/bin:$PATH"
           .build/bin/spc doctor --auto-fix
 
       - name: Build PHAR file
@@ -259,12 +279,10 @@ jobs:
 
       - name: Build the self-executable binary
         run: |
-          export PATH="/usr/local/bin:$PATH"
           .build/bin/spc build "ctype,dom,filter,libxml,mbstring,phar,simplexml,sockets,tokenizer,xml,xmlwriter" --build-micro
 
       - name: Combine micro.sfx with the PHAR
         run: |
-          export PATH="/usr/local/bin:$PATH"
           .build/bin/spc micro:combine .build/phar/trap.phar --output=dist/trap
 
       - name: Test binary
@@ -272,22 +290,30 @@ jobs:
           chmod +x dist/trap
           dist/trap --help
 
-      - name: Zip output
-        uses: ksm2/archive-action@v1
-        with:
-          root-directory: dist
-          format: "tar.gz"
-          name: trap-${{ env.VERSION }}-darwin-amd64
+      - name: Archive executable
+        run: >-
+          tar --format ustar --uid 0 --gid 0 --numeric-owner --no-mac-metadata -C dist
+          -czf "trap-${VERSION}-darwin-amd64.tar.gz" trap
 
       - name: 📤 Upload release assets
+        if: env.RELEASE_TAG != ''
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           files: |
             ./trap-${{ env.VERSION }}-darwin-amd64.tar.gz
 
+      - name: 📤 Upload artifact
+        if: env.RELEASE_TAG == ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: trap-${{ env.VERSION }}-darwin-amd64
+          path: ./trap-${{ env.VERSION }}-darwin-amd64.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
   build-windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
     permissions:
       contents: write
     name: 📦 Build Windows (x64)
@@ -297,6 +323,7 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
@@ -309,7 +336,8 @@ jobs:
         id: get_version
         shell: bash
         run: |
-          VERSION=${RELEASE_TAG#v}
+          VERSION=${RELEASE_TAG:-dev}
+          VERSION=${VERSION#v}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "{\"version\": \"$VERSION\", \"type\":\"bin\"}" > version.json
 
@@ -325,7 +353,7 @@ jobs:
 
       - name: Download SPC for Windows
         run: |
-          Invoke-WebRequest -Uri "https://dl.static-php.dev/static-php-cli/spc-bin/nightly/spc-windows-x64.exe" -OutFile ".build/bin/spc.exe"
+          Invoke-WebRequest -Uri "https://github.com/crazywhalecc/static-php-cli/releases/download/$env:SPC_VERSION/spc-windows-x64.exe" -OutFile ".build/bin/spc.exe"
 
       - name: Download required PHP extensions
         run: .build/bin/spc.exe download micro --for-extensions=ctype,dom,filter,libxml,mbstring,phar,simplexml,sockets,tokenizer,xml,xmlwriter --with-php=8.3 --prefer-pre-built
@@ -351,16 +379,28 @@ jobs:
           New-Item -Path "dist" -ItemType Directory -Force
           .build\bin\spc.exe micro:combine .build\phar\trap.phar --output=dist\trap.exe
 
-      - name: Zip output
-        uses: ksm2/archive-action@v1
-        with:
-          root-directory: dist
-          format: "tar.gz"
-          name: trap-${{ env.VERSION }}-windows-amd64
+      - name: Test binary
+        run: dist\trap.exe --help
+
+      # Windows' own bsdtar: Git's GNU tar would read a drive letter in a path as a remote host.
+      - name: Archive executable
+        run: >-
+          C:\Windows\System32\tar.exe --format ustar --uid 0 --gid 0 --numeric-owner -C dist
+          -czf "trap-${env:VERSION}-windows-amd64.tar.gz" trap.exe
 
       - name: 📤 Upload release assets
+        if: env.RELEASE_TAG != ''
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           files: |
             ./trap-${{ env.VERSION }}-windows-amd64.tar.gz
+
+      - name: 📤 Upload artifact
+        if: env.RELEASE_TAG == ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: trap-${{ env.VERSION }}-windows-amd64
+          path: ./trap-${{ env.VERSION }}-windows-amd64.tar.gz
+          if-no-files-found: error
+          retention-days: 7
