@@ -18,6 +18,7 @@ final class TopFunctions implements \JsonSerializable
         private readonly TopFunctions\Schema $schema,
     ) {}
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [

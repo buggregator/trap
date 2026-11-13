@@ -19,6 +19,7 @@ final class CallGraph implements \JsonSerializable
         private readonly array $edges,
     ) {}
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [

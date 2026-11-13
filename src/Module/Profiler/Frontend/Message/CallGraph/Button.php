@@ -15,6 +15,7 @@ final class Button implements \JsonSerializable
         public readonly string $description,
     ) {}
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [

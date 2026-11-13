@@ -52,7 +52,7 @@ final class Tree implements \IteratorAggregate, \Countable
      * @param int<1, max> $limit
      * @param callable(Branch<TItem>, Branch<TItem>): int $sorter
      *
-     * @return list<Branch>
+     * @return list<Branch<TItem>>
      */
     public function top(int $limit, callable $sorter): array
     {
@@ -60,10 +60,13 @@ final class Tree implements \IteratorAggregate, \Countable
         $all = \array_values($this->all);
         $result = \array_slice($all, 0, $limit);
         \usort($result, $sorter);
+        if ($result === []) {
+            return [];
+        }
 
         // Compare next item with the last of the top
         // and resort the top one by one
-        $end = \array_key_last($result);
+        $end = \count($result) - 1;
         $next = $limit - 1;
 
         while (++$next < \count($all)) {
@@ -75,12 +78,12 @@ final class Tree implements \IteratorAggregate, \Countable
             $result[$end] = $all[$next];
 
             // Sort
-            $current = $end;
-            while (--$current >= 0 && $sorter($result[$current], $result[$current + 1]) > 0) {
+            for ($current = $end - 1; $current >= 0 && $sorter($result[$current], $result[$current + 1]) > 0; --$current) {
                 [$result[$current], $result[$current + 1]] = [$result[$current + 1], $result[$current]];
             }
         }
 
+        /** @var list<Branch<TItem>> $result Only the existing indexes were written */
         return $result;
     }
 
@@ -94,7 +97,7 @@ final class Tree implements \IteratorAggregate, \Countable
     {
         \array_key_exists($id, $this->all) and throw new \LogicException("Duplicate branch ID `$id`.");
 
-        /** @var TItem $item */
+        /** @var Branch<TItem> $branch */
         $branch = new Branch($item, $id, $parentId);
         // `+` and direct assignment keep numeric string keys, which a spread would renumber
         $prepend

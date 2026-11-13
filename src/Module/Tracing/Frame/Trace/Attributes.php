@@ -16,12 +16,12 @@ namespace Buggregator\Trap\Module\Tracing\Frame\Trace;
  * @psalm-internal Buggregator
  *
  * @psalm-type AttributeValue = scalar|null|list<mixed>|\ArrayObject
- * @psalm-type Attributes = array<array-key, AttributeValue>
+ * @psalm-type AttributeMap = array<array-key, AttributeValue>
  */
 final class Attributes
 {
     /**
-     * @param Attributes $attributes
+     * @param AttributeMap $attributes
      * @return \ArrayObject<array-key, AttributeValue>
      */
     public static function serialize(array $attributes): \ArrayObject
@@ -32,7 +32,7 @@ final class Attributes
     /**
      * Restores attributes from JSON decoded with objects, the form that keeps maps apart from lists.
      *
-     * @return Attributes
+     * @return AttributeMap
      */
     public static function fromJson(mixed $map): array
     {

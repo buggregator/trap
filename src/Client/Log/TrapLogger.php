@@ -27,15 +27,17 @@ final class TrapLogger extends AbstractLogger
      * @param non-empty-string $channel
      */
     public function __construct(
-        private string $host = '127.0.0.1',
-        private int $port = 9913,
-        private string $channel = 'trap',
-        private float $connectTimeout = 0.5,
+        private readonly string $host = '127.0.0.1',
+        private readonly int $port = 9913,
+        private readonly string $channel = 'trap',
+        private readonly float $connectTimeout = 0.5,
     ) {}
 
     /**
      * Sends a log record to the Trap server in Monolog-compatible JSON format,
      * falling back to STDERR if the connection fails.
+     *
+     * @psalm-capabilities read-props|write-this-props|write-props|read-globals|write-globals|io|time
      */
     #[\Override]
     public function log(mixed $level, string|\Stringable $message, array $context = []): void
@@ -63,9 +65,9 @@ final class TrapLogger extends AbstractLogger
      */
     private function sendToTrap(string $payload): bool
     {
-        return \Fiber::getCurrent() === null
-            ? $this->sendSync($payload)
-            : $this->sendAsync($payload);
+        return \Fiber::getCurrent() instanceof \Fiber
+            ? $this->sendAsync($payload)
+            : $this->sendSync($payload);
     }
 
     /**
@@ -202,7 +204,7 @@ final class TrapLogger extends AbstractLogger
         /** @psalm-suppress MixedAssignment */
         foreach ($context as $key => $value) {
             if (\is_object($value) && !\method_exists($value, '__toString')) {
-                $replacements['{' . (string) $key . '}'] = \get_class($value);
+                $replacements['{' . (string) $key . '}'] = $value::class;
 
                 continue;
             }

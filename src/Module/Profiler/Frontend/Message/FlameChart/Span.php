@@ -24,6 +24,7 @@ final class Span implements \JsonSerializable
         public array $children = [],
     ) {}
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [

@@ -273,6 +273,10 @@ final class Test extends Command
         } catch (\Throwable $e) {
             $this->logger->exception($e, "$file sending error", important: true);
         } finally {
+            /**
+             * Bug: `$fp` is `false` when `fopen()` fails, and `flock(false)` throws a `TypeError`.
+             * @psalm-suppress PossiblyFalseArgument
+             */
             if (isset($fp)) {
                 @\flock($fp, LOCK_UN);
                 @\fclose($fp);

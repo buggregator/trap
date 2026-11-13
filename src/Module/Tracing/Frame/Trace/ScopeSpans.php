@@ -10,13 +10,13 @@ namespace Buggregator\Trap\Module\Tracing\Frame\Trace;
  * @internal
  * @psalm-internal Buggregator
  *
- * @psalm-import-type Attributes from Attributes
+ * @psalm-import-type AttributeMap from Attributes
  * @psalm-import-type SpanData from Span
  * @psalm-type ScopeSpansData = array{
  *     scope: array{
  *         name: string,
  *         version: string,
- *         attributes: Attributes,
+ *         attributes: AttributeMap,
  *         droppedAttributesCount: int<0, max>
  *     },
  *     schemaUrl: string,
@@ -27,7 +27,7 @@ final class ScopeSpans implements \JsonSerializable
 {
     /**
      * @param list<Span> $spans
-     * @param Attributes $scopeAttributes
+     * @param AttributeMap $scopeAttributes
      * @param int<0, max> $scopeDroppedAttributesCount
      */
     public function __construct(

@@ -23,7 +23,7 @@ use Buggregator\Trap\Support\Uuid;
  *     filename?: string,
  *     tags: array<non-empty-string, non-empty-string>,
  *     peaks: PeaksData|Peaks,
- *     edges: array,
+ *     profile_uuid: non-empty-string,
  *     total_edges: int<0, max>,
  * }
  *

@@ -29,7 +29,7 @@ use Psr\Http\Message\ResponseInterface;
  * @internal
  * @psalm-internal Buggregator\Trap\Module\Tracing\Http
  *
- * @psalm-import-type Attributes from Attributes
+ * @psalm-import-type AttributeMap from Attributes
  * @psalm-import-type AttributeValue from Attributes
  */
 final class JsonTracesDecoder implements TracesDecoder
@@ -184,7 +184,7 @@ final class JsonTracesDecoder implements TracesDecoder
     /**
      * Reads a `repeated KeyValue` field into a map; a repeated key keeps the last value.
      *
-     * @return Attributes
+     * @return AttributeMap
      */
     private static function attributes(array $data, string $key = 'attributes'): array
     {

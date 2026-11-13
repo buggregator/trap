@@ -14,6 +14,7 @@ final class Metrics implements \JsonSerializable
         private readonly float $percents,
     ) {}
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [

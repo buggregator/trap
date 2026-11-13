@@ -33,6 +33,7 @@ final class FrameHandler implements HandlerInterface
         );
 
         foreach ($this->renderers as $renderer) {
+            /** @psalm-suppress RedundantCondition The frame type of a renderer is unknown here, so its assertion is `Frame` */
             if ($renderer->isSupport($frame)) {
                 $renderer->render($buffer, $frame);
 

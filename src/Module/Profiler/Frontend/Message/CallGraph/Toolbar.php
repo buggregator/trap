@@ -16,6 +16,7 @@ final class Toolbar implements \JsonSerializable
         private array $buttons,
     ) {}
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         return $this->buttons;

@@ -16,6 +16,7 @@ final class Edge implements \JsonSerializable
         public readonly string $target,
     ) {}
 
+    #[\Override]
     public function jsonSerialize(): array
     {
         return [
