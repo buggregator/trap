@@ -52,17 +52,15 @@
         "symfony/var-dumper": "^6.3 || ^7 || ^8"
     },
     "require-dev": {
-        "boundwize/structarmed": "^0.21.8",
+        "bamarni/composer-bin-plugin": "^1.8",
         "google/protobuf": "^3.25 || ^4.30 || ^v5.36.1",
         "llm/skills": "^1.14",
         "mockery/mockery": "^1.6",
         "open-telemetry/gen-otlp-protobuf": "^1.10",
-        "rector/rector": "^2.0",
         "roxblnfk/unpoly": "^1.8",
-        "spiral/code-style": "^2.2.2",
+        "testo/bridge-infection": "^0.1.9",
         "testo/bridge-mockery": "^0.1.2",
-        "testo/testo": "^0.10.56",
-        "vimeo/psalm": "^6 || ^7"
+        "testo/testo": "^0.10.56"
     },
     "suggest": {
         "ext-excimer": "To profile code with trap()::profile() using the Excimer sampling profiler",
@@ -93,8 +91,8 @@
     ],
     "config": {
         "allow-plugins": {
+            "bamarni/composer-bin-plugin": true,
             "ergebnis/composer-normalize": true,
-            "infection/extension-installer": true,
             "llm/skills": true
         },
         "audit": {
@@ -102,16 +100,31 @@
         },
         "sort-packages": true
     },
+    "extra": {
+        "bamarni-bin": {
+            "bin-links": true,
+            "forward-command": false,
+            "target-directory": "tools"
+        }
+    },
     "scripts": {
-        "cs:diff": "php-cs-fixer fix --dry-run -v --diff",
-        "cs:fix": "php-cs-fixer fix -v",
-        "psalm": "psalm",
-        "psalm:baseline": "psalm --set-baseline=psalm-baseline.xml",
-        "psalm:ci": "psalm --output-format=github --shepherd --show-info=false --stats --threads=4",
-        "refactor": "rector process --config=rector.php",
-        "refactor:ci": "rector process --config=rector.php --dry-run --ansi",
-        "structarmed": "structarmed analyse",
-        "structarmed:ci": "structarmed analyse --no-progress",
+        "cs:diff": "php-cs-fixer fix --dry-run -v --diff --config=tools/code-style/.php-cs-fixer.dist.php",
+        "cs:fix": "php-cs-fixer fix -v --config=tools/code-style/.php-cs-fixer.dist.php",
+        "infect": [
+            "@putenv XDEBUG_MODE=coverage",
+            "infection --threads=max --min-msi=70 --min-covered-msi=70"
+        ],
+        "infect:ci": [
+            "@putenv XDEBUG_MODE=coverage",
+            "infection --ansi --threads=max --logger-github --show-mutations=0 --min-msi=70 --min-covered-msi=70"
+        ],
+        "psalm": "psalm -c tools/psalm/psalm.xml",
+        "psalm:baseline": "psalm -c tools/psalm/psalm.xml --set-baseline=tools/psalm/psalm-baseline.xml",
+        "psalm:ci": "psalm -c tools/psalm/psalm.xml --output-format=github --shepherd --show-info=false --stats --threads=4",
+        "refactor": "rector process --config=tools/rector/rector.php",
+        "refactor:ci": "rector process --config=tools/rector/rector.php --dry-run --ansi",
+        "structarmed": "structarmed analyse --config=tools/structarmed/structarmed.php",
+        "structarmed:ci": "structarmed analyse --config=tools/structarmed/structarmed.php --no-progress",
         "test": "testo",
         "test:unit": "testo --suite=Unit",
         "test:arch": "testo --suite=Arch",

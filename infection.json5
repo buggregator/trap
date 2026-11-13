@@ -1,5 +1,5 @@
 {
-    "$schema": "https://raw.githubusercontent.com/infection/infection/0.35.6/resources/schema.json",
+    "$schema": "tools/infection/vendor/infection/infection/resources/schema.json",
     "source": {
         "directories": ["src"],
         // Test helpers and generated protobuf stubs, not production code.

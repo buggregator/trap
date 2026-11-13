@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 use Boundwize\StructArmed\Architecture;
 
+$root = \dirname(__DIR__, 2);
 $sources = ['HttpDump', 'Mailer', 'Monolog', 'Profiler', 'Ray', 'Sentry', 'Tracing', 'VarDumper'];
 $channels = ['Console', 'Files', 'Frontend', 'Remote'];
 
 $architecture = Architecture::define()
-    ->layer('Client', ['src/Client/', 'src/functions.php'])
-    ->layer('Support', 'src/Support/')
-    ->layer('Server', 'src/Server/');
+    ->layer('Client', [$root . '/src/Client/', $root . '/src/functions.php'])
+    ->layer('Support', $root . '/src/Support/')
+    ->layer('Server', $root . '/src/Server/');
 
 foreach ([...$sources, ...$channels] as $module) {
-    $architecture->layer($module, "src/Module/{$module}/");
+    $architecture->layer($module, "{$root}/src/Module/{$module}/");
 }
 
 return $architecture
