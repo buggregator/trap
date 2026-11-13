@@ -20,7 +20,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: wayofdev/gh-actions/.github/workflows/apply-labels.yml@v3.2.0
+    uses: wayofdev/gh-actions/.github/workflows/apply-labels.yml@v3.3.0
     with:
       os: ubuntu-latest
     secrets:
