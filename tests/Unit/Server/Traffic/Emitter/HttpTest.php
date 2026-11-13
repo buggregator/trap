@@ -5,65 +5,61 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Server\Traffic\Emitter;
 
 use Buggregator\Trap\Server\Handler\Http\Emitter;
+use Buggregator\Trap\Support\Stream\ConcurrentReadStream;
 use Buggregator\Trap\Test\Mock\StreamClientMock;
+use Buggregator\Trap\Test\Mock\StreamClientMock\DisconnectCommand;
 use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Nyholm\Psr7\Response;
 use Testo\Assert;
-use Testo\Skip;
+use Testo\Codecov\Covers;
 use Testo\Test;
 
+#[Covers(Emitter::class)]
+#[Covers(ConcurrentReadStream::class)]
 final class HttpTest
 {
     use FiberTrait;
 
     /**
      * Test that the same body is emitted to multiple streams at the same time.
-     *
-     * @covers \Buggregator\Trap\Support\StreamHelper::concurrentReadStream()
      */
     #[Test]
-    #[Skip('This test is not working yet.')]
     public function testConcurrentBodyReading(): void
     {
-        $content = <<<CONTENT
-        0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
-        CONTENT;
+        $content = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
         $stream = \fopen('php://memory', 'w+b');
         \fwrite($stream, $content);
         $response = new Response(200, [], $stream);
 
-        $bufferBefore = Emitter::$bufferSize;
-
-        $function = static function (string &$emittedData): \Generator {
-            $i = 1;
-            while (++$i < 100) {
-                $emittedData .= yield '';
+        $collect = static function (string &$emittedData): \Generator {
+            while (!($data = yield '') instanceof DisconnectCommand) {
+                $emittedData .= $data;
             }
         };
 
-        // Create two streams with the same data but different output buffers
         $data1 = $data2 = '';
-        $stream1 = StreamClientMock::createFromGenerator($function($data1));
-        $stream2 = StreamClientMock::createFromGenerator($function($data2));
+        $client1 = StreamClientMock::createFromGenerator($collect($data1));
+        $client2 = StreamClientMock::createFromGenerator($collect($data2));
 
+        $bufferBefore = Emitter::$bufferSize;
         try {
             Emitter::$bufferSize = 2;
             $this->runInFibers(
-                static function () use ($response, $stream1): void {
-                    Emitter::emit($stream1, $response);
+                static function () use ($response, $client1): void {
+                    Emitter::emit($client1, $response);
+                    $client1->disconnect();
                 },
-                static function () use ($response, $stream2): void {
-                    Emitter::emit($stream2, $response);
+                static function () use ($response, $client2): void {
+                    Emitter::emit($client2, $response);
+                    $client2->disconnect();
                 },
             );
         } finally {
             Emitter::$bufferSize = $bufferBefore;
         }
 
-        // Check that the data is the same
+        Assert::same($data1, "HTTP/1.1 200 OK\r\nContent-Length: 62\r\n\r\n{$content}");
         Assert::same($data2, $data1);
-        Assert::same($data1, $content);
-        Assert::same($data2, $content);
     }
 }
