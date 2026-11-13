@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Server\Traffic\Dispatcher;
 
+use Buggregator\Trap\Server\Handler\Http\Emitter as HttpEmitter;
 use Buggregator\Trap\Server\Handler\Http\Handler\MiddlewareHandler;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Handler\Http\RequestHandler;
@@ -12,6 +13,8 @@ use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Server\Traffic\Dispatcher;
 use Buggregator\Trap\Server\Traffic\Parser;
 use Buggregator\Trap\Server\Traffic\StreamClient;
+use Buggregator\Trap\Support\Stream\SizeLimitExceeded;
+use Nyholm\Psr7\Response;
 
 /**
  * @internal
@@ -31,14 +34,16 @@ final class Http implements Dispatcher
      * @param iterable<array-key, Middleware> $middlewares
      * @param array<array-key, RequestHandler> $handlers
      * @param bool $silentMode Don't emit Frames on dispatch if set to true.
+     * @param int<0, max> $maxInflatedBodySize A compressed body inflating past it is answered with 413.
      */
     public function __construct(
         iterable $middlewares = [],
         array $handlers = [],
         private readonly bool $silentMode = false,
+        int $maxInflatedBodySize = Parser\Http::MAX_INFLATED_BODY_SIZE,
     ) {
         // Init HTTP parser.
-        $this->parser = new Parser\Http();
+        $this->parser = new Parser\Http($maxInflatedBodySize);
 
         $handlers[] = new MiddlewareHandler($middlewares);
 
@@ -60,11 +65,18 @@ final class Http implements Dispatcher
     #[\Override]
     public function dispatch(StreamClient $stream): iterable
     {
+        try {
+            $request = $this->parser->parseStream($stream);
+        } catch (SizeLimitExceeded) {
+            // Answered before any handler: a compressed body must not reach them inflated past the limit
+            HttpEmitter::emit($stream, new Response(413, body: 'The request body is too large.'));
+            $stream->disconnect();
+            return;
+        }
+
         $generator = ($this->pipeline)(
             $stream,
-            $this->parser
-                ->parseStream($stream)
-                ->withAttribute('begin_at', $stream->getCreatedAt()),
+            $request->withAttribute('begin_at', $stream->getCreatedAt()),
         );
 
         if ($this->silentMode) {

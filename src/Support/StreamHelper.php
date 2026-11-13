@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Support;
 
+use Buggregator\Trap\Support\Stream\SizeLimitExceeded;
 use Nyholm\Psr7\Stream;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
@@ -17,7 +18,9 @@ final class StreamHelper
     private const CHUNK_SIZE = 1 * 1024 * 1024; // 1 Mb
     private const WRITE_STREAM_CHUNK_SIZE = 8 * 1024 * 1024; // 8 Mb
     private const MAX_FILE_MEMORY_SIZE = 4 * 1024 * 1024; // 4MB
-    private const INFLATE_CHUNK_SIZE = 64 * 1024; // 64 KB
+
+    /** Deflate expands at most ~1032:1, so one chunk inflates to under 17 MB in memory */
+    private const INFLATE_CHUNK_SIZE = 16 * 1024; // 16 KB
 
     /**
      * @param non-empty-string $substr
@@ -121,9 +124,12 @@ final class StreamHelper
      *
      * Corrupted data ends the body at the last byte inflated before the error.
      *
+     * @param int<0, max> $maxSize Limit of the inflated body size in bytes.
+     *
+     * @throws SizeLimitExceeded When the body inflates past the limit; nothing past it is written.
      * @throws \RuntimeException When there is no zlib extension.
      */
-    public static function unzipBody(ServerRequestInterface $request): ServerRequestInterface
+    public static function unzipBody(ServerRequestInterface $request, int $maxSize = \PHP_INT_MAX): ServerRequestInterface
     {
         \function_exists('inflate_init') or throw new \RuntimeException(
             'The request body is gzip-compressed, but the server has no zlib extension.',
@@ -133,10 +139,17 @@ final class StreamHelper
 
         $from = $request->getBody();
         $stream = self::createFileStream();
+        $size = 0;
         while (!$from->eof() && \inflate_get_status($context) !== \ZLIB_STREAM_END) {
             $data = @\inflate_add($context, $from->read(self::INFLATE_CHUNK_SIZE), \ZLIB_SYNC_FLUSH);
             if ($data === false) {
                 break;
+            }
+
+            $size += \strlen($data);
+            if ($size > $maxSize) {
+                $stream->close();
+                throw new SizeLimitExceeded("The request body inflates to more than {$maxSize} bytes.");
             }
 
             $stream->write($data);

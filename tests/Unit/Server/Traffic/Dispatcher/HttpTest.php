@@ -125,12 +125,59 @@ final class HttpTest
         Assert::same($this->sent, '', 'The middleware handler must not respond.');
     }
 
-    private function createStream(): StreamClient
+    public function testGzipBodyInflatingPastLimitIsAnsweredWith413BeforeHandlers(): void
     {
-        return StreamClientMock::createFromGenerator((function (): \Generator {
-            $this->sent .= (string) yield "GET /foo HTTP/1.1\r\n";
-            $this->sent .= (string) yield "Host: localhost\r\n";
-            $this->sent .= (string) yield "\r\n";
+        $handler = new class implements RequestHandler {
+            public bool $called = false;
+
+            public function handle(StreamClient $streamClient, ServerRequestInterface $request, callable $next): iterable
+            {
+                $this->called = true;
+                yield from $next($streamClient, $request);
+            }
+        };
+        $dispatcher = new Http([new Dump()], [$handler], maxInflatedBodySize: 1024);
+
+        $frames = $this->dispatch($dispatcher, $this->createGzipPostStream(\str_repeat('a', 1025)));
+
+        Assert::same($frames, []);
+        Assert::false($handler->called);
+        Assert::string($this->sent)->startsWith('HTTP/1.1 413');
+    }
+
+    public function testGzipBodyWithinLimitReachesMiddlewaresInflated(): void
+    {
+        $dispatcher = new Http([new Dump()], maxInflatedBodySize: 1024);
+
+        $frames = $this->dispatch($dispatcher, $this->createGzipPostStream($body = \str_repeat('a', 1024)));
+
+        Assert::count($frames, 1);
+        Assert::instanceOf($frames[0], HttpFrame::class);
+        Assert::same((string) $frames[0]->request->getBody(), $body);
+    }
+
+    private function createGzipPostStream(string $body): StreamClient
+    {
+        $gzip = \gzencode($body);
+
+        return $this->createStream(
+            "POST /foo HTTP/1.1\r\n",
+            "Host: localhost\r\n",
+            "Content-Encoding: gzip\r\n",
+            'Content-Length: ' . \strlen($gzip) . "\r\n",
+            "\r\n",
+            $gzip,
+        );
+    }
+
+    private function createStream(string ...$chunks): StreamClient
+    {
+        $chunks = $chunks ?: ["GET /foo HTTP/1.1\r\n", "Host: localhost\r\n", "\r\n"];
+
+        return StreamClientMock::createFromGenerator((function () use ($chunks): \Generator {
+            foreach ($chunks as $chunk) {
+                $this->sent .= (string) yield $chunk;
+            }
             while (true) {
                 $got = yield '';
                 if (!\is_string($got)) {
