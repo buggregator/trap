@@ -20,12 +20,19 @@ use Psr\Http\Message\StreamInterface;
  */
 final class Http
 {
+    /** The largest body a module accepts: an Xdebug profile */
+    public const MAX_INFLATED_BODY_SIZE = 64 * 1024 * 1024;
+
     private const MAX_URL_ENCODED_BODY_SIZE = 4194304; // 4MB
 
     private Psr17Factory $factory;
 
-    public function __construct()
-    {
+    /**
+     * @param int<0, max> $maxInflatedBodySize Limit of a compressed body after inflating, in bytes.
+     */
+    public function __construct(
+        private readonly int $maxInflatedBodySize = self::MAX_INFLATED_BODY_SIZE,
+    ) {
         $this->factory = new Psr17Factory();
     }
 
@@ -216,7 +223,7 @@ final class Http
         if ($request->hasHeader('Content-Encoding')) {
             $encoding = $request->getHeaderLine('Content-Encoding');
             if ($encoding === 'gzip') {
-                $request = StreamHelper::unzipBody($request);
+                $request = StreamHelper::unzipBody($request, $this->maxInflatedBodySize);
             }
         }
 
