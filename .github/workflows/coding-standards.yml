@@ -24,12 +24,12 @@ jobs:
       pull-requests: read
     steps:
       - name: 📦 Check out the codebase
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
       - name: 🧐 Lint commits using "commitlint"
-        uses: wagoid/commitlint-github-action@v6.0.1
+        uses: wagoid/commitlint-github-action@v6.2.1
         with:
           configFile: ${{ github.workspace }}/.github/.commitlint.config.mjs
           failOnWarnings: false
@@ -44,7 +44,7 @@ jobs:
       pull-requests: read
     steps:
       - name: 📦 Check out the codebase
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -60,12 +60,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 📦 Check out the codebase
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
       - name: 🧐 Lint Markdown files
-        uses: DavidAnson/markdownlint-cli2-action@v16.0.0
+        uses: DavidAnson/markdownlint-cli2-action@v25
         with:
           globs: |
             **/*.md

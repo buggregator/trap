@@ -30,7 +30,7 @@ jobs:
           - locked
     steps:
       - name: 📦 Check out the codebase
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -45,7 +45,7 @@ jobs:
         run: composer validate --ansi --strict
 
       - name: 📥 Install dependencies with composer
-        uses: ramsey/composer-install@v3
+        uses: ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda  # 4.0.0
         with:
           dependency-versions: ${{ matrix.dependencies }}
 
