@@ -157,19 +157,18 @@ final class Router
 
     /**
      * Convert query parameter to the specified type.
+     *
+     * @param string|null $queryName Query parameter name; the method parameter name when null.
      */
     public static function convertQueryParam(
         \ReflectionParameter $param,
         array $params,
+        ?string $queryName = null,
     ): mixed {
         $name = $param->getName();
         $type = $param->getType();
 
-        /**
-         * Bug: `$queryParam` is never defined, so the name given in `#[QueryParam]` is ignored.
-         * @psalm-suppress UndefinedVariable, MixedPropertyFetch
-         */
-        $queryName = (string) ($queryParam->name ?? $name);
+        $queryName ??= $name;
         if (!isset($params[$queryName])) {
             $param->isDefaultValueAvailable() or throw new \InvalidArgumentException(\sprintf(
                 'Query parameter `%s` is required.',
@@ -436,7 +435,7 @@ final class Router
                 $queryParam = ($param->getAttributes(RouteQueryParam::class)[0] ?? null)?->newInstance();
                 if ($queryParam !== null) {
                     /** @psalm-suppress MixedAssignment */
-                    $filteredArgs[$name] = self::convertQueryParam($param, $params);
+                    $filteredArgs[$name] = self::convertQueryParam($param, $params, $queryParam->name);
                     continue;
                 }
                 if (isset($args[$name])) {

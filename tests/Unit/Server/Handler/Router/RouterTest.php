@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Frontend\UiControllers;
 use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRoute as AssertAttribute;
 use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteFail;
 use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteSuccess;
+use Buggregator\Trap\Server\Handler\Router\Attribute\QueryParam;
 use Buggregator\Trap\Server\Handler\Router\Attribute\RegexpRoute;
 use Buggregator\Trap\Server\Handler\Router\Attribute\Route as RouteAttribute;
 use Buggregator\Trap\Server\Handler\Router\Attribute\StaticRoute;
@@ -220,6 +221,20 @@ final class RouterTest
 
         Assert::same($router->resolve(Method::Get, '/private-route?x=1')?->name, 'privateRoute');
         Assert::null($router->resolve(Method::Post, '/private-route'));
+    }
+
+    public function testQueryParamReadsNameFromAttribute(): void
+    {
+        $router = Router::compose(new class {
+            #[StaticRoute(Method::Get, 'top')]
+            public function top(#[QueryParam(name: 'n')] int $limit = 5, #[QueryParam] string $metric = 'wt'): string
+            {
+                return "$limit:$metric";
+            }
+        });
+
+        Assert::same($router->match(Method::Get, '/top?n=3&metric=cpu')(), '3:cpu');
+        Assert::same($router->match(Method::Get, '/top?limit=3')(), '5:wt');
     }
 
     public function testComposeRejectsObjectWithoutRoutes(): void
