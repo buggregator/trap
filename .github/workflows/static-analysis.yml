@@ -23,6 +23,8 @@ jobs:
         ['ubuntu-latest']
       php: >-
         ['8.2']
+      bin-tool: psalm
+      command: composer psalm:ci
 
   structarmed:
     timeout-minutes: 4
@@ -53,6 +55,9 @@ jobs:
         uses: ramsey/composer-install@v3
         with:
           dependency-versions: ${{ matrix.dependencies }}
+
+      - name: 📥 Install boundwize/structarmed
+        run: composer bin structarmed install --no-interaction --no-progress
 
       - name: 🏛️ Check architectural layer dependencies using boundwize/structarmed
         run: composer structarmed:ci

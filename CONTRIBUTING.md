@@ -14,7 +14,7 @@
 
 **Server Code** (`src/Server/`, the modules in `src/Module/` and `src/Support/`): Internal code marked with `@internal`. Not subject to semver - breaking changes are allowed.
 
-Dependencies between the layers (client, support, server, modules) are declared in `structarmed.php`; run `composer structarmed` to check them.
+Dependencies between the layers (client, support, server, modules) are declared in `tools/structarmed/structarmed.php`; run `composer structarmed` to check them.
 
 ## Versioning
 
@@ -36,7 +36,7 @@ Breaking changes to server code (`@internal`) don't need major version bumps.
 
 ## Code Style
 
-We use extended PER 2.0 code style. You can run `composer cs:fix` to fix code style automatically. Don't worry about following the style perfectly - our GitHub CI will fix it automatically.
+We use extended PER 2.0 code style. You can run `composer cs:fix` to fix code style automatically (install the QA tools first with `composer bin all install`). Don't worry about following the style perfectly - our GitHub CI will fix it automatically.
 
 ## Commit Guidelines
 

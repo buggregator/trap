@@ -6,6 +6,7 @@ on:  # yamllint disable-line rule:truthy
       - 'src/**'
       - 'tests/**'
       - 'composer.*'
+      - 'tools/rector/**'
   push:
     branches:
       - master
@@ -13,6 +14,7 @@ on:  # yamllint disable-line rule:truthy
       - 'src/**'
       - 'tests/**'
       - 'composer.*'
+      - 'tools/rector/**'
 
 name: ⚙️ Refactoring
 
@@ -56,6 +58,9 @@ jobs:
         uses: ramsey/composer-install@v3
         with:
           dependency-versions: ${{ matrix.dependencies }}
+
+      - name: 📥 Install rector/rector
+        run: composer bin rector install --no-interaction --no-progress
 
       - name: 🔍 Run static analysis using rector/rector
         run: composer refactor:ci

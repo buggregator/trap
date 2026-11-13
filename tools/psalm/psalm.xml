@@ -1,8 +1,10 @@
 <?xml version="1.0"?>
+<!-- resolveFromConfigFile is off: paths resolve from the project root, where `composer psalm` runs. -->
 <psalm xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
        xmlns="https://getpsalm.org/schema/config"
        xsi:schemaLocation="https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd"
        errorLevel="1"
+       resolveFromConfigFile="false"
        findUnusedCode="false"
        phpVersion="8.2"
 >
