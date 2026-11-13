@@ -22,7 +22,7 @@ jobs:
       os: >-
         ['ubuntu-latest']
       dependencies: >-
-        ['locked', 'highest']
+        ['lowest', 'locked', 'highest']
       codecov: true
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9d283db176fa879e3d659c2a021b0c47",
+    "content-hash": "577611a8430c3ef8767092d46674ea4d",
     "packages": [
         {
             "name": "clue/stream-filter",
@@ -1751,16 +1751,16 @@
         },
         {
             "name": "llm/skills",
-            "version": "1.16.0",
+            "version": "1.17.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/roxblnfk/skills.git",
-                "reference": "81ea574f9f16396309d3bef6002633dcced75f7b"
+                "reference": "d0540b7ff9df732863211445a0da7c7242e734b5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/roxblnfk/skills/zipball/81ea574f9f16396309d3bef6002633dcced75f7b",
-                "reference": "81ea574f9f16396309d3bef6002633dcced75f7b",
+                "url": "https://api.github.com/repos/roxblnfk/skills/zipball/d0540b7ff9df732863211445a0da7c7242e734b5",
+                "reference": "d0540b7ff9df732863211445a0da7c7242e734b5",
                 "shasum": ""
             },
             "require": {
@@ -1769,14 +1769,12 @@
                 "php": ">=8.2"
             },
             "require-dev": {
+                "bamarni/composer-bin-plugin": "^1.8",
                 "buggregator/trap": "^1.16",
                 "composer/composer": "^2.10.3",
-                "infection/infection": "dev-testo-bridge-82 as 0.32.6",
                 "roxblnfk/unpoly": "^1.8",
-                "spiral/code-style": "^2.3",
                 "testo/bridge-infection": "0.1 - 1",
-                "testo/testo": "0.10 - 1",
-                "vimeo/psalm": "^7"
+                "testo/testo": "0.10 - 1"
             },
             "suggest": {
                 "ext-intl": "Detects skill names that differ only in Unicode composition; without it or its Symfony polyfill non-ASCII skill names are skipped",
@@ -1784,7 +1782,12 @@
             },
             "type": "composer-plugin",
             "extra": {
-                "class": "LLM\\Skills\\Composer\\SkillsPlugin"
+                "class": "LLM\\Skills\\Composer\\SkillsPlugin",
+                "bamarni-bin": {
+                    "bin-links": true,
+                    "forward-command": false,
+                    "target-directory": "tools"
+                }
             },
             "autoload": {
                 "psr-4": {
@@ -1823,7 +1826,7 @@
                     "type": "boosty"
                 }
             ],
-            "time": "2026-11-07T23:42:03+00:00"
+            "time": "2026-11-12T11:11:08+00:00"
         },
         {
             "name": "mockery/mockery",
