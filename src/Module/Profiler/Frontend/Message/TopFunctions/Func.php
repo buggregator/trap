@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Profiler\Frontend\Message\TopFunctions;
 
 use Buggregator\Trap\Module\Profiler\Struct\Cost;
+use Buggregator\Trap\Module\Profiler\Struct\Edge;
+use Buggregator\Trap\Module\Profiler\Struct\Graph;
 use Buggregator\Trap\Module\Profiler\Struct\Peaks;
 
 /**
@@ -30,6 +32,29 @@ final class Func implements \JsonSerializable
         public readonly string $function,
         private readonly Peaks $totals,
     ) {}
+
+    /**
+     * Sums the calls of every function of the graph, its recursion levels included.
+     *
+     * @return array<string, self> By function names.
+     */
+    public static function aggregate(Graph $graph, Peaks $totals): array
+    {
+        $functions = [];
+        foreach ($graph->functions() as $functionId) {
+            $calls = $graph->callers($functionId);
+            $name = $calls[0]->callee;
+            $func = $functions[$name] ??= new self($name, $totals);
+
+            $func->addCall(
+                $graph->inclusiveCost($functionId),
+                \array_map(static fn(Edge $child): Cost => $child->cost, $graph->callees($functionId)),
+                recursive: $calls[0]->isRecursive(),
+            );
+        }
+
+        return $functions;
+    }
 
     /**
      * @param Cost $cost Inclusive cost of the calls.

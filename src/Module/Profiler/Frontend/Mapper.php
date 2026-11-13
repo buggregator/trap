@@ -25,7 +25,28 @@ use Buggregator\Trap\Server\Proto\Frame;
  */
 final class Mapper implements EventMapper
 {
-    private const SAMPLES = 'samples';
+    public const SAMPLES = 'samples';
+
+    /**
+     * A sampling profiler counts the samples a function is on the stack in, not its calls; a pprof profile may count
+     * something else by its sample type, such as the allocated objects of a heap profile.
+     *
+     * @return non-empty-string|null The sample type, {@see self::SAMPLES} for the samples, null for the calls.
+     */
+    public static function countType(ProfilerPayload $payload): ?string
+    {
+        $metadata = $payload->getProfile()->metadata;
+        if ($payload->type === ProfilerPayloadType::Pprof) {
+            /** @var mixed $type */
+            $type = $metadata['count_type'] ?? null;
+
+            return \is_string($type) && $type !== '' && \preg_match('/samples?$/i', $type) !== 1 ? $type : self::SAMPLES;
+        }
+
+        return $payload->type === ProfilerPayloadType::Speedscope && ($metadata['profile_type'] ?? null) === 'sampled'
+            ? self::SAMPLES
+            : null;
+    }
 
     /**
      * @return Event<ProfilerPayload>
@@ -50,7 +71,7 @@ final class Mapper implements EventMapper
     public function topFunctions(Event $event, string $metric): TopFunctions
     {
         $profile = $event->payload->getProfile();
-        $functions = $this->aggregateFunctions($profile->calls, $profile->peaks);
+        $functions = TopFunctions\Func::aggregate($profile->calls, $profile->peaks);
 
         $order = [];
         foreach ($functions as $name => $func) {
@@ -357,27 +378,6 @@ final class Mapper implements EventMapper
     }
 
     /**
-     * A sampling profiler counts the samples a function is on the stack in, not its calls; a pprof profile may count
-     * something else by its sample type, such as the allocated objects of a heap profile.
-     *
-     * @return non-empty-string|null The sample type, {@see self::SAMPLES} for the samples, null for the calls.
-     */
-    private static function countType(ProfilerPayload $payload): ?string
-    {
-        $metadata = $payload->getProfile()->metadata;
-        if ($payload->type === ProfilerPayloadType::Pprof) {
-            /** @var mixed $type */
-            $type = $metadata['count_type'] ?? null;
-
-            return \is_string($type) && $type !== '' && \preg_match('/samples?$/i', $type) !== 1 ? $type : self::SAMPLES;
-        }
-
-        return $payload->type === ProfilerPayloadType::Speedscope && ($metadata['profile_type'] ?? null) === 'sampled'
-            ? self::SAMPLES
-            : null;
-    }
-
-    /**
      * A profiler may not measure a metric at all: Xdebug has no CPU time and no peak memory.
      */
     private static function isMeasured(Peaks $peaks, string $metric): bool
@@ -458,26 +458,5 @@ final class Mapper implements EventMapper
             'ct' => $cost->ct,
             default => $cost->wt,
         };
-    }
-
-    /**
-     * @return array<string, TopFunctions\Func>
-     */
-    private function aggregateFunctions(Graph $graph, Peaks $totals): array
-    {
-        $functions = [];
-        foreach ($graph->functions() as $functionId) {
-            $calls = $graph->callers($functionId);
-            $name = $calls[0]->callee;
-            $func = $functions[$name] ??= new TopFunctions\Func($name, $totals);
-
-            $func->addCall(
-                $graph->inclusiveCost($functionId),
-                \array_map(static fn(Edge $child): Cost => $child->cost, $graph->callees($functionId)),
-                recursive: $calls[0]->isRecursive(),
-            );
-        }
-
-        return $functions;
     }
 }
