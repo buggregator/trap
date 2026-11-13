@@ -255,6 +255,7 @@ final class Test extends Command
      */
     private function sendContent(string $file): void
     {
+        $fp = false;
         try {
             $socket = @\socket_create(AF_INET, SOCK_STREAM, SOL_TCP) ?: throw new \RuntimeException('Cannot create socket.');
             @\socket_connect($socket, $this->addr, $this->port);
@@ -273,11 +274,7 @@ final class Test extends Command
         } catch (\Throwable $e) {
             $this->logger->exception($e, "$file sending error", important: true);
         } finally {
-            /**
-             * Bug: `$fp` is `false` when `fopen()` fails, and `flock(false)` throws a `TypeError`.
-             * @psalm-suppress PossiblyFalseArgument
-             */
-            if (isset($fp)) {
+            if ($fp !== false) {
                 @\flock($fp, LOCK_UN);
                 @\fclose($fp);
             }
