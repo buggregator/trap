@@ -18,6 +18,7 @@ use Buggregator\Trap\Server\Socket\SocketStream;
 use Buggregator\Trap\Server\Traffic\Inspector;
 use Buggregator\Trap\Support\Activity;
 use Buggregator\Trap\Support\LoopPacer;
+use Buggregator\Trap\Support\MemoryLimit;
 use Buggregator\Trap\Support\Timer;
 use Internal\Container\Container;
 use Internal\Destroy\Destroyable;
@@ -57,7 +58,7 @@ final class Application implements Processable, Cancellable, Destroyable
             $sender instanceof Processable and $this->processors[] = $sender;
         }
 
-        $maxInflated = $this->container->get(App::class)->httpMaxInflatedSize;
+        $maxInflated = $this->maxInflatedBodySize($this->container->get(App::class)->httpMaxInflatedSize);
         $modules = $this->container->get(Modules::class);
         $middlewares = [
             $this->container->get(Middleware\Resources::class),
@@ -339,6 +340,33 @@ final class Application implements Processable, Cancellable, Destroyable
         }
 
         return $middlewares;
+    }
+
+    /**
+     * @param string $value {@see App::$httpMaxInflatedSize}
+     *
+     * @return int<1, max>
+     */
+    private function maxInflatedBodySize(string $value): int
+    {
+        try {
+            $bytes = MemoryLimit::parse($value);
+        } catch (\InvalidArgumentException) {
+            $bytes = null;
+        }
+
+        // `-1` parses to null, as no memory limit: here it is no size either
+        if ($bytes !== null) {
+            return $bytes;
+        }
+
+        $this->logger->warning(
+            'TRAP_HTTP_MAX_INFLATED_SIZE `%s` is not a size, as `64M`: the default %d bytes are used.',
+            $value,
+            Traffic\Parser\Http::MAX_INFLATED_BODY_SIZE,
+        );
+
+        return Traffic\Parser\Http::MAX_INFLATED_BODY_SIZE;
     }
 
     private function configureFileObserver(Modules $modules): void

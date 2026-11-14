@@ -6,14 +6,11 @@ namespace Buggregator\Trap\Tests\Unit\Server\Traffic\Dispatcher;
 
 use Buggregator\Trap\Module\HttpDump\Frame as HttpFrame;
 use Buggregator\Trap\Module\HttpDump\Http\Dump;
-use Buggregator\Trap\Server\Application\Config\Internal\ConfigInflector;
-use Buggregator\Trap\Server\Config\App;
 use Buggregator\Trap\Server\Handler\Http\RequestHandler;
 use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Server\Traffic\Dispatcher\Http;
 use Buggregator\Trap\Server\Traffic\StreamClient;
 use Buggregator\Trap\Test\Mock\StreamClientMock;
-use Internal\Container\ObjectContainer;
 use Psr\Http\Message\ServerRequestInterface;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -147,6 +144,7 @@ final class HttpTest
         Assert::same($frames, []);
         Assert::false($handler->called);
         Assert::string($this->sent)->startsWith('HTTP/1.1 413');
+        Assert::string($this->sent)->contains('more than 1024 bytes. The limit is set with TRAP_HTTP_MAX_INFLATED_SIZE.');
     }
 
     public function testGzipBodyWithinLimitReachesMiddlewaresInflated(): void
@@ -158,18 +156,6 @@ final class HttpTest
         Assert::count($frames, 1);
         Assert::instanceOf($frames[0], HttpFrame::class);
         Assert::same((string) $frames[0]->request->getBody(), $body);
-    }
-
-    public function testGzipBodyLimitIsTakenFromConfig(): void
-    {
-        $config = new App();
-        (new ConfigInflector(env: ['TRAP_HTTP_MAX_INFLATED_SIZE' => '1024']))->inflect($config, new ObjectContainer());
-        $dispatcher = new Http([new Dump()], maxInflatedBodySize: $config->httpMaxInflatedSize);
-
-        $frames = $this->dispatch($dispatcher, $this->createGzipPostStream(\str_repeat('a', 1025)));
-
-        Assert::same($frames, []);
-        Assert::string($this->sent)->startsWith('HTTP/1.1 413');
     }
 
     #[DataSet([0], 'zero')]

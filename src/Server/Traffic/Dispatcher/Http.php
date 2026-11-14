@@ -68,9 +68,12 @@ final class Http implements Dispatcher
     {
         try {
             $request = $this->parser->parseStream($stream);
-        } catch (SizeLimitExceeded) {
+        } catch (SizeLimitExceeded $e) {
             // Answered before any handler: a compressed body must not reach them inflated past the limit
-            HttpEmitter::emit($stream, new Response(413, body: 'The request body is too large.'));
+            HttpEmitter::emit($stream, new Response(
+                413,
+                body: $e->getMessage() . ' The limit is set with TRAP_HTTP_MAX_INFLATED_SIZE.',
+            ));
             $stream->disconnect();
             return;
         }

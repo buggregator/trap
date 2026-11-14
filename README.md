@@ -233,8 +233,9 @@ Large profiles get as many call tree nodes as the memory left affords, and are c
 
 `TRAP_GC_INTERVAL` sets how often, in seconds, the server collects garbage cycles in place of PHP's cycle collector (default: `30`; `0` keeps PHP's collector).
 
-`TRAP_HTTP_MAX_INFLATED_SIZE` sets how many bytes a gzip-compressed HTTP request body may inflate to;
-a larger one is answered with `413` (default: `67108864`, 64 MB; values below `1` fall back to the default).
+`TRAP_MAIN_LOOP_INTERVAL` sets the longest wait, in microseconds, of an idle main loop; data on a socket ends the wait sooner, and timers such as a buffer flush fire this much late at most (default: `1000`; values below `50` count as `50`; on Windows any wait lasts at least ~15 ms).
+
+`TRAP_HTTP_MAX_INFLATED_SIZE` sets the size a gzip-compressed HTTP request body may inflate to; a larger one is answered with `413` (default: `64M`). It takes bytes, as `67108864`, or a number with a `K`, `M` or `G` suffix, as `512K` or `1G` (binary multiples, any case). Any other value, as `67_108_864`, `64MB` or `0`, falls back to the default with a warning.
 
 ### Profiling
 

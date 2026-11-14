@@ -15,18 +15,18 @@ use Testo\Test;
 #[Covers(App::class)]
 final class AppTest
 {
-    public function testHttpMaxInflatedSizeDefaultsTo64Megabytes(): void
+    public function testHttpMaxInflatedSizeDefaultsTo64M(): void
     {
         $config = self::inflect([]);
 
-        Assert::same($config->httpMaxInflatedSize, 64 * 1024 * 1024);
+        Assert::same($config->httpMaxInflatedSize, '64M');
     }
 
     public function testHttpMaxInflatedSizeIsReadFromEnv(): void
     {
-        $config = self::inflect(['TRAP_HTTP_MAX_INFLATED_SIZE' => '1048576']);
+        $config = self::inflect(['TRAP_HTTP_MAX_INFLATED_SIZE' => '1G']);
 
-        Assert::same($config->httpMaxInflatedSize, 1_048_576);
+        Assert::same($config->httpMaxInflatedSize, '1G');
     }
 
     /**
