@@ -147,7 +147,7 @@ final class MetadataTest
     #[DataSet(['null', null], 'null')]
     public function testReadsStringOfKnownValueOnly(string $value, ?string $expected): void
     {
-        $metadata = Metadata::fromJson(self::BASE . ", \"v\": $value}");
+        $metadata = Metadata::fromJson(self::BASE . ', "v": ' . $value . '}');
 
         Assert::same($metadata->string('v'), $expected);
     }

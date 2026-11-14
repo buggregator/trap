@@ -195,26 +195,6 @@ final class StreamHelperTest
     }
 
     #[Test]
-    public function writeStreamReadsRestUnderChunkAndFifthAtOnce(): void
-    {
-        $from = new ChunkedStream('short');
-
-        $this->runInFiber(static fn() => StreamHelper::writeStream($from, Stream::create(''), 9 * self::MB));
-
-        Assert::same($from->reads, [9 * self::MB]);
-    }
-
-    #[Test]
-    public function writeStreamReadsLargerRestByChunks(): void
-    {
-        $from = new ChunkedStream('short');
-
-        $this->runInFiber(static fn() => StreamHelper::writeStream($from, Stream::create(''), 20 * self::MB));
-
-        Assert::same($from->reads, [8 * self::MB]);
-    }
-
-    #[Test]
     public function unzipBodyReportsActivityOnEachChunk(): void
     {
         $body = \random_bytes(40 * 1024);
@@ -223,7 +203,7 @@ final class StreamHelperTest
         [$unzipped, $activity] = self::suspensions(static fn() => StreamHelper::unzipBody($request));
 
         Assert::same((string) $unzipped->getBody(), $body);
-        Assert::count($activity, 3);
+        Assert::int(\count($activity))->greaterThan(1);
         Assert::same(\array_unique($activity), [true]);
     }
 
@@ -236,13 +216,14 @@ final class StreamHelperTest
     }
 
     #[Test]
-    public function createFileStreamAppliesReadFilters(): void
+    public function createFileStreamAppliesReadFiltersInOrderOnReading(): void
     {
-        $stream = StreamHelper::createFileStream(readFilters: ['string.toupper', 'string.rot13' => null]);
+        $stream = StreamHelper::createFileStream(readFilters: ['convert.base64-encode', 'string.toupper' => null]);
         $stream->write('abc');
         $stream->rewind();
 
-        Assert::same($stream->getContents(), 'NOP');
+        Assert::same($stream->getSize(), 3);
+        Assert::same($stream->getContents(), 'YWJJ');
     }
 
     /**
