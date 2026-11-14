@@ -42,6 +42,15 @@ final class StreamHelperUnzipLimitTest
         $this->unzip(\str_repeat("\0", 32 * 1024 * 1024), 1024 * 1024);
     }
 
+    #[Test]
+    public function testLimitCountsEveryInflatedChunk(): void
+    {
+        Expect::exception(SizeLimitExceeded::class)->withMessageContaining('more than 40000 bytes');
+
+        // Random bytes do not compress: each read chunk inflates to less than the limit
+        $this->unzip(\random_bytes(64 * 1024), 40_000);
+    }
+
     private function unzip(string $body, int $maxSize): string
     {
         $request = (new ServerRequest('POST', '/'))->withBody(Stream::create(\gzencode($body)));

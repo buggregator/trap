@@ -19,6 +19,7 @@ use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Testo\Assert;
 use Testo\Codecov\Covers;
+use Testo\Data\DataSet;
 use Testo\Test;
 
 #[Covers(Renderer::class)]
@@ -230,6 +231,197 @@ final class RendererTest
         $output = self::render(new Frame(Payload::new(Type::XHProf, static fn(): Profile => $profile)));
 
         Assert::string($output)->contains('File name: spx-full-1.txt.gz (2.00 KiB)');
+    }
+
+    #[Test]
+    public function rendersMetadataAndTags(): void
+    {
+        $profile = (new ProfileBuilder())->createProfile(
+            metadata: [
+                'date' => 1700000000,
+                'app_name' => 'shop',
+                'hostname' => 'app',
+                'filename' => 'a.xhprof',
+                'filesize' => 0,
+                'details' => ['Request' => 'GET /', 5 => 'no label', 'List' => ['no scalar']],
+            ],
+            tags: ['env' => 'test'],
+            calls: ['main()==>foo' => self::call(wt: 1000), 'main()' => self::call(wt: 2000)],
+        );
+
+        $output = self::render(new Frame(Payload::new(Type::XHProf, static fn(): Profile => $profile)));
+
+        Assert::same(\implode("\n", \array_map(\rtrim(...), \explode("\n", $output))), <<<'TEXT'
+
+             PROFILER  XHProf
+
+                 Time: 2023-11-14 22:13:20
+             App name: shop
+             Hostname: app
+            File name: a.xhprof (0.00 B)
+              Request: GET /
+            Num edges: 2
+
+             env: test
+
+            +---- Peak values ----+
+            | Wall time | 2.00 ms |
+            | Calls     | 1       |
+            +-----------+---------+
+
+            +---------- Top 2 of 2 functions by self wall time -+--------+
+            | Function | Calls | Self wall |     % | Total wall |      % |
+            +----------+-------+-----------+-------+------------+--------+
+            | main()   |     1 |   1.00 ms | 50.0% |    2.00 ms | 100.0% |
+            | foo      |     1 |   1.00 ms | 50.0% |    1.00 ms |  50.0% |
+            +----------+-------+-----------+-------+------------+--------+
+
+            ## Hot path
+            100.0%      2.00 ms  main()
+             50.0%      1.00 ms  └ foo
+
+            TEXT);
+    }
+
+    #[Test]
+    public function skipsMetadataOfOtherTypes(): void
+    {
+        $profile = (new ProfileBuilder())->createProfile(
+            metadata: ['date' => 'yesterday', 'app_name' => 5, 'filename' => 'a.xhprof', 'filesize' => '1 KiB'],
+            calls: ['main()' => self::call(wt: 10)],
+        );
+
+        $output = self::render(new Frame(Payload::new(Type::XHProf, static fn(): Profile => $profile)));
+
+        Assert::string($output)
+            ->contains("File name: a.xhprof\n")
+            ->notContains('Time:')
+            ->notContains('App name:')
+            ->notContains('Hostname:');
+    }
+
+    #[Test]
+    public function rendersNoCallsWhenNothingIsMeasured(): void
+    {
+        $output = self::render(self::xhprofFrame(['main()==>foo' => self::call(ct: 0), 'main()' => self::call(ct: 0)]));
+
+        Assert::string($output)->endsWith("+-------+---+\n\nNo calls recorded.\n")->notContains('Wall time');
+    }
+
+    /**
+     * @param array<non-empty-string, int<0, max>> $callee Costs of the callee, by the names of {@see self::call()}.
+     * @param array<non-empty-string, int<0, max>> $main
+     */
+    #[Test]
+    #[DataSet([['cpu' => 5], ['cpu' => 10], 'CPU time', '| CPU time | 10 µs |'], 'CPU time')]
+    #[DataSet([['mu' => 5], ['mu' => 10], 'memory', '| Memory usage | 10.00 B |'], 'memory')]
+    #[DataSet([['ct' => 3], ['ct' => 1], 'calls', '| Calls | 3 |'], 'calls')]
+    public function ranksByTheFirstMeasuredMetric(array $callee, array $main, string $metric, string $peak): void
+    {
+        $output = self::render(self::xhprofFrame([
+            'main()==>App\Service\VeryLongNamespace\Handler::process' => self::call(...$callee),
+            'main()' => self::call(...$main),
+        ]));
+
+        Assert::string($output)
+            ->contains("Top 2 of 2 functions by self $metric")
+            ->notContains('Wall time')
+            ->ignoringWhitespace()->contains($peak);
+    }
+
+    #[Test]
+    public function namesCountsOfPprofProfile(): void
+    {
+        $profile = (new ProfileBuilder())->createProfile(
+            metadata: ['count_type' => 'allocations'],
+            calls: ['main()==>App\Service\VeryLongNamespace\Handler::process' => self::call(ct: 3), 'main()' => self::call()],
+        );
+
+        $output = self::render(new Frame(Payload::new(Type::Pprof, static fn(): Profile => $profile)));
+
+        Assert::string($output)
+            ->contains('| Allocations | 3 |')
+            ->contains('Top 2 of 2 functions by self allocations')
+            ->contains(" 33.3%            1  main()\n100.0%            3  └ App\\Service\\VeryLongNamespace\\Handler::process\n");
+    }
+
+    #[Test]
+    public function formatsTimesAndSharesAtTheirBoundaries(): void
+    {
+        $output = self::render(self::xhprofFrame([
+            'main()==>a' => self::call(wt: 1000, cpu: 20),
+            'main()==>b' => self::call(wt: 999),
+            'main()==>c' => self::call(wt: 1),
+            'main()==>d' => self::call(),
+            'main()' => self::call(wt: 2000, cpu: 10),
+        ]));
+        $seconds = self::render(self::xhprofFrame(['main()==>a' => self::call(wt: 1_000_000), 'main()' => self::call(wt: 1_000_000)]));
+
+        Assert::same(self::rows($output), [
+            '| a        |     1 |   1.00 ms | 50.0% |    1.00 ms |  50.0% |    20 µs |',
+            '| b        |     1 |    999 µs | 50.0% |     999 µs |  50.0% |     0 µs |',
+            '| c        |     1 |      1 µs |  0.1% |       1 µs |   0.1% |     0 µs |',
+            '| main()   |     1 |      0 µs |  0.0% |    2.00 ms | 100.0% |     0 µs |',
+            '| d        |     1 |      0 µs |  0.0% |       0 µs |   0.0% |     0 µs |',
+        ]);
+        Assert::string($seconds)->contains('| a        |     1 |    1.00 s | 100.0% |     1.00 s | 100.0% |');
+    }
+
+    #[Test]
+    public function followsTheFirstOfEquallyHeavyCallsAndSkipsFreeOnes(): void
+    {
+        $output = self::render(self::xhprofFrame([
+            'main()==>a' => self::call(wt: 5),
+            'main()==>b' => self::call(wt: 5),
+            'a==>d' => self::call(),
+            'main()' => self::call(wt: 20),
+        ]));
+
+        Assert::string($output)->endsWith("## Hot path \n100.0%        20 µs  main()\n 25.0%         5 µs  └ a\n");
+    }
+
+    #[Test]
+    public function keepsNameOfTheWidthWhole(): void
+    {
+        $name = \str_repeat('a', 60);
+
+        $output = self::render(self::xhprofFrame(["main()==>$name" => self::call(wt: 5), 'main()' => self::call(wt: 10)]));
+
+        Assert::string($output)->contains("| $name |")->notContains('…');
+    }
+
+    #[Test]
+    public function keepsHotPathOfTheLimitWhole(): void
+    {
+        $calls = ['main()' => self::call(wt: 100)];
+        $caller = 'main()';
+        for ($i = 1; $i <= 11; ++$i) {
+            $calls["$caller==>f$i"] = self::call(wt: 100 - $i);
+            $caller = "f$i";
+        }
+
+        $output = self::render(self::xhprofFrame($calls));
+
+        Assert::string($output)->contains("└ f3\n")->contains("└ f11\n")->notContains('more calls');
+    }
+
+    #[Test]
+    public function keepsCountWiderThanItsColumn(): void
+    {
+        $output = self::render(self::xhprofFrame([
+            'main()==>a' => self::call(ct: 123_456_789_012),
+            'main()' => self::call(),
+        ]));
+
+        Assert::string($output)->contains("100.0%  123456789012  └ a\n");
+    }
+
+    /**
+     * @return array{ct: int<0, max>, wt: int<0, max>, cpu: int<0, max>, mu: int<0, max>, pmu: int<0, max>}
+     */
+    private static function call(int $ct = 1, int $wt = 0, int $cpu = 0, int $mu = 0): array
+    {
+        return ['ct' => $ct, 'wt' => $wt, 'cpu' => $cpu, 'mu' => $mu, 'pmu' => 0];
     }
 
     /**

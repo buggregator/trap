@@ -157,6 +157,106 @@ final class LoopPacerTest
     }
 
     #[Test]
+    public function startsCountingUntakenSocketsAgainAfterSleepOrActivity(): void
+    {
+        [$server, $client, $peer] = $this->connect();
+        $pacer = new LoopPacer(idleTimeout: 50_000, grace: 0);
+        $asked = 0;
+        $sockets = static function () use (&$asked, $peer): array {
+            ++$asked;
+            return [[$peer], []];
+        };
+        $pause = static function (int $times) use ($pacer, $sockets): void {
+            for ($i = 0; $i < $times; ++$i) {
+                $pacer->pause(false, $sockets);
+            }
+        };
+
+        try {
+            \socket_write($client, 'nobody reads it');
+            \usleep(50_000);
+            $pause(3);
+            $start = \hrtime(true);
+            $pause(1);
+            $slept = (\hrtime(true) - $start) / 1e6;
+            $pause(4);
+            $afterSleep = $asked;
+            $pacer->pause(true, $sockets);
+            $pause(4);
+        } finally {
+            \socket_close($client);
+            \socket_close($peer);
+            \socket_close($server);
+        }
+
+        Assert::true($slept >= 40, "Slept {$slept} ms.");
+        Assert::same($afterSleep, 6);
+        Assert::same($asked, 9);
+    }
+
+    #[Test]
+    public function startsCountingUntakenSocketsAgainAfterWaitWithoutThem(): void
+    {
+        [$server, $client, $peer] = $this->connect();
+        $pacer = new LoopPacer(idleTimeout: 1_000, grace: 0);
+        $asked = 0;
+        $sockets = static function () use (&$asked, $peer): array {
+            return ++$asked === 3 ? [[], []] : [[$peer], []];
+        };
+        $askedByPause = [];
+
+        try {
+            \socket_write($client, 'nobody reads it');
+            \usleep(50_000);
+            // Two waits end on the socket, one waits without it: three more waits before the loop sleeps
+            for ($i = 0; $i < 7; ++$i) {
+                $pacer->pause(false, $sockets);
+                $askedByPause[] = $asked;
+            }
+        } finally {
+            \socket_close($client);
+            \socket_close($peer);
+            \socket_close($server);
+        }
+
+        Assert::same($askedByPause, [1, 2, 3, 4, 5, 6, 6]);
+    }
+
+    #[Test]
+    public function returnsEveryReadySocket(): void
+    {
+        [$server, $client, $peer] = $this->connect();
+        [$server2, $client2, $peer2] = $this->connect();
+        $pacer = new LoopPacer(idleTimeout: 1_000_000, grace: 0);
+
+        try {
+            \socket_write($client, 'ping');
+            \socket_write($client2, 'ping');
+            \usleep(50_000);
+            $ready = $pacer->pause(false, static fn(): array => [[$peer, $peer2], []]);
+        } finally {
+            \array_map(\socket_close(...), [$client, $peer, $server, $client2, $peer2, $server2]);
+        }
+
+        Assert::same($ready, [$peer, $peer2]);
+    }
+
+    #[Test]
+    public function waitsForWritingOnly(): void
+    {
+        [$server, $client, $peer] = $this->connect();
+        $pacer = new LoopPacer(idleTimeout: 1_000_000);
+
+        try {
+            $ready = $pacer->wait([], [$peer]);
+        } finally {
+            \array_map(\socket_close(...), [$client, $peer, $server]);
+        }
+
+        Assert::same($ready, [$peer]);
+    }
+
+    #[Test]
     public function sleepsWithoutSockets(): void
     {
         $pacer = new LoopPacer(idleTimeout: 20_000, grace: 0);

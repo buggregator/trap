@@ -417,6 +417,17 @@ final class SpxTest
         Assert::count((array) \glob($this->dir . '/spx-full-*'), 2);
     }
 
+    public function readsTraceOfTheLimitOfTrap(): void
+    {
+        $handle = \fopen($this->dir . '/' . self::KEY . '.txt.gz', 'r+b');
+        \ftruncate($handle, SpxReport::MAX_SIZE);
+        \fclose($handle);
+
+        $report = SpxReport::read($this->dir, self::KEY, keep: true);
+
+        Assert::same($report->key, self::KEY);
+    }
+
     public function refusesToJoinTheReportOverTheMemoryLeft(): void
     {
         $profile = self::profile(self::recorded());
@@ -478,6 +489,93 @@ final class SpxTest
         Assert::same($driver->formats(), [Format::Spx, Format::XHProf, Format::Speedscope, Format::Collapsed, Format::Pprof]);
         Assert::same($driver->options()['keep_files'], true);
         Assert::same($driver->name(), 'spx');
+    }
+
+    public function reportsTheOptionsOfTheExtension(): void
+    {
+        SpxExtension::$override = new FakeSpxExtension($this->dir, self::STUB);
+
+        try {
+            $options = (new Spx())->options();
+        } finally {
+            SpxExtension::$override = null;
+        }
+
+        Assert::same($options, ['sampling_period' => null, 'data_dir' => $this->dir, 'keep_files' => false]);
+    }
+
+    public function isAvailableWhenSpxCanCreateItsDirectory(): void
+    {
+        SpxExtension::$override = new FakeSpxExtension($this->dir . '/spx', self::STUB);
+
+        try {
+            $available = (new Spx())->isAvailable();
+        } finally {
+            SpxExtension::$override = null;
+        }
+
+        Assert::true($available);
+    }
+
+    public function warnsOfTheConfigBeforeTheDirectory(): void
+    {
+        SpxExtension::$override = new class extends SpxExtension {
+            #[\Override]
+            public function isLoaded(): bool
+            {
+                return true;
+            }
+
+            #[\Override]
+            public function config(): SpxConfig
+            {
+                return new SpxConfig(true, static fn(string $name): ?string => null);
+            }
+
+            #[\Override]
+            public function dataDir(): string
+            {
+                return \sys_get_temp_dir();
+            }
+        };
+        $log = new LogCapture();
+        Warnings::$logger = $log;
+        Warnings::reset();
+
+        try {
+            $available = (new Spx())->isAvailable();
+        } finally {
+            SpxExtension::$override = null;
+            Warnings::$logger = null;
+        }
+
+        Assert::false($available);
+        Assert::string($log->messages())->contains('SPX is not enabled');
+    }
+
+    public function warnsOfTheReportKeptWithTheDriver(): void
+    {
+        $log = new LogCapture();
+        Warnings::$logger = $log;
+        Warnings::reset();
+
+        try {
+            Spx::recorded(SpxReport::read($this->dir, self::KEY, keep: false))->settle(false);
+        } finally {
+            Warnings::$logger = null;
+        }
+
+        Assert::same($log->records[0]['context'], ['driver' => 'spx', 'reason' => 'kept']);
+    }
+
+    public function convertsToPprofWithoutTheTimesOfTheRun(): void
+    {
+        $json = (string) \preg_replace('/^\s*"(exec_ts|wall_time_ms)": \d+,$/m', '', (string) \file_get_contents(self::STUB . '.json'));
+        \file_put_contents($this->dir . '/' . self::KEY . '.json', $json);
+
+        $pprof = PprofDecoder::profile($this->recorded()->encode(Format::Pprof));
+
+        Assert::same([$pprof['time_nanos'] ?? 0, $pprof['duration_nanos'] ?? 0], [0, 0]);
     }
 
     public function keepsReportFilesWhenAsked(): void

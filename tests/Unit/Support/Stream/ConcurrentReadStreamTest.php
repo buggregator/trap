@@ -7,8 +7,10 @@ namespace Buggregator\Trap\Tests\Unit\Support\Stream;
 use Buggregator\Trap\Support\Stream\ConcurrentReadStream;
 use Buggregator\Trap\Support\StreamHelper;
 use Nyholm\Psr7\Stream;
+use Psr\Http\Message\StreamInterface;
 use Testo\Assert;
 use Testo\Codecov\Covers;
+use Testo\Data\DataSet;
 use Testo\Expect;
 use Testo\Test;
 
@@ -123,13 +125,51 @@ final class ConcurrentReadStreamTest
     }
 
     #[Test]
-    public function testDetachedStreamRefusesToRead(): void
+    #[DataSet(['read'], 'read')]
+    #[DataSet(['tell'], 'tell')]
+    #[DataSet(['seek'], 'seek')]
+    #[DataSet(['getContents'], 'get contents')]
+    public function testDetachedStreamRefusesToRead(string $method): void
     {
         $stream = new ConcurrentReadStream(Stream::create('data'));
         $stream->detach();
 
         Expect::exception(\RuntimeException::class)->withMessage('Stream is detached.');
-        $stream->read(1);
+        match ($method) {
+            'read' => $stream->read(1),
+            'tell' => $stream->tell(),
+            'seek' => $stream->seek(1),
+            'getContents' => $stream->getContents(),
+        };
+    }
+
+    #[Test]
+    public function testStaysAtStartOfEmptyStream(): void
+    {
+        $stream = new ConcurrentReadStream(Stream::create(''));
+
+        $read = $stream->read(1);
+        $readAt = $stream->tell();
+        $contents = $stream->getContents();
+
+        Assert::same([$read, $readAt, $contents, $stream->tell()], ['', 0, '', 0]);
+    }
+
+    #[Test]
+    public function testEndsAfterWholeContentOfStreamOfUnknownSize(): void
+    {
+        $origin = \Mockery::mock(StreamInterface::class);
+        $origin->allows('isSeekable')->andReturn(true);
+        $origin->allows('getSize')->andReturn(null);
+        $origin->allows('seek');
+        $origin->allows('getContents')->andReturn('data');
+        $origin->allows('tell')->andReturn(4);
+        $stream = new ConcurrentReadStream($origin);
+
+        $contents = $stream->getContents();
+
+        Assert::same($contents, 'data');
+        Assert::true($stream->eof());
     }
 
     #[Test]
