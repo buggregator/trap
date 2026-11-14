@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Client\Profiler;
 
+use Buggregator\Trap\Client\Internal\Silently;
 use Buggregator\Trap\Client\Profiler\Internal\Driver;
 use Buggregator\Trap\Client\Profiler\Internal\ServerSender;
 use Buggregator\Trap\Client\Profiler\Internal\Settings;
@@ -97,8 +98,9 @@ final class Profiling
             $formats = $profile->formats();
             $data = $profile->encode(\in_array($format, $formats, true) ? $format : $formats[0]);
             $dir = \dirname($path);
-            \is_dir($dir) or @\mkdir($dir, 0777, true);
-            @\file_put_contents($path, $data, \LOCK_EX) === false
+            // A user error handler that throws on these warnings would skip the write or replace the error below.
+            \is_dir($dir) or Silently::run(static fn(): bool => \mkdir($dir, 0777, true));
+            Silently::run(static fn(): int|false => \file_put_contents($path, $data, \LOCK_EX)) === false
             and throw new \RuntimeException(\sprintf('Unable to write the profile to `%s`.', $path));
         };
 
