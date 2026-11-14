@@ -23,6 +23,10 @@ final class FunctionNameTest
     #[DataSet(['App\Kernel::handle', false], 'method')]
     #[DataSet(['strlen', false], 'function')]
     #[DataSet(['App\Http\{closure}', false], 'closure')]
+    #[DataSet(['C:\app\bin\console', true], 'Windows script without extension')]
+    #[DataSet(['APP.PHAR', true], 'upper case extension')]
+    #[DataSet(['{closure:/app/src/routes.php:12}', false], 'closure naming its file')]
+    #[DataSet(['render.php_template', false], 'extension inside the name')]
     public function testTellsFileScopeCode(string $name, bool $fileScope): void
     {
         Assert::same(FunctionName::isFileScope($name), $fileScope);

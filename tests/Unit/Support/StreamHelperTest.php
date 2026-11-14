@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Support;
 
+use Buggregator\Trap\Support\Activity;
+use Buggregator\Trap\Support\Stream\Base64DecodeFilter;
 use Buggregator\Trap\Support\StreamHelper;
 use Buggregator\Trap\Tests\Unit\FiberTrait;
+use Buggregator\Trap\Tests\Unit\Support\Stub\ChunkedStream;
+use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -134,5 +138,116 @@ final class StreamHelperTest
         Assert::same($to->getSize(), \strlen($body));
         $to->seek(-3, \SEEK_END);
         Assert::same($to->getContents(), 'end');
+    }
+
+    #[Test]
+    public function strposFindsSubstringOfTheWholeStream(): void
+    {
+        Assert::same(StreamHelper::strpos(Stream::create('needle'), 'needle'), 0);
+    }
+
+    #[Test]
+    public function strposFindsTheFirstOccurrence(): void
+    {
+        $stream = Stream::create('needle' . \str_repeat('a', 2 * self::MB) . 'needle');
+
+        $position = $this->runInFiber(static fn() => StreamHelper::strpos($stream, 'needle'));
+
+        Assert::same($position, 0);
+    }
+
+    #[Test]
+    public function strposReportsActivityOnEachChunk(): void
+    {
+        $stream = Stream::create(\str_repeat('a', 2 * self::MB + 100) . 'needle');
+
+        [$position, $activity] = self::suspensions(static fn() => StreamHelper::strpos($stream, 'needle'));
+
+        Assert::same($position, 2 * self::MB + 100);
+        Assert::int(\count($activity))->greaterThan(1);
+        Assert::same(\array_unique($activity), [true]);
+    }
+
+    #[Test]
+    public function writeStreamUntilCountsBytesOfEveryChunk(): void
+    {
+        $from = new ChunkedStream('abcdefghijklmn--btail', chunk: 6);
+        $to = Stream::create('');
+
+        [$written, $activity] = self::suspensions(static fn() => StreamHelper::writeStreamUntil($from, $to, '--b'));
+
+        Assert::same($written, 14);
+        Assert::same((string) $to, 'abcdefghijklmn');
+        Assert::same($from->getContents(), '--btail');
+        Assert::same($activity, [true, true, true]);
+    }
+
+    #[Test]
+    public function writeStreamCountsBytesOfEveryChunk(): void
+    {
+        $from = new ChunkedStream('0123456789', chunk: 4);
+        $to = Stream::create('');
+
+        [, $activity] = self::suspensions(static fn() => StreamHelper::writeStream($from, $to, 6));
+
+        Assert::same((string) $to, '012345');
+        Assert::same($from->reads, [6, 2]);
+        Assert::same($activity, [true, true]);
+    }
+
+    #[Test]
+    public function unzipBodyReportsActivityOnEachChunk(): void
+    {
+        $body = \random_bytes(40 * 1024);
+        $request = (new ServerRequest('POST', '/'))->withBody(Stream::create((string) \gzencode($body)));
+
+        [$unzipped, $activity] = self::suspensions(static fn() => StreamHelper::unzipBody($request));
+
+        Assert::same((string) $unzipped->getBody(), $body);
+        Assert::int(\count($activity))->greaterThan(1);
+        Assert::same(\array_unique($activity), [true]);
+    }
+
+    #[Test]
+    public function createFileStreamKeepsUpTo4MbInMemory(): void
+    {
+        $stream = StreamHelper::createFileStream();
+
+        Assert::same($stream->getMetadata('uri'), 'php://temp/maxmemory:' . 4 * self::MB);
+    }
+
+    #[Test]
+    public function createFileStreamAppliesReadFiltersInOrderOnReading(): void
+    {
+        // Decoding before upper-casing differs from the other order; PHP 8.6 can't seek a stream with `convert.*` filters
+        $stream = StreamHelper::createFileStream(readFilters: [Base64DecodeFilter::FILTER_NAME, 'string.toupper' => null]);
+        $stream->write('YWJj');
+        $stream->rewind();
+
+        Assert::same($stream->getSize(), 4);
+        Assert::same($stream->getContents(), 'ABC');
+    }
+
+    /**
+     * Runs the callback in a fiber and tells, at each suspension, whether it reported {@see Activity}.
+     *
+     * @template T
+     *
+     * @param \Closure(): T $callback
+     *
+     * @return array{T, list<bool>}
+     */
+    private static function suspensions(\Closure $callback): array
+    {
+        Activity::take();
+        $activity = [];
+        $fiber = new \Fiber($callback);
+        $fiber->start();
+        while (!$fiber->isTerminated()) {
+            $activity[] = Activity::take();
+            $fiber->resume();
+        }
+
+        return [$fiber->getReturn(), $activity];
     }
 }

@@ -9,6 +9,7 @@ use Buggregator\Trap\Support\StreamHelper;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Data\DataProvider;
+use Testo\Data\DataSet;
 use Testo\Test;
 
 #[Test]
@@ -63,6 +64,37 @@ final class Base64DecodeFilterTest
         $stream->write('==');
 
         Assert::same((string) $stream, 'ABCD');
+    }
+
+    #[DataSet(['QUJDRA'], 'unpadded')]
+    #[DataSet(['QUJDRA=='], 'padded')]
+    #[DataSet(["QUJD\r\nRA=="], 'MIME lines')]
+    public function testDecodesTheRestWhenReadingEnds(string $encoded): void
+    {
+        // A memory stream closes the filter by a call of its own, with no data
+        $handle = \fopen('php://memory', 'w+b');
+        \fwrite($handle, $encoded);
+        \rewind($handle);
+        \stream_filter_append($handle, Base64DecodeFilter::FILTER_NAME, \STREAM_FILTER_READ);
+
+        $decoded = \stream_get_contents($handle);
+
+        Assert::same($decoded, 'ABCD');
+    }
+
+    #[DataSet(['QUJDRA'], 'unpadded')]
+    #[DataSet(['QUJDRA=='], 'padded')]
+    #[DataSet(["QUJD\r\nRA=="], 'MIME lines')]
+    public function testDecodesTheLastDataWithTheClosingCall(string $encoded): void
+    {
+        // A temp stream passes the last data in the same filter call that closes it
+        $stream = StreamHelper::createFileStream(readFilters: [Base64DecodeFilter::FILTER_NAME]);
+        $stream->write($encoded);
+        $stream->rewind();
+
+        $decoded = $stream->getContents();
+
+        Assert::same($decoded, 'ABCD');
     }
 
     #[DataProvider('chunkSizes')]

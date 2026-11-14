@@ -224,6 +224,92 @@ final class ProfileBuilderTest
         self::build(builder: new ProfileBuilder(maxTraceSize: 100));
     }
 
+    #[DataSet([4, ['run:20:20:600:1' => ['Foo::bar:6:6:600:6' => []]]], 'merged')]
+    #[DataSet([7, [
+        'run:20:20:600:1' => [
+            'Foo::bar:1:1:100:1' => [],
+            'Foo::bar:1:1:100:1 ' => [],
+            'Foo::bar:1:1:100:1  ' => [],
+            'Foo::bar:1:1:100:1   ' => [],
+            'Foo::bar:1:1:100:1    ' => [],
+            'Foo::bar:1:1:100:1     ' => [],
+        ],
+    ]], 'as many calls as nodes')]
+    public function testSumsCostsOfMergedCalls(int $maxNodes, array $shape): void
+    {
+        $events = '';
+        for ($i = 0; $i < 6; ++$i) {
+            $start = (1 + 2 * $i) * 1000;
+            $events .= "1 1 $start $start 0 0 0\n1 0 " . ($start + 1000) . ' ' . ($start + 1000) . " 100 0 0\n";
+        }
+        $json = '{"enabled_metrics": ["wt", "ct", "zm", "zgr", "io"], "called_function_count": 2, "recorded_call_count": 7}';
+        $trace = "[events]\n0 1 0 0 0 0 0\n{$events}0 0 20000 20000 0 0 0\n[functions]\nrun\nFoo::bar\n";
+
+        $profile = self::build($json, $trace, new ProfileBuilder(maxNodes: $maxNodes));
+
+        Assert::same(self::shape($profile->tree()), $shape);
+    }
+
+    #[DataSet([1400, '1 µs'], 'rounded down')]
+    #[DataSet([1600, '2 µs'], 'rounded up')]
+    public function testShowsTotalsOfOtherMetrics(int $idle, string $idleShown): void
+    {
+        $json = '{"enabled_metrics": ["wt", "it", "zmab", "mor", "zgr", "xyz"], "called_function_count": 1, "recorded_call_count": 1, "cli": 1}';
+        $trace = "[events]\n0 1 0 0 0 0 0 0\n0 0 1000 $idle 0 -2048 1.125 7\n[functions]\nmain\n";
+
+        $profile = self::build($json, $trace);
+
+        Assert::same($profile->metadata['details'], [
+            'Metrics' => 'wt, it, zmab, mor, zgr, xyz',
+            'Idle time' => $idleShown,
+            'Allocated memory' => '0 B',
+            'Own RSS change' => '-2.00 KiB',
+            'GC runs' => '1.13',
+            'xyz' => '7',
+        ]);
+        Assert::same($profile->tags, []);
+    }
+
+    #[DataSet([999, '999 µs'], 'microseconds')]
+    #[DataSet([1000, '1.00 ms'], 'a millisecond')]
+    #[DataSet([2500, '2.50 ms'], 'milliseconds')]
+    #[DataSet([2_000_000, '2.00 s'], 'seconds')]
+    public function testShowsSamplingPeriod(int $period, string $shown): void
+    {
+        $profile = self::build(samplingPeriod: $period);
+
+        Assert::same($profile->metadata['details']['Sampling period'], $shown);
+    }
+
+    public function testNamesRequestWithoutMethod(): void
+    {
+        $json = \str_replace('"http_method": "POST",', '', self::json());
+
+        $profile = self::build($json);
+
+        Assert::same($profile->metadata['details']['Request'], 'shop.test/checkout?step=2');
+        Assert::same($profile->tags, ['request' => '/checkout?step=2']);
+    }
+
+    public function testShortensLongRequestTag(): void
+    {
+        $uri = '/' . \str_repeat('a', 199);
+        $json = \str_replace('"/checkout?step=2"', "\"$uri\"", self::json());
+
+        $profile = self::build($json);
+
+        Assert::same($profile->tags, ['request' => 'POST ' . \substr($uri, 0, 117) . '...']);
+    }
+
+    public function testKeepsGivenDate(): void
+    {
+        $date = new \DateTimeImmutable('@1000000');
+
+        $profile = (new ProfileBuilder())->createProfile(Metadata::fromJson(self::json()), [(string) \gzencode(self::trace())], $date);
+
+        Assert::same($profile->date->getTimestamp(), 1000000);
+    }
+
     private static function json(): string
     {
         return (string) \file_get_contents(self::STUB . '.json');
