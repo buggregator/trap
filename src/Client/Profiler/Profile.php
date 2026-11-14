@@ -36,7 +36,19 @@ final class Profile
      */
     public function encode(Format $format): string
     {
-        return $this->recorded->encode($format);
+        return $this->recorded->encode($format, $this->metadata);
+    }
+
+    /**
+     * @internal The document in chunks, for the destinations that write it on the go.
+     *
+     * @return array{int<0, max>, iterable<string>} The size of the document and its chunks.
+     *
+     * @throws \InvalidArgumentException When the profiler can't produce the format.
+     */
+    public function stream(Format $format): array
+    {
+        return $this->recorded->stream($format, $this->metadata);
     }
 
     public function metadata(): Metadata

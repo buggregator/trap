@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Server\Service\FilesObserver;
 
+use Buggregator\Trap\Client\Profiler\Internal\Model\SpxReport;
 use Buggregator\Trap\Module\Monolog\Frame as MonologFrame;
 use Buggregator\Trap\Module\Profiler\Config\SPX as SpxConfig;
 use Buggregator\Trap\Module\Profiler\Config\XDebug as Config;
@@ -330,6 +331,23 @@ final class HandlerTest
             \unlink($path . '/a.fake');
             \rmdir($path);
         }
+    }
+
+    public function testSkipsReportTheClientTakesAwayDuringTheGracePeriod(): void
+    {
+        $config = new SpxConfig();
+        $config->scanInterval = 0.1;
+        $this->startHandler(config: $config);
+
+        // SPX finishes a report of a run profiled from code, and the client takes it at once
+        \file_put_contents($this->dir . '/' . self::SPX_KEY . '.txt.gz', \gzencode((string) \file_get_contents(self::SPX_STUB . '.txt')));
+        \copy(self::SPX_STUB . '.json', $this->dir . '/' . self::SPX_KEY . '.json');
+        $this->runUntil(static fn(): bool => false, 1.2);
+        $report = SpxReport::read($this->dir, self::SPX_KEY, keep: false);
+
+        Assert::same($this->runUntil(fn(): bool => $this->frames !== [], 3.0), false);
+        $report->settle(true);
+        unset($report);
     }
 
     public function testTakesReportPutBackUnchangedAfterItWasAway(): void

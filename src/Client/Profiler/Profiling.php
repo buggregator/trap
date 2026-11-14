@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Client\Profiler;
 use Buggregator\Trap\Client\Profiler\Internal\Driver;
 use Buggregator\Trap\Client\Profiler\Internal\ServerSender;
 use Buggregator\Trap\Client\Profiler\Internal\Settings;
+use Buggregator\Trap\Client\Profiler\Internal\TempFile;
 use Buggregator\Trap\Client\Profiler\Internal\TrapSender;
 use Buggregator\Trap\Client\TrapHandle;
 
@@ -83,7 +84,7 @@ final class Profiling
      *
      * Without a format, it is guessed from the file name: `*.speedscope.json` is Speedscope;
      * `*.txt`, `*.folded` and `*.collapsed` are Collapsed; `*.xhprof` is XHProf; `*.pb.gz`, `*.pb` and `*.pprof`
-     * are pprof; anything else gets the native format of the profiler.
+     * are pprof; `*.spx.tar` is SPX; anything else gets the native format of the profiler.
      * The format is preferred: a profiler that can't produce it writes its native format,
      * as XHProf writes no Speedscope.
      *
@@ -95,11 +96,29 @@ final class Profiling
 
         $this->settings->destinations[] = static function (Profile $profile) use ($path, $format): void {
             $formats = $profile->formats();
-            $data = $profile->encode(\in_array($format, $formats, true) ? $format : $formats[0]);
+            [, $chunks] = $profile->stream(\in_array($format, $formats, true) ? $format : $formats[0]);
             $dir = \dirname($path);
             \is_dir($dir) or @\mkdir($dir, 0777, true);
-            @\file_put_contents($path, $data, \LOCK_EX) === false
-            and throw new \RuntimeException(\sprintf('Unable to write the profile to `%s`.', $path));
+            // Where the directory takes no new file, the file is written in place
+            $temp = TempFile::in($dir, '.trap-profile-');
+            $handle = @\fopen($temp ?? $path, 'wb');
+            try {
+                $handle === false and throw new \RuntimeException(\sprintf('Unable to write the profile to `%s`.', $path));
+                foreach ($chunks as $chunk) {
+                    @\fwrite($handle, $chunk) === \strlen($chunk)
+                    or throw new \RuntimeException(\sprintf('Unable to write the profile to `%s`.', $path));
+                }
+                \fclose($handle);
+                $handle = false;
+                if ($temp !== null) {
+                    // `tempnam()` makes the file private
+                    @\chmod($temp, 0666 & ~\umask());
+                    @\rename($temp, $path) or throw new \RuntimeException(\sprintf('Unable to write the profile to `%s`.', $path));
+                }
+            } finally {
+                $handle === false or \fclose($handle);
+                $temp === null or @\unlink($temp);
+            }
         };
 
         return $this;
@@ -128,9 +147,9 @@ final class Profiling
      * The format is preferred: a profiler that can't produce it sends its native format. Delivery errors are logged.
      *
      * XHProf goes as the Buggregator `/api/profiler/store` JSON with the metadata inside.
-     * Speedscope (`application/json`), Collapsed (`text/plain`) and pprof (`application/octet-stream`)
-     * go as the bare document, with the metadata added to the URL query: `app_name`, `hostname`, `name`, `clock`,
-     * `period` (seconds) and `tags[...]`.
+     * Speedscope (`application/json`), Collapsed (`text/plain`), pprof (`application/octet-stream`) and SPX
+     * (`application/x-tar`) go as the bare document, with the metadata added to the URL query: `app_name`,
+     * `hostname`, `name`, `clock`, `period` (seconds), `sampling_period` (microseconds) and `tags[...]`.
      *
      * ```php
      * ->toServer('http://profiler@buggregator:8000/api/profiler/store')
@@ -244,6 +263,7 @@ final class Profiling
             \str_ends_with($name, '.pb.gz'),
             \str_ends_with($name, '.pb'),
             \str_ends_with($name, '.pprof') => Format::Pprof,
+            \str_ends_with($name, '.spx.tar') => Format::Spx,
             default => null,
         };
     }

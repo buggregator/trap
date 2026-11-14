@@ -3,6 +3,8 @@
         "EXCIMER_CPU",
         "EXCIMER_REAL",
         "ExcimerProfiler",
+        "spx_profiler_start",
+        "spx_profiler_stop",
         "TIDEWAYS_XHPROF_FLAGS_CPU",
         "TIDEWAYS_XHPROF_FLAGS_MEMORY",
         "tideways_xhprof_disable",

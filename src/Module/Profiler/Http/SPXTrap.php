@@ -12,6 +12,7 @@ use Buggregator\Trap\Module\Profiler\SPX\ProfileBuilder;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Logger;
+use Buggregator\Trap\Support\Spx\Archive;
 use Buggregator\Trap\Support\Spx\Metadata;
 use Buggregator\Trap\Support\TimeSlice;
 use Nyholm\Psr7\Response;
@@ -21,18 +22,18 @@ use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UploadedFileInterface;
 
 /**
- * Receives SPX full reports: `POST /api/profiler/spx` as `multipart/form-data` with two parts,
- * as SPX writes them to its data directory:
- * - `metadata`: the `<key>.json` file, or a field with the JSON;
- * - `trace`: the gzipped `<key>.txt.gz` file.
+ * Receives SPX full reports: `POST /api/profiler/spx` with the two files SPX writes to its data directory,
+ * the `<key>.json` metadata and the gzipped `<key>.txt.gz` trace, as:
+ * - `multipart/form-data` with the `metadata` part, a file or a field, and the `trace` file part;
+ * - `application/x-tar`: an archive of the metadata, then the trace, as {@see Archive} packs them.
  *
  * ```
  * curl -F metadata=@/tmp/spx/spx-full-….json -F trace=@/tmp/spx/spx-full-….txt.gz http://127.0.0.1:8000/api/profiler/spx
  * ```
  *
- * Optional parameters, in the query or as form fields, which win: `sampling_period`, the microseconds between the samples
- * when SPX sampled the stack (`SPX_SAMPLING_PERIOD`), which the report doesn't tell; `app_name`, `hostname`
- * and `tags[name]=value`.
+ * Optional parameters, in the query or as form fields, which win: `sampling_period`, the microseconds between
+ * the samples when SPX sampled the stack (`SPX_SAMPLING_PERIOD`), which the report doesn't tell; `app_name`,
+ * `hostname`, `name` and `tags[name]=value`.
  *
  * @internal
  * @psalm-internal Buggregator\Trap
@@ -81,18 +82,20 @@ final class SPXTrap implements Middleware
     }
 
     /**
+     * Reads from the current position to the end, or the length.
+     *
      * @param positive-int $limit Bytes the stream may have: its size may be unknown.
+     * @param int<0, max>|null $length Bytes to read at most; the rest of the stream when null.
      *
      * @return \Generator<int, string>
      *
-     * @throws \LengthException When the stream is larger.
+     * @throws \LengthException When the stream is larger than the limit.
      */
-    private static function chunks(StreamInterface $stream, int $limit): \Generator
+    private static function chunks(StreamInterface $stream, int $limit, ?int $length = null): \Generator
     {
-        $stream->rewind();
         $read = 0;
-        while (!$stream->eof()) {
-            $chunk = $stream->read(65536);
+        while (($length === null || $read < $length) && !$stream->eof()) {
+            $chunk = $stream->read($length === null ? 65536 : \min(65536, $length - $read));
             // A stream that tells no end would loop forever
             if ($chunk === '') {
                 break;
@@ -104,13 +107,14 @@ final class SPXTrap implements Middleware
     }
 
     /**
-     * @param positive-int $length
+     * `StreamInterface::read()` takes no 0, and may return less than asked.
      *
-     * @return string The start of the stream, up to the length: its size may be unknown.
+     * @param int<0, max> $length
+     *
+     * @return string The bytes from the current position, up to the length.
      */
-    private static function head(StreamInterface $stream, int $length): string
+    private static function read(StreamInterface $stream, int $length): string
     {
-        $stream->rewind();
         $data = '';
         while (\strlen($data) < $length && !$stream->eof()) {
             $chunk = $stream->read($length - \strlen($data));
@@ -176,6 +180,62 @@ final class SPXTrap implements Middleware
         return $file instanceof UploadedFileInterface ? $file : null;
     }
 
+    /**
+     * @return array{string, \Generator<int, string>} The metadata JSON and the trace chunks.
+     *
+     * @throws \LengthException When the trace is too large.
+     */
+    private function form(ServerRequestInterface $request): array
+    {
+        $trace = self::file($request, 'trace')
+            ?? throw new \InvalidArgumentException('No `trace` file part: the `.txt.gz` file of the report.');
+        ($trace->getSize() ?? 0) > $this->profileBuilder->maxSize
+            and throw new \LengthException("The trace is larger than {$this->profileBuilder->maxSize} bytes.");
+        $file = self::file($request, 'metadata');
+        if ($file === null) {
+            $json = self::param($request, 'metadata')
+                ?? throw new \InvalidArgumentException('No `metadata` part: the `.json` file of the report.');
+        } else {
+            $stream = $file->getStream();
+            $stream->rewind();
+            // A byte over the limit is enough to reject it
+            $json = self::read($stream, Metadata::MAX_SIZE + 1);
+        }
+
+        $stream = $trace->getStream();
+        $stream->rewind();
+
+        return [$json, self::chunks($stream, $this->profileBuilder->maxSize)];
+    }
+
+    /**
+     * Reads an {@see Archive}: the metadata, then the trace, streamed.
+     *
+     * @return array{string, \Generator<int, string>} The metadata JSON and the trace chunks.
+     *
+     * @throws \LengthException When the trace is too large.
+     */
+    private function archive(StreamInterface $body): array
+    {
+        $body->rewind();
+        $read = static fn(int $length): string => self::read($body, \max(0, $length));
+
+        [$name, $size] = Archive::next($read) ?? throw new \InvalidArgumentException('The archive is empty.');
+        \str_ends_with($name, '.json') && $size <= Metadata::MAX_SIZE
+            or throw new \InvalidArgumentException('The archive must start with the `.json` metadata of the report.');
+        $json = $read($size);
+        $read(Archive::paddingOf($size));
+
+        [$name, $size] = Archive::next($read)
+            ?? throw new \InvalidArgumentException('The archive has no `.txt.gz` trace after the metadata.');
+        \str_ends_with($name, '.txt.gz')
+            or throw new \InvalidArgumentException('The archive has no `.txt.gz` trace after the metadata.');
+        $size > $this->profileBuilder->maxSize
+            and throw new \LengthException("The trace is larger than {$this->profileBuilder->maxSize} bytes.");
+
+        return [$json, self::chunks($body, $this->profileBuilder->maxSize, $size)];
+    }
+
     private function processStore(ServerRequestInterface $request): ResponseInterface
     {
         // A body of an unknown size is limited as it is read
@@ -183,19 +243,20 @@ final class SPXTrap implements Middleware
         if ($size !== null && $size > $this->profileBuilder->maxSize + Metadata::MAX_SIZE + self::FORM_OVERHEAD) {
             return $this->reject(413, 'The body is too large.');
         }
-        \str_starts_with(\strtolower($request->getHeaderLine('Content-Type')), 'multipart/form-data')
-            or throw new \InvalidArgumentException(
-                'Send the report as multipart/form-data with the `metadata` and `trace` parts.',
-            );
 
-        $trace = self::file($request, 'trace')
-            ?? throw new \InvalidArgumentException('No `trace` file part: the `.txt.gz` file of the report.');
-        if (($trace->getSize() ?? 0) > $this->profileBuilder->maxSize) {
-            return $this->reject(413, "The trace is larger than {$this->profileBuilder->maxSize} bytes.");
+        $type = \strtolower($request->getHeaderLine('Content-Type'));
+        try {
+            [$json, $chunks] = match (true) {
+                \str_starts_with($type, 'multipart/form-data') => $this->form($request),
+                \str_starts_with($type, 'application/x-tar') => $this->archive($request->getBody()),
+                default => throw new \InvalidArgumentException(
+                    'Send the report as multipart/form-data with the `metadata` and `trace` parts, '
+                    . 'or as application/x-tar.',
+                ),
+            };
+        } catch (\LengthException $e) {
+            return $this->reject(413, $e->getMessage());
         }
-        $file = self::file($request, 'metadata');
-        $json = $file === null ? self::param($request, 'metadata') : self::head($file->getStream(), Metadata::MAX_SIZE + 1);
-        $json ?? throw new \InvalidArgumentException('No `metadata` part: the `.json` file of the report.');
         $spx = Metadata::fromJson($json);
 
         $period = self::param($request, 'sampling_period');
@@ -207,6 +268,7 @@ final class SPXTrap implements Middleware
             ($value = self::param($request, $key)) === null or $metadata[$key] = $value;
         }
         $tags = self::tags($request);
+        ($profileName = self::param($request, 'name')) === null or $tags += ['name' => $profileName];
 
         /** @var mixed $time */
         $time = $request->getAttribute('begin_at');
@@ -216,7 +278,7 @@ final class SPXTrap implements Middleware
         // Dated by the profiled run, which the report tells, rather than by the upload.
         $profile = $this->lock->run(fn(): Profile => $this->profileBuilder->createProfile(
             $spx,
-            self::chunks($trace->getStream(), $this->profileBuilder->maxSize),
+            $chunks,
             null,
             $metadata,
             $tags,

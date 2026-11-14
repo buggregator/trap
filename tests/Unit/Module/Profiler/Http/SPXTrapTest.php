@@ -10,6 +10,7 @@ use Buggregator\Trap\Module\Profiler\Http\SPXTrap;
 use Buggregator\Trap\Module\Profiler\SPX\ProfileBuilder;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Traffic\Parser\Http;
+use Buggregator\Trap\Support\Spx\Archive;
 use Buggregator\Trap\Test\Mock\StreamClientMock;
 use Buggregator\Trap\Tests\Unit\Module\Profiler\Http\Stub\FaultyStream;
 use Buggregator\Trap\Tests\Unit\Module\Profiler\Http\Stub\UnsizedStream;
@@ -122,6 +123,84 @@ final class SPXTrapTest
         );
     }
 
+    public function testStoresArchive(): void
+    {
+        $request = self::tar(Archive::pack(['report.json' => self::json(), 'report.txt.gz' => self::trace()]))
+            ->withQueryParams(['name' => 'checkout', 'sampling_period' => '50']);
+
+        [$response, $frames] = self::handle($request);
+
+        Assert::same($response->getStatusCode(), 200);
+        $profile = $frames[0]->payload->getProfile();
+        Assert::same($profile->peaks->wt, 12);
+        Assert::same($profile->tags['name'], 'checkout');
+        Assert::same($profile->metadata['sampling_period'], 50);
+    }
+
+    /**
+     * @param array<non-empty-string, string> $files
+     */
+    #[DataSet([['report.txt.gz' => 'x'], 'The archive must start with the `.json` metadata of the report.'], 'trace first')]
+    #[DataSet([['report.json' => '{}'], 'The archive has no `.txt.gz` trace after the metadata.'], 'no trace')]
+    #[DataSet([['report.json' => '{}', 'other.txt' => 'x'], 'The archive has no `.txt.gz` trace after the metadata.'], 'other file')]
+    #[DataSet([[], 'The archive is empty.'], 'empty')]
+    public function testRejectsInvalidArchive(array $files, string $message): void
+    {
+        [$response, $frames] = self::handle(self::tar(Archive::pack($files)));
+
+        Assert::same($response->getStatusCode(), 400);
+        Assert::same((string) $response->getBody(), $message);
+        Assert::same($frames, []);
+    }
+
+    public function testRejectsBodyThatIsNotArchive(): void
+    {
+        [$response] = self::handle(self::tar(\str_repeat('x', 1024)));
+
+        Assert::same($response->getStatusCode(), 400);
+        Assert::same((string) $response->getBody(), 'Not a tar archive.');
+    }
+
+    public function testRejectsArchiveWithOversizedTrace(): void
+    {
+        $request = self::tar(Archive::pack(['report.json' => self::json(), 'report.txt.gz' => self::trace()]));
+
+        [$response] = self::handle($request, new ProfileBuilder(maxSize: 16));
+
+        Assert::same($response->getStatusCode(), 413);
+        Assert::same((string) $response->getBody(), 'The trace is larger than 16 bytes.');
+    }
+
+    /**
+     * Metadata that fills whole blocks has no padding after it.
+     */
+    #[DataSet([512], 'one block')]
+    #[DataSet([1024], 'two blocks')]
+    public function testStoresArchiveWithMetadataOfWholeBlocks(int $size): void
+    {
+        $json = '{"enabled_metrics":["wt","ct","zm","zgr","io"],"called_function_count":4,"recorded_call_count":6}';
+        $json = \substr($json, 0, -1) . ',"pad":"' . \str_repeat('x', $size - \strlen($json) - 9) . '"}';
+        Assert::same(\strlen($json), $size);
+
+        [$response, $frames] = self::handle(self::tar(Archive::pack(['r.json' => $json, 'r.txt.gz' => self::trace()])));
+
+        Assert::same($response->getStatusCode(), 200);
+        Assert::same($frames[0]->payload->getProfile()->peaks->wt, 12);
+    }
+
+    public function testStoresArchiveWithLongNames(): void
+    {
+        $key = 'spx-full-20250518_120000-' . \str_repeat('host.', 30) . 'example-42-1804289383';
+
+        [$response, $frames] = self::handle(self::tar(Archive::pack([
+            "$key.json" => self::json(),
+            "$key.txt.gz" => self::trace(),
+        ])));
+
+        Assert::same($response->getStatusCode(), 200);
+        Assert::count($frames, 1);
+    }
+
     public function testPassesOtherRequestsThrough(): void
     {
         foreach ([self::request('/api/other'), new ServerRequest('GET', '/api/profiler/spx')] as $request) {
@@ -140,7 +219,10 @@ final class SPXTrapTest
         [$response, $frames, $log] = self::handle($request);
 
         Assert::same($response->getStatusCode(), 400);
-        Assert::same((string) $response->getBody(), 'Send the report as multipart/form-data with the `metadata` and `trace` parts.');
+        Assert::same(
+            (string) $response->getBody(),
+            'Send the report as multipart/form-data with the `metadata` and `trace` parts, or as application/x-tar.',
+        );
         Assert::same($frames, []);
         Assert::string($log)->contains('SPX: profile rejected with 400: send the report as multipart/form-data');
     }
@@ -362,6 +444,23 @@ final class SPXTrapTest
         Assert::same($profile->calls->callers('handle')[0]->caller, 'main()');
     }
 
+    public function testStoresRealReportArchive(): void
+    {
+        $key = 'spx-full-20261113_213647-53cebb0d3f31-13-1804289383';
+        $request = self::tar(Archive::pack([
+            "$key.json" => (string) \file_get_contents(self::REAL . '/metrics.json'),
+            "$key.txt.gz" => (string) \file_get_contents(self::REAL . '/metrics.txt.gz'),
+        ]));
+
+        [$response, $frames] = self::handle($request);
+
+        Assert::same($response->getStatusCode(), 200);
+        $profile = $frames[0]->payload->getProfile();
+        Assert::same($profile->tags, ['command' => 'calls.php']);
+        Assert::same($profile->metadata['details']['Included files'], '2');
+        Assert::same($profile->calls->callers('fib')[0]->caller, 'run');
+    }
+
     private static function json(): string
     {
         return (string) \file_get_contents(self::STUB . '.json');
@@ -387,6 +486,11 @@ final class SPXTrapTest
 
         return (new ServerRequest('POST', $path, ['Content-Type' => 'multipart/form-data; boundary=x'], 'form'))
             ->withUploadedFiles($files);
+    }
+
+    private static function tar(string $body): ServerRequestInterface
+    {
+        return new ServerRequest('POST', '/api/profiler/spx', ['Content-Type' => 'application/x-tar'], $body);
     }
 
     private static function parse(string $raw): ServerRequestInterface

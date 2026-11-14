@@ -16,7 +16,8 @@ final class Payload
 {
     /**
      * Metadata as query parameters, for bodies that can't carry it: `app_name`, `hostname`, `name`,
-     * `clock`, `period` (seconds) and `tags[...]`. Null values and empty tags are left out.
+     * `clock`, `period` (seconds), `sampling_period` (microseconds, of SPX) and `tags[...]`.
+     * Null values and empty tags are left out.
      *
      * The period lets the receiver count the samples of a Speedscope document: Excimer records repeated
      * timer events only in the weight, as `events * period`.
@@ -26,6 +27,7 @@ final class Payload
         $meta = $profile->metadata();
         $clock = $meta->options['clock'] ?? null;
         $period = $meta->options['period'] ?? null;
+        $samplingPeriod = $meta->options['sampling_period'] ?? null;
 
         return \http_build_query([
             'app_name' => $meta->appName,
@@ -33,6 +35,7 @@ final class Payload
             'name' => $meta->name,
             'clock' => \is_string($clock) ? $clock : null,
             'period' => \is_float($period) || \is_int($period) ? self::decimal((float) $period) : null,
+            'sampling_period' => \is_int($samplingPeriod) ? $samplingPeriod : null,
             'tags' => $meta->tags,
         ], '', '&', \PHP_QUERY_RFC3986);
     }

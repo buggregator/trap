@@ -57,7 +57,7 @@ final class TrapSender
     }
 
     /**
-     * Sends a recorded profile: Speedscope when the profiler produces it, XHProf otherwise.
+     * Sends a recorded profile: an SPX report as it is, Speedscope when the profiler produces it, XHProf otherwise.
      * Profiles Trap has no endpoint for are dropped.
      *
      * @throws \RuntimeException When the profile is not delivered.
@@ -66,6 +66,11 @@ final class TrapSender
     {
         $formats = $profile->formats();
         match (true) {
+            \in_array(Format::Spx, $formats, true) => $this->post(
+                '/api/profiler/spx' . $this->withQuery(Payload::query($profile)),
+                $profile->stream(Format::Spx),
+                'application/x-tar',
+            ),
             \in_array(Format::Speedscope, $formats, true) => $this->post(
                 '/api/profiler/speedscope' . $this->withQuery(Payload::query($profile)),
                 $profile->encode(Format::Speedscope),
@@ -82,9 +87,10 @@ final class TrapSender
 
     /**
      * @param non-empty-string $target
+     * @param string|array{int<0, max>, iterable<string>} $body
      */
-    private function post(string $target, string $body): void
+    private function post(string $target, string|array $body, string $contentType = 'application/json'): void
     {
-        $this->http->post('http', $this->host, $this->port, $target, ['Content-Type' => 'application/json'], $body);
+        $this->http->post('http', $this->host, $this->port, $target, ['Content-Type' => $contentType], $body);
     }
 }
