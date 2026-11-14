@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Support;
 
 use Buggregator\Trap\Support\Activity;
+use Buggregator\Trap\Support\Stream\Base64DecodeFilter;
 use Buggregator\Trap\Support\StreamHelper;
 use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Buggregator\Trap\Tests\Unit\Support\Stub\ChunkedStream;
@@ -218,12 +219,13 @@ final class StreamHelperTest
     #[Test]
     public function createFileStreamAppliesReadFiltersInOrderOnReading(): void
     {
-        $stream = StreamHelper::createFileStream(readFilters: ['convert.base64-encode', 'string.toupper' => null]);
-        $stream->write('abc');
+        // Decoding before upper-casing differs from the other order; PHP 8.6 can't seek a stream with `convert.*` filters
+        $stream = StreamHelper::createFileStream(readFilters: [Base64DecodeFilter::FILTER_NAME, 'string.toupper' => null]);
+        $stream->write('YWJj');
         $stream->rewind();
 
-        Assert::same($stream->getSize(), 3);
-        Assert::same($stream->getContents(), 'YWJJ');
+        Assert::same($stream->getSize(), 4);
+        Assert::same($stream->getContents(), 'ABC');
     }
 
     /**
