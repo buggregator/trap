@@ -163,16 +163,20 @@ final class ClientTest
     public function stopsReadingWhileSendBufferIsFull(): void
     {
         [$server, $remote, $socket] = $this->connect();
+        // Windows takes all it is given unless the peer's receive buffer is tiny,
+        // and a tiny one on Linux slows the transfer to delayed ACKs
         \socket_set_option($socket, \SOL_SOCKET, \SO_SNDBUF, 4096);
-        \socket_set_option($remote, \SOL_SOCKET, \SO_RCVBUF, 4096);
+        \PHP_OS_FAMILY === 'Windows' and \socket_set_option($remote, \SOL_SOCKET, \SO_RCVBUF, 4096);
         \socket_set_nonblock($remote);
         $client = Client::init($socket);
         $chunk = \str_repeat('x', 1024 * 1024);
 
         try {
-            // Windows takes a couple of MB whatever the buffer size
-            for ($i = 0; $i < 8; ++$i) {
+            // One write pass over more than any kernel takes at once: Windows takes a few MB
+            $sent = 0;
+            for ($i = 0; $i < 16; ++$i) {
                 $client->send($chunk);
+                $sent += \strlen($chunk);
             }
             $fiber = new \Fiber($client->process(...));
             $fiber->start();
@@ -181,15 +185,16 @@ final class ClientTest
             Assert::null($client->readableSocket());
             Assert::same($client->writableSocket(), $socket);
 
+            // The fiber retries the write on each resume, with no wake-up by the main loop
             $received = 0;
             $deadline = \microtime(true) + 10;
-            while ($received < 8 * \strlen($chunk) && \microtime(true) < $deadline) {
+            while ($received < $sent && \microtime(true) < $deadline) {
                 $data = @\socket_read($remote, 1024 * 1024);
                 $received += \is_string($data) ? \strlen($data) : 0;
                 $fiber->resume();
             }
 
-            Assert::same($received, 8 * \strlen($chunk));
+            Assert::same($received, $sent);
             Assert::same($client->readableSocket(), $socket);
         } finally {
             $client->destroy();
