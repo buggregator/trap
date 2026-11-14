@@ -38,12 +38,4 @@ final class TcpPorts
      * @var non-empty-string
      */
     public string $protocol = 'tcp';
-
-    /**
-     * Time to wait between socket_accept() and socket_select() calls in microseconds.
-     *
-     * @var int<50, max>
-     */
-    #[Env('TRAP_TCP_POLLING_INTERVAL')]
-    public int $pollingInterval = 1_000;
 }

@@ -27,11 +27,15 @@ final class Mapper implements EventMapper
 {
     public const SAMPLES = 'samples';
 
+    /** Calls SPX saw at its sampling ticks: a call that stays on the stack across ticks counts once. */
+    public const SAMPLED_CALLS = 'sampled calls';
+
     /**
      * A sampling profiler counts the samples a function is on the stack in, not its calls; a pprof profile may count
      * something else by its sample type, such as the allocated objects of a heap profile.
      *
-     * @return non-empty-string|null The sample type, {@see self::SAMPLES} for the samples, null for the calls.
+     * @return non-empty-string|null The sample type, {@see self::SAMPLES} for the samples,
+     *         {@see self::SAMPLED_CALLS} for SPX in sampling mode, null for the calls.
      */
     public static function countType(ProfilerPayload $payload): ?string
     {
@@ -43,9 +47,11 @@ final class Mapper implements EventMapper
             return \is_string($type) && $type !== '' && \preg_match('/samples?$/i', $type) !== 1 ? $type : self::SAMPLES;
         }
 
-        return $payload->type === ProfilerPayloadType::Speedscope && ($metadata['profile_type'] ?? null) === 'sampled'
-            ? self::SAMPLES
-            : null;
+        return match ($payload->type) {
+            ProfilerPayloadType::Speedscope => ($metadata['profile_type'] ?? null) === 'sampled' ? self::SAMPLES : null,
+            ProfilerPayloadType::SPX => isset($metadata['sampling_period']) ? self::SAMPLED_CALLS : null,
+            default => null,
+        };
     }
 
     /**
@@ -102,6 +108,7 @@ final class Mapper implements EventMapper
                     description: match ($countType = self::countType($event->payload)) {
                         null => 'Calls',
                         self::SAMPLES => 'Samples with the function on the stack',
+                        self::SAMPLED_CALLS => 'Calls seen at the sampling ticks; a call over several ticks counts once',
                         default => "$countType of the function and its callees",
                     },
                     values: [new TopFunctions\Value(key: 'ct', format: 'number')],
@@ -154,6 +161,8 @@ final class Mapper implements EventMapper
                     $countType === null => \sprintf('%s (%dx)', $name, $cost->ct),
                     $countType === self::SAMPLES
                         => \sprintf('%s (%d %s)', $name, $cost->ct, $cost->ct === 1 ? 'sample' : 'samples'),
+                    $countType === self::SAMPLED_CALLS
+                        => \sprintf('%s (%d sampled %s)', $name, $cost->ct, $cost->ct === 1 ? 'call' : 'calls'),
                     default => \sprintf('%s (%d %s)', $name, $cost->ct, $countType),
                 },
                 cost: $cost,

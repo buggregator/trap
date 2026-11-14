@@ -10,9 +10,11 @@ use Buggregator\Trap\Module\Profiler\Frame;
 use Buggregator\Trap\Module\Profiler\Frame\Payload;
 use Buggregator\Trap\Module\Profiler\Frame\Type;
 use Buggregator\Trap\Module\Profiler\Speedscope\ProfileBuilder as SpeedscopeProfileBuilder;
+use Buggregator\Trap\Module\Profiler\SPX\ProfileBuilder as SpxProfileBuilder;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Module\Profiler\XDebug\ProfileBuilder as XDebugProfileBuilder;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
+use Buggregator\Trap\Support\Spx\Metadata;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Testo\Assert;
@@ -194,6 +196,40 @@ final class RendererTest
         ]));
 
         Assert::string($output)->contains('…' . \substr($name, -59) . ' |')->notContains($name);
+    }
+
+    #[Test]
+    public function rendersDetailsOfSpxReport(): void
+    {
+        $stub = __DIR__ . '/../../../../Stub/spx/handwritten';
+        $profile = (new SpxProfileBuilder())->createProfile(
+            Metadata::fromJson((string) \file_get_contents("$stub.json")),
+            [(string) \gzencode((string) \file_get_contents("$stub.txt"))],
+        );
+
+        $output = self::render(new Frame(Payload::new(Type::SPX, static fn(): Profile => $profile)));
+
+        Assert::string($output)
+            ->contains('PROFILER')
+            ->contains('SPX')
+            ->contains('Request: POST shop.test/checkout?step=2')
+            ->contains('Custom metadata: release=1.2.3')
+            ->contains('GC runs: 2')
+            ->contains('I/O: 8.00 KiB')
+            ->contains('Top 4 of 4 functions by self wall time');
+    }
+
+    #[Test]
+    public function rendersFileNameWithItsSize(): void
+    {
+        $profile = (new ProfileBuilder())->createProfile(
+            calls: ['main()' => ['ct' => 1, 'wt' => 10, 'cpu' => 0, 'mu' => 0, 'pmu' => 0]],
+            metadata: ['filename' => 'spx-full-1.txt.gz', 'filesize' => 2048],
+        );
+
+        $output = self::render(new Frame(Payload::new(Type::XHProf, static fn(): Profile => $profile)));
+
+        Assert::string($output)->contains('File name: spx-full-1.txt.gz (2.00 KiB)');
     }
 
     /**

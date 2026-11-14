@@ -15,9 +15,6 @@ namespace Buggregator\Trap\Support;
  */
 final class TimeSlice
 {
-    /** Ticks between the clock reads: a read costs more than a tick of the usual loop. */
-    private const CHECK_EVERY = 256;
-
     private int $ticks = 0;
     private int $start;
 
@@ -26,10 +23,22 @@ final class TimeSlice
 
     /**
      * @param float $seconds Time to run before letting the other fibers run.
+     * @param positive-int $checkEvery Ticks between the clock reads: a read costs more than a tick of the usual loop.
      */
-    public function __construct(float $seconds = 0.02)
-    {
+    public function __construct(
+        float $seconds = 0.02,
+        private readonly int $checkEvery = 256,
+    ) {
         $this->length = \max(1, (int) ($seconds * 1e9));
+        $this->start = \hrtime(true);
+    }
+
+    /**
+     * Starts the slice again: the fiber has just let the others run.
+     */
+    public function reset(): void
+    {
+        $this->ticks = 0;
         $this->start = \hrtime(true);
     }
 
@@ -38,7 +47,7 @@ final class TimeSlice
      */
     public function tick(): bool
     {
-        if (++$this->ticks < self::CHECK_EVERY) {
+        if (++$this->ticks < $this->checkEvery) {
             return false;
         }
 
@@ -47,6 +56,7 @@ final class TimeSlice
             return false;
         }
 
+        Activity::report();
         \Fiber::suspend();
         $this->start = \hrtime(true);
         return true;

@@ -13,6 +13,7 @@ use Buggregator\Trap\Module\Profiler\Config\XDebug;
 use Buggregator\Trap\Module\Profiler\Config\XHProf;
 use Buggregator\Trap\Module\Profiler\Http\PprofTrap;
 use Buggregator\Trap\Module\Profiler\Http\SpeedscopeTrap;
+use Buggregator\Trap\Module\Profiler\Http\SPXTrap;
 use Buggregator\Trap\Module\Profiler\Http\XDebugTrap;
 use Buggregator\Trap\Module\Profiler\Http\XHProfTrap;
 use Buggregator\Trap\Module\Ray\Http\RayTrap;
@@ -113,6 +114,7 @@ final class ModulesTest
                 XDebugTrap::class,
                 SpeedscopeTrap::class,
                 PprofTrap::class,
+                SPXTrap::class,
                 OtlpTrap::class,
                 DebugPage::class,
                 Dump::class,

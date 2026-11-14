@@ -11,6 +11,7 @@ use Buggregator\Trap\Client\Profiler\Internal\Payload;
 use Buggregator\Trap\Client\Profiler\Internal\Recorded;
 use Buggregator\Trap\Client\Profiler\Internal\ServerSender;
 use Buggregator\Trap\Client\Profiler\Internal\Settings;
+use Buggregator\Trap\Client\Profiler\Internal\TempFile;
 use Buggregator\Trap\Client\Profiler\Internal\TrapSender;
 use Buggregator\Trap\Client\Profiler\Internal\Warnings;
 use Buggregator\Trap\Client\Profiler\Metadata;
@@ -25,6 +26,7 @@ use Buggregator\Trap\Tests\Unit\Client\Profiler\Stub\LogCapture;
 use Buggregator\Trap\Tests\Unit\Client\Profiler\Stub\PprofDecoder;
 use Testo\Assert;
 use Testo\Codecov\Covers;
+use Testo\Core\Exception\SkipTest;
 use Testo\Data\DataSet;
 use Testo\Expect;
 use Testo\Lifecycle\AfterClass;
@@ -40,6 +42,7 @@ use Testo\Test;
 #[Covers(Settings::class)]
 #[Covers(Warnings::class)]
 #[Covers(Env::class)]
+#[Covers(TempFile::class)]
 #[Covers(Payload::class)]
 #[Covers(TrapSender::class)]
 #[Covers(ServerSender::class)]
@@ -84,6 +87,7 @@ final class ProfilingTest extends Base
         \putenv('TRAP_PROFILER_APP_NAME');
         \putenv('TRAP_PROFILER_SERVER');
         Warnings::$logger = null;
+        TempFile::$tempnam = null;
         self::removeDir($this->dir);
     }
 
@@ -501,6 +505,45 @@ final class ProfilingTest extends Base
 
         Assert::same($result, 6);
         Assert::string($this->log->messages())->contains("Unable to write the profile to `{$file}`");
+    }
+
+    public function writesFileInDirectoryTakingNoNewFile(): void
+    {
+        \DIRECTORY_SEPARATOR === '\\' and throw new SkipTest('Windows keeps no directory from new files');
+        \function_exists('posix_geteuid') && \posix_geteuid() === 0 and throw new SkipTest('root writes anywhere');
+        $dir = $this->dir . '/locked';
+        $file = $dir . '/profile.txt';
+        \mkdir($dir, 0777, true);
+        \file_put_contents($file, '');
+        \chmod($dir, 0555);
+
+        try {
+            TrapHandle::profile(new FakeDriver())->toFile($file)->run(static fn() => null);
+        } finally {
+            \chmod($dir, 0777);
+        }
+
+        Assert::same(\filesize($file) > 0, true);
+        Assert::same(\scandir($dir), ['.', '..', 'profile.txt']);
+        Assert::string($this->log->messages())->notContains('Unable to write the profile');
+    }
+
+    #[DataSet([true], 'tempnam() falls back to the system directory')]
+    #[DataSet([false], 'tempnam() fails')]
+    public function writesFileInPlaceWhereNoTempFileIsMadeNextToIt(bool $elsewhere): void
+    {
+        $file = $this->dir . '/profile.txt';
+        $other = $this->dir . '/system';
+        \mkdir($other, 0777, true);
+        TempFile::$tempnam = static fn(string $dir, string $prefix): string|false
+            => $elsewhere ? \tempnam($other, $prefix) : false;
+
+        TrapHandle::profile(new FakeDriver())->toFile($file)->run(static fn() => null);
+
+        Assert::same(\filesize($file) > 0, true);
+        Assert::same(\scandir($this->dir), ['.', '..', 'profile.txt', 'system']);
+        Assert::same(\scandir($other), ['.', '..']);
+        Assert::string($this->log->messages())->notContains('Unable to write the profile');
     }
 
     public function failingProfilerIsLoggedOnStop(): void

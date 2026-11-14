@@ -15,6 +15,11 @@
 
 # Snapshots compared byte by byte, whatever `core.autocrlf` says.
 /tests/Stub/otlp-render/*.txt text eol=lf
+/tests/Stub/spx/*.txt text eol=lf
+/tests/Stub/spx/**/*.gz binary
+/tests/Stub/spx/real/*.json text eol=lf
+# Run in a Linux container
+/tests/Stub/spx/docker/** text eol=lf
 
 # List-like manifests: concurrent additions to the same list merge instead of conflicting.
 /composer.json merge=union

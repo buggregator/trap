@@ -1,0 +1,26 @@
+{
+  "key": "spx-full-20250518_120000-app-42-1804289383",
+  "exec_ts": 1747569600,
+  "host_name": "app",
+  "process_pid": 42,
+  "process_tid": 42,
+  "process_pwd": "/app",
+  "cli": 0,
+  "cli_command_line": "n/a",
+  "http_request_uri": "/checkout?step=2",
+  "http_method": "POST",
+  "http_host": "shop.test",
+  "custom_metadata_str": "release=1.2.3",
+  "wall_time_ms": 12,
+  "peak_memory_usage": 2097152,
+  "called_function_count": 4,
+  "call_count": 6,
+  "recorded_call_count": 6,
+  "enabled_metrics": [
+    "wt"
+    ,"ct"
+    ,"zm"
+    ,"zgr"
+    ,"io"
+  ]
+}

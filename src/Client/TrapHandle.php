@@ -9,6 +9,7 @@ use Buggregator\Trap\Client\Log\TrapLogger;
 use Buggregator\Trap\Client\Profiler\Excimer;
 use Buggregator\Trap\Client\Profiler\Internal\Driver;
 use Buggregator\Trap\Client\Profiler\Profiling;
+use Buggregator\Trap\Client\Profiler\Spx;
 use Buggregator\Trap\Client\Profiler\XHProf;
 use Buggregator\Trap\Client\TrapHandle\Counter;
 use Buggregator\Trap\Client\TrapHandle\Dumper as VarDumper;
@@ -83,11 +84,14 @@ final class TrapHandle
      * XHProf takes over an xhprof or tideways session already profiling the whole request
      * (XHGui, a prepend file) and ends it on stop; that can't be detected.
      *
+     * SPX is taken only when given: it works only in a process started with `SPX_ENABLED=1` and
+     * `SPX_AUTO_START=0`, see {@see Spx}.
+     *
      * Xdebug is not supported here: it can't start its profiler at runtime for a part of a request.
      * Profile whole requests with `xdebug.mode=profile` and a trigger instead; Trap picks up the
      * cachegrind files Xdebug writes.
      *
-     * @param Excimer|XHProf|null $profiler The profiler with its options.
+     * @param Excimer|XHProf|Spx|null $profiler The profiler with its options.
      */
     public static function profile(?Driver $profiler = null): Profiling
     {

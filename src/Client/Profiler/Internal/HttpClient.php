@@ -13,6 +13,9 @@ use Buggregator\Trap\Client\Internal\Silently;
  */
 final class HttpClient
 {
+    /** Seconds to write a body given in chunks. */
+    private const UPLOAD_TIMEOUT = 60.0;
+
     /**
      * @param float $timeout Seconds to wait for the connection and for each read or write.
      */
@@ -25,13 +28,15 @@ final class HttpClient
      * @param int<1, 65535> $port
      * @param non-empty-string $target The request target: the path with the query.
      * @param array<non-empty-string, string> $headers Without CR and LF.
+     * @param string|array{int<0, max>, iterable<string>} $body The body, or its size and chunks, written as they come.
      *
      * @throws \RuntimeException When the server is unreachable, the request can't be written,
      *         or the server answers with an error status. No status line within the timeout is no error:
      *         a busy server may still take the request.
      */
-    public function post(string $scheme, string $host, int $port, string $target, array $headers, string $body): void
+    public function post(string $scheme, string $host, int $port, string $target, array $headers, string|array $body): void
     {
+        [$size, $chunks] = \is_string($body) ? [\strlen($body), [$body]] : $body;
         $address = \str_contains($host, ':') ? "[{$host}]" : $host;
         $context = \stream_context_create(['ssl' => ['peer_name' => $host, 'SNI_enabled' => true]]);
         $timeout = $this->timeout;
@@ -58,7 +63,7 @@ final class HttpClient
 
         try {
             $microseconds = (int) ($this->timeout * 1_000_000.0);
-            Silently::run(static fn(): bool => \stream_set_timeout($stream, \intdiv($microseconds, 1_000_000), $microseconds % 1_000_000));
+            \stream_set_timeout($stream, \intdiv($microseconds, 1_000_000), $microseconds % 1_000_000);
 
             $default = $port === ($scheme === 'https' ? 443 : 80);
             $request = "POST {$target} HTTP/1.1\r\n"
@@ -66,17 +71,36 @@ final class HttpClient
             foreach ($headers as $name => $value) {
                 $request .= "{$name}: {$value}\r\n";
             }
-            $request .= 'Content-Length: ' . \strlen($body) . "\r\n"
+            $request .= 'Content-Length: ' . $size . "\r\n"
                 . "Connection: close\r\n"
-                . "\r\n"
-                . $body;
+                . "\r\n";
 
-            for ($offset = 0, $length = \strlen($request); $offset < $length; $offset += $written) {
-                $chunk = \substr($request, $offset);
-                $written = Silently::run(static fn(): int|false => \fwrite($stream, $chunk));
-                $written === false || $written === 0
-                and throw new \RuntimeException(\sprintf('Unable to send the request to %s:%d.', $address, $port));
+            // A body in chunks may take megabytes: the timeout of a write would cut a slow upload,
+            // so the writes share one deadline, longer than the timeout
+            $deadline = \is_string($body) ? null : \microtime(true) + \max($this->timeout, self::UPLOAD_TIMEOUT);
+            $sent = 0;
+            foreach ([[$request], $chunks] as $parts) {
+                foreach ($parts as $part) {
+                    for ($offset = 0, $length = \strlen($part); $offset < $length; $offset += $written) {
+                        if ($deadline !== null) {
+                            $left = (int) (($deadline - \microtime(true)) * 1_000_000.0);
+                            $left > 0 or throw new \RuntimeException(
+                                \sprintf('Sending the request to %s:%d took too long.', $address, $port),
+                            );
+                            \stream_set_timeout($stream, \intdiv($left, 1_000_000), $left % 1_000_000);
+                        }
+                        $chunk = \substr($part, $offset);
+                        $written = Silently::run(static fn(): int|false => \fwrite($stream, $chunk));
+                        $written === false || $written === 0
+                        and throw new \RuntimeException(\sprintf('Unable to send the request to %s:%d.', $address, $port));
+                    }
+                    $sent += \strlen($part);
+                }
             }
+            $deadline === null or \stream_set_timeout($stream, \intdiv($microseconds, 1_000_000), $microseconds % 1_000_000);
+            $sent === \strlen($request) + $size or throw new \RuntimeException(
+                \sprintf('The body sent to %s:%d is not of the size told.', $address, $port),
+            );
 
             // Closing the socket before the server has read the body may reset the connection and lose the
             // request, so wait for the status line.

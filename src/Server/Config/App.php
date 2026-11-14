@@ -17,11 +17,13 @@ use Buggregator\Trap\Server\Application\Config\Internal\Attribute\InflectableCon
 final class App
 {
     /**
-     * Main loop interval in microseconds
+     * Longest wait of an idle main loop in microseconds: data on a socket ends the wait sooner.
+     * Timers of the loop, as a buffer flush or a reconnect, fire this much late at most.
+     * On Windows any wait lasts at least ~15 ms.
      * @var int<50, max>
      */
     #[Env('TRAP_MAIN_LOOP_INTERVAL')]
-    public int $mainLoopInterval = 100;
+    public int $mainLoopInterval = 1_000;
 
     /**
      * Seconds between collections of garbage cycles, run by the main loop instead of PHP's cycle collector;

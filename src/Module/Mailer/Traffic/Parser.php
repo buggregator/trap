@@ -10,6 +10,7 @@ use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
 use Buggregator\Trap\Server\Traffic\Parser\Http;
 use Buggregator\Trap\Server\Traffic\StreamClient;
 use Buggregator\Trap\Support\StreamHelper;
+use Buggregator\Trap\Support\TimeSlice;
 use Psr\Http\Message\StreamInterface;
 
 /**
@@ -113,9 +114,14 @@ final class Parser
     ): int {
         $written = 0;
         $endLen = \min(\array_map('\strlen', $endings));
+        $slice = new TimeSlice(checkEvery: 1);
+        $waited = false;
 
         /** @var string $chunk */
         foreach ($stream->getIterator() as $chunk) {
+            // The stream has suspended the fiber while it waited for the chunk
+            $waited and $slice->reset();
+
             // Write chunk to the file stream.
             $fileStream->write($chunk);
             $written += \strlen($chunk);
@@ -135,7 +141,8 @@ final class Parser
             }
 
             unset($chunk);
-            \Fiber::suspend();
+            $waited = !$stream->hasData();
+            $waited or $slice->tick();
         }
 
         return $written;
