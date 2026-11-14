@@ -108,7 +108,7 @@ Buggregator Trap boasts a much wider range of handlers ("traps") for debug messa
 - Monolog,
 - Sentry,
 - OpenTelemetry traces (OTLP/HTTP),
-- Profilers: XHProf, Xdebug, Excimer (Speedscope), pprof,
+- Profilers: XHProf, Xdebug, Excimer (Speedscope), SPX, pprof,
 - SMTP,
 - HTTP dumps,
 - Ray,
@@ -269,8 +269,10 @@ Profilers:
   production. `period` is the sampling interval in seconds, `clock` is wall or CPU time.
 - XHProf (`ext-xhprof` or `ext-tideways_xhprof`): counts every call with wall time and, optionally, CPU time
   and memory. It takes over an XHProf session already running, such as one started by XHGui.
+- [SPX](https://github.com/NoiseByNorthwest/php-spx) (`ext-spx`): records every call with wall and CPU time,
+  memory and more. It needs settings at the process start, see [SPX](#spx) below.
 
-Without a profiler given, the first available one is used: Excimer, then XHProf.
+Without a profiler given, the first available one is used: Excimer, then XHProf. SPX is used only when given.
 Xdebug can't be started from code for a part of a request: profile whole requests with `xdebug.mode=profile`
 and let Trap pick up its files (see below).
 
@@ -278,13 +280,15 @@ Destinations, as many as needed:
 
 - `->toTrap(?host, ?port)` sends the profile in the profiler's own format (the default destination).
 - `->toFile($path, ?Format)` writes a file. The format is taken from the name when not given:
-  `*.speedscope.json`, `*.txt` or `*.folded` (collapsed stacks), `*.xhprof`, `*.pb.gz` or `*.pprof`.
+  `*.speedscope.json`, `*.txt` or `*.folded` (collapsed stacks), `*.xhprof`, `*.pb.gz` or `*.pprof`, `*.spx.tar`.
+  The file is written aside as `.trap-profile-*` next to it and moved over it, so a failed write leaves it as it
+  was; a process killed while writing leaves that temporary file behind.
 - `->toServer(?url, Format = Format::XHProf, headers: [])` sends the profile to any HTTP server, by default to
   a Buggregator Server at `http://127.0.0.1:8000/api/profiler/store`. Userinfo in the URL becomes Basic
   authorization.
 - `->to(fn(Profile $profile) => ...)` passes the profile to your code, e.g. `$profile->encode(Format::Pprof)`.
 
-A format is preferred, not required: Excimer converts its samples to every format, while XHProf, which keeps no
+A format is preferred, not required: Excimer and SPX convert to every format, while XHProf, which keeps no
 stacks, gives XHProf in place of Speedscope, collapsed stacks or pprof.
 
 Profiling never breaks the profiled code. Nested profiles, a missing profiler, a profile too short to have
@@ -306,8 +310,9 @@ Trap receives profiles on any of its ports:
 | `POST /api/profiler/xdebug`      | Xdebug cachegrind files                                                     |
 | `POST /api/profiler/speedscope`  | Speedscope JSON, e.g. from Excimer; also any JSON starting with `$schema`   |
 | `POST /api/profiler/pprof`       | pprof, gzipped or not, from any language: Go, Java, Python, Rust and so on  |
+| `POST /api/profiler/spx`         | SPX full reports, see [SPX](#spx)                                           |
 
-Speedscope and pprof take the metadata in the query: `name`, `app_name`, `hostname` and `tags[key]=value`;
+Speedscope, pprof and SPX take the metadata in the query: `name`, `app_name`, `hostname` and `tags[key]=value`;
 Speedscope also takes `clock` and `period`. For example, a Go service:
 
 ```bash
@@ -320,10 +325,104 @@ Trap also picks up profiler files from a directory:
 - `TRAP_XHPROF_PATH` - XHProf files, by default from `xhprof.output_dir`
 - `TRAP_XDEBUG_PATH` - Xdebug cachegrind files, by default from `xdebug.output_dir` while `xdebug.mode`
   includes `profile`
+- `TRAP_SPX_PATH` - SPX full reports, by default from `spx.data_dir` when ext-spx is loaded in Trap's PHP
 
 Large profiles are compacted to the memory Trap has (see `TRAP_MEMORY_LIMIT` above): calls of the same function
 are merged, deep recursion is collapsed and the coldest calls are folded into `(other)` nodes;
 the profile metadata tells how much was folded. One profile is built at a time.
+
+#### SPX
+
+[SPX](https://github.com/NoiseByNorthwest/php-spx) writes a full report (`SPX_REPORT=full`) as two files
+in its data directory, `/tmp/spx` by default: `spx-full-….json` with the metadata and `spx-full-….txt.gz`
+with the trace. Trap takes them in three ways.
+
+**Watching the data directory.** Run Trap with the directory, and profile scripts as usual:
+
+```bash
+TRAP_SPX_PATH=/tmp/spx vendor/bin/trap --ui
+SPX_ENABLED=1 SPX_REPORT=full php script.php
+```
+
+A report shows up two seconds after SPX has finished writing it. A report that stays unchanged for an hour,
+as the trace of a killed run, is dropped until it changes, and a trace over 64 MB is skipped. SPX keeps its reports
+for its own web UI, so the ones finished before Trap started are skipped. With Docker, share the directory between
+the application and Trap; don't profile from code with `keepFiles: true` there, as those reports would arrive twice:
+
+```yaml
+services:
+  app:
+    # A PHP image with ext-spx; for web requests, see the spx.http_* settings of SPX
+    volumes:
+      - spx:/tmp/spx
+  trap:
+    image: php:8.4-cli
+    working_dir: /app
+    command: vendor/bin/trap --ui
+    environment:
+      TRAP_SPX_PATH: /tmp/spx
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app
+      - spx:/tmp/spx
+
+volumes:
+  spx:
+```
+
+**Sending a report.** `POST /api/profiler/spx` takes the two files as `multipart/form-data`, or the
+`application/x-tar` archive the client sends:
+
+```bash
+curl -F metadata=@/tmp/spx/spx-full-….json -F trace=@/tmp/spx/spx-full-….txt.gz \
+  'http://127.0.0.1:8000/api/profiler/spx?app_name=shop'
+```
+
+**Profiling from code.** `trap()::profile(new Spx())` starts and stops SPX around the code, sends the report
+and deletes it (`new Spx(keepFiles: true)` keeps it for the SPX web UI). The trace is sent from its file
+in chunks; a trace over 64 MB is kept in the data directory and not sent. Until it is delivered, the report is
+moved aside as `.trap-spx-full-…`, out of the SPX web UI and of a Trap observing the directory; a report no
+destination took, as when Trap is down or the script dies of a fatal error, is put back, and a warning tells where.
+A report that can't be moved aside is not sent but left for an observing Trap. The report of an empty profile is
+deleted. SPX reads its settings when the process starts,
+so run the process with them; without them the code runs unprofiled and a warning tells what is missing:
+
+```bash
+SPX_ENABLED=1 SPX_AUTO_START=0 SPX_REPORT=full php script.php
+```
+
+```php
+use Buggregator\Trap\Client\Profiler\Spx;
+
+trap()::profile(new Spx())->name('sync')->tags(['release' => '1.2.3'])->run(fn() => $job->handle());
+```
+
+The name and the tags show up in Trap, and in the report as its custom metadata (`name=sync, release=1.2.3`,
+up to 4 KB), which the SPX web UI shows.
+
+For web requests SPX takes the same settings from the `SPX_*` cookies, headers or query parameters of a client it
+grants the access (`spx.http_enabled`, the client IP in `spx.http_ip_whitelist`, `SPX_KEY` equal to `spx.http_key`),
+or else from the `spx.http_profiling_*` INI settings; its report is always full there. When SPX makes no report,
+a warning lists the likely causes. Reading SPX traces takes ext-zlib in the PHP of Trap.
+The profile goes to Trap as the SPX report itself; `->toFile('profile.spx.tar')` writes it as an archive
+that SPX shows once extracted into its data directory, and the other formats are converted with ext-zlib.
+Without ext-zlib, `->toServer()` refuses to send the report to a server that takes another format.
+
+Trap shows the wall time, the memory a call leaves allocated and the calls, and the CPU time when it is
+recorded (`SPX_METRICS=wt,ct,zm`); the peak memory is not traced. The request or command, the custom metadata
+and the totals of the other metrics, such as GC runs or I/O, are shown with the profile in the console.
+
+Limitations:
+
+- SPX supports Linux, macOS and FreeBSD; Windows builds are unofficial.
+- In the sampling mode (`SPX_SAMPLING_PERIOD`) SPX records only the changes of the stack at each tick, so a call
+  that stays on the stack across ticks counts once: the counts are sampled calls, neither calls nor samples.
+  The report doesn't tell the mode: the client passes the period along; when sending a report yourself, add
+  `sampling_period` (microseconds) to label the counts so. Files picked up from a directory are taken as traced.
+- The client moves its reports out of the way of a Trap watching the same directory, but a report it keeps
+  (`keepFiles: true`) arrives twice.
+- SPX itself stops PHP when an escaped text of the report, such as the command line of a CLI script, is over 8 KB.
 
 ### OpenTelemetry traces
 
