@@ -167,7 +167,14 @@ final class TraceReader
                 if (\inflate_get_status($context) === \ZLIB_STREAM_END) {
                     break 2;
                 }
-                $data = @\inflate_add($context, \substr($chunk, $offset, self::INFLATE_CHUNK), \ZLIB_SYNC_FLUSH);
+                // Not `@`: a user error handler that throws on every warning ignores it and would replace
+                // the error below. Only the call itself: the callbacks keep the user handler.
+                \set_error_handler(static fn(): bool => true);
+                try {
+                    $data = \inflate_add($context, \substr($chunk, $offset, self::INFLATE_CHUNK), \ZLIB_SYNC_FLUSH);
+                } finally {
+                    \restore_error_handler();
+                }
                 $data === false and throw new \InvalidArgumentException('The trace is not gzip data, as SPX writes it.');
 
                 $size += \strlen($data);
