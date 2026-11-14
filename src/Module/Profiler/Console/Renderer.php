@@ -71,10 +71,14 @@ final class Renderer implements RendererInterface
         \is_string($m = $metadata['app_name'] ?? null) and $data['App name'] = $m;
         \is_string($m = $metadata['hostname'] ?? null) and $data['Hostname'] = $m;
         \is_string($m = $metadata['filename'] ?? null) and $data['File name'] = $m . (
-            \is_int($m = $metadata['filesize'] ?? null) && $m >= 0
-                ? ' (' . Measure::memory($m) . ')'
+            \is_int($size = $metadata['filesize'] ?? null) && $size >= 0
+                ? ' (' . Measure::memory($size) . ')'
                 : ''
         );
+        // What a profiler tells besides the costs, such as the request of an SPX report
+        foreach (\is_array($m = $metadata['details'] ?? null) ? $m : [] as $label => $value) {
+            \is_string($label) && \is_scalar($value) and $data[self::text($label)] = self::text((string) $value);
+        }
         $data['Num edges'] = $profile->calls->count();
 
         Common::renderMetadata($output, $data);

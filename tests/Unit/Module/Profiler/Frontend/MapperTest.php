@@ -11,8 +11,10 @@ use Buggregator\Trap\Module\Profiler\Frontend\Mapper;
 use Buggregator\Trap\Module\Profiler\Frontend\Palette;
 use Buggregator\Trap\Module\Profiler\Pprof\ProfileBuilder as PprofProfileBuilder;
 use Buggregator\Trap\Module\Profiler\Speedscope\ProfileBuilder as SpeedscopeProfileBuilder;
+use Buggregator\Trap\Module\Profiler\SPX\ProfileBuilder as SpxProfileBuilder;
 use Buggregator\Trap\Module\Profiler\XDebug\ProfileBuilder as XDebugProfileBuilder;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
+use Buggregator\Trap\Support\Spx\Metadata;
 use Buggregator\Trap\Tests\Unit\Module\Profiler\Pprof\Stub\PprofProfile;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -257,6 +259,26 @@ final class MapperTest
         Assert::same($top['schema'][1]['description'], 'Samples with the function on the stack');
         Assert::same(\array_column($graph['toolbar'], 'metric'), ['wt']);
         Assert::same(\array_column(\array_column($graph['nodes'], 'data'), 'name'), ['main() (2 samples)', 'foo (1 sample)']);
+    }
+
+    public function testSpxProfileShowsCallsOrSampledCallsWhenSampled(): void
+    {
+        $spx = Metadata::fromJson(
+            '{"enabled_metrics": ["wt"], "called_function_count": 2, "recorded_call_count": 2}',
+        );
+        $trace = "[events]\n0 1 0\n1 1 1000\n1 0 2000\n0 0 3000\n[functions]\nmain\nfoo\n";
+        $names = [];
+        $descriptions = [];
+        foreach ([null, 100] as $period) {
+            $profile = (new SpxProfileBuilder())->createProfile($spx, [(string) \gzencode($trace)], samplingPeriod: $period);
+            $event = new Event($profile->uuid, 'profiler', Payload::new(Type::SPX, static fn() => $profile), 0.0);
+            $graph = self::json((new Mapper())->callGraph($event, threshold: 0));
+            $names[] = \array_column(\array_column($graph['nodes'], 'data'), 'name');
+            $descriptions[] = self::json((new Mapper())->topFunctions($event, 'wt'))['schema'][1]['description'];
+        }
+
+        Assert::same($names, [['main() (1x)', 'foo (1x)'], ['main() (1 sampled call)', 'foo (1 sampled call)']]);
+        Assert::same($descriptions, ['Calls', 'Calls seen at the sampling ticks; a call over several ticks counts once']);
     }
 
     public function testPprofProfileShowsSamples(): void

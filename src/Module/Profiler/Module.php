@@ -14,6 +14,7 @@ use Buggregator\Trap\Module\Profiler\Frontend\ApiController;
 use Buggregator\Trap\Module\Profiler\Frontend\Mapper;
 use Buggregator\Trap\Module\Profiler\Http\PprofTrap;
 use Buggregator\Trap\Module\Profiler\Http\SpeedscopeTrap;
+use Buggregator\Trap\Module\Profiler\Http\SPXTrap;
 use Buggregator\Trap\Module\Profiler\Http\XDebugTrap;
 use Buggregator\Trap\Module\Profiler\Http\XHProfTrap;
 use Buggregator\Trap\Server\Handler\Http\ProvidesHttpMiddlewares;
@@ -33,7 +34,7 @@ final class Module implements
     #[\Override]
     public function httpMiddlewares(): array
     {
-        return [XHProfTrap::class, XDebugTrap::class, SpeedscopeTrap::class, PprofTrap::class];
+        return [XHProfTrap::class, XDebugTrap::class, SpeedscopeTrap::class, PprofTrap::class, SPXTrap::class];
     }
 
     #[\Override]
