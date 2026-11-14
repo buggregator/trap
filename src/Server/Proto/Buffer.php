@@ -24,12 +24,13 @@ final class Buffer
 
     /**
      * @param int $bufferSize Payload limit size in bytes
+     * @param null|float $timer Seconds after the first frame until the buffer is ready; null disables the timer
      */
     public function __construct(
         public int $bufferSize,
         ?float $timer = null,
     ) {
-        $this->timer = $timer === null ? null : new Timer(beep: 0.1);
+        $this->timer = $timer === null ? null : new Timer(beep: $timer);
         $this->timer?->stop();
     }
 
