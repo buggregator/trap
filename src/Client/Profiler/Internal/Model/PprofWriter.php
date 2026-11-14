@@ -8,7 +8,7 @@ namespace Buggregator\Trap\Client\Profiler\Internal\Model;
  * Writes a {@see CallTree} of a sampled profile as a pprof `perftools.profiles.Profile` protobuf message
  * (google/pprof `proto/profile.proto`), gzip-compressed as pprof tools expect when ext-zlib is available.
  *
- * Every sample has two values: `samples/count` and the sampled time in `wall/nanoseconds` or `cpu/nanoseconds`,
+ * Every sample has two values: `samples/count` (or `calls/count`) and the sampled time in `wall/nanoseconds` or `cpu/nanoseconds`,
  * the default one. A sample is made per distinct stack; a location is made per function, without lines.
  * The stacks are rooted at `main()`, as in the XHProf conversion. All locations belong to one mapping
  * named by the file of `main()`.
@@ -27,6 +27,8 @@ final class PprofWriter
      * @param int<0, max> $timeNanos Profile start as Unix time in nanoseconds; 0 when unknown.
      * @param int<0, max> $durationNanos 0 when unknown.
      * @param bool $gzip Takes effect only when ext-zlib is available.
+     * @param non-empty-string $countType What the counts of the tree are: `samples`, or `calls` of a profiler
+     *        that records them.
      */
     public static function encode(
         CallTree $tree,
@@ -35,6 +37,7 @@ final class PprofWriter
         int $timeNanos = 0,
         int $durationNanos = 0,
         bool $gzip = true,
+        string $countType = 'samples',
     ): string {
         /** @var array<array-key, int> $strings Indexes by string; numeric strings turn into integer keys. */
         $strings = ['' => 0];
@@ -105,7 +108,7 @@ final class PprofWriter
             . self::uint(7, 1)
             . self::uint(8, 1));
 
-        $countType = self::message(1, self::uint(1, $string('samples')) . self::uint(2, $string('count')));
+        $countType = self::message(1, self::uint(1, $string($countType)) . self::uint(2, $string('count')));
         $timeType = self::uint(1, $timeIndex = $string($cpu ? 'cpu' : 'wall')) . self::uint(2, $string('nanoseconds'));
 
         $table = '';

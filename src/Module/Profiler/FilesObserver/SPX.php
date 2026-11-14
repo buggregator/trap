@@ -24,16 +24,25 @@ use Buggregator\Trap\Support\Spx\TraceReader;
  *
  * Reading the traces takes ext-zlib; without it, no report is taken, and that is logged once.
  *
+ * A complete report is converted only after {@see self::GRACE} seconds: the client that profiled the run with
+ * SPX moves its report away right after SPX finishes it, and a report gone by then is not shown twice.
+ *
  * @internal
  */
 final class SPX implements FrameConverter, ForgetsFiles
 {
+    /** Seconds a complete report waits before it is converted. */
+    public const GRACE = 2.0;
+
     private const PREFIX = 'spx-full-';
     private const TRACE = '.txt.gz';
 
     private readonly GzipFollower $gzip;
     private readonly int $startedAt;
     private readonly bool $zlib;
+
+    /** @var array<string, float> When the reports being followed were found complete */
+    private array $completeAt = [];
 
     /**
      * @param bool|null $zlib Whether ext-zlib is there; by default, whether it is loaded.
@@ -42,6 +51,7 @@ final class SPX implements FrameConverter, ForgetsFiles
         private readonly Logger $logger,
         private readonly ProfileBuilder $profileBuilder,
         ?bool $zlib = null,
+        private readonly float $grace = self::GRACE,
     ) {
         $this->gzip = new GzipFollower();
         $this->startedAt = \time();
@@ -58,33 +68,27 @@ final class SPX implements FrameConverter, ForgetsFiles
     }
 
     /**
-     * A trace over the size limit is ready at once, unread: the conversion skips it.
+     * A trace over the size limit is complete at once, unread: the conversion skips it.
+     * A complete report waits for the grace period, see {@see self::GRACE}.
      */
     #[\Override]
     public function isReady(FileInfo $file): bool
     {
-        if ($file->size > $this->profileBuilder->maxSize
-            || ($file->mtime < $this->startedAt && \is_file(self::metadataPath($file)))
-        ) {
-            return true;
+        if (!isset($this->completeAt[$file->path])) {
+            if (!$this->isComplete($file)) {
+                return false;
+            }
+            $this->completeAt[$file->path] = \microtime(true);
         }
 
-        $handle = @\fopen($file->path, 'rb');
-        if ($handle === false) {
-            return false;
-        }
-        try {
-            // A corrupted stream is complete too: the conversion reports why
-            return $this->gzip->follow($file->path, $handle) !== null;
-        } finally {
-            \fclose($handle);
-        }
+        return \microtime(true) - $this->completeAt[$file->path] >= $this->grace;
     }
 
     #[\Override]
     public function forget(string $path): void
     {
         $this->gzip->forget($path);
+        unset($this->completeAt[$path]);
     }
 
     /**
@@ -169,5 +173,25 @@ final class SPX implements FrameConverter, ForgetsFiles
         $json === false and throw new \RuntimeException("Unable to read the report metadata `$path`.");
 
         return Metadata::fromJson($json);
+    }
+
+    private function isComplete(FileInfo $file): bool
+    {
+        if ($file->size > $this->profileBuilder->maxSize
+            || ($file->mtime < $this->startedAt && \is_file(self::metadataPath($file)))
+        ) {
+            return true;
+        }
+
+        $handle = @\fopen($file->path, 'rb');
+        if ($handle === false) {
+            return false;
+        }
+        try {
+            // A corrupted stream is complete too: the conversion reports why
+            return $this->gzip->follow($file->path, $handle) !== null;
+        } finally {
+            \fclose($handle);
+        }
     }
 }

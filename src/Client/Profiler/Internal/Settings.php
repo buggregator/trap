@@ -52,8 +52,10 @@ final class Settings
 
     /**
      * Runs every destination, or sends to Trap when none is configured; their errors are logged.
+     *
+     * @return bool Whether any destination took the profile.
      */
-    public function deliver(Profile $profile): void
+    public function deliver(Profile $profile): bool
     {
         $destinations = $this->destinations === []
             ? [static function (Profile $profile): void {
@@ -61,12 +63,16 @@ final class Settings
             }]
             : $this->destinations;
 
+        $delivered = false;
         foreach ($destinations as $destination) {
             try {
                 $destination($profile);
+                $delivered = true;
             } catch (\Throwable $e) {
                 Warnings::error(\sprintf('The `%s` profile was not delivered', $profile->metadata()->driver), $e);
             }
         }
+
+        return $delivered;
     }
 }

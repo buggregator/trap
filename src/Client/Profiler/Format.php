@@ -8,7 +8,8 @@ namespace Buggregator\Trap\Client\Profiler;
  * Encodings a {@see Profile} can be written in.
  *
  * Excimer gives Speedscope and Collapsed natively and converts to XHProf and pprof; XHProf gives XHProf only:
- * its call pairs can't be turned back into the stacks the other formats need.
+ * its call pairs can't be turned back into the stacks the other formats need. SPX gives its own report natively
+ * and converts to all the others.
  *
  * @api
  */
@@ -34,4 +35,10 @@ enum Format: string
      * `samples/count` and `wall/nanoseconds` or `cpu/nanoseconds` per stack, as `go tool pprof` reads it.
      */
     case Pprof = 'pprof';
+
+    /**
+     * SPX full report ({@link https://github.com/NoiseByNorthwest/php-spx}) as a tar archive of the `<key>.json`
+     * metadata and the `<key>.txt.gz` trace: extracted into `spx.data_dir`, it shows up in the SPX web UI.
+     */
+    case Spx = 'spx';
 }

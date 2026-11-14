@@ -85,6 +85,17 @@ final class SPXTest
         Assert::same($converter->isReady(self::info($path)), true);
     }
 
+    public function testCompleteReportWaitsBeforeItIsReady(): void
+    {
+        // The client that profiled the run moves its report away meanwhile
+        $path = $this->writeReport();
+        $converter = new SPX(new Logger(), new ProfileBuilder(), grace: 0.2);
+
+        Assert::same($converter->isReady(self::info($path)), false);
+        \usleep(250_000);
+        Assert::same($converter->isReady(self::info($path)), true);
+    }
+
     public function testOldReportWithMetadataIsCompleteUninflated(): void
     {
         // A stream that doesn't end: inflated, it would not be complete
@@ -115,7 +126,7 @@ final class SPXTest
         // Not even gzip: it is not read
         \file_put_contents($path, \str_repeat('x', 100));
         $output = new BufferedOutput();
-        $converter = new SPX(new Logger($output), new ProfileBuilder(maxSize: 16));
+        $converter = new SPX(new Logger($output), new ProfileBuilder(maxSize: 16), grace: 0.0);
 
         Assert::same($converter->isReady(self::info($path)), true);
         Assert::same(\iterator_to_array($converter->convert(self::info($path)), false), []);
@@ -134,7 +145,7 @@ final class SPXTest
             ? \unlink($this->dir . '/' . self::KEY . '.json')
             : \file_put_contents($this->dir . '/' . self::KEY . '.json', $json);
         $output = new BufferedOutput();
-        $converter = new SPX(new Logger($output), new ProfileBuilder());
+        $converter = new SPX(new Logger($output), new ProfileBuilder(), grace: 0.0);
 
         Assert::same($converter->isReady(self::info($path)), true);
         Assert::same(\iterator_to_array($converter->convert(self::info($path)), false), []);
@@ -147,7 +158,7 @@ final class SPXTest
         \array_map(\unlink(...), (array) \glob($this->dir . '/*'));
         $output = new BufferedOutput(OutputInterface::VERBOSITY_VERY_VERBOSE);
 
-        $frames = \iterator_to_array((new SPX(new Logger($output), new ProfileBuilder()))->convert($file), false);
+        $frames = \iterator_to_array((new SPX(new Logger($output), new ProfileBuilder(), grace: 0.0))->convert($file), false);
 
         Assert::same($frames, []);
         Assert::string($output->fetch())->contains('is removed before it is read, skipped.');
@@ -211,7 +222,7 @@ final class SPXTest
 
     private static function converter(): SPX
     {
-        return new SPX(new Logger(), new ProfileBuilder());
+        return new SPX(new Logger(), new ProfileBuilder(), grace: 0.0);
     }
 
     /**

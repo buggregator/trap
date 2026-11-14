@@ -26,6 +26,14 @@ return $architecture
         ...\array_fill_keys($sources, ['Server', 'Support', ...$channels]),
     ])
 
+    // The SPX driver reads reports with the reader Trap reads them with.
+    ->skipClassViolation('Buggregator\Trap\Client\Profiler\Internal\Model\SpxReport', [
+        'Buggregator\Trap\Support\Spx\Archive',
+        'Buggregator\Trap\Support\Spx\FunctionName',
+        'Buggregator\Trap\Support\Spx\Metadata',
+        'Buggregator\Trap\Support\Spx\TraceReader',
+    ])
+
     // The single place that names the module manifests: the module list.
     ->skipClassViolation('Buggregator\Trap\Server\Application\Module\Modules', [
         'Buggregator\Trap\Module\Console\Module',

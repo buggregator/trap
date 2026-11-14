@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Client\Profiler\Internal\Model;
 
 /**
- * Call paths from the roots of a sampled profile, each node with the costs spent in it alone (self costs):
- * wall time and CPU time in nanoseconds, and samples.
+ * Call paths from the roots of a profile, each node with the costs spent in it alone (self costs):
+ * wall time and CPU time in nanoseconds, and samples, or calls of a profiler that records them, as SPX.
  *
  * Nodes are integer ids into flat lists rather than objects: a profile of a large application has
  * hundreds of thousands of nodes, built inside the profiled process. A child always gets a larger id
@@ -40,6 +40,9 @@ final class CallTree
     /** @var list<int> */
     private array $parents = [];
 
+    /** @var list<int<0, max>> Keys the nodes were added by */
+    private array $keys = [];
+
     /** @var array<array-key, int> Child ids by a key made of the parent id and the child key. */
     private array $index = [];
 
@@ -54,6 +57,14 @@ final class CallTree
 
     /** @var array{int, int, int} wt, cpu and samples of no function. */
     private array $unattributed = [0, 0, 0];
+
+    /**
+     * @param bool $calls The counts are the calls of a node, not the samples it is on the stack in: the counts
+     *        of a pair are not summed up from the callees, and `main()` is called once.
+     */
+    public function __construct(
+        private readonly bool $calls = false,
+    ) {}
 
     /**
      * Returns the child node, adding it when missing.
@@ -75,12 +86,31 @@ final class CallTree
         $this->names[] = $name;
         $this->files[] = $file;
         $this->parents[] = $parent;
+        $this->keys[] = $key;
         $this->wt[] = 0;
         $this->cpu[] = 0;
         $this->samples[] = 0;
         $this->index[$lookup] = $id;
 
         return $id;
+    }
+
+    /**
+     * Names the nodes by their keys, for a profile that names its frames only after the calls, as SPX does.
+     *
+     * @param array<int, non-empty-string> $names Names by keys; a node of another key keeps its name.
+     * @param array<int, string> $files Files by keys.
+     */
+    public function rename(array $names, array $files = []): void
+    {
+        $renamed = $this->names;
+        $refiled = $this->files;
+        foreach ($this->keys as $id => $key) {
+            $renamed[$id] = $names[$key] ?? $renamed[$id];
+            isset($files[$key]) and $refiled[$id] = $files[$key];
+        }
+        $this->names = \array_values($renamed);
+        $this->files = \array_values($refiled);
     }
 
     /**
@@ -138,16 +168,16 @@ final class CallTree
             if ($parent === self::ROOT) {
                 $totalWt += $wt[$id];
                 $totalCpu += $cpu[$id];
-                $totalSamples += $samples[$id];
+                $this->calls or $totalSamples += $samples[$id];
             } else {
                 $wt[$parent] += $wt[$id];
                 $cpu[$parent] += $cpu[$id];
-                $samples[$parent] += $samples[$id];
+                $this->calls or $samples[$parent] += $samples[$id];
             }
         }
 
         $graph = new CallGraph();
-        $graph->add(null, self::MAIN, $totalWt, $totalCpu, $totalSamples);
+        $graph->add(null, self::MAIN, $totalWt, $totalCpu, $this->calls ? 1 : $totalSamples);
 
         /** @var array<string, int> $onPath How many times a function is on the current path. */
         $onPath = [self::MAIN => 1];

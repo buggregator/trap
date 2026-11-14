@@ -62,6 +62,7 @@
     "suggest": {
         "ext-excimer": "To profile code with trap()::profile() using the Excimer sampling profiler",
         "ext-simplexml": "To load trap.xml",
+        "ext-spx": "To profile code with trap()::profile() using the SPX profiler",
         "ext-tideways_xhprof": "To profile code with trap()::profile() using XHProf",
         "ext-xhprof": "To profile code with trap()::profile() using XHProf",
         "ext-zlib": "To accept gzip-compressed HTTP request bodies and profiles",

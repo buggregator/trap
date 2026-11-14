@@ -43,3 +43,10 @@ const TIDEWAYS_XHPROF_FLAGS_CPU = 1;
 function tideways_xhprof_enable(int $flags = 0): void {}
 
 function tideways_xhprof_disable(): array {}
+
+function spx_profiler_start(): void {}
+
+/**
+ * @return string|null The key of the full report, null when no report was made.
+ */
+function spx_profiler_stop(): ?string {}

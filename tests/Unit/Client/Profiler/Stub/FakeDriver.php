@@ -22,6 +22,7 @@ final class FakeDriver implements Driver
         . '"profiles":[{"type":"sampled","name":"","unit":"none","startValue":0,"endValue":2,"samples":[[0,1]],"weights":[2]}]}';
     public const COLLAPSED = "main;foo;bar 3\nmain;baz 1\n";
     public const XHPROF = '{"main()":{"ct":1,"wt":10},"main()==>foo":{"ct":2,"wt":7}}';
+    public const SPX = 'spx archive';
 
     /** Start of the pprof profile, Unix time in nanoseconds. */
     public const STARTED_AT = 1_731_400_000_123_456_000;
@@ -110,6 +111,7 @@ final class FakeDriver implements Driver
                     Format::Collapsed->value => FakeDriver::COLLAPSED,
                     Format::XHProf->value => FakeDriver::XHPROF,
                     Format::Pprof->value => '',
+                    Format::Spx->value => FakeDriver::SPX,
                 ];
                 $formats = $this->driver->formats();
                 $cpu = $this->driver->isCpuClock();

@@ -146,6 +146,8 @@ final class Session
                 . 'Try a smaller `period`.',
                 $driver->name(),
             ), ['driver' => $driver->name(), 'reason' => 'empty']);
+            // Nothing to keep: what the profiler wrote is dropped as if delivered
+            $recorded->settle(true);
             return null;
         }
 
@@ -172,7 +174,7 @@ final class Session
             return null;
         }
 
-        $this->settings->deliver($this->profile);
+        $recorded->settle($this->settings->deliver($this->profile));
 
         return $this->profile;
     }

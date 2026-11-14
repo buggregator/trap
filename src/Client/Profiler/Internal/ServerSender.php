@@ -10,7 +10,7 @@ use Buggregator\Trap\Client\Profiler\Profile;
 /**
  * Posts a profile in a chosen format to any HTTP server.
  *
- * XHProf goes as the Buggregator store JSON with the metadata inside; Speedscope, Collapsed and pprof go
+ * XHProf goes as the Buggregator store JSON with the metadata inside; Speedscope, Collapsed, pprof and SPX go
  * as the bare document with the metadata in the query.
  *
  * @internal
@@ -116,20 +116,28 @@ final class ServerSender
     }
 
     /**
+     * An SPX report goes only where it is asked for: a server that takes another format, as the XHProf store
+     * of Buggregator, can't read it.
+     *
      * @throws \RuntimeException When the profile is not delivered.
      */
     public function send(Profile $profile): void
     {
         $formats = $profile->formats();
         $format = \in_array($this->format, $formats, true) ? $this->format : $formats[0];
+        $format === Format::Spx && $this->format !== Format::Spx and throw new \RuntimeException(\sprintf(
+            'The SPX profile can not be converted to %s without ext-zlib, and the server takes no SPX report.',
+            $this->format->name,
+        ));
         [$body, $query] = match ($format) {
             Format::XHProf => [Payload::store($profile), ''],
-            default => [$profile->encode($format), Payload::query($profile)],
+            default => [$profile->stream($format), Payload::query($profile)],
         };
         $headers = $this->headers;
         $this->contentType and $headers['Content-Type'] = match ($format) {
             Format::Collapsed => 'text/plain; charset=utf-8',
             Format::Pprof => 'application/octet-stream',
+            Format::Spx => 'application/x-tar',
             default => 'application/json',
         };
 
