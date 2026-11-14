@@ -7,7 +7,6 @@ namespace Buggregator\Trap\Server;
 use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Config\App;
 use Buggregator\Trap\Server\Config\SocketServer;
-use Buggregator\Trap\Server\Config\TcpPorts;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Handler\Http\ProvidesHttpMiddlewares;
 use Buggregator\Trap\Server\Proto\Buffer;
@@ -199,8 +198,6 @@ final class Application implements Processable, Cancellable, Destroyable
             static fn(SocketServer $item): ?int => $item->protocol === 'tcp' ? $item->port : null,
             $map,
         );
-        /** @var TcpPorts $tcpConfig */
-        $tcpConfig = $this->container->get(TcpPorts::class);
 
         /** @var array<int, class-string> $owners */
         $owners = [];
@@ -239,7 +236,6 @@ final class Application implements Processable, Cancellable, Destroyable
                 new SocketServer(
                     port: $endpoint->port,
                     host: $endpoint->host,
-                    pollingInterval: $tcpConfig->pollingInterval,
                 ),
                 $inspector,
                 $this->logger,
@@ -292,7 +288,6 @@ final class Application implements Processable, Cancellable, Destroyable
             $config->host,
             $config->port,
             payloadSize: 524_288,
-            acceptPeriod: (float) \max(50, $config->pollingInterval) / 1e6,
             clientInflector: $clientInflector,
             logger: $this->logger,
         );

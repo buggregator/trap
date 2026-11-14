@@ -57,7 +57,7 @@ final class Server implements Processable, Cancellable, Destroyable
      * @param int<1, 65535> $port
      * @param null|\Closure(Client, int $id): mixed $clientInflector
      * @param positive-int $payloadSize Max payload size.
-     * @param float $acceptPeriod Time to wait between socket_accept() calls in seconds.
+     * @param float $acceptPeriod Seconds between socket_accept() calls the main loop doesn't wake for.
      */
     private function __construct(
         string $protocol,
@@ -99,7 +99,8 @@ final class Server implements Processable, Cancellable, Destroyable
      * @param non-empty-string $address
      * @param int<1, 65535> $port
      * @param positive-int $payloadSize Max payload size.
-     * @param float $acceptPeriod Time to wait between socket_accept() calls in seconds.
+     * @param float $acceptPeriod Seconds between socket_accept() calls the main loop doesn't wake for,
+     *        and between socket_select() calls of the clients.
      * @param null|\Closure(Client, int $id): mixed $clientInflector
      */
     public static function init(
@@ -107,7 +108,7 @@ final class Server implements Processable, Cancellable, Destroyable
         string $address,
         int $port,
         int $payloadSize = 10485760,
-        float $acceptPeriod = .001,
+        float $acceptPeriod = Client::POLL_PERIOD,
         ?\Closure $clientInflector = null,
         Logger $logger = new Logger(),
     ): self {

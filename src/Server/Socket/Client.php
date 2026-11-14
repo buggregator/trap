@@ -16,6 +16,12 @@ use Internal\Destroy\Destroyable;
  */
 final class Client implements Destroyable
 {
+    /**
+     * Seconds between checks of a socket nobody wakes the client for: the main loop wakes it when the socket
+     * is ready, unless its `socket_select()` fails, with too many sockets for one.
+     */
+    public const POLL_PERIOD = 0.01;
+
     /** @var string[] */
     private array $writeQueue = [];
 
@@ -47,12 +53,12 @@ final class Client implements Destroyable
 
     /**
      * @param positive-int $payloadSize Max payload size.
-     * @param float $selectPeriod Time to wait between socket_select() calls in seconds.
+     * @param float $selectPeriod Seconds between socket_select() calls the main loop doesn't wake for.
      */
     public static function init(
         \Socket $socket,
         int $payloadSize = 10485760,
-        float $selectPeriod = .001,
+        float $selectPeriod = self::POLL_PERIOD,
     ): self {
         return new self(
             socket: $socket,

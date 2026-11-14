@@ -409,8 +409,6 @@ final class TrapProcess
             'TRAP_TCP_PORTS' => (string) self::freePort(),
             'TRAP_UI_PORT' => (string) self::freePort(),
             'TRAP_TCP_HOST' => '127.0.0.1',
-            'TRAP_TCP_POLLING_INTERVAL' => '1000',
-            'TRAP_MAIN_LOOP_INTERVAL' => '100',
             'TRAP_TRACES_MAX_SPANS' => '10000',
             'TRAP_TRACES_TTL' => '600',
             'TRAP_UI_HOST' => '127.0.0.1',

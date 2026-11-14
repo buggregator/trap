@@ -91,7 +91,7 @@ final class Run extends Command implements SignalableCommandInterface
             $port > 0 && $port < 65536 or throw new \InvalidArgumentException(
                 \sprintf('Invalid port `%s`. It must be in range 1-65535.', $port),
             );
-            $servers[] = new SocketServer($port, $config->host, $config->protocol, $config->pollingInterval);
+            $servers[] = new SocketServer($port, $config->host, $config->protocol);
         }
         return $servers;
     }
