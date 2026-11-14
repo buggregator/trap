@@ -80,7 +80,10 @@ final class TimerTest
 
         Assert::true($timer->continue()->isReady());
 
-        $timer->stop()->continue();
+        $timer->stop();
+        // A long beep: a restarted timer must not be ready however long the runner pauses
+        $timer->beep = 3600.0;
+        $timer->continue();
 
         Assert::false($timer->isStopped());
         Assert::false($timer->isReady());

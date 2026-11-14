@@ -23,18 +23,19 @@ final class PeaksTest
 
     public function updateKeepsTheMaximumOfEachMetric(): void
     {
-        $peaks = new Peaks(ct: 5, wt: 10, cpu: 1, mu: 100, pmu: 7);
+        $peaks = new Peaks(ct: 5, wt: 10, cpu: 8, mu: 100, pmu: 7);
 
-        $peaks->update(new Cost(ct: 3, wt: 20, cpu: 1, mu: 50, pmu: 9));
+        $peaks->update(new Cost(ct: 3, wt: 20, cpu: 3, mu: 50, pmu: 9));
 
-        Assert::same($peaks->jsonSerialize(), ['ct' => 5, 'wt' => 20, 'cpu' => 1, 'mu' => 100, 'pmu' => 9]);
+        Assert::same($peaks->jsonSerialize(), ['ct' => 5, 'wt' => 20, 'cpu' => 8, 'mu' => 100, 'pmu' => 9]);
     }
 
     public function addSumsTimesAndKeepsMemoryPeaks(): void
     {
-        $peaks = new Peaks(ct: 5, wt: 10, cpu: 4, mu: 100, pmu: 7);
+        $peaks = new Peaks(ct: 5, wt: 10, cpu: 4, mu: 50, pmu: 7);
 
-        $peaks->add(new Cost(ct: 3, wt: 20, cpu: 6, mu: 50, pmu: 9));
+        // Every metric tells apart keeping, summing and taking the maximum
+        $peaks->add(new Cost(ct: 9, wt: 20, cpu: 6, mu: 100, pmu: 9));
 
         Assert::same($peaks->jsonSerialize(), ['ct' => 5, 'wt' => 30, 'cpu' => 10, 'mu' => 100, 'pmu' => 9]);
     }
