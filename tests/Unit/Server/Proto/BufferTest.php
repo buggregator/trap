@@ -9,7 +9,6 @@ use Buggregator\Trap\Server\Proto\Frame\Binary;
 use Nyholm\Psr7\Stream;
 use Testo\Assert;
 use Testo\Codecov\Covers;
-use Testo\Skip;
 use Testo\Test;
 
 #[Test]
@@ -69,7 +68,6 @@ final class BufferTest
         Assert::false($buffer->isReady());
     }
 
-    #[Skip('Bug: Buffer ignores the timer argument and always waits 0.1 s')]
     public function timerWaitsTheGivenTime(): void
     {
         $buffer = new Buffer(bufferSize: 1000, timer: 3600.0);
