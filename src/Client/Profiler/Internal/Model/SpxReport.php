@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Client\Profiler\Internal\Model;
 
+use Buggregator\Trap\Client\Internal\Silently;
 use Buggregator\Trap\Client\Profiler\Internal\Warnings;
 use Buggregator\Trap\Support\Spx\Archive;
 use Buggregator\Trap\Support\Spx\FunctionName;
@@ -73,8 +74,10 @@ final class SpxReport
         \preg_match('/^spx-full-[\w.-]+$/', $key) === 1
             or throw new \InvalidArgumentException(\sprintf('Unexpected SPX report key `%s`.', $key));
         $base = \rtrim($dir, '/\\') . \DIRECTORY_SEPARATOR . $key;
-        $size = @\filesize("$base.txt.gz");
-        $json = @\file_get_contents("$base.json", length: Metadata::MAX_SIZE + 1);
+        // A user error handler that throws on these warnings would replace the errors below,
+        // and throw out of the destructor and the shutdown function.
+        $size = Silently::run(static fn(): int|false => \filesize("$base.txt.gz"));
+        $json = Silently::run(static fn(): string|false => \file_get_contents("$base.json", length: Metadata::MAX_SIZE + 1));
         $size === false || $json === false and throw new \RuntimeException(
             \sprintf('Unable to read the SPX report `%s` in `%s`.', $key, $dir),
         );
@@ -99,9 +102,9 @@ final class SpxReport
             . ' the directory and the SPX web UI.';
         // The trace first: a trace with no metadata is no report for an observing Trap or the SPX web UI
         [$trace, $meta] = self::asidePaths($base, $key);
-        @\rename("$base.txt.gz", $trace) or throw new \RuntimeException($left);
-        if (!@\rename("$base.json", $meta)) {
-            @\rename($trace, "$base.txt.gz") or throw new \RuntimeException(
+        Silently::run(static fn(): bool => \rename("$base.txt.gz", $trace)) or throw new \RuntimeException($left);
+        if (!Silently::run(static fn(): bool => \rename("$base.json", $meta))) {
+            Silently::run(static fn(): bool => \rename($trace, "$base.txt.gz")) or throw new \RuntimeException(
                 "The SPX report `$base` is not sent: it can't be moved aside, and its trace can't be put back from `$trace`.",
             );
             throw new \RuntimeException($left);
@@ -251,8 +254,8 @@ final class SpxReport
     private function touch(string $path): void
     {
         \clearstatcache(true, $path);
-        $mtime = @\filemtime($path);
-        @\touch($path, \max(\time(), $mtime === false ? 0 : $mtime + 1));
+        $mtime = Silently::run(static fn(): int|false => \filemtime($path));
+        Silently::run(static fn(): bool => \touch($path, \max(\time(), $mtime === false ? 0 : $mtime + 1)));
     }
 
     /**
@@ -268,8 +271,8 @@ final class SpxReport
         if ($this->delivered === true) {
             $this->aside = false;
             [$trace, $meta] = self::asidePaths($this->base, $this->key);
-            @\unlink($trace);
-            @\unlink($meta);
+            Silently::run(static fn(): bool => \unlink($trace));
+            Silently::run(static fn(): bool => \unlink($meta));
             return;
         }
 
@@ -289,13 +292,14 @@ final class SpxReport
         [$trace, $meta] = self::asidePaths($this->base, $this->key);
         $this->aside = false;
         unset(self::$live[\spl_object_id($this)]);
-        if (!@\rename($trace, "{$this->base}.txt.gz")) {
+        $base = $this->base;
+        if (!Silently::run(static fn(): bool => \rename($trace, "$base.txt.gz"))) {
             return "The SPX report is not delivered, and can't be put back: its trace is `$trace`, its metadata `$meta`.";
         }
 
         $this->tracePath = "{$this->base}.txt.gz";
         $this->touch($this->tracePath);
-        if (!@\rename($meta, "{$this->base}.json")) {
+        if (!Silently::run(static fn(): bool => \rename($meta, "$base.json"))) {
             return "The SPX report is not delivered, and can't be put back: its trace is `{$this->tracePath}`,"
                 . " its metadata `$meta`.";
         }
@@ -311,7 +315,8 @@ final class SpxReport
      */
     private function trace(): \Generator
     {
-        $handle = @\fopen($this->tracePath, 'rb') ?: throw new \RuntimeException(
+        $path = $this->tracePath;
+        $handle = Silently::run(static fn(): mixed => \fopen($path, 'rb')) ?: throw new \RuntimeException(
             "Unable to read the SPX trace `{$this->tracePath}`.",
         );
         try {

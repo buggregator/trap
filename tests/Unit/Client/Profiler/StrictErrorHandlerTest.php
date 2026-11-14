@@ -8,12 +8,17 @@ use Buggregator\Trap\Client\Internal\Fallback;
 use Buggregator\Trap\Client\Internal\Silently;
 use Buggregator\Trap\Client\Log\TrapLogger;
 use Buggregator\Trap\Client\Profiler\Internal\HttpClient;
+use Buggregator\Trap\Client\Profiler\Internal\Model\SpxReport;
+use Buggregator\Trap\Client\Profiler\Internal\SpxExtension;
+use Buggregator\Trap\Client\Profiler\Internal\TempFile;
 use Buggregator\Trap\Client\Profiler\Internal\Warnings;
 use Buggregator\Trap\Client\Profiler\Profile;
 use Buggregator\Trap\Client\Profiler\Profiling;
 use Buggregator\Trap\Client\Profiler\Session;
+use Buggregator\Trap\Client\Profiler\Spx;
 use Buggregator\Trap\Client\TrapHandle;
 use Buggregator\Trap\Tests\Unit\Client\Profiler\Stub\FakeDriver;
+use Buggregator\Trap\Tests\Unit\Client\Profiler\Stub\FakeSpxExtension;
 use Buggregator\Trap\Tests\Unit\Client\Profiler\Stub\LogCapture;
 use Psr\Log\AbstractLogger;
 use Testo\Assert;
@@ -33,8 +38,14 @@ use Testo\Test;
 #[Covers(Session::class)]
 #[Covers(Fallback::class)]
 #[Covers(Silently::class)]
+#[Covers(SpxReport::class)]
+#[Covers(TempFile::class)]
+#[Covers(Spx::class)]
 final class StrictErrorHandlerTest
 {
+    private const SPX_STUB = __DIR__ . '/../../../Stub/spx/handwritten';
+    private const SPX_KEY = FakeSpxExtension::KEY;
+
     private string $dir = '';
     private string $errorLog = '';
     private string|false $errorLogIni = false;
@@ -58,8 +69,9 @@ final class StrictErrorHandlerTest
         Warnings::$logger = null;
         Warnings::reset();
         Fallback::$stream = null;
+        SpxExtension::$override = null;
         $this->errorLogIni === false or \ini_set('error_log', $this->errorLogIni);
-        \is_dir($this->dir) and \rmdir($this->dir);
+        self::remove($this->dir);
         \is_file($this->errorLog) and \unlink($this->errorLog);
     }
 
@@ -143,6 +155,86 @@ final class StrictErrorHandlerTest
         Assert::string($log->messages())->contains("Unable to write the profile to `{$this->dir}`");
     }
 
+    public function fileThatCanNotReplaceTheTargetLeavesNoTemporaryFile(): void
+    {
+        $log = Warnings::$logger = new LogCapture();
+        $path = $this->dir . \DIRECTORY_SEPARATOR . 'profile';
+        \mkdir($path, 0777, true);
+
+        $result = self::strict(static fn(): int => TrapHandle::profile(new FakeDriver())->toFile($path)->run(static fn(): int => 9));
+
+        Assert::same($result, 9);
+        Assert::string($log->messages())->contains("Unable to write the profile to `{$path}`");
+        Assert::same($this->files(), ['profile']);
+    }
+
+    public function spxReportIsKeptWhenTheDestinationFails(): void
+    {
+        $log = Warnings::$logger = new LogCapture();
+        \mkdir($this->dir);
+        SpxExtension::$override = new FakeSpxExtension($this->dir, self::SPX_STUB);
+
+        self::strict(
+            static fn() => TrapHandle::profile(new Spx())
+                ->to(static fn() => throw new \RuntimeException('Trap is down.'))
+                ->run(static fn() => null),
+        );
+
+        Assert::same($this->files(), [self::SPX_KEY . '.json', self::SPX_KEY . '.txt.gz']);
+        Assert::string($log->messages())->contains('The SPX report is not delivered, and is kept as `');
+    }
+
+    public function missingSpxReportIsAnError(): void
+    {
+        \mkdir($this->dir);
+
+        try {
+            self::strict(fn() => SpxReport::read($this->dir, self::SPX_KEY, keep: false));
+            Assert::fail('The report is read.');
+        } catch (\RuntimeException $e) {
+            Assert::string($e->getMessage())->contains('Unable to read the SPX report');
+        }
+    }
+
+    public function spxReportThatCanNotBeMovedAsideIsLeftInPlace(): void
+    {
+        $this->writeSpxReport();
+        \mkdir($this->dir . '/.trap-' . self::SPX_KEY . '.txt.gz');
+
+        try {
+            self::strict(fn() => SpxReport::read($this->dir, self::SPX_KEY, keep: false));
+            Assert::fail('The report is read.');
+        } catch (\RuntimeException $e) {
+            Assert::string($e->getMessage())->contains("can't be moved aside, and is left for a Trap observing the directory");
+        }
+    }
+
+    public function spxReportThatCanNotBePutBackIsWarnedAbout(): void
+    {
+        $this->writeSpxReport();
+        $report = SpxReport::read($this->dir, self::SPX_KEY, keep: false);
+        \mkdir($this->dir . '/' . self::SPX_KEY . '.txt.gz');
+
+        $warning = self::strict(static fn(): ?string => $report->settle(false));
+
+        Assert::string((string) $warning)->contains("can't be put back: its trace is `");
+        \rmdir($this->dir . '/' . self::SPX_KEY . '.txt.gz');
+        unset($report);
+    }
+
+    public function deliveredSpxReportIsDeletedAtShutdownWhenItsTraceIsGone(): void
+    {
+        $this->writeSpxReport();
+        $report = SpxReport::read($this->dir, self::SPX_KEY, keep: false);
+        $report->settle(true);
+        \unlink($this->dir . '/.trap-' . self::SPX_KEY . '.txt.gz');
+
+        self::strict(SpxReport::shutdown(...));
+
+        Assert::same($this->files(), []);
+        unset($report);
+    }
+
     public function profileKeepsTheHostname(): void
     {
         $profile = self::strict(
@@ -201,6 +293,37 @@ final class StrictErrorHandlerTest
         \fclose($server);
 
         return (int) \substr($address, \strrpos($address, ':') + 1);
+    }
+
+    private static function remove(string $path): void
+    {
+        if (!\is_dir($path)) {
+            return;
+        }
+
+        foreach (\array_diff((array) \scandir($path), ['.', '..']) as $name) {
+            $item = $path . \DIRECTORY_SEPARATOR . $name;
+            \is_dir($item) ? self::remove($item) : \unlink($item);
+        }
+        \rmdir($path);
+    }
+
+    private function writeSpxReport(): void
+    {
+        \mkdir($this->dir);
+        \copy(self::SPX_STUB . '.json', $this->dir . '/' . self::SPX_KEY . '.json');
+        \file_put_contents(
+            $this->dir . '/' . self::SPX_KEY . '.txt.gz',
+            \gzencode((string) \file_get_contents(self::SPX_STUB . '.txt'), 1),
+        );
+    }
+
+    /**
+     * @return list<string> Names of the files in the directory, the hidden ones too, sorted.
+     */
+    private function files(): array
+    {
+        return \array_values(\array_diff((array) \scandir($this->dir), ['.', '..']));
     }
 
     private function stderr(): string

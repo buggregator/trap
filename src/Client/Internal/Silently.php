@@ -20,6 +20,8 @@ final class Silently
      * @param \Closure(): T $io
      *
      * @return T
+     *
+     * @psalm-taint-specialize
      */
     public static function run(\Closure $io): mixed
     {
