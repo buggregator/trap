@@ -15,6 +15,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Data\DataProvider;
+use Testo\Data\DataSet;
 use Testo\Lifecycle\BeforeTest;
 use Testo\Test;
 
@@ -143,11 +144,25 @@ final class HttpTest
         Assert::same($frames, []);
         Assert::false($handler->called);
         Assert::string($this->sent)->startsWith('HTTP/1.1 413');
+        Assert::string($this->sent)->contains('more than 1024 bytes. The limit is set with TRAP_HTTP_MAX_INFLATED_SIZE.');
     }
 
     public function testGzipBodyWithinLimitReachesMiddlewaresInflated(): void
     {
         $dispatcher = new Http([new Dump()], maxInflatedBodySize: 1024);
+
+        $frames = $this->dispatch($dispatcher, $this->createGzipPostStream($body = \str_repeat('a', 1024)));
+
+        Assert::count($frames, 1);
+        Assert::instanceOf($frames[0], HttpFrame::class);
+        Assert::same((string) $frames[0]->request->getBody(), $body);
+    }
+
+    #[DataSet([0], 'zero')]
+    #[DataSet([-1], 'negative')]
+    public function testNonPositiveGzipBodyLimitFallsBackToDefault(int $limit): void
+    {
+        $dispatcher = new Http([new Dump()], maxInflatedBodySize: $limit);
 
         $frames = $this->dispatch($dispatcher, $this->createGzipPostStream($body = \str_repeat('a', 1024)));
 

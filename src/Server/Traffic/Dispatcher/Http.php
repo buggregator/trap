@@ -34,7 +34,8 @@ final class Http implements Dispatcher
      * @param iterable<array-key, Middleware> $middlewares
      * @param array<array-key, RequestHandler> $handlers
      * @param bool $silentMode Don't emit Frames on dispatch if set to true.
-     * @param int<0, max> $maxInflatedBodySize A compressed body inflating past it is answered with 413.
+     * @param int $maxInflatedBodySize A compressed body inflating past it, in bytes, is answered with 413;
+     *        values below 1 fall back to {@see Parser\Http::MAX_INFLATED_BODY_SIZE}.
      */
     public function __construct(
         iterable $middlewares = [],
@@ -67,9 +68,12 @@ final class Http implements Dispatcher
     {
         try {
             $request = $this->parser->parseStream($stream);
-        } catch (SizeLimitExceeded) {
+        } catch (SizeLimitExceeded $e) {
             // Answered before any handler: a compressed body must not reach them inflated past the limit
-            HttpEmitter::emit($stream, new Response(413, body: 'The request body is too large.'));
+            HttpEmitter::emit($stream, new Response(
+                413,
+                body: $e->getMessage() . ' The limit is set with TRAP_HTTP_MAX_INFLATED_SIZE.',
+            ));
             $stream->disconnect();
             return;
         }
