@@ -120,6 +120,29 @@ final class TraceReaderTest
         TraceReader::read([$trace], 0, 0, static function (): void {});
     }
 
+    #[DataSet(["\x1f\x8b\x08\x00junk-junk-junk"], 'invalid gzip')]
+    #[DataSet(["[events]\n[functions]\n"], 'plain')]
+    public function testRejectsTraceThatIsNotGzipUnderThrowingErrorHandler(string $trace): void
+    {
+        $handler = static fn(int $code, string $message): never => throw new \ErrorException($message, 0, $code);
+        \set_error_handler($handler);
+        try {
+            $error = null;
+            try {
+                TraceReader::read([$trace], 0, 0, static function (): void {});
+            } catch (\Throwable $error) {
+            }
+
+            Assert::instanceOf($error, \InvalidArgumentException::class);
+            Assert::same($error->getMessage(), 'The trace is not gzip data, as SPX writes it.');
+            $current = \set_error_handler(null);
+            \restore_error_handler();
+            Assert::same($current, $handler);
+        } finally {
+            \restore_error_handler();
+        }
+    }
+
     public function testRejectsTraceOverSizeLimit(): never
     {
         Expect::exception(\InvalidArgumentException::class)

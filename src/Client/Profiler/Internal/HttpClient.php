@@ -63,7 +63,11 @@ final class HttpClient
 
         try {
             $microseconds = (int) ($this->timeout * 1_000_000.0);
-            \stream_set_timeout($stream, \intdiv($microseconds, 1_000_000), $microseconds % 1_000_000);
+            Silently::run(static fn(): bool => \stream_set_timeout(
+                $stream,
+                \intdiv($microseconds, 1_000_000),
+                $microseconds % 1_000_000,
+            ));
 
             $default = $port === ($scheme === 'https' ? 443 : 80);
             $request = "POST {$target} HTTP/1.1\r\n"
@@ -87,7 +91,11 @@ final class HttpClient
                             $left > 0 or throw new \RuntimeException(
                                 \sprintf('Sending the request to %s:%d took too long.', $address, $port),
                             );
-                            \stream_set_timeout($stream, \intdiv($left, 1_000_000), $left % 1_000_000);
+                            Silently::run(static fn(): bool => \stream_set_timeout(
+                                $stream,
+                                \intdiv($left, 1_000_000),
+                                $left % 1_000_000,
+                            ));
                         }
                         $chunk = \substr($part, $offset);
                         $written = Silently::run(static fn(): int|false => \fwrite($stream, $chunk));
@@ -97,7 +105,11 @@ final class HttpClient
                     $sent += \strlen($part);
                 }
             }
-            $deadline === null or \stream_set_timeout($stream, \intdiv($microseconds, 1_000_000), $microseconds % 1_000_000);
+            $deadline === null or Silently::run(static fn(): bool => \stream_set_timeout(
+                $stream,
+                \intdiv($microseconds, 1_000_000),
+                $microseconds % 1_000_000,
+            ));
             $sent === \strlen($request) + $size or throw new \RuntimeException(
                 \sprintf('The body sent to %s:%d is not of the size told.', $address, $port),
             );
