@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Server\Socket;
 
 use Buggregator\Trap\Server\Socket\Client;
+use Buggregator\Trap\Server\Socket\Exception\ClientDisconnected;
 use Buggregator\Trap\Support\Activity;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -201,6 +202,46 @@ final class ClientTest
             \socket_close($remote);
             \socket_close($server);
         }
+    }
+
+    #[Test]
+    public function disconnectsWithoutTakingMoreData(): never
+    {
+        [$server, $remote, $socket] = $this->connect();
+        $client = Client::init($socket, selectPeriod: 3600.0);
+        $fiber = new \Fiber($client->process(...));
+        $fiber->start();
+
+        $client->disconnect();
+        $client->send('ignored');
+
+        Assert::null($client->writableSocket());
+        Expect::exception(ClientDisconnected::class);
+        try {
+            $fiber->resume();
+        } finally {
+            $client->destroy();
+            \socket_close($remote);
+            \socket_close($server);
+        }
+    }
+
+    #[Test]
+    public function destroyCallsOnCloseOnce(): void
+    {
+        [$server, $remote, $socket] = $this->connect();
+        $client = Client::init($socket);
+        $closed = 0;
+        $client->setOnClose(static function () use (&$closed): void {
+            ++$closed;
+        });
+
+        $client->destroy();
+        $client->destroy();
+
+        Assert::same($closed, 1);
+        \socket_close($remote);
+        \socket_close($server);
     }
 
     /**

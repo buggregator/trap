@@ -104,4 +104,41 @@ final class ConcurrentReadStreamTest
         Expect::exception(\InvalidArgumentException::class);
         new ConcurrentReadStream($origin);
     }
+
+    #[Test]
+    public function testDetachedStreamHasNoSizeAndMetadata(): void
+    {
+        $origin = Stream::create('data');
+        $stream = new ConcurrentReadStream($origin);
+        Assert::same($stream->getSize(), 4);
+        Assert::same($stream->getMetadata('seekable'), true);
+
+        Assert::null($stream->detach());
+
+        Assert::null($stream->getSize());
+        Assert::same($stream->getMetadata(), []);
+        Assert::null($stream->getMetadata('seekable'));
+        Assert::false($stream->isSeekable());
+        Assert::same((string) $origin, 'data');
+    }
+
+    #[Test]
+    public function testDetachedStreamRefusesToRead(): void
+    {
+        $stream = new ConcurrentReadStream(Stream::create('data'));
+        $stream->detach();
+
+        Expect::exception(\RuntimeException::class)->withMessage('Stream is detached.');
+        $stream->read(1);
+    }
+
+    #[Test]
+    public function testCastsWholeContentFromAnyPosition(): void
+    {
+        $stream = new ConcurrentReadStream(Stream::create('0123456789'));
+        $stream->read(4);
+
+        Assert::same((string) $stream, '0123456789');
+        Assert::true($stream->eof());
+    }
 }
