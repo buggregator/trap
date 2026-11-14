@@ -6,8 +6,11 @@ namespace Buggregator\Trap\Tests\Bench\Module\Profiler;
 
 use Buggregator\Trap\Module\Profiler\Pprof\ProfileBuilder as PprofBuilder;
 use Buggregator\Trap\Module\Profiler\Speedscope\ProfileBuilder as SpeedscopeBuilder;
+use Buggregator\Trap\Module\Profiler\SPX\ProfileBuilder as SpxBuilder;
 use Buggregator\Trap\Module\Profiler\XDebug\ProfileBuilder as XDebugBuilder;
+use Buggregator\Trap\Support\Spx\Metadata;
 use Buggregator\Trap\Tests\Bench\Module\Profiler\Stub\Documents;
+use Buggregator\Trap\Tests\Unit\Module\Profiler\SPX\Stub\SpxTrace;
 use Testo\Bench;
 
 /**
@@ -53,6 +56,7 @@ final class ProfileBuildBench
         callables: [
             'xdebug 400k random calls to 50k nodes' => [self::class, 'xdebugRandomCompacted'],
             'xdebug 400k calls of a loop to 50k nodes' => [self::class, 'xdebugLoopCompacted'],
+            'spx 400k streamed gzipped calls to 50k nodes' => [self::class, 'spxCompacted'],
             'speedscope 1000 samples at max depth 1000 to 100 nodes' => [self::class, 'speedscopeMaxDepthCompacted'],
             'pprof 40k varied gzipped samples to 30k nodes' => [self::class, 'pprofLargeCompacted'],
         ],
@@ -108,6 +112,17 @@ final class ProfileBuildBench
     public static function pprofLarge(): void
     {
         self::pprof('pprof', static fn(): string => Documents::pprofFramework(40_000));
+    }
+
+    /**
+     * Generates and inflates the trace as well as builds: SPX traces are read as a stream.
+     */
+    public static function spxCompacted(): void
+    {
+        (new SpxBuilder(maxNodes: 50_000))->createProfile(
+            Metadata::fromJson(SpxTrace::metadata(400_000)),
+            SpxTrace::chunks(400_000),
+        );
     }
 
     public static function pprofLargeCompacted(): void

@@ -21,6 +21,18 @@ abstract class ObserverConfig
     public float $scanInterval = 5.0;
 
     /**
+     * Skip the files written completely before the observer started, for a directory that keeps old files,
+     * so that they don't flood the feed on each start. The files still being written are followed.
+     */
+    public bool $skipOldFiles = false;
+
+    /**
+     * @var float|null Seconds a file being written may stay unchanged before it is dropped; null to follow it
+     *      until it is complete or removed.
+     */
+    public ?float $abandonAfter = 600.0;
+
+    /**
      * @psalm-assert-if-true non-empty-string $this->path
      * @psalm-assert-if-true class-string<FrameConverter> $this->converterClass
      */
