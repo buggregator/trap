@@ -55,6 +55,7 @@ final class StreamHelper
             $delta += \strlen($read) - $ssLen;
 
             unset($read);
+            Activity::report();
             \Fiber::suspend();
         }
 
@@ -84,6 +85,7 @@ final class StreamHelper
                 $result += \strlen($read);
                 $to->write($read);
                 unset($read);
+                Activity::report();
                 \Fiber::suspend();
                 break;
             }
@@ -92,6 +94,7 @@ final class StreamHelper
             $to->write($read);
 
             unset($read);
+            Activity::report();
             \Fiber::suspend();
         }
 
@@ -116,6 +119,7 @@ final class StreamHelper
             $written += \strlen($read);
 
             unset($read);
+            Activity::report();
             \Fiber::suspend();
         }
     }
@@ -155,6 +159,7 @@ final class StreamHelper
 
             $stream->write($data);
             unset($data);
+            Activity::report();
             \Fiber::suspend();
         }
 

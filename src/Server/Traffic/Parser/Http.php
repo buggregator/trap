@@ -10,6 +10,7 @@ use Buggregator\Trap\Server\Traffic\Message\Multipart\Part;
 use Buggregator\Trap\Server\Traffic\StreamClient;
 use Buggregator\Trap\Support\Stream\Base64DecodeFilter;
 use Buggregator\Trap\Support\StreamHelper;
+use Buggregator\Trap\Support\TimeSlice;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\ServerRequestInterface;
@@ -276,8 +277,12 @@ final class Http
     {
         $fileStream = StreamHelper::createFileStream();
         $written = 0;
+        $slice = new TimeSlice(checkEvery: 1);
+        $waited = false;
 
         foreach ($stream->getIterator() as $chunk) {
+            // The stream has suspended the fiber while it waited for the chunk
+            $waited and $slice->reset();
             if ($limit !== null && \strlen($chunk) + $written >= $limit) {
                 $fileStream->write(\substr($chunk, 0, $limit - $written));
                 return $fileStream;
@@ -292,7 +297,8 @@ final class Http
             $fileStream->write($chunk);
             $written += \strlen($chunk);
             unset($chunk);
-            \Fiber::suspend();
+            $waited = !$stream->hasData();
+            $waited or $slice->tick();
         }
 
         return $fileStream;

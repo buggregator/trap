@@ -7,7 +7,6 @@ namespace Buggregator\Trap\Server;
 use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Config\App;
 use Buggregator\Trap\Server\Config\SocketServer;
-use Buggregator\Trap\Server\Config\TcpPorts;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Handler\Http\ProvidesHttpMiddlewares;
 use Buggregator\Trap\Server\Proto\Buffer;
@@ -17,6 +16,8 @@ use Buggregator\Trap\Server\Socket\Client;
 use Buggregator\Trap\Server\Socket\Server;
 use Buggregator\Trap\Server\Socket\SocketStream;
 use Buggregator\Trap\Server\Traffic\Inspector;
+use Buggregator\Trap\Support\Activity;
+use Buggregator\Trap\Support\LoopPacer;
 use Buggregator\Trap\Support\Timer;
 use Internal\Container\Container;
 use Internal\Destroy\Destroyable;
@@ -90,6 +91,7 @@ final class Application implements Processable, Cancellable, Destroyable
         $sleep = \max(50, $config->mainLoopInterval);
         $gc = $config->gcInterval > 0 ? new Timer($config->gcInterval) : null;
         $gc === null or \gc_disable();
+        $pacer = new LoopPacer($sleep);
 
         while (true) {
             $this->process($this->senders);
@@ -97,7 +99,12 @@ final class Application implements Processable, Cancellable, Destroyable
                 \gc_collect_cycles();
                 $gc->reset();
             }
-            \usleep($sleep);
+            $ready = $pacer->pause(Activity::take(), $this->sockets(...));
+            if ($ready !== []) {
+                foreach ($this->servers as $server) {
+                    $server->wake($ready);
+                }
+            }
         }
     }
 
@@ -191,8 +198,6 @@ final class Application implements Processable, Cancellable, Destroyable
             static fn(SocketServer $item): ?int => $item->protocol === 'tcp' ? $item->port : null,
             $map,
         );
-        /** @var TcpPorts $tcpConfig */
-        $tcpConfig = $this->container->get(TcpPorts::class);
 
         /** @var array<int, class-string> $owners */
         $owners = [];
@@ -231,7 +236,6 @@ final class Application implements Processable, Cancellable, Destroyable
                 new SocketServer(
                     port: $endpoint->port,
                     host: $endpoint->host,
-                    pollingInterval: $tcpConfig->pollingInterval,
                 ),
                 $inspector,
                 $this->logger,
@@ -239,6 +243,21 @@ final class Application implements Processable, Cancellable, Destroyable
         }
 
         return $shared;
+    }
+
+    /**
+     * @return array{list<\Socket>, list<\Socket>} Sockets to wait for reading and for writing.
+     */
+    private function sockets(): array
+    {
+        $read = $write = [];
+        foreach ($this->servers as $server) {
+            [$serverRead, $serverWrite] = $server->getSockets();
+            $read = [...$read, ...$serverRead];
+            $write = [...$write, ...$serverWrite];
+        }
+
+        return [$read, $write];
     }
 
     /**
@@ -269,7 +288,6 @@ final class Application implements Processable, Cancellable, Destroyable
             $config->host,
             $config->port,
             payloadSize: 524_288,
-            acceptPeriod: (float) \max(50, $config->pollingInterval) / 1e6,
             clientInflector: $clientInflector,
             logger: $this->logger,
         );

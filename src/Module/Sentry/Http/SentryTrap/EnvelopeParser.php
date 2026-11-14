@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Module\Sentry\Http\SentryTrap;
 
 use Buggregator\Trap\Module\Sentry\Frame\EnvelopeItem;
 use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope;
+use Buggregator\Trap\Support\Activity;
 use Buggregator\Trap\Support\StreamHelper;
 use Psr\Http\Message\StreamInterface;
 
@@ -151,6 +152,7 @@ final class EnvelopeParser
                 break;
             }
 
+            Activity::report();
             \Fiber::suspend();
         } while (true);
 
