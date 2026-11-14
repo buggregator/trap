@@ -1,5 +1,89 @@
 # Changelog
 
+## [1.19.0](https://github.com/buggregator/trap/compare/1.18.0...1.19.0) (2026-11-14)
+
+
+### Features
+
+* add `--port` and `--host` options to `trap test` ([#277](https://github.com/buggregator/trap/issues/277)) ([7c0cacd](https://github.com/buggregator/trap/commit/7c0cacdd452f312e708e5a0f2e0b96c7966e0854))
+* **frontend:** keep the call graph paths through the functions hidden by the threshold ([ff677d4](https://github.com/buggregator/trap/commit/ff677d45d5fd7c73961633f7c0d940a80b4a4121))
+* **frontend:** sort Top functions by any metric, color the flame chart and the call graph ([ff677d4](https://github.com/buggregator/trap/commit/ff677d45d5fd7c73961633f7c0d940a80b4a4121))
+* profile code with `trap()::profile()` and receive Excimer profiles ([bc88e7b](https://github.com/buggregator/trap/commit/bc88e7b9e450a2bcc46e2f67cb4eb5925167c645))
+* **profiler:** add `Format::Spx`, the native SPX report as a tar ([6e10c6b](https://github.com/buggregator/trap/commit/6e10c6b4accffe4e4435339c188a515ec7970d57))
+* **profiler:** build profiles on a call graph, keeping every caller of a function ([ff677d4](https://github.com/buggregator/trap/commit/ff677d45d5fd7c73961633f7c0d940a80b4a4121))
+* **profiler:** let file observers skip files complete before Trap's start ([060e696](https://github.com/buggregator/trap/commit/060e69686d91a415b8a53af6c2115e8b385b2673))
+* **profiler:** profile code with SPX via `trap()::profile(new Spx())` ([6e10c6b](https://github.com/buggregator/trap/commit/6e10c6b4accffe4e4435339c188a515ec7970d57))
+* **profiler:** receive SPX full reports from files and over HTTP ([060e696](https://github.com/buggregator/trap/commit/060e69686d91a415b8a53af6c2115e8b385b2673))
+* **profiler:** receive Xdebug profiles over HTTP and from `xdebug.output_dir` ([ff677d4](https://github.com/buggregator/trap/commit/ff677d45d5fd7c73961633f7c0d940a80b4a4121))
+* **profiler:** send and receive pprof profiles ([d8d5db5](https://github.com/buggregator/trap/commit/d8d5db54a1f47e8f89bc22924f07f48acf78a73e))
+* **profiler:** show top functions and hot path in the console ([#293](https://github.com/buggregator/trap/issues/293)) ([fd9ad49](https://github.com/buggregator/trap/commit/fd9ad4986dd123a3ce6068561a9c4bceeb7b8196))
+* **ray:** receive Ray payloads as Ray events and support execution locks ([#278](https://github.com/buggregator/trap/issues/278)) ([95df9e0](https://github.com/buggregator/trap/commit/95df9e00cfb32daad0f24ffe44c4f46edb80ab1c))
+* **server:** configure the gzip body limit with `TRAP_HTTP_MAX_INFLATED_SIZE` ([#298](https://github.com/buggregator/trap/issues/298)) ([edcd824](https://github.com/buggregator/trap/commit/edcd824f04abe15d19e03e67c53c7b91203eb6a2))
+* update the UI to buggregator/frontend 1.23.2 ([#137](https://github.com/buggregator/trap/issues/137)) ([ff677d4](https://github.com/buggregator/trap/commit/ff677d45d5fd7c73961633f7c0d940a80b4a4121))
+
+
+### Bug Fixes
+
+* answer 413 to gzip request bodies inflating past 64 MB ([#290](https://github.com/buggregator/trap/issues/290)) ([29f91e5](https://github.com/buggregator/trap/commit/29f91e59b4276fc848847ee8eada78f9a3f17ef9))
+* **command:** keep `trap test` going when a payload file cannot be opened ([#285](https://github.com/buggregator/trap/issues/285)) ([9dbc975](https://github.com/buggregator/trap/commit/9dbc975cc2cf2791bfed9f4e2bca3c122d9521aa))
+* give each concurrent stream reader its own position ([#292](https://github.com/buggregator/trap/issues/292)) ([4a056e6](https://github.com/buggregator/trap/commit/4a056e6f8a8969436e43873c21b98f6cb477c880))
+* **log:** hide socket warnings of `TrapLogger` from user error handlers and fall back to `error_log()` when STDERR is closed or unwritable ([3378140](https://github.com/buggregator/trap/commit/33781405b57f5e012db06cbdccd4acad0c6e865d))
+* **profiler:** bound pprof builds and follow the pprof defaults ([f724ead](https://github.com/buggregator/trap/commit/f724ead8fefff8dffd60c0496d25ad3fd18f1d73))
+* **profiler:** harden profile builds and the client after review ([499dcad](https://github.com/buggregator/trap/commit/499dcade4c5742603259d4d6b47d5b278abd4d10))
+* **profiler:** keep warnings visible under a throwing error handler ([#296](https://github.com/buggregator/trap/issues/296)) ([3378140](https://github.com/buggregator/trap/commit/33781405b57f5e012db06cbdccd4acad0c6e865d))
+* **profiler:** log delivery errors of every destination ([6185ef4](https://github.com/buggregator/trap/commit/6185ef490cc7d267f0a9470148191b0dadc65618))
+* **profiler:** never throw from delivery and prefer formats a profiler can produce ([b2044ce](https://github.com/buggregator/trap/commit/b2044cee7d0042cc8627a353300aa7b250b46aa2))
+* **profiler:** read a corrupted SPX trace with its own error under a throwing error handler ([#297](https://github.com/buggregator/trap/issues/297)) ([71342b9](https://github.com/buggregator/trap/commit/71342b9e9479ff24d16f855f3cefa3c160e392db))
+* **profiler:** read, move aside, put back and delete SPX reports out of reach of user error handlers ([3378140](https://github.com/buggregator/trap/commit/33781405b57f5e012db06cbdccd4acad0c6e865d))
+* **profiler:** set the HTTP delivery socket timeouts out of reach of user error handlers ([71342b9](https://github.com/buggregator/trap/commit/71342b9e9479ff24d16f855f3cefa3c160e392db))
+* **router:** honor the name given in `#[QueryParam]` ([#284](https://github.com/buggregator/trap/issues/284)) ([a5f220f](https://github.com/buggregator/trap/commit/a5f220f8e269645e45abe2f991939122a726b640))
+* **server:** use the timer duration passed to Buffer ([#301](https://github.com/buggregator/trap/issues/301)) ([9a61f33](https://github.com/buggregator/trap/commit/9a61f33f204c112daa504ef0e51cc4bcf305ee1c))
+
+
+### Performance Improvements
+
+* **profiler:** build call trees faster and in less memory ([c680706](https://github.com/buggregator/trap/commit/c680706a9dab6ae98f70c43b2b6b576315346c14))
+* **server:** collect garbage cycles from the main loop ([3fd7660](https://github.com/buggregator/trap/commit/3fd7660be485a1ca2856eb092a061b24cf9c62d0))
+* **server:** raise the default `TRAP_MAIN_LOOP_INTERVAL` from 100 to 1000 µs ([0ac3ca2](https://github.com/buggregator/trap/commit/0ac3ca2cf6d30ea7163aac309264bc8c32948b95))
+* **server:** run the next loop iteration at once while fibers report progress, and wait on the sockets with `socket_select()` when idle ([0ac3ca2](https://github.com/buggregator/trap/commit/0ac3ca2cf6d30ea7163aac309264bc8c32948b95))
+* **server:** stop oversleeping the main loop on Windows ([#295](https://github.com/buggregator/trap/issues/295)) ([0ac3ca2](https://github.com/buggregator/trap/commit/0ac3ca2cf6d30ea7163aac309264bc8c32948b95))
+
+
+### Documentation
+
+* describe `TRAP_MAIN_LOOP_INTERVAL` ([edcd824](https://github.com/buggregator/trap/commit/edcd824f04abe15d19e03e67c53c7b91203eb6a2))
+* describe profiling in the readme ([dec485f](https://github.com/buggregator/trap/commit/dec485feba43b465e8eedbe8c39919421133b20f))
+* describe SPX profiling ([a9b4208](https://github.com/buggregator/trap/commit/a9b42084dd6f99ed47dd76547eb167651e5b470b))
+* move the documentation into docs/ and rewrite the README as a landing page ([7bacafa](https://github.com/buggregator/trap/commit/7bacafac24c1017812be043d3dda242fe65d104d))
+* tell what a profile file write killed half way leaves behind ([a9b4208](https://github.com/buggregator/trap/commit/a9b42084dd6f99ed47dd76547eb167651e5b470b))
+
+
+### Code Refactoring
+
+* **client:** move TrapLogger into the client namespace ([#269](https://github.com/buggregator/trap/issues/269)) ([bab9a31](https://github.com/buggregator/trap/commit/bab9a31dd0853c39c43f37342b1dd7aa0444d90c))
+* **config:** remove the unused `TRAP_XHPROF_SORT` option ([ff677d4](https://github.com/buggregator/trap/commit/ff677d45d5fd7c73961633f7c0d940a80b4a4121))
+* **core:** feed frame types, renderers, UI and senders from the modules ([5d4be22](https://github.com/buggregator/trap/commit/5d4be226b3f4c3795ce369b752cf5d4b179c09d7))
+* **core:** map UI events of frame subclasses, require the sender container ([aa3eaaf](https://github.com/buggregator/trap/commit/aa3eaaf27454430a320a9bd088912ce9462e6597))
+* **core:** module contract for dispatchers, HTTP middlewares and file observers ([#274](https://github.com/buggregator/trap/issues/274)) ([340d264](https://github.com/buggregator/trap/commit/340d2647822c874f40afc3c5e34da18b0c66335c))
+* **core:** reject modules taking a sender name, a UI mapper or event type already taken ([163f01b](https://github.com/buggregator/trap/commit/163f01b175a4f4e7db284e4715ddc5ec32c303c9))
+* fix psalm 7.3 findings ([#283](https://github.com/buggregator/trap/issues/283)) ([88dcfe3](https://github.com/buggregator/trap/commit/88dcfe3fd953204882f6833db57c4d62db38669d))
+* **frontend:** mark UI responses with the core no-dump header ([#271](https://github.com/buggregator/trap/issues/271)) ([768e116](https://github.com/buggregator/trap/commit/768e11677c9bdc360b068ef76d5d65a18b3f51f0))
+* **frontend:** move the frontend sender into the Frontend module ([#270](https://github.com/buggregator/trap/issues/270)) ([271d06b](https://github.com/buggregator/trap/commit/271d06b46b3699cf63ab3228845c37c56bf0f3ed))
+* **frontend:** skip binary frames the UI has no event type for ([f06785b](https://github.com/buggregator/trap/commit/f06785bd6cae166ab9d709f4ddc94f9f71d2f0aa))
+* **frontend:** turn module UI endpoints into controller classes ([#275](https://github.com/buggregator/trap/issues/275)) ([416d153](https://github.com/buggregator/trap/commit/416d1538139aee4218ddf22d9d969d322ecc43b7))
+* gather VarDumper and Monolog into modules ([#265](https://github.com/buggregator/trap/issues/265)) ([1ebd726](https://github.com/buggregator/trap/commit/1ebd726577db0244770bafc9788f5884ef52c2fe))
+* inflate gzip request bodies with ext-zlib ([#289](https://github.com/buggregator/trap/issues/289)) ([7dac39a](https://github.com/buggregator/trap/commit/7dac39ab04c2094b0598243cad793fc307803757))
+* **mailer:** gather the mailer into a module ([#264](https://github.com/buggregator/trap/issues/264)) ([45678c2](https://github.com/buggregator/trap/commit/45678c263e101a6047660a100c52723c7c8c6253))
+* make channels modules with their own senders and HTTP endpoints ([6a76653](https://github.com/buggregator/trap/commit/6a766536fbbaa967819ead91c7189b5d63fc16e3))
+* move the core into the `Server` namespace ([842d562](https://github.com/buggregator/trap/commit/842d562711b9d39d75e179feeced0b6563accd73))
+* move the HTTP dump into a module that ends the HTTP pipeline ([68d5b72](https://github.com/buggregator/trap/commit/68d5b7209842d09271ae671583fad9a955845b1f))
+* **profiler:** gather the profiler into a module ([#263](https://github.com/buggregator/trap/issues/263)) ([8c94937](https://github.com/buggregator/trap/commit/8c9493783f955e55d20bd36920bb845a12ceb205))
+* **proto:** replace the ProtoType enum with frame type constants ([#273](https://github.com/buggregator/trap/issues/273)) ([f110784](https://github.com/buggregator/trap/commit/f1107843372b7c5a63db5db879c14cb397e10d8b))
+* **ray:** gather Ray support into a module ([#268](https://github.com/buggregator/trap/issues/268)) ([d038d23](https://github.com/buggregator/trap/commit/d038d230b2e308d871a40b75e985f2978eeaedc1))
+* **sentry:** gather Sentry into a module ([#262](https://github.com/buggregator/trap/issues/262)) ([a88efc4](https://github.com/buggregator/trap/commit/a88efc43caf40a8132a032193d8c37fc92ae2101))
+* **server:** remove `TRAP_TCP_POLLING_INTERVAL` and the polling period of the socket servers and clients from the configuration ([0ac3ca2](https://github.com/buggregator/trap/commit/0ac3ca2cf6d30ea7163aac309264bc8c32948b95))
+* **tracing:** gather OpenTelemetry tracing into a module ([#267](https://github.com/buggregator/trap/issues/267)) ([f2ce5ab](https://github.com/buggregator/trap/commit/f2ce5abb38906c8bbe0fd5866cd6e21fc5c88ad2))
+
 ## [1.18.0](https://github.com/buggregator/trap/compare/1.17.1...1.18.0) (2026-10-15)
 
 
