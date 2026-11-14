@@ -28,12 +28,16 @@ final class Http
 
     private Psr17Factory $factory;
 
+    /** @var int<1, max> */
+    private readonly int $maxInflatedBodySize;
+
     /**
-     * @param int<0, max> $maxInflatedBodySize Limit of a compressed body after inflating, in bytes.
+     * @param int $maxInflatedBodySize Limit of a compressed body after inflating, in bytes;
+     *        values below 1 fall back to {@see MAX_INFLATED_BODY_SIZE}.
      */
-    public function __construct(
-        private readonly int $maxInflatedBodySize = self::MAX_INFLATED_BODY_SIZE,
-    ) {
+    public function __construct(int $maxInflatedBodySize = self::MAX_INFLATED_BODY_SIZE)
+    {
+        $this->maxInflatedBodySize = $maxInflatedBodySize > 0 ? $maxInflatedBodySize : self::MAX_INFLATED_BODY_SIZE;
         $this->factory = new Psr17Factory();
     }
 

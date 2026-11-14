@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Server\Config;
 
 use Buggregator\Trap\Server\Application\Config\Internal\Attribute\Env;
 use Buggregator\Trap\Server\Application\Config\Internal\Attribute\InflectableConfig;
+use Buggregator\Trap\Server\Traffic\Parser\Http;
 
 /**
  * Common configuration for the application
@@ -41,4 +42,11 @@ final class App
      */
     #[Env('TRAP_MEMORY_LIMIT')]
     public string $memoryLimit = '512M';
+
+    /**
+     * Bytes a gzip-encoded HTTP request body may inflate to; a larger one is answered with 413.
+     * Values below 1 fall back to the default.
+     */
+    #[Env('TRAP_HTTP_MAX_INFLATED_SIZE')]
+    public int $httpMaxInflatedSize = Http::MAX_INFLATED_BODY_SIZE;
 }

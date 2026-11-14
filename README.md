@@ -233,6 +233,9 @@ Large profiles get as many call tree nodes as the memory left affords, and are c
 
 `TRAP_GC_INTERVAL` sets how often, in seconds, the server collects garbage cycles in place of PHP's cycle collector (default: `30`; `0` keeps PHP's collector).
 
+`TRAP_HTTP_MAX_INFLATED_SIZE` sets how many bytes a gzip-compressed HTTP request body may inflate to;
+a larger one is answered with `413` (default: `67108864`, 64 MB; values below `1` fall back to the default).
+
 ### Profiling
 
 Profile a piece of code with `trap()::profile()`. One API covers the profilers, and the profile goes to Trap

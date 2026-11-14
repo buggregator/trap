@@ -57,6 +57,7 @@ final class Application implements Processable, Cancellable, Destroyable
             $sender instanceof Processable and $this->processors[] = $sender;
         }
 
+        $maxInflated = $this->container->get(App::class)->httpMaxInflatedSize;
         $modules = $this->container->get(Modules::class);
         $middlewares = [
             $this->container->get(Middleware\Resources::class),
@@ -66,12 +67,12 @@ final class Application implements Processable, Cancellable, Destroyable
         $inspector = $container->make(Inspector::class, [
             'dispatchers' => $this->dispatchers(
                 $modules,
-                new Traffic\Dispatcher\Http($middlewares),
+                new Traffic\Dispatcher\Http($middlewares, maxInflatedBodySize: $maxInflated),
             ),
         ]);
         $this->processors[] = $inspector;
 
-        $sharedPorts = $this->configureHttpEndpoints($map, $modules, $middlewares);
+        $sharedPorts = $this->configureHttpEndpoints($map, $modules, $middlewares, $maxInflated);
 
         $this->configureFileObserver($modules);
 
@@ -192,8 +193,12 @@ final class Application implements Processable, Cancellable, Destroyable
      *
      * @return array<int, Inspector> Inspectors for the listened TCP ports that an endpoint shares, by port.
      */
-    private function configureHttpEndpoints(array $map, Modules $modules, array $middlewares): array
-    {
+    private function configureHttpEndpoints(
+        array $map,
+        Modules $modules,
+        array $middlewares,
+        int $maxInflated,
+    ): array {
         $tcpPorts = \array_map(
             static fn(SocketServer $item): ?int => $item->protocol === 'tcp' ? $item->port : null,
             $map,
@@ -220,7 +225,11 @@ final class Application implements Processable, Cancellable, Destroyable
                 $this->processors[] = $shared[$endpoint->port] = $this->container->make(Inspector::class, [
                     'dispatchers' => $this->dispatchers(
                         $modules,
-                        new Traffic\Dispatcher\Http([...$endpoint->middlewares, ...$middlewares], $endpoint->handlers),
+                        new Traffic\Dispatcher\Http(
+                            [...$endpoint->middlewares, ...$middlewares],
+                            $endpoint->handlers,
+                            maxInflatedBodySize: $maxInflated,
+                        ),
                     ),
                 ]);
                 continue;
@@ -228,7 +237,12 @@ final class Application implements Processable, Cancellable, Destroyable
 
             $inspector = $this->container->make(Inspector::class, [
                 'dispatchers' => [
-                    new Traffic\Dispatcher\Http($endpoint->middlewares, $endpoint->handlers, silentMode: true),
+                    new Traffic\Dispatcher\Http(
+                        $endpoint->middlewares,
+                        $endpoint->handlers,
+                        silentMode: true,
+                        maxInflatedBodySize: $maxInflated,
+                    ),
                 ],
             ]);
             $this->processors[] = $inspector;
