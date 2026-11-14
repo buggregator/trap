@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Client\Profiler;
 
+use Buggregator\Trap\Client\Internal\Silently;
 use Buggregator\Trap\Client\Profiler\Internal\Driver;
 use Buggregator\Trap\Client\Profiler\Internal\ServerSender;
 use Buggregator\Trap\Client\Profiler\Internal\Settings;
@@ -98,26 +99,29 @@ final class Profiling
             $formats = $profile->formats();
             [, $chunks] = $profile->stream(\in_array($format, $formats, true) ? $format : $formats[0]);
             $dir = \dirname($path);
-            \is_dir($dir) or @\mkdir($dir, 0777, true);
+            // A user error handler that throws on these warnings would skip the write or replace the errors below.
+            \is_dir($dir) or Silently::run(static fn(): bool => \mkdir($dir, 0777, true));
             // Where the directory takes no new file, the file is written in place
             $temp = TempFile::in($dir, '.trap-profile-');
-            $handle = @\fopen($temp ?? $path, 'wb');
+            $target = $temp ?? $path;
+            $handle = Silently::run(static fn(): mixed => \fopen($target, 'wb'));
             try {
                 $handle === false and throw new \RuntimeException(\sprintf('Unable to write the profile to `%s`.', $path));
                 foreach ($chunks as $chunk) {
-                    @\fwrite($handle, $chunk) === \strlen($chunk)
+                    Silently::run(static fn(): int|false => \fwrite($handle, $chunk)) === \strlen($chunk)
                     or throw new \RuntimeException(\sprintf('Unable to write the profile to `%s`.', $path));
                 }
                 \fclose($handle);
                 $handle = false;
                 if ($temp !== null) {
                     // `tempnam()` makes the file private
-                    @\chmod($temp, 0666 & ~\umask());
-                    @\rename($temp, $path) or throw new \RuntimeException(\sprintf('Unable to write the profile to `%s`.', $path));
+                    Silently::run(static fn(): bool => \chmod($temp, 0666 & ~\umask()));
+                    Silently::run(static fn(): bool => \rename($temp, $path))
+                    or throw new \RuntimeException(\sprintf('Unable to write the profile to `%s`.', $path));
                 }
             } finally {
                 $handle === false or \fclose($handle);
-                $temp === null or @\unlink($temp);
+                $temp === null or Silently::run(static fn(): bool => \unlink($temp));
             }
         };
 

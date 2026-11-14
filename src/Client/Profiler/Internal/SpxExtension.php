@@ -38,11 +38,18 @@ class SpxExtension
 
     /**
      * SPX tells why it doesn't start only by a notice, with `log_errors` on, which an error handler may turn
-     * into an exception.
+     * into an exception, ignoring `@`.
+     *
+     * Not {@see \Buggregator\Trap\Client\Internal\Silently}: its frames would be open in the trace when SPX starts.
      */
     public function start(): void
     {
-        @spx_profiler_start();
+        \set_error_handler(static fn(): bool => true);
+        try {
+            spx_profiler_start();
+        } finally {
+            \restore_error_handler();
+        }
     }
 
     /**
@@ -50,6 +57,11 @@ class SpxExtension
      */
     public function stop(): ?string
     {
-        return @spx_profiler_stop();
+        \set_error_handler(static fn(): bool => true);
+        try {
+            return spx_profiler_stop();
+        } finally {
+            \restore_error_handler();
+        }
     }
 }

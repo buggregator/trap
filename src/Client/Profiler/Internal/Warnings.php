@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Client\Profiler\Internal;
 
+use Buggregator\Trap\Client\Internal\Fallback;
 use Buggregator\Trap\Client\TrapHandle;
 use Psr\Log\LoggerInterface;
 
@@ -68,7 +69,8 @@ final class Warnings
         try {
             (self::$logger ?? TrapHandle::logger(self::CHANNEL))->log($level, $message, $context);
         } catch (\Throwable) {
-            // Logging must not break the profiled code.
+            // Logging must not break the profiled code, nor hide the warning.
+            Fallback::write(\sprintf('%s.%s: %s', self::CHANNEL, \strtoupper($level), $message));
         }
     }
 }

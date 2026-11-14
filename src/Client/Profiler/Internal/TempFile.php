@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Client\Profiler\Internal;
 
+use Buggregator\Trap\Client\Internal\Silently;
+
 /**
  * A new file next to the one it replaces: written aside and moved over it, a write that fails half way
  * leaves the file as it was.
@@ -21,12 +23,16 @@ final class TempFile
      */
     public static function in(string $dir, string $prefix): ?string
     {
-        $temp = self::$tempnam instanceof \Closure ? (self::$tempnam)($dir, $prefix) : @\tempnam($dir, $prefix);
+        // `tempnam()` falling back to the system directory notices it: a user error handler that throws on it
+        // would fail the write instead of writing in place
+        $temp = self::$tempnam instanceof \Closure
+            ? (self::$tempnam)($dir, $prefix)
+            : Silently::run(static fn(): string|false => \tempnam($dir, $prefix));
         if ($temp === false || $temp === '') {
             return null;
         }
         if (\dirname((string) \realpath($temp)) !== \realpath($dir)) {
-            @\unlink($temp);
+            Silently::run(static fn(): bool => \unlink($temp));
             return null;
         }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Client\Profiler;
 
+use Buggregator\Trap\Client\Internal\Silently;
 use Buggregator\Trap\Client\Profiler\Internal\Driver;
 use Buggregator\Trap\Client\Profiler\Internal\Model\PprofWriter;
 use Buggregator\Trap\Client\Profiler\Internal\Model\SpeedscopeWriter;
@@ -130,9 +131,10 @@ final class Spx implements Driver
         }
 
         $dir = $extension->dataDir();
-        // SPX creates the directory, but not its parents
+        // SPX creates the directory, but not its parents; `open_basedir` warns on a directory out of it
+        $writable = Silently::run(static fn(): bool => \is_dir($dir) ? \is_writable($dir) : \is_writable(\dirname($dir)));
         $problem = $extension->config()->problem()
-            ?? ((\is_dir($dir) ? \is_writable($dir) : \is_writable(\dirname($dir))) ? null : "SPX can't write its report to `$dir`.");
+            ?? ($writable ? null : "SPX can't write its report to `$dir`.");
         $problem === null or Warnings::once(
             'spx:config',
             "$problem The code runs without profiling.",

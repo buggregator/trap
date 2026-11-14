@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Client\Profiler;
 
+use Buggregator\Trap\Client\Internal\Silently;
 use Buggregator\Trap\Client\Profiler\Internal\Driver;
 use Buggregator\Trap\Client\Profiler\Internal\Env;
 use Buggregator\Trap\Client\Profiler\Internal\Recording;
@@ -153,7 +154,8 @@ final class Session
 
         try {
             $appName = Env::get('TRAP_PROFILER_APP_NAME');
-            $hostname = @\gethostname();
+            // A user error handler that throws on its warning would drop the whole profile.
+            $hostname = Silently::run(\gethostname(...));
 
             /** @psalm-suppress InternalMethod */
             $this->profile = new Profile($recorded, new Metadata(

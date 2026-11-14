@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Client\Log;
 
+use Buggregator\Trap\Client\Internal\Fallback;
+use Buggregator\Trap\Client\Internal\Silently;
 use Psr\Log\AbstractLogger;
 use Psr\Log\InvalidArgumentException;
 
@@ -76,27 +78,21 @@ final class TrapLogger extends AbstractLogger
     private function sendSync(string $payload): bool
     {
         $address = \sprintf('tcp://%s:%d', $this->host, $this->port);
+        $timeout = $this->connectTimeout;
 
-        $errorCode = 0;
-        $errorMessage = '';
-
-        $stream = @\stream_socket_client(
-            $address,
-            $errorCode,
-            $errorMessage,
-            $this->connectTimeout,
-        );
+        // Socket warnings are handled here: a user error handler that throws on them would skip the fallback.
+        $stream = Silently::run(static fn(): mixed => \stream_socket_client($address, $errorCode, $errorMessage, $timeout));
 
         if ($stream === false) {
             return false;
         }
 
-        $timeoutMicroseconds = (int) ($this->connectTimeout * 1_000_000.0);
-        @\stream_set_timeout(
+        $timeoutMicroseconds = (int) ($timeout * 1_000_000.0);
+        Silently::run(static fn(): bool => \stream_set_timeout(
             $stream,
             \intdiv($timeoutMicroseconds, 1_000_000),
             $timeoutMicroseconds % 1_000_000,
-        );
+        ));
 
         try {
             $payload .= "\n";
@@ -104,7 +100,8 @@ final class TrapLogger extends AbstractLogger
             $length = \strlen($payload);
 
             while ($offset < $length) {
-                $written = @\fwrite($stream, \substr($payload, $offset));
+                $chunk = \substr($payload, $offset);
+                $written = Silently::run(static fn(): int|false => \fwrite($stream, $chunk));
 
                 if (!\is_int($written) || $written <= 0) {
                     return false;
@@ -115,7 +112,7 @@ final class TrapLogger extends AbstractLogger
 
             return true;
         } finally {
-            \fclose($stream);
+            Silently::run(static fn(): bool => \fclose($stream));
         }
     }
 
@@ -125,23 +122,22 @@ final class TrapLogger extends AbstractLogger
     private function sendAsync(string $payload): bool
     {
         $address = \sprintf('tcp://%s:%d', $this->host, $this->port);
+        $timeout = $this->connectTimeout;
 
-        $errorCode = 0;
-        $errorMessage = '';
-
-        $stream = @\stream_socket_client(
+        // Never suspend the fiber inside a guarded call: the no-op error handler would leak into the resumed code.
+        $stream = Silently::run(static fn(): mixed => \stream_socket_client(
             $address,
             $errorCode,
             $errorMessage,
-            $this->connectTimeout,
+            $timeout,
             STREAM_CLIENT_CONNECT | STREAM_CLIENT_ASYNC_CONNECT,
-        );
+        ));
 
         if ($stream === false) {
             return false;
         }
 
-        @\stream_set_blocking($stream, false);
+        Silently::run(static fn(): bool => \stream_set_blocking($stream, false));
 
         try {
             $payload .= "\n";
@@ -152,11 +148,13 @@ final class TrapLogger extends AbstractLogger
                 $isWritable = false;
 
                 for ($attempt = 0; $attempt < self::ASYNC_WRITE_RETRY_COUNT; $attempt++) {
-                    $write = [$stream];
-                    $read = [];
-                    $except = [];
+                    $result = Silently::run(static function () use ($stream): int|false {
+                        $write = [$stream];
+                        $read = [];
+                        $except = [];
 
-                    $result = @\stream_select($read, $write, $except, 0, self::ASYNC_WRITE_RETRY_DELAY_MICROSECONDS);
+                        return \stream_select($read, $write, $except, 0, self::ASYNC_WRITE_RETRY_DELAY_MICROSECONDS);
+                    });
 
                     if ($result === 1) {
                         $isWritable = true;
@@ -172,7 +170,8 @@ final class TrapLogger extends AbstractLogger
                     return false;
                 }
 
-                $written = @\fwrite($stream, \substr($payload, $offset));
+                $chunk = \substr($payload, $offset);
+                $written = Silently::run(static fn(): int|false => \fwrite($stream, $chunk));
 
                 if (!\is_int($written) || $written <= 0) {
                     return false;
@@ -183,7 +182,7 @@ final class TrapLogger extends AbstractLogger
 
             return true;
         } finally {
-            \fclose($stream);
+            Silently::run(static fn(): bool => \fclose($stream));
         }
     }
 
@@ -230,13 +229,7 @@ final class TrapLogger extends AbstractLogger
      */
     private function writeFallback(array $record): void
     {
-        $line = $this->formatFallbackLine($record);
-
-        if (\defined('STDERR')) {
-            \fwrite(\STDERR, $line . \PHP_EOL);
-        } else {
-            \error_log($line);
-        }
+        Fallback::write($this->formatFallbackLine($record));
     }
 
     /**
