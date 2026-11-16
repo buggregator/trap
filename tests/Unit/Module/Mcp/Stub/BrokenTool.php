@@ -31,6 +31,11 @@ final class BrokenTool implements Tool
         return ['type' => 'object'];
     }
 
+    public function outputSchema(): ?array
+    {
+        return null;
+    }
+
     public function annotations(): array
     {
         return [];

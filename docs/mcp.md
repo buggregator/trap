@@ -17,15 +17,15 @@ Other clients take the same URL with the `http` (Streamable HTTP) transport type
 
 ## Tools
 
-The tools read the events Trap has caught: the same events the [web UI](web-ui.md) shows, kept with `--mcp` alone too.
-An event deleted in the UI is gone for the agent. An event the agent deletes is gone from the UI on its next load;
-a page already open keeps showing it.
+The tools read the events Trap has caught and the [traces](#traces) it has received. The events are the ones the
+[web UI](web-ui.md) shows, kept with `--mcp` alone too. An event deleted in the UI is gone for the agent. An event
+the agent deletes is gone from the UI on its next load; a page already open keeps showing it.
 
-| Tool           | Arguments                                         | Result                                                                                     |
-|----------------|---------------------------------------------------|--------------------------------------------------------------------------------------------|
+| Tool           | Arguments                                         | Result                                                                                       |
+|----------------|---------------------------------------------------|----------------------------------------------------------------------------------------------|
 | `list_events`  | `since` (cursor), `type`, `project`, `limit`      | `events`: `id`, `type`, `project`, `time`, `summary` each; `cursor` to pass next; `has_more` |
-| `get_event`    | `id`, `max_length`                                | The event as plain text: a header line, then the event as the console prints it            |
-| `clear_events` | `type`, `project`                                 | `removed`: the number of deleted events                                                    |
+| `get_event`    | `id`, `max_length`                                | The event as plain text: a header line, then the event as the console prints it              |
+| `clear_events` | `type`, `project`                                 | `removed`: the number of deleted events                                                      |
 
 - `list_events` returns the events added or updated after `since`, oldest first, at most `limit` of them
   (50 by default, 200 at most). `since` is the opaque `cursor` of an earlier call; without it, or with a cursor
@@ -34,8 +34,27 @@ a page already open keeps showing it.
   `http-dump`. Without `project` the tools take every project.
 - `get_event` cuts a text longer than `max_length` characters, 50 000 by default, and says so.
 - `clear_events` without arguments deletes all the events.
+- A tool that returns JSON declares its `outputSchema` and sends the object as `structuredContent`,
+  and as JSON text for clients that read only `content`.
 
-Traces are not available to the tools yet.
+### Traces
+
+[OpenTelemetry traces](opentelemetry.md) are not events: the tools read the spans Trap keeps to join the spans of one
+trace sent in separate requests, with `--mcp` alone too. The limits of that store,
+[`TRAP_TRACES_MAX_SPANS` and `TRAP_TRACES_TTL`](opentelemetry.md#memory-limits), apply.
+
+| Tool          | Arguments                                | Result                                                                                                   |
+|---------------|------------------------------------------|----------------------------------------------------------------------------------------------------------|
+| `list_traces` | `since` (cursor), `limit`, `errors_only` | `traces`: `id`, `name`, `service`, `spans`, `duration_ms`, `error`, `updated` each; `cursor`; `has_more` |
+| `get_trace`   | `id`, `max_length`                       | The trace as plain text: a header line, then the tree of all its spans as the console prints it          |
+
+- `list_traces` returns the traces updated after `since`, least recently updated first, at most `limit` of them
+  (20 by default, 100 at most). A trace is updated by every span that arrives for it, and an updated trace is listed
+  again. When `has_more` is true, call again with the returned `cursor` to get the rest.
+- `name` is of the root span; while it has not arrived, of the earliest span whose parent is missing.
+  `service` is the `service.name` of the resource of that span; when that resource has none, of another span.
+- `errors_only` lists only the traces with a span of the error status.
+- `get_trace` cuts a text longer than `max_length` characters, 50 000 by default, and says so.
 
 ### Example
 

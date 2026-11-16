@@ -12,7 +12,6 @@ use Buggregator\Trap\Module\Tracing\Frame\Trace\ScopeSpans;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\SpanKind;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonTracesDecoder;
-use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Server\Info;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -26,7 +25,7 @@ final class RendererTest
 {
     public function testSupportsOnlyOtlpTraces(): void
     {
-        $renderer = new Renderer(new SpanStore());
+        $renderer = new Renderer();
 
         Assert::true($renderer->isSupport(new OtlpTracesFrame([])));
         Assert::false($renderer->isSupport(new Monolog([])));
@@ -126,7 +125,7 @@ final class RendererTest
 
     public function testBuildsTreeFromSpansReceivedOneByOne(): void
     {
-        $renderer = new Renderer(new SpanStore());
+        $renderer = new Renderer();
         $root = self::span('1', null, 'root', 0, 100);
         $child = self::span('2', '1', 'child', 10, 50);
         $grandchild = self::span('3', '2', 'grandchild', 20, 30);
@@ -152,7 +151,7 @@ final class RendererTest
 
     public function testShowsAncestorsReceivedEarlierAsContext(): void
     {
-        $renderer = new Renderer(new SpanStore());
+        $renderer = new Renderer();
         $renderer->render(new BufferedOutput(), self::frame(
             self::span('1', null, 'root', 0, 100),
             self::span('2', '1', 'parent', 10, 50),
@@ -198,7 +197,7 @@ final class RendererTest
 
     public function testChainReceivedLeafFirstPrintsLinearOutput(): void
     {
-        $renderer = new Renderer(new SpanStore());
+        $renderer = new Renderer();
         $total = 0;
         for ($i = 99; $i >= 0; --$i) {
             $output = $this->render(self::frame(self::chainSpan($i)), renderer: $renderer);
@@ -212,7 +211,7 @@ final class RendererTest
 
     public function testCollapsesManyEarlierDescendants(): void
     {
-        $renderer = new Renderer(new SpanStore());
+        $renderer = new Renderer();
         for ($i = 99; $i >= 1; --$i) {
             $renderer->render(new BufferedOutput(), self::frame(self::chainSpan($i)));
         }
@@ -225,7 +224,7 @@ final class RendererTest
 
     public function testChainReceivedRootFirstShowsOnlyNearestAncestor(): void
     {
-        $renderer = new Renderer(new SpanStore());
+        $renderer = new Renderer();
         for ($i = 0; $i < 99; ++$i) {
             $renderer->render(new BufferedOutput(), self::frame(self::chainSpan($i)));
         }
@@ -236,10 +235,10 @@ final class RendererTest
         Assert::string($output)->contains('(98 more ancestors above)');
     }
 
-    public function testRendererWithoutSharedStoreKeepsItsOwnSpans(): void
+    public function testEachRendererKeepsItsOwnSpans(): void
     {
-        $first = new Renderer(new SpanStore());
-        $second = new Renderer(new SpanStore());
+        $first = new Renderer();
+        $second = new Renderer();
         $first->render(new BufferedOutput(), self::frame(self::span('1', null, 'root', 0, 100)));
 
         $output = $this->render(self::frame(self::span('2', '1', 'child', 10, 50)), renderer: $second);
@@ -277,7 +276,7 @@ final class RendererTest
 
     public function testRendersExtremeTimestamps(): void
     {
-        $renderer = new Renderer(new SpanStore());
+        $renderer = new Renderer();
         $renderer->render(new BufferedOutput(), self::frame(self::span('1', null, 'root', 0, \PHP_INT_MAX)));
 
         $output = $this->render(
@@ -329,7 +328,7 @@ final class RendererTest
     private function render(
         OtlpTracesFrame $frame,
         int $verbosity = OutputInterface::VERBOSITY_NORMAL,
-        Renderer $renderer = new Renderer(new SpanStore()),
+        Renderer $renderer = new Renderer(),
     ): string {
         $output = new BufferedOutput($verbosity);
         $renderer->render($output, $frame);

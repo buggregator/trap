@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Sender;
 
+use Buggregator\Trap\Module\Mcp\McpStatus;
 use Buggregator\Trap\Module\Mcp\Sender\McpSender;
 use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Event\Event;
@@ -28,6 +29,18 @@ final class McpSenderTest
         $record = $container->get(EventStore::class)->add(new Event('a', 'binary', [], 1.0), $frame);
 
         Assert::same($record->frames, [$frame]);
+    }
+
+    public function testTurnsOnMcpStatus(): void
+    {
+        $container = self::container();
+        $status = $container->get(McpStatus::class);
+        $before = $status->isOn();
+
+        $container->get(McpSender::class);
+
+        Assert::false($before);
+        Assert::true($status->isOn());
     }
 
     public function testHostIsUnsetByDefault(): void

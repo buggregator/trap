@@ -166,6 +166,51 @@ final class ServerTest
         Assert::string($request)->contains('/acceptance/mcp-http')->contains('{"order":"mcp-http-marker"}');
     }
 
+    /**
+     * Without the console, which renders traces: the received spans are kept for the tools anyway.
+     */
+    public function testMcpToolsReadReceivedTraces(): void
+    {
+        $this->trap = TrapProcess::start(
+            'mcp-traces',
+            ["--port=$this->port", '-s', "--mcp=$this->uiPort"],
+            [
+                'TRAP_TCP_PORTS' => (string) $this->port,
+                'TRAP_MCP_PORT' => (string) $this->uiPort,
+                'TRAP_MCP_HOST' => null,
+            ],
+            [$this->port, $this->uiPort],
+        );
+
+        $cursor = $this->callMcpTool('list_traces', [])['cursor'];
+        [$status] = TrapProcess::http(
+            $this->port,
+            'POST',
+            '/v1/traces',
+            (string) \file_get_contents(Info::TRAP_ROOT . '/tests/Stub/otlp-traces.json'),
+            ['Content-Type' => 'application/json'],
+        );
+        $traces = TrapProcess::waitFor(
+            fn(): ?array => $this->callMcpTool('list_traces', ['since' => $cursor])['traces'] ?: null,
+            'the trace listed by the MCP server',
+        );
+        $tree = $this->callMcpTool('get_trace', ['id' => $traces[0]['id']]);
+
+        Assert::same($status, 200);
+        Assert::same(\array_diff_key($traces[0], ['updated' => true]), [
+            'id' => '382bfca057473920912cab0a4ed95abe',
+            'name' => 'GET /orders',
+            'service' => 'e2e-app',
+            'spans' => 4,
+            'duration_ms' => 27.691,
+            'error' => true,
+        ]);
+        Assert::string($tree)->startsWith('trace 382bfca057473920912cab0a4ed95abe, 4 spans, service e2e-app')
+            ->contains("GET /orders SERVER 27.69 ms OK id:286e73f2056fe20e\n")
+            ->contains('db.query CLIENT 11.82 ms ERROR: Connection lost')
+            ->notContains("\e[");
+    }
+
     public function testVarDumperDumpFromTrapFunctionIsCaptured(): void
     {
         $trap = $this->startTrap('var-dumper');
@@ -394,6 +439,8 @@ final class ServerTest
         Assert::false($result['isError']);
         $text = $result['content'][0]['text'];
         $json = \json_decode($text, true);
+        // An object result comes structured too, for clients that read no text
+        Assert::same($result['structuredContent'] ?? null, \is_array($json) ? $json : null);
 
         return \is_array($json) ? $json : $text;
     }

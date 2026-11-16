@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Tool;
 
 use Buggregator\Trap\Module\Mcp\Tool\ClearEvents;
 use Buggregator\Trap\Server\Event\Event;
+use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\JsonSchema;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
 use Buggregator\Trap\Tests\Unit\Server\Event\Stub\RecordingListener;
 use Testo\Assert;
@@ -88,6 +89,17 @@ final class ClearEventsTest
             'openWorldHint' => false,
         ]);
         Assert::same(\array_keys($tool->inputSchema()['properties']), ['type', 'project']);
+    }
+
+    #[DataSet([[]], 'all')]
+    #[DataSet([['type' => 'smtp']], 'none')]
+    public function testResultConformsToOutputSchema(array $arguments): void
+    {
+        $tool = self::trap()->get(ClearEvents::class);
+
+        $result = $tool->call($arguments);
+
+        Assert::same(JsonSchema::errors($result, $tool->outputSchema()), []);
     }
 
     private static function trap(): Trap

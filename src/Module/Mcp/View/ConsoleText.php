@@ -20,8 +20,7 @@ use Symfony\Component\Console\Output\OutputInterface;
  * that supports it, as {@see \Buggregator\Trap\Module\Console\ConsoleSender} picks them.
  *
  * Renderers are created for every event, so no state of theirs is shared with the console or carried
- * between events. The tracing renderer, the one that changes a shared service, never gets a frame here:
- * trace frames make no events.
+ * between events.
  *
  * @internal
  */

@@ -25,7 +25,6 @@ use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope;
 use Buggregator\Trap\Module\Sentry\Frame\SentryStore;
 use Buggregator\Trap\Module\Tracing\Console\Renderer as TracingRenderer;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
-use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Module\VarDumper\Console\Renderer as VarDumperRenderer;
 use Buggregator\Trap\Module\VarDumper\Frame as VarDumperFrame;
 use Buggregator\Trap\Server\Proto\Frame;
@@ -46,7 +45,7 @@ final class RendererSupportTest
         yield 'var-dumper' => [new VarDumperRenderer(), ['var-dumper']];
         yield 'sentry store' => [new SentryStoreRenderer(), ['sentry store']];
         yield 'sentry envelope' => [new SentryEnvelopeRenderer(), ['sentry envelope']];
-        yield 'otlp' => [new TracingRenderer(new SpanStore()), ['otlp']];
+        yield 'otlp' => [new TracingRenderer(), ['otlp']];
         yield 'monolog' => [new MonologRenderer(), ['monolog']];
         yield 'smtp' => [new MailerRenderer(), ['smtp']];
         yield 'ray' => [new RayRenderer(), ['ray']];

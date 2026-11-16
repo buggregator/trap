@@ -50,7 +50,7 @@ final class RendererSnapshotTest
     {
         $config = new Traces();
         $config->maxSpans = $maxSpans;
-        $renderer = new Renderer(new SpanStore($config));
+        $renderer = new Renderer($config);
         $output = new BufferedOutput();
         foreach ($frames as $i => $spans) {
             $output->writeln("=== frame $i");

@@ -37,6 +37,14 @@ interface Tool
     public function inputSchema(): array;
 
     /**
+     * JSON Schema of the object {@see self::call()} returns, with `type: object`; null for a text result.
+     * Clients may validate the structured result against it.
+     *
+     * @return array<non-empty-string, mixed>|null
+     */
+    public function outputSchema(): ?array;
+
+    /**
      * Hints on the behavior: `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`.
      *
      * @return array<non-empty-string, bool>
@@ -48,7 +56,8 @@ interface Tool
      *
      * @param array<array-key, mixed> $arguments Not validated against {@see self::inputSchema()}.
      *
-     * @return string|array<array-key, mixed> Text of the result; an array is sent as JSON text.
+     * @return string|array<array-key, mixed> Text of the result, or a JSON object: sent as structured content
+     *         and as its JSON text. An empty array is an empty object; a list fails the call.
      */
     public function call(array $arguments): string|array;
 }
