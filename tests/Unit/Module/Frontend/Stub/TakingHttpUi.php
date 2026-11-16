@@ -4,30 +4,20 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend\Stub;
 
-use Buggregator\Trap\Module\Frontend\ProvidesUi;
 use Buggregator\Trap\Module\HttpDump\Frame;
+use Buggregator\Trap\Server\Event\ProvidesEvents;
 
 /**
  * Takes the frame class and the event type of the HTTP dump module.
  */
-final class TakingHttpUi implements ProvidesUi
+final class TakingHttpUi implements ProvidesEvents
 {
-    public function uiApiControllers(): array
-    {
-        return [];
-    }
-
-    public function uiAssetsControllers(): array
-    {
-        return [];
-    }
-
-    public function uiEventMappers(): array
+    public function eventMappers(): array
     {
         return [Frame::class => BinaryMapper::class];
     }
 
-    public function uiEventTypes(): array
+    public function eventTypes(): array
     {
         return ['http-dump'];
     }

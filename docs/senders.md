@@ -15,6 +15,7 @@ vendor/bin/trap -sconsole -sfile
 | `mail-to-file` | Saves each email as a JSON file in a folder per recipient in `runtime/mail/`.                          |
 | `server`       | Forwards the events over TCP to `127.0.0.1:9099`.                                                      |
 | `ui`           | Shows the events in the [web UI](web-ui.md). The `--ui` option adds it.                                |
+| `mcp`          | Serves the [MCP server](mcp.md) to AI agents. The `--mcp` option adds it.                              |
 
 Paths are relative to the working directory of Trap. Folders are created as needed.
 

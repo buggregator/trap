@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mailer\Frontend;
 
-use Buggregator\Trap\Module\Frontend\Event;
-use Buggregator\Trap\Module\Frontend\EventMapper;
 use Buggregator\Trap\Module\Mailer\Frame as SmtpFrame;
 use Buggregator\Trap\Module\Mailer\Message as SmtpMessage;
 use Buggregator\Trap\Module\Mailer\MessageFormat;
+use Buggregator\Trap\Server\Event\Asset;
+use Buggregator\Trap\Server\Event\AttachedFile;
+use Buggregator\Trap\Server\Event\EmbeddedFile;
+use Buggregator\Trap\Server\Event\Event;
+use Buggregator\Trap\Server\Event\EventMapper;
 use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
 use Buggregator\Trap\Support\Uuid;
@@ -50,17 +53,17 @@ final class Mapper implements EventMapper
     /**
      * @param non-empty-string $uuid UUID of the event
      */
-    private static function assetLink(string $uuid, Event\Asset $asset): string
+    private static function assetLink(string $uuid, Asset $asset): string
     {
         return "/api/smtp/$uuid/attachment/$asset->uuid";
     }
 
     /**
-     * @return \ArrayObject<non-empty-string, Event\Asset>
+     * @return \ArrayObject<non-empty-string, Asset>
      */
     private static function fetchAssets(SmtpMessage $message): \ArrayObject
     {
-        /** @var \ArrayObject<non-empty-string, Event\Asset> $assets */
+        /** @var \ArrayObject<non-empty-string, Asset> $assets */
         $assets = new \ArrayObject();
 
         foreach ($message->getAttachments() as $attachment) {
@@ -71,15 +74,15 @@ final class Mapper implements EventMapper
         return $assets;
     }
 
-    private static function asset(File $attachment): Event\Asset
+    private static function asset(File $attachment): Asset
     {
         $embedded = $attachment->getEmbeddingId();
         return $embedded === null
-            ? new Event\AttachedFile(
+            ? new AttachedFile(
                 id: Uuid::generate(),
                 file: $attachment,
             )
-            : new Event\EmbeddedFile(
+            : new EmbeddedFile(
                 id: Uuid::generate(),
                 file: $attachment,
                 name: $embedded,
@@ -88,7 +91,7 @@ final class Mapper implements EventMapper
 
     /**
      * @param non-empty-string $uuid
-     * @param \ArrayAccess<non-empty-string, Event\Asset>&\Traversable<non-empty-string, Event\Asset> $assets
+     * @param \ArrayAccess<non-empty-string, Asset>&\Traversable<non-empty-string, Asset> $assets
      */
     private static function html(string $uuid, SmtpMessage $message, \ArrayAccess&\Traversable $assets): string
     {
@@ -97,7 +100,7 @@ final class Mapper implements EventMapper
         // Replace CID links with actual asset links
         $toReplace = [];
         foreach ($assets as $asset) {
-            $asset instanceof Event\EmbeddedFile and $toReplace["cid:{$asset->name}"] = self::assetLink($uuid, $asset);
+            $asset instanceof EmbeddedFile and $toReplace["cid:{$asset->name}"] = self::assetLink($uuid, $asset);
         }
 
         return \str_replace(\array_keys($toReplace), \array_values($toReplace), $result);

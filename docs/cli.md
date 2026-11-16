@@ -8,11 +8,12 @@ Depending on how you [installed](installation.md) Trap, call it as `vendor/bin/t
 Starts the server. It listens on the TCP ports, detects the protocol of each connection and passes what it receives
 to the senders. `run` is the default command, so `vendor/bin/trap` equals `vendor/bin/trap run`.
 
-| Option     | Short | Default                                | Meaning                                                                               |
-|------------|-------|----------------------------------------|---------------------------------------------------------------------------------------|
-| `--port`   | `-p`  | `1025`, `4318`, `8000`, `9912`, `9913` | A port to listen on. Repeat the option for more ports: `-p9912 -p8000`.               |
-| `--sender` | `-s`  | `console`                              | Where to send what Trap receives. Repeat the option for more [senders](senders.md).   |
-| `--ui`     |       | off                                    | Turns on the [web UI](web-ui.md) (experimental). Takes an optional port: `--ui=8080`. |
+| Option     | Short | Default                                | Meaning                                                                                       |
+|------------|-------|----------------------------------------|-----------------------------------------------------------------------------------------------|
+| `--port`   | `-p`  | `1025`, `4318`, `8000`, `9912`, `9913` | A port to listen on. Repeat the option for more ports: `-p9912 -p8000`.                       |
+| `--sender` | `-s`  | `console`                              | Where to send what Trap receives. Repeat the option for more [senders](senders.md).           |
+| `--ui`     |       | off                                    | Turns on the [web UI](web-ui.md) (experimental). Takes an optional port: `--ui=8080`.         |
+| `--mcp`    |       | off                                    | Turns on the [MCP server](mcp.md) (experimental). Takes an optional port: `--mcp=8080`.       |
 
 The `-v` option prints more messages of the server, and `-vv` also prints its debug messages and errors, e.g. a port
 it can't listen on. The other options are the standard ones of Symfony Console: `--help`, `--quiet`, `--version`,
@@ -32,13 +33,16 @@ vendor/bin/trap -sconsole -sfile
 
 # Web UI on port 8080 without console output
 vendor/bin/trap --ui=8080 -s
+
+# Web UI and MCP server, both on port 8000
+vendor/bin/trap --ui --mcp
 ```
 
-`-s` without a value removes the default `console` sender. `--ui` adds the `ui` sender to the list.
+`-s` without a value removes the default `console` sender. `--ui` adds the `ui` sender to the list, `--mcp` the `mcp` one.
 
 Environment variables and [`trap.xml`](configuration.md#trapxml) configure the same settings and more;
 see [Configuration](configuration.md). An environment variable takes precedence over the option:
-`TRAP_TCP_PORTS` over `--port`, `TRAP_UI_PORT` over the port of `--ui`.
+`TRAP_TCP_PORTS` over `--port`, `TRAP_UI_PORT` over the port of `--ui`, `TRAP_MCP_PORT` over the port of `--mcp`.
 
 Stop the server with `Ctrl+C`. A second `Ctrl+C` exits at once.
 

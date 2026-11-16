@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Module\Profiler;
 
 use Buggregator\Trap\Module\Console\ProvidesRenderers;
 use Buggregator\Trap\Module\Frontend\ProvidesUi;
+use Buggregator\Trap\Module\Mcp\ProvidesEventViews;
 use Buggregator\Trap\Module\Profiler\Config\SPX;
 use Buggregator\Trap\Module\Profiler\Config\XDebug;
 use Buggregator\Trap\Module\Profiler\Config\XHProf;
@@ -17,6 +18,8 @@ use Buggregator\Trap\Module\Profiler\Http\SpeedscopeTrap;
 use Buggregator\Trap\Module\Profiler\Http\SPXTrap;
 use Buggregator\Trap\Module\Profiler\Http\XDebugTrap;
 use Buggregator\Trap\Module\Profiler\Http\XHProfTrap;
+use Buggregator\Trap\Module\Profiler\Mcp\ProfileView;
+use Buggregator\Trap\Server\Event\ProvidesEvents;
 use Buggregator\Trap\Server\Handler\Http\ProvidesHttpMiddlewares;
 use Buggregator\Trap\Server\Proto\ProvidesFrameTypes;
 use Buggregator\Trap\Server\Service\FilesObserver\ProvidesFileObservers;
@@ -29,7 +32,9 @@ final class Module implements
     ProvidesFileObservers,
     ProvidesFrameTypes,
     ProvidesRenderers,
-    ProvidesUi
+    ProvidesUi,
+    ProvidesEvents,
+    ProvidesEventViews
 {
     #[\Override]
     public function httpMiddlewares(): array
@@ -68,14 +73,20 @@ final class Module implements
     }
 
     #[\Override]
-    public function uiEventMappers(): array
+    public function eventMappers(): array
     {
         return [Frame::class => Mapper::class];
     }
 
     #[\Override]
-    public function uiEventTypes(): array
+    public function eventTypes(): array
     {
         return ['profiler'];
+    }
+
+    #[\Override]
+    public function eventViews(): array
+    {
+        return [ProfileView::class];
     }
 }

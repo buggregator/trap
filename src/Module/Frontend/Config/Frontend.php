@@ -8,6 +8,7 @@ use Buggregator\Trap\Server\Application\Config\Internal\Attribute\Env;
 use Buggregator\Trap\Server\Application\Config\Internal\Attribute\InflectableConfig;
 use Buggregator\Trap\Server\Application\Config\Internal\Attribute\InputOption;
 use Buggregator\Trap\Server\Application\Config\Internal\Attribute\XPath;
+use Buggregator\Trap\Server\Sender\HttpEndpoint;
 
 /**
  * @internal
@@ -21,8 +22,8 @@ final class Frontend
     #[XPath('/trap/frontend/@port')]
     public int $port = 8000;
 
-    /** @var non-empty-string */
+    /** @var non-empty-string|null Null when not set, see {@see HttpEndpoint::__construct()}. */
     #[Env('TRAP_UI_HOST')]
     #[XPath('/trap/frontend/@host')]
-    public string $host = '127.0.0.1';
+    public ?string $host = null;
 }

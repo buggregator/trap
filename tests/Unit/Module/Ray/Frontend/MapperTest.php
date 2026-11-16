@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Ray\Frontend;
 
-use Buggregator\Trap\Module\Frontend\Event;
-use Buggregator\Trap\Module\Frontend\EventStorage;
-use Buggregator\Trap\Module\Frontend\FrameMapper;
 use Buggregator\Trap\Module\Ray\Frame;
 use Buggregator\Trap\Module\Ray\Frontend\Mapper;
+use Buggregator\Trap\Server\Event\Event;
+use Buggregator\Trap\Server\Event\EventStore;
+use Buggregator\Trap\Server\Event\FrameMapper;
 use Buggregator\Trap\Tests\Unit\Module\Ray\FrameTest;
 use Internal\Container\ObjectContainer;
 use Testo\Assert;
@@ -25,7 +25,7 @@ final class MapperTest
     {
         $frame = Frame::fromString(FrameTest::REQUEST, new \DateTimeImmutable('@1767323045.5'));
 
-        $event = (new Mapper(new EventStorage()))->map($frame);
+        $event = (new Mapper(new EventStore()))->map($frame);
 
         $json = \json_decode(\json_encode($event, \JSON_THROW_ON_ERROR), true);
         Assert::same($json['uuid'], self::UUID);
@@ -37,7 +37,7 @@ final class MapperTest
 
     public function testChainedCallsAddPayloadsToTheEvent(): void
     {
-        $storage = new EventStorage();
+        $storage = new EventStore();
         $mapper = new Mapper($storage);
         $first = $mapper->map(self::frame([['type' => 'log', 'content' => ['values' => ['x']]]], 10.0));
         \assert($first !== null);
@@ -52,7 +52,7 @@ final class MapperTest
 
     public function testClearAllDeletesStoredRayEvents(): void
     {
-        $storage = new EventStorage();
+        $storage = new EventStore();
         $storage->add(new Event('aa-1', 'ray', [], 1.0));
         $storage->add(new Event('aa-2', 'monolog', [], 1.0));
 
@@ -69,7 +69,7 @@ final class MapperTest
             . '<pre class=sf-dump id=sf-dump-42 data-indent-pad="  "><span class=sf-dump-note>array:1</span></pre>'
             . '<script>Sfdump("sf-dump-42")</script>';
 
-        $event = (new Mapper(new EventStorage()))->map(self::frame([
+        $event = (new Mapper(new EventStore()))->map(self::frame([
             ['type' => 'log', 'content' => ['values' => [$dump, 'plain'], 'meta' => []]],
         ], 1.0));
 
@@ -81,7 +81,7 @@ final class MapperTest
 
     public function testReplacesUuidTheUiCannotRoute(): void
     {
-        $event = (new Mapper(new EventStorage()))->map(new Frame('not/a uuid', [['type' => 'log']]));
+        $event = (new Mapper(new EventStore()))->map(new Frame('not/a uuid', [['type' => 'log']]));
 
         Assert::same(\preg_match('/^[a-f0-9-]+$/', (string) $event?->uuid), 1);
     }

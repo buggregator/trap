@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\Frontend;
 
-use Buggregator\Trap\Module\Frontend\Event;
-use Buggregator\Trap\Module\Frontend\EventMapper;
 use Buggregator\Trap\Module\Profiler\Frame as ProfilerFrame;
 use Buggregator\Trap\Module\Profiler\Frame\Payload as ProfilerPayload;
 use Buggregator\Trap\Module\Profiler\Frame\Type as ProfilerPayloadType;
@@ -18,6 +16,8 @@ use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Graph;
 use Buggregator\Trap\Module\Profiler\Struct\Peaks;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
+use Buggregator\Trap\Server\Event\Event;
+use Buggregator\Trap\Server\Event\EventMapper;
 use Buggregator\Trap\Server\Proto\Frame;
 
 /**

@@ -408,10 +408,12 @@ final class TrapProcess
             // Never the default ports, which a real trap or Buggregator may listen on.
             'TRAP_TCP_PORTS' => (string) self::freePort(),
             'TRAP_UI_PORT' => (string) self::freePort(),
+            'TRAP_MCP_PORT' => (string) self::freePort(),
             'TRAP_TCP_HOST' => '127.0.0.1',
             'TRAP_TRACES_MAX_SPANS' => '10000',
             'TRAP_TRACES_TTL' => '600',
             'TRAP_UI_HOST' => '127.0.0.1',
+            'TRAP_MCP_HOST' => '127.0.0.1',
             'TRAP_XHPROF_PATH' => $workDir . '/xhprof',
             'TRAP_XDEBUG_PATH' => $workDir . '/xdebug',
             'XDEBUG_MODE' => 'off',

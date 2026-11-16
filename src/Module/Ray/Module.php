@@ -10,13 +10,19 @@ use Buggregator\Trap\Module\Ray\Console\Renderer;
 use Buggregator\Trap\Module\Ray\Frontend\LocksController;
 use Buggregator\Trap\Module\Ray\Frontend\Mapper;
 use Buggregator\Trap\Module\Ray\Http\RayTrap;
+use Buggregator\Trap\Server\Event\ProvidesEvents;
 use Buggregator\Trap\Server\Handler\Http\ProvidesHttpMiddlewares;
 use Buggregator\Trap\Server\Proto\ProvidesFrameTypes;
 
 /**
  * @internal
  */
-final class Module implements ProvidesHttpMiddlewares, ProvidesFrameTypes, ProvidesRenderers, ProvidesUi
+final class Module implements
+    ProvidesHttpMiddlewares,
+    ProvidesFrameTypes,
+    ProvidesRenderers,
+    ProvidesUi,
+    ProvidesEvents
 {
     #[\Override]
     public function httpMiddlewares(): array
@@ -49,13 +55,13 @@ final class Module implements ProvidesHttpMiddlewares, ProvidesFrameTypes, Provi
     }
 
     #[\Override]
-    public function uiEventMappers(): array
+    public function eventMappers(): array
     {
         return [Frame::class => Mapper::class];
     }
 
     #[\Override]
-    public function uiEventTypes(): array
+    public function eventTypes(): array
     {
         return ['ray'];
     }
