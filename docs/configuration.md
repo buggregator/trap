@@ -42,7 +42,9 @@ TRAP_TCP_PORTS=9912,8000 vendor/bin/trap
 | `TRAP_TCP_PORTS`              | `1025,4318,8000,9912,9913` | Comma-separated TCP ports to listen on. Takes precedence over `-p`.                                                                                                                                                                    |
 | `TRAP_TCP_HOST`               | `127.0.0.1`                | Host to listen on. Use `0.0.0.0` to accept connections from other machines or containers.                                                                                                                                              |
 | `TRAP_UI_PORT`                | `8000`                     | Port of the [web UI](web-ui.md). Takes precedence over `--ui=<port>`.                                                                                                                                                                  |
-| `TRAP_UI_HOST`                | `127.0.0.1`                | Host of the web UI when its port is not one of the TCP ports.                                                                                                                                                                          |
+| `TRAP_UI_HOST`                | `127.0.0.1`                | Host of the web UI when its port is not one of the TCP ports. Unset, it is the MCP server host on a shared port, or `127.0.0.1`.                                                                                                       |
+| `TRAP_MCP_PORT`               | `8000`                     | Port of the [MCP server](mcp.md). Takes precedence over `--mcp=<port>`.                                                                                                                                                                |
+| `TRAP_MCP_HOST`               | `127.0.0.1`                | Host of the MCP server when its port is not one of the TCP ports. Unset, it is the web UI host on a shared port, or `127.0.0.1`.                                                                                                       |
 | `TRAP_MEMORY_LIMIT`           | `512M`                     | Raises PHP's `memory_limit` when it is lower; `-1` for no limit, empty to keep it. Large profiles get as many call tree nodes as the memory left affords, and are compacted past that.                                                 |
 | `TRAP_GC_INTERVAL`            | `30`                       | How often, in seconds, the server collects garbage cycles in place of PHP's cycle collector; `0` keeps PHP's collector.                                                                                                                |
 | `TRAP_MAIN_LOOP_INTERVAL`     | `1000`                     | Longest wait, in microseconds, of an idle main loop. Data on a socket ends the wait sooner, and timers such as a buffer flush fire this much late at most. Values below `50` count as `50`. On Windows any wait lasts at least ~15 ms. |
@@ -83,20 +85,21 @@ The client reads these variables from `$_ENV` or the process environment.
 ```xml
 <?xml version="1.0"?>
 <trap>
-    <frontend port="8000">
-        <EventStorage maxEvents="200"/>
-    </frontend>
+    <events maxEvents="200"/>
+    <frontend port="8000"/>
     <traces maxSpans="10000" ttl="600"/>
 </trap>
 ```
 
-| Path                                     | Meaning                               |
-|------------------------------------------|---------------------------------------|
-| `/trap/frontend/@port`                   | Port of the web UI, as `TRAP_UI_PORT` |
-| `/trap/frontend/@host`                   | Host of the web UI, as `TRAP_UI_HOST` |
-| `/trap/frontend/EventStorage/@maxEvents` | How many events the web UI keeps      |
-| `/trap/traces/@maxSpans`                 | As `TRAP_TRACES_MAX_SPANS`            |
-| `/trap/traces/@ttl`                      | As `TRAP_TRACES_TTL`                  |
+| Path                      | Meaning                                                              |
+|---------------------------|----------------------------------------------------------------------|
+| `/trap/events/@maxEvents` | How many events the web UI and the MCP server keep, `200` by default |
+| `/trap/frontend/@port`    | Port of the web UI, as `TRAP_UI_PORT`                                |
+| `/trap/frontend/@host`    | Host of the web UI, as `TRAP_UI_HOST`                                |
+| `/trap/mcp/@port`         | Port of the MCP server, as `TRAP_MCP_PORT`                           |
+| `/trap/mcp/@host`         | Host of the MCP server, as `TRAP_MCP_HOST`                           |
+| `/trap/traces/@maxSpans`  | As `TRAP_TRACES_MAX_SPANS`                                           |
+| `/trap/traces/@ttl`       | As `TRAP_TRACES_TTL`                                                 |
 
 Trap reads only the `trap.xml` of its own package (e.g. `vendor/buggregator/trap/trap.xml`), and only with
 `ext-simplexml`. The Phar and the binary carry their own copy.

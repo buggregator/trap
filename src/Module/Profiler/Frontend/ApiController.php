@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\Frontend;
 
-use Buggregator\Trap\Module\Frontend\Event;
-use Buggregator\Trap\Module\Frontend\EventStorage;
 use Buggregator\Trap\Module\Profiler\Frame\Payload as ProfilerPayload;
+use Buggregator\Trap\Server\Event\Event;
+use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteSuccess as AssertSuccess;
 use Buggregator\Trap\Server\Handler\Router\Attribute\QueryParam;
 use Buggregator\Trap\Server\Handler\Router\Attribute\RegexpRoute;
@@ -19,7 +19,7 @@ final class ApiController
 {
     public function __construct(
         private readonly Mapper $mapper,
-        private readonly EventStorage $eventsStorage,
+        private readonly EventStore $eventsStorage,
     ) {}
 
     #[RegexpRoute(Method::Get, '#^api/profiler/(?<uuid>[a-f0-9-]++)/top$#i')]

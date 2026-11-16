@@ -38,6 +38,9 @@ use Symfony\Component\Console\Output\OutputInterface;
  *  trap run --ui=8080 -s
  *  # Equals to
  *  trap run --ui=8080 --sender=""
+ *
+ *  # Run with UI and the MCP server both on the default port 8000
+ *  trap run --ui --mcp
  * ```
  *
  * @internal
@@ -69,6 +72,7 @@ final class Run extends Command implements SignalableCommandInterface
             ['console'],
         );
         $this->addOption('ui', null, InputOption::VALUE_OPTIONAL, 'Enable WEB UI (experimental)', false);
+        $this->addOption('mcp', null, InputOption::VALUE_OPTIONAL, 'Enable MCP server at /mcp (experimental)', false);
     }
 
     /**
@@ -163,6 +167,7 @@ final class Run extends Command implements SignalableCommandInterface
             /** @var non-empty-string[] $senders */
             $senders = \array_filter((array) $input->getOption('sender'));
             $input->getOption('ui') === false or $senders[] = 'ui';
+            $input->getOption('mcp') === false or $senders[] = 'mcp';
 
             $container = Bootstrap::init()->withConfig(
                 xml: \dirname(__DIR__, 3) . '/trap.xml',

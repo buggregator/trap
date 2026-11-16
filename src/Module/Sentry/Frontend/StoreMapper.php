@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Sentry\Frontend;
 
-use Buggregator\Trap\Module\Frontend\Event;
-use Buggregator\Trap\Module\Frontend\EventMapper;
 use Buggregator\Trap\Module\Sentry\Frame\SentryStore as SentryFrame;
+use Buggregator\Trap\Server\Event\Event;
+use Buggregator\Trap\Server\Event\EventMapper;
 use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Support\Uuid;
 

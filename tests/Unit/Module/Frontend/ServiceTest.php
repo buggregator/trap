@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend;
 
-use Buggregator\Trap\Module\Frontend\Event;
-use Buggregator\Trap\Module\Frontend\EventStorage;
 use Buggregator\Trap\Module\Frontend\Service;
 use Buggregator\Trap\Server\Application\Module\Modules;
+use Buggregator\Trap\Server\Event\Event;
+use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Logger;
 use Internal\Container\ObjectContainer;
 use Testo\Assert;
@@ -85,12 +85,12 @@ final class ServiceTest
     }
 
     /**
-     * @return array{Service, EventStorage} Storage with events `d1` (smtp), `s1` (smtp, project `shop`)
+     * @return array{Service, EventStore} Storage with events `d1` (smtp), `s1` (smtp, project `shop`)
      *         and `d2` (var-dump), the newest first.
      */
     private static function service(): array
     {
-        $storage = new EventStorage();
+        $storage = new EventStore();
         $storage->add(new Event('d1', 'smtp', [], 1.0));
         $storage->add(new Event('s1', 'smtp', [], 2.0, project: 'shop'));
         $storage->add(new Event('d2', 'var-dump', [], 3.0));

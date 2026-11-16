@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\HttpDump\Frontend;
 
-use Buggregator\Trap\Module\Frontend\Event\AttachedFile;
 use Buggregator\Trap\Module\HttpDump\Frame as HttpFrame;
 use Buggregator\Trap\Module\HttpDump\Frontend\Mapper;
+use Buggregator\Trap\Server\Event\AttachedFile;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
 use Nyholm\Psr7\UploadedFile;

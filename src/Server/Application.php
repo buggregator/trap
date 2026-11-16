@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Server;
 use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Config\App;
 use Buggregator\Trap\Server\Config\SocketServer;
+use Buggregator\Trap\Server\Event\EventCollector;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Handler\Http\ProvidesHttpMiddlewares;
 use Buggregator\Trap\Server\Proto\Buffer;
@@ -41,6 +42,9 @@ final class Application implements Processable, Cancellable, Destroyable
     private bool $cancelled = false;
     private readonly Logger $logger;
 
+    /** Null when no sender consumes events: then frames are not mapped at all. */
+    private readonly ?EventCollector $collector;
+
     /**
      * @param SocketServer[] $map
      * @param Sender[] $senders
@@ -54,9 +58,14 @@ final class Application implements Processable, Cancellable, Destroyable
         $this->buffer = new Buffer(bufferSize: 10485760, timer: 0.1);
         $this->container->set($this->buffer);
 
+        $consumesEvents = false;
         foreach ($this->senders as $sender) {
             $sender instanceof Processable and $this->processors[] = $sender;
+            $sender instanceof Sender\ConsumesEvents and $consumesEvents = true;
         }
+
+        // Here, not at the first frame: a conflict of the modules' event mappers fails the startup
+        $this->collector = $consumesEvents ? $this->container->get(EventCollector::class) : null;
 
         $maxInflated = $this->maxInflatedBodySize($this->container->get(App::class)->httpMaxInflatedSize);
         $modules = $this->container->get(Modules::class);
@@ -187,7 +196,7 @@ final class Application implements Processable, Cancellable, Destroyable
     }
 
     /**
-     * Listens on the HTTP endpoints of the senders.
+     * Listens on the HTTP endpoints of the senders. Endpoints on one port are merged, see {@see ServesHttp}.
      *
      * @param SocketServer[] $map
      * @param list<Middleware> $middlewares
@@ -205,23 +214,8 @@ final class Application implements Processable, Cancellable, Destroyable
             $map,
         );
 
-        /** @var array<int, class-string> $owners */
-        $owners = [];
         $shared = [];
-        foreach ($this->senders as $sender) {
-            if (!$sender instanceof ServesHttp) {
-                continue;
-            }
-
-            $endpoint = $sender->httpEndpoint();
-            isset($owners[$endpoint->port]) and throw new \LogicException(\sprintf(
-                'HTTP endpoint of %s takes port %d of %s.',
-                $sender::class,
-                $endpoint->port,
-                $owners[$endpoint->port],
-            ));
-            $owners[$endpoint->port] = $sender::class;
-
+        foreach ($this->httpEndpoints($tcpPorts) as $endpoint) {
             if (\in_array($endpoint->port, $tcpPorts, true)) {
                 $this->processors[] = $shared[$endpoint->port] = $this->container->make(Inspector::class, [
                     'dispatchers' => $this->dispatchers(
@@ -250,7 +244,7 @@ final class Application implements Processable, Cancellable, Destroyable
             $this->prepareServerFiber(
                 new SocketServer(
                     port: $endpoint->port,
-                    host: $endpoint->host,
+                    host: $endpoint->host ?? Sender\HttpEndpoint::DEFAULT_HOST,
                 ),
                 $inspector,
                 $this->logger,
@@ -258,6 +252,52 @@ final class Application implements Processable, Cancellable, Destroyable
         }
 
         return $shared;
+    }
+
+    /**
+     * Merges the HTTP endpoints of the senders by port, see {@see ServesHttp}.
+     *
+     * @param array<array-key, int|null> $tcpPorts
+     *
+     * @return array<int, Sender\HttpEndpoint> By port.
+     */
+    private function httpEndpoints(array $tcpPorts): array
+    {
+        /** @var array<int, Sender\HttpEndpoint> $endpoints */
+        $endpoints = [];
+        /** @var array<int, class-string> $owners Who gave the host of each port */
+        $owners = [];
+        foreach ($this->senders as $sender) {
+            if (!$sender instanceof ServesHttp) {
+                continue;
+            }
+
+            $endpoint = $sender->httpEndpoint();
+            $port = $endpoint->port;
+            $merged = $endpoints[$port] ?? null;
+            if ($merged?->host === null) {
+                $endpoint->host === null or $owners[$port] = $sender::class;
+            } elseif ($endpoint->host !== null && $endpoint->host !== $merged->host) {
+                // A TCP port listens on the TCP host whatever the endpoints take
+                \in_array($port, $tcpPorts, true) or throw new \LogicException(\sprintf(
+                    'HTTP endpoints on port %d take different hosts: `%s` of %s and `%s` of %s.',
+                    $port,
+                    $merged->host,
+                    $owners[$port] ?? '',
+                    $endpoint->host,
+                    $sender::class,
+                ));
+            }
+
+            $endpoints[$port] = $merged === null ? $endpoint : new Sender\HttpEndpoint(
+                port: $port,
+                host: $merged->host ?? $endpoint->host,
+                middlewares: [...$merged->middlewares, ...$endpoint->middlewares],
+                handlers: [...$merged->handlers, ...$endpoint->handlers],
+            );
+        }
+
+        return $endpoints;
     }
 
     /**
@@ -281,6 +321,9 @@ final class Application implements Processable, Cancellable, Destroyable
     private function sendBuffer(array $senders = []): void
     {
         $data = $this->buffer->getAndClean();
+
+        // Out of a fiber, as nothing in mapping suspends: the events are stored before the senders get the frames
+        $this->collector?->collect($data);
 
         foreach ($senders as $sender) {
             $this->fibers[] = new \Fiber(

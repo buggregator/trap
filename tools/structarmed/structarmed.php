@@ -6,7 +6,7 @@ use Boundwize\StructArmed\Architecture;
 
 $root = \dirname(__DIR__, 2);
 $sources = ['HttpDump', 'Mailer', 'Monolog', 'Profiler', 'Ray', 'Sentry', 'Tracing', 'VarDumper'];
-$channels = ['Console', 'Files', 'Frontend', 'Remote'];
+$channels = ['Console', 'Files', 'Frontend', 'Mcp', 'Remote'];
 
 $architecture = Architecture::define()
     ->layer('Client', [$root . '/src/Client/', $root . '/src/functions.php'])
@@ -23,6 +23,8 @@ return $architecture
         'Support' => [],
         'Server' => ['Support'],
         ...\array_fill_keys($channels, ['Server', 'Support']),
+        // The MCP tools show events as the console prints them.
+        'Mcp' => ['Server', 'Support', 'Console'],
         ...\array_fill_keys($sources, ['Server', 'Support', ...$channels]),
     ])
 
@@ -41,6 +43,7 @@ return $architecture
         'Buggregator\Trap\Module\Frontend\Module',
         'Buggregator\Trap\Module\HttpDump\Module',
         'Buggregator\Trap\Module\Mailer\Module',
+        'Buggregator\Trap\Module\Mcp\Module',
         'Buggregator\Trap\Module\Monolog\Module',
         'Buggregator\Trap\Module\Profiler\Module',
         'Buggregator\Trap\Module\Ray\Module',

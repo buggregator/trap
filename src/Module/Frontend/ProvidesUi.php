@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Frontend;
 
 use Buggregator\Trap\Server\Application\Module\Module;
-use Buggregator\Trap\Server\Proto\Frame;
 
 /**
- * A module shown in the Buggregator UI.
+ * A module with its own endpoints in the Buggregator UI. The events it shows come from
+ * {@see \Buggregator\Trap\Server\Event\ProvidesEvents}.
  *
  * @internal
  */
@@ -28,19 +28,4 @@ interface ProvidesUi extends Module
      * @return list<class-string>
      */
     public function uiAssetsControllers(): array;
-
-    /**
-     * A mapper also takes the subclasses of its frame class. A frame no mapper takes fails to map.
-     *
-     * @return array<class-string<Frame>, class-string<EventMapper>|null> Mappers by frame class;
-     *         null for frames the UI has no event type for.
-     */
-    public function uiEventMappers(): array;
-
-    /**
-     * Event types dictated by the UI, not frame types. The UI hides the others from its menu.
-     *
-     * @return list<non-empty-string>
-     */
-    public function uiEventTypes(): array;
 }

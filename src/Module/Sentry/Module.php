@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Sentry;
 
 use Buggregator\Trap\Module\Console\ProvidesRenderers;
-use Buggregator\Trap\Module\Frontend\ProvidesUi;
 use Buggregator\Trap\Module\Sentry\Console\SentryEnvelope as EnvelopeRenderer;
 use Buggregator\Trap\Module\Sentry\Console\SentryStore as StoreRenderer;
 use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope;
@@ -13,13 +12,14 @@ use Buggregator\Trap\Module\Sentry\Frame\SentryStore;
 use Buggregator\Trap\Module\Sentry\Frontend\EnvelopeMapper;
 use Buggregator\Trap\Module\Sentry\Frontend\StoreMapper;
 use Buggregator\Trap\Module\Sentry\Http\SentryTrap;
+use Buggregator\Trap\Server\Event\ProvidesEvents;
 use Buggregator\Trap\Server\Handler\Http\ProvidesHttpMiddlewares;
 use Buggregator\Trap\Server\Proto\ProvidesFrameTypes;
 
 /**
  * @internal
  */
-final class Module implements ProvidesHttpMiddlewares, ProvidesFrameTypes, ProvidesRenderers, ProvidesUi
+final class Module implements ProvidesHttpMiddlewares, ProvidesFrameTypes, ProvidesRenderers, ProvidesEvents
 {
     #[\Override]
     public function httpMiddlewares(): array
@@ -40,19 +40,7 @@ final class Module implements ProvidesHttpMiddlewares, ProvidesFrameTypes, Provi
     }
 
     #[\Override]
-    public function uiApiControllers(): array
-    {
-        return [];
-    }
-
-    #[\Override]
-    public function uiAssetsControllers(): array
-    {
-        return [];
-    }
-
-    #[\Override]
-    public function uiEventMappers(): array
+    public function eventMappers(): array
     {
         return [
             SentryStore::class => StoreMapper::class,
@@ -61,7 +49,7 @@ final class Module implements ProvidesHttpMiddlewares, ProvidesFrameTypes, Provi
     }
 
     #[\Override]
-    public function uiEventTypes(): array
+    public function eventTypes(): array
     {
         return ['sentry'];
     }

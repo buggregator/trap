@@ -10,6 +10,7 @@ use Buggregator\Trap\Module\Files\BodyToFileSender;
 use Buggregator\Trap\Module\Files\EventsToFileSender;
 use Buggregator\Trap\Module\Frontend\Sender\FrontendSender;
 use Buggregator\Trap\Module\Mailer\Sender\MailToFileSender;
+use Buggregator\Trap\Module\Mcp\Sender\McpSender;
 use Buggregator\Trap\Module\Remote\RemoteSender;
 use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Command\Run;
@@ -49,7 +50,7 @@ final class RunTest
             $container = new ObjectContainer();
             $container->set(new BufferedOutput(), OutputInterface::class);
             $senders = (new Run())->createRegistry($container)
-                ->getSenders(['console', 'file', 'file-body', 'server', 'ui', 'mail-to-file']);
+                ->getSenders(['console', 'file', 'file-body', 'server', 'ui', 'mcp', 'mail-to-file']);
 
             Assert::same(\array_map(static fn(object $sender): string => $sender::class, $senders), [
                 ConsoleSender::class,
@@ -57,6 +58,7 @@ final class RunTest
                 BodyToFileSender::class,
                 RemoteSender::class,
                 FrontendSender::class,
+                McpSender::class,
                 MailToFileSender::class,
             ]);
         } finally {

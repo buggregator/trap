@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend\Stub;
 
 use Buggregator\Trap\Module\Frontend\ProvidesUi;
+use Buggregator\Trap\Server\Event\ProvidesEvents;
 use Buggregator\Trap\Server\Proto\Frame\Binary;
 
-final class UiModule implements ProvidesUi
+final class UiModule implements ProvidesUi, ProvidesEvents
 {
     public function uiApiControllers(): array
     {
@@ -19,12 +20,12 @@ final class UiModule implements ProvidesUi
         return [AssetsController::class];
     }
 
-    public function uiEventMappers(): array
+    public function eventMappers(): array
     {
         return [Binary::class => BinaryMapper::class, ParentFrame::class => BinaryMapper::class];
     }
 
-    public function uiEventTypes(): array
+    public function eventTypes(): array
     {
         return ['binary'];
     }

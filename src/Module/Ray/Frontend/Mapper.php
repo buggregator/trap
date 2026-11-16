@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Ray\Frontend;
 
-use Buggregator\Trap\Module\Frontend\Event;
-use Buggregator\Trap\Module\Frontend\EventMapper;
-use Buggregator\Trap\Module\Frontend\EventStorage;
 use Buggregator\Trap\Module\Ray\Frame as RayFrame;
+use Buggregator\Trap\Server\Event\Event;
+use Buggregator\Trap\Server\Event\EventMapper;
+use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Support\Uuid;
 
@@ -24,7 +24,7 @@ final class Mapper implements EventMapper
     public const EVENT_TYPE = 'ray';
 
     public function __construct(
-        private readonly EventStorage $events,
+        private readonly EventStore $events,
     ) {}
 
     /**

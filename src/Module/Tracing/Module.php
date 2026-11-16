@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Tracing;
 
 use Buggregator\Trap\Module\Console\ProvidesRenderers;
-use Buggregator\Trap\Module\Frontend\ProvidesUi;
 use Buggregator\Trap\Module\Tracing\Console\Renderer;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap;
+use Buggregator\Trap\Server\Event\ProvidesEvents;
 use Buggregator\Trap\Server\Handler\Http\ProvidesHttpMiddlewares;
 use Buggregator\Trap\Server\Proto\ProvidesFrameTypes;
 
 /**
  * @internal
  */
-final class Module implements ProvidesHttpMiddlewares, ProvidesFrameTypes, ProvidesRenderers, ProvidesUi
+final class Module implements ProvidesHttpMiddlewares, ProvidesFrameTypes, ProvidesRenderers, ProvidesEvents
 {
     #[\Override]
     public function httpMiddlewares(): array
@@ -39,25 +39,13 @@ final class Module implements ProvidesHttpMiddlewares, ProvidesFrameTypes, Provi
     }
 
     #[\Override]
-    public function uiApiControllers(): array
-    {
-        return [];
-    }
-
-    #[\Override]
-    public function uiAssetsControllers(): array
-    {
-        return [];
-    }
-
-    #[\Override]
-    public function uiEventMappers(): array
+    public function eventMappers(): array
     {
         return [OtlpTraces::class => null];
     }
 
     #[\Override]
-    public function uiEventTypes(): array
+    public function eventTypes(): array
     {
         return [];
     }

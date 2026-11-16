@@ -4,29 +4,19 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend\Stub;
 
-use Buggregator\Trap\Module\Frontend\ProvidesUi;
+use Buggregator\Trap\Server\Event\ProvidesEvents;
 
 /**
  * Maps {@see ChildFrame} after {@see UiModule} mapped its parent class.
  */
-final class ChildUiModule implements ProvidesUi
+final class ChildUiModule implements ProvidesEvents
 {
-    public function uiApiControllers(): array
-    {
-        return [];
-    }
-
-    public function uiAssetsControllers(): array
-    {
-        return [];
-    }
-
-    public function uiEventMappers(): array
+    public function eventMappers(): array
     {
         return [ChildFrame::class => ChildMapper::class];
     }
 
-    public function uiEventTypes(): array
+    public function eventTypes(): array
     {
         return [];
     }

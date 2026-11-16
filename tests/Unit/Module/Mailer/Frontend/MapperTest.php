@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Mailer\Frontend;
 
-use Buggregator\Trap\Module\Frontend\Event\AttachedFile;
-use Buggregator\Trap\Module\Frontend\Event\EmbeddedFile;
 use Buggregator\Trap\Module\Mailer\Contact;
 use Buggregator\Trap\Module\Mailer\Frame as SmtpFrame;
 use Buggregator\Trap\Module\Mailer\Frontend\Mapper;
 use Buggregator\Trap\Module\Mailer\Message as SmtpMessage;
+use Buggregator\Trap\Server\Event\AttachedFile;
+use Buggregator\Trap\Server\Event\EmbeddedFile;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
 use Nyholm\Psr7\Stream;

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mailer\Frontend;
 
-use Buggregator\Trap\Module\Frontend\Event\AttachedFile;
-use Buggregator\Trap\Module\Frontend\Event\EmbeddedFile;
-use Buggregator\Trap\Module\Frontend\EventStorage;
+use Buggregator\Trap\Server\Event\AttachedFile;
+use Buggregator\Trap\Server\Event\EmbeddedFile;
+use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteFail as AssertFail;
 use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteSuccess as AssertSuccess;
 use Buggregator\Trap\Server\Handler\Router\Attribute\RegexpRoute;
@@ -21,7 +21,7 @@ final class AssetsController
 {
     public function __construct(
         private readonly Logger $logger,
-        private readonly EventStorage $eventsStorage,
+        private readonly EventStore $eventsStorage,
     ) {}
 
     /**

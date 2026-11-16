@@ -82,6 +82,90 @@ final class ServerTest
         Assert::same($event['payload']['request']['uri'], 'acceptance/shared');
     }
 
+    public function testMcpServerSharesPortWithUi(): void
+    {
+        $this->trap = TrapProcess::start(
+            'mcp',
+            ["--port=$this->port", '--sender=file', "--ui=$this->uiPort", "--mcp=$this->uiPort"],
+            [
+                'TRAP_TCP_PORTS' => (string) $this->port,
+                'TRAP_UI_PORT' => (string) $this->uiPort,
+                'TRAP_MCP_PORT' => (string) $this->uiPort,
+                // No MCP host: the server takes the UI host
+                'TRAP_MCP_HOST' => null,
+            ],
+            [$this->port, $this->uiPort],
+        );
+
+        [$status, $head, $body] = TrapProcess::http(
+            $this->uiPort,
+            'POST',
+            '/mcp',
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}',
+            ['Content-Type' => 'application/json', 'Accept' => 'application/json, text/event-stream'],
+        );
+        [$notificationStatus] = TrapProcess::http(
+            $this->uiPort,
+            'POST',
+            '/mcp',
+            '{"jsonrpc":"2.0","method":"notifications/initialized"}',
+        );
+        [$uiStatus] = TrapProcess::http($this->uiPort, 'GET', '/api/events');
+
+        Assert::same($status, 200);
+        Assert::string($head)->ignoringCase()->contains('content-type: application/json');
+        Assert::same(self::json($body)['result']['protocolVersion'], '2025-06-18');
+        Assert::same($notificationStatus, 202);
+        Assert::same($uiStatus, 200);
+    }
+
+    /**
+     * Without the web UI: the MCP server alone has the caught events kept for its tools.
+     */
+    public function testMcpToolsReadCaughtEvents(): void
+    {
+        $trap = $this->trap = TrapProcess::start(
+            'mcp-tools',
+            ["--port=$this->port", '--sender=file', "--mcp=$this->uiPort"],
+            [
+                'TRAP_TCP_PORTS' => (string) $this->port,
+                'TRAP_MCP_PORT' => (string) $this->uiPort,
+                // No MCP host: a port of its own listens on the default one
+                'TRAP_MCP_HOST' => null,
+            ],
+            [$this->port, $this->uiPort],
+        );
+        $script = $trap->workDir . '/client.php';
+        \file_put_contents($script, \sprintf(
+            "<?php\nrequire %s;\ntrap(['acceptance' => 'mcp-dump-marker']);\n",
+            \var_export(\realpath(Info::TRAP_ROOT . '/vendor/autoload.php'), true),
+        ));
+
+        $cursor = $this->callMcpTool('list_events', [])['cursor'];
+        TrapProcess::http($this->port, 'POST', '/acceptance/mcp-http', '{"order":"mcp-http-marker"}');
+        [$exitCode] = $this->runPhp($script, [
+            'VAR_DUMPER_FORMAT' => 'server',
+            'VAR_DUMPER_SERVER' => "127.0.0.1:$this->port",
+        ]);
+        $events = TrapProcess::waitFor(function () use ($cursor): ?array {
+            $events = $this->callMcpTool('list_events', ['since' => $cursor])['events'];
+            return \count($events) >= 2 ? \array_column($events, null, 'type') : null;
+        }, 'two events listed by the MCP server');
+        $dump = $this->callMcpTool('get_event', ['id' => $events['var-dump']['id']]);
+        $request = $this->callMcpTool('get_event', ['id' => $events['http-dump']['id']]);
+        $stale = $this->callMcpTool('list_events', ['since' => 'stale:1'])['events'];
+
+        Assert::same($exitCode, 0);
+        Assert::string($cursor)->matchesRegex('/^[0-9a-f]{8}:0$/');
+        // A cursor of another Trap process: all the events, the first ones of this process too
+        Assert::count($stale, 2);
+        Assert::same($events['http-dump']['summary'], 'POST /acceptance/mcp-http');
+        Assert::string($events['var-dump']['summary'])->contains('mcp-dump-marker');
+        Assert::string($dump)->startsWith('var-dump event ')->contains('"acceptance" => "mcp-dump-marker"')
+            ->notContains("\e[");
+        Assert::string($request)->contains('/acceptance/mcp-http')->contains('{"order":"mcp-http-marker"}');
+    }
+
     public function testVarDumperDumpFromTrapFunctionIsCaptured(): void
     {
         $trap = $this->startTrap('var-dumper');
@@ -284,6 +368,34 @@ final class ServerTest
     private static function json(string $line): array
     {
         return (array) \json_decode($line, true, 512, \JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * Calls a tool of the MCP server on the UI port.
+     *
+     * @return array<array-key, mixed>|string The decoded JSON result, or the text when it is not JSON.
+     */
+    private function callMcpTool(string $name, array $arguments): array|string
+    {
+        [$status, , $body] = TrapProcess::http(
+            $this->uiPort,
+            'POST',
+            '/mcp',
+            \json_encode([
+                'jsonrpc' => '2.0',
+                'id' => 1,
+                'method' => 'tools/call',
+                'params' => ['name' => $name, 'arguments' => (object) $arguments],
+            ], \JSON_THROW_ON_ERROR),
+            ['Content-Type' => 'application/json'],
+        );
+        Assert::same($status, 200);
+        $result = self::json($body)['result'];
+        Assert::false($result['isError']);
+        $text = $result['content'][0]['text'];
+        $json = \json_decode($text, true);
+
+        return \is_array($json) ? $json : $text;
     }
 
     private function startTrap(string $name): TrapProcess

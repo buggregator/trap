@@ -27,3 +27,4 @@
 
 - [Senders](senders.md) - console, files, a remote server, the web UI.
 - [Web UI](web-ui.md) - the `--ui` option.
+- [MCP server](mcp.md) - the `--mcp` option: Trap for AI agents.
