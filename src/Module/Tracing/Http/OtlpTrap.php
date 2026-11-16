@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Tracing\Http;
 
+use Buggregator\Trap\Module\Mcp\McpStatus;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\LimitExceededException;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\ProtobufTracesDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\TracesDecoder;
+use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Support\Json;
@@ -22,6 +24,7 @@ use Symfony\Component\Console\Formatter\OutputFormatter;
  *
  * JSON is always decoded. Protobuf is decoded when the suggested protobuf packages are installed,
  * see {@see ProtobufTracesDecoder}; otherwise it gets 415.
+ * While the MCP server runs, received spans go to the {@see SpanStore} for its tools here, once per request.
  * Logs and metrics (`/v1/logs`, `/v1/metrics`) are not supported: they are answered with success and dropped,
  * so an exporter that sends every signal to Trap does not report errors.
  *
@@ -57,10 +60,13 @@ final class OtlpTrap implements Middleware
     /**
      * @param array<non-empty-lowercase-string, TracesDecoder>|null $tracesDecoders Media type => decoder.
      *        Null registers JSON, and protobuf when its packages are installed.
+     * @param SpanStore|null $spans Filled for the MCP tools while the server runs; null keeps no spans.
      */
     public function __construct(
         private readonly ?Logger $logger = null,
         ?array $tracesDecoders = null,
+        private readonly ?SpanStore $spans = null,
+        private readonly McpStatus $mcp = new McpStatus(),
     ) {
         if ($tracesDecoders === null) {
             $json = new JsonTracesDecoder();
@@ -243,6 +249,7 @@ final class OtlpTrap implements Middleware
             return $decoder->createSuccessResponse();
         }
 
+        $this->mcp->isOn() and $this->spans?->receive($frame);
         \Fiber::suspend($frame);
 
         return $decoder->createSuccessResponse();

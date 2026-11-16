@@ -29,7 +29,8 @@ The Phar, the standalone binary and the Docker image do not include them, so the
 ## Memory limits
 
 Spans of one trace often arrive in separate requests (a simple span processor exports each span on its own),
-so Trap keeps received spans in memory to print them together. The memory is limited by:
+so Trap keeps received spans in memory to print them together. With [`--mcp`](mcp.md#traces) the MCP server
+keeps a copy of its own for the agents. Each copy is limited by:
 
 - `TRAP_TRACES_MAX_SPANS` - the maximum number of kept spans; the least recently updated traces are dropped
   above it, and a single trace above it keeps only its most recent spans (default: `10000`)
@@ -45,7 +46,8 @@ With the [`file` sender](senders.md#file), each export request is saved as one J
 
 ## Notes
 
-- Traces are shown in the console only; the [web UI](web-ui.md) doesn't show them.
+- Traces are shown in the console and given to AI agents by the [MCP server](mcp.md#traces);
+  the [web UI](web-ui.md) doesn't show them.
 - Requests with `Transfer-Encoding: chunked` are not supported by the HTTP parser of Trap;
   OpenTelemetry SDK exporters send `Content-Length`.
 - Exporters running in a browser are not supported: Trap does not answer CORS preflight requests.

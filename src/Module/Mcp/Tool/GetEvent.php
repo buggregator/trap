@@ -15,11 +15,6 @@ use Buggregator\Trap\Server\Event\EventStore;
  */
 final class GetEvent implements Tool
 {
-    /** Characters of the text when the client sets no limit. */
-    public const DEFAULT_MAX_LENGTH = 50_000;
-
-    public const MIN_MAX_LENGTH = 100;
-
     public function __construct(
         private readonly EventStore $store,
         private readonly EventViews $views,
@@ -55,16 +50,17 @@ final class GetEvent implements Tool
                     'type' => 'string',
                     'description' => 'The event ID from `list_events`.',
                 ],
-                'max_length' => [
-                    'type' => 'integer',
-                    'minimum' => self::MIN_MAX_LENGTH,
-                    'default' => self::DEFAULT_MAX_LENGTH,
-                    'description' => 'The most characters of the text to return; a longer text is cut with a notice.',
-                ],
+                'max_length' => MaxLength::schema(),
             ],
             'required' => ['id'],
             'additionalProperties' => false,
         ];
+    }
+
+    #[\Override]
+    public function outputSchema(): ?array
+    {
+        return null;
     }
 
     #[\Override]
@@ -79,7 +75,7 @@ final class GetEvent implements Tool
         /** @var mixed $id */
         $id = $arguments['id'] ?? null;
         \is_string($id) && $id !== '' or throw new \InvalidArgumentException('`id` must be a non-empty string.');
-        $maxLength = Arguments::integer($arguments, 'max_length', self::MIN_MAX_LENGTH) ?? self::DEFAULT_MAX_LENGTH;
+        $maxLength = MaxLength::fromArguments($arguments);
         $record = $this->store->record($id) ?? throw new \InvalidArgumentException(
             "No event with ID `$id`: it may have been deleted. Call `list_events` for the current IDs.",
         );
@@ -89,18 +85,12 @@ final class GetEvent implements Tool
             "%s event %s at %s, project %s\n%s\n\n%s",
             $event->type,
             $event->uuid,
-            ListEvents::time($event),
+            Time::format($event->timestamp),
             $event->projectKey(),
             $this->views->summary($event),
             $this->views->text($record),
         );
 
-        $length = \mb_strlen($text);
-        if ($length <= $maxLength) {
-            return $text;
-        }
-
-        return \mb_substr($text, 0, $maxLength)
-            . "\n\n[Truncated: $maxLength of $length characters shown. Call again with a larger `max_length` for more.]";
+        return MaxLength::cut($text, $maxLength);
     }
 }

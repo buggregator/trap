@@ -5,9 +5,15 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Tracing;
 
 use Buggregator\Trap\Module\Tracing\Config\Traces;
+use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
+use Buggregator\Trap\Module\Tracing\Frame\Trace\ResourceSpans;
+use Buggregator\Trap\Module\Tracing\Frame\Trace\ScopeSpans;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\SpanKind;
+use Buggregator\Trap\Module\Tracing\Frame\Trace\SpanStatus;
+use Buggregator\Trap\Module\Tracing\Frame\Trace\StatusCode;
 use Buggregator\Trap\Module\Tracing\SpanStore;
+use Buggregator\Trap\Module\Tracing\TraceSummary;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Lifecycle\BeforeTest;
@@ -227,6 +233,164 @@ final class SpanStoreTest
             }
         }
         \mt_srand();
+    }
+
+    public function testEveryStoredSpanTakesNextSequenceNumber(): void
+    {
+        $store = $this->store();
+
+        $store->add(self::span('a', '1'), self::span('b', '2'), self::span('a', '3'));
+        $store->receive(self::frame('app', self::span('c', '4'), self::span('b', '5', '2')));
+
+        Assert::same($store->cursor(), 5);
+        Assert::same(
+            \array_map(static fn(TraceSummary $trace): int => $trace->seq, \iterator_to_array($store->traces(), false)),
+            [3, 4, 5],
+        );
+    }
+
+    public function testAddedSpansHaveNoService(): void
+    {
+        $store = $this->store();
+        $store->receive(self::frame('app', self::span('a', '1')));
+
+        $store->add(self::span('a', '1'), self::span('b', '2'));
+
+        Assert::null($store->summary(self::traceId('a'))?->service, 'The span sent again replaces its service too.');
+        Assert::null($store->summary(self::traceId('b'))?->service);
+        Assert::same($store->summary(self::traceId('b'))?->name, 'span-2');
+    }
+
+    public function testListsTracesFromLeastRecentlyUpdated(): void
+    {
+        $store = $this->store();
+        $store->add(self::span('a', '1'));
+        $store->add(self::span('b', '2'));
+        $store->add(self::span('c', '3'));
+        $store->add(self::span('a', '4'));
+
+        $all = \iterator_to_array($store->traces(), false);
+        $since = \iterator_to_array($store->traces(2), false);
+
+        Assert::same(
+            \array_map(static fn(TraceSummary $trace): string => $trace->traceId, $all),
+            [self::traceId('b'), self::traceId('c'), self::traceId('a')],
+        );
+        Assert::same(\array_map(static fn(TraceSummary $trace): int => $trace->seq, $all), [2, 3, 4]);
+        Assert::same(
+            \array_map(static fn(TraceSummary $trace): string => $trace->traceId, $since),
+            [self::traceId('c'), self::traceId('a')],
+        );
+        Assert::same(\iterator_to_array($store->traces(4), false), []);
+    }
+
+    public function testListingDropsExpiredTraces(): void
+    {
+        $store = $this->store(ttl: 10.0);
+        $store->add(self::span('a', '1'));
+        $this->now += 5;
+        $store->add(self::span('b', '2'));
+        $this->now += 6;
+
+        $traces = \iterator_to_array($store->traces(), false);
+
+        Assert::count($traces, 1);
+        Assert::same($traces[0]->traceId, self::traceId('b'));
+    }
+
+    public function testSummaryOfExpiredTraceIsNull(): void
+    {
+        $store = $this->store(ttl: 10.0);
+        $store->add(self::span('a', '1'));
+        $this->now += 11;
+
+        Assert::null($store->summary(self::traceId('a')));
+        Assert::same($store->getTrace(self::traceId('a')), []);
+    }
+
+    public function testSummarizesTrace(): void
+    {
+        $store = $this->store();
+        $store->receive(self::frame('db', self::timedSpan('a', 2, 1, 20, 30)));
+        $store->receive(self::frame('web', self::timedSpan('a', 1, null, 10, 50)));
+        $this->now += 2;
+        $store->receive(self::frame(null, new Span(
+            traceId: self::traceId('a'),
+            spanId: \sprintf('%016x', 3),
+            parentSpanId: \sprintf('%016x', 1),
+            name: 'failed',
+            kind: SpanKind::Client,
+            startTimeUnixNano: 40,
+            endTimeUnixNano: 60,
+            status: new SpanStatus(StatusCode::Error),
+        )));
+
+        $summary = $store->summary(self::traceId('a'));
+
+        Assert::equals($summary, new TraceSummary(
+            traceId: self::traceId('a'),
+            name: 'span-1',
+            service: 'web',
+            spans: 3,
+            start: 10,
+            end: 60,
+            error: true,
+            updatedAt: 1002.0,
+            seq: 3,
+        ));
+        Assert::null($store->summary(self::traceId('b')));
+    }
+
+    public function testRootWithoutParentWinsOverEarlierOrphan(): void
+    {
+        $store = $this->store();
+        $store->receive(self::frame('worker', self::timedSpan('a', 5, 9, 0, 10)));
+        $store->receive(self::frame(null, self::timedSpan('a', 1, null, 5, 10)));
+
+        $summary = $store->summary(self::traceId('a'));
+
+        Assert::same($summary?->name, 'span-1');
+        Assert::same($summary?->service, 'worker', 'The root has no service: any span gives it.');
+        Assert::false($summary?->error);
+    }
+
+    public function testRootOfTraceWithoutRootSpan(): void
+    {
+        $store = $this->store();
+        $store->add(self::timedSpan('a', 3, 9, 30, 40), self::timedSpan('a', 2, 8, 20, 40), self::timedSpan('a', 4, 2, 25, 30));
+        $store->add(self::timedSpan('b', 1, 2, 0, 1), self::timedSpan('b', 2, 1, 0, 1), self::timedSpan('b', 7, 7, 0, 1));
+
+        Assert::same($store->summary(self::traceId('a'))?->name, 'span-2', 'The earliest span whose parent is missing.');
+        Assert::null($store->summary(self::traceId('b'))?->name, 'A parent cycle and a self parent have no root.');
+        Assert::null($store->summary(self::traceId('b'))?->service);
+    }
+
+    public function testEvictedTraceLeavesNothing(): void
+    {
+        $store = $this->store(maxSpans: 2);
+        $store->receive(self::frame('app', self::span('a', '1')));
+        $store->receive(self::frame('app', self::span('b', '2'), self::span('b', '3')));
+
+        Assert::same(
+            \array_map(static fn(TraceSummary $trace): string => $trace->traceId, \iterator_to_array($store->traces(), false)),
+            [self::traceId('b')],
+        );
+        foreach (['services', 'changedAt'] as $property) {
+            Assert::same(\array_keys((new \ReflectionProperty(SpanStore::class, $property))->getValue($store)), [self::traceId('b')], $property);
+        }
+    }
+
+    public function testStoresWithDifferentIds(): void
+    {
+        Assert::notSame($this->store()->id, $this->store()->id);
+    }
+
+    private static function frame(?string $service, Span ...$spans): OtlpTraces
+    {
+        return new OtlpTraces([new ResourceSpans(
+            [new ScopeSpans(\array_values($spans))],
+            $service === null ? [] : ['service.name' => $service],
+        )]);
     }
 
     /**

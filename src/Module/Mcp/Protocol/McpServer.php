@@ -20,8 +20,9 @@ final class McpServer
     public const VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26'];
 
     private const INSTRUCTIONS = "Buggregator Trap is a local debug server. It catches what the developer's "
-        . 'application sends while running: dumps, logs, exceptions, mails, HTTP requests and profiles. '
-        . 'Use its tools to read them.';
+        . 'application sends while running: dumps, logs, exceptions, mails, HTTP requests and profiles as events, '
+        . 'and OpenTelemetry traces. Use its tools to read them: the `*_events` tools for events, '
+        . '`list_traces` and `get_trace` for traces.';
 
     public function __construct(
         private readonly Tools $tools,
@@ -58,14 +59,49 @@ final class McpServer
     private static function describe(Tool $tool): array
     {
         $annotations = $tool->annotations();
+        $outputSchema = $tool->outputSchema();
 
         return [
             'name' => $tool->name(),
             'title' => $tool->title(),
             'description' => $tool->description(),
             'inputSchema' => $tool->inputSchema(),
+            ...($outputSchema === null ? [] : ['outputSchema' => $outputSchema]),
             ...($annotations === [] ? [] : ['annotations' => $annotations]),
         ];
+    }
+
+    /**
+     * @return array{content: list<array{type: 'text', text: string}>, isError: bool}
+     */
+    private static function result(string $text, bool $isError = false): array
+    {
+        return [
+            'content' => [['type' => 'text', 'text' => $text]],
+            'isError' => $isError,
+        ];
+    }
+
+    /**
+     * Structured content must be a JSON object, which an empty PHP array is not encoded as.
+     *
+     * @param array<array-key, mixed> $result
+     *
+     * @return array<array-key, mixed>|\stdClass
+     *
+     * @throws \LogicException For a list.
+     */
+    private static function object(array $result, string $tool): array|\stdClass
+    {
+        if ($result === []) {
+            return new \stdClass();
+        }
+
+        \array_is_list($result) and throw new \LogicException(
+            "Tool $tool returned a list instead of an object.",
+        );
+
+        return $result;
     }
 
     /**
@@ -103,16 +139,15 @@ final class McpServer
 
         try {
             $result = $tool->call($arguments);
-            $text = \is_string($result) ? $result : Json::encode($result);
-            $isError = false;
-        } catch (\Throwable $e) {
-            $text = $e->getMessage();
-            $isError = true;
-        }
+            if (\is_string($result)) {
+                return self::result($result);
+            }
 
-        return [
-            'content' => [['type' => 'text', 'text' => $text]],
-            'isError' => $isError,
-        ];
+            $structured = self::object($result, $name);
+            // The same JSON as text too: clients of 2025-03-26 and the ones that give the model only `content`
+            return self::result(Json::encode($structured)) + ['structuredContent' => $structured];
+        } catch (\Throwable $e) {
+            return self::result($e->getMessage(), isError: true);
+        }
     }
 }
