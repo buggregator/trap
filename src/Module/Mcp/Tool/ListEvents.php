@@ -7,7 +7,6 @@ namespace Buggregator\Trap\Module\Mcp\Tool;
 use Buggregator\Trap\Module\Mcp\Tool;
 use Buggregator\Trap\Module\Mcp\View\EventViews;
 use Buggregator\Trap\Server\Application\Module\Modules;
-use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventStore;
 
 /**
@@ -29,16 +28,6 @@ final class ListEvents implements Tool
         Modules $modules,
     ) {
         $this->types = EventFilter::knownTypes($modules);
-    }
-
-    /**
-     * ISO 8601 in UTC with milliseconds.
-     */
-    public static function time(Event $event): string
-    {
-        $time = \DateTimeImmutable::createFromFormat('U.u', \sprintf('%.6F', $event->timestamp));
-
-        return $time === false ? '' : $time->format('Y-m-d\TH:i:s.vP');
     }
 
     #[\Override]
@@ -89,6 +78,36 @@ final class ListEvents implements Tool
     }
 
     #[\Override]
+    public function outputSchema(): ?array
+    {
+        return [
+            'type' => 'object',
+            'properties' => [
+                'events' => [
+                    'type' => 'array',
+                    'description' => 'Oldest change first.',
+                    'items' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'id' => ['type' => 'string', 'description' => 'The ID to pass to `get_event`.'],
+                            'type' => ['type' => 'string'],
+                            'project' => ['type' => 'string'],
+                            'time' => ['type' => 'string', 'description' => 'When the event was caught, ISO 8601.'],
+                            'summary' => ['type' => 'string'],
+                        ],
+                        'required' => ['id', 'type', 'project', 'time', 'summary'],
+                        'additionalProperties' => false,
+                    ],
+                ],
+                'cursor' => ['type' => 'string', 'description' => 'The `since` of the next call.'],
+                'has_more' => ['type' => 'boolean', 'description' => 'Whether more changed events wait for the next call.'],
+            ],
+            'required' => ['events', 'cursor', 'has_more'],
+            'additionalProperties' => false,
+        ];
+    }
+
+    #[\Override]
     public function annotations(): array
     {
         return ['readOnlyHint' => true, 'openWorldHint' => false];
@@ -104,7 +123,7 @@ final class ListEvents implements Tool
     #[\Override]
     public function call(array $arguments): array
     {
-        $since = $this->since($arguments);
+        $since = Cursor::since($arguments, $this->store->id, $this->store->cursor());
         $limit = Arguments::integer($arguments, 'limit', 1, self::MAX_LIMIT) ?? self::DEFAULT_LIMIT;
         $filter = EventFilter::fromArguments($arguments, $this->types);
 
@@ -129,37 +148,11 @@ final class ListEvents implements Tool
                 'id' => $record->event->uuid,
                 'type' => $record->event->type,
                 'project' => $record->event->projectKey(),
-                'time' => self::time($record->event),
+                'time' => Time::format($record->event->timestamp),
                 'summary' => $this->views->summary($record->event),
             ];
         }
 
-        return ['events' => $events, 'cursor' => $this->store->id . ':' . $cursor, 'has_more' => $hasMore];
-    }
-
-    /**
-     * Reads the `since` cursor, `<store ID>:<sequence number>`.
-     *
-     * @param array<array-key, mixed> $arguments
-     *
-     * @return int<0, max> The sequence number; 0, for all the events, when the cursor is empty or of another
-     *         Trap process, whose events are gone.
-     *
-     * @throws \InvalidArgumentException
-     */
-    private function since(array $arguments): int
-    {
-        /** @var mixed $since */
-        $since = $arguments['since'] ?? '';
-        \is_string($since) or throw new \InvalidArgumentException('`since` must be a string.');
-
-        [$id, $seq] = \explode(':', $since, 2) + [1 => ''];
-        if ($id !== $this->store->id || !\ctype_digit($seq)) {
-            return 0;
-        }
-
-        $seq = (int) $seq;
-
-        return $seq >= 0 && $seq <= $this->store->cursor() ? $seq : 0;
+        return ['events' => $events, 'cursor' => Cursor::encode($this->store->id, $cursor), 'has_more' => $hasMore];
     }
 }

@@ -56,6 +56,19 @@ final class ClearEvents implements Tool
     }
 
     #[\Override]
+    public function outputSchema(): ?array
+    {
+        return [
+            'type' => 'object',
+            'properties' => [
+                'removed' => ['type' => 'integer', 'minimum' => 0, 'description' => 'The number of deleted events.'],
+            ],
+            'required' => ['removed'],
+            'additionalProperties' => false,
+        ];
+    }
+
+    #[\Override]
     public function annotations(): array
     {
         return [

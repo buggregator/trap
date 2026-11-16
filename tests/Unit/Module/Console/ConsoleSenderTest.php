@@ -47,7 +47,10 @@ final class ConsoleSenderTest
         ]);
     }
 
-    public function testTracingRendererUsesTheSpanStoreOfTheContainer(): void
+    /**
+     * The OTLP middleware fills the store of the container before the console renders the frame.
+     */
+    public function testTracingRendererKeepsSpanStoreOfItsOwn(): void
     {
         $container = new ObjectContainer();
 
@@ -57,7 +60,7 @@ final class ConsoleSenderTest
             static fn(Renderer $renderer): bool => $renderer instanceof TracingRenderer,
         ))[0];
 
-        Assert::same((new \ReflectionProperty(TracingRenderer::class, 'store'))->getValue($tracing), $container->get(SpanStore::class));
+        Assert::notSame((new \ReflectionProperty(TracingRenderer::class, 'store'))->getValue($tracing), $container->get(SpanStore::class));
     }
 
     private static function sender(ObjectContainer $container): ConsoleSender

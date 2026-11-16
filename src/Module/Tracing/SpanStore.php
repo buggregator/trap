@@ -5,22 +5,34 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Tracing;
 
 use Buggregator\Trap\Module\Tracing\Config\Traces as Config;
+use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
+use Buggregator\Trap\Module\Tracing\Frame\Trace\StatusCode;
 
 /**
  * Spans received by the Trap process, kept so that spans of one trace that arrive in separate
  * export requests can be put together.
  *
+ * Every stored span gets the next sequence number, and a trace keeps the one of its last span:
+ * {@see traces()} lists the traces changed after a moment by it.
+ *
  * Memory is bounded by {@see Config}: a trace is dropped when it has not received a span for `ttl` seconds,
  * and the least recently updated traces are dropped while the store holds more than `maxSpans` spans.
  * A single trace above `maxSpans` keeps only its most recently received spans, 90% of `maxSpans`.
  *
- * One store serves the Trap process: get it from the container, which keeps it as a singleton.
+ * The container keeps one store for the Trap process, filled by the OTLP middleware while the MCP server runs
+ * and read by the MCP tools. The console renderer keeps a store of its own, filled as it renders.
  *
  * @internal
  */
 final class SpanStore
 {
+    /**
+     * A random ID of the store, and so of the Trap process: sequence numbers of another process mean nothing here.
+     * @var non-empty-string
+     */
+    public readonly string $id;
+
     /**
      * Ordered from the least to the most recently updated trace.
      *
@@ -30,6 +42,19 @@ final class SpanStore
 
     /** @var array<non-empty-string, float> Trace ID => time of the last added span */
     private array $updatedAt = [];
+
+    /**
+     * Unique and growing in the order of {@see $traces}.
+     *
+     * @var array<non-empty-string, int<1, max>> Trace ID => sequence number of its last stored span
+     */
+    private array $changedAt = [];
+
+    /** @var array<non-empty-string, array<non-empty-string, string>> Trace ID => span ID => service name */
+    private array $services = [];
+
+    /** @var int<0, max> */
+    private int $seq = 0;
 
     /**
      * Children of each parent in the order of the trace, so that a trace is not rescanned
@@ -72,34 +97,92 @@ final class SpanStore
         $this->maxSpans = $maxSpans;
         $this->ttl = $config->ttl > 0 && \is_finite($config->ttl) ? $config->ttl : $defaults->ttl;
         $this->clock = $clock ?? static fn(): float => \microtime(true);
+        $this->id = \bin2hex(\random_bytes(4));
     }
 
     /**
-     * A span with an already stored ID replaces the stored one.
+     * A span with an already stored ID replaces the stored one. The limits apply after all the spans.
      */
     public function add(Span ...$spans): void
     {
         $now = ($this->clock)();
         foreach ($spans as $span) {
-            $trace = $this->traces[$span->traceId] ?? [];
-            // Re-inserting moves the trace to the end, keeping the update order.
-            unset($this->traces[$span->traceId]);
+            $traceId = $span->traceId;
+            $trace = $this->traces[$traceId] ?? [];
+            // Re-inserting moves the trace to the end, keeping the update order. Unset before `$trace` changes:
+            // with one owner the array is changed in place, not copied.
+            unset($this->traces[$traceId]);
 
             // Re-inserting a known span moves it to the end too, so the oldest spans stay first.
             $old = $trace[$span->spanId] ?? null;
             if ($old !== null) {
-                unset($trace[$span->spanId]);
+                unset($trace[$span->spanId], $this->services[$traceId][$span->spanId]);
                 $this->unindex($old, $span);
             } else {
                 ++$this->spanCount;
             }
             $trace[$span->spanId] = $span;
-            $this->traces[$span->traceId] = $trace;
-            $this->updatedAt[$span->traceId] = $now;
+            $this->traces[$traceId] = $trace;
+            $this->updatedAt[$traceId] = $now;
+            $this->changedAt[$traceId] = ++$this->seq;
             $this->index($span, \count($trace) === 1);
         }
 
         $this->evict($now);
+    }
+
+    /**
+     * Adds the spans of the frame with the service names of their resources. The limits apply after each span,
+     * as for spans added one by one.
+     */
+    public function receive(OtlpTraces $frame): void
+    {
+        foreach ($frame->iterateSpans() as [$resource, , $span]) {
+            $this->add($span);
+            $service = $resource->getServiceName();
+            // The limits never drop the span just added: it is the most recent one.
+            $service === null or $this->services[$span->traceId][$span->spanId] = $service;
+        }
+    }
+
+    /**
+     * The sequence number of the last stored span; 0 before the first one.
+     *
+     * @return int<0, max>
+     */
+    public function cursor(): int
+    {
+        return $this->seq;
+    }
+
+    /**
+     * Summaries of the traces changed after the cursor, from the least recently updated one: the
+     * {@see TraceSummary::$seq} of a listed trace is a cursor for the traces after it.
+     * Traces past their TTL are dropped first.
+     *
+     * @param int<0, max> $cursor A value of {@see cursor()} or {@see TraceSummary::$seq}; 0 for all the traces.
+     *
+     * @return \Generator<int, TraceSummary> Computed one by one: stop reading when enough.
+     */
+    public function traces(int $cursor = 0): \Generator
+    {
+        $this->evict(($this->clock)());
+
+        foreach (\array_keys($this->traces) as $traceId) {
+            // Cast back: PHP would turn an all-digit ID into an int key.
+            $traceId = (string) $traceId;
+            $this->changedAt[$traceId] > $cursor and yield $this->summarize($traceId);
+        }
+    }
+
+    /**
+     * @return TraceSummary|null Null for an unknown or expired trace.
+     */
+    public function summary(string $traceId): ?TraceSummary
+    {
+        $this->evict(($this->clock)());
+
+        return $traceId === '' || !isset($this->traces[$traceId]) ? null : $this->summarize($traceId);
     }
 
     public function get(string $traceId, string $spanId): ?Span
@@ -186,6 +269,48 @@ final class SpanStore
     }
 
     /**
+     * @param non-empty-string $traceId A stored trace.
+     */
+    private function summarize(string $traceId): TraceSummary
+    {
+        $trace = $this->traces[$traceId];
+        \assert($trace !== []);
+        $root = null;
+        $error = false;
+        foreach ($trace as $span) {
+            $error = $error || $span->status->code === StatusCode::Error;
+            $parentId = $span->parentSpanId;
+            if ($parentId !== null && ($parentId === $span->spanId || isset($trace[$parentId]))) {
+                continue;
+            }
+
+            // A span without a parent wins over one whose parent has not arrived, then the earliest one.
+            $rank = [$parentId === null ? 0 : 1, $span->startTimeUnixNano];
+            if ($root === null || $rank < $root[0]) {
+                $root = [$rank, $span];
+            }
+        }
+
+        $services = $this->services[$traceId] ?? [];
+        $root = $root[1] ?? null;
+        $service = $root === null ? null : $services[$root->spanId] ?? null;
+        $service ??= $services === [] ? null : \reset($services);
+        [$start, $end] = $this->getTraceBounds($traceId) ?? [0, 0];
+
+        return new TraceSummary(
+            traceId: $traceId,
+            name: $root?->name,
+            service: $service,
+            spans: \count($trace),
+            start: $start,
+            end: $end,
+            error: $error,
+            updatedAt: $this->updatedAt[$traceId],
+            seq: $this->changedAt[$traceId],
+        );
+    }
+
+    /**
      * When the most recently updated trace alone exceeds the span limit, its oldest spans are dropped.
      */
     private function evict(float $now): void
@@ -209,7 +334,14 @@ final class SpanStore
         }
 
         foreach ($dropped as $traceId) {
-            unset($this->traces[$traceId], $this->updatedAt[$traceId], $this->children[$traceId], $this->bounds[$traceId]);
+            unset(
+                $this->traces[$traceId],
+                $this->updatedAt[$traceId],
+                $this->changedAt[$traceId],
+                $this->services[$traceId],
+                $this->children[$traceId],
+                $this->bounds[$traceId],
+            );
         }
         $this->spanCount = \max(0, $spanCount);
 
@@ -225,6 +357,7 @@ final class SpanStore
         $trace = \array_slice($this->traces[$traceId], -$keep, null, true);
         $this->traces[$traceId] = $trace;
         $this->spanCount = \count($trace);
+        $this->services[$traceId] = \array_intersect_key($this->services[$traceId] ?? [], $trace);
 
         $children = [];
         foreach ($trace as $span) {

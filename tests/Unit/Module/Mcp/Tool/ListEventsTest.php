@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Tool;
 
 use Buggregator\Trap\Module\Mcp\Tool\EventFilter;
 use Buggregator\Trap\Module\Mcp\Tool\ListEvents;
+use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\JsonSchema;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -204,6 +205,21 @@ final class ListEventsTest
         ]);
         Assert::same($schema['properties']['limit']['maximum'], ListEvents::MAX_LIMIT);
         Assert::false($schema['additionalProperties']);
+    }
+
+    #[DataSet([[]], 'some events')]
+    #[DataSet([['type' => 'smtp']], 'no events')]
+    #[DataSet([['limit' => 1]], 'more to come')]
+    public function testResultConformsToOutputSchema(array $arguments): void
+    {
+        $trap = new Trap();
+        $tool = $trap->get(ListEvents::class);
+        $trap->add(Trap::dump('first'));
+        $trap->add(Trap::log('second'));
+
+        $result = $tool->call($arguments);
+
+        Assert::same(JsonSchema::errors($result, $tool->outputSchema()), []);
     }
 
     public function testIsReadOnly(): void

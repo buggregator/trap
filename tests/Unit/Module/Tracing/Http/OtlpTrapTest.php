@@ -6,15 +6,20 @@ namespace Buggregator\Trap\Tests\Unit\Module\Tracing\Http;
 
 use Buggregator\Trap\Module\HttpDump\Frame as HttpFrame;
 use Buggregator\Trap\Module\HttpDump\Http\Dump;
+use Buggregator\Trap\Module\Mcp\McpStatus;
+use Buggregator\Trap\Module\Mcp\Sender\McpSender;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\ProtobufTracesDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\TracesDecoder;
+use Buggregator\Trap\Module\Tracing\SpanStore;
+use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Handler\Http\Handler\MiddlewareHandler;
 use Buggregator\Trap\Server\Info;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Traffic\StreamClient;
+use Internal\Container\ObjectContainer;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
@@ -223,6 +228,61 @@ final class OtlpTrapTest
 
         Assert::same($response->getStatusCode(), 200);
         Assert::same($frames[0]->countSpans(), 4);
+    }
+
+    public function testStoresSpansBeforePassingTheFrame(): void
+    {
+        $store = new SpanStore();
+        $middleware = new OtlpTrap(spans: $store, mcp: self::mcpOn());
+        $request = $this->request(body: \file_get_contents(Info::TRAP_ROOT . '/tests/Stub/otlp-traces.json'));
+        $fiber = new \Fiber(static fn(): ResponseInterface => $middleware->handle(
+            $request,
+            static fn(): ResponseInterface => new Response(500),
+        ));
+
+        $frame = $fiber->start();
+
+        Assert::instanceOf($frame, OtlpTraces::class);
+        Assert::same($store->countSpans(), 4);
+        Assert::same($store->summary('382bfca057473920912cab0a4ed95abe')?->service, 'e2e-app');
+    }
+
+    public function testStoresNoSpansWithoutMcpServer(): void
+    {
+        $store = new SpanStore();
+
+        [, $frames] = $this->handleInFiber($this->request(body: self::PAYLOAD), new OtlpTrap(spans: $store));
+
+        Assert::count($frames, 1);
+        Assert::same($store->cursor(), 0);
+    }
+
+    /**
+     * The container gives the middleware the status the MCP sender turns on, whichever is created first.
+     */
+    public function testContainerMiddlewareStoresSpansOnceMcpSenderIsCreated(): void
+    {
+        $container = new ObjectContainer();
+        $container->set(new Modules($container));
+        $middleware = $container->get(OtlpTrap::class);
+        $store = $container->get(SpanStore::class);
+
+        $this->handleInFiber($this->request(body: self::PAYLOAD), $middleware);
+        $before = $store->countSpans();
+        $container->get(McpSender::class);
+        $this->handleInFiber($this->request(body: self::PAYLOAD), $middleware);
+
+        Assert::same($before, 0);
+        Assert::same($store->countSpans(), 1);
+    }
+
+    public function testRejectedRequestStoresNothing(): void
+    {
+        $store = new SpanStore();
+
+        $this->handleInFiber($this->request(body: '{"resourceSpans": ['), new OtlpTrap(spans: $store, mcp: self::mcpOn()));
+
+        Assert::same($store->cursor(), 0);
     }
 
     public function testRejectsMalformedJsonWith400(): void
@@ -514,6 +574,14 @@ final class OtlpTrapTest
     private static function protobufFixture(): string
     {
         return \file_get_contents(Info::TRAP_ROOT . '/tests/Stub/otlp-traces.pb');
+    }
+
+    private static function mcpOn(): McpStatus
+    {
+        $status = new McpStatus();
+        $status->turnOn();
+
+        return $status;
     }
 
     /**

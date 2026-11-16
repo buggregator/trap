@@ -62,6 +62,7 @@ final class McpServerTest
                 'title' => 'Echo',
                 'description' => 'Returns the arguments.',
                 'inputSchema' => ['type' => 'object', 'properties' => new \stdClass()],
+                'outputSchema' => ['type' => 'object'],
                 'annotations' => ['readOnlyHint' => true],
             ],
             [
@@ -85,18 +86,33 @@ final class McpServerTest
         Assert::same($result, ['content' => [['type' => 'text', 'text' => 'hi']], 'isError' => false]);
     }
 
-    public function testToolCallEncodesArrayAsJson(): void
+    public function testToolCallReturnsArrayAsStructuredContentAndJsonText(): void
     {
         $result = self::server()->request('tools/call', ['name' => 'echo', 'arguments' => ['id' => 1]]);
 
-        Assert::same($result['content'], [['type' => 'text', 'text' => '{"id":1}']]);
+        Assert::same($result, [
+            'content' => [['type' => 'text', 'text' => '{"id":1}']],
+            'isError' => false,
+            'structuredContent' => ['id' => 1],
+        ]);
     }
 
-    public function testToolCallWithoutArguments(): void
+    public function testEmptyArrayIsEmptyObject(): void
     {
         $result = self::server()->request('tools/call', ['name' => 'echo']);
 
-        Assert::same($result['content'], [['type' => 'text', 'text' => '[]']]);
+        Assert::same($result['content'], [['type' => 'text', 'text' => '{}']]);
+        Assert::equals($result['structuredContent'], new \stdClass());
+    }
+
+    public function testListResultIsToolError(): void
+    {
+        $result = self::server()->request('tools/call', ['name' => 'echo', 'arguments' => ['list' => [1, 2]]]);
+
+        Assert::same($result, [
+            'content' => [['type' => 'text', 'text' => 'Tool echo returned a list instead of an object.']],
+            'isError' => true,
+        ]);
     }
 
     public function testFailedToolIsErrorResult(): void

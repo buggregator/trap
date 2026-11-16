@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Module\Mcp\Sender;
 
 use Buggregator\Trap\Module\Mcp\Config\Mcp as Config;
 use Buggregator\Trap\Module\Mcp\Http\Endpoint;
+use Buggregator\Trap\Module\Mcp\McpStatus;
 use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Sender;
 use Buggregator\Trap\Server\Sender\ConsumesEvents;
@@ -22,14 +23,16 @@ final class McpSender implements Sender, ConsumesEvents, ServesHttp
 {
     /**
      * Created only when the MCP server is chosen: `get_event` prints the frames of an event, so the store
-     * keeps them from then on.
+     * keeps them from then on, and the modules keep their data for the tools.
      */
     public function __construct(
         private readonly Endpoint $endpoint,
         private readonly Config $config,
         EventStore $events,
+        McpStatus $status,
     ) {
         $events->keepFrames();
+        $status->turnOn();
     }
 
     #[\Override]

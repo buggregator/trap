@@ -7,7 +7,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Stub;
 use Buggregator\Trap\Module\Mcp\Tool;
 
 /**
- * Returns its arguments; `text` is returned as is, `fail` throws its value.
+ * Returns its arguments; `text` is returned as is, `list` as a list, `fail` throws its value.
  */
 final class EchoTool implements Tool
 {
@@ -31,6 +31,11 @@ final class EchoTool implements Tool
         return ['type' => 'object', 'properties' => new \stdClass()];
     }
 
+    public function outputSchema(): ?array
+    {
+        return ['type' => 'object'];
+    }
+
     public function annotations(): array
     {
         return ['readOnlyHint' => true];
@@ -40,6 +45,10 @@ final class EchoTool implements Tool
     {
         isset($arguments['fail']) and throw new \RuntimeException((string) $arguments['fail']);
 
-        return isset($arguments['text']) ? (string) $arguments['text'] : $arguments;
+        return match (true) {
+            isset($arguments['text']) => (string) $arguments['text'],
+            isset($arguments['list']) => \array_values((array) $arguments['list']),
+            default => $arguments,
+        };
     }
 }

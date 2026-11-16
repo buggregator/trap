@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Tracing\Config;
 
 use Buggregator\Trap\Module\Tracing\Config\Traces;
+use Buggregator\Trap\Module\Tracing\Console\Renderer;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\SpanKind;
 use Buggregator\Trap\Module\Tracing\SpanStore;
@@ -77,6 +78,17 @@ final class TracesTest
 
         Assert::same($store->countSpans(), 2);
         Assert::same($store->getTrace(\str_repeat('a', 32)), []);
+    }
+
+    public function testRendererFromContainerUsesEnvLimits(): void
+    {
+        $renderer = $this->container(['TRAP_TRACES_MAX_SPANS' => '2'])->make(Renderer::class);
+        $store = (new \ReflectionProperty(Renderer::class, 'store'))->getValue($renderer);
+        \assert($store instanceof SpanStore);
+
+        $store->add(self::span('a'), self::span('b'), self::span('c'));
+
+        Assert::same($store->countSpans(), 2);
     }
 
     #[DataProvider('provideInvalidEnvValues')]
