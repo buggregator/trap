@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Profiler\Frontend;
 
-use Buggregator\Trap\Module\Frontend\Event;
 use Buggregator\Trap\Module\Profiler\Frame\Payload;
 use Buggregator\Trap\Module\Profiler\Frame\Type;
 use Buggregator\Trap\Module\Profiler\Frontend\Mapper;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
+use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Support\Json;
 use Testo\Assert;
 use Testo\Codecov\Covers;

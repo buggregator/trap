@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mailer\Frontend\Message;
 
-use Buggregator\Trap\Module\Frontend\Event;
+use Buggregator\Trap\Server\Event\AttachedFile;
+use Buggregator\Trap\Server\Event\Event;
 
 /**
  * @internal
@@ -14,7 +15,7 @@ final class Attachments implements \JsonSerializable
     private array $data = [];
 
     /**
-     * @param array<array-key, Event\AttachedFile> $files
+     * @param array<array-key, AttachedFile> $files
      * @param array<array-key, mixed> $meta
      */
     public function __construct(

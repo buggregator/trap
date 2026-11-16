@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend;
 
-use Buggregator\Trap\Module\Frontend\EventStorage;
-use Buggregator\Trap\Module\Frontend\FrameMapper;
 use Buggregator\Trap\Module\Frontend\Service;
 use Buggregator\Trap\Module\Frontend\UiControllers;
 use Buggregator\Trap\Module\HttpDump\Module as HttpDumpModule;
 use Buggregator\Trap\Server\Application\Module\Modules;
+use Buggregator\Trap\Server\Event\EventStore;
+use Buggregator\Trap\Server\Event\FrameMapper;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Tests\Unit\Module\Frontend\Stub\ApiController;
@@ -99,7 +99,7 @@ final class UiContributionsTest
 
         Expect::exception(\LogicException::class)->withMessageContaining('is already declared by');
 
-        new Service(new Logger(), new EventStorage(), $modules);
+        new Service(new Logger(), new EventStore(), $modules);
     }
 
     private static function emptyContainer(): ObjectContainer

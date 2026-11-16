@@ -10,6 +10,9 @@ use Buggregator\Trap\Module\Frontend\Message\Settings;
 use Buggregator\Trap\Module\Frontend\Message\Success;
 use Buggregator\Trap\Module\Frontend\Message\Version;
 use Buggregator\Trap\Server\Application\Module\Modules;
+use Buggregator\Trap\Server\Event\Event;
+use Buggregator\Trap\Server\Event\EventStore;
+use Buggregator\Trap\Server\Event\ProvidesEvents;
 use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteFail as AssertFail;
 use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteSuccess as AssertSuccess;
 use Buggregator\Trap\Server\Handler\Router\Attribute\RegexpRoute;
@@ -27,15 +30,15 @@ final class Service
 
     public function __construct(
         private readonly Logger $logger,
-        private readonly EventStorage $eventsStorage,
+        private readonly EventStore $eventsStorage,
         Modules $modules,
     ) {
         /** @var array<non-empty-string, class-string> $owners Who declared each event type */
         $owners = [];
-        foreach ($modules->implementing(ProvidesUi::class) as $module) {
-            foreach ($module->uiEventTypes() as $type) {
+        foreach ($modules->implementing(ProvidesEvents::class) as $module) {
+            foreach ($module->eventTypes() as $type) {
                 isset($owners[$type]) and throw new \LogicException(
-                    \sprintf('UI event type `%s` of %s is already declared by %s.', $type, $module::class, $owners[$type]),
+                    \sprintf('Event type `%s` of %s is already declared by %s.', $type, $module::class, $owners[$type]),
                 );
                 $owners[$type] = $module::class;
             }

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\HttpDump\Frontend;
 
-use Buggregator\Trap\Module\Frontend\Event;
-use Buggregator\Trap\Module\Frontend\EventMapper;
 use Buggregator\Trap\Module\HttpDump\Frame as HttpFrame;
+use Buggregator\Trap\Server\Event\Asset;
+use Buggregator\Trap\Server\Event\AttachedFile;
+use Buggregator\Trap\Server\Event\Event;
+use Buggregator\Trap\Server\Event\EventMapper;
 use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Support\Uuid;
 use Psr\Http\Message\UploadedFileInterface;
@@ -26,7 +28,7 @@ final class Mapper implements EventMapper
         $request = $frame->request;
 
         $uri = \ltrim($request->getUri()->getPath(), '/');
-        /** @var \ArrayObject<non-empty-string, Event\Asset> $assets */
+        /** @var \ArrayObject<non-empty-string, Asset> $assets */
         $assets = new \ArrayObject();
 
         return new Event(
@@ -47,7 +49,7 @@ final class Mapper implements EventMapper
                     'cookies' => $request->getCookieParams(),
                     'files' => \array_map(
                         static function (UploadedFileInterface $attachment) use ($assets, $uuid): array {
-                            $asset = new Event\AttachedFile(
+                            $asset = new AttachedFile(
                                 id: Uuid::generate(),
                                 file: $attachment,
                             );

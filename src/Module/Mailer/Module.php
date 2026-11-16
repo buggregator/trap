@@ -12,6 +12,7 @@ use Buggregator\Trap\Module\Mailer\Frontend\AssetsController;
 use Buggregator\Trap\Module\Mailer\Frontend\Mapper;
 use Buggregator\Trap\Module\Mailer\Sender\MailToFileSender;
 use Buggregator\Trap\Module\Mailer\Traffic\Dispatcher;
+use Buggregator\Trap\Server\Event\ProvidesEvents;
 use Buggregator\Trap\Server\Proto\ProvidesFrameTypes;
 use Buggregator\Trap\Server\Sender\ProvidesSenders;
 use Buggregator\Trap\Server\Traffic\ProvidesDispatchers;
@@ -24,7 +25,8 @@ final class Module implements
     ProvidesFrameTypes,
     ProvidesRenderers,
     ProvidesSenders,
-    ProvidesUi
+    ProvidesUi,
+    ProvidesEvents
 {
     #[\Override]
     public function dispatchers(): array
@@ -63,13 +65,13 @@ final class Module implements
     }
 
     #[\Override]
-    public function uiEventMappers(): array
+    public function eventMappers(): array
     {
         return [Frame::class => Mapper::class];
     }
 
     #[\Override]
-    public function uiEventTypes(): array
+    public function eventTypes(): array
     {
         return ['smtp'];
     }

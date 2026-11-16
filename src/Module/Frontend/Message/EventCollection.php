@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend\Message;
 
-use Buggregator\Trap\Module\Frontend\Event;
+use Buggregator\Trap\Server\Event\Event;
 
 /**
  * @internal

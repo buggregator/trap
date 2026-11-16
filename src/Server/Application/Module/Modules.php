@@ -30,6 +30,7 @@ final class Modules
         \Buggregator\Trap\Module\Files\Module::class,
         \Buggregator\Trap\Module\Remote\Module::class,
         \Buggregator\Trap\Module\Frontend\Module::class,
+        \Buggregator\Trap\Module\Mcp\Module::class,
         \Buggregator\Trap\Module\VarDumper\Module::class,
         \Buggregator\Trap\Module\Mailer\Module::class,
         \Buggregator\Trap\Module\Monolog\Module::class,

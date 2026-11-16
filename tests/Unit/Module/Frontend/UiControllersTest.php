@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend;
 
-use Buggregator\Trap\Module\Frontend\Event;
-use Buggregator\Trap\Module\Frontend\EventStorage;
 use Buggregator\Trap\Module\Frontend\Http\Pipeline;
 use Buggregator\Trap\Module\Frontend\RPC;
 use Buggregator\Trap\Module\Frontend\Service;
@@ -22,6 +20,8 @@ use Buggregator\Trap\Module\Profiler\Frontend\Mapper as ProfilerMapper;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
 use Buggregator\Trap\Module\Ray\Frontend\LocksController as RayLocksController;
 use Buggregator\Trap\Module\Ray\Lock\Locks;
+use Buggregator\Trap\Server\Event\Event;
+use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteSuccess;
 use Buggregator\Trap\Server\Handler\Router\Router;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\Field;
@@ -84,7 +84,7 @@ final class UiControllersTest
     {
         $container = new ObjectContainer();
         $event = self::profilerEvent();
-        $container->get(EventStorage::class)->add($event);
+        $container->get(EventStore::class)->add($event);
         $expected = self::json((new ProfilerMapper())->topFunctions($event, 'excl_wt'));
 
         $response = self::get($container, "/api/profiler/{$event->uuid}/top?metric=excl_wt");
@@ -219,7 +219,7 @@ final class UiControllersTest
             ->withMessages([new Field(['Content-Type' => ['text/html']], value: '<p>hi</p>')])
             ->withAttachments([$file]);
         $event = (new SmtpMapper())->map(new SmtpFrame($message));
-        $container->get(EventStorage::class)->add($event);
+        $container->get(EventStore::class)->add($event);
 
         return [$event, (string) \array_key_first(\iterator_to_array($event->assets))];
     }

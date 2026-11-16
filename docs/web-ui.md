@@ -31,7 +31,8 @@ vendor/bin/trap --ui=8080 -s
 Dumps, Monolog logs, Sentry events, emails, Ray payloads, HTTP dumps and profiles.
 [OpenTelemetry traces](opentelemetry.md) are shown only in the console.
 
-The UI keeps the last 200 events; the `maxEvents` attribute in `trap.xml` changes it.
-The events live in the memory of Trap and are gone when it stops.
+The UI keeps the last 200 events; `/trap/events/@maxEvents` in [`trap.xml`](configuration.md#trapxml) changes it.
+The events live in the memory of Trap and are gone when it stops. The [MCP server](mcp.md) works with the same
+events: an event deleted in the UI is gone for it too.
 
 The UI also controls `ray()->pause()`: see [Ray](ray.md#notes).

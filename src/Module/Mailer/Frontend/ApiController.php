@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mailer\Frontend;
 
-use Buggregator\Trap\Module\Frontend\Event\AttachedFile;
-use Buggregator\Trap\Module\Frontend\EventStorage;
 use Buggregator\Trap\Module\Frontend\Message\Success;
 use Buggregator\Trap\Module\Mailer\Frontend\Message\Attachments;
+use Buggregator\Trap\Server\Event\AttachedFile;
+use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteSuccess as AssertSuccess;
 use Buggregator\Trap\Server\Handler\Router\Attribute\RegexpRoute;
 use Buggregator\Trap\Server\Handler\Router\Method;
@@ -20,7 +20,7 @@ final class ApiController
 {
     public function __construct(
         private readonly Logger $logger,
-        private readonly EventStorage $eventsStorage,
+        private readonly EventStore $eventsStorage,
     ) {}
 
     #[RegexpRoute(Method::Get, '#^api/smtp/(?<uuid>[a-f0-9-]++)/attachments$#i')]
