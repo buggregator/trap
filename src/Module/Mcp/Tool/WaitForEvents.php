@@ -73,7 +73,7 @@ final class WaitForEvents implements WaitingTool
     public function inputSchema(): array
     {
         $list = $this->list->inputSchema()['properties'];
-        \assert(\is_array($list));
+        \assert(\is_array($list) && \is_array($list['include']));
 
         return [
             'type' => 'object',
@@ -99,7 +99,15 @@ final class WaitForEvents implements WaitingTool
                     'default' => self::DEFAULT_TIMEOUT,
                     'description' => 'Seconds to wait at most. To wait longer, call again with the returned cursor.',
                 ],
-                'include' => $list['include'],
+                'include' => [
+                    ...$list['include'],
+                    'description' => \sprintf(
+                        '`text` adds to each event its full text, as `get_event` shows it, cut to `max_length`. '
+                        . 'The texts of a response take %d characters at most: the events past that are left '
+                        . 'to the next call, as past `count`.',
+                        ListEvents::MAX_TOTAL_TEXT_LENGTH,
+                    ),
+                ],
                 'max_length' => $list['max_length'],
             ],
             'additionalProperties' => false,
@@ -111,6 +119,8 @@ final class WaitForEvents implements WaitingTool
     {
         $schema = $this->list->outputSchema();
         \assert($schema !== null && \is_array($schema['properties']) && \is_array($schema['required']));
+        \assert(\is_array($schema['properties']['events']));
+        $schema['properties']['events']['description'] = 'Oldest change first.';
         $schema['properties']['has_more'] = [
             'type' => 'boolean',
             'description' => 'Whether more matching events wait for `list_events` or the next wait with the '
@@ -184,15 +194,15 @@ final class WaitForEvents implements WaitingTool
             $since = $page['cursor'];
             $limited = $page['has_more'] && !$page['unchecked'] && \count($page['events']) === $limit;
             $filled = $page['has_more'] && !$page['unchecked'] && !$limited;
+            if ($page['rejected'] !== null) {
+                // The update that didn't fit lies past the cursor: the next call lists it at its latest text
+                unset($events[$page['rejected']], $textLengths[$page['rejected']]);
+            }
+
             $done = \count($events) >= $count;
             $over = !$canWait || \hrtime(true) >= $deadline || $this->caller->isDisconnected();
             if ($done || $filled || $over) {
-                return [
-                    'events' => \array_values($events),
-                    'cursor' => Cursor::encode($this->store->id, $since),
-                    'has_more' => $page['has_more'],
-                    'timed_out' => !$done && !$filled,
-                ];
+                return $this->result($events, $since, $page['has_more'], !$done && !$filled);
             }
 
             // The rest of the changes to check right away: the time ran out, or updated events took the limit,
@@ -204,6 +214,26 @@ final class WaitForEvents implements WaitingTool
             while ($this->store->cursor() <= $since && \hrtime(true) < $deadline && !$this->caller->isDisconnected()) {
                 \Fiber::suspend();
             }
+
+            if ($this->caller->isDisconnected()) {
+                return $this->result($events, $since, false, true);
+            }
         }
+    }
+
+    /**
+     * @param array<non-empty-string, ListedEvent> $events
+     * @param int<0, max> $cursor
+     *
+     * @return array{events: list<ListedEvent>, cursor: non-empty-string, has_more: bool, timed_out: bool}
+     */
+    private function result(array $events, int $cursor, bool $hasMore, bool $timedOut): array
+    {
+        return [
+            'events' => \array_values($events),
+            'cursor' => Cursor::encode($this->store->id, $cursor),
+            'has_more' => $hasMore,
+            'timed_out' => $timedOut,
+        ];
     }
 }

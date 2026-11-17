@@ -213,7 +213,9 @@ final class ListEvents implements Tool
      *     cursor: int<0, max>,
      *     has_more: bool,
      *     unchecked: bool,
-     * } `unchecked`: the time ran out before all the events were checked.
+     *     rejected: non-empty-string|null,
+     * } `unchecked`: the time ran out before all the events were checked. `rejected`: the ID of an event
+     *   of `$kept` whose newer copy was left out as its text didn't fit, so the kept copy is out of date.
      */
     public function collect(
         int $since,
@@ -229,6 +231,7 @@ final class ListEvents implements Tool
         $newest and $records = \array_reverse($records);
         $events = [];
         $hasMore = false;
+        $rejected = null;
         $last = $since;
         $textLength = \array_sum($kept);
         $walk = $this->scan->walk($this->store, $records, $budget);
@@ -242,6 +245,7 @@ final class ListEvents implements Tool
             $length = $others + \mb_strlen($event['text'] ?? '');
             if ($event === null || (($events !== [] || $others > 0) && $length > self::MAX_TOTAL_TEXT_LENGTH)) {
                 $hasMore = true;
+                $event !== null && isset($kept[$record->event->uuid]) and $rejected = $record->event->uuid;
                 // The rest comes with the next call, which takes the last listed change as its cursor;
                 // the older events left out by `newest` never come, so the cursor stays at the latest change
                 $newest or $cursor = $last;
@@ -265,6 +269,7 @@ final class ListEvents implements Tool
             'cursor' => $cursor,
             'has_more' => $hasMore,
             'unchecked' => $unchecked !== null,
+            'rejected' => $rejected,
         ];
     }
 

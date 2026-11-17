@@ -214,6 +214,30 @@ final class WaitForEventsTest
         Assert::false($caller->isDisconnected(), 'The binding ends with the call.');
     }
 
+    public function testDisconnectedClientGetsNoMoreEventsChecked(): void
+    {
+        $trap = Trap::scripted();
+        $tool = $trap->get(WaitForEvents::class);
+        $caller = $trap->get(Caller::class);
+        $gone = false;
+        $disconnected = static function () use (&$gone): bool {
+            return $gone;
+        };
+        $fiber = new \Fiber(static fn(): array => $caller->connected(
+            $disconnected,
+            static fn(): array => $tool->call(['search' => 'needle']),
+        ));
+
+        $fiber->start();
+        $gone = true;
+        $trap->store->add(ScriptedView::event(self::uuid(1), 'needle', 1.0));
+        $fiber->resume();
+
+        Assert::true($fiber->isTerminated());
+        Assert::same($fiber->getReturn()['events'], []);
+        Assert::same($trap->view()->renders, 0);
+    }
+
     public function testOutsideFiberChecksOnce(): void
     {
         $trap = new Trap();
@@ -389,6 +413,33 @@ final class WaitForEventsTest
         Assert::true($result['has_more']);
         Assert::false($result['timed_out']);
         Assert::same($result['cursor'], $trap->store->id . ':' . ($last->seq - 1));
+    }
+
+    public function testUpdateGrowingPastTheTextsIsLeftToTheNextCall(): void
+    {
+        $trap = Trap::scripted();
+        $perEvent = ListEvents::MAX_TEXT_LENGTH;
+        for ($i = 1; $i <= 9; ++$i) {
+            $trap->store->add(ScriptedView::event(self::uuid($i), \str_repeat('x', $perEvent), (float) $i));
+        }
+        $trap->store->add(ScriptedView::event(self::uuid(10), \str_repeat('x', 500), 10.0));
+        $trap->store->add(ScriptedView::event(self::uuid(11), \str_repeat('x', $perEvent - 1_000), 11.0));
+        $arguments = ['include' => 'text', 'max_length' => $perEvent];
+        $fiber = self::wait($trap, [...$arguments, 'since' => $trap->store->id . ':0', 'count' => 13]);
+
+        $waiting = $fiber->isSuspended();
+        $trap->store->add(ScriptedView::event(self::uuid(11), \str_repeat('y', $perEvent), 11.0));
+        $fiber->resume();
+        $result = $fiber->getReturn();
+        $next = $trap->get(ListEvents::class)->call([...$arguments, 'since' => $result['cursor']]);
+
+        Assert::true($waiting, 'The texts of 499 500 characters fit.');
+        Assert::count($result['events'], 10);
+        Assert::array(\array_column($result['events'], 'id'))->notContains(self::uuid(11));
+        Assert::true($result['has_more']);
+        Assert::false($result['timed_out']);
+        Assert::same(\array_column($next['events'], 'id'), [self::uuid(11)]);
+        Assert::same($next['events'][0]['text'], \str_repeat('y', $perEvent));
     }
 
     public function testNewEventAndUpdateOnOnePageShareTheRoomOfTheTexts(): void

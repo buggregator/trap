@@ -134,7 +134,8 @@ seconds have passed (30 by default, 50 at most).
   comes with `timed_out: true` only when fewer than `count` events were found. Pass the returned `cursor` to
   `list_events` or to the next wait: either way no event is missed.
 - An event updated while the call waits, as a Ray message updated by the application, is listed once, at its
-  latest change, and counts once toward `count`.
+  latest change, and counts once toward `count`. When its latest text no longer fits the texts of `include: text`,
+  the call leaves the event out, with `has_more: true`, and the next call lists it.
 - With a short `timeout`, or `0`, the events already there after an older `since` still get the full
   [time limit](#time-limit) to be checked, as with `list_events`.
 - A wait inside a JSON-RPC batch fails: the batch is answered once all its calls are done, so a wait would hold
