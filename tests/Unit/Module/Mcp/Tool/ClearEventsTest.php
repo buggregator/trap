@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Tool;
 
 use Buggregator\Trap\Module\Mcp\Tool\ClearEvents;
+use Buggregator\Trap\Module\Mcp\Tool\EventFilter;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\JsonSchema;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
@@ -17,6 +18,7 @@ use Testo\Test;
 
 #[Test]
 #[Covers(ClearEvents::class)]
+#[Covers(EventFilter::class)]
 final class ClearEventsTest
 {
     public function testClearsAll(): void
@@ -37,6 +39,10 @@ final class ClearEventsTest
     #[DataSet([['project' => 'shop'], 1, ['monolog@default', 'var-dump@default']], 'project')]
     #[DataSet([['type' => 'var-dump', 'project' => 'default'], 1, ['monolog@default', 'var-dump@shop']], 'type and project')]
     #[DataSet([['type' => 'smtp'], 0, ['monolog@default', 'var-dump@default', 'var-dump@shop']], 'nothing matches')]
+    #[DataSet([['search' => 'SHOP'], 1, ['monolog@default', 'var-dump@default']], 'search')]
+    #[DataSet([['where' => ['level' => 'error']], 1, ['var-dump@default', 'var-dump@shop']], 'field')]
+    #[DataSet([['to' => '2023-11-15T00:00:00Z'], 2, ['monolog@default']], 'caught before a time')]
+    #[DataSet([['project' => ['shop', 'default'], 'search' => 'dump'], 2, ['monolog@default']], 'projects and search')]
     public function testDeletesMatchingEvents(array $arguments, int $removed, array $left): void
     {
         $trap = self::trap();
@@ -77,6 +83,77 @@ final class ClearEventsTest
         $trap->get(ClearEvents::class)->call(['type' => 'nope']);
     }
 
+    #[DataSet([['type' => []], '`type` must be a string or a non-empty list of strings.'], 'no types')]
+    #[DataSet([['project' => []], '`project` must be a string or a non-empty list of strings.'], 'no projects')]
+    #[DataSet([['where' => []], '`where` must be an object of at least one field name and value'], 'no fields')]
+    #[DataSet([['regex' => true], '`regex` needs `search`, the pattern to match.'], 'regex without search')]
+    public function testEmptyConditionDeletesNothing(array $arguments, string $message): void
+    {
+        $trap = self::trap();
+
+        try {
+            $trap->get(ClearEvents::class)->call($arguments);
+            Assert::fail('The call must fail.');
+        } catch (\InvalidArgumentException $e) {
+            Assert::string($e->getMessage())->startsWith($message);
+        }
+
+        Assert::count($trap->store, 3);
+    }
+
+    #[DataSet(['typo'], 'no separator')]
+    #[DataSet(['abc:x1'], 'not a number')]
+    public function testMalformedCursorDeletesNothing(string $since): void
+    {
+        $trap = self::trap();
+
+        try {
+            $trap->get(ClearEvents::class)->call(['since' => $since]);
+            Assert::fail('The call must fail.');
+        } catch (\InvalidArgumentException $e) {
+            Assert::string($e->getMessage())->startsWith('`since` must be a `cursor`');
+        }
+
+        Assert::count($trap->store, 3);
+    }
+
+    public function testTooLongDurationDeletesNothing(): void
+    {
+        $trap = self::trap();
+
+        try {
+            $trap->get(ClearEvents::class)->call(['to' => '100000000w']);
+            Assert::fail('The call must fail.');
+        } catch (\InvalidArgumentException $e) {
+            Assert::string($e->getMessage())->startsWith('`to` must be a duration of at most 100 years');
+        }
+
+        Assert::count($trap->store, 3);
+    }
+
+    public function testFailingRegexDeletesNothing(): void
+    {
+        $trap = self::trap();
+        $trap->add(Trap::dump(\str_repeat('a', 40) . 'b'));
+        $limit = \ini_get('pcre.backtrack_limit');
+        $jit = \ini_get('pcre.jit');
+        // Without JIT the limit is of backtracking: the error is the same on every platform
+        \ini_set('pcre.backtrack_limit', '1000');
+        \ini_set('pcre.jit', '0');
+
+        try {
+            $trap->get(ClearEvents::class)->call(['search' => '(a+)+$', 'regex' => true]);
+            Assert::fail('The call must fail.');
+        } catch (\InvalidArgumentException $e) {
+            Assert::string($e->getMessage())->contains('Backtrack limit exhausted');
+        } finally {
+            \ini_set('pcre.backtrack_limit', (string) $limit);
+            \ini_set('pcre.jit', (string) $jit);
+        }
+
+        Assert::count($trap->store, 4);
+    }
+
     public function testIsDestructiveAndIdempotent(): void
     {
         $tool = (new Trap())->get(ClearEvents::class);
@@ -88,7 +165,10 @@ final class ClearEventsTest
             'idempotentHint' => true,
             'openWorldHint' => false,
         ]);
-        Assert::same(\array_keys($tool->inputSchema()['properties']), ['type', 'project']);
+        Assert::same(
+            \array_keys($tool->inputSchema()['properties']),
+            ['since', 'type', 'project', 'from', 'to', 'search', 'regex', 'where'],
+        );
     }
 
     #[DataSet([[]], 'all')]

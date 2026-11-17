@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Stub;
 
 use Buggregator\Trap\Module\Monolog\Frame as MonologFrame;
 use Buggregator\Trap\Module\VarDumper\Frame as VarDumperFrame;
+use Buggregator\Trap\Server\Application\Module\Module;
 use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Event\FrameMapper;
@@ -22,13 +23,26 @@ final class Trap
     public readonly ObjectContainer $container;
     public readonly EventStore $store;
 
-    public function __construct()
+    /**
+     * @param list<class-string<Module>>|null $modules The real modules when null.
+     */
+    public function __construct(?array $modules = null)
     {
         $this->container = new ObjectContainer();
-        $this->container->set(new Modules($this->container));
+        $this->container->set(
+            $modules === null ? new Modules($this->container) : new Modules($this->container, $modules),
+        );
         $this->store = $this->container->get(EventStore::class);
         // As the MCP sender does
         $this->store->keepFrames();
+    }
+
+    /**
+     * A trap whose events, added as they are, render as the {@see ScriptedView} says.
+     */
+    public static function scripted(): self
+    {
+        return new self([ScriptedViewModule::class]);
     }
 
     public static function dump(mixed $value, array $context = []): VarDumperFrame
@@ -50,6 +64,11 @@ final class Trap
             'channel' => 'app',
             'context' => [],
         ]);
+    }
+
+    public function view(): ScriptedView
+    {
+        return $this->container->get(ScriptedView::class);
     }
 
     /**

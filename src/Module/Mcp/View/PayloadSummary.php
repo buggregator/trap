@@ -9,28 +9,30 @@ use Buggregator\Trap\Server\Event\Record;
 use Buggregator\Trap\Support\Json;
 
 /**
- * Summaries of the common event types, read from the payloads the web UI gets.
+ * Summaries and fields of the common event types, read from the payloads the web UI gets.
  *
  * @internal
  */
-final class PayloadSummary implements EventView
+final class PayloadSummary implements EventView, EventFields
 {
     /** Characters of a summary, the ellipsis excluded. */
     public const MAX_LENGTH = 160;
 
+    private const FIELDS = [
+        'var-dump' => ['label', 'value_type', 'language', 'file'],
+        'monolog' => ['level', 'channel'],
+        'sentry' => ['level', 'exception', 'environment', 'release', 'transaction', 'server_name', 'status'],
+        'smtp' => ['subject', 'from', 'to', 'cc', 'bcc'],
+        'http-dump' => ['method', 'path', 'host'],
+        'ray' => ['payload_type', 'exception', 'label', 'color'],
+    ];
+
     #[\Override]
     public function summary(Event $event): ?string
     {
-        $payload = $event->payload;
-        // Ray keeps its payloads in an object; a profile is too large to serialize for a summary
-        if ($payload instanceof \JsonSerializable) {
-            if ($event->type !== 'ray') {
-                return null;
-            }
-
-            /** @var mixed $payload */
-            $payload = $payload->jsonSerialize();
-            \is_array($payload) or $payload = [];
+        $payload = self::payload($event);
+        if ($payload === null) {
+            return null;
         }
 
         $summary = match ($event->type) {
@@ -51,6 +53,168 @@ final class PayloadSummary implements EventView
     public function text(Record $record): ?string
     {
         return null;
+    }
+
+    #[\Override]
+    public function fieldNames(): array
+    {
+        return self::FIELDS;
+    }
+
+    #[\Override]
+    public function fields(Event $event): ?array
+    {
+        $payload = self::payload($event);
+        if ($payload === null || !isset(self::FIELDS[$event->type])) {
+            return null;
+        }
+
+        return match ($event->type) {
+            'var-dump' => self::dumpFields($payload),
+            'monolog' => ['level' => self::plain($payload['level_name'] ?? null), 'channel' => self::plain($payload['channel'] ?? null)],
+            'sentry' => self::sentryFields($payload),
+            'smtp' => [
+                'subject' => self::plain($payload['subject'] ?? null),
+                'from' => self::contactList($payload['from'] ?? null),
+                'to' => self::contactList($payload['to'] ?? null),
+                'cc' => self::contactList($payload['cc'] ?? null),
+                'bcc' => self::contactList($payload['bcc'] ?? null),
+            ],
+            'http-dump' => self::httpFields($payload),
+            default => self::rayFields($payload),
+        };
+    }
+
+    /**
+     * Ray keeps its payloads in an object; a profile is too large to serialize.
+     */
+    private static function payload(Event $event): ?array
+    {
+        $payload = $event->payload;
+        if (!$payload instanceof \JsonSerializable) {
+            return $payload;
+        }
+
+        if ($event->type !== 'ray') {
+            return null;
+        }
+
+        /** @var mixed $payload */
+        $payload = $payload->jsonSerialize();
+
+        return \is_array($payload) ? $payload : [];
+    }
+
+    /**
+     * @return array<non-empty-string, string>
+     */
+    private static function dumpFields(array $payload): array
+    {
+        /** @var mixed $dump */
+        $dump = $payload['payload'] ?? null;
+        \is_array($dump) or $dump = [];
+        /** @var mixed $source */
+        $source = $payload['context']['source'] ?? null;
+
+        return [
+            'label' => self::plain($dump['label'] ?? null),
+            'value_type' => self::plain($dump['type'] ?? null),
+            'language' => self::plain($dump['language'] ?? null),
+            'file' => \is_array($source) ? self::plain($source['file'] ?? null) : '',
+        ];
+    }
+
+    /**
+     * @return array<non-empty-string, scalar|list<string>>
+     */
+    private static function sentryFields(array $payload): array
+    {
+        /** @var mixed $exceptions */
+        $exceptions = $payload['exception']['values'] ?? $payload['exception'] ?? null;
+        $types = [];
+        /** @var mixed $exception */
+        foreach (\is_array($exceptions) ? $exceptions : [] as $exception) {
+            \is_array($exception) and $types[] = self::plain($exception['type'] ?? null);
+        }
+
+        /** @var mixed $response */
+        $response = $payload['contexts']['response'] ?? null;
+        /** @var mixed $status */
+        $status = \is_array($response) ? $response['status_code'] ?? null : null;
+
+        return [
+            'level' => self::plain($payload['level'] ?? null),
+            'exception' => \array_values(\array_filter($types)),
+            'environment' => self::plain($payload['environment'] ?? null),
+            'release' => self::plain($payload['release'] ?? null),
+            'transaction' => self::plain($payload['transaction'] ?? null),
+            'server_name' => self::plain($payload['server_name'] ?? null),
+            'status' => \is_int($status) ? $status : '',
+        ];
+    }
+
+    /**
+     * @return array<non-empty-string, string>
+     */
+    private static function httpFields(array $payload): array
+    {
+        /** @var mixed $request */
+        $request = $payload['request'] ?? null;
+        \is_array($request) or $request = [];
+
+        return [
+            'method' => self::plain($request['method'] ?? null),
+            'path' => '/' . self::plain($request['uri'] ?? null),
+            'host' => self::plain($payload['host'] ?? null),
+        ];
+    }
+
+    /**
+     * @return array<non-empty-string, list<string>>
+     */
+    private static function rayFields(array $payload): array
+    {
+        $fields = ['payload_type' => [], 'exception' => [], 'label' => [], 'color' => []];
+        foreach (\is_array($payload['payloads'] ?? null) ? $payload['payloads'] : [] as $item) {
+            if (!\is_array($item)) {
+                continue;
+            }
+
+            $type = self::plain($item['type'] ?? null);
+            $fields['payload_type'][] = $type;
+            /** @var mixed $content */
+            $content = $item['content'] ?? null;
+            if (!\is_array($content)) {
+                continue;
+            }
+
+            match ($type) {
+                'exception' => $fields['exception'][] = self::plain($content['class'] ?? null),
+                'label' => $fields['label'][] = self::plain($content['label'] ?? null),
+                'color' => $fields['color'][] = self::plain($content['color'] ?? null),
+                default => null,
+            };
+        }
+
+        return \array_map(static fn(array $values): array => \array_values(\array_unique(\array_filter($values))), $fields);
+    }
+
+    /**
+     * @param mixed $contacts Objects or arrays with `name` and `email`.
+     *
+     * @return list<string> The email of each contact, or its name when it has none.
+     */
+    private static function contactList(mixed $contacts): array
+    {
+        $result = [];
+        /** @var mixed $contact */
+        foreach (\is_iterable($contacts) ? $contacts : [] as $contact) {
+            $fields = \is_object($contact) ? \get_object_vars($contact) : (array) $contact;
+            $email = self::plain($fields['email'] ?? null);
+            $result[] = $email === '' ? self::plain($fields['name'] ?? null) : $email;
+        }
+
+        return \array_values(\array_filter($result));
     }
 
     /**
@@ -155,20 +319,9 @@ final class PayloadSummary implements EventView
         ]));
     }
 
-    /**
-     * @param mixed $contacts Objects or arrays with `name` and `email`.
-     */
     private static function contacts(mixed $contacts): string
     {
-        $result = [];
-        /** @var mixed $contact */
-        foreach (\is_iterable($contacts) ? $contacts : [] as $contact) {
-            $fields = \is_object($contact) ? \get_object_vars($contact) : (array) $contact;
-            $email = self::plain($fields['email'] ?? null);
-            $result[] = $email === '' ? self::plain($fields['name'] ?? null) : $email;
-        }
-
-        return \implode(', ', \array_filter($result));
+        return \implode(', ', self::contactList($contacts));
     }
 
     private static function http(array $payload): string

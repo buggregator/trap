@@ -40,4 +40,85 @@ final class Arguments
 
         return $value;
     }
+
+    /**
+     * @param array<array-key, mixed> $arguments
+     *
+     * @return float|null Null when the argument is missing.
+     *
+     * @throws \InvalidArgumentException
+     */
+    public static function number(array $arguments, string $name, float $min = 0.0): ?float
+    {
+        /** @var mixed $value */
+        $value = $arguments[$name] ?? null;
+        if ($value === null) {
+            return null;
+        }
+
+        (\is_int($value) || \is_float($value)) && \is_finite((float) $value) && $value >= $min
+            or throw new \InvalidArgumentException(\sprintf('`%s` must be a number of at least %s.', $name, $min));
+
+        return (float) $value;
+    }
+
+    /**
+     * @param array<array-key, mixed> $arguments
+     *
+     * @return list<string> A string or a non-empty list of strings as a list; empty when the argument is missing.
+     *
+     * @throws \InvalidArgumentException
+     */
+    public static function strings(array $arguments, string $name): array
+    {
+        /** @var mixed $value */
+        $value = $arguments[$name] ?? null;
+        if ($value === null) {
+            return [];
+        }
+
+        // An empty list would read as no condition: a filter of `clear_events` would delete every event
+        $values = \is_string($value) ? [$value] : $value;
+        \is_array($values) && $values !== [] && \array_is_list($values) && \array_filter($values, 'is_string') === $values
+            or throw new \InvalidArgumentException("`$name` must be a string or a non-empty list of strings.");
+        /** @var list<string> $values */
+
+        return $values;
+    }
+
+    /**
+     * @param array<array-key, mixed> $arguments
+     * @param non-empty-list<non-empty-string> $choices The first one is the default.
+     *
+     * @return non-empty-string
+     *
+     * @throws \InvalidArgumentException
+     */
+    public static function choice(array $arguments, string $name, array $choices): string
+    {
+        /** @var mixed $value */
+        $value = $arguments[$name] ?? $choices[0];
+        \is_string($value) && \in_array($value, $choices, true) or throw new \InvalidArgumentException(\sprintf(
+            '`%s` must be one of: %s.',
+            $name,
+            \implode(', ', $choices),
+        ));
+        /** @var non-empty-string $value */
+
+        return $value;
+    }
+
+    /**
+     * @param array<array-key, mixed> $arguments
+     *
+     * @throws \InvalidArgumentException
+     */
+    public static function boolean(array $arguments, string $name): bool
+    {
+        /** @var mixed $value */
+        $value = $arguments[$name] ?? false;
+        \is_bool($value) or throw new \InvalidArgumentException("`$name` must be a boolean.");
+
+        return $value;
+    }
 }

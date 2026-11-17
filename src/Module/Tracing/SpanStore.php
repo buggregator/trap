@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Module\Tracing;
 
 use Buggregator\Trap\Module\Tracing\Config\Traces as Config;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
+use Buggregator\Trap\Module\Tracing\Frame\Trace\Attributes;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\StatusCode;
 
@@ -24,6 +25,8 @@ use Buggregator\Trap\Module\Tracing\Frame\Trace\StatusCode;
  * and read by the MCP tools. The console renderer keeps a store of its own, filled as it renders.
  *
  * @internal
+ *
+ * @psalm-import-type AttributeMap from Attributes
  */
 final class SpanStore
 {
@@ -52,6 +55,14 @@ final class SpanStore
 
     /** @var array<non-empty-string, array<non-empty-string, string>> Trace ID => span ID => service name */
     private array $services = [];
+
+    /**
+     * Spans of one export request share the array of their resource: PHP keeps it once.
+     *
+     * @var array<non-empty-string, array<non-empty-string, AttributeMap>> Trace ID => span ID => attributes of
+     *      its resource, when not empty
+     */
+    private array $resources = [];
 
     /** @var int<0, max> */
     private int $seq = 0;
@@ -116,7 +127,11 @@ final class SpanStore
             // Re-inserting a known span moves it to the end too, so the oldest spans stay first.
             $old = $trace[$span->spanId] ?? null;
             if ($old !== null) {
-                unset($trace[$span->spanId], $this->services[$traceId][$span->spanId]);
+                unset(
+                    $trace[$span->spanId],
+                    $this->services[$traceId][$span->spanId],
+                    $this->resources[$traceId][$span->spanId],
+                );
                 $this->unindex($old, $span);
             } else {
                 ++$this->spanCount;
@@ -132,7 +147,7 @@ final class SpanStore
     }
 
     /**
-     * Adds the spans of the frame with the service names of their resources. The limits apply after each span,
+     * Adds the spans of the frame with the attributes of their resources. The limits apply after each span,
      * as for spans added one by one.
      */
     public function receive(OtlpTraces $frame): void
@@ -142,6 +157,8 @@ final class SpanStore
             $service = $resource->getServiceName();
             // The limits never drop the span just added: it is the most recent one.
             $service === null or $this->services[$span->traceId][$span->spanId] = $service;
+            $attributes = $resource->resourceAttributes;
+            $attributes === [] or $this->resources[$span->traceId][$span->spanId] = $attributes;
         }
     }
 
@@ -196,6 +213,19 @@ final class SpanStore
     public function getTrace(string $traceId): array
     {
         return $this->traces[$traceId] ?? [];
+    }
+
+    /**
+     * @return list<AttributeMap> The distinct attributes of the resources of the spans, without empty ones.
+     */
+    public function getResources(string $traceId): array
+    {
+        $result = [];
+        foreach ($this->resources[$traceId] ?? [] as $attributes) {
+            \in_array($attributes, $result, true) or $result[] = $attributes;
+        }
+
+        return $result;
     }
 
     /**
@@ -339,6 +369,7 @@ final class SpanStore
                 $this->updatedAt[$traceId],
                 $this->changedAt[$traceId],
                 $this->services[$traceId],
+                $this->resources[$traceId],
                 $this->children[$traceId],
                 $this->bounds[$traceId],
             );
@@ -358,6 +389,7 @@ final class SpanStore
         $this->traces[$traceId] = $trace;
         $this->spanCount = \count($trace);
         $this->services[$traceId] = \array_intersect_key($this->services[$traceId] ?? [], $trace);
+        $this->resources[$traceId] = \array_intersect_key($this->resources[$traceId] ?? [], $trace);
 
         $children = [];
         foreach ($trace as $span) {

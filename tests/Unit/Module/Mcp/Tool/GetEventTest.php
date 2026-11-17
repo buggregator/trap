@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Tool;
 
 use Buggregator\Trap\Module\Mcp\Tool\GetEvent;
+use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\ScriptedView;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -40,6 +41,39 @@ final class GetEventTest
         [$kept, $notice] = \explode("\n\n[Truncated: ", $text);
         Assert::same(\mb_strlen($kept), 120);
         Assert::string($notice)->matchesRegex('/^120 of \d+ characters shown\. Call again with a larger `max_length` for more\.]$/');
+    }
+
+    public function testTextIsCutFromTheCache(): void
+    {
+        $trap = Trap::scripted();
+        $record = $trap->store->add(ScriptedView::event('long', \str_repeat('x', 200_000)));
+        $tool = $trap->get(GetEvent::class);
+        $header = "scripted event long at 1970-01-01T00:00:01.000+00:00, project default\nscripted\n\n";
+        $length = \strlen($header) + 200_000;
+
+        $first = $tool->call(['id' => 'long', 'max_length' => 1_000]);
+        $second = $tool->call(['id' => 'long']);
+
+        Assert::same(
+            $first,
+            $header . \str_repeat('x', 1_000 - \strlen($header))
+                . "\n\n[Truncated: 1000 of $length characters shown. Call again with a larger `max_length` for more.]",
+        );
+        Assert::string($second)->startsWith($header . 'xxx')->contains("[Truncated: 50000 of $length characters");
+        Assert::same($trap->view()->renders, 1);
+    }
+
+    public function testWholeTextIsRendered(): void
+    {
+        $trap = Trap::scripted();
+        $trap->store->add(ScriptedView::event('long', \str_repeat('x', 200_000)));
+        $tool = $trap->get(GetEvent::class);
+        $tool->call(['id' => 'long']);
+
+        $text = $tool->call(['id' => 'long', 'max_length' => 1_000_000]);
+
+        Assert::string($text)->endsWith(\str_repeat('x', 200_000))->notContains('[Truncated');
+        Assert::same($trap->view()->renders, 2);
     }
 
     public function testShortTextIsKept(): void
