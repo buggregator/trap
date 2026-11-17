@@ -62,13 +62,10 @@ final class Endpoint implements Middleware
             return self::json(400, JsonRpc::error(null, RpcError::PARSE_ERROR, 'Parse error: ' . $e->getMessage()));
         }
 
-        /** @var mixed $disconnected */
+        /** @var (\Closure(): bool)|null $disconnected */
         $disconnected = $request->getAttribute(Middleware::DISCONNECTED);
         $response = $disconnected instanceof \Closure
-            ? $this->caller->connected(
-                static fn(): bool => $disconnected() === true,
-                fn(): ?array => $this->rpc->process($payload),
-            )
+            ? $this->caller->connected($disconnected, fn(): ?array => $this->rpc->process($payload))
             : $this->rpc->process($payload);
 
         return match (true) {

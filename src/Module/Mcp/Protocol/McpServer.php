@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Module\Mcp\Protocol;
 
 use Buggregator\Trap\Module\Mcp\McpStatus;
 use Buggregator\Trap\Module\Mcp\Tool;
+use Buggregator\Trap\Module\Mcp\Tool\WaitForEvents;
 use Buggregator\Trap\Module\Mcp\Tools;
 use Buggregator\Trap\Server\Info;
 use Buggregator\Trap\Support\Json;
@@ -32,18 +33,19 @@ final class McpServer
 
     /**
      * @param array<array-key, mixed> $params
+     * @param bool $batch Whether the request comes in a JSON-RPC batch: a wait for events fails there.
      *
      * @return array<non-empty-string, mixed>|\stdClass The result; a `\stdClass` for an empty JSON object.
      *
      * @throws RpcError
      */
-    public function request(string $method, array $params): array|\stdClass
+    public function request(string $method, array $params, bool $batch = false): array|\stdClass
     {
         return match ($method) {
             'initialize' => $this->initialize($params),
             'ping' => new \stdClass(),
             'tools/list' => ['tools' => \array_map(self::describe(...), $this->tools->all())],
-            'tools/call' => $this->callTool($params),
+            'tools/call' => $this->callTool($params, $batch),
             default => throw RpcError::methodNotFound($method),
         };
     }
@@ -127,15 +129,25 @@ final class McpServer
     /**
      * A failed tool is a result with `isError`, not a JSON-RPC error: the model sees what went wrong.
      *
+     * A wait in a batch fails: the calls of a batch run one after another, so it would hold up the rest.
+     *
      * @param array<array-key, mixed> $params
      *
      * @return array<non-empty-string, mixed>
      */
-    private function callTool(array $params): array
+    private function callTool(array $params, bool $batch): array
     {
         $name = $params['name'] ?? null;
         \is_string($name) or throw RpcError::invalidParams('Tool name must be a string.');
         $tool = $this->tools->get($name) ?? throw RpcError::invalidParams("Unknown tool: $name");
+        if ($batch && $tool instanceof WaitForEvents) {
+            return self::result(
+                "`$name` can't run in a JSON-RPC batch: the batch is answered once all its calls are done, "
+                . 'so the wait would hold up the rest. Send it as a request of its own.',
+                isError: true,
+            );
+        }
+
         $arguments = $params['arguments'] ?? [];
         \is_array($arguments) && ($arguments === [] || !\array_is_list($arguments)) or throw RpcError::invalidParams('Tool arguments must be an object.');
 

@@ -251,6 +251,120 @@ final class WaitForEventsTest
         Assert::same($result['cursor'], $trap->store->id . ':1');
     }
 
+    public function testEventUpdatedWhileWaitingIsListedOnceAtItsLatestChange(): void
+    {
+        $trap = Trap::scripted();
+        $fiber = self::wait($trap, ['count' => 3, 'include' => 'text']);
+
+        $trap->store->add(ScriptedView::event(self::uuid(1), 'first', 1.0));
+        $fiber->resume();
+        $trap->store->add(ScriptedView::event(self::uuid(2), 'second', 2.0));
+        $fiber->resume();
+        // As Ray does when the application updates a message it has sent
+        $trap->store->add(ScriptedView::event(self::uuid(1), 'first, updated', 1.0));
+        $fiber->resume();
+        $waiting = $fiber->isSuspended();
+        $trap->store->add(ScriptedView::event(self::uuid(3), 'third', 3.0));
+        $fiber->resume();
+        $result = $fiber->getReturn();
+
+        Assert::true($waiting, 'The update counts no new event.');
+        Assert::same(\array_column($result['events'], 'id'), [self::uuid(2), self::uuid(1), self::uuid(3)]);
+        Assert::same(\array_column($result['events'], 'text'), ['second', 'first, updated', 'third']);
+        Assert::false($result['timed_out']);
+        Assert::false($result['has_more']);
+    }
+
+    public function testUpdatesTakingTheLimitOfAPageAreCheckedPast(): void
+    {
+        $trap = Trap::scripted();
+        $fiber = self::wait($trap, ['count' => 2]);
+
+        $trap->store->add(ScriptedView::event(self::uuid(1), 'first', 1.0));
+        $fiber->resume();
+        $trap->store->add(ScriptedView::event(self::uuid(1), 'first, updated', 1.0));
+        $trap->store->add(ScriptedView::event(self::uuid(2), 'second', 2.0));
+        $fiber->resume();
+        $result = $fiber->getReturn();
+
+        Assert::same(\array_column($result['events'], 'id'), [self::uuid(1), self::uuid(2)]);
+        Assert::false($result['timed_out']);
+        Assert::false($result['has_more']);
+    }
+
+    public function testZeroTimeoutGetsTheScanBudgetForTheBacklog(): void
+    {
+        $trap = Trap::scripted();
+        $trap->view()->delay = 2_000;
+        for ($i = 1; $i <= 5; ++$i) {
+            $trap->store->add(ScriptedView::event(self::uuid($i), "text $i", (float) $i));
+        }
+        $arguments = ['since' => $trap->store->id . ':0', 'search' => 'text 5'];
+
+        $fiber = self::wait($trap, [...$arguments, 'timeout' => 0]);
+        self::finish($fiber);
+        $result = $fiber->getReturn();
+        $listed = $trap->get(ListEvents::class)->call($arguments);
+
+        Assert::same(\array_column($result['events'], 'id'), [self::uuid(5)]);
+        Assert::same(\array_column($result['events'], 'id'), \array_column($listed['events'], 'id'));
+        Assert::false($result['timed_out']);
+    }
+
+    public function testTextsFillingTheResponseAcrossPagesLeaveTheRestToTheCursor(): void
+    {
+        $trap = Trap::scripted();
+        $perEvent = ListEvents::MAX_TEXT_LENGTH;
+        $fitting = \intdiv(ListEvents::MAX_TOTAL_TEXT_LENGTH, $perEvent);
+        for ($i = 1; $i <= $fitting; ++$i) {
+            $last = $trap->store->add(ScriptedView::event(self::uuid($i), \str_repeat('x', $perEvent), (float) $i));
+        }
+        $fiber = self::wait($trap, [
+            'since' => $trap->store->id . ':0',
+            'count' => $fitting + 2,
+            'include' => 'text',
+            'max_length' => $perEvent,
+        ]);
+
+        $waiting = $fiber->isSuspended();
+        $trap->store->add(ScriptedView::event(self::uuid(99), 'over the cap', 99.0));
+        $fiber->resume();
+        $result = $fiber->getReturn();
+
+        Assert::true($waiting, 'The texts of the first page fit.');
+        Assert::count($result['events'], $fitting);
+        Assert::true($result['has_more']);
+        Assert::false($result['timed_out']);
+        Assert::same($result['cursor'], $trap->store->id . ':' . $last->seq);
+    }
+
+    public function testRestLeftUncheckedIsCheckedWithoutWaitingForChanges(): void
+    {
+        $trap = Trap::scripted();
+        // Each pass checks one record only
+        $trap->container->set(new Scan(0.0));
+        for ($i = 1; $i <= 3; ++$i) {
+            $trap->store->add(ScriptedView::event(self::uuid($i), "text $i", (float) $i));
+        }
+        $cursor = $trap->store->cursor();
+
+        $fiber = self::wait($trap, ['since' => $trap->store->id . ':0', 'search' => 'text 3']);
+        self::spin($fiber, 10);
+
+        Assert::true($fiber->isTerminated());
+        Assert::same($trap->store->cursor(), $cursor);
+        Assert::same(\array_column($fiber->getReturn()['events'], 'id'), [self::uuid(3)]);
+        Assert::false($fiber->getReturn()['timed_out']);
+    }
+
+    /**
+     * @param int<1, 99> $i
+     */
+    private static function uuid(int $i): string
+    {
+        return \sprintf('5a4f8e1c-0000-4000-8000-0000000000%02d', $i);
+    }
+
     /**
      * Starts the tool in a fiber: it returns at once or waits suspended.
      */

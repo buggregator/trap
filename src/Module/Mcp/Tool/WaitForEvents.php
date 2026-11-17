@@ -114,8 +114,9 @@ final class WaitForEvents implements Tool
         $schema['properties']['has_more'] = [
             'type' => 'boolean',
             'description' => 'Whether more matching events wait for `list_events` or the next wait with the '
-                . 'returned cursor: `count` events were found and there are more, or the texts of `include: text` '
-                . 'filled the response.',
+                . 'returned cursor: `count` events were found and there are more, the texts of `include: text` '
+                . 'filled the response, or the time ran out before all the changed events were checked, '
+                . 'with `timed_out: true`.',
         ];
         $schema['properties']['timed_out'] = [
             'type' => 'boolean',
@@ -156,33 +157,45 @@ final class WaitForEvents implements Tool
 
         $deadline = \hrtime(true) + (int) ($timeout * 1e9);
         $canWait = \Fiber::getCurrent() !== null;
+        /** @var array<non-empty-string, ListedEvent> $events */
         $events = [];
         $textLength = 0;
+        $first = true;
         while (true) {
+            $limit = \max(0, $count - \count($events));
             $page = $this->list->collect(
                 $since,
                 $filter,
-                \max(0, $count - \count($events)),
+                $limit,
                 $text ? $maxLength : null,
                 textLength: $textLength,
-                budget: (float) \max(0, $deadline - \hrtime(true)) / 1e9,
+                // The full scan budget: a short `timeout` still gets the backlog of an older `since` checked
+                budget: $first ? null : (float) \max(0, $deadline - \hrtime(true)) / 1e9,
             );
-            $events = [...$events, ...$page['events']];
+            $first = false;
+            foreach ($page['events'] as $event) {
+                // An event updated meanwhile, as a Ray message is, moves to its latest change and counts once
+                unset($events[$event['id']]);
+                $events[$event['id']] = $event;
+            }
+
             $since = $page['cursor'];
             $textLength = $page['text_length'];
-            $full = $page['has_more'] && !$page['unchecked'];
+            $limited = $page['has_more'] && !$page['unchecked'] && \count($page['events']) === $limit;
+            $filled = $page['has_more'] && !$page['unchecked'] && !$limited;
+            $done = \count($events) >= $count;
             $over = !$canWait || \hrtime(true) >= $deadline || $this->caller->isDisconnected();
-            if ($full || \count($events) >= $count || $over) {
+            if ($done || $filled || $over) {
                 return [
-                    'events' => $events,
+                    'events' => \array_values($events),
                     'cursor' => Cursor::encode($this->store->id, $since),
                     'has_more' => $page['has_more'],
-                    'timed_out' => !$full && \count($events) < $count,
+                    'timed_out' => !$done && !$filled,
                 ];
             }
 
-            // The rest of the changes to check right away
-            if ($page['unchecked']) {
+            // The rest of the changes to check right away: the time ran out, or updated events took the limit
+            if ($page['has_more']) {
                 continue;
             }
 
