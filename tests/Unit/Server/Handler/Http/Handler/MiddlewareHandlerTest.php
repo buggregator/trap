@@ -8,6 +8,7 @@ use Buggregator\Trap\Server\Handler\Http\Handler\MiddlewareHandler;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Server\Traffic\StreamClient;
+use Buggregator\Trap\Test\Mock\StreamClientMock;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
@@ -93,6 +94,34 @@ final class MiddlewareHandlerTest
 
         Assert::same($frames, []);
         Assert::string($this->sent)->startsWith('HTTP/1.1 500');
+    }
+
+    public function testDisconnectedAttributeDoesNotKeepTheConnection(): void
+    {
+        // As a stored event keeps the request in its frame
+        $keeper = new class implements Middleware {
+            public ?ServerRequestInterface $request = null;
+
+            public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
+            {
+                $this->request = $request;
+                return new Response(200);
+            }
+        };
+        $client = StreamClientMock::createFromGenerator((static function (): \Generator {
+            yield '';
+        })());
+        $connection = \WeakReference::create($client);
+
+        $frames = (new MiddlewareHandler([$keeper]))->handle($client, new ServerRequest('POST', '/'), static fn() => []);
+        \iterator_to_array($frames, false);
+        unset($frames);
+        unset($client);
+        $disconnected = $keeper->request?->getAttribute(Middleware::DISCONNECTED);
+
+        Assert::instanceOf($disconnected, \Closure::class);
+        Assert::null($connection->get(), 'A request kept in a stored frame must not keep the connection.');
+        Assert::true($disconnected());
     }
 
     /**

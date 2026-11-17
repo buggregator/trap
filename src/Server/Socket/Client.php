@@ -274,6 +274,9 @@ final class Client implements Destroyable
                     break;
                 }
 
+                // An orderly close by the peer reads 0 bytes and sets no error
+                $read === 0 && $errNo === 0 and throw new ClientDisconnected();
+
                 throw new \RuntimeException('Socket read failed [' . $errNo . ']: ' . \socket_strerror($errNo));
             }
 

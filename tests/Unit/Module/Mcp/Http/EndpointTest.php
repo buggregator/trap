@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Http;
 
+use Buggregator\Trap\Module\Mcp\Caller;
 use Buggregator\Trap\Module\Mcp\Http\Endpoint;
 use Buggregator\Trap\Module\Mcp\Protocol\JsonRpc;
 use Buggregator\Trap\Module\Mcp\Protocol\RpcError;
@@ -157,7 +158,7 @@ final class EndpointTest
 
     private static function handle(ServerRequest $request): ResponseInterface
     {
-        $endpoint = new Endpoint(new JsonRpc(McpServerTest::server()));
+        $endpoint = new Endpoint(new JsonRpc(McpServerTest::server()), new Caller());
 
         return $endpoint->handle($request, static fn(): ResponseInterface => new Response(299));
     }

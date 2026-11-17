@@ -176,6 +176,109 @@ final class ServerTest
     }
 
     /**
+     * A wait holds its connection open while the server answers other calls and catches the dump that ends it.
+     */
+    public function testMcpWaitReturnsEventSentWhileWaiting(): void
+    {
+        $trap = $this->trap = TrapProcess::start(
+            'mcp-wait',
+            ["--port=$this->port", '--sender=file', "--mcp=$this->uiPort"],
+            [
+                'TRAP_TCP_PORTS' => (string) $this->port,
+                'TRAP_MCP_PORT' => (string) $this->uiPort,
+                'TRAP_MCP_HOST' => null,
+            ],
+            [$this->port, $this->uiPort],
+        );
+        $script = $trap->workDir . '/client.php';
+        \file_put_contents($script, \sprintf(
+            "<?php\nrequire %s;\ntrap(['acceptance' => 'mcp-wait-marker']);\n",
+            \var_export(\realpath(Info::TRAP_ROOT . '/vendor/autoload.php'), true),
+        ));
+        $cursor = $this->callMcpTool('list_events', [])['cursor'];
+        $body = self::toolCall('wait_for_events', ['since' => $cursor, 'type' => 'var-dump', 'timeout' => 20]);
+        $socket = \stream_socket_client("tcp://127.0.0.1:$this->uiPort", $errno, $error, 5)
+            ?: throw new \RuntimeException("Unable to connect to port $this->uiPort: $error");
+
+        TrapProcess::write($socket, \sprintf(
+            "POST /mcp HTTP/1.1\r\nHost: 127.0.0.1:%d\r\nConnection: close\r\nContent-Type: application/json\r\n"
+            . "Content-Length: %d\r\n\r\n%s",
+            $this->uiPort,
+            \strlen($body),
+            $body,
+        ));
+        $probe = $this->callMcpTool('list_events', []);
+        $read = [$socket];
+        $none = null;
+        $answeredEarly = \stream_select($read, $none, $none, 0) === 1;
+        [$exitCode] = $this->runPhp($script, [
+            'VAR_DUMPER_FORMAT' => 'server',
+            'VAR_DUMPER_SERVER' => "127.0.0.1:$this->port",
+        ]);
+        \stream_set_timeout($socket, 15);
+        $response = (string) \stream_get_contents($socket);
+        \fclose($socket);
+        [$status, , $answer] = TrapProcess::parseResponse($response);
+        $result = self::toolResult($status, $answer);
+
+        Assert::same($probe['events'], [], 'Other calls are answered while the wait goes on.');
+        Assert::false($answeredEarly);
+        Assert::same($exitCode, 0);
+        Assert::false($result['timed_out']);
+        Assert::same(\array_column($result['events'], 'type'), ['var-dump']);
+        Assert::string($result['events'][0]['summary'])->contains('mcp-wait-marker');
+    }
+
+    /**
+     * A client gone in the middle of a wait, as one cancelling the call, leaves the server answering
+     * and catching events.
+     */
+    public function testMcpWaitOfClosedConnectionLeavesServerResponsive(): void
+    {
+        $this->trap = TrapProcess::start(
+            'mcp-wait-closed',
+            ["--port=$this->port", '--sender=file', "--mcp=$this->uiPort"],
+            [
+                'TRAP_TCP_PORTS' => (string) $this->port,
+                'TRAP_MCP_PORT' => (string) $this->uiPort,
+                'TRAP_MCP_HOST' => null,
+            ],
+            [$this->port, $this->uiPort],
+        );
+        $cursor = $this->callMcpTool('list_events', [])['cursor'];
+        $body = self::toolCall('wait_for_events', ['since' => $cursor, 'timeout' => 20]);
+        $socket = \stream_socket_client("tcp://127.0.0.1:$this->uiPort", $errno, $error, 5)
+            ?: throw new \RuntimeException("Unable to connect to port $this->uiPort: $error");
+
+        TrapProcess::write($socket, \sprintf(
+            "POST /mcp HTTP/1.1\r\nHost: 127.0.0.1:%d\r\nContent-Type: application/json\r\n"
+            . "Content-Length: %d\r\n\r\n%s",
+            $this->uiPort,
+            \strlen($body),
+            $body,
+        ));
+        $read = [$socket];
+        $none = null;
+        $answered = \stream_select($read, $none, $none, 0, 300_000) === 1;
+        \fclose($socket);
+        // The server goes around its loop until the request is caught, seeing the closed connection meanwhile
+        [$status] = TrapProcess::http($this->port, 'POST', '/acceptance/after-close', '{"order":"after-close"}');
+        $events = TrapProcess::waitFor(
+            fn(): ?array => $this->callMcpTool('list_events', ['since' => $cursor])['events'] ?: null,
+            'the request sent after the closed wait',
+        );
+        $started = \microtime(true);
+        $next = $this->callMcpTool('wait_for_events', ['since' => $cursor]);
+        $elapsed = \microtime(true) - $started;
+
+        Assert::false($answered, 'The wait goes on until the client closes the connection.');
+        Assert::same($status, 404);
+        Assert::same(\array_column($events, 'summary'), ['POST /acceptance/after-close']);
+        Assert::same(\array_column($next['events'], 'id'), \array_column($events, 'id'));
+        Assert::numeric($elapsed)->lessThan(5.0);
+    }
+
+    /**
      * Without the console, which renders traces: the received spans are kept for the tools anyway.
      */
     public function testMcpToolsReadReceivedTraces(): void
@@ -424,6 +527,32 @@ final class ServerTest
         return (array) \json_decode($line, true, 512, \JSON_THROW_ON_ERROR);
     }
 
+    private static function toolCall(string $name, array $arguments): string
+    {
+        return \json_encode([
+            'jsonrpc' => '2.0',
+            'id' => 1,
+            'method' => 'tools/call',
+            'params' => ['name' => $name, 'arguments' => (object) $arguments],
+        ], \JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * @return array<array-key, mixed>|string
+     */
+    private static function toolResult(int $status, string $body): array|string
+    {
+        Assert::same($status, 200);
+        $result = self::json($body)['result'];
+        Assert::false($result['isError']);
+        $text = $result['content'][0]['text'];
+        $json = \json_decode($text, true);
+        // An object result comes structured too, for clients that read no text
+        Assert::same($result['structuredContent'] ?? null, \is_array($json) ? $json : null);
+
+        return \is_array($json) ? $json : $text;
+    }
+
     /**
      * Calls a tool of the MCP server on the UI port.
      *
@@ -435,23 +564,11 @@ final class ServerTest
             $this->uiPort,
             'POST',
             '/mcp',
-            \json_encode([
-                'jsonrpc' => '2.0',
-                'id' => 1,
-                'method' => 'tools/call',
-                'params' => ['name' => $name, 'arguments' => (object) $arguments],
-            ], \JSON_THROW_ON_ERROR),
+            self::toolCall($name, $arguments),
             ['Content-Type' => 'application/json'],
         );
-        Assert::same($status, 200);
-        $result = self::json($body)['result'];
-        Assert::false($result['isError']);
-        $text = $result['content'][0]['text'];
-        $json = \json_decode($text, true);
-        // An object result comes structured too, for clients that read no text
-        Assert::same($result['structuredContent'] ?? null, \is_array($json) ? $json : null);
 
-        return \is_array($json) ? $json : $text;
+        return self::toolResult($status, $body);
     }
 
     private function startTrap(string $name): TrapProcess
