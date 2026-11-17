@@ -66,11 +66,23 @@ final class SentryText
     public const MAX_ITEMS = 20;
 
     /**
-     * Bytes of the exception chain, so that the request, the contexts and the breadcrumbs stay within the 64 KB
-     * a search looks through: a cause past them is left out; the thrown exception past them is shown without code
-     * and variables, and then with fewer frame lines.
+     * Bytes of the exception chain, fewer when the metadata and the request leave less of
+     * {@see self::SEARCHED_BYTES}: a cause past them is left out; the thrown exception past them is shown without
+     * code and variables, and then with fewer frame lines.
      */
     public const MAX_CHAIN_BYTES = 32 * 1024;
+
+    /** Bytes of the request with its body: the headers past them are left out and counted. */
+    public const MAX_REQUEST_BYTES = 16 * 1024;
+
+    /**
+     * Bytes of the metadata, the exception chain and the request, so that the contexts and the breadcrumbs after
+     * them start within the 64 KB a search looks through.
+     */
+    private const SEARCHED_BYTES = 60 * 1024;
+
+    /** Request headers whose values are URLs, filtered as the URL of the request. */
+    private const URL_HEADERS = '/^(referer|location|content-location|origin)$/i';
 
     private const SKIPPED_HEADERS = '/^(cookie|connection|accept-encoding|accept-language|cache-control|pragma|priority|dnt'
         . '|upgrade-insecure-requests|sec-.*)$/i';
@@ -176,11 +188,13 @@ final class SentryText
 
     private static function event(array $event, mixed $itemType = null): string
     {
+        $metadata = self::metadata($event, $itemType);
+        $request = self::request($event);
         $sections = [
-            self::metadata($event, $itemType),
-            self::exceptionChain($event),
+            $metadata,
+            self::exceptionChain($event, \min(self::MAX_CHAIN_BYTES, self::SEARCHED_BYTES - \strlen($metadata . $request))),
             self::threadTrace($event),
-            self::request($event),
+            $request,
             self::entries('Contexts', $event['contexts'] ?? null),
             self::breadcrumbs($event),
             self::entries('Extra', $event['extra'] ?? null),
@@ -227,7 +241,7 @@ final class SentryText
         return $result;
     }
 
-    private static function exceptionChain(array $event): string
+    private static function exceptionChain(array $event, int $bytes): string
     {
         $exceptions = \array_reverse(self::exceptions($event));
         if ($exceptions === []) {
@@ -248,9 +262,9 @@ final class SentryText
                 ? $own
                 : self::threadFrames($event, $exception) ?? $own);
             $part = $i === 0
-                ? self::thrown($exception, $frames, $withCode, self::MAX_CHAIN_BYTES - \strlen($result))
+                ? self::thrown($exception, $frames, $withCode, $bytes - \strlen($result))
                 : self::exception($exception, false, $frames, $above, $withCode);
-            if ($i > 0 && \strlen($result) + \strlen($part) > self::MAX_CHAIN_BYTES) {
+            if ($i > 0 && \strlen($result) + \strlen($part) > $bytes) {
                 break;
             }
 
@@ -279,32 +293,43 @@ final class SentryText
             return $result;
         }
 
-        for ($lines = self::MAX_FRAMES; $lines > 0; --$lines) {
-            $result = self::exception($exception, true, $frames, [], $withCode, false, $lines);
-            if (\strlen($result) <= $bytes) {
-                return $result;
-            }
+        $title = self::title($exception, true);
+        [$lines, $starts, $count] = self::traceLines($frames, $withCode, false);
+        $budget = $bytes - \strlen($title);
+        $fits = 0;
+        $written = 0;
+        foreach ($lines as $i => $line) {
+            $written += \strlen($line);
+            $written + \strlen(self::moreFrames($count - $starts[$i + 1])) <= $budget and $fits = $i + 1;
         }
 
-        return self::exception($exception, true, $frames, [], $withCode, false, 0);
+        return $title . self::joinTrace($lines, $starts, $count, $fits);
     }
 
     /**
      * @param list<array<array-key, mixed>> $frames Outermost first, as Sentry sends them.
      * @param list<array<array-key, mixed>> $above The frames of the exception this one caused.
      * @param array<string, true> $withCode
-     * @param bool $code Whether frames are shown with their code.
-     * @param int<0, max> $maxLines Frame lines of the stack trace.
      */
-    private static function exception(
-        array $exception,
-        bool $thrown,
-        array $frames,
-        array $above,
-        array &$withCode,
-        bool $code = true,
-        int $maxLines = self::MAX_FRAMES,
-    ): string {
+    private static function exception(array $exception, bool $thrown, array $frames, array $above, array &$withCode): string
+    {
+        $result = self::title($exception, $thrown);
+        $common = self::commonFrames($frames, $above);
+        $result .= self::trace(\array_slice($frames, $common), $withCode);
+        $common > 0 and $result .= \sprintf(
+            "  … %d %s in common with the exception above …\n",
+            $common,
+            $common === 1 ? 'frame' : 'frames',
+        );
+
+        return $result;
+    }
+
+    /**
+     * The type and value of an exception, and its mechanism.
+     */
+    private static function title(array $exception, bool $thrown): string
+    {
         $type = self::inline($exception['type'] ?? null);
         $value = self::text($exception['value'] ?? null);
         $title = $type === '' ? 'Exception' : $type;
@@ -322,14 +347,6 @@ final class SentryText
             },
         ])) : '';
         $mechanism === '' or $result .= "  Mechanism: $mechanism\n";
-
-        $common = self::commonFrames($frames, $above);
-        $result .= self::trace(\array_slice($frames, $common), $withCode, $code, $maxLines);
-        $common > 0 and $result .= \sprintf(
-            "  … %d %s in common with the exception above …\n",
-            $common,
-            $common === 1 ? 'frame' : 'frames',
-        );
 
         return $result;
     }
@@ -422,58 +439,81 @@ final class SentryText
 
     /**
      * @param array<string, true> $withCode The keys of the frames already shown with their code, not shown again.
-     * @param bool $code Whether frames are shown with their code.
-     * @param int<0, max> $maxLines Frame lines; the frames past them are counted.
      */
-    private static function trace(
-        array $frames,
-        array &$withCode,
-        bool $code = true,
-        int $maxLines = self::MAX_FRAMES,
-    ): string {
+    private static function trace(array $frames, array &$withCode): string
+    {
+        [$lines, $starts, $count] = self::traceLines($frames, $withCode, true);
+
+        return self::joinTrace($lines, $starts, $count, \count($lines));
+    }
+
+    /**
+     * Up to {@see self::MAX_FRAMES} frame lines, innermost first, each with the code shown after it.
+     *
+     * @param array<string, true> $withCode The keys of the frames already shown with their code, not shown again.
+     * @param bool $code Whether frames are shown with their code.
+     * @return array{list<string>, non-empty-list<int<0, max>>, int<0, max>} The lines; the index of the frame each
+     *         line starts at, and of the frame after the last line; the number of frames.
+     */
+    private static function traceLines(array $frames, array &$withCode, bool $code): array
+    {
         $frames = \array_reverse(self::arrays($frames));
         $count = \count($frames);
-        $collapse = \array_filter($frames, self::isApp(...)) !== [];
-        $result = '';
-        $lines = 0;
+        $apps = \array_map(self::isApp(...), $frames);
+        $collapse = \in_array(true, $apps, true);
+        $lines = [];
+        $starts = [];
         $snippets = 0;
         $i = 0;
-        while ($i < $count) {
-            if ($lines === $maxLines) {
-                $result .= \sprintf("  … %d more frames …\n", $count - $i);
-                break;
-            }
-
-            ++$lines;
+        while ($i < $count && \count($lines) < self::MAX_FRAMES) {
+            $starts[] = $i;
             $frame = $frames[$i];
-            $isApp = self::isApp($frame);
             $end = $i;
-            while ($collapse && $i > 0 && !$isApp && $end + 1 < $count && !self::isApp($frames[$end + 1])) {
+            while ($collapse && $i > 0 && !$apps[$i] && $end + 1 < $count && !$apps[$end + 1]) {
                 ++$end;
             }
 
             if ($end > $i) {
-                $result .= \sprintf("  … %d vendor frames #%d-#%d …\n", $end - $i + 1, $i, $end);
+                $lines[] = \sprintf("  … %d vendor frames #%d-#%d …\n", $end - $i + 1, $i, $end);
                 $i = $end + 1;
                 continue;
             }
 
-            $result .= '  ' . self::frameLine($i, $frame) . "\n";
-            $key = self::frameKey($frame);
-            if ($code && ($isApp || $i === 0) && $snippets < self::MAX_CODE_FRAMES && !isset($withCode[$key])) {
-                $snippet = self::code($frame);
+            $line = '  ' . self::frameLine($i, $frame) . "\n";
+            if ($code && ($apps[$i] || $i === 0) && $snippets < self::MAX_CODE_FRAMES) {
+                $key = self::frameKey($frame);
+                $snippet = isset($withCode[$key]) ? '' : self::code($frame);
                 if ($snippet !== '') {
                     ++$snippets;
                     $withCode[$key] = true;
                 }
 
-                $result .= $snippet;
+                $line .= $snippet;
             }
 
+            $lines[] = $line;
             ++$i;
         }
 
-        return $result;
+        $starts[] = $i;
+
+        return [$lines, $starts, $count];
+    }
+
+    /**
+     * The first lines of {@see self::traceLines()}, and the number of the frames past them.
+     *
+     * @param list<string> $lines
+     * @param non-empty-list<int<0, max>> $starts
+     */
+    private static function joinTrace(array $lines, array $starts, int $count, int $shown): string
+    {
+        return \implode('', \array_slice($lines, 0, $shown)) . self::moreFrames($count - $starts[$shown]);
+    }
+
+    private static function moreFrames(int $count): string
+    {
+        return $count > 0 ? \sprintf("  … %d more frames …\n", $count) : '';
     }
 
     private static function isApp(array $frame): bool
@@ -581,7 +621,13 @@ final class SentryText
         /** @var mixed $query */
         $query = $request['query_string'] ?? null;
         $query = \is_array($query) ? self::pairs($query, filter: true) : self::filterQuery(self::inline($query));
-        $query === '' or $result .= "  Query: $query\n";
+        $query === '' or $result .= '  Query: ' . self::cut($query, self::MAX_VALUE) . "\n";
+
+        /** @var mixed $data */
+        $data = $request['data'] ?? null;
+        $data = $data === null || $data === '' || $data === [] ? '' : '  Data: ' . \str_replace("\n", "\n    ", self::text(
+            \is_string($data) ? $data : self::json($data),
+        )) . "\n";
 
         $headers = [];
         /** @var mixed $all */
@@ -592,24 +638,31 @@ final class SentryText
             /** @var mixed $value */
             $value = $pair[1];
             $name = $pair[0];
-            \preg_match(self::SKIPPED_HEADERS, $name) === 1 or $headers[] = "    $name: " . (self::isSecret($name)
-                ? self::FILTERED
-                : self::inline(\is_array($value) ? \implode(', ', \array_map(self::inline(...), $value)) : $value));
+            $value = self::inline(\is_array($value) ? \implode(', ', \array_map(self::inline(...), $value)) : $value);
+            \preg_match(self::SKIPPED_HEADERS, $name) === 1 or $headers[] = "    $name: " . match (true) {
+                self::isSecret($name) => self::FILTERED,
+                \preg_match(self::URL_HEADERS, $name) === 1 => self::filterUrl($value),
+                default => $value,
+            } . "\n";
+        }
+
+        $shown = 0;
+        $bytes = self::MAX_REQUEST_BYTES - \strlen($result) - \strlen($data) - \strlen("  Headers:\n    … 9999999999 more …\n");
+        foreach (\array_slice($headers, 0, self::MAX_HEADERS) as $header) {
+            $bytes -= \strlen($header);
+            if ($bytes < 0) {
+                break;
+            }
+
+            ++$shown;
         }
 
         if ($headers !== []) {
-            $result .= "  Headers:\n" . \implode("\n", \array_slice($headers, 0, self::MAX_HEADERS)) . "\n";
-            \count($headers) > self::MAX_HEADERS
-                and $result .= \sprintf("    … %d more …\n", \count($headers) - self::MAX_HEADERS);
+            $result .= "  Headers:\n" . \implode('', \array_slice($headers, 0, $shown));
+            \count($headers) > $shown and $result .= \sprintf("    … %d more …\n", \count($headers) - $shown);
         }
 
-        /** @var mixed $data */
-        $data = $request['data'] ?? null;
-        $data === null || $data === '' || $data === [] or $result .= '  Data: ' . \str_replace("\n", "\n    ", self::text(
-            \is_string($data) ? $data : self::json($data),
-        )) . "\n";
-
-        return $result;
+        return $result . $data;
     }
 
     /**
@@ -827,13 +880,23 @@ final class SentryText
     }
 
     /**
-     * A query string with the values of {@see self::SECRET_NAMES} replaced; `;` separates parameters as `&` does.
+     * A query string with the values of {@see self::SECRET_NAMES} replaced, in URLs encoded in its values too,
+     * as of a redirect; `;` separates parameters as `&` does.
      */
     private static function filterQuery(string $query): string
     {
         return (string) \preg_replace_callback(
             '/([^&;=]*)=([^&;]*)/',
-            static fn(array $m): string => self::isSecret(\urldecode($m[1])) ? $m[1] . '=' . self::FILTERED : $m[0],
+            static function (array $m): string {
+                if (self::isSecret(\urldecode($m[1]))) {
+                    return $m[1] . '=' . self::FILTERED;
+                }
+
+                $value = \urldecode($m[2]);
+                $filtered = $value === $m[2] ? $value : self::filterUrl($value);
+
+                return $filtered === $value ? $m[0] : $m[1] . '=' . \rawurlencode($filtered);
+            },
             $query,
         );
     }
@@ -863,7 +926,8 @@ final class SentryText
         }
 
         // The parser takes words such as `now` and `1 hour` too, as times relative to the current one
-        if (!\is_string($timestamp) || \preg_match('/^\d{4}-\d\d-\d\d([T ]\d\d:\d\d.*)?$/', $timestamp) !== 1) {
+        $date = '/^\d{4}-\d\d-\d\d([T ]\d\d:\d\d(:\d\d(\.\d+)?)?(Z|[+-]\d\d:?\d\d)?)?$/iD';
+        if (!\is_string($timestamp) || \preg_match($date, $timestamp) !== 1) {
             return null;
         }
 
@@ -899,9 +963,24 @@ final class SentryText
             \is_scalar($value) => (string) $value,
             default => self::json($value),
         };
-        $text = \preg_replace('/\s+/u', ' ', $text) ?? \preg_replace('/\s+/', ' ', $text) ?? $text;
 
-        return self::cut(\trim($text), $max);
+        // The start of a long text is enough when, collapsed, it is longer than what is shown
+        if (\strlen($text) > 8 * $max) {
+            $start = \ltrim(self::collapse(\mb_strcut($text, 0, 8 * $max)));
+            if (\mb_strlen($start) > $max + 1) {
+                return self::cut($start, $max);
+            }
+        }
+
+        return self::cut(\trim(self::collapse($text)), $max);
+    }
+
+    /**
+     * Runs of whitespace as one space.
+     */
+    private static function collapse(string $text): string
+    {
+        return \preg_replace('/\s+/u', ' ', $text) ?? \preg_replace('/\s+/', ' ', $text) ?? $text;
     }
 
     /**

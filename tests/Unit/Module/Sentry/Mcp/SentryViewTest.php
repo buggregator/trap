@@ -379,6 +379,7 @@ final class SentryViewTest
     #[DataSet(['1704103200.123456', '1704103200.623456'], 'numeric strings')]
     #[DataSet(['2024-01-01T10:00:00.123456Z', '2024-01-01T10:00:00.623456789Z'], 'RFC 3339 of Go')]
     #[DataSet(['2024-01-01T10:00:00.123456', '2024-01-01T12:00:00.623456+02:00'], 'ISO of Python')]
+    #[DataSet(['2024-01-01 10:00:00.123456z', '2024-01-01t07:00:00.623456-0300'], 'space, lowercase and offset without colon')]
     public function testDurationOfTimestamps(mixed $start, mixed $end): void
     {
         $text = self::text([
@@ -656,6 +657,9 @@ final class SentryViewTest
     #[DataSet(['now'], 'now')]
     #[DataSet(['tomorrow'], 'tomorrow')]
     #[DataSet(['1 hour'], 'relative')]
+    #[DataSet(['2024-01-01T00:00:00 +1000000000000 years'], 'date with relative years')]
+    #[DataSet(['2024-01-01 00:00 next monday'], 'date with a relative day')]
+    #[DataSet(["2024-01-01\n"], 'date with a newline')]
     #[DataSet([\NAN], 'NaN')]
     #[DataSet([\INF], 'infinity')]
     #[DataSet(['1e999'], 'infinite numeric string')]
@@ -718,6 +722,101 @@ final class SentryViewTest
         ]);
 
         Assert::same($text, "Exception, stack frames innermost first:\nE\n\nBreadcrumbs:\n  query\n  done\n");
+    }
+
+    public function testThrownExceptionWithoutRoomForFramesCountsThem(): void
+    {
+        $frames = \array_map(static fn(int $line): array => self::frame('src/A.php', $line), \range(1, 40));
+        $withCode = [];
+
+        $text = \Closure::bind(
+            static fn(): string => SentryText::thrown(['type' => 'E', 'value' => 'Boom'], $frames, $withCode, 10),
+            null,
+            SentryText::class,
+        )();
+
+        Assert::same($text, "E: Boom\n  … 40 more frames …\n");
+    }
+
+    public function testLargeMetadataAndRequestLeaveContextsAndBreadcrumbsWithinTheSearchedText(): void
+    {
+        $long = \str_repeat('😀', 3000);
+        $pairs = \array_map(static fn(int $i): array => ["q$i$long", $long], \range(1, 20));
+        $name = \str_repeat('Ж', 400);
+        $frames = \array_map(static fn(int $line): array => self::frame("src/$name.php", $line, [
+            'function' => $name,
+            'context_line' => $name,
+            'vars' => \array_fill_keys(\range(1, 10), $name),
+        ]), \range(1, 40));
+
+        $text = self::text([
+            'event_id' => $long,
+            'level' => $long,
+            'message' => $long,
+            'transaction' => $long,
+            'environment' => $long,
+            'release' => $long,
+            'server_name' => $long,
+            'platform' => $long,
+            'logger' => $long,
+            'sdk' => ['name' => $long, 'version' => $long],
+            'fingerprint' => [$long],
+            'tags' => $pairs,
+            'user' => $pairs,
+            'exception' => ['values' => [
+                ['type' => 'Cause', 'value' => $long, 'stacktrace' => ['frames' => $frames]],
+                ['type' => 'Ошибка', 'value' => $long, 'stacktrace' => ['frames' => $frames]],
+            ]],
+            'request' => [
+                'method' => 'POST',
+                'url' => "https://shop.test/$long",
+                'query_string' => $pairs,
+                'headers' => \array_map(static fn(int $i): array => ["X-H$i-$long", $long], \range(1, 15)),
+                'data' => $long,
+            ],
+            'contexts' => ['runtime' => ['name' => 'php']],
+            'breadcrumbs' => [['message' => 'last step']],
+        ]);
+
+        Assert::int((int) \strpos($text, "\nContexts:\n  runtime: name=php\n"))->greaterThan(0)->lessThan(64 * 1024 - 100);
+        Assert::int((int) \strpos($text, "\nBreadcrumbs:\n  last step\n"))->greaterThan(0)->lessThan(64 * 1024 - 100);
+        Assert::string($text)
+            ->contains("\nОшибка: ")
+            ->contains("\n  Query: q1" . \str_repeat('😀', SentryText::MAX_VALUE - 2) . "…\n")
+            ->matchesRegex('/\n    … \d+ more …\n  Data: /u');
+    }
+
+    public function testLongValuesAreCollapsedToOneLine(): void
+    {
+        $text = self::text(['extra' => [
+            'runs' => \str_repeat("ab \n\t ", 2000),
+            'leading' => \str_repeat(' ', 5000) . 'x' . \str_repeat(' ', 5000) . 'y',
+        ]]);
+
+        Assert::same($text, "Extra:\n  runs: " . \str_repeat('ab ', 100) . "…\n  leading: x y\n");
+    }
+
+    public function testUrlsOfHeadersAndQueryValuesAreFiltered(): void
+    {
+        $text = self::text(['request' => [
+            'url' => 'http://[::1]:8080/users/@ann?next=' . \rawurlencode('https://id.test/cb?code=1&access_token=abc'),
+            'headers' => [
+                'Referer' => 'https://user:abc@shop.test/cart?token=abc#access_token=abc',
+                'Location' => 'https://shop.test/done?api_key=abc',
+                'Origin' => 'https://shop.test',
+                'Content-Location' => 'http://[::1]:8080/users/@ann?page=2',
+            ],
+        ]]);
+
+        Assert::string($text)
+            ->contains('Request: http://[::1]:8080/users/@ann?next=' . \rawurlencode('https://id.test/cb?code=1&access_token=[Filtered]') . "\n")
+            ->contains(
+                "    Referer: https://user:[Filtered]@shop.test/cart?token=[Filtered]#access_token=[Filtered]\n"
+                . "    Location: https://shop.test/done?api_key=[Filtered]\n"
+                . "    Origin: https://shop.test\n"
+                . "    Content-Location: http://[::1]:8080/users/@ann?page=2\n",
+            )
+            ->notContains('abc');
     }
 
     /**
