@@ -8,12 +8,12 @@ use Buggregator\Trap\Module\Mcp\Tool;
 use Buggregator\Trap\Module\Mcp\Tool\Arguments;
 use Buggregator\Trap\Module\Mcp\Tool\Cursor;
 use Buggregator\Trap\Module\Mcp\Tool\Time;
-use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
 use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Module\Tracing\TraceSummary;
 
 /**
- * The traces updated after a cursor, the least recently updated first, with a summary each.
+ * The traces updated after a cursor that match a {@see TraceFilter}, the least recently updated first,
+ * with a summary each.
  *
  * @internal
  */
@@ -47,7 +47,9 @@ final class ListTraces implements Tool
             . 'after the `since` cursor, least recently updated first, and a new opaque `cursor`: to see only '
             . 'the traces of the code you run next, call it once, keep the cursor, run the code, then call it '
             . 'with `since` set to that cursor. When `has_more` is true, call again with the returned cursor '
-            . 'to get the rest. Read a trace as a tree of spans with `get_trace`.';
+            . 'to get the rest. Narrow the list by `errors_only`, `service`, `name`, `min_duration_ms`, the time of '
+            . 'the last update (`from`, `to`, such as `5m` for the last five minutes) and the text of span names '
+            . 'and attributes (`search`). Read a trace as a tree of spans with `get_trace`.';
     }
 
     #[\Override]
@@ -68,11 +70,7 @@ final class ListTraces implements Tool
                     'default' => self::DEFAULT_LIMIT,
                     'description' => 'The most traces to return.',
                 ],
-                'errors_only' => [
-                    'type' => 'boolean',
-                    'default' => false,
-                    'description' => 'Only the traces with a span of the error status.',
-                ],
+                ...TraceFilter::schema(),
             ],
             'additionalProperties' => false,
         ];
@@ -140,16 +138,14 @@ final class ListTraces implements Tool
     {
         $since = Cursor::since($arguments, $this->store->id, $this->store->cursor());
         $limit = Arguments::integer($arguments, 'limit', 1, self::MAX_LIMIT) ?? self::DEFAULT_LIMIT;
-        /** @var mixed $errorsOnly */
-        $errorsOnly = $arguments['errors_only'] ?? false;
-        \is_bool($errorsOnly) or throw new \InvalidArgumentException('`errors_only` must be a boolean.');
+        $filter = TraceFilter::fromArguments($arguments, \microtime(true));
 
         $cursor = $this->store->cursor();
         $traces = [];
         $hasMore = false;
         $last = 0;
         foreach ($this->store->traces($since) as $trace) {
-            if ($errorsOnly && !$trace->error) {
+            if (!$filter->matches($trace, $this->store)) {
                 continue;
             }
 
@@ -177,7 +173,7 @@ final class ListTraces implements Tool
             'name' => $trace->name,
             'service' => $trace->service,
             'spans' => $trace->spans,
-            'duration_ms' => \round((float) Span::elapsed($trace->start, $trace->end) / 1e6, 3),
+            'duration_ms' => TraceFilter::durationMs($trace),
             'error' => $trace->error,
             'updated' => Time::format($trace->updatedAt),
         ];

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mcp\Protocol;
 
+use Buggregator\Trap\Module\Mcp\McpStatus;
 use Buggregator\Trap\Module\Mcp\Tool;
 use Buggregator\Trap\Module\Mcp\Tools;
 use Buggregator\Trap\Server\Info;
@@ -26,6 +27,7 @@ final class McpServer
 
     public function __construct(
         private readonly Tools $tools,
+        private readonly McpStatus $status = new McpStatus(),
     ) {}
 
     /**
@@ -137,6 +139,7 @@ final class McpServer
         $arguments = $params['arguments'] ?? [];
         \is_array($arguments) && ($arguments === [] || !\array_is_list($arguments)) or throw RpcError::invalidParams('Tool arguments must be an object.');
 
+        $this->status->toolCalled();
         try {
             $result = $tool->call($arguments);
             if (\is_string($result)) {
