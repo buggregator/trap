@@ -7,7 +7,9 @@ namespace Buggregator\Trap\Module\Profiler\Frontend\Message\TopFunctions;
 use Buggregator\Trap\Module\Profiler\Struct\Cost;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Graph;
+use Buggregator\Trap\Module\Profiler\Struct\Metric;
 use Buggregator\Trap\Module\Profiler\Struct\Peaks;
+use Buggregator\Trap\Support\TimeSlice;
 
 /**
  * Metrics of a function summed over all its calls.
@@ -36,9 +38,11 @@ final class Func implements \JsonSerializable
     /**
      * Sums the calls of every function of the graph, its recursion levels included.
      *
+     * @param TimeSlice|null $timeSlice Lets other fibers run over a large graph.
+     *
      * @return array<string, self> By function names.
      */
-    public static function aggregate(Graph $graph, Peaks $totals): array
+    public static function aggregate(Graph $graph, Peaks $totals, ?TimeSlice $timeSlice = null): array
     {
         $functions = [];
         foreach ($graph->functions() as $functionId) {
@@ -51,7 +55,34 @@ final class Func implements \JsonSerializable
                 \array_map(static fn(Edge $child): Cost => $child->cost, $graph->callees($functionId)),
                 recursive: $calls[0]->isRecursive(),
             );
+            $timeSlice?->tick();
         }
+
+        return $functions;
+    }
+
+    /**
+     * Heaviest first by the exclusive value of the metric, then by the inclusive one, then by name;
+     * or by the inclusive value first.
+     *
+     * @param array<array-key, self> $functions
+     *
+     * @return list<self>
+     */
+    public static function rank(array $functions, Metric $metric, bool $inclusive = false): array
+    {
+        // Not `usort()` reading the keys in every comparison: that takes a second for a large profile
+        $own = $total = $names = [];
+        foreach ($functions as $func) {
+            $own[] = $func->get('excl_' . $metric->value);
+            $total[] = $func->get($metric->value);
+            $names[] = $func->function;
+        }
+
+        $functions = \array_values($functions);
+        $inclusive
+            ? \array_multisort($total, \SORT_DESC, $own, \SORT_DESC, $names, \SORT_ASC, $functions)
+            : \array_multisort($own, \SORT_DESC, $total, \SORT_DESC, $names, \SORT_ASC, $functions);
 
         return $functions;
     }

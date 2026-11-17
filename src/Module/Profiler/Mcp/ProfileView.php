@@ -17,6 +17,22 @@ use Buggregator\Trap\Server\Event\Record;
  */
 final class ProfileView implements EventView, EventFields
 {
+    /**
+     * The application name, else the file name of the profile.
+     */
+    public static function name(Payload $payload): string
+    {
+        $metadata = $payload->getProfile()->metadata;
+        $appName = $metadata['app_name'] ?? null;
+        $fileName = $metadata['filename'] ?? null;
+
+        return match (true) {
+            \is_string($appName) && $appName !== '' => $appName,
+            \is_string($fileName) && $fileName !== '' => $fileName,
+            default => '',
+        };
+    }
+
     #[\Override]
     public function summary(Event $event): ?string
     {
@@ -59,21 +75,5 @@ final class ProfileView implements EventView, EventFields
         }
 
         return ['name' => self::name($payload), 'format' => $payload->type->value];
-    }
-
-    /**
-     * The application name, else the file name of the profile.
-     */
-    private static function name(Payload $payload): string
-    {
-        $metadata = $payload->getProfile()->metadata;
-        $appName = $metadata['app_name'] ?? null;
-        $fileName = $metadata['filename'] ?? null;
-
-        return match (true) {
-            \is_string($appName) && $appName !== '' => $appName,
-            \is_string($fileName) && $fileName !== '' => $fileName,
-            default => '',
-        };
     }
 }

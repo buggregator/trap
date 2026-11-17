@@ -81,7 +81,7 @@ final class XHProfTrap implements Middleware
 
         // Built before accepting, one at a time: decoded, a profile takes about 10 times its JSON.
         // Its call graph has no more edges than the body has entries, and the call tree is unfolded
-        // from it later with a share limit, see Profile::tree().
+        // from it later with a share limit and a node limit, see Profile::tree().
         $profile = $this->lock->run(function () use ($request, $time): Profile {
             /** @var XHProfMessage $payload */
             $payload = \json_decode((string) $request->getBody(), true, 96, \JSON_THROW_ON_ERROR);
