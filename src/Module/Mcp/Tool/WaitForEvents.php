@@ -116,7 +116,7 @@ final class WaitForEvents implements WaitingTool
             'description' => 'Whether more matching events wait for `list_events` or the next wait with the '
                 . 'returned cursor: `count` events were found and there are more, the texts of `include: text` '
                 . 'filled the response, or the time ran out before all the changed events were checked, '
-                . 'with `timed_out: true`.',
+                . 'with `timed_out: true` only when fewer than `count` events were found.',
         ];
         $schema['properties']['timed_out'] = [
             'type' => 'boolean',
@@ -169,15 +169,13 @@ final class WaitForEvents implements WaitingTool
                 $filter,
                 $limit,
                 $text ? $maxLength : null,
-                textLength: \max(0, \array_sum($textLengths)),
+                kept: $textLengths,
                 // The full scan budget: a short `timeout` still gets the backlog of an older `since` checked
                 budget: $first ? null : (float) \max(0, $deadline - \hrtime(true)) / 1e9,
             );
             $first = false;
-            $replaced = false;
             foreach ($page['events'] as $event) {
                 // An event updated meanwhile, as a Ray message is, moves to its latest change and counts once
-                $replaced = $replaced || isset($events[$event['id']]);
                 unset($events[$event['id']]);
                 $events[$event['id']] = $event;
                 $textLengths[$event['id']] = \mb_strlen($event['text'] ?? '');
@@ -185,8 +183,7 @@ final class WaitForEvents implements WaitingTool
 
             $since = $page['cursor'];
             $limited = $page['has_more'] && !$page['unchecked'] && \count($page['events']) === $limit;
-            // The page counted the texts of the copies it replaced too: the next page checks with the real total
-            $filled = $page['has_more'] && !$page['unchecked'] && !$limited && !$replaced;
+            $filled = $page['has_more'] && !$page['unchecked'] && !$limited;
             $done = \count($events) >= $count;
             $over = !$canWait || \hrtime(true) >= $deadline || $this->caller->isDisconnected();
             if ($done || $filled || $over) {
@@ -198,8 +195,8 @@ final class WaitForEvents implements WaitingTool
                 ];
             }
 
-            // The rest of the changes to check right away: the time ran out, or updated events took the limit or the
-            // room of the texts
+            // The rest of the changes to check right away: the time ran out, or updated events took the limit,
+            // and the cursor has gone past them
             if ($page['has_more']) {
                 continue;
             }

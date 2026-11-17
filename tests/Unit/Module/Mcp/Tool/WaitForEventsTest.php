@@ -360,6 +360,71 @@ final class WaitForEventsTest
         Assert::false($result['has_more']);
     }
 
+    public function testUpdateOfAnEventFillingTheTextsIsListedAtItsLatestText(): void
+    {
+        $trap = Trap::scripted();
+        $perEvent = ListEvents::MAX_TEXT_LENGTH;
+        $fitting = \intdiv(ListEvents::MAX_TOTAL_TEXT_LENGTH, $perEvent);
+        for ($i = 1; $i <= $fitting; ++$i) {
+            $trap->store->add(ScriptedView::event(self::uuid($i), \str_repeat('x', $perEvent), (float) $i));
+        }
+        $fiber = self::wait($trap, [
+            'since' => $trap->store->id . ':0',
+            'count' => $fitting + 2,
+            'include' => 'text',
+            'max_length' => $perEvent,
+        ]);
+
+        $trap->store->add(ScriptedView::event(self::uuid(1), \str_repeat('y', $perEvent), 1.0));
+        $fiber->resume();
+        $waiting = $fiber->isSuspended();
+        $last = $trap->store->add(ScriptedView::event(self::uuid(99), 'over the cap', 99.0));
+        $fiber->resume();
+        $result = $fiber->getReturn();
+
+        Assert::true($waiting, 'The update takes the room of the old copy.');
+        Assert::count($result['events'], $fitting);
+        Assert::same(\end($result['events'])['id'], self::uuid(1));
+        Assert::same(\end($result['events'])['text'], \str_repeat('y', $perEvent));
+        Assert::true($result['has_more']);
+        Assert::false($result['timed_out']);
+        Assert::same($result['cursor'], $trap->store->id . ':' . ($last->seq - 1));
+    }
+
+    public function testNewEventAndUpdateOnOnePageShareTheRoomOfTheTexts(): void
+    {
+        $trap = Trap::scripted();
+        $perEvent = ListEvents::MAX_TEXT_LENGTH;
+        $fitting = \intdiv(ListEvents::MAX_TOTAL_TEXT_LENGTH, $perEvent);
+        for ($i = 1; $i < $fitting; ++$i) {
+            $trap->store->add(ScriptedView::event(self::uuid($i), \str_repeat('x', $perEvent), (float) $i));
+        }
+        $fiber = self::wait($trap, [
+            'since' => $trap->store->id . ':0',
+            'count' => $fitting + 1,
+            'timeout' => 1,
+            'include' => 'text',
+            'max_length' => $perEvent,
+        ]);
+
+        $trap->store->add(ScriptedView::event(self::uuid(99), \str_repeat('b', $perEvent), 99.0));
+        $trap->store->add(ScriptedView::event(self::uuid(1), \str_repeat('y', $perEvent), 1.0));
+        $fiber->resume();
+        $waiting = $fiber->isSuspended();
+        self::finish($fiber);
+        $result = $fiber->getReturn();
+
+        Assert::true($waiting, 'Both changes fit, and one more event is awaited.');
+        Assert::same(
+            \array_slice(\array_column($result['events'], 'id'), -2),
+            [self::uuid(99), self::uuid(1)],
+        );
+        Assert::same(\end($result['events'])['text'], \str_repeat('y', $perEvent));
+        Assert::count($result['events'], $fitting);
+        Assert::false($result['has_more']);
+        Assert::true($result['timed_out']);
+    }
+
     public function testRestLeftUncheckedIsCheckedWithoutWaitingForChanges(): void
     {
         $trap = Trap::scripted();

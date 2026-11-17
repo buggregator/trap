@@ -204,7 +204,8 @@ final class ListEvents implements Tool
      * @param int<0, max> $since
      * @param int<0, max> $limit
      * @param int<0, max>|null $maxLength Characters of the text of each event; no text when null.
-     * @param int<0, max> $textLength Characters of the texts the response holds already, from earlier pages.
+     * @param array<non-empty-string, int<0, max>> $kept Characters of the text of each event the response holds
+     *        already, from earlier pages, by ID; a newer copy of one of them takes the place of the old one.
      * @param float|null $budget Seconds to check events for, when fewer than the {@see Scan} budget.
      *
      * @return array{
@@ -220,7 +221,7 @@ final class ListEvents implements Tool
         int $limit,
         ?int $maxLength,
         bool $newest = false,
-        int $textLength = 0,
+        array $kept = [],
         ?float $budget = null,
     ): array {
         $cursor = $this->store->cursor();
@@ -229,7 +230,7 @@ final class ListEvents implements Tool
         $events = [];
         $hasMore = false;
         $last = $since;
-        $filled = $textLength > 0;
+        $textLength = \array_sum($kept);
         $walk = $this->scan->walk($this->store, $records, $budget);
         foreach ($walk as $record) {
             if (!$filter->matches($record)) {
@@ -237,8 +238,9 @@ final class ListEvents implements Tool
             }
 
             $event = \count($events) === $limit ? null : $this->describe($record, $maxLength);
-            $length = $textLength + \mb_strlen($event['text'] ?? '');
-            if ($event === null || (($events !== [] || $filled) && $length > self::MAX_TOTAL_TEXT_LENGTH)) {
+            $others = $textLength - ($kept[$record->event->uuid] ?? 0);
+            $length = $others + \mb_strlen($event['text'] ?? '');
+            if ($event === null || (($events !== [] || $others > 0) && $length > self::MAX_TOTAL_TEXT_LENGTH)) {
                 $hasMore = true;
                 // The rest comes with the next call, which takes the last listed change as its cursor;
                 // the older events left out by `newest` never come, so the cursor stays at the latest change

@@ -130,9 +130,9 @@ seconds have passed (30 by default, 50 at most).
 - The result is the one of `list_events` with `order: oldest`, at most `count` events, plus `timed_out`. Out of time,
   the call returns the events that arrived meanwhile, possibly none, with `timed_out: true`: it is not an error.
   `has_more: true` tells that more matching events wait: `count` events were found and there are more, the texts
-  of `include: text` filled the response, or the time ran out before all the changed events were checked, then
-  with `timed_out: true`. Pass the returned `cursor` to `list_events` or to the next wait: either way no event
-  is missed.
+  of `include: text` filled the response, or the time ran out before all the changed events were checked, which
+  comes with `timed_out: true` only when fewer than `count` events were found. Pass the returned `cursor` to
+  `list_events` or to the next wait: either way no event is missed.
 - An event updated while the call waits, as a Ray message updated by the application, is listed once, at its
   latest change, and counts once toward `count`.
 - With a short `timeout`, or `0`, the events already there after an older `since` still get the full
