@@ -581,6 +581,135 @@ final class SentryViewTest
             ->matchesRegex('/\n… \d more causes …\n/');
     }
 
+    public function testLargeThrownExceptionLeavesTheRequestWithinTheSearchedText(): void
+    {
+        $name = \str_repeat('Ж', 400);
+        $frames = \array_map(static fn(int $line): array => self::frame("src/$name.php", $line, [
+            'class' => $name,
+            'function' => $name,
+            'context_line' => $name,
+            'pre_context' => [$name, $name, $name],
+            'post_context' => [$name, $name, $name],
+            'vars' => \array_fill_keys(\range(1, 10), $name),
+        ]), \range(1, 40));
+
+        $text = self::text([
+            'exception' => ['values' => [['type' => 'Ошибка', 'value' => $name, 'stacktrace' => ['frames' => $frames]]]],
+            'request' => ['method' => 'GET', 'url' => 'https://shop.test/'],
+            'contexts' => ['runtime' => ['name' => 'php']],
+            'breadcrumbs' => [['message' => 'last step']],
+        ]);
+
+        Assert::int((int) \strpos($text, "\nRequest: GET https://shop.test/\n"))->greaterThan(0)->lessThan(SentryText::MAX_CHAIN_BYTES);
+        Assert::int((int) \strpos($text, "\nBreadcrumbs:\n  last step\n"))->greaterThan(0)->lessThan(64 * 1024 - 100);
+        Assert::string($text)
+            ->startsWith("Exception, stack frames innermost first:\nОшибка: $name\n  #0 ")
+            ->matchesRegex('/\n  … \d+ more frames …\n/')
+            ->notContains('vars:');
+    }
+
+    public function testMoreSecretsOfTheRequestAreFiltered(): void
+    {
+        $text = self::text(['request' => [
+            'url' => 'https://user:s3cret@shop.test/callback#access_token=abc&state=1',
+            'query_string' => 'page=2;authorization=abc;user[password]=abc',
+            'headers' => ['X-Authorization' => 'abc', 'X-Forwarded-Authorization' => 'abc', 'Set-Cookie' => 'abc'],
+        ]]);
+        $nested = self::text(['request' => ['query_string' => ['page' => 2, 'user' => ['name' => 'Ann', 'password' => 'abc']]]]);
+
+        Assert::string($text)
+            ->contains("Request: https://user:[Filtered]@shop.test/callback#access_token=[Filtered]&state=1\n")
+            ->contains("  Query: page=2;authorization=[Filtered];user[password]=[Filtered]\n")
+            ->contains("    X-Authorization: [Filtered]\n    X-Forwarded-Authorization: [Filtered]\n    Set-Cookie: [Filtered]\n")
+            ->notContains('abc')
+            ->notContains('s3cret');
+        Assert::string($nested)
+            ->contains('  Query: page=2, user={"name":"Ann","password":"[Filtered]"}' . "\n")
+            ->notContains('abc');
+    }
+
+    public function testExceptionFramesOfAThreadWithAnIdOfAnotherType(): void
+    {
+        $text = self::text([
+            'exception' => ['values' => [['type' => 'SIGSEGV', 'thread_id' => '2']]],
+            'threads' => ['values' => [
+                ['id' => 1, 'crashed' => true, 'stacktrace' => ['frames' => [self::frame('main.c', 1)]]],
+                ['id' => 2, 'stacktrace' => ['frames' => [self::frame('worker.c', 2)]]],
+            ]],
+        ]);
+
+        Assert::string($text)->contains("SIGSEGV\n  #0 worker.c:2 in App\\Code::run\n")->notContains('main.c');
+    }
+
+    #[DataSet([[]], 'empty')]
+    #[DataSet([['a' => ['filename' => 'own.c']]], 'not a list')]
+    public function testExceptionWithoutFramesTakesThoseOfItsThread(array $frames): void
+    {
+        $text = self::text([
+            'exception' => ['values' => [['type' => 'SIGSEGV', 'stacktrace' => ['frames' => $frames]]]],
+            'threads' => ['values' => [['id' => 1, 'crashed' => true, 'stacktrace' => ['frames' => [self::frame('crash.c', 2)]]]]],
+        ]);
+
+        Assert::string($text)->contains("SIGSEGV\n  #0 crash.c:2 in App\\Code::run\n")->notContains('own.c');
+    }
+
+    #[DataSet(['now'], 'now')]
+    #[DataSet(['tomorrow'], 'tomorrow')]
+    #[DataSet(['1 hour'], 'relative')]
+    #[DataSet([\NAN], 'NaN')]
+    #[DataSet([\INF], 'infinity')]
+    #[DataSet(['1e999'], 'infinite numeric string')]
+    public function testValuesThatAreNotTimesAreLeftOut(mixed $time): void
+    {
+        $text = self::text([
+            'type' => 'transaction',
+            'start_timestamp' => 1_704_103_200.0,
+            'timestamp' => $time,
+            'spans' => [['op' => 'db', 'start_timestamp' => $time, 'timestamp' => 1_704_103_200.0]],
+            'breadcrumbs' => [['timestamp' => $time, 'message' => 'begin']],
+        ]);
+
+        Assert::string($text)
+            ->notContains('Duration:')
+            ->contains("  db\n")
+            ->contains("Breadcrumbs:\n  begin\n");
+    }
+
+    public function testLinesOfMessageAndRequestDataAreIndented(): void
+    {
+        $text = self::text(['message' => "first\nsecond", 'request' => ['url' => 'https://shop.test/', 'data' => "a=1\nb=2"]]);
+
+        Assert::string($text)
+            ->startsWith("Message: first\n  second\n")
+            ->contains("  Data: a=1\n    b=2\n");
+    }
+
+    public function testOneFrameInCommon(): void
+    {
+        $outer = [self::frame('index.php', 1), self::frame('src/Service.php', 3)];
+
+        $text = self::text(['exception' => ['values' => [
+            ['type' => 'Cause', 'stacktrace' => ['frames' => [$outer[0], self::frame('src/Db.php', 9)]]],
+            ['type' => 'Thrown', 'stacktrace' => ['frames' => $outer]],
+        ]]]);
+
+        Assert::string($text)->endsWith("Caused by Cause\n  #0 src/Db.php:9 in App\\Code::run\n  … 1 frame in common with the exception above …\n");
+    }
+
+    public function testTypeOfEveryEventItem(): void
+    {
+        $items = [
+            new EnvelopeItem(['type' => 'transaction'], ['transaction' => 'GET /']),
+            new EnvelopeItem(['type' => 'feedback'], ['contexts' => ['feedback' => ['message' => 'Nice']]]),
+        ];
+
+        $text = (string) (new SentryView())->text(new Record(self::event([]), 1, [new SentryEnvelope([], $items)]));
+
+        Assert::string($text)
+            ->contains("--- Item 1 of 2: transaction ---\nType: transaction\nTransaction: GET /\n")
+            ->contains("--- Item 2 of 2: feedback ---\nType: feedback\n");
+    }
+
     public function testEmptyBreadcrumbsAndMechanismAreLeftOut(): void
     {
         $text = self::text([

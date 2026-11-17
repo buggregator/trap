@@ -201,25 +201,27 @@ prints it:
 - The outermost frames a cause shares with the exception above it are one line, `… 20 frames in common with the
   exception above …`, and a frame already shown with its code is not shown with it again.
 - The request: method, URL, query, headers without cookies and the headers of the browser (`sec-*`, `accept-encoding`,
-  `accept-language`, `connection` and the like), body. The values of the `Authorization`, `Proxy-Authorization`
-  headers, and of the headers and query parameters (of the URL too) whose names contain `token`, `secret`,
-  `password` or `api-key` (`api_key`, `apikey`) in any case, are `[Filtered]`. The body and the other sections are
-  shown as sent.
+  `accept-language`, `connection` and the like), body. The values of the headers and query parameters (of the URL
+  and its fragment too, at any depth of a query map) whose names contain `authorization` (`authorisation`),
+  `authentication`, `token`, `secret`, `password` (`passwd`), `api-key` (`api_key`, `apikey`) or `cookie` in any
+  case, and the password of a URL, are `[Filtered]`. The body and the other sections are shown as sent.
 - The contexts, such as `runtime`, `os` and `trace` with its IDs, one line each; the latest breadcrumbs, oldest first;
   the extra data; the spans of a transaction with their durations.
 - An envelope of several items shows each of them under `--- Item 2 of 3: attachment ---`: an attachment by its
   name, type and size; an item that is not an event, such as `session`, `client_report` or `check_in`, by its
-  fields in one line. The web UI shows the first item only.
+  fields in one line. The web UI shows the first item only. A search looks through the first 64 KB of the whole
+  envelope, so the details of later items may not be found.
 
 The sections come in this order: the metadata, the exception chain, the request, the contexts, the breadcrumbs, the
 extra data and the spans. A [search](#filters) looks through the first 64 KB of the text, so the causes that would
-take the chain past 32 KB are left out and counted.
+take the chain past 32 KB are left out and counted. A thrown exception larger than that is shown without the code
+and variables of its frames, and then with fewer frame lines.
 
 Bounds; what is left out is counted, as `… 5 more …`:
 
 | What                                            | At most                                  |
 |-------------------------------------------------|------------------------------------------|
-| Exceptions of a chain                           | 10 in 32 KB, the thrown one in any case  |
+| Exceptions of a chain                           | 10 in 32 KB                              |
 | Frame lines of a stack trace                    | 30                                       |
 | Frames shown with their code                    | 3 per stack trace                        |
 | Lines of code around the line of a frame        | 3 before, 3 after                        |
