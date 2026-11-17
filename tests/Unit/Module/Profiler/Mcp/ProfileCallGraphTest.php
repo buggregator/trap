@@ -58,6 +58,46 @@ final class ProfileCallGraphTest
             TEXT);
     }
 
+    public function testRootWithoutCallsShowsItsCallees(): void
+    {
+        $trap = new Trap();
+        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof([
+            'a==>x' => ['ct' => 1, 'wt' => 600, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'a==>y' => ['ct' => 2, 'wt' => 500, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        ]));
+
+        $text = $trap->get(ProfileCallGraph::class)->call(['id' => $id, 'metric' => 'ct']);
+
+        Assert::string($text)->endsWith(<<<'TEXT'
+            shares.
+                              0  a
+                              2    y (2)
+                              1    x (1)
+
+            TEXT);
+    }
+
+    public function testRootWithNegativeMemoryShowsItsCallees(): void
+    {
+        $trap = new Trap();
+        // `main()` frees more than it allocates: its `mu` is shown as zero
+        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof([
+            'main()' => ['ct' => 1, 'wt' => 1000, 'cpu' => 0, 'mu' => -100, 'pmu' => 0],
+            'main()==>alloc' => ['ct' => 1, 'wt' => 300, 'cpu' => 0, 'mu' => 400, 'pmu' => 0],
+            'main()==>free' => ['ct' => 1, 'wt' => 600, 'cpu' => 0, 'mu' => -500, 'pmu' => 0],
+        ]));
+
+        $text = $trap->get(ProfileCallGraph::class)->call(['id' => $id, 'metric' => 'mu']);
+
+        Assert::string($text)->endsWith(<<<'TEXT'
+            shares.
+              0.0%       0.00 B  main() (1)
+            100.0%     400.00 B    alloc (1)
+              0.0%       0.00 B    … 1 more call below 1%
+
+            TEXT);
+    }
+
     public function testRecordedTreeIsNotUnfolded(): void
     {
         $trap = new Trap();
@@ -109,7 +149,7 @@ final class ProfileCallGraphTest
 
         $text = $tool->call(['id' => $id, 'threshold' => 0.01, 'max_depth' => 200]);
 
-        Assert::string($text)->contains('The tree unfolds into too many calls, so it is cut: it keeps the calls in the order they were made up to a limit and may leave out later ones, heavy ones too. The hot path of `profile_summary` and `profile_calls` show the heaviest paths.');
+        Assert::string($text)->contains('The tree unfolds into too many calls, so it is cut: it keeps the calls in the order they were made up to a limit and may leave out later ones, heavy ones too. The hot path of `profile_summary` and the callers and callees of `profile_calls` show the heaviest calls.');
         Assert::int(\count($profile->tree()))->lessThanOrEqual(1_000);
         Assert::int(\count(Profiles::xhprof($calls)->calls->unfold(0.0001)))->greaterThan(1_000)->lessThan(200_000);
     }

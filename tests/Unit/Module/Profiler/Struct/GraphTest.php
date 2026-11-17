@@ -125,23 +125,37 @@ final class GraphTest
         Assert::same($names, ['main()', 'a', 'x', 'y']);
     }
 
-    public function testCutKeepsMemoryAndTimeBounded(): void
+    public function testCutKeepsMemoryAndWorkBounded(): void
     {
         // 6 000 leaves under the last level: a body of 344 KB unfolding into about 2^14 * 3 000 nodes
         $graph = self::graph(Profiles::lattice(levels: 13, chain: 30, leaves: 3000));
         \gc_collect_cycles();
         $before = \memory_get_usage();
         \memory_reset_peak_usage();
-        $start = \hrtime(true);
 
-        $tree = $graph->unfold(minShare: 0.0001, maxNodes: 50_000);
+        [$tree, $ticks] = self::unfoldTicking($graph, 0.0001, 50_000, 3 * 50_000);
 
-        $seconds = (\hrtime(true) - $start) / 1e9;
         $peak = \memory_get_peak_usage() - $before;
         Assert::true($tree->cut);
         Assert::count($tree, 50_000);
         Assert::true($peak < 96 * 1024 * 1024, \sprintf('Peak memory grew by %.1f MB.', $peak / 1048576));
-        Assert::true($seconds < 10.0, \sprintf('Unfolding took %.1f s.', $seconds));
+        Assert::int($ticks)->lessThanOrEqual(2 * 50_000 + 1);
+    }
+
+    public function testUnfoldSkipsLightCalleesOfLargeFanOut(): void
+    {
+        // Each of the 256 nodes of the last level calls 5 000 leaves too light to show
+        $graph = self::graph(Profiles::lattice(levels: 8, chain: 0, leaves: 5000));
+        $expected = $graph->unfold(0.0001);
+
+        [$tree, $ticks, $maxGrowth] = self::unfoldTicking($graph, 0.0001, \PHP_INT_MAX, 10 * \count($expected));
+
+        Assert::same(self::shape($tree), self::shape($expected));
+        Assert::same(\array_keys($tree->all), \array_keys($expected->all));
+        // Every entry of the stack is a tick: a node, the end of its subtree, a skipped call
+        Assert::int($ticks)->lessThanOrEqual(2 * \count($tree));
+        // The leaves of a function are sorted once, about 0.3 MB; stacking them all takes over 1 MB a node
+        Assert::int($maxGrowth)->lessThan(512 * 1024);
     }
 
     public function testUnfoldPrunesByCallsWithoutWallTime(): void
@@ -153,6 +167,19 @@ final class GraphTest
 
         Assert::false($tree->cut);
         Assert::int(\count($tree))->lessThan(10_000);
+    }
+
+    public function testUnfoldPrunesByCallsOfRootAddedWithoutMain(): void
+    {
+        $calls = Profiles::lattice(levels: 36, chain: 0, wt: 0);
+        unset($calls['main()']);
+        $graph = self::graph($calls);
+
+        $tree = $graph->unfold(minShare: 0.001, maxNodes: 100_000);
+
+        Assert::false($tree->cut);
+        Assert::int(\count($tree))->lessThan(10_000);
+        Assert::same($tree->all['n1']->item->cost->ct, 0);
     }
 
     public function testUnfoldLetsOtherFibersRun(): void
@@ -289,6 +316,30 @@ final class GraphTest
 
         Expect::exception(\LogicException::class);
         $graph->add(new Edge('a', 'b', new Cost(1, 1, 1, 1, 1)));
+    }
+
+    /**
+     * Unfolds in a fiber suspended at every tick: the ticks count the work, deterministically on any machine.
+     *
+     * @param int<1, max> $maxNodes
+     * @param positive-int $maxTicks Fails past them rather than run the unbounded work to the end.
+     *
+     * @return array{Tree<Edge>, int, int} The tree, the ticks and the most memory a tick allocated, bytes.
+     */
+    private static function unfoldTicking(Graph $graph, float $minShare, int $maxNodes, int $maxTicks): array
+    {
+        $fiber = new \Fiber(static fn(): Tree => $graph->unfold($minShare, $maxNodes, new TimeSlice(0.0, 1)));
+        $ticks = $maxGrowth = 0;
+        $memory = \memory_get_usage();
+        $fiber->start();
+        while (!$fiber->isTerminated()) {
+            $maxGrowth = \max($maxGrowth, \memory_get_usage() - $memory);
+            ++$ticks <= $maxTicks or Assert::fail("Unfolding took more than $maxTicks ticks.");
+            $memory = \memory_get_usage();
+            $fiber->resume();
+        }
+
+        return [$fiber->getReturn(), $ticks, $maxGrowth];
     }
 
     private static function graph(array $calls): Graph

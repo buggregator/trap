@@ -122,7 +122,7 @@ final class ProfileCallGraph implements Tool
                 . 'from them: a function called from several places has its callees split by their shares.',
             $tree->cut ? ' The tree unfolds into too many calls, so it is cut: it keeps the calls in the order they '
                 . 'were made up to a limit and may leave out later ones, heavy ones too. The hot path of '
-                . '`profile_summary` and `profile_calls` show the heaviest paths.' : '',
+                . '`profile_summary` and the callers and callees of `profile_calls` show the heaviest calls.' : '',
         )];
 
         $minValue = (float) $peak * $threshold / 100.0;
@@ -150,7 +150,9 @@ final class ProfileCallGraph implements Tool
             $hiddenValue = 0;
             foreach ($branches as $branch) {
                 $value = $metric->of($branch->item->cost);
-                if ($value > 0 && (float) $value >= $minValue) {
+                // A root may have none of the metric, as the `ct` of a root added for a profile without `main()`
+                // or the clamped `mu` of a `main()` freeing more than it allocated, while its callees have it
+                if ($branch->item->callerId === null || ($value > 0 && (float) $value >= $minValue)) {
                     $shown[] = $branch;
                 } else {
                     ++$hidden;

@@ -206,7 +206,8 @@ final class Graph implements \IteratorAggregate, \Countable
      *
      * Only when the roots have no wall time, the scales and `$minShare` go by the call counts instead:
      * scaled by a zero wall time, every node would keep the full cost of its callees, and shared functions
-     * calling each other would unfold into exponentially many nodes.
+     * calling each other would unfold into exponentially many nodes. A root added for a profile without `main()`
+     * has no calls, so it counts the calls of its callees.
      *
      * @param float $minShare Nodes with a smaller share of the roots' wall time are dropped:
      *        unfolding multiplies the nodes of shared functions.
@@ -223,10 +224,20 @@ final class Graph implements \IteratorAggregate, \Countable
         foreach ($this->roots as $edge) {
             $total += $edge->cost->wt;
         }
+        /** @var array<non-empty-string, int> $rootCounts Counts of the roots with no calls of their own, by IDs */
+        $rootCounts = [];
         if ($total === 0) {
             $metric = Metric::Count;
             foreach ($this->roots as $edge) {
-                $total += $edge->cost->ct;
+                // A root added for a profile without `main()` has no calls: its callees have them
+                if ($edge->cost->ct === 0) {
+                    $count = 0;
+                    foreach ($this->callees($edge->calleeId) as $child) {
+                        $count += $child->cost->ct;
+                    }
+                    $rootCounts[$edge->calleeId] = $count;
+                }
+                $total += $rootCounts[$edge->calleeId] ?? $edge->cost->ct;
             }
         }
 
@@ -236,12 +247,15 @@ final class Graph implements \IteratorAggregate, \Countable
         $tree = new Tree();
         /** @var array<non-empty-string, true> $path Function IDs of the ancestors, to stop on a cycle */
         $path = [];
+        /** @var array<non-empty-string, array{list<float>, list<int<0, max>>}> $byValue See {@see self::byValue()} */
+        $byValue = [];
 
         // Iterative: the depth follows the recursion in the profiled code, deeper than Xdebug's nesting limit.
         // An entry is an edge to unfold with its parent node and scale, or a function ID that leaves the path.
         /** @var list<array{Edge, Branch<Edge>|null, float}|non-empty-string> $stack */
         $stack = \array_map(static fn(Edge $edge): array => [$edge, null, 1.0], \array_reverse($this->roots));
         while ($stack !== []) {
+            $timeSlice?->tick();
             $entry = \array_pop($stack);
             if (\is_string($entry)) {
                 unset($path[$entry]);
@@ -249,7 +263,9 @@ final class Graph implements \IteratorAggregate, \Countable
             }
 
             [$edge, $parent, $scale] = $entry;
-            $value = (float) $metric->of($edge->cost) * $scale;
+            $value = $parent === null && isset($rootCounts[$edge->calleeId])
+                ? (float) $rootCounts[$edge->calleeId]
+                : (float) $metric->of($edge->cost) * $scale;
             if ($value < $minValue || isset($path[$edge->calleeId])) {
                 continue;
             }
@@ -259,7 +275,6 @@ final class Graph implements \IteratorAggregate, \Countable
                 break;
             }
 
-            $timeSlice?->tick();
             $id = 'n' . (\count($tree) + 1);
             $tree->addItem(
                 new Edge(
@@ -280,8 +295,29 @@ final class Graph implements \IteratorAggregate, \Countable
 
             $path[$edge->calleeId] = true;
             $stack[] = $edge->calleeId;
-            foreach (\array_reverse($this->callees($edge->calleeId)) as $child) {
-                $stack[] = [$child, $branch, $childScale];
+            $callees = $this->callees($edge->calleeId);
+            if ($callees === []) {
+                continue;
+            }
+
+            // Only the callees that pass `$minValue`: a function may call thousands, most of them too light.
+            // Received data with negative times may make the scale negative, which reverses the order: then all.
+            if ($childScale >= 0.0) {
+                [$values, $order] = $byValue[$edge->calleeId] ??= self::byValue($callees, $metric);
+                $low = 0;
+                $high = \count($values);
+                while ($low < $high) {
+                    $middle = ($low + $high) >> 1;
+                    $minValue <= $values[$middle] * $childScale ? $low = $middle + 1 : $high = $middle;
+                }
+                if ($low < \count($values)) {
+                    $passing = \array_slice($order, 0, $low);
+                    \sort($passing);
+                    $callees = \array_map(static fn(int $i): Edge => $callees[$i], $passing);
+                }
+            }
+            for ($i = \count($callees) - 1; $i >= 0; --$i) {
+                $stack[] = [$callees[$i], $branch, $childScale];
             }
         }
 
@@ -319,6 +355,24 @@ final class Graph implements \IteratorAggregate, \Countable
         }
 
         return $result;
+    }
+
+    /**
+     * @param non-empty-list<Edge> $edges
+     *
+     * @return array{list<float>, list<int<0, max>>} The values of the metric, largest first, and the indexes
+     *         of their edges.
+     */
+    private static function byValue(array $edges, Metric $metric): array
+    {
+        $values = [];
+        foreach ($edges as $edge) {
+            $values[] = (float) $metric->of($edge->cost);
+        }
+        $order = \array_keys($values);
+        \array_multisort($values, \SORT_DESC, \SORT_NUMERIC, $order);
+
+        return [$values, $order];
     }
 
     private static function scaleCost(Cost $cost, float $scale, ?Cost $parent): Cost

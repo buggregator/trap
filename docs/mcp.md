@@ -229,9 +229,10 @@ for it fails with the metrics the profile has:
 - Without `metric` the tools take the first the profile has of `wt`, `cpu`, `mu`, `ct`, as the console ranks by.
 - A function's values are summed over all its calls. `inclusive` takes the callees in, `exclusive` is the function
   itself. The percentages are of the `peaks`, the largest values of one caller and callee pair as the console shows
-  them: the root's wall time, CPU time and memory. A profile without `main()` gets a root that sums its calls, and
-  its `peaks` are the root's values. A percentage is at most 100, even when the sum over the callers passes the
-  peak. `ct` has no percentages: its peak is the most calls or samples of one pair, while a function sums the calls
+  them: the root's wall time, CPU time and memory. A profile without `main()` gets a root that sums the times of
+  its calls and takes the most memory of them, and its `peaks` are the root's values. With several roots, of the call
+  graph or of a recorded call tree, the peak is the sum of the roots when larger. A percentage is at
+  most 100, even when the sum over the callers passes the peak. `ct` has no percentages: its peak is the most calls or samples of one pair, while a function sums the calls
   from all its callers. XHProf's `mu` is the memory a call allocated less what it freed: a negative value is shown
   as zero, and an `exclusive` one as at most the `inclusive` one.
 - `profile_top` ranks by the `exclusive` value (`sort: inclusive` for the other), 20 functions by default and 200
@@ -246,11 +247,12 @@ for it fails with the metrics the profile has:
   5 and last 25, and `depth` tells where each one is.
 - `profile_call_graph` shows calls of at least 1 percent by default, 30 levels deep, and cuts a text longer than
   `max_length` characters, 20 000 by default and 200 000 at most. The smaller calls of a caller are summed in one
-  line. XHProf sums the calls by caller and callee, so its tree is unfolded from the call graph: a function called
-  from several places has its callees split by their shares, and the text says so; a tree that would unfold into
-  too many calls is cut, and the text says so: it keeps the calls in the order they were made up to a limit and
-  may leave out later ones, heavy ones too. The hot path of `profile_summary` and `profile_calls` work on the call
-  graph, so they show the heaviest paths of such a profile too.
+  line; the roots are shown whatever their share. XHProf sums the calls by caller and callee, so its tree is
+  unfolded from the call graph: a function called from several places has its callees split by their shares, and
+  the text says so; a tree that would unfold into too many calls is cut, and the text says so: it keeps the calls
+  in the order they were made up to a limit and may leave out later ones, heavy ones too. The hot path of
+  `profile_summary` and the callers and callees of `profile_calls` work on the call graph, so they show the
+  heaviest calls of such a profile too.
 - The functions of the 4 profiles asked about last are kept: summing those of a large profile takes a moment, and
   Trap catches events and answers other calls meanwhile.
 

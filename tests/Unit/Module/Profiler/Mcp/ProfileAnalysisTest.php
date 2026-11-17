@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Profiler\Mcp;
 use Buggregator\Trap\Module\Profiler\Frame\Payload;
 use Buggregator\Trap\Module\Profiler\Frame\Type;
 use Buggregator\Trap\Module\Profiler\Mcp\ProfileAnalysis;
+use Buggregator\Trap\Module\Profiler\Struct\Metric;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Support\TimeSlice;
 use Buggregator\Trap\Tests\Unit\Module\Profiler\Mcp\Stub\Profiles;
@@ -43,6 +44,16 @@ final class ProfileAnalysisTest
 
         Assert::int($suspensions)->greaterThan(0);
         Assert::true($first === $second);
+    }
+
+    public function testPeakOfRootsPassingIntegerRangeIsClamped(): void
+    {
+        $analysis = self::analysis(Profiles::xhprof([
+            'main()' => ['ct' => 1, 'wt' => \PHP_INT_MAX, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'shutdown()' => ['ct' => 1, 'wt' => \PHP_INT_MAX, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        ]));
+
+        Assert::same($analysis->peak(Metric::WallTime), \PHP_INT_MAX);
     }
 
     /**

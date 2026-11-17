@@ -280,9 +280,9 @@ final class ProfileCallsTest
         Assert::same($trap->get(ProfileSummary::class)->call(['id' => $id])['peaks']['wt'], 1100);
     }
 
-    public function testHubOfManyCallersAndCalleesTakesLinearTime(): void
+    public function testHubOfManyCallersAndCalleesTakesLinearWork(): void
     {
-        // Walking the callees of the hub once per caller would take seconds
+        // Walking the callees of the hub once per caller would take 25 million ticks
         $n = 5000;
         $cost = static fn(int $wt): array => ['ct' => 1, 'wt' => $wt, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
         $calls = ['main()' => $cost(10 * $n)];
@@ -291,25 +291,50 @@ final class ProfileCallsTest
             $calls["caller$i==>hub"] = $cost(4);
             $calls["hub==>callee$i"] = $cost(1);
         }
-        $trap = new Trap();
-        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof($calls));
-        $tool = new ProfileCalls(new ProfileAnalyses($trap->store, static fn(): TimeSlice => new TimeSlice(0.0, 1)));
-        // The functions are summed and indexed here, so only the hub's calls are left to the fiber
-        $tool->call(['id' => $id, 'function' => 'main()', 'limit' => 1]);
-        $fiber = new \Fiber(static fn(): array => $tool->call(['id' => $id, 'function' => 'hub', 'limit' => 1]));
+
+        [$result, $ticks] = self::callTicking($calls, 'hub', 10 * $n);
+
+        Assert::same([$result['callers_count'], $result['callees_count']], [$n, $n]);
+        Assert::int($ticks)->greaterThan(0);
+    }
+
+    public function testManyRecursionLevelsOfOnePairTakeLinearWork(): void
+    {
+        // Neither call is inside another: the deeper `g()` is, the shallower `f()` is
+        $n = 8000;
+        $cost = static fn(int $wt): array => ['ct' => 1, 'wt' => $wt, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
+        $calls = ['main()' => $cost(10 * $n), 'main()==>f' => $cost(1)];
+        for ($i = 1; $i <= $n; ++$i) {
+            $calls["g@$i==>f@" . ($n - $i + 1)] = $cost(2);
+        }
         $start = \hrtime(true);
 
-        $suspensions = 0;
-        $fiber->start();
-        while (!$fiber->isTerminated()) {
-            ++$suspensions;
-            $fiber->resume();
-        }
+        [$result, $ticks] = self::callTicking($calls, 'f', 10 * $n);
 
         $seconds = (\hrtime(true) - $start) / 1e9;
-        Assert::int($suspensions)->greaterThan(0);
-        Assert::same([$fiber->getReturn()['callers_count'], $fiber->getReturn()['callees_count']], [$n, $n]);
-        Assert::true($seconds < 1.0, \sprintf('The calls of the hub took %.2f s.', $seconds));
+        $fromG = \array_column($result['callers'], null, 'function')['g'];
+        Assert::same([$fromG['calls'], $fromG['inclusive']], [$n, 2 * $n]);
+        Assert::int($ticks)->greaterThan(0);
+        // A secondary guard: comparing every pair of the calls takes half a minute
+        Assert::true($seconds < 10.0, \sprintf('The calls took %.1f s.', $seconds));
+    }
+
+    public function testCallsDeeperInBothFunctionsThanAnotherCallAreNested(): void
+    {
+        $trap = new Trap();
+        // `g@1()` calling `f@3` is inside `g()` calling `f@2`; `g@1()` calling `f@2` or `f@1` is not
+        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof([
+            'main()' => ['ct' => 1, 'wt' => 1000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>g' => ['ct' => 1, 'wt' => 900, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'g==>f@2' => ['ct' => 1, 'wt' => 100, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'g@1==>f@3' => ['ct' => 1, 'wt' => 50, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'g@1==>f@2' => ['ct' => 1, 'wt' => 30, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'g@1==>f@1' => ['ct' => 1, 'wt' => 200, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        ]));
+
+        $result = $trap->get(ProfileCalls::class)->call(['id' => $id, 'function' => 'f']);
+
+        Assert::same([$result['callers'][0]['function'], $result['callers'][0]['calls'], $result['callers'][0]['inclusive']], ['g', 4, 330]);
     }
 
     public function testUnknownFunctionFailsWithCloseNames(): never
@@ -363,6 +388,33 @@ final class ProfileCallsTest
         $trap = new Trap();
 
         return [$trap, Profiles::add($trap, Type::XHProf, Profiles::xhprof())];
+    }
+
+    /**
+     * Calls the tool for the function in a fiber suspended at every tick: the ticks count the work,
+     * deterministically on any machine.
+     *
+     * @param positive-int $maxTicks Fails past them rather than run the unbounded work to the end.
+     *
+     * @return array{array, int} The result and the ticks.
+     */
+    private static function callTicking(array $calls, string $function, int $maxTicks): array
+    {
+        $trap = new Trap();
+        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof($calls));
+        $tool = new ProfileCalls(new ProfileAnalyses($trap->store, static fn(): TimeSlice => new TimeSlice(0.0, 1)));
+        // The functions are summed and indexed here, so only the calls of the function are left to the fiber
+        $tool->call(['id' => $id, 'function' => 'main()', 'limit' => 1]);
+        $fiber = new \Fiber(static fn(): array => $tool->call(['id' => $id, 'function' => $function, 'limit' => 1]));
+
+        $ticks = 0;
+        $fiber->start();
+        while (!$fiber->isTerminated()) {
+            ++$ticks <= $maxTicks or Assert::fail("The calls of `$function` took more than $maxTicks ticks.");
+            $fiber->resume();
+        }
+
+        return [$fiber->getReturn(), $ticks];
     }
 
     private static function assertBounds(array $row): void

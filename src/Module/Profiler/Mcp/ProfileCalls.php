@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Mcp\Tool;
 use Buggregator\Trap\Module\Mcp\Tool\Arguments;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Metric;
+use Buggregator\Trap\Support\TimeSlice;
 
 /**
  * The callers and the callees of a function: its neighbourhood in the call graph of a profile.
@@ -159,10 +160,12 @@ final class ProfileCalls implements Tool
             }
         }
 
+        $callerLinks = self::links($analysis, $metric, $name, true);
+        $calleeLinks = self::links($analysis, $metric, $name, false);
         $callers = $callees = [];
         $truncated = false;
-        self::walk($analysis, $metric, $name, true, 1, $depth, $limit, [$name => true], $callers, $truncated);
-        self::walk($analysis, $metric, $name, false, 1, $depth, $limit, [$name => true], $callees, $truncated);
+        self::walk($analysis, $metric, $name, $callerLinks, true, 1, $depth, $limit, [$name => true], $callers, $truncated);
+        self::walk($analysis, $metric, $name, $calleeLinks, false, 1, $depth, $limit, [$name => true], $callees, $truncated);
 
         return [
             'metric' => $metric->value,
@@ -172,8 +175,8 @@ final class ProfileCalls implements Tool
             'root' => $root,
             'callers' => $callers,
             'callees' => $callees,
-            'callers_count' => \count(self::links($analysis, $metric, $name, true)),
-            'callees_count' => \count(self::links($analysis, $metric, $name, false)),
+            'callers_count' => \count($callerLinks),
+            'callees_count' => \count($calleeLinks),
             'truncated' => $truncated,
         ];
     }
@@ -181,6 +184,7 @@ final class ProfileCalls implements Tool
     /**
      * Adds the heaviest callers or callees of the function, each followed by its own up to the depth.
      *
+     * @param array<string, Link> $links The callers or the callees of the function, as {@see self::links()} gives them.
      * @param int<1, max> $depth
      * @param int<1, max> $maxDepth
      * @param int<1, max> $limit
@@ -191,6 +195,7 @@ final class ProfileCalls implements Tool
         ProfileAnalysis $analysis,
         Metric $metric,
         string $name,
+        array $links,
         bool $callers,
         int $depth,
         int $maxDepth,
@@ -199,7 +204,7 @@ final class ProfileCalls implements Tool
         array &$rows,
         bool &$truncated,
     ): void {
-        foreach (\array_slice(self::links($analysis, $metric, $name, $callers), 0, $limit, true) as $other => $link) {
+        foreach (\array_slice($links, 0, $limit, true) as $other => $link) {
             if (\count($rows) >= self::MAX_ROWS) {
                 $truncated = true;
                 return;
@@ -221,6 +226,7 @@ final class ProfileCalls implements Tool
                 $analysis,
                 $metric,
                 $other,
+                self::links($analysis, $metric, $other, $callers),
                 $callers,
                 $depth + 1,
                 $maxDepth,
@@ -253,12 +259,12 @@ final class ProfileCalls implements Tool
 
         $links = [];
         foreach ($edges as $other => $pair) {
+            $nested = $metric === Metric::Count ? [] : self::nested($pair, $slice);
             $link = ['calls' => 0, 'inclusive' => 0, 'exclusive' => 0.0];
-            foreach ($pair as $edge) {
+            foreach ($pair as $i => $edge) {
                 $link['calls'] += $edge->cost->ct;
-                $link['exclusive'] += $analysis->exclusive($edge, $metric);
-                $metric === Metric::Count || !self::isNested($edge, $pair)
-                    and $link['inclusive'] += $metric->of($edge->cost);
+                $link['exclusive'] += $analysis->exclusive($edge, $metric, $slice);
+                isset($nested[$i]) or $link['inclusive'] += $metric->of($edge->cost);
                 $slice->tick();
             }
             $link['exclusive'] = \min($link['exclusive'], (float) $link['inclusive']);
@@ -275,25 +281,41 @@ final class ProfileCalls implements Tool
     }
 
     /**
-     * The calls are a part of an outer call of the same pair, made deeper in both functions' recursions: summed,
-     * a recursion would count many times over. A call deeper in one function only, as `g@1()` calling `f@1` and
-     * `g()` calling `f@1` too, is apart from the others.
+     * The calls that are a part of an outer call of the same pair, made deeper in both functions' recursions:
+     * summed, a recursion would count many times over. A call deeper in one function only, as `g@1()` calling `f@1`
+     * and `g()` calling `f@1` too, is apart from the others.
      *
      * @param list<Edge> $pair All the calls between the caller and the callee.
+     *
+     * @return array<int<0, max>, true> By the indexes in the pair.
      */
-    private static function isNested(Edge $edge, array $pair): bool
+    private static function nested(array $pair, TimeSlice $slice): array
     {
-        $caller = self::level($edge->callerId, $edge->caller);
-        $callee = self::level($edge->calleeId, $edge->callee);
-        foreach ($pair as $other) {
-            if (self::level($other->callerId, $other->caller) < $caller
-                && self::level($other->calleeId, $other->callee) < $callee
-            ) {
-                return true;
+        $callerLevels = $calleeLevels = [];
+        foreach ($pair as $edge) {
+            $callerLevels[] = self::level($edge->callerId, $edge->caller);
+            $calleeLevels[] = self::level($edge->calleeId, $edge->callee);
+        }
+        $order = \array_keys($pair);
+        $sorted = $callerLevels;
+        \array_multisort($sorted, \SORT_ASC, \SORT_NUMERIC, $order);
+
+        // An edge is nested when an edge of a smaller caller level has a smaller callee level
+        $nested = [];
+        $min = $levelMin = \PHP_INT_MAX;
+        $level = null;
+        foreach ($order as $i) {
+            if ($callerLevels[$i] !== $level) {
+                $min = \min($min, $levelMin);
+                $levelMin = \PHP_INT_MAX;
+                $level = $callerLevels[$i];
             }
+            $min < $calleeLevels[$i] and $nested[$i] = true;
+            $levelMin = \min($levelMin, $calleeLevels[$i]);
+            $slice->tick();
         }
 
-        return false;
+        return $nested;
     }
 
     /**

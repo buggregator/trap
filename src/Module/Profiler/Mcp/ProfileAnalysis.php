@@ -133,8 +133,8 @@ final class ProfileAnalysis
 
     /**
      * The value of the metric the percentages are of: the peak value of one caller and callee pair, as the console
-     * shows, or the sum of the roots when larger. A root added for a profile without `main()` sums its calls,
-     * so it may pass every pair.
+     * shows, or the sum of the roots when larger, up to `PHP_INT_MAX`. A root added for a profile without `main()`
+     * sums the times of its calls, so it may pass every pair.
      *
      * @return int<0, max>
      */
@@ -148,7 +148,9 @@ final class ProfileAnalysis
         if ($metric !== Metric::Count) {
             $roots = 0;
             foreach ($this->profile->calls->roots() as $edge) {
-                $roots += $metric->of($edge->cost);
+                // Received data may pass the integer range: the sum would turn into a float
+                $value = \max(0, $metric->of($edge->cost));
+                $roots = $value > \PHP_INT_MAX - $roots ? \PHP_INT_MAX : $roots + $value;
             }
             $peak = \max($peak, $roots);
         }
@@ -304,8 +306,10 @@ final class ProfileAnalysis
     /**
      * The exclusive value of a call's metric: the callee's own cost in these calls. When the callee is called from
      * several places, its own cost is split by their shares of its inclusive cost.
+     *
+     * @param TimeSlice|null $timeSlice Lets other fibers run while the callees of a function are summed.
      */
-    public function exclusive(Edge $edge, Metric $metric): float
+    public function exclusive(Edge $edge, Metric $metric, ?TimeSlice $timeSlice = null): float
     {
         $value = $metric->of($edge->cost);
         if ($metric === Metric::Count || $value === 0) {
@@ -320,6 +324,7 @@ final class ProfileAnalysis
             $own = $inclusive;
             foreach ($graph->callees($edge->calleeId) as $child) {
                 $own -= $metric->of($child->cost);
+                $timeSlice?->tick();
             }
             $this->own[$key] = [$own, $inclusive];
         }
