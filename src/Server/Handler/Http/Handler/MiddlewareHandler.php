@@ -46,6 +46,12 @@ final class MiddlewareHandler implements RequestHandler
     #[\Override]
     public function handle(StreamClient $streamClient, ServerRequestInterface $request, callable $next): iterable
     {
+        // Weak: a request kept in a frame of the stored event must not keep the connection
+        $client = \WeakReference::create($streamClient);
+        $request = $request->withAttribute(
+            Middleware::DISCONNECTED,
+            static fn(): bool => $client->get()?->isDisconnected() ?? true,
+        );
         try {
             $fiber = new \Fiber(($this->pipeline)(...));
             do {

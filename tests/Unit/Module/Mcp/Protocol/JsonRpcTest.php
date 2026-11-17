@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Mcp\Protocol\JsonRpc;
 use Buggregator\Trap\Module\Mcp\Protocol\RpcError;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\BrokenToolsModule;
+use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Testo\Assert;
@@ -103,6 +104,23 @@ final class JsonRpcTest
         Assert::count($response, 2);
         Assert::same($response[0]['id'], 1);
         Assert::same($response[1]['error']['code'], RpcError::METHOD_NOT_FOUND);
+    }
+
+    public function testWaitInBatchFails(): void
+    {
+        $rpc = (new Trap())->get(JsonRpc::class);
+        $wait = ['name' => 'wait_for_events', 'arguments' => ['timeout' => 0]];
+
+        $batched = $rpc->process([
+            ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/call', 'params' => $wait],
+            ['jsonrpc' => '2.0', 'id' => 2, 'method' => 'ping'],
+        ]);
+        $single = $rpc->process(['jsonrpc' => '2.0', 'id' => 3, 'method' => 'tools/call', 'params' => $wait]);
+
+        Assert::true($batched[0]['result']['isError']);
+        Assert::string($batched[0]['result']['content'][0]['text'])->contains("can't run in a JSON-RPC batch");
+        Assert::same($batched[1]['id'], 2);
+        Assert::false($single['result']['isError']);
     }
 
     public function testBatchOfNotificationsIsNotAnswered(): void
