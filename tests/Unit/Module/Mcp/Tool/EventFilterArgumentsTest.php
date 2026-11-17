@@ -6,7 +6,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Tool;
 
 use Buggregator\Trap\Module\Mailer\Contact;
 use Buggregator\Trap\Module\Mcp\Tool\EventFilter;
-use Buggregator\Trap\Module\Mcp\Tool\EventFilters;
+use Buggregator\Trap\Module\Mcp\Tool\EventFilterArguments;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\Record;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
@@ -17,9 +17,9 @@ use Testo\Expect;
 use Testo\Test;
 
 #[Test]
-#[Covers(EventFilters::class)]
+#[Covers(EventFilterArguments::class)]
 #[Covers(EventFilter::class)]
-final class EventFiltersTest
+final class EventFilterArgumentsTest
 {
     /** Unix time the durations count back from: two seconds after the last event. */
     private const NOW = 8.0;
@@ -52,7 +52,6 @@ final class EventFiltersTest
     #[DataSet([['where' => ['level' => 1]], []], 'number against a string')]
     #[DataSet([['where' => ['level' => true]], []], 'boolean against a string')]
     #[DataSet([['where' => ['nope' => 'x']], []], 'unknown field')]
-    #[DataSet([['where' => []], ['error', 'info', 'request', 'dump', 'mail', 'sentry']], 'empty where')]
     #[DataSet(
         [['type' => ['monolog', 'sentry'], 'from' => '7s', 'where' => ['level' => 'error'], 'search' => 'pdo'], ['sentry']],
         'all together',
@@ -61,45 +60,50 @@ final class EventFiltersTest
     {
         $trap = new Trap();
         $records = self::records($trap);
-        $filter = $trap->get(EventFilters::class)->fromArguments($arguments, self::NOW);
+        $filter = $trap->get(EventFilterArguments::class)->parse($arguments, self::NOW);
 
         $matched = \array_keys(\array_filter($records, $filter->matches(...)));
 
         Assert::same($matched, $expected);
     }
 
-    #[DataSet([[]], 'no arguments')]
-    #[DataSet([['type' => []]], 'no types')]
-    #[DataSet([['where' => []]], 'no fields')]
-    public function testIsEmpty(array $arguments): void
+    public function testNoArgumentsIsEmpty(): void
     {
-        Assert::true((new Trap())->get(EventFilters::class)->fromArguments($arguments)->isEmpty());
+        Assert::true((new Trap())->get(EventFilterArguments::class)->parse([])->isEmpty());
     }
 
     #[DataSet([['search' => 'x']], 'search')]
     #[DataSet([['from' => '1m']], 'from')]
+    #[DataSet([['to' => '2023-11-14']], 'to')]
+    #[DataSet([['type' => 'monolog']], 'type')]
     #[DataSet([['where' => ['level' => 'x']]], 'where')]
     #[DataSet([['project' => 'shop']], 'project')]
     public function testIsNotEmpty(array $arguments): void
     {
-        Assert::false((new Trap())->get(EventFilters::class)->fromArguments($arguments)->isEmpty());
+        Assert::false((new Trap())->get(EventFilterArguments::class)->parse($arguments)->isEmpty());
     }
 
     public function testEmptyProjectIsTheDefaultOne(): void
     {
-        $filter = (new Trap())->get(EventFilters::class)->fromArguments(['project' => ['', 'default']]);
+        $filter = (new Trap())->get(EventFilterArguments::class)->parse(['project' => ['', 'default']]);
 
         Assert::same($filter->projects, ['default']);
     }
 
-    #[DataSet([['where' => ['a', 'b']], '`where` must be an object of field names and values'], 'list')]
-    #[DataSet([['where' => 'level=error'], '`where` must be an object of field names and values'], 'string')]
+    #[DataSet([['where' => ['a', 'b']], '`where` must be an object of at least one field name and value'], 'list')]
+    #[DataSet([['where' => 'level=error'], '`where` must be an object of at least one field name and value'], 'string')]
     #[DataSet([['where' => ['level' => []]], '`where.level` must be a string, a number, a boolean or a non-empty list of them.'], 'empty list')]
     #[DataSet([['where' => ['level' => null]], '`where.level` must be a string'], 'null')]
     #[DataSet([['where' => ['level' => ['a' => 'b']]], '`where.level` must be a string'], 'object')]
     #[DataSet([['where' => ['level' => [['error']]]], '`where.level` must be a string'], 'nested list')]
     #[DataSet([['where' => ['' => 'x']], 'A field name in `where` is empty.'], 'empty field name')]
-    #[DataSet([['project' => [1]], '`project` must be a string or a list of strings.'], 'project')]
+    #[DataSet([['where' => []], '`where` must be an object of at least one field name and value'], 'no fields')]
+    #[DataSet([['project' => [1]], '`project` must be a string or a non-empty list of strings.'], 'project')]
+    #[DataSet([['project' => []], '`project` must be a string or a non-empty list of strings.'], 'no projects')]
+    #[DataSet([['type' => []], '`type` must be a string or a non-empty list of strings.'], 'no types')]
+    #[DataSet([['type' => [1]], '`type` must be a string or a non-empty list of strings.'], 'type not a string')]
+    #[DataSet([['type' => ['monolog', 'nope']], 'Unknown event type `nope`; known types: '], 'unknown type')]
+    #[DataSet([['regex' => true], '`regex` needs `search`, the pattern to match.'], 'regex without search')]
     #[DataSet([['from' => 'yesterday'], '`from` must be ISO 8601'], 'time')]
     #[DataSet([['from' => '1m', 'to' => '1h'], '`from` is later than `to`.'], 'range')]
     #[DataSet([['search' => '(', 'regex' => true], '`search` is not a valid regular expression'], 'regex')]
@@ -107,12 +111,12 @@ final class EventFiltersTest
     {
         Expect::exception(\InvalidArgumentException::class)->withMessageContaining($message);
 
-        (new Trap())->get(EventFilters::class)->fromArguments($arguments);
+        (new Trap())->get(EventFilterArguments::class)->parse($arguments);
     }
 
     public function testSchemaListsTheFieldsOfTheModules(): void
     {
-        $filters = (new Trap())->get(EventFilters::class);
+        $filters = (new Trap())->get(EventFilterArguments::class);
 
         $schema = $filters->schema();
 

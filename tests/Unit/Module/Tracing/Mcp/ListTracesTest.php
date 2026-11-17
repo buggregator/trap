@@ -9,6 +9,7 @@ use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\ResourceSpans;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\ScopeSpans;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
+use Buggregator\Trap\Module\Tracing\Frame\Trace\SpanEvent;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\SpanKind;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\SpanStatus;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\StatusCode;
@@ -155,6 +156,47 @@ final class ListTracesTest
         Assert::same(self::ids($result), \array_map(self::traceId(...), $expected));
     }
 
+    #[DataSet(['SQLSTATE[HY000]', ['a']], 'exception message of a span event')]
+    #[DataSet(['exception', ['a']], 'span event name')]
+    #[DataSet(['card declined', ['b']], 'status message')]
+    #[DataSet(['eu-west-1', ['b']], 'resource attribute')]
+    #[DataSet(['service.name=shop', ['a']], 'service name of the resource')]
+    public function testSearchCoversEventsStatusAndResources(string $search, array $expected): void
+    {
+        $trap = new Trap();
+        $store = $trap->get(SpanStore::class);
+        $store->receive(self::frame('shop', new Span(
+            traceId: self::traceId('a'),
+            spanId: \sprintf('%016x', 1),
+            parentSpanId: null,
+            name: 'GET /orders',
+            kind: SpanKind::Server,
+            startTimeUnixNano: 0,
+            endTimeUnixNano: 1,
+            events: [new SpanEvent(0, 'exception', ['exception.message' => 'SQLSTATE[HY000] gone away'])],
+        )));
+        $store->receive(new OtlpTraces([new ResourceSpans(
+            [new ScopeSpans([self::span('b', 2, status: StatusCode::Error, message: 'card declined')])],
+            ['service.name' => 'billing', 'cloud.region' => 'eu-west-1'],
+        )]));
+
+        $result = $trap->get(ListTraces::class)->call(['search' => $search]);
+
+        Assert::same(self::ids($result), \array_map(self::traceId(...), $expected));
+    }
+
+    public function testListedUpdateTimeTakesItsTraceBack(): void
+    {
+        $trap = new Trap();
+        $trap->get(SpanStore::class)->receive(self::frame('app', self::span('a', 1)));
+        $tool = $trap->get(ListTraces::class);
+        $updated = $tool->call([])['traces'][0]['updated'];
+
+        $result = $tool->call(['from' => $updated, 'to' => $updated]);
+
+        Assert::same(self::ids($result), [self::traceId('a')]);
+    }
+
     #[DataSet([[]], 'some traces')]
     #[DataSet([['errors_only' => true]], 'no traces')]
     #[DataSet([['limit' => 1]], 'more to come')]
@@ -175,7 +217,9 @@ final class ListTracesTest
     #[DataSet([['limit' => 101], '`limit` must be an integer from 1 to 100.'], 'limit above maximum')]
     #[DataSet([['errors_only' => 'yes'], '`errors_only` must be a boolean.'], 'flag not a boolean')]
     #[DataSet([['name' => 1], '`name` must be a string.'], 'name not a string')]
-    #[DataSet([['service' => [1]], '`service` must be a string or a list of strings.'], 'service not a string')]
+    #[DataSet([['service' => [1]], '`service` must be a string or a non-empty list of strings.'], 'service not a string')]
+    #[DataSet([['service' => []], '`service` must be a string or a non-empty list of strings.'], 'no services')]
+    #[DataSet([['regex' => true], '`regex` needs `search`, the pattern to match.'], 'regex without search')]
     #[DataSet([['min_duration_ms' => -1], '`min_duration_ms` must be a number of at least 0.'], 'negative duration')]
     #[DataSet([['min_duration_ms' => '5'], '`min_duration_ms` must be a number of at least 0.'], 'duration string')]
     #[DataSet([['from' => '5m', 'to' => '1h'], '`from` is later than `to`.'], 'time range')]
@@ -225,6 +269,7 @@ final class ListTracesTest
         int $start = 0,
         int $end = 1,
         StatusCode $status = StatusCode::Unset,
+        string $message = '',
     ): Span {
         return new Span(
             traceId: self::traceId($trace),
@@ -234,7 +279,7 @@ final class ListTracesTest
             kind: SpanKind::Internal,
             startTimeUnixNano: $start,
             endTimeUnixNano: $end,
-            status: new SpanStatus($status),
+            status: new SpanStatus($status, $message),
         );
     }
 

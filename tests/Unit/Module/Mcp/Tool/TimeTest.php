@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Tool;
 
 use Buggregator\Trap\Module\Mcp\Tool\Time;
+use Buggregator\Trap\Module\Mcp\Tool\TimeRange;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Data\DataSet;
@@ -13,31 +14,41 @@ use Testo\Test;
 
 #[Test]
 #[Covers(Time::class)]
+#[Covers(TimeRange::class)]
 final class TimeTest
 {
     private const NOW = 1_700_000_000.0;
 
-    #[DataSet(['30s', 30.0], 'seconds')]
-    #[DataSet(['5m', 300.0], 'minutes')]
-    #[DataSet(['2h', 7_200.0], 'hours')]
-    #[DataSet(['1d', 86_400.0], 'days')]
-    #[DataSet(['1w', 604_800.0], 'weeks')]
-    #[DataSet(['1.5H', 5_400.0], 'fraction in upper case')]
-    #[DataSet([' 10 s ', 10.0], 'spaces')]
-    public function testDurationCountsBackFromNow(string $value, float $back): void
+    /** {@see self::NOW} in microseconds. */
+    private const NOW_US = 1_700_000_000_000_000;
+
+    #[DataSet(['30s', 30], 'seconds')]
+    #[DataSet(['5m', 300], 'minutes')]
+    #[DataSet(['2h', 7_200], 'hours')]
+    #[DataSet(['1d', 86_400], 'days')]
+    #[DataSet(['1w', 604_800], 'weeks')]
+    #[DataSet(['1.5H', 5_400], 'fraction in upper case')]
+    #[DataSet([' 10 s ', 10], 'spaces')]
+    public function testDurationCountsBackFromNow(string $value, int $back): void
     {
-        Assert::same(Time::fromArguments(['from' => $value], 'from', self::NOW), self::NOW - $back);
+        $expected = self::NOW_US - $back * 1_000_000;
+
+        Assert::same(Time::fromArguments(['from' => $value], 'from', self::NOW), $expected);
+        Assert::same(Time::fromArguments(['to' => $value], 'to', self::NOW, end: true), $expected);
     }
 
-    #[DataSet(['2023-11-14T22:13:20Z', 1_700_000_000.0], 'UTC')]
-    #[DataSet(['2023-11-14T22:13:20', 1_700_000_000.0], 'no offset is UTC')]
-    #[DataSet(['2023-11-15T00:13:20+02:00', 1_700_000_000.0], 'offset')]
-    #[DataSet(['2023-11-14T22:13:20.250Z', 1_700_000_000.25], 'fraction')]
-    #[DataSet(['2023-11-14 22:13:20,5', 1_700_000_000.5], 'space and comma')]
-    #[DataSet(['2023-11-14', 1_699_920_000.0], 'date')]
-    public function testIso8601(string $value, float $expected): void
+    #[DataSet(['2023-11-14T22:13:20Z', 1_700_000_000_000_000, 1_700_000_000_999_999], 'UTC')]
+    #[DataSet(['2023-11-14T22:13:20', 1_700_000_000_000_000, 1_700_000_000_999_999], 'no offset is UTC')]
+    #[DataSet(['2023-11-15T00:13:20+02:00', 1_700_000_000_000_000, 1_700_000_000_999_999], 'offset')]
+    #[DataSet(['2023-11-14T22:13:20.250Z', 1_700_000_000_250_000, 1_700_000_000_250_999], 'milliseconds')]
+    #[DataSet(['2023-11-14T22:13:20.250001Z', 1_700_000_000_250_001, 1_700_000_000_250_001], 'microseconds')]
+    #[DataSet(['2023-11-14 22:13:20,5', 1_700_000_000_500_000, 1_700_000_000_599_999], 'space and comma')]
+    #[DataSet(['2023-11-14T22:13Z', 1_699_999_980_000_000, 1_700_000_039_999_999], 'minute')]
+    #[DataSet(['2023-11-14', 1_699_920_000_000_000, 1_700_006_399_999_999], 'date')]
+    public function testIso8601SpansItsLastUnit(string $value, int $start, int $end): void
     {
-        Assert::same(Time::fromArguments(['to' => $value], 'to', self::NOW), $expected);
+        Assert::same(Time::fromArguments(['from' => $value], 'from', self::NOW), $start);
+        Assert::same(Time::fromArguments(['to' => $value], 'to', self::NOW, end: true), $end);
     }
 
     public function testMissingIsNull(): void
@@ -69,8 +80,20 @@ final class TimeTest
 
     public function testRange(): void
     {
-        Assert::same(Time::range(['from' => '1h', 'to' => '5m'], self::NOW), [self::NOW - 3_600.0, self::NOW - 300.0]);
-        Assert::same(Time::range([], self::NOW), [null, null]);
+        $range = Time::range(['from' => '1h', 'to' => '5m'], self::NOW);
+
+        Assert::same([$range->from, $range->to], [self::NOW_US - 3_600_000_000, self::NOW_US - 300_000_000]);
+        Assert::true(Time::range([], self::NOW)->isUnbounded());
+    }
+
+    public function testRangeOfOneDay(): void
+    {
+        $range = Time::range(['from' => '2023-11-14', 'to' => '2023-11-14'], self::NOW);
+
+        Assert::true($range->contains(1_699_920_000.0));
+        Assert::true($range->contains(1_700_006_399.9999));
+        Assert::false($range->contains(1_700_006_400.0));
+        Assert::false($range->contains(1_699_919_999.9999));
     }
 
     public function testRangeRejectsFromAfterTo(): never
@@ -80,8 +103,23 @@ final class TimeTest
         Time::range(['from' => '5m', 'to' => '1h'], self::NOW);
     }
 
-    public function testFormat(): void
+    #[DataSet([1_700_000_000.5, '2023-11-14T22:13:20.500+00:00'], 'half a second')]
+    #[DataSet([1_700_000_000.7379, '2023-11-14T22:13:20.737+00:00'], 'cut to milliseconds')]
+    public function testFormat(float $timestamp, string $expected): void
     {
-        Assert::same(Time::format(1_700_000_000.5), '2023-11-14T22:13:20.500+00:00');
+        Assert::same(Time::format($timestamp), $expected);
+    }
+
+    #[DataSet([1_700_000_000.737], 'whole milliseconds')]
+    #[DataSet([1_700_000_000.7379], 'microseconds after')]
+    #[DataSet([1_700_000_000.0009], 'microseconds of the first millisecond')]
+    #[DataSet([1_763_287_200.736999], 'microsecond before a millisecond')]
+    public function testListedTimeRoundTripsAsBothBounds(float $timestamp): void
+    {
+        $listed = Time::format($timestamp);
+
+        $range = Time::range(['from' => $listed, 'to' => $listed], self::NOW);
+
+        Assert::true($range->contains($timestamp), "`$listed` takes the time it was listed for.");
     }
 }

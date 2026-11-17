@@ -83,6 +83,47 @@ final class ClearEventsTest
         $trap->get(ClearEvents::class)->call(['type' => 'nope']);
     }
 
+    #[DataSet([['type' => []], '`type` must be a string or a non-empty list of strings.'], 'no types')]
+    #[DataSet([['project' => []], '`project` must be a string or a non-empty list of strings.'], 'no projects')]
+    #[DataSet([['where' => []], '`where` must be an object of at least one field name and value'], 'no fields')]
+    #[DataSet([['regex' => true], '`regex` needs `search`, the pattern to match.'], 'regex without search')]
+    public function testEmptyConditionDeletesNothing(array $arguments, string $message): void
+    {
+        $trap = self::trap();
+
+        try {
+            $trap->get(ClearEvents::class)->call($arguments);
+            Assert::fail('The call must fail.');
+        } catch (\InvalidArgumentException $e) {
+            Assert::string($e->getMessage())->startsWith($message);
+        }
+
+        Assert::count($trap->store, 3);
+    }
+
+    public function testFailingRegexDeletesNothing(): void
+    {
+        $trap = self::trap();
+        $trap->add(Trap::dump(\str_repeat('a', 40) . 'b'));
+        $limit = \ini_get('pcre.backtrack_limit');
+        $jit = \ini_get('pcre.jit');
+        // Without JIT the limit is of backtracking: the error is the same on every platform
+        \ini_set('pcre.backtrack_limit', '1000');
+        \ini_set('pcre.jit', '0');
+
+        try {
+            $trap->get(ClearEvents::class)->call(['search' => '(a+)+$', 'regex' => true]);
+            Assert::fail('The call must fail.');
+        } catch (\InvalidArgumentException $e) {
+            Assert::string($e->getMessage())->contains('Backtrack limit exhausted');
+        } finally {
+            \ini_set('pcre.backtrack_limit', (string) $limit);
+            \ini_set('pcre.jit', (string) $jit);
+        }
+
+        Assert::count($trap->store, 4);
+    }
+
     public function testIsDestructiveAndIdempotent(): void
     {
         $tool = (new Trap())->get(ClearEvents::class);

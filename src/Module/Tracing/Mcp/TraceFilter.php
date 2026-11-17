@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Module\Tracing\Mcp;
 use Buggregator\Trap\Module\Mcp\Tool\Arguments;
 use Buggregator\Trap\Module\Mcp\Tool\TextSearch;
 use Buggregator\Trap\Module\Mcp\Tool\Time;
+use Buggregator\Trap\Module\Mcp\Tool\TimeRange;
 use Buggregator\Trap\Module\Mcp\Tool\Wildcard;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
 use Buggregator\Trap\Module\Tracing\SpanStore;
@@ -22,14 +23,11 @@ use Buggregator\Trap\Support\Json;
 final class TraceFilter
 {
     /**
-     * @param float|null $from Unix time in seconds of the earliest last update, inclusive.
-     * @param float|null $to Unix time in seconds of the latest last update, inclusive.
      * @param list<Wildcard> $services Any service when empty.
      */
     private function __construct(
         private readonly bool $errorsOnly,
-        private readonly ?float $from,
-        private readonly ?float $to,
+        private readonly TimeRange $time,
         private readonly array $services,
         private readonly ?Wildcard $name,
         private readonly ?float $minDuration,
@@ -67,7 +65,10 @@ final class TraceFilter
                 'minimum' => 0,
                 'description' => 'Only the traces that last this many milliseconds or longer.',
             ],
-            ...TextSearch::schema('traces with a span whose name or attribute'),
+            ...TextSearch::schema(
+                'traces with a span whose name, status message, attribute, event (such as an exception) or '
+                . 'resource attribute',
+            ),
         ];
     }
 
@@ -79,15 +80,14 @@ final class TraceFilter
      */
     public static function fromArguments(array $arguments, float $now): self
     {
-        [$from, $to] = Time::range($arguments, $now);
+        $time = Time::range($arguments, $now);
         /** @var mixed $name */
         $name = $arguments['name'] ?? null;
         $name === null || \is_string($name) or throw new \InvalidArgumentException('`name` must be a string.');
 
         return new self(
             errorsOnly: Arguments::boolean($arguments, 'errors_only'),
-            from: $from,
-            to: $to,
+            time: $time,
             services: \array_map(Wildcard::compile(...), Arguments::strings($arguments, 'service')),
             name: $name === null ? null : Wildcard::compile($name),
             minDuration: Arguments::number($arguments, 'min_duration_ms'),
@@ -106,31 +106,47 @@ final class TraceFilter
     public function matches(TraceSummary $trace, SpanStore $store): bool
     {
         return (!$this->errorsOnly || $trace->error)
-            && ($this->from === null || $trace->updatedAt >= $this->from)
-            && ($this->to === null || $trace->updatedAt <= $this->to)
+            && $this->time->contains($trace->updatedAt)
             && ($this->services === [] || $this->matchesService($trace->service))
             && ($this->name === null || $this->name->matches($trace->name ?? ''))
             && ($this->minDuration === null || self::durationMs($trace) >= $this->minDuration)
-            && ($this->search === null || $this->search->matches(self::text($store->getTrace($trace->traceId))));
+            && ($this->search === null || $this->search->matches(self::text($store, $trace->traceId)));
     }
 
     /**
-     * The span names and attributes, a line each, as `name` and `key=value`.
-     *
-     * @param array<array-key, Span> $spans
+     * A line each: the name of a span, its status message, the name of a span event such as `exception`,
+     * and an attribute of a span, a span event or a resource as `key=value`.
      */
-    private static function text(array $spans): string
+    private static function text(SpanStore $store, string $traceId): string
     {
         $lines = [];
-        foreach ($spans as $span) {
+        foreach ($store->getTrace($traceId) as $span) {
             $lines[] = $span->name;
-            /** @var mixed $value */
-            foreach ($span->attributes as $key => $value) {
-                $lines[] = $key . '=' . (\is_scalar($value) ? (string) $value : self::json($value));
+            $span->status->message === '' or $lines[] = $span->status->message;
+            self::attributes($span->attributes, $lines);
+            foreach ($span->events as $event) {
+                $lines[] = $event->name;
+                self::attributes($event->attributes, $lines);
             }
         }
 
+        foreach ($store->getResources($traceId) as $attributes) {
+            self::attributes($attributes, $lines);
+        }
+
         return \implode("\n", $lines);
+    }
+
+    /**
+     * @param array<array-key, mixed> $attributes
+     * @param list<string> $lines
+     */
+    private static function attributes(array $attributes, array &$lines): void
+    {
+        /** @var mixed $value */
+        foreach ($attributes as $key => $value) {
+            $lines[] = $key . '=' . (\is_scalar($value) ? (string) $value : self::json($value));
+        }
     }
 
     private static function json(mixed $value): string

@@ -169,9 +169,12 @@ final class ListEventsTest
     }
 
     #[DataSet([['type' => 'nope'], 'Unknown event type `nope`; known types: '], 'unknown type')]
-    #[DataSet([['type' => [1]], 'Unknown event type int'], 'type of a wrong kind')]
-    #[DataSet([['type' => ['a' => 'monolog']], '`type` must be a string or a list of strings.'], 'type map')]
-    #[DataSet([['project' => 1], '`project` must be a string or a list of strings.'], 'project')]
+    #[DataSet([['type' => [1]], '`type` must be a string or a non-empty list of strings.'], 'type of a wrong kind')]
+    #[DataSet([['type' => ['a' => 'monolog']], '`type` must be a string or a non-empty list of strings.'], 'type map')]
+    #[DataSet([['project' => 1], '`project` must be a string or a non-empty list of strings.'], 'project')]
+    #[DataSet([['type' => []], '`type` must be a string or a non-empty list of strings.'], 'no types')]
+    #[DataSet([['where' => []], '`where` must be an object of at least one field'], 'no fields')]
+    #[DataSet([['regex' => true], '`regex` needs `search`'], 'regex without search')]
     #[DataSet([['order' => 'random'], '`order` must be one of: oldest, newest.'], 'order')]
     #[DataSet([['include' => 'all'], '`include` must be one of: summary, text.'], 'include')]
     #[DataSet([['max_length' => 99], '`max_length` must be an integer from 100 to'], 'max_length below minimum')]
@@ -318,6 +321,35 @@ final class ListEventsTest
         $events = $trap->get(ListEvents::class)->call([])['events'];
 
         Assert::same(\array_keys($events[0]), ['id', 'type', 'project', 'time', 'summary']);
+    }
+
+    #[DataSet(['from'], 'from')]
+    #[DataSet(['to'], 'to')]
+    public function testListedTimeTakesItsEventBack(string $bound): void
+    {
+        $trap = new Trap();
+        $trap->store->add(new Event('5a4f8e1c-0000-4000-8000-000000000001', 'monolog', ['message' => 'before'], 1_763_287_200.7369));
+        $trap->store->add(new Event('5a4f8e1c-0000-4000-8000-000000000002', 'monolog', ['message' => 'listed'], 1_763_287_200.7374));
+        $trap->store->add(new Event('5a4f8e1c-0000-4000-8000-000000000003', 'monolog', ['message' => 'after'], 1_763_287_200.738));
+        $tool = $trap->get(ListEvents::class);
+        $time = $tool->call(['search' => 'listed'])['events'][0]['time'];
+
+        $result = $tool->call([$bound => $time]);
+
+        Assert::same($time, '2025-11-16T10:00:00.737+00:00');
+        Assert::same(self::summaries($result), $bound === 'from' ? ['listed', 'after'] : ['before', 'listed']);
+    }
+
+    public function testDateTakesTheWholeDay(): void
+    {
+        $trap = new Trap();
+        foreach ([1_763_164_799.9999, 1_763_164_800.0, 1_763_251_199.9999, 1_763_251_200.0] as $i => $timestamp) {
+            $trap->store->add(new Event("5a4f8e1c-0000-4000-8000-00000000000$i", 'monolog', ['message' => "e$i"], $timestamp));
+        }
+
+        $result = $trap->get(ListEvents::class)->call(['from' => '2025-11-15', 'to' => '2025-11-15']);
+
+        Assert::same(self::summaries($result), ['e1', 'e2']);
     }
 
     public function testWhereFiltersByTheFields(): void

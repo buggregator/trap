@@ -65,17 +65,22 @@ final class Arguments
     /**
      * @param array<array-key, mixed> $arguments
      *
-     * @return list<string> A string or a list of strings as a list; empty when the argument is missing.
+     * @return list<string> A string or a non-empty list of strings as a list; empty when the argument is missing.
      *
      * @throws \InvalidArgumentException
      */
     public static function strings(array $arguments, string $name): array
     {
         /** @var mixed $value */
-        $value = $arguments[$name] ?? [];
+        $value = $arguments[$name] ?? null;
+        if ($value === null) {
+            return [];
+        }
+
+        // An empty list would read as no condition: a filter of `clear_events` would delete every event
         $values = \is_string($value) ? [$value] : $value;
-        \is_array($values) && \array_is_list($values) && \array_filter($values, 'is_string') === $values
-            or throw new \InvalidArgumentException("`$name` must be a string or a list of strings.");
+        \is_array($values) && $values !== [] && \array_is_list($values) && \array_filter($values, 'is_string') === $values
+            or throw new \InvalidArgumentException("`$name` must be a string or a non-empty list of strings.");
         /** @var list<string> $values */
 
         return $values;

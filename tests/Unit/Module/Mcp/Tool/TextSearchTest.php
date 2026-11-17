@@ -18,7 +18,7 @@ final class TextSearchTest
     public function testNoSearch(): void
     {
         Assert::null(TextSearch::fromArguments([]));
-        Assert::null(TextSearch::fromArguments(['regex' => true]));
+        Assert::null(TextSearch::fromArguments(['regex' => false]));
     }
 
     #[DataSet(['order_id', '"ORDER_ID" => 42', true], 'any case')]
@@ -39,9 +39,35 @@ final class TextSearchTest
         Assert::same(TextSearch::fromArguments(['search' => $search, 'regex' => true])?->matches($text), $expected);
     }
 
-    public function testRegexOverTextNotInUtf8DoesNotMatch(): void
+    #[DataSet(['x', "x\xFF", true], 'ASCII')]
+    #[DataSet(['заказ', "\xFFНовый ЗАКАЗ", true], 'Unicode case')]
+    #[DataSet(['y', "x\xFF", false], 'absent')]
+    public function testTextNotInUtf8IsSearchedAsBySubstring(string $search, string $text, bool $expected): void
     {
-        Assert::false(TextSearch::fromArguments(['search' => 'x', 'regex' => true])?->matches("x\xFF"));
+        $regex = TextSearch::fromArguments(['search' => $search, 'regex' => true]);
+        $substring = TextSearch::fromArguments(['search' => $search]);
+
+        Assert::same($regex?->matches($text), $expected);
+        Assert::same($substring?->matches($text), $expected);
+    }
+
+    #[DataSet(["a\x01b", "a\x01b", true], 'delimiter')]
+    #[DataSet(["a\\\x01b", "a\x01b", true], 'escaped delimiter')]
+    #[DataSet(['a\\\\', 'a\\', true], 'escaped backslash at the end')]
+    #[DataSet(["[\x01]", "\x01", true], 'delimiter in a class')]
+    public function testDelimiterNeedsNoEscaping(string $search, string $text, bool $expected): void
+    {
+        Assert::same(TextSearch::fromArguments(['search' => $search, 'regex' => true])?->matches($text), $expected);
+    }
+
+    #[DataSet(['abc\\'], 'one')]
+    #[DataSet(['abc\\\\\\'], 'three')]
+    public function testTrailingBackslashIsRejected(string $search): never
+    {
+        Expect::exception(\InvalidArgumentException::class)
+            ->withMessage('`search` is not a valid regular expression: \ at end of pattern.');
+
+        TextSearch::fromArguments(['search' => $search, 'regex' => true]);
     }
 
     public function testInvalidRegexIsRejected(): never
@@ -75,6 +101,7 @@ final class TextSearchTest
     #[DataSet([['search' => ''], '`search` must be a non-empty string.'], 'empty search')]
     #[DataSet([['search' => 1], '`search` must be a non-empty string.'], 'number')]
     #[DataSet([['search' => 'a', 'regex' => 'yes'], '`regex` must be a boolean.'], 'regex not boolean')]
+    #[DataSet([['regex' => true], '`regex` needs `search`, the pattern to match.'], 'regex without search')]
     public function testInvalidArguments(array $arguments, string $message): never
     {
         Expect::exception(\InvalidArgumentException::class)->withMessage($message);

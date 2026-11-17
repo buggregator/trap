@@ -37,7 +37,7 @@ final class ListEvents implements Tool
         private readonly EventStore $store,
         private readonly EventViews $views,
         private readonly TextCache $texts,
-        private readonly EventFilters $filters,
+        private readonly EventFilterArguments $filters,
     ) {}
 
     #[\Override]
@@ -169,7 +169,7 @@ final class ListEvents implements Tool
     {
         $since = Cursor::since($arguments, $this->store->id, $this->store->cursor());
         $limit = Arguments::integer($arguments, 'limit', 1, self::MAX_LIMIT) ?? self::DEFAULT_LIMIT;
-        $filter = $this->filters->fromArguments($arguments);
+        $filter = $this->filters->parse($arguments);
         $newest = Arguments::choice($arguments, 'order', ['oldest', 'newest']) === 'newest';
         $text = Arguments::choice($arguments, 'include', ['summary', 'text']) === 'text';
         $maxLength = MaxLength::fromArguments($arguments, self::DEFAULT_TEXT_LENGTH);
@@ -213,7 +213,7 @@ final class ListEvents implements Tool
             'type' => $event->type,
             'project' => $event->projectKey(),
             'time' => Time::format($event->timestamp),
-            'summary' => $this->views->summary($event),
+            'summary' => $this->texts->summary($record),
         ];
         $fields = $this->views->fields($event);
         // An empty array is encoded as a JSON list, not as the object the schema declares

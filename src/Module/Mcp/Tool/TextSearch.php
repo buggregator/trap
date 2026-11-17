@@ -11,13 +11,20 @@ namespace Buggregator\Trap\Module\Mcp\Tool;
  */
 final class TextSearch
 {
+    /** The delimiter of the pattern: a control character, so that `/` or `~` need no escaping. */
+    private const DELIMITER = "\x01";
+
+    private readonly bool $ascii;
+
     /**
      * @param non-empty-string|null $regex The pattern with delimiters and flags; null for a substring search.
      */
     private function __construct(
         private readonly string $needle,
         private readonly ?string $regex,
-    ) {}
+    ) {
+        $this->ascii = \mb_check_encoding($needle, 'ASCII');
+    }
 
     /**
      * @return array<non-empty-string, array<non-empty-string, mixed>> Properties of the input schema.
@@ -52,6 +59,7 @@ final class TextSearch
         $search = $arguments['search'] ?? null;
         $regex = Arguments::boolean($arguments, 'regex');
         if ($search === null) {
+            $regex and throw new \InvalidArgumentException('`regex` needs `search`, the pattern to match.');
             return null;
         }
 
@@ -60,8 +68,8 @@ final class TextSearch
             return new self($search, null);
         }
 
-        // A control character as the delimiter: the pattern needs no escaping of `/` or `~`
-        $pattern = "\x01$search\x01i" . (\mb_check_encoding($search, 'UTF-8') ? 'u' : '');
+        $pattern = self::DELIMITER . self::escapeDelimiter($search) . self::DELIMITER . 'i'
+            . (\mb_check_encoding($search, 'UTF-8') ? 'u' : '');
         $error = null;
         \set_error_handler(static function (int $code, string $message) use (&$error): bool {
             $error = (string) \preg_replace('/^preg_match\(\): /', '', $message);
@@ -87,20 +95,44 @@ final class TextSearch
     public function matches(string $text): bool
     {
         if ($this->regex === null) {
-            return \mb_stripos($text, $this->needle, 0, 'UTF-8') !== false;
+            // Byte-wise for an ASCII needle: many times faster on a long text, and the same but for the few
+            // non-ASCII letters that fold to ASCII ones, such as the Kelvin sign
+            return $this->ascii
+                ? \stripos($text, $this->needle) !== false
+                : \mb_stripos($text, $this->needle, 0, 'UTF-8') !== false;
         }
 
         $result = \preg_match($this->regex, $text);
-        if ($result !== false) {
-            return $result === 1;
-        }
+        // A UTF-8 pattern fails on a text that is not UTF-8; its valid parts are searched, as a substring is
+        $result === false && \preg_last_error() === \PREG_BAD_UTF8_ERROR
+            and $result = \preg_match($this->regex, \mb_scrub($text, 'UTF-8'));
 
-        // A text that is not UTF-8 can't match a UTF-8 pattern; any other failure is of the pattern
-        \preg_last_error() === \PREG_BAD_UTF8_ERROR or throw new \InvalidArgumentException(\sprintf(
+        $result !== false or throw new \InvalidArgumentException(\sprintf(
             'The regular expression in `search` failed: %s. Simplify it, as by avoiding nested quantifiers.',
             \preg_last_error_msg(),
         ));
 
-        return false;
+        return $result === 1;
+    }
+
+    /**
+     * Escapes the delimiter where the pattern has it, and rejects a trailing backslash, which would escape the
+     * closing delimiter: PCRE would report either as an error of a delimiter the client has never written.
+     *
+     * @throws \InvalidArgumentException
+     */
+    private static function escapeDelimiter(string $search): string
+    {
+        $trailing = \strlen($search) - \strlen(\rtrim($search, '\\'));
+        $trailing % 2 === 0 or throw new \InvalidArgumentException(
+            '`search` is not a valid regular expression: \ at end of pattern.',
+        );
+
+        // An escape pair is kept as is: its second character is escaped already
+        return (string) \preg_replace_callback(
+            '/\\\\.|' . self::DELIMITER . '/s',
+            static fn(array $match): string => $match[0] === self::DELIMITER ? '\\' . self::DELIMITER : $match[0],
+            $search,
+        );
     }
 }

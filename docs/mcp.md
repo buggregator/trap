@@ -55,11 +55,19 @@ the agent deletes is gone from the UI on its next load; a page already open keep
 | `regex`   | `true` makes `search` a PCRE pattern without delimiters, matched in any case                                                     |
 | `where`   | Events whose fields match all the given ones                                                                                     |
 
+- An ISO 8601 time stands for the whole span of its last written unit: `to: "2026-11-16"` takes the events of that
+  whole day, `to: "2026-11-16T10:00"` those of 10:00 too. So the `time` of a listed event, in milliseconds, passed
+  back as `from` or `to` takes that event too. A duration is exact.
+- `search` looks through the first 64 KB of the text of each event: the texts are kept for the next searches,
+  and a longer one would make every search render it again.
 - In `where`, a string matches the whole value in any case, and `*` stands for any characters. A number matches
   an equal number. A list of values matches when any of them does. A field with a list of values, such as `to`,
   matches when any of its values does. An event without the field does not match, so a field of another type
-  matches nothing.
-- A pattern that hits a PCRE limit, as nested quantifiers on a long text do, fails the call.
+  matches nothing. The `from` field of a mail is its sender, unrelated to the `from` time.
+- A condition that takes nothing fails the call rather than being left out: an empty list of `type` or `project`,
+  `where` without fields, `regex` without `search`. Otherwise `clear_events` would delete every event.
+- A pattern that hits a PCRE limit, as nested quantifiers on a long text do, fails the call, and `clear_events`
+  deletes nothing then.
 
 | Type        | Fields                                                                                                                            |
 |-------------|-----------------------------------------------------------------------------------------------------------------------------------|
@@ -99,7 +107,8 @@ trace sent in separate requests, with `--mcp` alone too. The limits of that stor
 - `from` and `to` take the times of [the event filter](#filters) and match the time of the last update.
 - `service` is one service or a list, and `name` a name; both match in any case, with `*` for any characters.
 - `min_duration_ms` lists only the traces that last that long or longer.
-- `search` and `regex` match as in [the event filter](#filters), over the names and the attributes of the spans,
+- `search` and `regex` match as in [the event filter](#filters), over the spans: their names, status messages,
+  attributes, and events, such as an exception with its message, and over the attributes of their resources,
   one `key=value` line per attribute.
 - Slow traces of the last hour: `{"from": "1h", "min_duration_ms": 500}`; failed checkouts:
   `{"errors_only": true, "name": "POST /checkout*"}`.

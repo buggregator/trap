@@ -15,7 +15,7 @@ use Buggregator\Trap\Server\Event\ProvidesEvents;
  *
  * @internal
  */
-final class EventFilters
+final class EventFilterArguments
 {
     /** @var list<non-empty-string> */
     public readonly array $types;
@@ -60,14 +60,19 @@ final class EventFilters
             ],
             'from' => Time::schema('Only the events caught at this time or later.'),
             'to' => Time::schema('Only the events caught at this time or earlier.'),
-            ...TextSearch::schema('events whose summary or full text, as `get_event` shows it,'),
+            ...TextSearch::schema(\sprintf(
+                'events whose summary or text, as `get_event` shows it, up to its first %d KB,',
+                TextCache::MAX_SEARCHED_BYTES / 1024,
+            )),
             'where' => [
                 'type' => 'object',
                 'description' => 'Only the events whose fields match all of these, such as `{"level": "error"}` '
                     . 'or `{"path": "/api/orders*"}`. A string matches the whole value in any case, with `*` for '
                     . 'any characters; a number matches an equal number; a list of values matches any of them. '
                     . 'A field of a list, such as the mail recipients, matches when any of its values does. '
-                    . 'An event without the field does not match. The fields by type: ' . $this->fieldsHelp() . '.',
+                    . 'An event without the field does not match. The `from` field of a mail is its sender, '
+                    . 'unrelated to the `from` time. The fields by type: ' . $this->fieldsHelp() . '.',
+                'minProperties' => 1,
                 'additionalProperties' => [
                     'anyOf' => [$scalar, ['type' => 'array', 'items' => $scalar, 'minItems' => 1]],
                 ],
@@ -95,9 +100,9 @@ final class EventFilters
      *
      * @throws \InvalidArgumentException
      */
-    public function fromArguments(array $arguments, ?float $now = null): EventFilter
+    public function parse(array $arguments, ?float $now = null): EventFilter
     {
-        [$from, $to] = Time::range($arguments, $now ?? \microtime(true));
+        $time = Time::range($arguments, $now ?? \microtime(true));
         $projects = \array_map(
             static fn(string $project): string => $project === '' ? Event::DEFAULT_PROJECT : $project,
             Arguments::strings($arguments, 'project'),
@@ -108,8 +113,7 @@ final class EventFilters
             texts: $this->texts,
             types: $this->eventTypes($arguments),
             projects: \array_values(\array_unique($projects)),
-            from: $from,
-            to: $to,
+            time: $time,
             search: TextSearch::fromArguments($arguments),
             where: self::where($arguments),
         );
@@ -125,10 +129,15 @@ final class EventFilters
     private static function where(array $arguments): array
     {
         /** @var mixed $where */
-        $where = $arguments['where'] ?? [];
-        // An empty JSON object is decoded as an empty array
-        \is_array($where) && ($where === [] || !\array_is_list($where)) or throw new \InvalidArgumentException(
-            '`where` must be an object of field names and values, such as `{"level": "error"}`.',
+        $where = $arguments['where'] ?? null;
+        if ($where === null) {
+            return [];
+        }
+
+        // An empty JSON object is decoded as an empty array; it is rejected, as with no condition at all
+        // `clear_events` would delete every event
+        \is_array($where) && $where !== [] && !\array_is_list($where) or throw new \InvalidArgumentException(
+            '`where` must be an object of at least one field name and value, such as `{"level": "error"}`.',
         );
 
         /** @var array<array-key, mixed> $where */
@@ -183,15 +192,11 @@ final class EventFilters
      */
     private function eventTypes(array $arguments): array
     {
-        /** @var mixed $type */
-        $type = $arguments['type'] ?? [];
-        $types = \is_string($type) ? [$type] : $type;
-        \is_array($types) && \array_is_list($types)
-            or throw new \InvalidArgumentException('`type` must be a string or a list of strings.');
-        foreach ($types as $value) {
-            \is_string($value) && \in_array($value, $this->types, true) or throw new \InvalidArgumentException(\sprintf(
-                'Unknown event type %s; known types: %s.',
-                \is_string($value) ? "`$value`" : \get_debug_type($value),
+        $types = Arguments::strings($arguments, 'type');
+        foreach ($types as $type) {
+            \in_array($type, $this->types, true) or throw new \InvalidArgumentException(\sprintf(
+                'Unknown event type `%s`; known types: %s.',
+                $type,
                 \implode(', ', $this->types),
             ));
         }

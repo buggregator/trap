@@ -9,8 +9,8 @@ use Buggregator\Trap\Module\Mcp\View\TextCache;
 use Buggregator\Trap\Server\Event\Record;
 
 /**
- * Which events a tool takes, read by {@see EventFilters} from the arguments. The cheap conditions are checked
- * first, and the text view is rendered only for an event whose summary does not contain the searched text.
+ * Which events a tool takes, read by {@see EventFilterArguments} from the arguments. The cheap conditions are
+ * checked first, and the text view is searched only for an event whose summary does not contain the searched text.
  *
  * @internal
  */
@@ -19,8 +19,6 @@ final class EventFilter
     /**
      * @param list<non-empty-string> $types Any type when empty.
      * @param list<non-empty-string> $projects Project keys; any project when empty.
-     * @param float|null $from Unix time in seconds of the earliest caught event, inclusive.
-     * @param float|null $to Unix time in seconds of the latest caught event, inclusive.
      * @param array<non-empty-string, list<\Closure(scalar): bool>> $where Field name => checks of a value of the
      *        field, any of which must pass.
      */
@@ -29,8 +27,7 @@ final class EventFilter
         private readonly TextCache $texts,
         public readonly array $types = [],
         public readonly array $projects = [],
-        public readonly ?float $from = null,
-        public readonly ?float $to = null,
+        public readonly TimeRange $time = new TimeRange(),
         private readonly ?TextSearch $search = null,
         private readonly array $where = [],
     ) {}
@@ -39,8 +36,7 @@ final class EventFilter
     {
         return $this->types === []
             && $this->projects === []
-            && $this->from === null
-            && $this->to === null
+            && $this->time->isUnbounded()
             && $this->search === null
             && $this->where === [];
     }
@@ -54,8 +50,7 @@ final class EventFilter
 
         return ($this->types === [] || \in_array($event->type, $this->types, true))
             && ($this->projects === [] || \in_array($event->projectKey(), $this->projects, true))
-            && ($this->from === null || $event->timestamp >= $this->from)
-            && ($this->to === null || $event->timestamp <= $this->to)
+            && $this->time->contains($event->timestamp)
             && $this->matchesFields($record)
             && $this->matchesText($record);
     }
@@ -90,7 +85,7 @@ final class EventFilter
     private function matchesText(Record $record): bool
     {
         return $this->search === null
-            || $this->search->matches($this->views->summary($record->event))
-            || $this->search->matches($this->texts->text($record));
+            || $this->search->matches($this->texts->summary($record))
+            || $this->search->matches($this->texts->searchable($record));
     }
 }

@@ -16,7 +16,7 @@ final class ClearEvents implements Tool
 {
     public function __construct(
         private readonly EventStore $store,
-        private readonly EventFilters $filters,
+        private readonly EventFilterArguments $filters,
     ) {}
 
     #[\Override]
@@ -80,7 +80,7 @@ final class ClearEvents implements Tool
     #[\Override]
     public function call(array $arguments): array
     {
-        $filter = $this->filters->fromArguments($arguments);
+        $filter = $this->filters->parse($arguments);
         if ($filter->isEmpty()) {
             $removed = \count($this->store);
             $this->store->clear();
