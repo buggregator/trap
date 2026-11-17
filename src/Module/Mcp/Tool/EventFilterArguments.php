@@ -40,7 +40,7 @@ final class EventFilterArguments
     {
         $type = ['type' => 'string'];
         $this->types === [] or $type['enum'] = $this->types;
-        $scalar = ['type' => ['string', 'number', 'boolean']];
+        $value = ['type' => ['string', 'number']];
 
         return [
             'type' => [
@@ -61,7 +61,8 @@ final class EventFilterArguments
             'from' => Time::schema('Only the events caught at this time or later.'),
             'to' => Time::schema('Only the events caught at this time or earlier.'),
             ...TextSearch::schema(\sprintf(
-                'events whose summary or text, as `get_event` shows it, up to its first %d KB,',
+                'events whose summary or text, as `get_event` shows it without its header line and only the '
+                . 'first %d KB of the text,',
                 TextCache::MAX_SEARCHED_BYTES / 1024,
             )),
             'where' => [
@@ -70,11 +71,12 @@ final class EventFilterArguments
                     . 'or `{"path": "/api/orders*"}`. A string matches the whole value in any case, with `*` for '
                     . 'any characters; a number matches an equal number; a list of values matches any of them. '
                     . 'A field of a list, such as the mail recipients, matches when any of its values does. '
-                    . 'An event without the field does not match. The `from` field of a mail is its sender, '
-                    . 'unrelated to the `from` time. The fields by type: ' . $this->fieldsHelp() . '.',
+                    . 'An event without the field does not match, and a field no event type has fails the call. '
+                    . 'The `from` field of a mail is its sender, unrelated to the `from` time. The fields by type: '
+                    . $this->fieldsHelp() . '.',
                 'minProperties' => 1,
                 'additionalProperties' => [
-                    'anyOf' => [$scalar, ['type' => 'array', 'items' => $scalar, 'minItems' => 1]],
+                    'anyOf' => [$value, ['type' => 'array', 'items' => $value, 'minItems' => 1]],
                 ],
             ],
         ];
@@ -115,60 +117,15 @@ final class EventFilterArguments
             projects: \array_values(\array_unique($projects)),
             time: $time,
             search: TextSearch::fromArguments($arguments),
-            where: self::where($arguments),
+            where: $this->where($arguments),
         );
-    }
-
-    /**
-     * @param array<array-key, mixed> $arguments
-     *
-     * @return array<non-empty-string, list<\Closure(scalar): bool>>
-     *
-     * @throws \InvalidArgumentException
-     */
-    private static function where(array $arguments): array
-    {
-        /** @var mixed $where */
-        $where = $arguments['where'] ?? null;
-        if ($where === null) {
-            return [];
-        }
-
-        // An empty JSON object is decoded as an empty array; it is rejected, as with no condition at all
-        // `clear_events` would delete every event
-        \is_array($where) && $where !== [] && !\array_is_list($where) or throw new \InvalidArgumentException(
-            '`where` must be an object of at least one field name and value, such as `{"level": "error"}`.',
-        );
-
-        /** @var array<array-key, mixed> $where */
-        $result = [];
-        /** @var mixed $value */
-        foreach ($where as $name => $value) {
-            $name = (string) $name;
-            $name === '' and throw new \InvalidArgumentException('A field name in `where` is empty.');
-            $values = \is_array($value) ? $value : [$value];
-            $values !== [] && \array_is_list($values) && \array_filter($values, 'is_scalar') === $values
-                or throw new \InvalidArgumentException(\sprintf(
-                    '`where.%s` must be a string, a number, a boolean or a non-empty list of them.',
-                    $name,
-                ));
-            /** @var non-empty-list<scalar> $values */
-
-            $result[$name] = \array_map(self::check(...), $values);
-        }
-
-        return $result;
     }
 
     /**
      * @return \Closure(scalar): bool
      */
-    private static function check(bool|int|float|string $expected): \Closure
+    private static function check(int|float|string $expected): \Closure
     {
-        if (\is_bool($expected)) {
-            return static fn(bool|int|float|string $value): bool => $value === $expected;
-        }
-
         if (!\is_string($expected)) {
             return static fn(bool|int|float|string $value): bool => !\is_bool($value)
                 && \is_numeric($value)
@@ -181,6 +138,58 @@ final class EventFilterArguments
             \is_bool($value) => $value ? 'true' : 'false',
             default => (string) $value,
         });
+    }
+
+    /**
+     * @param array<array-key, mixed> $arguments
+     *
+     * @return array<non-empty-string, list<\Closure(scalar): bool>>
+     *
+     * @throws \InvalidArgumentException
+     */
+    private function where(array $arguments): array
+    {
+        /** @var mixed $where */
+        $where = $arguments['where'] ?? null;
+        if ($where === null) {
+            return [];
+        }
+
+        // An empty JSON object is decoded as an empty array; it is rejected, as with no condition at all
+        // `clear_events` would delete every event
+        \is_array($where) && $where !== [] or throw new \InvalidArgumentException(
+            '`where` must be an object of at least one field name and value, such as `{"level": "error"}`.',
+        );
+
+        $known = \array_values(\array_unique(\array_merge(...\array_values($this->views->fieldNames()))));
+        $result = [];
+        /** @var mixed $value */
+        foreach ($where as $name => $value) {
+            $name = (string) $name;
+            $name === '' and throw new \InvalidArgumentException('A field name in `where` is empty.');
+            // A JSON list is decoded with the keys 0, 1...: the same message fits it
+            \in_array($name, $known, true) or throw new \InvalidArgumentException(\sprintf(
+                'Unknown field `%s` in `where`: its keys must be field names, such as `{"level": "error"}`. '
+                . 'Known fields: %s.',
+                $name,
+                \implode(', ', $known),
+            ));
+            $values = \is_array($value) ? $value : [$value];
+            $values !== [] && \array_is_list($values) && \array_filter(
+                $values,
+                static fn(mixed $item): bool => \is_string($item) || \is_int($item) || \is_float($item),
+            ) === $values or throw new \InvalidArgumentException(\sprintf(
+                \array_filter($values, 'is_bool') === []
+                    ? '`where.%s` must be a string, a number or a non-empty list of them.'
+                    : '`where.%s` must be a string, a number or a non-empty list of them: no field holds a boolean.',
+                $name,
+            ));
+            /** @var non-empty-list<string|int|float> $values */
+
+            $result[$name] = \array_map(self::check(...), $values);
+        }
+
+        return $result;
     }
 
     /**

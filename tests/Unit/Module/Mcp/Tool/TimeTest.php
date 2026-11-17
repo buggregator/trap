@@ -71,6 +71,22 @@ final class TimeTest
         Time::fromArguments(['from' => $value], 'from', self::NOW);
     }
 
+    #[DataSet(['5218w'], 'just over 100 years')]
+    #[DataSet(['100000000w'], 'microseconds beyond an integer')]
+    #[DataSet([\PHP_INT_MAX . '0s'], 'more digits than an integer')]
+    public function testRejectsTooLongDuration(string $value): never
+    {
+        Expect::exception(\InvalidArgumentException::class)
+            ->withMessage("`to` must be a duration of at most 100 years, such as `5200w`; got `$value`.");
+
+        Time::fromArguments(['to' => $value], 'to', self::NOW, end: true);
+    }
+
+    public function testAcceptsHundredYears(): void
+    {
+        Assert::same(Time::fromArguments(['from' => '5217w'], 'from', self::NOW), self::NOW_US - 5217 * 604_800_000_000);
+    }
+
     public function testRejectsNotString(): never
     {
         Expect::exception(\InvalidArgumentException::class)->withMessage('`from` must be a string.');

@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Sender;
 
 use Buggregator\Trap\Module\Mcp\McpStatus;
 use Buggregator\Trap\Module\Mcp\Sender\McpSender;
+use Buggregator\Trap\Module\Mcp\View\TextCache;
 use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventStore;
@@ -41,6 +42,23 @@ final class McpSenderTest
 
         Assert::false($before);
         Assert::true($status->isOn());
+    }
+
+    public function testRendersTheNewEventsAheadOfTheSearches(): void
+    {
+        $container = self::container();
+        $sender = $container->get(McpSender::class);
+        $store = $container->get(EventStore::class);
+        $cache = $container->get(TextCache::class);
+        $store->add(new Event('a', 'binary', [], 1.0));
+
+        $sender->process();
+        $first = $cache->count();
+        $store->add(new Event('b', 'binary', [], 2.0));
+        $sender->process();
+
+        Assert::same($first, 1);
+        Assert::same($cache->count(), 1, 'The next slice waits for a pause.');
     }
 
     public function testHostIsUnsetByDefault(): void

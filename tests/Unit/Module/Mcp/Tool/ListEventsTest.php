@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Mcp\Tool\EventFilter;
 use Buggregator\Trap\Module\Mcp\Tool\ListEvents;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\JsonSchema;
+use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\ScriptedView;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -301,6 +302,37 @@ final class ListEventsTest
 
         Assert::string($events[0]['text'])->contains('"short"')->notContains('[Truncated');
         Assert::string($events[1]['text'])->contains('[Truncated: 100 of ');
+    }
+
+    public function testIncludeTextCutsTheCachedText(): void
+    {
+        $trap = Trap::scripted();
+        $trap->store->add(ScriptedView::event('long', \str_repeat('x', 200_000)));
+        $tool = $trap->get(ListEvents::class);
+
+        $first = $tool->call(['include' => 'text'])['events'][0]['text'];
+        $second = $tool->call(['include' => 'text', 'max_length' => 3_000])['events'][0]['text'];
+
+        Assert::same(
+            $first,
+            \str_repeat('x', 2_000) . "\n\n[Truncated: 2000 of 200000 characters shown. Call again with a larger "
+                . '`max_length` for more.]',
+        );
+        Assert::string($second)->startsWith(\str_repeat('x', 3_000) . "\n\n[Truncated: 3000 of 200000 characters");
+        Assert::same($trap->view()->renders, 1);
+    }
+
+    public function testIncludeTextLongerThanTheCachedStartIsRendered(): void
+    {
+        $trap = Trap::scripted();
+        $trap->store->add(ScriptedView::event('long', \str_repeat('x', 200_000)));
+        $tool = $trap->get(ListEvents::class);
+        $tool->call(['include' => 'text']);
+
+        $text = $tool->call(['include' => 'text', 'max_length' => 100_000])['events'][0]['text'];
+
+        Assert::string($text)->startsWith(\str_repeat('x', 100_000) . "\n\n[Truncated: 100000 of 200000 characters");
+        Assert::same($trap->view()->renders, 2);
     }
 
     public function testSummaryAloneByDefault(): void

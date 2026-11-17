@@ -50,8 +50,7 @@ final class EventFilterArgumentsTest
     #[DataSet([['where' => ['status' => '5*']], ['sentry']], 'number as a string')]
     #[DataSet([['where' => ['status' => 404]], []], 'other number')]
     #[DataSet([['where' => ['level' => 1]], []], 'number against a string')]
-    #[DataSet([['where' => ['level' => true]], []], 'boolean against a string')]
-    #[DataSet([['where' => ['nope' => 'x']], []], 'unknown field')]
+    #[DataSet([['where' => ['subject' => 'x']], []], 'field of another type')]
     #[DataSet(
         [['type' => ['monolog', 'sentry'], 'from' => '7s', 'where' => ['level' => 'error'], 'search' => 'pdo'], ['sentry']],
         'all together',
@@ -90,9 +89,13 @@ final class EventFilterArgumentsTest
         Assert::same($filter->projects, ['default']);
     }
 
-    #[DataSet([['where' => ['a', 'b']], '`where` must be an object of at least one field name and value'], 'list')]
+    #[DataSet([['where' => ['a', 'b']], 'Unknown field `0` in `where`: its keys must be field names, such as `{"level": "error"}`. Known fields: name, format, label, value_type, '], 'list')]
+    #[DataSet([['where' => [1 => 'x']], 'Unknown field `1` in `where`: its keys must be field names'], 'number key')]
+    #[DataSet([['where' => ['nope' => 'x']], 'Unknown field `nope` in `where`'], 'unknown field')]
+    #[DataSet([['where' => ['level' => true]], '`where.level` must be a string, a number or a non-empty list of them: no field holds a boolean.'], 'boolean')]
+    #[DataSet([['where' => ['level' => ['error', false]]], 'no field holds a boolean.'], 'boolean in a list')]
     #[DataSet([['where' => 'level=error'], '`where` must be an object of at least one field name and value'], 'string')]
-    #[DataSet([['where' => ['level' => []]], '`where.level` must be a string, a number, a boolean or a non-empty list of them.'], 'empty list')]
+    #[DataSet([['where' => ['level' => []]], '`where.level` must be a string, a number or a non-empty list of them.'], 'empty list')]
     #[DataSet([['where' => ['level' => null]], '`where.level` must be a string'], 'null')]
     #[DataSet([['where' => ['level' => ['a' => 'b']]], '`where.level` must be a string'], 'object')]
     #[DataSet([['where' => ['level' => [['error']]]], '`where.level` must be a string'], 'nested list')]

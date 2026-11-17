@@ -38,6 +38,7 @@ final class ListEvents implements Tool
         private readonly EventViews $views,
         private readonly TextCache $texts,
         private readonly EventFilterArguments $filters,
+        private readonly Scan $scan,
     ) {}
 
     #[\Override]
@@ -64,7 +65,7 @@ final class ListEvents implements Tool
             . '`project`, time (`from`, `to`, such as `5m` for the last five minutes), text (`search`, `regex`) '
             . 'and fields (`where`). The fields by type: ' . $this->filters->fieldsHelp() . '. `order: newest` '
             . 'gives the latest events first. Read an event in full with `get_event`, or get the texts of all the '
-            . 'listed ones with `include: text`.';
+            . 'listed ones with `include: text`. ' . self::budgetHelp($this->scan->budget);
     }
 
     #[\Override]
@@ -147,7 +148,8 @@ final class ListEvents implements Tool
                 'has_more' => [
                     'type' => 'boolean',
                     'description' => 'Whether more matching events wait for the next call; with `order: newest`, '
-                        . 'whether older matching events were left out.',
+                        . 'whether older matching events were left out. Also true when the call ran out of time '
+                        . 'before checking all the events.',
                 ],
             ],
             'required' => ['events', 'cursor', 'has_more'],
@@ -180,7 +182,8 @@ final class ListEvents implements Tool
         $events = [];
         $hasMore = false;
         $last = 0;
-        foreach ($records as $record) {
+        $walk = $this->scan->walk($this->store, $records);
+        foreach ($walk as $record) {
             if (!$filter->matches($record)) {
                 continue;
             }
@@ -197,7 +200,25 @@ final class ListEvents implements Tool
             $events[] = $this->describe($record, $text ? $maxLength : null);
         }
 
+        $unchecked = $hasMore ? null : $walk->getReturn();
+        if ($unchecked !== null) {
+            $hasMore = true;
+            // The records of the snapshot before the unchecked one are all checked
+            $newest or $cursor = $unchecked->seq - 1;
+        }
+
         return ['events' => $events, 'cursor' => Cursor::encode($this->store->id, $cursor), 'has_more' => $hasMore];
+    }
+
+    private static function budgetHelp(float $budget): string
+    {
+        return \sprintf(
+            'A call stops checking events after %s seconds, as a text search over many large events may take '
+            . 'longer: then `has_more` is true with fewer than `limit` events, and the returned cursor goes on '
+            . 'from the first unchecked event. With `order: newest`, call again instead: the texts read so far '
+            . 'are kept, so the next search gets further.',
+            \round($budget, 3),
+        );
     }
 
     /**
@@ -218,7 +239,10 @@ final class ListEvents implements Tool
         $fields = $this->views->fields($event);
         // An empty array is encoded as a JSON list, not as the object the schema declares
         $fields === [] or $result['fields'] = $fields;
-        $maxLength === null or $result['text'] = MaxLength::cut($this->texts->text($record), $maxLength);
+        if ($maxLength !== null) {
+            [$text, $length] = $this->texts->prefix($record, $maxLength);
+            $result['text'] = MaxLength::cut($text, $maxLength, $length);
+        }
 
         return $result;
     }

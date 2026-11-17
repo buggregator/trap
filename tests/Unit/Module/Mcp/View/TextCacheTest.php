@@ -6,10 +6,13 @@ namespace Buggregator\Trap\Tests\Unit\Module\Mcp\View;
 
 use Buggregator\Trap\Module\Mcp\View\EventViews;
 use Buggregator\Trap\Module\Mcp\View\TextCache;
+use Buggregator\Trap\Server\Config\Events;
 use Buggregator\Trap\Server\Event\Record;
+use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\ScriptedView;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
 use Testo\Assert;
 use Testo\Codecov\Covers;
+use Testo\Data\DataSet;
 use Testo\Test;
 
 #[Test]
@@ -22,11 +25,11 @@ final class TextCacheTest
         $cache = $trap->get(TextCache::class);
         $record = $trap->add(Trap::dump('cached'));
 
-        $first = $cache->text($record);
+        $first = $cache->searchable($record);
 
         Assert::string($first)->contains('"cached"');
-        Assert::same($cache->text($record), $first);
         Assert::same($cache->searchable($record), $first);
+        Assert::same($cache->prefix($record, 100_000), [$first, \mb_strlen($first)]);
         Assert::same($cache->count(), 1);
         Assert::same($cache->bytes(), \strlen($first));
     }
@@ -36,13 +39,13 @@ final class TextCacheTest
         $trap = new Trap();
         $cache = $trap->get(TextCache::class);
         $record = $trap->add(Trap::dump('old'));
-        $cache->text($record);
+        $cache->searchable($record);
 
         $updated = $trap->store->add($record->event, Trap::dump('new'));
 
         Assert::same($cache->count(), 0);
         Assert::same($cache->bytes(), 0);
-        Assert::string($cache->text($updated))->contains('"old"')->contains('"new"');
+        Assert::string($cache->searchable($updated))->contains('"old"')->contains('"new"');
         Assert::same($cache->count(), 1);
     }
 
@@ -52,8 +55,8 @@ final class TextCacheTest
         $cache = $trap->get(TextCache::class);
         $deleted = $trap->add(Trap::dump('deleted'));
         $cleared = $trap->add(Trap::dump('cleared'));
-        $cache->text($deleted);
-        $size = \strlen($cache->text($cleared));
+        $cache->searchable($deleted);
+        $size = \strlen($cache->searchable($cleared));
 
         $trap->store->delete($deleted->event->uuid);
         $afterDelete = [$cache->count(), $cache->bytes()];
@@ -112,7 +115,7 @@ final class TextCacheTest
 
         Assert::same($searched, \substr($whole, 0, $offset + 2));
         Assert::same($cache->bytes(), \strlen($searched));
-        Assert::same($cache->text($record), $whole, 'The whole text is rendered again.');
+        Assert::same($cache->prefix($record, \PHP_INT_MAX), [$whole, \mb_strlen($whole)], 'The whole text is rendered again.');
     }
 
     public function testTextLargerThanTheCacheIsNotKept(): void
@@ -121,11 +124,110 @@ final class TextCacheTest
         $record = $trap->add(Trap::dump('large'));
         $cache = new TextCache($trap->get(EventViews::class), $trap->store, maxBytes: 10);
 
-        $text = $cache->text($record);
+        $text = $cache->searchable($record);
 
         Assert::same($text, self::render($trap, $record));
         Assert::same($cache->count(), 0);
         Assert::same($cache->bytes(), 0);
+    }
+
+    public function testPrefixFitsInTheCachedStart(): void
+    {
+        $trap = Trap::scripted();
+        $record = $trap->store->add(ScriptedView::event('long', \str_repeat('ж', 100_000)));
+        $cache = $trap->get(TextCache::class);
+        $cache->searchable($record);
+
+        $prefix = $cache->prefix($record, 2_000);
+
+        Assert::same($prefix, [\str_repeat('ж', 2_000), 100_000]);
+        Assert::same($trap->view()->renders, 1);
+    }
+
+    public function testPrefixLongerThanTheCachedStartIsRendered(): void
+    {
+        $trap = Trap::scripted();
+        $record = $trap->store->add(ScriptedView::event('long', \str_repeat('ж', 100_000)));
+        $cache = $trap->get(TextCache::class);
+        $kept = \mb_strlen($cache->searchable($record));
+
+        $prefix = $cache->prefix($record, 50_000);
+
+        Assert::same($kept, TextCache::MAX_SEARCHED_BYTES / 2);
+        Assert::same($prefix, [\str_repeat('ж', 50_000), 100_000]);
+        Assert::same($trap->view()->renders, 2);
+        Assert::same($cache->bytes(), TextCache::MAX_SEARCHED_BYTES);
+    }
+
+    public function testShortTextIsServedWhole(): void
+    {
+        $trap = Trap::scripted();
+        $record = $trap->store->add(ScriptedView::event('short', 'short text'));
+        $cache = $trap->get(TextCache::class);
+        $cache->searchable($record);
+
+        Assert::same($cache->prefix($record, 1_000), ['short text', 10]);
+        Assert::same($cache->prefix($record, 5), ['short', 10]);
+        Assert::same($trap->view()->renders, 1);
+    }
+
+    #[DataSet([1, TextCache::MIN_BYTES], 'small store')]
+    #[DataSet([1_000, 1_000 * (TextCache::MAX_SEARCHED_BYTES + 1024)], 'large store')]
+    #[DataSet([100_000, TextCache::MAX_BYTES], 'huge store')]
+    public function testSizeFollowsTheStore(int $maxEvents, int $maxBytes): void
+    {
+        $trap = new Trap();
+        $config = new Events();
+        $config->maxEvents = $maxEvents;
+
+        $cache = new TextCache($trap->get(EventViews::class), $trap->store, $config);
+
+        Assert::same($cache->maxBytes(), $maxBytes);
+    }
+
+    public function testWarmRendersTheNewEventsOnce(): void
+    {
+        $trap = Trap::scripted();
+        $cache = $trap->get(TextCache::class);
+        $deleted = $trap->store->add(ScriptedView::event('deleted', 'deleted'));
+        $trap->store->add(ScriptedView::event('one', 'one'));
+        $trap->store->add(ScriptedView::event('two', 'two'));
+        $trap->store->delete($deleted->event->uuid);
+
+        $left = $cache->warm(0.0);
+        $leftAfterAll = $cache->warm(10.0);
+
+        Assert::true($left, 'A slice renders one event at least.');
+        Assert::false($leftAfterAll);
+        Assert::same($cache->count(), 2);
+        Assert::same($trap->view()->renders, 2);
+        Assert::false($cache->warm(10.0));
+        Assert::same($trap->view()->renders, 2);
+    }
+
+    public function testWarmTakesTheEventsStoredBeforeTheCache(): void
+    {
+        $trap = Trap::scripted();
+        $trap->store->add(ScriptedView::event('early', 'early'));
+        $cache = $trap->get(TextCache::class);
+
+        $cache->warm(10.0);
+
+        Assert::same($cache->count(), 1);
+    }
+
+    public function testWarmRendersAnUpdatedEventAgain(): void
+    {
+        $trap = Trap::scripted();
+        $cache = $trap->get(TextCache::class);
+        $record = $trap->store->add(ScriptedView::event('updated', 'updated'));
+        $cache->warm(10.0);
+
+        $trap->store->add($record->event);
+        $cache->warm(10.0);
+
+        Assert::same($trap->view()->renders, 2);
+        Assert::same($cache->count(), 1);
     }
 
     private static function render(Trap $trap, Record $record): string

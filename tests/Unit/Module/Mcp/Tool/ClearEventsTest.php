@@ -101,6 +101,20 @@ final class ClearEventsTest
         Assert::count($trap->store, 3);
     }
 
+    public function testTooLongDurationDeletesNothing(): void
+    {
+        $trap = self::trap();
+
+        try {
+            $trap->get(ClearEvents::class)->call(['to' => '100000000w']);
+            Assert::fail('The call must fail.');
+        } catch (\InvalidArgumentException $e) {
+            Assert::string($e->getMessage())->startsWith('`to` must be a duration of at most 100 years');
+        }
+
+        Assert::count($trap->store, 3);
+    }
+
     public function testFailingRegexDeletesNothing(): void
     {
         $trap = self::trap();

@@ -48,10 +48,13 @@ final class MaxLength
 
     /**
      * Cuts the text to `$maxLength` characters and tells the model how to get more.
+     *
+     * @param int|null $length Characters of the whole text when `$text` is only its start, at least `$maxLength`
+     *        characters of it; null when `$text` is whole.
      */
-    public static function cut(string $text, int $maxLength): string
+    public static function cut(string $text, int $maxLength, ?int $length = null): string
     {
-        $length = \mb_strlen($text);
+        $length ??= \mb_strlen($text);
         if ($length <= $maxLength) {
             return $text;
         }

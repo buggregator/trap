@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mcp\View;
 
+use Buggregator\Trap\Server\Config\Events as Config;
 use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Event\Record;
 use Buggregator\Trap\Server\Event\StoreListener;
 
 /**
- * The summaries and the text views of the stored events, rendered once for the searches. An entry lives while
- * its record is the stored one; a text entry keeps at most the first {@see self::MAX_SEARCHED_BYTES} of the text:
- * what a search looks through.
+ * The summaries and the text views of the stored events, rendered once for the searches and the cut texts.
+ * An entry lives while its record is the stored one; a text entry keeps at most the first
+ * {@see self::MAX_SEARCHED_BYTES} of the text, what a search looks through, and the length of the whole text.
  *
  * A full cache admits no more entries until the store deletes some: evicting the oldest one to admit the next
  * would, on a search that reads the events in the same order every time, evict each entry right before its turn.
@@ -20,31 +21,56 @@ use Buggregator\Trap\Server\Event\StoreListener;
  */
 final class TextCache implements StoreListener
 {
-    public const MAX_BYTES = 16 * 1024 * 1024;
+    /** The least size of the cache, whatever the size of the store. */
+    public const MIN_BYTES = 16 * 1024 * 1024;
 
-    /** Of the text of each event. With the default 200 events of the store, all their texts fit the cache. */
+    /** The largest size of the cache, whatever the size of the store. */
+    public const MAX_BYTES = 256 * 1024 * 1024;
+
+    /** Of the text of each event. */
     public const MAX_SEARCHED_BYTES = 64 * 1024;
 
-    /** @var array<string, array{int, string, bool}> Event UUID => sequence number of its record, the kept text,
-     *      and whether it is the whole text */
+    /** Room for the summary of each event in the size of the cache: a summary takes 160 characters at most. */
+    private const SUMMARY_BYTES = 1024;
+
+    /**
+     * @var array<string, array{int, string, int<0, max>, int<0, max>}> Event UUID => sequence number of its record,
+     *      the kept start of the text, its length in characters, and the length of the whole text in characters
+     */
     private array $texts = [];
 
     /** @var array<string, array{int, non-empty-string}> Event UUID => sequence number of its record and summary */
     private array $summaries = [];
 
+    /** @var array<string, Record> Event UUID => the stored record not rendered yet, in the order of the changes */
+    private array $cold = [];
+
     /** @var int<0, max> */
     private int $bytes = 0;
 
+    /** @var int<0, max> */
+    private readonly int $maxBytes;
+
     /**
-     * @param int<0, max> $maxBytes Of all the kept texts.
+     * @param int<0, max>|null $maxBytes Of all the kept texts and summaries; null for room for every event of the
+     *        store, between {@see self::MIN_BYTES} and {@see self::MAX_BYTES}.
      * @param int<0, max> $maxSearchedBytes Of the kept text of each event.
      */
     public function __construct(
         private readonly EventViews $views,
         EventStore $store,
-        private readonly int $maxBytes = self::MAX_BYTES,
+        Config $config = new Config(),
+        ?int $maxBytes = null,
         private readonly int $maxSearchedBytes = self::MAX_SEARCHED_BYTES,
     ) {
+        $this->maxBytes = $maxBytes ?? \min(
+            self::MAX_BYTES,
+            \max(self::MIN_BYTES, $config->maxEvents * ($maxSearchedBytes + self::SUMMARY_BYTES)),
+        );
+        foreach ($store->changedSince(0) as $record) {
+            $this->cold[$record->event->uuid] = $record;
+        }
+
         $store->listen($this);
     }
 
@@ -71,19 +97,24 @@ final class TextCache implements StoreListener
     }
 
     /**
-     * The whole text view, rendered again when the cache keeps only its start.
+     * The start of the text view: from the cache when it keeps enough of the text, rendered again otherwise.
+     *
+     * @param int<0, max> $chars
+     *
+     * @return array{string, int<0, max>} The first `$chars` characters, or the whole text when shorter;
+     *         the length of the whole text in characters.
      */
-    public function text(Record $record): string
+    public function prefix(Record $record, int $chars): array
     {
         $cached = $this->cached($record);
-        if ($cached !== null && $cached[2]) {
-            return $cached[1];
+        if ($cached === null || ($cached[2] < $chars && $cached[2] < $cached[3])) {
+            $text = $this->views->text($record);
+            $cached === null and $this->keep($record, $text);
+
+            return [\mb_substr($text, 0, $chars), \mb_strlen($text)];
         }
 
-        $text = $this->views->text($record);
-        $cached === null and $this->keep($record, $text);
-
-        return $text;
+        return [$cached[2] > $chars ? \mb_substr($cached[1], 0, $chars) : $cached[1], $cached[3]];
     }
 
     /**
@@ -91,22 +122,56 @@ final class TextCache implements StoreListener
      */
     public function searchable(Record $record): string
     {
-        return $this->cached($record)[1] ?? $this->keep($record, $this->views->text($record));
+        return ($this->cached($record) ?? $this->keep($record, $this->views->text($record)))[1];
+    }
+
+    /**
+     * Renders the summaries and the texts not cached yet, oldest change first, so that a search finds them ready.
+     *
+     * @param float $seconds Time to render for; at least one event is rendered.
+     *
+     * @return bool Whether events are left to render.
+     */
+    public function warm(float $seconds): bool
+    {
+        $deadline = \hrtime(true) + (int) ($seconds * 1e9);
+        foreach ($this->cold as $uuid => $record) {
+            // The rendered text would not be kept
+            if ($this->bytes >= $this->maxBytes) {
+                return false;
+            }
+
+            unset($this->cold[$uuid]);
+            $this->summary($record);
+            $this->searchable($record);
+            if (\hrtime(true) >= $deadline) {
+                break;
+            }
+        }
+
+        return $this->cold !== [];
     }
 
     #[\Override]
-    public function added(Record $record): void {}
+    public function added(Record $record): void
+    {
+        $this->cold[$record->event->uuid] = $record;
+    }
 
     #[\Override]
     public function updated(Record $record): void
     {
-        $this->forget($record->event->uuid);
+        $uuid = $record->event->uuid;
+        $this->forget($uuid);
+        unset($this->cold[$uuid]);
+        $this->cold[$uuid] = $record;
     }
 
     #[\Override]
     public function deleted(Record $record): void
     {
         $this->forget($record->event->uuid);
+        unset($this->cold[$record->event->uuid]);
     }
 
     #[\Override]
@@ -114,6 +179,7 @@ final class TextCache implements StoreListener
     {
         $this->texts = [];
         $this->summaries = [];
+        $this->cold = [];
         $this->bytes = 0;
     }
 
@@ -134,7 +200,15 @@ final class TextCache implements StoreListener
     }
 
     /**
-     * @return array{int, string, bool}|null
+     * @return int<0, max> The most bytes of the cached texts and summaries.
+     */
+    public function maxBytes(): int
+    {
+        return $this->maxBytes;
+    }
+
+    /**
+     * @return array{int, string, int<0, max>, int<0, max>}|null
      */
     private function cached(Record $record): ?array
     {
@@ -149,19 +223,22 @@ final class TextCache implements StoreListener
     }
 
     /**
-     * @return string The text cut for the searches, whether the cache has room for it or not.
+     * @return array{int, string, int<0, max>, int<0, max>} The entry, whether the cache has room for it or not.
      */
-    private function keep(Record $record, string $text): string
+    private function keep(Record $record, string $text): array
     {
-        $whole = \strlen($text) <= $this->maxSearchedBytes;
-        $kept = $whole ? $text : \mb_strcut($text, 0, $this->maxSearchedBytes, 'UTF-8');
+        $length = \mb_strlen($text);
+        $kept = \strlen($text) <= $this->maxSearchedBytes
+            ? $text
+            : \mb_strcut($text, 0, $this->maxSearchedBytes, 'UTF-8');
+        $entry = [$record->seq, $kept, $kept === $text ? $length : \mb_strlen($kept), $length];
         $size = \strlen($kept);
         if ($this->bytes + $size <= $this->maxBytes) {
-            $this->texts[$record->event->uuid] = [$record->seq, $kept, $whole];
+            $this->texts[$record->event->uuid] = $entry;
             $this->bytes += $size;
         }
 
-        return $kept;
+        return $entry;
     }
 
     private function forget(string $uuid): void

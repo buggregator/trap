@@ -25,7 +25,7 @@ the agent deletes is gone from the UI on its next load; a page already open keep
 |----------------|----------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
 | `list_events`  | `since` (cursor), [filters](#filters), `order`, `include`, `max_length`, `limit` | `events`: `id`, `type`, `project`, `time`, `summary`, `fields`, `text` each; `cursor` to pass next; `has_more` |
 | `get_event`    | `id`, `max_length`                                                               | The event as plain text: a header line, then the event as the console prints it                                |
-| `clear_events` | [filters](#filters)                                                              | `removed`: the number of deleted events                                                                        |
+| `clear_events` | [filters](#filters)                                                              | `removed`: the number of deleted events; `incomplete` when the call [ran out of time](#time-limit)             |
 
 - `list_events` returns the events added or updated after `since`, oldest first, at most `limit` of them
   (50 by default, 200 at most). `since` is the opaque `cursor` of an earlier call; without it, or with a cursor
@@ -51,23 +51,41 @@ the agent deletes is gone from the UI on its next load; a page already open keep
 | `project` | One project or a list; events sent without a project belong to `default`                                                         |
 | `from`    | Events caught at this time or later: ISO 8601 (UTC without an offset) or a duration back from now: `30s`, `5m`, `2h`, `1d`, `1w` |
 | `to`      | Events caught at this time or earlier, in the same forms                                                                         |
-| `search`  | Events whose summary or text, as `get_event` gives it, contains this text in any case                                            |
+| `search`  | Events whose summary or text, as `get_event` gives it without the header line, contains this text in any case                    |
 | `regex`   | `true` makes `search` a PCRE pattern without delimiters, matched in any case                                                     |
 | `where`   | Events whose fields match all the given ones                                                                                     |
 
 - An ISO 8601 time stands for the whole span of its last written unit: `to: "2026-11-16"` takes the events of that
   whole day, `to: "2026-11-16T10:00"` those of 10:00 too. So the `time` of a listed event, in milliseconds, passed
   back as `from` or `to` takes that event too. A duration is exact.
-- `search` looks through the first 64 KB of the text of each event: the texts are kept for the next searches,
-  and a longer one would make every search render it again.
+- `search` looks through the summary and only the first 64 KB of the text of each event: the texts are kept for
+  the next searches, and a longer one would make every search render it again. The cache holds that much for
+  every event the buffer keeps ([`maxEvents`](configuration.md#trapxml)), but at least 16 MB and at most 256 MB.
+  The texts of new events are rendered in the background, so a search usually finds them ready.
 - In `where`, a string matches the whole value in any case, and `*` stands for any characters. A number matches
   an equal number. A list of values matches when any of them does. A field with a list of values, such as `to`,
   matches when any of its values does. An event without the field does not match, so a field of another type
-  matches nothing. The `from` field of a mail is its sender, unrelated to the `from` time.
+  matches nothing; a field no type has fails the call, and so does a boolean value. The `from` field of a mail is
+  its sender, unrelated to the `from` time.
+- A duration longer than 100 years fails the call.
 - A condition that takes nothing fails the call rather than being left out: an empty list of `type` or `project`,
   `where` without fields, `regex` without `search`. Otherwise `clear_events` would delete every event.
 - A pattern that hits a PCRE limit, as nested quantifiers on a long text do, fails the call, and `clear_events`
   deletes nothing then.
+
+#### Time limit
+
+Rendering the text of a large dump for `search` takes milliseconds, so a search over many large events can take
+seconds. Trap catches events and answers other requests meanwhile, and a call stops checking events after 5 seconds:
+
+- `list_events` returns the matching events found so far with `has_more: true`, even when they are fewer than
+  `limit`. With `order: oldest` the returned `cursor` goes on from the first event left unchecked: call again with
+  it as `since`. With `order: newest` the cursor still points at the latest change, so call again without it:
+  the texts rendered so far are kept, and the next search gets further.
+- `clear_events` deletes the matching events found so far and returns `incomplete: true`: call again with the same
+  filter to delete the rest.
+- An event deleted or changed while the call runs is left out: the changed one comes with the next call that
+  passes the cursor, and `clear_events` deletes only the events that have not changed since they matched.
 
 | Type        | Fields                                                                                                                            |
 |-------------|-----------------------------------------------------------------------------------------------------------------------------------|

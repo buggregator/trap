@@ -14,7 +14,13 @@ final class Time
     /** Seconds of a duration unit. */
     private const UNITS = ['s' => 1.0, 'm' => 60.0, 'h' => 3600.0, 'd' => 86400.0, 'w' => 604800.0];
 
-    /** The pattern keeps out the words the date parser takes, such as `tomorrow`. */
+    /** Seconds of the longest duration: 100 years of 365.25 days. */
+    private const MAX_DURATION = 3_155_760_000.0;
+
+    /**
+     * The pattern keeps out the words the date parser takes, such as `tomorrow`; its four-digit year keeps the
+     * microseconds of any time it matches within an integer.
+     */
     private const ISO = '/^\d{4}-\d{2}-\d{2}(?<time>[T ]\d{2}:\d{2}(?<seconds>:\d{2}(?:[.,](?<fraction>\d+))?)?)?'
         . '(?:Z|[+-]\d{2}(?::?\d{2})?)?$/i';
 
@@ -83,7 +89,15 @@ final class Time
         $value = \trim($value);
 
         if (\preg_match('/^(\d+(?:\.\d+)?)\s*([smhdw])$/i', $value, $match) === 1) {
-            return self::micros($now - (float) $match[1] * self::UNITS[\strtolower($match[2])]);
+            $seconds = (float) $match[1] * self::UNITS[\strtolower($match[2])];
+            // Microseconds of a longer one may not fit an integer
+            $seconds <= self::MAX_DURATION or throw new \InvalidArgumentException(\sprintf(
+                '`%s` must be a duration of at most 100 years, such as `5200w`; got `%s`.',
+                $name,
+                $value,
+            ));
+
+            return self::micros($now - $seconds);
         }
 
         if (\preg_match(self::ISO, $value, $match, \PREG_UNMATCHED_AS_NULL) === 1) {
