@@ -203,6 +203,82 @@ trace sent in separate requests, with `--mcp` alone too. The limits of that stor
   `{"errors_only": true, "name": "POST /checkout*"}`.
 - `get_trace` cuts a text longer than `max_length` characters, 50 000 by default, and says so.
 
+### Profiles
+
+The [profiles](profiles.md) are `profiler` events. `get_event` gives one as the console prints it; these tools let
+an agent dig into it without reading the whole call graph.
+
+| Tool                 | Arguments                                                     | Result                                                                                                           |
+|----------------------|---------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------|
+| `profile_summary`    | `id`                                                          | `format`, `metrics`, `not_measured`, `peaks`, `functions`, `edges`, the `top` 10 functions and the `hot_path` |
+| `profile_top`        | `id`, `metric`, `sort`, `filter`, `limit`                     | `functions`: `function`, `calls`, `inclusive`, `exclusive` and their percentages each; `matched`, `has_more`   |
+| `profile_calls`      | `id`, `function`, `metric`, `depth`, `limit`                  | The function's row, its `callers` and `callees` with the calls and costs between them                           |
+| `profile_call_graph` | `id`, `metric`, `threshold`, `max_depth`, `max_length`        | The call tree as plain text, only the calls of at least `threshold` percent                                     |
+
+The metrics are the ones the console shows; a profiler that doesn't measure one leaves it out, and a tool asked
+for it fails with the metrics the profile has:
+
+| Metric | Measures                             | Formats                                                                               |
+|--------|--------------------------------------|---------------------------------------------------------------------------------------|
+| `wt`   | Wall time, µs                        | XHProf, Xdebug, SPX, pprof and Speedscope of a CPU or time profile                    |
+| `cpu`  | CPU time, µs                         | XHProf and SPX when enabled, pprof of a CPU profile, Speedscope with the CPU clock    |
+| `mu`   | Memory, bytes                        | XHProf and SPX when enabled, Xdebug, pprof and Speedscope of a memory profile         |
+| `pmu`  | Peak memory, bytes                   | XHProf when enabled                                                                   |
+| `ct`   | Calls, or samples of a sampled one   | All; `count_type` of `profile_summary` tells what it counts                           |
+
+- Without `metric` the tools take the first the profile has of `wt`, `cpu`, `mu`, `ct`, as the console ranks by.
+- A function's values are summed over all its calls. `inclusive` takes the callees in, `exclusive` is the function
+  itself. The percentages are of the `peaks`: the wall time, CPU time and memory of the whole run; for `ct`, the
+  most calls or samples of one call.
+- `profile_top` ranks by the `exclusive` value (`sort: inclusive` for the other), 20 functions by default and 200
+  at most. `filter` keeps the functions whose names contain the text in any case; with `*`, it matches the whole
+  name: `App\*` keeps the application code.
+- `profile_calls` takes the exact name, as `profile_top` gives it; an unknown name fails with the close ones.
+  A caller row tells how much the function cost in the calls from that caller, a callee row how much the callee
+  cost in the calls from the function. The `exclusive` value of a function called from several places is split
+  by their shares of its `inclusive` one. `depth` (1 to 3) adds the callers of the callers and the callees of the
+  callees, each with `via`: past the first level the values are of all the calls between the two functions.
+- The hot path follows the heaviest call from the root down to a leaf; a path longer than 30 calls keeps its first
+  5 and last 25, and `depth` tells where each one is.
+- `profile_call_graph` shows calls of at least 1 percent by default, 30 levels deep, and cuts a text longer than
+  `max_length` characters, 20 000 by default. The smaller calls of a caller are summed in one line. XHProf sums the
+  calls by caller and callee, so its tree is unfolded from the call graph: a function called from several places
+  has its callees split by their shares, and the text says so.
+- The functions of the 4 profiles asked about last are kept: summing those of a large profile takes a moment, and
+  Trap catches events and answers other calls meanwhile.
+
+The agent profiles a slow request and finds what makes it slow:
+
+1. `list_events` with `{"order": "newest", "limit": 1}` → the `cursor`; the agent sends the request with
+   XHProf on.
+2. `wait_for_events` with `{"since": "5f3a9c1e:12", "type": "profiler"}` → the profile event, `"id": "9d0e..."`.
+3. `profile_summary` with `{"id": "9d0e..."}` → wall time `"peaks": {"wt": 45310, ...}`, the top functions and the
+   hot path, ending in `App\Repository\OrderRepository::findAll`.
+4. `profile_top` with `{"id": "9d0e...", "metric": "wt", "filter": "App\\*"}` → the application functions by their
+   own wall time:
+   ```json
+   {
+       "metric": "wt",
+       "unit": "microseconds",
+       "peak": 45310,
+       "sort": "exclusive",
+       "matched": 41,
+       "functions": [
+           {
+               "function": "App\\Repository\\OrderRepository::hydrate",
+               "calls": 1200,
+               "inclusive": 18200,
+               "inclusive_percent": 40.168,
+               "exclusive": 15400,
+               "exclusive_percent": 33.988
+           }
+       ],
+       "has_more": true
+   }
+   ```
+5. `profile_calls` with `{"id": "9d0e...", "function": "App\\Repository\\OrderRepository::hydrate"}` → it is
+   called 1 200 times from `OrderRepository::findAll`, once per row: the agent batches the hydration.
+
 ### Example
 
 The agent remembers where the buffer is, runs the code, and reads what the code sent:

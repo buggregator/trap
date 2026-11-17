@@ -10,9 +10,7 @@ use Buggregator\Trap\Module\Console\Support\Tables;
 use Buggregator\Trap\Module\Profiler\Frame as ProfilerFrame;
 use Buggregator\Trap\Module\Profiler\Frontend\Mapper;
 use Buggregator\Trap\Module\Profiler\Frontend\Message\TopFunctions\Func;
-use Buggregator\Trap\Module\Profiler\Struct\Cost;
-use Buggregator\Trap\Module\Profiler\Struct\Edge;
-use Buggregator\Trap\Module\Profiler\Struct\Peaks;
+use Buggregator\Trap\Module\Profiler\Struct\Metric;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Support\Measure;
@@ -39,11 +37,6 @@ final class Renderer implements RendererInterface
     private const PATH_LIMIT = 12;
 
     private const PATH_HEAD = 3;
-
-    /**
-     * Metrics to rank the functions by, in the order of preference: the first one the profile measures is taken.
-     */
-    private const RANK_METRICS = ['wt', 'cpu', 'mu', 'ct'];
 
     #[\Override]
     public function isSupport(Frame $frame): bool
@@ -98,7 +91,7 @@ final class Renderer implements RendererInterface
             $countLabel => (string) $peaks->ct,
         ], static fn(?string $value): bool => $value !== null));
 
-        $metric = self::rankMetric($peaks);
+        $metric = Metric::rank($peaks);
         if ($profile->calls->count() === 0 || $metric === null) {
             $output->writeln(['', '<fg=gray>No calls recorded.</>']);
             return;
@@ -107,51 +100,6 @@ final class Renderer implements RendererInterface
         $limit = $output->isVerbose() ? self::TOP_LIMIT_VERBOSE : self::TOP_LIMIT;
         $this->renderTopFunctions($output, $profile, $metric, $countLabel, $limit);
         $this->renderHotPath($output, $profile, $metric);
-    }
-
-    /**
-     * @param list<Edge> $edges
-     * @param 'wt'|'cpu'|'mu'|'ct' $metric
-     */
-    private static function heaviest(array $edges, string $metric): ?Edge
-    {
-        $result = null;
-        foreach ($edges as $edge) {
-            $value = self::metricOf($edge->cost, $metric);
-            $value > 0 && ($result === null || $value > self::metricOf($result->cost, $metric))
-                and $result = $edge;
-        }
-
-        return $result;
-    }
-
-    /**
-     * @return 'wt'|'cpu'|'mu'|'ct'|null
-     */
-    private static function rankMetric(Peaks $peaks): ?string
-    {
-        foreach (self::RANK_METRICS as $metric) {
-            if (self::metricOf($peaks->toCost(), $metric) > 0) {
-                return $metric;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @param 'wt'|'cpu'|'mu'|'ct' $metric
-     *
-     * @return int<0, max>
-     */
-    private static function metricOf(Cost $cost, string $metric): int
-    {
-        return match ($metric) {
-            'wt' => $cost->wt,
-            'cpu' => $cost->cpu,
-            'mu' => $cost->mu,
-            'ct' => $cost->ct,
-        };
     }
 
     /**
@@ -166,13 +114,13 @@ final class Renderer implements RendererInterface
         };
     }
 
-    private static function formatMetric(string $metric, int|float $value): string
+    private static function formatMetric(Metric $metric, int|float $value): string
     {
         $value = \max(0, (int) $value);
         return match ($metric) {
-            'wt', 'cpu' => self::formatTime($value),
-            'mu' => Measure::memory($value),
-            default => (string) $value,
+            Metric::WallTime, Metric::CpuTime => self::formatTime($value),
+            Metric::Memory, Metric::PeakMemory => Measure::memory($value),
+            Metric::Count => (string) $value,
         };
     }
 
@@ -221,23 +169,17 @@ final class Renderer implements RendererInterface
     }
 
     /**
-     * @param 'wt'|'cpu'|'mu'|'ct' $metric
      * @param int<1, max> $limit
      */
     private function renderTopFunctions(
         OutputInterface $output,
         Profile $profile,
-        string $metric,
+        Metric $metric,
         string $countLabel,
         int $limit,
     ): void {
         $peaks = $profile->peaks;
-        $functions = \array_values(Func::aggregate($profile->calls, $peaks));
-        \usort(
-            $functions,
-            static fn(Func $a, Func $b): int => [$b->get("excl_$metric"), $b->get($metric), $a->function]
-                <=> [$a->get("excl_$metric"), $a->get($metric), $b->function],
-        );
+        $functions = Func::rank(Func::aggregate($profile->calls, $peaks), $metric);
         $total = \count($functions);
         $functions = \array_slice($functions, 0, $limit);
 
@@ -246,18 +188,13 @@ final class Renderer implements RendererInterface
         $labels = ['wt' => 'wall', 'cpu' => 'CPU', 'mu' => 'memory'];
         $others = \array_filter(
             $labels,
-            static fn(string $key): bool => $key !== $metric && self::metricOf($peaks->toCost(), $key) > 0,
+            static fn(string $key): bool => $key !== $metric->value && Metric::from($key)->isMeasured($peaks),
             \ARRAY_FILTER_USE_KEY,
         );
 
         $headers = ['Function', $countLabel];
-        isset($labels[$metric]) and $headers = [
-            ...$headers,
-            "Self $labels[$metric]",
-            '%',
-            "Total $labels[$metric]",
-            '%',
-        ];
+        $rankLabel = $labels[$metric->value] ?? null;
+        $rankLabel === null or $headers = [...$headers, "Self $rankLabel", '%', "Total $rankLabel", '%'];
         foreach ($others as $label) {
             $headers[] = "Self $label";
         }
@@ -265,15 +202,15 @@ final class Renderer implements RendererInterface
         $rows = [];
         foreach ($functions as $func) {
             $row = [self::functionName($func->function), (string) $func->get('ct')];
-            isset($labels[$metric]) and $row = [
+            $rankLabel === null or $row = [
                 ...$row,
-                self::formatMetric($metric, $func->get("excl_$metric")),
-                self::formatPercent($func->get("p_excl_$metric")),
-                self::formatMetric($metric, $func->get($metric)),
-                self::formatPercent($func->get("p_$metric")),
+                self::formatMetric($metric, $func->get("excl_$metric->value")),
+                self::formatPercent($func->get("p_excl_$metric->value")),
+                self::formatMetric($metric, $func->get($metric->value)),
+                self::formatPercent($func->get("p_$metric->value")),
             ];
             foreach ($others as $key => $_) {
-                $row[] = self::formatMetric($key, $func->get("excl_$key"));
+                $row[] = self::formatMetric(Metric::from($key), $func->get("excl_$key"));
             }
             $rows[] = $row;
         }
@@ -283,10 +220,10 @@ final class Renderer implements RendererInterface
             \count($functions),
             $total,
             match ($metric) {
-                'wt' => 'wall time',
-                'cpu' => 'CPU time',
-                'mu' => 'memory',
-                'ct' => \strtolower($countLabel),
+                Metric::WallTime => 'wall time',
+                Metric::CpuTime => 'CPU time',
+                Metric::Memory, Metric::PeakMemory => 'memory',
+                Metric::Count => \strtolower($countLabel),
             },
         );
 
@@ -299,30 +236,18 @@ final class Renderer implements RendererInterface
         $table->render();
     }
 
-    /**
-     * Follows the heaviest call from the heaviest root down to a leaf.
-     *
-     * @param 'wt'|'cpu'|'mu'|'ct' $metric
-     */
-    private function renderHotPath(OutputInterface $output, Profile $profile, string $metric): void
+    private function renderHotPath(OutputInterface $output, Profile $profile, Metric $metric): void
     {
-        $graph = $profile->calls;
-        $path = [];
-        $edge = self::heaviest($graph->roots(), $metric);
-        // The function IDs carry recursion levels, so the graph has no cycles and the walk ends
-        while ($edge !== null) {
-            $path[] = $edge;
-            $edge = self::heaviest($graph->callees($edge->calleeId), $metric);
-        }
+        $path = $profile->calls->hotPath($metric);
 
         if ($path === []) {
             return;
         }
 
-        $total = self::metricOf($profile->peaks->toCost(), $metric);
+        $total = $metric->of($profile->peaks->toCost());
         $lines = [];
         foreach ($path as $i => $edge) {
-            $value = self::metricOf($edge->cost, $metric);
+            $value = $metric->of($edge->cost);
             $lines[] = \sprintf(
                 '%s  %s  %s%s',
                 self::padLeft(self::formatPercent($total > 0 ? (float) $value / (float) $total * 100.0 : 0.0), 6),

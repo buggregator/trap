@@ -61,6 +61,9 @@ final class Profile implements \JsonSerializable
     /** @var non-empty-string some leaked bs required for Frontend */
     public string $uuid;
 
+    /** The profiler recorded the call tree: {@see self::tree()} is not unfolded from the call graph. */
+    public readonly bool $exactTree;
+
     /**
      * @param Metadata $metadata
      * @param array<non-empty-string, non-empty-string> $tags
@@ -74,6 +77,7 @@ final class Profile implements \JsonSerializable
         ?Peaks $peaks = null,
         private ?Tree $tree = null,
     ) {
+        $this->exactTree = $tree !== null;
         $this->uuid = Uuid::uuid4();
         $this->calls = $calls ?? new Graph();
         if ($peaks === null) {

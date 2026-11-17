@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Profiler\Struct\Branch;
 use Buggregator\Trap\Module\Profiler\Struct\Cost;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Graph;
+use Buggregator\Trap\Module\Profiler\Struct\Metric;
 use Buggregator\Trap\Module\Profiler\Struct\Peaks;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Module\Profiler\Struct\Tree;
@@ -102,12 +103,40 @@ final class GraphTest
         Assert::same(\count($tree), 3);
     }
 
+    public function testHotPathFollowsHeaviestCalls(): void
+    {
+        $path = self::graph(self::SHARED)->hotPath(Metric::WallTime);
+
+        Assert::same(\array_map(static fn(Edge $edge): string => $edge->callee, $path), ['main()', 'b', 'x', 'y']);
+    }
+
+    public function testHotPathSkipsCallsWithoutTheMetric(): void
+    {
+        $graph = self::graph(self::SHARED);
+
+        Assert::same($graph->hotPath(Metric::CpuTime), []);
+        Assert::count($graph->hotPath(Metric::Count), 4);
+    }
+
+    public function testHotPathStopsOnCycle(): void
+    {
+        $path = self::graph([
+            'a==>b' => ['ct' => 1, 'wt' => 5, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'b==>a' => ['ct' => 1, 'wt' => 3, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>a' => ['ct' => 1, 'wt' => 10, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()' => ['ct' => 1, 'wt' => 10, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        ])->hotPath(Metric::WallTime);
+
+        Assert::same(\array_map(static fn(Edge $edge): string => $edge->callee, $path), ['main()', 'a', 'b']);
+    }
+
     public function testProfileTreeIsUnfoldedFromGraph(): void
     {
         $profile = (new ProfileBuilder())->createProfile(calls: self::SHARED);
 
         Assert::same(\count($profile->tree()), 7);
         Assert::same($profile->tree(), $profile->tree());
+        Assert::false($profile->exactTree);
     }
 
     public function testProfileTreePrefersExactTree(): void
@@ -117,6 +146,7 @@ final class GraphTest
         $profile = new Profile(tree: $tree);
 
         Assert::same($profile->tree(), $tree);
+        Assert::true($profile->exactTree);
     }
 
     public function testFromTreeSumsNodesByCallerAndCallee(): void

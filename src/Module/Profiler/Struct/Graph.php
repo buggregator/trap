@@ -177,6 +177,27 @@ final class Graph implements \IteratorAggregate, \Countable
     }
 
     /**
+     * Follows the heaviest call from the heaviest root down to a leaf; of equally heavy calls, the first one.
+     *
+     * @return list<Edge> Empty when no root has a cost of the metric.
+     */
+    public function hotPath(Metric $metric): array
+    {
+        $path = [];
+        /** @var array<non-empty-string, true> $visited */
+        $visited = [];
+        $edge = self::heaviest($this->roots, $metric);
+        // The function IDs carry recursion levels, so a profiler's graph has no cycles; received data may have them
+        while ($edge !== null && !isset($visited[$edge->calleeId])) {
+            $visited[$edge->calleeId] = true;
+            $path[] = $edge;
+            $edge = self::heaviest($this->callees($edge->calleeId), $metric);
+        }
+
+        return $path;
+    }
+
+    /**
      * Unfolds the graph into a call tree from the roots.
      *
      * The tree is approximate: a function called from several callers is unfolded under each of them,
@@ -263,6 +284,21 @@ final class Graph implements \IteratorAggregate, \Countable
     public function count(): int
     {
         return \count($this->edges);
+    }
+
+    /**
+     * @param list<Edge> $edges
+     */
+    private static function heaviest(array $edges, Metric $metric): ?Edge
+    {
+        $result = null;
+        foreach ($edges as $edge) {
+            $value = $metric->of($edge->cost);
+            $value > 0 && ($result === null || $value > $metric->of($result->cost))
+                and $result = $edge;
+        }
+
+        return $result;
     }
 
     private static function scaleCost(Cost $cost, float $scale, ?Cost $parent): Cost
