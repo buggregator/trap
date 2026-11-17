@@ -260,7 +260,7 @@ final class ListEvents implements Tool
             $newest or $cursor = \max(0, $unchecked->seq - 1);
         }
 
-        $memo?->pass();
+        $memo?->pass(complete: !$hasMore);
 
         return ['events' => $events, 'cursor' => $cursor, 'has_more' => $hasMore, 'unchecked' => $unchecked !== null];
     }

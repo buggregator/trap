@@ -9,7 +9,8 @@ use Buggregator\Trap\Server\Event\Record;
 /**
  * What {@see ListEvents::collect()} called again with the same filter and text length can reuse: whether a record
  * matches, and the listed entry of a matching one. Both depend only on the record, whose content keeps its sequence
- * number, so an entry holds while the record is the stored one.
+ * number, so an entry holds while the record is the stored one — provided the event views render the same event
+ * the same way, as {@see \Buggregator\Trap\Module\Mcp\View\TextCache} also takes.
  *
  * Without the memo a wait searching large texts would check every record since its `since` again on each change.
  *
@@ -33,6 +34,14 @@ final class CollectMemo
      */
     private array $described = [];
 
+    /**
+     * The verdicts of the current pass: a pass that walks all the records drops the ones of records it didn't
+     * meet, deleted or evicted, so the memo holds no more verdicts than the store holds records.
+     *
+     * @var array<string, array{int, bool}>
+     */
+    private array $checked = [];
+
     public function matches(Record $record, EventFilter $filter): bool
     {
         $uuid = $record->event->uuid;
@@ -42,6 +51,7 @@ final class CollectMemo
             $this->matches[$uuid] = $known;
         }
 
+        $this->checked[$uuid] = $known;
         return $known[1];
     }
 
@@ -65,10 +75,15 @@ final class CollectMemo
 
     /**
      * Ends a pass: keeps the entries it described for the next one.
+     *
+     * @param bool $complete Whether the pass walked all the records; a pass cut short keeps the verdicts
+     *        of the records it didn't reach.
      */
-    public function pass(): void
+    public function pass(bool $complete = true): void
     {
         $this->entries = $this->described;
         $this->described = [];
+        $complete and $this->matches = $this->checked;
+        $this->checked = [];
     }
 }
