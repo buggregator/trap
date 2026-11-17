@@ -338,6 +338,28 @@ final class WaitForEventsTest
         Assert::same($result['cursor'], $trap->store->id . ':' . $last->seq);
     }
 
+    public function testTextsOfReplacedCopiesTakeNoRoom(): void
+    {
+        $trap = Trap::scripted();
+        $perEvent = ListEvents::MAX_TEXT_LENGTH;
+        $updates = \intdiv(ListEvents::MAX_TOTAL_TEXT_LENGTH, $perEvent) + 5;
+        $fiber = self::wait($trap, ['count' => 2, 'timeout' => 1, 'include' => 'text', 'max_length' => $perEvent]);
+
+        for ($i = 0; $i < $updates && $fiber->isSuspended(); ++$i) {
+            $trap->store->add(ScriptedView::event(self::uuid(1), \str_repeat((string) ($i % 10), $perEvent), 1.0));
+            $fiber->resume();
+        }
+        $waiting = $fiber->isSuspended();
+        self::finish($fiber);
+        $result = $fiber->getReturn();
+
+        Assert::true($waiting, 'The updates of one event leave room for the second one.');
+        Assert::same(\array_column($result['events'], 'id'), [self::uuid(1)]);
+        Assert::same($result['events'][0]['text'], \str_repeat((string) (($updates - 1) % 10), $perEvent));
+        Assert::true($result['timed_out']);
+        Assert::false($result['has_more']);
+    }
+
     public function testRestLeftUncheckedIsCheckedWithoutWaitingForChanges(): void
     {
         $trap = Trap::scripted();

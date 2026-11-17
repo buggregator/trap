@@ -19,7 +19,7 @@ interface Middleware
      * The request attribute with a `\Closure(): bool` that tells whether the client has disconnected,
      * for a middleware that keeps the request waiting: then nobody reads its response.
      */
-    public const DISCONNECTED = 'disconnected';
+    public const DISCONNECTED = 'trap.disconnected';
 
     /**
      * @param callable(ServerRequestInterface): ResponseInterface $next

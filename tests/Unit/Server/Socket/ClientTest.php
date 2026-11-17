@@ -97,7 +97,8 @@ final class ClientTest
             $fiber->start();
             Assert::same($payloads, ['last words']);
 
-            Expect::exception(\RuntimeException::class);
+            // An orderly close is a disconnect, not a read error to log
+            Expect::exception(ClientDisconnected::class);
             $fiber->resume();
         } finally {
             $client->destroy();

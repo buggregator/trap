@@ -95,7 +95,7 @@ final class ServerTest
     }
 
     #[Test]
-    public function dropsClientWhoseConnectionFailed(): void
+    public function dropsClientWhosePeerClosed(): void
     {
         $output = new BufferedOutput(OutputInterface::VERBOSITY_VERY_VERBOSE);
         $clients = [];
@@ -118,7 +118,9 @@ final class ServerTest
             [$read, $write] = $server->getSockets();
             Assert::count($read, 1);
             Assert::same($write, []);
-            Assert::string($output->fetch())->contains('Client 1 fiber.');
+            $log = $output->fetch();
+            Assert::string($log)->contains('Client 1 disconnected');
+            Assert::string($log)->notContains('Client 1 fiber.');
         } finally {
             $remote === null or \socket_close($remote);
             $server->destroy();

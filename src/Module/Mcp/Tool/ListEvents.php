@@ -212,8 +212,7 @@ final class ListEvents implements Tool
      *     cursor: int<0, max>,
      *     has_more: bool,
      *     unchecked: bool,
-     *     text_length: int<0, max>,
-     * } `unchecked`: the time ran out before all the events were checked; `text_length` counts the earlier pages.
+     * } `unchecked`: the time ran out before all the events were checked.
      */
     public function collect(
         int $since,
@@ -264,7 +263,6 @@ final class ListEvents implements Tool
             'cursor' => $cursor,
             'has_more' => $hasMore,
             'unchecked' => $unchecked !== null,
-            'text_length' => $textLength,
         ];
     }
 

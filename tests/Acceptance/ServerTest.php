@@ -230,6 +230,55 @@ final class ServerTest
     }
 
     /**
+     * A client gone in the middle of a wait, as one cancelling the call, leaves the server answering
+     * and catching events.
+     */
+    public function testMcpWaitOfClosedConnectionLeavesServerResponsive(): void
+    {
+        $this->trap = TrapProcess::start(
+            'mcp-wait-closed',
+            ["--port=$this->port", '--sender=file', "--mcp=$this->uiPort"],
+            [
+                'TRAP_TCP_PORTS' => (string) $this->port,
+                'TRAP_MCP_PORT' => (string) $this->uiPort,
+                'TRAP_MCP_HOST' => null,
+            ],
+            [$this->port, $this->uiPort],
+        );
+        $cursor = $this->callMcpTool('list_events', [])['cursor'];
+        $body = self::toolCall('wait_for_events', ['since' => $cursor, 'timeout' => 20]);
+        $socket = \stream_socket_client("tcp://127.0.0.1:$this->uiPort", $errno, $error, 5)
+            ?: throw new \RuntimeException("Unable to connect to port $this->uiPort: $error");
+
+        TrapProcess::write($socket, \sprintf(
+            "POST /mcp HTTP/1.1\r\nHost: 127.0.0.1:%d\r\nContent-Type: application/json\r\n"
+            . "Content-Length: %d\r\n\r\n%s",
+            $this->uiPort,
+            \strlen($body),
+            $body,
+        ));
+        $read = [$socket];
+        $none = null;
+        $answered = \stream_select($read, $none, $none, 0, 300_000) === 1;
+        \fclose($socket);
+        // The server goes around its loop until the request is caught, seeing the closed connection meanwhile
+        [$status] = TrapProcess::http($this->port, 'POST', '/acceptance/after-close', '{"order":"after-close"}');
+        $events = TrapProcess::waitFor(
+            fn(): ?array => $this->callMcpTool('list_events', ['since' => $cursor])['events'] ?: null,
+            'the request sent after the closed wait',
+        );
+        $started = \microtime(true);
+        $next = $this->callMcpTool('wait_for_events', ['since' => $cursor]);
+        $elapsed = \microtime(true) - $started;
+
+        Assert::false($answered, 'The wait goes on until the client closes the connection.');
+        Assert::same($status, 404);
+        Assert::same(\array_column($events, 'summary'), ['POST /acceptance/after-close']);
+        Assert::same(\array_column($next['events'], 'id'), \array_column($events, 'id'));
+        Assert::numeric($elapsed)->lessThan(5.0);
+    }
+
+    /**
      * Without the console, which renders traces: the received spans are kept for the tools anyway.
      */
     public function testMcpToolsReadReceivedTraces(): void

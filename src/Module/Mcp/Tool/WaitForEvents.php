@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Mcp\Tool;
 
 use Buggregator\Trap\Module\Mcp\Caller;
-use Buggregator\Trap\Module\Mcp\Tool;
+use Buggregator\Trap\Module\Mcp\WaitingTool;
 use Buggregator\Trap\Server\Event\EventStore;
 
 /**
@@ -19,7 +19,7 @@ use Buggregator\Trap\Server\Event\EventStore;
  *
  * @psalm-import-type ListedEvent from ListEvents
  */
-final class WaitForEvents implements Tool
+final class WaitForEvents implements WaitingTool
 {
     public const DEFAULT_TIMEOUT = 30.0;
 
@@ -159,7 +159,8 @@ final class WaitForEvents implements Tool
         $canWait = \Fiber::getCurrent() !== null;
         /** @var array<non-empty-string, ListedEvent> $events */
         $events = [];
-        $textLength = 0;
+        /** @var array<non-empty-string, int<0, max>> $textLengths */
+        $textLengths = [];
         $first = true;
         while (true) {
             $limit = \max(0, $count - \count($events));
@@ -168,21 +169,24 @@ final class WaitForEvents implements Tool
                 $filter,
                 $limit,
                 $text ? $maxLength : null,
-                textLength: $textLength,
+                textLength: \max(0, \array_sum($textLengths)),
                 // The full scan budget: a short `timeout` still gets the backlog of an older `since` checked
                 budget: $first ? null : (float) \max(0, $deadline - \hrtime(true)) / 1e9,
             );
             $first = false;
+            $replaced = false;
             foreach ($page['events'] as $event) {
                 // An event updated meanwhile, as a Ray message is, moves to its latest change and counts once
+                $replaced = $replaced || isset($events[$event['id']]);
                 unset($events[$event['id']]);
                 $events[$event['id']] = $event;
+                $textLengths[$event['id']] = \mb_strlen($event['text'] ?? '');
             }
 
             $since = $page['cursor'];
-            $textLength = $page['text_length'];
             $limited = $page['has_more'] && !$page['unchecked'] && \count($page['events']) === $limit;
-            $filled = $page['has_more'] && !$page['unchecked'] && !$limited;
+            // The page counted the texts of the copies it replaced too: the next page checks with the real total
+            $filled = $page['has_more'] && !$page['unchecked'] && !$limited && !$replaced;
             $done = \count($events) >= $count;
             $over = !$canWait || \hrtime(true) >= $deadline || $this->caller->isDisconnected();
             if ($done || $filled || $over) {
@@ -194,7 +198,8 @@ final class WaitForEvents implements Tool
                 ];
             }
 
-            // The rest of the changes to check right away: the time ran out, or updated events took the limit
+            // The rest of the changes to check right away: the time ran out, or updated events took the limit or the
+            // room of the texts
             if ($page['has_more']) {
                 continue;
             }

@@ -6,8 +6,8 @@ namespace Buggregator\Trap\Module\Mcp\Protocol;
 
 use Buggregator\Trap\Module\Mcp\McpStatus;
 use Buggregator\Trap\Module\Mcp\Tool;
-use Buggregator\Trap\Module\Mcp\Tool\WaitForEvents;
 use Buggregator\Trap\Module\Mcp\Tools;
+use Buggregator\Trap\Module\Mcp\WaitingTool;
 use Buggregator\Trap\Server\Info;
 use Buggregator\Trap\Support\Json;
 
@@ -140,7 +140,7 @@ final class McpServer
         $name = $params['name'] ?? null;
         \is_string($name) or throw RpcError::invalidParams('Tool name must be a string.');
         $tool = $this->tools->get($name) ?? throw RpcError::invalidParams("Unknown tool: $name");
-        if ($batch && $tool instanceof WaitForEvents) {
+        if ($batch && $tool instanceof WaitingTool) {
             return self::result(
                 "`$name` can't run in a JSON-RPC batch: the batch is answered once all its calls are done, "
                 . 'so the wait would hold up the rest. Send it as a request of its own.',

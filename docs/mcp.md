@@ -142,8 +142,8 @@ seconds have passed (30 by default, 50 at most).
 - The MCP TypeScript SDK and Codex give up on a call after 60 seconds by default, so the timeout stays below that.
   To wait longer, wait again with the returned cursor.
 - A waiting call costs nothing until an event arrives: Trap catches events and answers other calls meanwhile,
-  other waits too. Each new event is checked against the filter once, and a `search` over large events checks
-  them a slice at a time, as under the [time limit](#time-limit).
+  other waits too. The changed events are checked against the filter only after a change, and a `search` over large
+  events checks them a slice at a time, as under the [time limit](#time-limit).
 - The wait stops when the client closes the connection, as clients do on cancelling a call, and returns nothing
   to it. A client that sends only `notifications/cancelled` and keeps the connection open gets the wait running
   until it is done or out of time: the stateless server does not match the notification to the call.
