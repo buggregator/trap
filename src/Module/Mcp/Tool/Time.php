@@ -59,7 +59,7 @@ final class Time
             'type' => 'string',
             'description' => $description . ' ISO 8601 such as `2026-11-16T10:00:00Z` (UTC without an offset), '
                 . 'which spans its last written unit, as a date the whole day; or a duration back from now: '
-                . '`30s`, `5m`, `2h`, `1d`, `1w`.',
+                . '`30s`, `5m`, `2h`, `1d`, `1w`, the unit in lower case.',
         ];
     }
 
@@ -88,8 +88,9 @@ final class Time
         \is_string($value) or throw new \InvalidArgumentException("`$name` must be a string.");
         $value = \trim($value);
 
-        if (\preg_match('/^(\d+(?:\.\d+)?)\s*([smhdw])$/i', $value, $match) === 1) {
-            $seconds = (float) $match[1] * self::UNITS[\strtolower($match[2])];
+        // Lower case only: `M` reads as months as often as minutes
+        if (\preg_match('/^(\d+(?:\.\d+)?)\s*([smhdw])$/', $value, $match) === 1) {
+            $seconds = (float) $match[1] * self::UNITS[$match[2]];
             // Microseconds of a longer one may not fit an integer
             $seconds <= self::MAX_DURATION or throw new \InvalidArgumentException(\sprintf(
                 '`%s` must be a duration of at most 100 years, such as `5200w`; got `%s`.',
@@ -122,7 +123,7 @@ final class Time
 
         throw new \InvalidArgumentException(\sprintf(
             '`%s` must be ISO 8601, such as `2026-11-16T10:00:00Z`, or a duration back from now, such as '
-            . '`30s`, `5m`, `2h`, `1d`; got `%s`.',
+            . '`30s`, `5m`, `2h`, `1d` (the unit in lower case); got `%s`.',
             $name,
             $value,
         ));

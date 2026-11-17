@@ -27,7 +27,7 @@ final class TimeTest
     #[DataSet(['2h', 7_200], 'hours')]
     #[DataSet(['1d', 86_400], 'days')]
     #[DataSet(['1w', 604_800], 'weeks')]
-    #[DataSet(['1.5H', 5_400], 'fraction in upper case')]
+    #[DataSet(['1.5h', 5_400], 'fraction')]
     #[DataSet([' 10 s ', 10], 'spaces')]
     public function testDurationCountsBackFromNow(string $value, int $back): void
     {
@@ -60,13 +60,14 @@ final class TimeTest
     #[DataSet(['tomorrow'], 'relative date words')]
     #[DataSet(['-5m'], 'negative')]
     #[DataSet(['5y'], 'unknown unit')]
+    #[DataSet(['5M'], 'unit in upper case')]
     #[DataSet(['2023-02-30'], 'no such day')]
     #[DataSet(['2023-13-01T00:00:00Z'], 'no such month')]
     #[DataSet([''], 'empty')]
     public function testRejectsMalformed(string $value): never
     {
         Expect::exception(\InvalidArgumentException::class)
-            ->withMessage("`from` must be ISO 8601, such as `2026-11-16T10:00:00Z`, or a duration back from now, such as `30s`, `5m`, `2h`, `1d`; got `$value`.");
+            ->withMessage("`from` must be ISO 8601, such as `2026-11-16T10:00:00Z`, or a duration back from now, such as `30s`, `5m`, `2h`, `1d` (the unit in lower case); got `$value`.");
 
         Time::fromArguments(['from' => $value], 'from', self::NOW);
     }

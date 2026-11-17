@@ -179,6 +179,7 @@ final class ListEventsTest
     #[DataSet([['order' => 'random'], '`order` must be one of: oldest, newest.'], 'order')]
     #[DataSet([['include' => 'all'], '`include` must be one of: summary, text.'], 'include')]
     #[DataSet([['max_length' => 99], '`max_length` must be an integer from 100 to'], 'max_length below minimum')]
+    #[DataSet([['max_length' => 50_001], '`max_length` must be an integer from 100 to 50000.'], 'max_length above')]
     #[DataSet([['where' => ['level' => null]], '`where.level` must be'], 'where')]
     #[DataSet([['since' => 1], '`since` must be a string.'], 'cursor integer')]
     #[DataSet([['limit' => 0], '`limit` must be an integer from 1 to 200.'], 'zero limit')]
@@ -325,14 +326,43 @@ final class ListEventsTest
     public function testIncludeTextLongerThanTheCachedStartIsRendered(): void
     {
         $trap = Trap::scripted();
-        $trap->store->add(ScriptedView::event('long', \str_repeat('x', 200_000)));
+        // Two bytes a letter: the cached start holds fewer letters than the largest `max_length`
+        $trap->store->add(ScriptedView::event('long', \str_repeat('ж', 200_000)));
         $tool = $trap->get(ListEvents::class);
         $tool->call(['include' => 'text']);
 
-        $text = $tool->call(['include' => 'text', 'max_length' => 100_000])['events'][0]['text'];
+        $text = $tool->call(['include' => 'text', 'max_length' => 50_000])['events'][0]['text'];
 
-        Assert::string($text)->startsWith(\str_repeat('x', 100_000) . "\n\n[Truncated: 100000 of 200000 characters");
+        Assert::string($text)->startsWith(\str_repeat('ж', 50_000) . "\n\n[Truncated: 50000 of 200000 characters");
         Assert::same($trap->view()->renders, 2);
+    }
+
+    public function testIncludeTextStopsAtTheLimitOfTheResponse(): void
+    {
+        [$trap, $tool] = self::longTexts(12);
+
+        $arguments = ['include' => 'text', 'max_length' => ListEvents::MAX_TEXT_LENGTH];
+        $first = $tool->call($arguments);
+        $second = $tool->call($arguments + ['since' => $first['cursor']]);
+
+        Assert::same(self::ids($first), ['1', '2', '3', '4', '5', '6', '7', '8', '9']);
+        Assert::true($first['has_more']);
+        Assert::same($first['cursor'], $trap->store->id . ':9');
+        Assert::int(self::textLength($first))->lessThanOrEqual(ListEvents::MAX_TOTAL_TEXT_LENGTH);
+        Assert::same(self::ids($second), ['10', '11', '12']);
+        Assert::false($second['has_more']);
+        Assert::same($second['cursor'], $trap->store->id . ':12');
+    }
+
+    public function testNewestIncludeTextStopsAtTheLimitOfTheResponse(): void
+    {
+        [$trap, $tool] = self::longTexts(12);
+
+        $result = $tool->call(['include' => 'text', 'max_length' => ListEvents::MAX_TEXT_LENGTH, 'order' => 'newest']);
+
+        Assert::same(self::ids($result), ['12', '11', '10', '9', '8', '7', '6', '5', '4']);
+        Assert::true($result['has_more']);
+        Assert::same($result['cursor'], $trap->store->id . ':12');
     }
 
     public function testSummaryAloneByDefault(): void
@@ -406,10 +436,39 @@ final class ListEventsTest
     }
 
     /**
+     * @param positive-int $count
+     *
+     * @return array{Trap, ListEvents} Events with their numbers from 1 as IDs, with texts longer than
+     *         {@see ListEvents::MAX_TEXT_LENGTH}: nine of them cut fill the response.
+     */
+    private static function longTexts(int $count): array
+    {
+        $trap = Trap::scripted();
+        for ($i = 1; $i <= $count; ++$i) {
+            $trap->store->add(ScriptedView::event((string) $i, \str_repeat('x', 60_000), (float) $i));
+        }
+
+        return [$trap, $trap->get(ListEvents::class)];
+    }
+
+    private static function textLength(array $result): int
+    {
+        return \array_sum(\array_map(\mb_strlen(...), \array_column($result['events'], 'text')));
+    }
+
+    /**
      * @return list<string> Summaries of the listed events.
      */
     private static function summaries(array $result): array
     {
         return \array_column($result['events'], 'summary');
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function ids(array $result): array
+    {
+        return \array_column($result['events'], 'id');
     }
 }

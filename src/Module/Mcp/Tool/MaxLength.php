@@ -18,16 +18,19 @@ final class MaxLength
 
     /**
      * @param int<100, max> $default
+     * @param int<100, max>|null $maximum Null for no limit.
      *
      * @return array<non-empty-string, mixed> The property of the input schema.
      */
     public static function schema(
         int $default = self::DEFAULT,
         string $description = 'The most characters of the text to return; a longer text is cut with a notice.',
+        ?int $maximum = null,
     ): array {
         return [
             'type' => 'integer',
             'minimum' => self::MIN,
+            ...($maximum === null ? [] : ['maximum' => $maximum]),
             'default' => $default,
             'description' => $description,
         ];
@@ -36,14 +39,18 @@ final class MaxLength
     /**
      * @param array<array-key, mixed> $arguments
      * @param int<100, max> $default
+     * @param int<0, max> $maximum
      *
      * @return int<0, max>
      *
      * @throws \InvalidArgumentException
      */
-    public static function fromArguments(array $arguments, int $default = self::DEFAULT): int
-    {
-        return Arguments::integer($arguments, 'max_length', self::MIN) ?? $default;
+    public static function fromArguments(
+        array $arguments,
+        int $default = self::DEFAULT,
+        int $maximum = \PHP_INT_MAX,
+    ): int {
+        return Arguments::integer($arguments, 'max_length', self::MIN, $maximum) ?? $default;
     }
 
     /**

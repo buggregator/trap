@@ -32,6 +32,9 @@ final class McpSender implements Sender, ConsumesEvents, ServesHttp, Processable
     /** Times the slice took that the pause after it lasts at least: the rendering takes a fifth of the loop. */
     private const WARM_PAUSE_RATIO = 4;
 
+    /** Seconds after a tool call to render the texts for: an idle MCP server costs nothing. */
+    public const WARM_AFTER_TOOL_CALL = 300.0;
+
     /** {@see \hrtime()} to render the texts at. */
     private int $nextWarm;
 
@@ -43,7 +46,7 @@ final class McpSender implements Sender, ConsumesEvents, ServesHttp, Processable
         private readonly Endpoint $endpoint,
         private readonly Config $config,
         EventStore $events,
-        McpStatus $status,
+        private readonly McpStatus $status,
         private readonly TextCache $texts,
     ) {
         $events->keepFrames();
@@ -55,14 +58,15 @@ final class McpSender implements Sender, ConsumesEvents, ServesHttp, Processable
     public function send(iterable $frames): void {}
 
     /**
-     * Renders the texts of the new events ahead of a search, a slice at a time. A text may take longer than the
-     * slice: then the pause after it grows, see {@see self::WARM_PAUSE_RATIO}.
+     * Renders the texts of the new events ahead of a search, a slice at a time, while an agent uses the tools:
+     * see {@see self::WARM_AFTER_TOOL_CALL}. A text may take longer than the slice: then the pause after it
+     * grows, see {@see self::WARM_PAUSE_RATIO}.
      */
     #[\Override]
     public function process(): void
     {
         $start = (int) \hrtime(true);
-        if ($start < $this->nextWarm) {
+        if ($start < $this->nextWarm || !$this->status->toolCalledWithin(self::WARM_AFTER_TOOL_CALL)) {
             return;
         }
 

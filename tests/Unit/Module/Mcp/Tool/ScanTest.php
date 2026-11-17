@@ -7,6 +7,8 @@ namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Tool;
 use Buggregator\Trap\Module\Mcp\Tool\ClearEvents;
 use Buggregator\Trap\Module\Mcp\Tool\ListEvents;
 use Buggregator\Trap\Module\Mcp\Tool\Scan;
+use Buggregator\Trap\Module\Mcp\View\EventViews;
+use Buggregator\Trap\Module\Mcp\View\TextCache;
 use Buggregator\Trap\Server\Event\Record;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\JsonSchema;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\ScriptedView;
@@ -66,6 +68,47 @@ final class ScanTest
         Assert::same(self::ids($tool->call(['since' => $result['cursor']])), [$second->event->uuid]);
     }
 
+    public function testConcurrentSearchesShareTheStore(): void
+    {
+        [$trap, $records] = self::slowTrap(4);
+        $tool = $trap->get(ListEvents::class);
+        $all = new \Fiber(static fn(): array => $tool->call(['search' => 'needle']));
+        $second = new \Fiber(static fn(): array => $tool->call(['search' => 'text 2']));
+
+        $all->start();
+        $second->start();
+        $interleaved = $all->isSuspended() && $second->isSuspended();
+        while (!$all->isTerminated() || !$second->isTerminated()) {
+            $all->isTerminated() or $all->resume();
+            $second->isTerminated() or $second->resume();
+        }
+
+        Assert::true($interleaved);
+        Assert::same(self::ids($all->getReturn()), self::uuids($records));
+        Assert::same(self::ids($second->getReturn()), [$records[1]->event->uuid]);
+        Assert::false($all->getReturn()['has_more']);
+        Assert::false($second->getReturn()['has_more']);
+        Assert::same($trap->view()->renders, 4, 'Each text is rendered once for both searches.');
+    }
+
+    public function testNewestLeavesOutEventsChangedDuringTheScan(): void
+    {
+        [$trap, [$first, $second, $third]] = self::slowTrap(3);
+        $tool = $trap->get(ListEvents::class);
+        $fiber = new \Fiber(static fn(): array => $tool->call(['search' => 'needle', 'order' => 'newest']));
+
+        $fiber->start();
+        $trap->store->delete($second->event->uuid);
+        $trap->store->add($first->event);
+        self::finish($fiber);
+        $result = $fiber->getReturn();
+
+        Assert::same(self::ids($result), [$third->event->uuid]);
+        Assert::false($result['has_more']);
+        Assert::same($result['cursor'], $trap->store->id . ':3');
+        Assert::same(self::ids($tool->call(['since' => $result['cursor']])), [$first->event->uuid]);
+    }
+
     public function testClearDeletesOnlyTheEventsUnchangedSinceMatched(): void
     {
         [$trap, [$first, $second, $third]] = self::slowTrap(3);
@@ -123,16 +166,38 @@ final class ScanTest
 
         $first = $tool->call(['search' => 'needle']);
         $removed = $first['removed'];
-        do {
-            $result = $tool->call(['search' => 'needle']);
+        $result = $first;
+        while (isset($result['incomplete'])) {
+            $result = $tool->call(['search' => 'needle', 'since' => $result['cursor'] ?? '']);
             $removed += $result['removed'];
-        } while (isset($result['incomplete']));
+        }
 
         Assert::true($first['incomplete'] ?? false);
+        Assert::same($first['cursor'] ?? null, $trap->store->id . ':' . $first['removed']);
         Assert::int($first['removed'])->greaterThanOrEqual(1)->lessThan(6);
         Assert::same($removed, 6);
         Assert::count($trap->store, 0);
         Assert::same(JsonSchema::errors($first, $tool->outputSchema()), []);
+    }
+
+    public function testClearOutOfTimeGoesOnWithTheCursorWhileNoTextIsKept(): void
+    {
+        [$trap, $records] = self::slowTrap(4, budget: 0.0);
+        // No room in the cache: without the cursor, every call would check the first event again
+        $trap->container->set(new TextCache($trap->get(EventViews::class), $trap->store, maxBytes: 0));
+        $tool = $trap->get(ClearEvents::class);
+
+        $calls = 0;
+        $result = ['incomplete' => true, 'cursor' => ''];
+        while (isset($result['incomplete']) && $calls < 10) {
+            $result = $tool->call(['search' => 'text 4', 'since' => $result['cursor'] ?? '']);
+            ++$calls;
+        }
+
+        Assert::same($calls, 4);
+        Assert::same($result, ['removed' => 1]);
+        Assert::null($trap->store->record($records[3]->event->uuid));
+        Assert::count($trap->store, 3);
     }
 
     public function testEveryCallChecksOneEventAtLeast(): void

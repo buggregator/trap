@@ -50,6 +50,7 @@ final class McpSenderTest
         $sender = $container->get(McpSender::class);
         $store = $container->get(EventStore::class);
         $cache = $container->get(TextCache::class);
+        $container->get(McpStatus::class)->toolCalled();
         $store->add(new Event('a', 'binary', [], 1.0));
 
         $sender->process();
@@ -59,6 +60,17 @@ final class McpSenderTest
 
         Assert::same($first, 1);
         Assert::same($cache->count(), 1, 'The next slice waits for a pause.');
+    }
+
+    public function testRendersNothingBeforeAToolCall(): void
+    {
+        $container = self::container();
+        $sender = $container->get(McpSender::class);
+        $container->get(EventStore::class)->add(new Event('a', 'binary', [], 1.0));
+
+        $sender->process();
+
+        Assert::same($container->get(TextCache::class)->count(), 0);
     }
 
     public function testHostIsUnsetByDefault(): void

@@ -33,6 +33,12 @@ final class ListEvents implements Tool
     /** Characters of the text of each event with `include: text` when the client sets no limit. */
     public const DEFAULT_TEXT_LENGTH = 2_000;
 
+    /** Characters of the text of each event with `include: text` at most; `get_event` gives more. */
+    public const MAX_TEXT_LENGTH = 50_000;
+
+    /** Characters of the texts of all the events of a response at most. */
+    public const MAX_TOTAL_TEXT_LENGTH = 500_000;
+
     public function __construct(
         private readonly EventStore $store,
         private readonly EventViews $views,
@@ -92,13 +98,18 @@ final class ListEvents implements Tool
                     'type' => 'string',
                     'enum' => ['summary', 'text'],
                     'default' => 'summary',
-                    'description' => '`text` adds to each event its full text, as `get_event` shows it, cut to '
-                        . '`max_length`.',
+                    'description' => \sprintf(
+                        '`text` adds to each event its full text, as `get_event` shows it, cut to `max_length`. '
+                        . 'The texts of a response take %d characters at most: the events past that are left '
+                        . 'to the next call, as past `limit`.',
+                        self::MAX_TOTAL_TEXT_LENGTH,
+                    ),
                 ],
                 'max_length' => MaxLength::schema(
                     self::DEFAULT_TEXT_LENGTH,
                     'With `include: text`, the most characters of the text of each event; a longer text is cut '
-                    . 'with a notice.',
+                    . 'with a notice. Read the rest of a text with `get_event`.',
+                    self::MAX_TEXT_LENGTH,
                 ),
                 'limit' => [
                     'type' => 'integer',
@@ -148,8 +159,9 @@ final class ListEvents implements Tool
                 'has_more' => [
                     'type' => 'boolean',
                     'description' => 'Whether more matching events wait for the next call; with `order: newest`, '
-                        . 'whether older matching events were left out. Also true when the call ran out of time '
-                        . 'before checking all the events.',
+                        . 'whether older matching events were left out. Also true when the texts of `include: text` '
+                        . 'filled the response before `limit`, and when the call ran out of time before checking '
+                        . 'all the events.',
                 ],
             ],
             'required' => ['events', 'cursor', 'has_more'],
@@ -174,7 +186,7 @@ final class ListEvents implements Tool
         $filter = $this->filters->parse($arguments);
         $newest = Arguments::choice($arguments, 'order', ['oldest', 'newest']) === 'newest';
         $text = Arguments::choice($arguments, 'include', ['summary', 'text']) === 'text';
-        $maxLength = MaxLength::fromArguments($arguments, self::DEFAULT_TEXT_LENGTH);
+        $maxLength = MaxLength::fromArguments($arguments, self::DEFAULT_TEXT_LENGTH, self::MAX_TEXT_LENGTH);
 
         $cursor = $this->store->cursor();
         $records = $this->store->changedSince($since);
@@ -182,13 +194,16 @@ final class ListEvents implements Tool
         $events = [];
         $hasMore = false;
         $last = 0;
+        $textLength = 0;
         $walk = $this->scan->walk($this->store, $records);
         foreach ($walk as $record) {
             if (!$filter->matches($record)) {
                 continue;
             }
 
-            if (\count($events) === $limit) {
+            $event = \count($events) === $limit ? null : $this->describe($record, $text ? $maxLength : null);
+            $textLength += \mb_strlen($event['text'] ?? '');
+            if ($event === null || ($events !== [] && $textLength > self::MAX_TOTAL_TEXT_LENGTH)) {
                 $hasMore = true;
                 // The rest comes with the next call, which takes the last listed change as its cursor;
                 // the older events left out by `newest` never come, so the cursor stays at the latest change
@@ -197,7 +212,7 @@ final class ListEvents implements Tool
             }
 
             $last = $record->seq;
-            $events[] = $this->describe($record, $text ? $maxLength : null);
+            $events[] = $event;
         }
 
         $unchecked = $hasMore ? null : $walk->getReturn();

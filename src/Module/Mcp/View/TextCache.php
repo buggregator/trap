@@ -8,6 +8,7 @@ use Buggregator\Trap\Server\Config\Events as Config;
 use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Event\Record;
 use Buggregator\Trap\Server\Event\StoreListener;
+use Buggregator\Trap\Support\Json;
 
 /**
  * The summaries and the text views of the stored events, rendered once for the searches and the cut texts.
@@ -30,8 +31,14 @@ final class TextCache implements StoreListener
     /** Of the text of each event. */
     public const MAX_SEARCHED_BYTES = 64 * 1024;
 
+    /**
+     * Bytes of the frames of the events {@see warm()} renders, or of the JSON payload of an event stored without
+     * frames. A 2.7 MB dump takes about half a second to render, and the warming blocks the server meanwhile.
+     */
+    public const MAX_WARMED_BYTES = 256 * 1024;
+
     /** Room for the summary of each event in the size of the cache: a summary takes 160 characters at most. */
-    private const SUMMARY_BYTES = 1024;
+    public const SUMMARY_BYTES = 1024;
 
     /**
      * @var array<string, array{int, string, int<0, max>, int<0, max>}> Event UUID => sequence number of its record,
@@ -127,23 +134,27 @@ final class TextCache implements StoreListener
 
     /**
      * Renders the summaries and the texts not cached yet, oldest change first, so that a search finds them ready.
+     * Skips the events larger than {@see self::MAX_WARMED_BYTES}: they are rendered when a tool reads them.
      *
-     * @param float $seconds Time to render for; at least one event is rendered.
+     * @param float $seconds Time to render for; at least one event is taken.
      *
-     * @return bool Whether events are left to render.
+     * @return bool Whether events are left to render; false while the cache has no room for another text.
      */
     public function warm(float $seconds): bool
     {
         $deadline = \hrtime(true) + (int) ($seconds * 1e9);
         foreach ($this->cold as $uuid => $record) {
-            // The rendered text would not be kept
-            if ($this->bytes >= $this->maxBytes) {
+            // The rendered text might not be kept
+            if ($this->bytes + $this->maxSearchedBytes + self::SUMMARY_BYTES > $this->maxBytes) {
                 return false;
             }
 
             unset($this->cold[$uuid]);
-            $this->summary($record);
-            $this->searchable($record);
+            if (!self::isLarge($record)) {
+                $this->summary($record);
+                $this->searchable($record);
+            }
+
             if (\hrtime(true) >= $deadline) {
                 break;
             }
@@ -205,6 +216,32 @@ final class TextCache implements StoreListener
     public function maxBytes(): int
     {
         return $this->maxBytes;
+    }
+
+    private static function isLarge(Record $record): bool
+    {
+        if ($record->frames === []) {
+            try {
+                return \strlen(Json::encode($record->event->payload)) > self::MAX_WARMED_BYTES;
+            } catch (\JsonException) {
+                return false;
+            }
+        }
+
+        $size = 0;
+        try {
+            foreach ($record->frames as $frame) {
+                $size += $frame->getSize();
+                if ($size > self::MAX_WARMED_BYTES) {
+                    return true;
+                }
+            }
+        } catch (\Throwable) {
+            // A frame that can't measure itself is left to on-demand rendering
+            return true;
+        }
+
+        return false;
     }
 
     /**

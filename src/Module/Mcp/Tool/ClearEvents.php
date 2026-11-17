@@ -40,8 +40,8 @@ final class ClearEvents implements Tool
             . 'next load: a page already open keeps showing them. Returns the number of deleted events. Not '
             . 'needed to see only new events: pass a cursor to `list_events` instead. ' . \sprintf(
                 'A call stops checking events after %s seconds, as a text search over many large events may take '
-                . 'longer: then it deletes the matching events found so far and returns `incomplete: true`; '
-                . 'call again with the same filter to delete the rest.',
+                . 'longer: then it deletes the matching events found so far and returns `incomplete: true` with '
+                . 'a `cursor`; call again with the same filter and `since` set to that cursor to delete the rest.',
                 \round($this->scan->budget, 3),
             );
     }
@@ -51,7 +51,15 @@ final class ClearEvents implements Tool
     {
         return [
             'type' => 'object',
-            'properties' => $this->filters->schema(),
+            'properties' => [
+                'since' => [
+                    'type' => 'string',
+                    'description' => 'The `cursor` of an incomplete call, or of `list_events`: only the events '
+                        . 'changed after it. All the events when omitted or empty, or when the cursor is of another Trap '
+                        . 'process; a malformed cursor is an error.',
+                ],
+                ...$this->filters->schema(),
+            ],
             'additionalProperties' => false,
         ];
     }
@@ -67,7 +75,12 @@ final class ClearEvents implements Tool
                     'type' => 'boolean',
                     'const' => true,
                     'description' => 'Present when the call ran out of time before checking all the events: '
-                        . 'call again with the same filter to delete the rest.',
+                        . 'call again with the same filter and `since` set to `cursor` to delete the rest.',
+                ],
+                'cursor' => [
+                    'type' => 'string',
+                    'description' => 'With `incomplete`, the `since` of the next call: the events after the '
+                        . 'checked ones.',
                 ],
             ],
             'required' => ['removed'],
@@ -87,13 +100,18 @@ final class ClearEvents implements Tool
     }
 
     /**
-     * @return array{removed: int<0, max>, incomplete?: true}
+     * @return array{removed: int<0, max>, incomplete?: true, cursor?: non-empty-string}
      */
     #[\Override]
     public function call(array $arguments): array
     {
+        $raw = $arguments['since'] ?? '';
+        // A typo must not turn "the newer ones" into "everything": only a well-formed cursor is taken
+        $raw === '' || \is_string($raw) && \preg_match('/^[^:]++:\d++$/D', $raw) === 1
+            or throw new \InvalidArgumentException('`since` must be a `cursor` returned by `list_events` or `clear_events`.');
+        $since = Cursor::since($arguments, $this->store->id, $this->store->cursor());
         $filter = $this->filters->parse($arguments);
-        if ($filter->isEmpty()) {
+        if ($filter->isEmpty() && $since === 0) {
             $removed = \count($this->store);
             $this->store->clear();
 
@@ -102,7 +120,7 @@ final class ClearEvents implements Tool
 
         // Matched in full before the first deletion: a failing search deletes nothing
         $matched = [];
-        $walk = $this->scan->walk($this->store, $this->store->changedSince(0));
+        $walk = $this->scan->walk($this->store, $this->store->changedSince($since));
         foreach ($walk as $record) {
             $filter->matches($record) and $matched[] = $record;
         }
@@ -116,6 +134,13 @@ final class ClearEvents implements Tool
             }
         }
 
-        return $walk->getReturn() === null ? ['removed' => $removed] : ['removed' => $removed, 'incomplete' => true];
+        $unchecked = $walk->getReturn();
+
+        return $unchecked === null ? ['removed' => $removed] : [
+            'removed' => $removed,
+            'incomplete' => true,
+            // The records of the snapshot before the unchecked one are all checked
+            'cursor' => Cursor::encode($this->store->id, $unchecked->seq - 1),
+        ];
     }
 }

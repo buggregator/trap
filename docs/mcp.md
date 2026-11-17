@@ -25,7 +25,7 @@ the agent deletes is gone from the UI on its next load; a page already open keep
 |----------------|----------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
 | `list_events`  | `since` (cursor), [filters](#filters), `order`, `include`, `max_length`, `limit` | `events`: `id`, `type`, `project`, `time`, `summary`, `fields`, `text` each; `cursor` to pass next; `has_more` |
 | `get_event`    | `id`, `max_length`                                                               | The event as plain text: a header line, then the event as the console prints it                                |
-| `clear_events` | [filters](#filters)                                                              | `removed`: the number of deleted events; `incomplete` when the call [ran out of time](#time-limit)             |
+| `clear_events` | `since` (cursor), [filters](#filters)                                            | `removed`: the number of deleted events; `incomplete`, `cursor` when the call [ran out of time](#time-limit)   |
 
 - `list_events` returns the events added or updated after `since`, oldest first, at most `limit` of them
   (50 by default, 200 at most). `since` is the opaque `cursor` of an earlier call; without it, or with a cursor
@@ -35,9 +35,13 @@ the agent deletes is gone from the UI on its next load; a page already open keep
   the events changed after this one.
 - `fields` of an event are the ones [`where`](#filters) filters by; an event without fields has no `fields`.
 - `include: text` adds `text` to each event: its text as `get_event` gives it, without the header line, cut to
-  `max_length` characters, 2 000 by default.
+  `max_length` characters, 2 000 by default and 50 000 at most. The texts of one response take 500 000 characters
+  at most: the call stops before the event that would exceed that, with `has_more: true`. With `order: oldest`
+  the returned `cursor` goes on from that event; with `order: newest` it still points at the latest change, and
+  the events left out are the older ones, as past `limit`.
 - `get_event` cuts a text longer than `max_length` characters, 50 000 by default, and says so.
-- `clear_events` without arguments deletes all the events.
+- `clear_events` without arguments deletes all the events. A malformed `since` is an error, so a typo doesn't
+  turn "the newer ones" into all of them.
 - A tool that returns JSON declares its `outputSchema` and sends the object as `structuredContent`,
   and as JSON text for clients that read only `content`.
 
@@ -61,13 +65,16 @@ the agent deletes is gone from the UI on its next load; a page already open keep
 - `search` looks through the summary and only the first 64 KB of the text of each event: the texts are kept for
   the next searches, and a longer one would make every search render it again. The cache holds that much for
   every event the buffer keeps ([`maxEvents`](configuration.md#trapxml)), but at least 16 MB and at most 256 MB.
-  The texts of new events are rendered in the background, so a search usually finds them ready.
+  While an agent uses the tools, and for 5 minutes after its last call, the texts of new events are rendered in
+  the background, so a search usually finds them ready. Events larger than 256 KB are left out of that: rendering
+  one stalls the server for a noticeable time, so a search renders it when it gets to it.
 - In `where`, a string matches the whole value in any case, and `*` stands for any characters. A number matches
   an equal number. A list of values matches when any of them does. A field with a list of values, such as `to`,
   matches when any of its values does. An event without the field does not match, so a field of another type
   matches nothing; a field no type has fails the call, and so does a boolean value. The `from` field of a mail is
   its sender, unrelated to the `from` time.
-- A duration longer than 100 years fails the call.
+- A duration takes its unit in lower case: `5M` fails the call rather than meaning 5 minutes. A duration longer
+  than 100 years fails the call too.
 - A condition that takes nothing fails the call rather than being left out: an empty list of `type` or `project`,
   `where` without fields, `regex` without `search`. Otherwise `clear_events` would delete every event.
 - A pattern that hits a PCRE limit, as nested quantifiers on a long text do, fails the call, and `clear_events`
@@ -82,10 +89,13 @@ seconds. Trap catches events and answers other requests meanwhile, and a call st
   `limit`. With `order: oldest` the returned `cursor` goes on from the first event left unchecked: call again with
   it as `since`. With `order: newest` the cursor still points at the latest change, so call again without it:
   the texts rendered so far are kept, and the next search gets further.
-- `clear_events` deletes the matching events found so far and returns `incomplete: true`: call again with the same
-  filter to delete the rest.
+- `clear_events` deletes the matching events found so far and returns `incomplete: true` with a `cursor`: call
+  again with the same filter and that cursor as `since` to delete the rest.
 - An event deleted or changed while the call runs is left out: the changed one comes with the next call that
   passes the cursor, and `clear_events` deletes only the events that have not changed since they matched.
+- A call goes on until it is done or out of time even when the client disconnects or cancels it.
+- Rendering the summaries counts too: a plain `list_events` over many very large events not rendered
+  yet may return fewer than `limit` events with `has_more: true`.
 
 | Type        | Fields                                                                                                                            |
 |-------------|-----------------------------------------------------------------------------------------------------------------------------------|

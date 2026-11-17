@@ -230,6 +230,55 @@ final class TextCacheTest
         Assert::same($cache->count(), 1);
     }
 
+    public function testWarmLeavesLargeEventsToTheTools(): void
+    {
+        $trap = Trap::scripted();
+        $cache = $trap->get(TextCache::class);
+        $large = $trap->store->add(ScriptedView::event('large', \str_repeat('x', TextCache::MAX_WARMED_BYTES)));
+        $trap->store->add(ScriptedView::event('small', 'small'));
+
+        $left = $cache->warm(10.0);
+        $warmed = [$cache->count(), $trap->view()->renders];
+        $cache->searchable($large);
+
+        Assert::false($left);
+        Assert::same($warmed, [1, 1]);
+        Assert::same($cache->count(), 2);
+    }
+
+    public function testWarmLeavesEventsOfLargeFramesToTheTools(): void
+    {
+        $trap = new Trap();
+        $cache = $trap->get(TextCache::class);
+        $trap->add(Trap::dump(\str_repeat('x', TextCache::MAX_WARMED_BYTES)));
+        $small = $trap->add(Trap::dump('small'));
+
+        $cache->warm(10.0);
+
+        Assert::same($cache->count(), 1);
+        Assert::same($cache->bytes(), \strlen(self::render($trap, $small)) + \strlen($cache->summary($small)));
+    }
+
+    public function testWarmStopsWhileTheNextTextMightNotFit(): void
+    {
+        $trap = Trap::scripted();
+        foreach (['one', 'two', 'six'] as $uuid) {
+            $trap->store->add(ScriptedView::event($uuid, $uuid));
+        }
+        // Each event takes 11 bytes: room for the largest entry after one event, not after two
+        $cache = new TextCache(
+            $trap->get(EventViews::class),
+            $trap->store,
+            maxBytes: TextCache::MAX_SEARCHED_BYTES + TextCache::SUMMARY_BYTES + 20,
+        );
+
+        $left = $cache->warm(10.0);
+
+        Assert::false($left);
+        Assert::same($cache->count(), 2);
+        Assert::same($trap->view()->renders, 2);
+    }
+
     private static function render(Trap $trap, Record $record): string
     {
         return $trap->get(EventViews::class)->text($record);

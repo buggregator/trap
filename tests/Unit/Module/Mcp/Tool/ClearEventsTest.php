@@ -101,6 +101,22 @@ final class ClearEventsTest
         Assert::count($trap->store, 3);
     }
 
+    #[DataSet(['typo'], 'no separator')]
+    #[DataSet(['abc:x1'], 'not a number')]
+    public function testMalformedCursorDeletesNothing(string $since): void
+    {
+        $trap = self::trap();
+
+        try {
+            $trap->get(ClearEvents::class)->call(['since' => $since]);
+            Assert::fail('The call must fail.');
+        } catch (\InvalidArgumentException $e) {
+            Assert::string($e->getMessage())->startsWith('`since` must be a `cursor`');
+        }
+
+        Assert::count($trap->store, 3);
+    }
+
     public function testTooLongDurationDeletesNothing(): void
     {
         $trap = self::trap();
@@ -151,7 +167,7 @@ final class ClearEventsTest
         ]);
         Assert::same(
             \array_keys($tool->inputSchema()['properties']),
-            ['type', 'project', 'from', 'to', 'search', 'regex', 'where'],
+            ['since', 'type', 'project', 'from', 'to', 'search', 'regex', 'where'],
         );
     }
 

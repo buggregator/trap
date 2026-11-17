@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Protocol;
 
+use Buggregator\Trap\Module\Mcp\McpStatus;
 use Buggregator\Trap\Module\Mcp\Protocol\McpServer;
 use Buggregator\Trap\Module\Mcp\Protocol\RpcError;
 use Buggregator\Trap\Server\Info;
@@ -84,6 +85,19 @@ final class McpServerTest
         $result = self::server()->request('tools/call', ['name' => 'echo', 'arguments' => ['text' => 'hi']]);
 
         Assert::same($result, ['content' => [['type' => 'text', 'text' => 'hi']], 'isError' => false]);
+    }
+
+    public function testToolCallIsNoted(): void
+    {
+        $status = new McpStatus();
+        $server = new McpServer(ToolsTest::create(), $status);
+        $server->request('tools/list', []);
+        $listed = $status->toolCalledWithin(60.0);
+
+        $server->request('tools/call', ['name' => 'echo', 'arguments' => []]);
+
+        Assert::false($listed);
+        Assert::true($status->toolCalledWithin(60.0));
     }
 
     public function testToolCallReturnsArrayAsStructuredContentAndJsonText(): void
