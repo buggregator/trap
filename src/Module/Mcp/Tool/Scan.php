@@ -34,18 +34,21 @@ final class Scan
     /**
      * @param list<Record> $records A snapshot of the store.
      * @param float|null $budget Seconds to scan for, when fewer than {@see self::$budget}.
+     * @param (\Closure(): bool)|null $stop Whether to stop before the next record, as when the client of a wait
+     *        has disconnected.
      *
      * @return \Generator<int, Record, mixed, Record|null> The records still stored unchanged. Returns the first
-     *         record left unchecked when the budget ran out, null when all were checked. The first record is
-     *         always checked, so a call continuing an interrupted walk makes progress.
+     *         record left unchecked when the budget ran out or `$stop` said so, null when all were checked.
+     *         Out of budget, the first record is still checked, so a call continuing an interrupted walk makes
+     *         progress.
      */
-    public function walk(EventStore $store, array $records, ?float $budget = null): \Generator
+    public function walk(EventStore $store, array $records, ?float $budget = null, ?\Closure $stop = null): \Generator
     {
         $budget = \max(0.0, \min($this->budget, $budget ?? $this->budget));
         $deadline = \hrtime(true) + (int) ($budget * 1e9);
         $slice = new TimeSlice($this->slice, checkEvery: 1);
         foreach ($records as $i => $record) {
-            if ($i > 0 && \hrtime(true) >= $deadline) {
+            if (($i > 0 && \hrtime(true) >= $deadline) || ($stop !== null && $stop())) {
                 return $record;
             }
 

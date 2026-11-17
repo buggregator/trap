@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Tool;
 
 use Buggregator\Trap\Module\Mcp\Caller;
+use Buggregator\Trap\Module\Mcp\Tool\CollectMemo;
 use Buggregator\Trap\Module\Mcp\Tool\ListEvents;
 use Buggregator\Trap\Module\Mcp\Tool\Scan;
 use Buggregator\Trap\Module\Mcp\Tool\WaitForEvents;
@@ -15,12 +16,14 @@ use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\ScriptedView;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
 use Testo\Assert;
 use Testo\Codecov\Covers;
+use Testo\Data\DataSet;
 use Testo\Expect;
 use Testo\Test;
 
 #[Test]
 #[Covers(WaitForEvents::class)]
 #[Covers(Caller::class)]
+#[Covers(CollectMemo::class)]
 final class WaitForEventsTest
 {
     public function testReturnsTheEventArrivingWhileItWaits(): void
@@ -293,12 +296,32 @@ final class WaitForEventsTest
         Assert::false($result['has_more']);
     }
 
-    public function testPassesWithoutCachedTextsSuspendUntilTheTimeout(): void
+    public function testPassesWithoutCachedTextsGoOnWithoutRenderingThemAgain(): void
+    {
+        $trap = Trap::scripted();
+        $trap->container->set(new Scan(0.03, 0.01));
+        $trap->container->set(new TextCache($trap->get(EventViews::class), $trap->store, maxBytes: 0));
+        $trap->view()->delay = 10_000;
+        for ($i = 1; $i <= 10; ++$i) {
+            $trap->store->add(ScriptedView::event(self::uuid($i), "text $i", (float) $i));
+        }
+        $arguments = ['since' => $trap->store->id . ':0', 'search' => 'text 10', 'timeout' => 5];
+
+        $fiber = self::wait($trap, $arguments);
+        $first = $trap->view()->renders;
+        self::finish($fiber);
+        $result = $fiber->getReturn();
+
+        Assert::int($first)->lessThan(10);
+        Assert::same($trap->view()->renders, 10);
+        Assert::same(\array_column($result['events'], 'id'), [self::uuid(10)]);
+        Assert::false($result['timed_out']);
+    }
+
+    public function testPassesWithoutBudgetSuspendUntilTheTimeout(): void
     {
         $trap = Trap::scripted();
         $trap->container->set(new Scan(0.0));
-        // No text is kept: every pass renders the first record again and gets no further
-        $trap->container->set(new TextCache($trap->get(EventViews::class), $trap->store, maxBytes: 0));
         for ($i = 1; $i <= 3; ++$i) {
             $trap->store->add(ScriptedView::event(self::uuid($i), "text $i", (float) $i));
         }
@@ -312,6 +335,122 @@ final class WaitForEventsTest
         Assert::true($result['has_more']);
         Assert::true($result['timed_out']);
         Assert::same($result['cursor'], $trap->store->id . ':1');
+    }
+
+    public function testEventArrivingDuringAPassGetsAnotherPass(): void
+    {
+        $trap = Trap::scripted();
+        $trap->view()->delay = 25_000;
+        for ($i = 1; $i <= 3; ++$i) {
+            $trap->store->add(ScriptedView::event(self::uuid($i), "text $i", (float) $i));
+        }
+        $arguments = ['since' => $trap->store->id . ':0', 'search' => 'needle', 'timeout' => 5];
+        $fiber = self::wait($trap, $arguments);
+
+        $midWalk = $trap->view()->renders;
+        $trap->store->add(ScriptedView::event(self::uuid(4), 'needle', 4.0));
+        $start = \microtime(true);
+        self::finish($fiber);
+        $result = $fiber->getReturn();
+
+        Assert::int($midWalk)->lessThan(3);
+        Assert::same(\array_column($result['events'], 'id'), [self::uuid(4)]);
+        Assert::false($result['timed_out']);
+        Assert::numeric(\microtime(true) - $start)->lessThan(1.0);
+        self::assertListed($trap, $arguments, $result);
+    }
+
+    public function testDisconnectDuringAPassStopsIt(): void
+    {
+        $trap = Trap::scripted();
+        $trap->view()->delay = 25_000;
+        for ($i = 1; $i <= 5; ++$i) {
+            $trap->store->add(ScriptedView::event(self::uuid($i), "text $i", (float) $i));
+        }
+        $tool = $trap->get(WaitForEvents::class);
+        $caller = $trap->get(Caller::class);
+        $gone = false;
+        $disconnected = static function () use (&$gone): bool {
+            return $gone;
+        };
+        $fiber = new \Fiber(static fn(): array => $caller->connected(
+            $disconnected,
+            static fn(): array => $tool->call(['since' => $trap->store->id . ':0', 'search' => 'needle']),
+        ));
+
+        $fiber->start();
+        $midWalk = $trap->view()->renders;
+        $gone = true;
+        $fiber->resume();
+
+        Assert::same($midWalk, 1);
+        Assert::true($fiber->isTerminated());
+        Assert::same($trap->view()->renders, 1);
+        Assert::true($fiber->getReturn()['timed_out']);
+        Assert::true($fiber->getReturn()['has_more']);
+    }
+
+    /**
+     * An event stored after the deadline, before the wait resumes, is left to the next call: the returned cursor
+     * comes before it.
+     */
+    public function testChangeAtTheDeadlineIsLeftToTheCursor(): void
+    {
+        $trap = new Trap();
+        $since = self::cursor($trap);
+        $fiber = self::wait($trap, ['timeout' => 0.01]);
+
+        \usleep(20_000);
+        $trap->add(Trap::dump('late'));
+        $fiber->resume();
+        $result = $fiber->getReturn();
+        $next = $trap->get(ListEvents::class)->call(['since' => $result['cursor']]);
+
+        Assert::same($result['events'], []);
+        Assert::true($result['timed_out']);
+        Assert::same($result['cursor'], $since);
+        Assert::same(self::summaries($next), ['late']);
+    }
+
+    public function testUnchangedRecordsAreNotFilteredAgain(): void
+    {
+        $trap = Trap::scripted();
+        // No text is kept: each check of a record renders it
+        $trap->container->set(new TextCache($trap->get(EventViews::class), $trap->store, maxBytes: 0));
+        for ($i = 1; $i <= 3; ++$i) {
+            $trap->store->add(ScriptedView::event(self::uuid($i), "text $i", (float) $i));
+        }
+        $arguments = ['since' => $trap->store->id . ':0', 'search' => 'needle', 'count' => 2];
+        $fiber = self::wait($trap, $arguments);
+
+        $first = $trap->view()->renders;
+        $trap->store->add(ScriptedView::event(self::uuid(4), 'text 4', 4.0));
+        $fiber->resume();
+        $second = $trap->view()->renders;
+        $trap->store->add(ScriptedView::event(self::uuid(1), 'needle 1', 1.0));
+        $fiber->resume();
+        $third = $trap->view()->renders;
+        $waiting = $fiber->isSuspended();
+        $trap->store->add(ScriptedView::event(self::uuid(5), 'needle 5', 5.0));
+        $fiber->resume();
+        $result = $fiber->getReturn();
+
+        Assert::same([$first, $second, $third], [3, 4, 5]);
+        Assert::true($waiting);
+        Assert::same(\array_column($result['events'], 'id'), [self::uuid(1), self::uuid(5)]);
+        Assert::same($trap->view()->renders, 6, 'The matching event is not filtered again either.');
+        self::assertListed($trap, $arguments, $result);
+    }
+
+    #[DataSet([['count' => 0], '`count` must be an integer from 1 to 50.'], 'no events')]
+    #[DataSet([['count' => 51], '`count` must be an integer from 1 to 50.'], 'over the count limit')]
+    #[DataSet([['timeout' => -1], '`timeout` must be a number of at least 0.'], 'negative timeout')]
+    #[DataSet([['timeout' => 51], '`timeout` must be a number from 0 to 50.'], 'over the timeout limit')]
+    public function testInvalidArgumentsFail(array $arguments, string $message): never
+    {
+        Expect::exception(\InvalidArgumentException::class)->withMessage($message);
+
+        (new Trap())->get(WaitForEvents::class)->call($arguments);
     }
 
     public function testStopsWhenTheClientDisconnects(): void
@@ -390,13 +529,6 @@ final class WaitForEventsTest
         Assert::true($result['has_more']);
         Assert::true($result['timed_out']);
         Assert::same($result['cursor'], $trap->store->id . ':1');
-    }
-
-    public function testTimeoutOverTheLimitFails(): never
-    {
-        Expect::exception(\InvalidArgumentException::class)->withMessage('`timeout` must be a number from 0 to 50.');
-
-        (new Trap())->get(WaitForEvents::class)->call(['timeout' => 51]);
     }
 
     public function testEventUpdatedWhileWaitingIsListedOnceAtItsLatestText(): void

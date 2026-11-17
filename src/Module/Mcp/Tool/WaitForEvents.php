@@ -14,9 +14,10 @@ use Buggregator\Trap\Server\Event\EventStore;
  *
  * The call suspends the fiber of its request and the server goes on meanwhile. On each resume it checks
  * only that the store has changed since the last pass, so a wait without new events costs nearly nothing;
- * a change gets the list collected again from the original `since`, within the {@see Scan} budget: the cached
- * texts and summaries keep that cheap. A pass that runs out of time is followed by another one: when the texts
- * are too large for the {@see TextCache}, the passes get no further and the wait searches until the timeout.
+ * a change gets the list collected again from the original `since`, within the {@see Scan} budget. The
+ * {@see CollectMemo} keeps that cheap: a record unchanged since a pass is not filtered again, nor described
+ * again when it is listed. A pass that runs out of time is followed by another one, which gets further over the
+ * records already checked. A pass stops when the client disconnects.
  *
  * @internal
  *
@@ -170,6 +171,8 @@ final class WaitForEvents implements WaitingTool
         $deadline = \hrtime(true) + (int) ($timeout * 1e9);
         $canWait = \Fiber::getCurrent() !== null;
         $page = null;
+        $memo = new CollectMemo();
+        $disconnected = $this->caller->isDisconnected(...);
         while (true) {
             $seen = $this->store->cursor();
             $page = $this->list->collect(
@@ -179,6 +182,8 @@ final class WaitForEvents implements WaitingTool
                 $text ? $maxLength : null,
                 // The full scan budget: a short `timeout` still gets the backlog of an older `since` checked
                 budget: $page === null ? null : (float) \max(0, $deadline - \hrtime(true)) / 1e9,
+                stop: $disconnected,
+                memo: $memo,
             );
             // Cut by `count` or by the texts: the events arriving later can't change the result
             $complete = \count($page['events']) >= $count || ($page['has_more'] && !$page['unchecked']);
@@ -186,8 +191,8 @@ final class WaitForEvents implements WaitingTool
                 return $this->result($page, !$complete);
             }
 
-            // A pass out of time is followed by another one at once: the texts it rendered are cached,
-            // so the next pass gets further
+            // A pass out of time is followed by another one at once, which skips the records this one checked.
+            // An event arriving during a pass moves the cursor past `$seen` and gets a pass too
             do {
                 \Fiber::suspend();
             } while (!$page['unchecked'] && $this->store->cursor() === $seen && !$this->isOver($deadline));

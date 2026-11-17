@@ -95,7 +95,7 @@ seconds. Trap catches events and answers other requests meanwhile, and a call st
 - An event deleted or changed while the call runs is left out: the changed one comes with the next call that
   passes the cursor, and `clear_events` deletes only the events that have not changed since they matched.
 - A call goes on until it is done or out of time even when the client disconnects or cancels it;
-  only [a wait](#waiting-for-events) stops then.
+  only [a wait](#waiting-for-events) stops then, in the middle of a check too.
 - Rendering the summaries counts too: a plain `list_events` over many very large events not rendered
   yet may return fewer than `limit` events with `has_more: true`.
 
@@ -135,19 +135,21 @@ the result is what that call returns then, possibly no events, with `timed_out: 
 - When the texts of `include: text` fill the result before `count` events, the call returns at once with
   `has_more: true`, as more events would not fit.
 - With a short `timeout`, or `0`, the events already there after an older `since` still get the full
-  [time limit](#time-limit) to be checked, as with `list_events`. A check that runs out of time goes on until the
-  timeout, getting further each time as the texts it rendered are kept; texts too large to be kept are rendered
-  again each time, so a `search` over them keeps Trap busy, a slice at a time, until the timeout.
+  [time limit](#time-limit) to be checked, as with `list_events`. A check that runs out of time goes on at once,
+  getting further each time, as the events already checked are not checked again.
+- The durations of `from` and `to`, such as `5m`, count back from the start of the wait.
 - A wait inside a JSON-RPC batch fails: the batch is answered once all its calls are done, so a wait would hold
   up the rest. Send each wait as a request of its own.
 - The MCP TypeScript SDK and Codex give up on a call after 60 seconds by default, so the timeout stays below that.
   To wait longer, wait again with the returned cursor.
 - A waiting call costs nothing until an event arrives: Trap catches events and answers other calls meanwhile,
-  other waits too. The events are checked against the filter again only after a change, and a `search` over large
-  events checks them a slice at a time, as under the [time limit](#time-limit).
-- The wait stops when the client closes the connection, as clients do on cancelling a call, and returns nothing
-  to it. A client that sends only `notifications/cancelled` and keeps the connection open gets the wait running
-  until it is done or out of time: the stateless server does not match the notification to the call.
+  other waits too. Only a change gets the events checked again, and then only the new and changed ones go
+  through the filter; a `search` over large events checks them a slice at a time, as under the
+  [time limit](#time-limit).
+- The wait stops when the client closes the connection, as clients do on cancelling a call, even in the middle
+  of a check, and returns nothing to it. A client that sends only `notifications/cancelled` and keeps the
+  connection open gets the wait running until it is done or out of time: the stateless server does not match the
+  notification to the call.
 
 The agent runs the tests and waits for the error they log:
 

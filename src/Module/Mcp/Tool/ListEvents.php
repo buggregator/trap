@@ -205,9 +205,11 @@ final class ListEvents implements Tool
      * @param int<0, max> $limit
      * @param int<0, max>|null $maxLength Characters of the text of each event; no text when null.
      * @param float|null $budget Seconds to check events for, when fewer than the {@see Scan} budget.
+     * @param (\Closure(): bool)|null $stop Whether to stop checking events before the time runs out.
+     * @param CollectMemo|null $memo Of the earlier calls with the same filter and `$maxLength`.
      *
      * @return array{events: list<ListedEvent>, cursor: int<0, max>, has_more: bool, unchecked: bool}
-     *         `unchecked`: the time ran out before all the events were checked.
+     *         `unchecked`: the time ran out, or `$stop` said so, before all the events were checked.
      */
     public function collect(
         int $since,
@@ -216,6 +218,8 @@ final class ListEvents implements Tool
         ?int $maxLength,
         bool $newest = false,
         ?float $budget = null,
+        ?\Closure $stop = null,
+        ?CollectMemo $memo = null,
     ): array {
         $cursor = $this->store->cursor();
         $records = $this->store->changedSince($since);
@@ -224,13 +228,18 @@ final class ListEvents implements Tool
         $hasMore = false;
         $last = 0;
         $textLength = 0;
-        $walk = $this->scan->walk($this->store, $records, $budget);
+        $describe = fn(Record $record): array => $this->describe($record, $maxLength);
+        $walk = $this->scan->walk($this->store, $records, $budget, $stop);
         foreach ($walk as $record) {
-            if (!$filter->matches($record)) {
+            if (!($memo === null ? $filter->matches($record) : $memo->matches($record, $filter))) {
                 continue;
             }
 
-            $event = \count($events) === $limit ? null : $this->describe($record, $maxLength);
+            $event = match (true) {
+                \count($events) === $limit => null,
+                $memo === null => $describe($record),
+                default => $memo->describe($record, $describe),
+            };
             $textLength += \mb_strlen($event['text'] ?? '');
             if ($event === null || ($events !== [] && $textLength > self::MAX_TOTAL_TEXT_LENGTH)) {
                 $hasMore = true;
@@ -250,6 +259,8 @@ final class ListEvents implements Tool
             // The records of the snapshot before the unchecked one are all checked
             $newest or $cursor = \max(0, $unchecked->seq - 1);
         }
+
+        $memo?->pass();
 
         return ['events' => $events, 'cursor' => $cursor, 'has_more' => $hasMore, 'unchecked' => $unchecked !== null];
     }
