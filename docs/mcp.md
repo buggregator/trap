@@ -230,7 +230,8 @@ for it fails with the metrics the profile has:
 - A function's values are summed over all its calls. `inclusive` takes the callees in, `exclusive` is the function
   itself. The percentages are of the `peaks`, the largest values of one caller and callee pair as the console shows
   them: the root's wall time, CPU time and memory. `ct` has no percentages: its peak is the most calls or samples
-  of one pair, while a function sums the calls from all its callers.
+  of one pair, while a function sums the calls from all its callers. XHProf's `mu` is the memory a call allocated
+  less what it freed: a negative value is shown as zero, and an `exclusive` one as at most the `inclusive` one.
 - `profile_top` ranks by the `exclusive` value (`sort: inclusive` for the other), 20 functions by default and 200
   at most. `filter` keeps the functions whose names contain the text in any case; with `*`, it matches the whole
   name: `App\*` keeps the application code.
@@ -242,10 +243,10 @@ for it fails with the metrics the profile has:
 - The hot path follows the heaviest call from the root down to a leaf; a path longer than 30 calls keeps its first
   5 and last 25, and `depth` tells where each one is.
 - `profile_call_graph` shows calls of at least 1 percent by default, 30 levels deep, and cuts a text longer than
-  `max_length` characters, 20 000 by default. The smaller calls of a caller are summed in one line. XHProf sums the
-  calls by caller and callee, so its tree is unfolded from the call graph: a function called from several places
-  has its callees split by their shares, and the text says so; a tree that would unfold into too many calls is cut,
-  and the text says that too.
+  `max_length` characters, 20 000 by default and 200 000 at most. The smaller calls of a caller are summed in one
+  line. XHProf sums the calls by caller and callee, so its tree is unfolded from the call graph: a function called
+  from several places has its callees split by their shares, and the text says so; a tree that would unfold into
+  too many calls is cut to its heaviest calls, and the text says that too.
 - The functions of the 4 profiles asked about last are kept: summing those of a large profile takes a moment, and
   Trap catches events and answers other calls meanwhile.
 

@@ -111,9 +111,29 @@ final class GraphTest
 
         $tree = $graph->unfold(minShare: 0.0001, maxNodes: 1000);
 
-        Assert::same(\count($tree), 1000);
+        Assert::int(\count($tree))->greaterThan(0)->lessThanOrEqual(1000);
         Assert::true($tree->cut);
         Assert::false(self::graph(self::SHARED)->unfold(maxNodes: 7)->cut);
+    }
+
+    public function testCutTreeKeepsHeaviestCalls(): void
+    {
+        // `a()` comes first and makes 20 light calls, `b()` comes after it and takes most of the time
+        $calls = ['main()' => ['ct' => 1, 'wt' => 1000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0]];
+        $calls['main()==>a'] = ['ct' => 1, 'wt' => 100, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
+        for ($i = 0; $i < 20; ++$i) {
+            $calls["a==>x$i"] = ['ct' => 1, 'wt' => 4, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
+        }
+        $calls['main()==>b'] = ['ct' => 1, 'wt' => 900, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
+        $calls['b==>c'] = ['ct' => 1, 'wt' => 800, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
+        $graph = self::graph($calls);
+
+        $tree = $graph->unfold(maxNodes: 10);
+
+        Assert::true($tree->cut);
+        Assert::count($tree, 10);
+        $names = \array_map(static fn(Branch $branch): string => $branch->item->callee, \array_values($tree->all));
+        Assert::same($names, ['main()', 'a', 'x0', 'x1', 'x2', 'x3', 'x4', 'x5', 'b', 'c']);
     }
 
     public function testUnfoldPrunesByCallsWithoutWallTime(): void
@@ -177,6 +197,39 @@ final class GraphTest
         Assert::same(\count($profile->tree()), 7);
         Assert::same($profile->tree(), $profile->tree());
         Assert::false($profile->exactTree);
+    }
+
+    public function testProfileTreeIsUnfoldedOnceByFibers(): void
+    {
+        $profile = (new ProfileBuilder())->createProfile(calls: Profiles::lattice(levels: 4, chain: 5));
+        $unfold = static fn(): Tree => $profile->tree(new TimeSlice(0.0, 1));
+        $fibers = [new \Fiber($unfold), new \Fiber($unfold)];
+
+        foreach ($fibers as $fiber) {
+            $fiber->start();
+        }
+        while (!$fibers[0]->isTerminated() || !$fibers[1]->isTerminated()) {
+            foreach ($fibers as $fiber) {
+                $fiber->isTerminated() or $fiber->resume();
+            }
+        }
+
+        Assert::same($fibers[0]->getReturn(), $fibers[1]->getReturn());
+    }
+
+    public function testProfileTreeOutsideFiberDoesNotWaitForFiber(): void
+    {
+        $profile = (new ProfileBuilder())->createProfile(calls: Profiles::lattice(levels: 4, chain: 5));
+        $fiber = new \Fiber(static fn(): Tree => $profile->tree(new TimeSlice(0.0, 1)));
+        $fiber->start();
+
+        $tree = $profile->tree();
+
+        while (!$fiber->isTerminated()) {
+            $fiber->resume();
+        }
+        Assert::same($fiber->getReturn(), $tree);
+        Assert::same($profile->tree(), $tree);
     }
 
     public function testProfileTreePrefersExactTree(): void

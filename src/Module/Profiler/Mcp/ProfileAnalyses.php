@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Module\Profiler\Mcp;
 
 use Buggregator\Trap\Module\Profiler\Frame\Payload;
 use Buggregator\Trap\Server\Event\EventStore;
+use Buggregator\Trap\Support\TimeSlice;
 
 /**
  * The analyses of the profiles the agent has asked about lately, by the event IDs and versions.
@@ -20,8 +21,14 @@ final class ProfileAnalyses
     /** @var array<non-empty-string, ProfileAnalysis> By `uuid:seq` keys, the least recently used first */
     private array $analyses = [];
 
+    /**
+     * @param (\Closure(): TimeSlice)|null $timeSlices See {@see ProfileAnalysis::__construct()}.
+     * @param (\Closure(): int<1, max>)|null $nodeBudget See {@see ProfileAnalysis::__construct()}.
+     */
     public function __construct(
         private readonly EventStore $store,
+        private readonly ?\Closure $timeSlices = null,
+        private readonly ?\Closure $nodeBudget = null,
     ) {}
 
     /**
@@ -58,7 +65,7 @@ final class ProfileAnalyses
         ));
 
         $key = "$id:$record->seq";
-        $analysis = $this->analyses[$key] ?? new ProfileAnalysis($id, $payload);
+        $analysis = $this->analyses[$key] ?? new ProfileAnalysis($id, $payload, $this->timeSlices, $this->nodeBudget);
         unset($this->analyses[$key]);
         $this->analyses[$key] = $analysis;
         \count($this->analyses) > self::SIZE and \array_shift($this->analyses);

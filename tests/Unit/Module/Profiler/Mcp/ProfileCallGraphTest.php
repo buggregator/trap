@@ -5,28 +5,21 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Profiler\Mcp;
 
 use Buggregator\Trap\Module\Profiler\Frame\Type;
+use Buggregator\Trap\Module\Profiler\Mcp\ProfileAnalyses;
 use Buggregator\Trap\Module\Profiler\Mcp\ProfileCallGraph;
+use Buggregator\Trap\Support\TimeSlice;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
 use Buggregator\Trap\Tests\Unit\Module\Profiler\Mcp\Stub\Profiles;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Data\DataSet;
 use Testo\Expect;
-use Testo\Lifecycle\AfterTest;
 use Testo\Test;
 
 #[Test]
 #[Covers(ProfileCallGraph::class)]
 final class ProfileCallGraphTest
 {
-    private ?string $memoryLimit = null;
-
-    #[AfterTest]
-    public function restoreMemoryLimit(): void
-    {
-        $this->memoryLimit === null or \ini_set('memory_limit', $this->memoryLimit);
-    }
-
     public function testPrunesCallsBelowThreshold(): void
     {
         [$trap, $id] = self::shop();
@@ -67,7 +60,7 @@ final class ProfileCallGraphTest
         $text = $trap->get(ProfileCallGraph::class)->call(['id' => $id, 'max_depth' => 2, 'metric' => 'ct']);
 
         Assert::string($text)->endsWith(<<<'TEXT'
-            100% is 10, calls in parentheses. The profiler sums the calls by caller and callee, so the tree is unfolded from them: a function called from several places has its callees split by their shares.
+            calls of 1% or more; calls in parentheses. The profiler sums the calls by caller and callee, so the tree is unfolded from them: a function called from several places has its callees split by their shares.
                               1  main() (1)
                               1    App\Controller::index (1)
                                      … deeper calls left out: `max_depth`
@@ -88,18 +81,38 @@ final class ProfileCallGraphTest
         Assert::int(\mb_strlen($text))->lessThan(1200);
     }
 
-    public function testTreeTooLargeToUnfoldIsCut(): void
+    public function testTreeOverNodeBudgetIsCut(): void
     {
         $trap = new Trap();
-        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof(Profiles::lattice(levels: 12, chain: 100)));
-        // Little memory left: the tree gets a small budget of nodes, see NodeBudget
-        $limit = \ini_set('memory_limit', (string) (\memory_get_usage(true) + (48 << 20)));
-        $limit === false and throw new \RuntimeException('Failed to lower `memory_limit`.');
-        $this->memoryLimit = $limit;
+        $calls = Profiles::lattice(levels: 8, chain: 20);
+        $profile = Profiles::xhprof($calls);
+        $id = Profiles::add($trap, Type::XHProf, $profile);
+        $tool = new ProfileCallGraph(new ProfileAnalyses($trap->store, nodeBudget: static fn(): int => 1_000));
 
-        $text = $trap->get(ProfileCallGraph::class)->call(['id' => $id, 'threshold' => 0.01, 'max_depth' => 200]);
+        $text = $tool->call(['id' => $id, 'threshold' => 0.01, 'max_depth' => 200]);
 
-        Assert::string($text)->contains('The tree unfolds into too many calls, so it is cut: some calls are left out.');
+        Assert::string($text)->contains('The tree unfolds into too many calls, so it is cut to its heaviest calls: the lighter ones are left out.');
+        Assert::int(\count($profile->tree()))->lessThanOrEqual(1_000);
+        Assert::int(\count(Profiles::xhprof($calls)->calls->unfold(0.0001)))->greaterThan(1_000)->lessThan(200_000);
+    }
+
+    public function testTextLetsOtherFibersRun(): void
+    {
+        $trap = new Trap();
+        // A recorded tree: building the text is all the work
+        $id = Profiles::add($trap, Type::SPX, Profiles::spx());
+        $tool = new ProfileCallGraph(new ProfileAnalyses($trap->store, static fn(): TimeSlice => new TimeSlice(0.0, 1)));
+        $fiber = new \Fiber(static fn(): string => $tool->call(['id' => $id, 'threshold' => 0.01, 'max_depth' => 200]));
+
+        $suspensions = 0;
+        $fiber->start();
+        while (!$fiber->isTerminated()) {
+            ++$suspensions;
+            $fiber->resume();
+        }
+
+        Assert::int($suspensions)->greaterThan(0);
+        Assert::string($fiber->getReturn())->startsWith("SPX profile $id: the call tree by ");
     }
 
     #[DataSet(['XHProf'], 'XHProf')]
@@ -121,7 +134,8 @@ final class ProfileCallGraphTest
     #[DataSet([['threshold' => 0], '`threshold` must be a number of at least 0.01.'], 'zero threshold')]
     #[DataSet([['threshold' => 101], '`threshold` must be a number from 0.01 to 100.'], 'threshold over 100')]
     #[DataSet([['max_depth' => 0], '`max_depth` must be an integer from 1 to 200.'], 'zero depth')]
-    #[DataSet([['max_length' => 10], '`max_length` must be an integer from 100 to ' . \PHP_INT_MAX . '.'], 'short text')]
+    #[DataSet([['max_length' => 10], '`max_length` must be an integer from 100 to 200000.'], 'short text')]
+    #[DataSet([['max_length' => 200_001], '`max_length` must be an integer from 100 to 200000.'], 'long text')]
     public function testInvalidArgumentFails(array $arguments, string $message): never
     {
         [$trap, $id] = self::shop();

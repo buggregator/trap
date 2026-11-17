@@ -6,12 +6,13 @@ namespace Buggregator\Trap\Module\Profiler\Mcp;
 
 use Buggregator\Trap\Module\Mcp\Tool;
 use Buggregator\Trap\Module\Mcp\Tool\Arguments;
+use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Metric;
 
 /**
  * The callers and the callees of a function: its neighbourhood in the call graph of a profile.
  *
- * @psalm-type Link = array{calls: int, inclusive: int, exclusive: float}
+ * @psalm-type Link = array{calls: int, inclusive: int<0, max>, exclusive: float}
  *
  * @internal
  */
@@ -205,16 +206,16 @@ final class ProfileCalls implements Tool
             }
 
             $other = (string) $other;
-            $exclusive = (int) \round($link['exclusive']);
+            $exclusive = \max(0, (int) \round($link['exclusive']));
             $rows[] = [
                 'function' => $other,
                 'via' => $name,
                 'depth' => $depth,
                 'calls' => $link['calls'],
                 'inclusive' => $link['inclusive'],
-                'inclusive_percent' => $analysis->percent($metric, \max(0, $link['inclusive'])),
+                'inclusive_percent' => $analysis->percent($metric, $link['inclusive']),
                 'exclusive' => $exclusive,
-                'exclusive_percent' => $analysis->percent($metric, \max(0, $exclusive)),
+                'exclusive_percent' => $analysis->percent($metric, $exclusive),
             ];
             $depth < $maxDepth && !isset($path[$other]) and self::walk(
                 $analysis,
@@ -239,34 +240,26 @@ final class ProfileCalls implements Tool
     private static function links(ProfileAnalysis $analysis, Metric $metric, string $name, bool $callers): array
     {
         $graph = $analysis->profile->calls;
-        $links = [];
-        /** @var array<string, int> $nested The heaviest call of each pair nested in another call of the callee */
-        $nested = [];
+        /** @var array<string, list<Edge>> $edges The calls of each pair, an edge per pair of recursion levels */
+        $edges = [];
         foreach ($analysis->ids($name) as $id) {
             foreach ($callers ? $graph->callers($id) : $graph->callees($id) as $edge) {
                 $other = $callers ? $edge->caller : $edge->callee;
-                if ($other === null) {
-                    continue;
-                }
-
-                $link = $links[$other] ?? ['calls' => 0, 'inclusive' => 0, 'exclusive' => 0.0];
-                $value = $metric->of($edge->cost);
-                $link['calls'] += $edge->cost->ct;
-                // A call of a nested caller, or of the function itself, is a part of an outer call of the same pair:
-                // summed, a recursion would count many times over. Other recursive calls, as `g()` calling `f@1`
-                // under `f()`, are apart from the calls of the pair outside the recursion.
-                $edge->isRecursive() && $metric !== Metric::Count
-                    && ($edge->callerId !== $edge->caller || $edge->caller === $edge->callee)
-                    ? $nested[$other] = \max($nested[$other] ?? 0, $value)
-                    : $link['inclusive'] += $value;
-                $link['exclusive'] += $analysis->exclusive($edge, $metric);
-                $links[$other] = $link;
+                $other === null or $edges[$other][] = $edge;
             }
         }
 
-        // Only nested calls, as of a function calling itself: the outermost ones include the rest
-        foreach ($nested as $other => $value) {
-            $links[$other]['inclusive'] = \max($links[$other]['inclusive'], $value);
+        $links = [];
+        foreach ($edges as $other => $pair) {
+            $link = ['calls' => 0, 'inclusive' => 0, 'exclusive' => 0.0];
+            foreach ($pair as $edge) {
+                $link['calls'] += $edge->cost->ct;
+                $link['exclusive'] += $analysis->exclusive($edge, $metric);
+                $metric === Metric::Count || !self::isNested($edge, $pair)
+                    and $link['inclusive'] += $metric->of($edge->cost);
+            }
+            $link['exclusive'] = \min($link['exclusive'], (float) $link['inclusive']);
+            $links[$other] = $link;
         }
 
         \uksort(
@@ -276,5 +269,35 @@ final class ProfileCalls implements Tool
         );
 
         return $links;
+    }
+
+    /**
+     * The calls are a part of an outer call of the same pair, made deeper in both functions' recursions: summed,
+     * a recursion would count many times over. A call deeper in one function only, as `g@1()` calling `f@1` and
+     * `g()` calling `f@1` too, is apart from the others.
+     *
+     * @param list<Edge> $pair All the calls between the caller and the callee.
+     */
+    private static function isNested(Edge $edge, array $pair): bool
+    {
+        $caller = self::level($edge->callerId, $edge->caller);
+        $callee = self::level($edge->calleeId, $edge->callee);
+        foreach ($pair as $other) {
+            if (self::level($other->callerId, $other->caller) < $caller
+                && self::level($other->calleeId, $other->callee) < $callee
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return int<0, max> The recursion level of a function ID: `foo@2` is 2.
+     */
+    private static function level(?string $id, ?string $name): int
+    {
+        return $id === null || $id === $name ? 0 : \max(0, (int) \substr($id, \strlen((string) $name) + 1));
     }
 }

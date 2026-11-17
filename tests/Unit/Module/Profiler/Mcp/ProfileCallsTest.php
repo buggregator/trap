@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Profiler\Mcp;
 use Buggregator\Trap\Module\Profiler\Frame\Type;
 use Buggregator\Trap\Module\Profiler\Mcp\ProfileAnalysis;
 use Buggregator\Trap\Module\Profiler\Mcp\ProfileCalls;
+use Buggregator\Trap\Module\Profiler\Mcp\ProfileSummary;
 use Buggregator\Trap\Module\Profiler\Mcp\ProfileTop;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\JsonSchema;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
@@ -99,25 +100,66 @@ final class ProfileCallsTest
     #[DataSet(['SPX'], 'SPX')]
     #[DataSet(['pprof'], 'pprof')]
     #[DataSet(['Speedscope'], 'Speedscope')]
-    public function testRecursionIsNotCountedTwice(string $format): void
+    public function testValuesStayWithinTheirBoundsForEveryMetric(string $format): void
     {
         $trap = new Trap();
         [$type, $profile] = Profiles::formats()[$format];
         $id = Profiles::add($trap, $type, $profile());
         $tool = $trap->get(ProfileCalls::class);
-        $top = $trap->get(ProfileTop::class)->call(['id' => $id, 'limit' => 50]);
+        $metrics = $trap->get(ProfileSummary::class)->call(['id' => $id])['metrics'];
 
-        $rows = [];
-        foreach ($top['functions'] as $function) {
-            $result = $tool->call(['id' => $id, 'function' => $function['function'], 'limit' => 50]);
-            $rows = [...$rows, ...$result['callers'], ...$result['callees']];
-        }
+        foreach ($metrics as $metric) {
+            $top = $trap->get(ProfileTop::class)->call(['id' => $id, 'metric' => $metric, 'limit' => 50]);
+            $rows = [];
+            foreach ($top['functions'] as $function) {
+                $result = $tool->call(['id' => $id, 'function' => $function['function'], 'metric' => $metric, 'limit' => 50]);
+                $rows = [...$rows, $result['function'], ...$result['callers'], ...$result['callees']];
+            }
 
-        Assert::notBlank($rows);
-        foreach ($rows as $row) {
-            Assert::numeric($row['inclusive_percent'])->between(0, 100);
-            Assert::int($row['exclusive'])->lessThanOrEqual($row['inclusive']);
+            Assert::notBlank($rows);
+            foreach ($rows as $row) {
+                self::assertBounds($row);
+            }
         }
+    }
+
+    public function testRecursionsOfDifferentDepthsAreSummed(): void
+    {
+        $trap = new Trap();
+        // `g@1()` calls `f@1` inside `h()`, and `g()` calls `f@1` directly: neither call is inside the other
+        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof([
+            'main()' => ['ct' => 1, 'wt' => 1000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>f' => ['ct' => 1, 'wt' => 1000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'f==>g' => ['ct' => 1, 'wt' => 900, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'g==>h' => ['ct' => 1, 'wt' => 800, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'h==>g@1' => ['ct' => 1, 'wt' => 700, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'g@1==>f@1' => ['ct' => 1, 'wt' => 600, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'g==>f@1' => ['ct' => 1, 'wt' => 50, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        ]));
+        $tool = $trap->get(ProfileCalls::class);
+
+        $f = $tool->call(['id' => $id, 'function' => 'f']);
+        $g = $tool->call(['id' => $id, 'function' => 'g']);
+
+        $fromG = \array_column($f['callers'], null, 'function')['g'];
+        Assert::same([$fromG['calls'], $fromG['inclusive']], [2, 650]);
+        Assert::int($fromG['exclusive'])->lessThanOrEqual(650);
+        Assert::same(\array_column($g['callees'], 'inclusive', 'function')['f'], 650);
+    }
+
+    public function testSignedMemoryIsClamped(): void
+    {
+        $trap = new Trap();
+        // `free()` frees 300 bytes, so the own memory of `main()` is 400 bytes of its 100
+        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof([
+            'main()' => ['ct' => 1, 'wt' => 1000, 'cpu' => 0, 'mu' => 100, 'pmu' => 0],
+            'main()==>free' => ['ct' => 1, 'wt' => 400, 'cpu' => 0, 'mu' => -300, 'pmu' => 0],
+        ]));
+
+        $result = $trap->get(ProfileCalls::class)->call(['id' => $id, 'function' => 'main()', 'metric' => 'mu']);
+
+        Assert::same([$result['function']['inclusive'], $result['function']['exclusive']], [100, 100]);
+        Assert::same([$result['callees'][0]['inclusive'], $result['callees'][0]['exclusive']], [0, 0]);
     }
 
     public function testRecursiveCallsOutsideTheRecursionAreSummed(): void
@@ -236,6 +278,15 @@ final class ProfileCallsTest
         $trap = new Trap();
 
         return [$trap, Profiles::add($trap, Type::XHProf, Profiles::xhprof())];
+    }
+
+    private static function assertBounds(array $row): void
+    {
+        Assert::int($row['inclusive'])->greaterThanOrEqual(0);
+        Assert::int($row['exclusive'])->greaterThanOrEqual(0)->lessThanOrEqual($row['inclusive']);
+        foreach (['inclusive_percent', 'exclusive_percent'] as $percent) {
+            $row[$percent] === null or Assert::numeric($row[$percent])->between(0, 100);
+        }
     }
 
     private static function link(string $function, string $via, int $depth, int $calls, int $inclusive, int $exclusive): array

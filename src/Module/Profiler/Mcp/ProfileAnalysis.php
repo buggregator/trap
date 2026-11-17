@@ -59,13 +59,32 @@ final class ProfileAnalysis
     /** @var array<non-empty-string, true> The computations a fiber has started and suspended in, by names */
     private array $computing = [];
 
+    /** @var \Closure(): TimeSlice */
+    private readonly \Closure $timeSlices;
+
+    /**
+     * @param (\Closure(): TimeSlice)|null $timeSlices Makes the slices of time the computations share the process by.
+     * @param (\Closure(): int<1, max>)|null $nodeBudget The nodes of the call tree the memory left affords:
+     *        see {@see Profile::tree()}.
+     */
     public function __construct(
         public readonly string $id,
         public readonly Payload $payload,
+        ?\Closure $timeSlices = null,
+        private readonly ?\Closure $nodeBudget = null,
     ) {
         $this->profile = $payload->getProfile();
         $this->countType = Mapper::countType($payload) ?? 'calls';
         $this->metrics = Metric::measured($this->profile->peaks);
+        $this->timeSlices = $timeSlices ?? static fn(): TimeSlice => new TimeSlice();
+    }
+
+    /**
+     * A slice of time for a long computation to let the other fibers run by.
+     */
+    public function timeSlice(): TimeSlice
+    {
+        return ($this->timeSlices)();
     }
 
     /**
@@ -137,7 +156,7 @@ final class ProfileAnalysis
         if ($this->functions === null) {
             $this->computing['functions'] = true;
             try {
-                $this->functions = Func::aggregate($this->profile->calls, $this->profile->peaks, new TimeSlice());
+                $this->functions = Func::aggregate($this->profile->calls, $this->profile->peaks, $this->timeSlice());
             } finally {
                 unset($this->computing['functions']);
             }
@@ -151,13 +170,7 @@ final class ProfileAnalysis
      */
     public function tree(): Tree
     {
-        $this->waitFor('tree');
-        $this->computing['tree'] = true;
-        try {
-            return $this->profile->tree(new TimeSlice());
-        } finally {
-            unset($this->computing['tree']);
-        }
+        return $this->profile->tree($this->timeSlice(), $this->nodeBudget === null ? null : ($this->nodeBudget)());
     }
 
     /**
@@ -165,8 +178,23 @@ final class ProfileAnalysis
      */
     public function ranked(Metric $metric, bool $inclusive = false): array
     {
-        return $this->ranked[$metric->value . ($inclusive ? ':inclusive' : ':exclusive')]
-            ??= Func::rank($this->functions(), $metric, $inclusive);
+        $key = $metric->value . ($inclusive ? ':inclusive' : ':exclusive');
+        if (isset($this->ranked[$key])) {
+            return $this->ranked[$key];
+        }
+
+        // Not `Func::rank()`: it orders by the raw sums, while the rows show them clamped
+        $functions = \array_values($this->functions());
+        $own = $total = $names = [];
+        foreach ($functions as $func) {
+            [$total[], $own[]] = self::values($func, $metric);
+            $names[] = $func->function;
+        }
+        $inclusive
+            ? \array_multisort($total, \SORT_DESC, $own, \SORT_DESC, $names, \SORT_ASC, $functions)
+            : \array_multisort($own, \SORT_DESC, $total, \SORT_DESC, $names, \SORT_ASC, $functions);
+
+        return $this->ranked[$key] = $functions;
     }
 
     /**
@@ -174,13 +202,15 @@ final class ProfileAnalysis
      */
     public function row(Func $func, Metric $metric): array
     {
+        [$inclusive, $exclusive] = self::values($func, $metric);
+
         return [
             'function' => $func->function,
             'calls' => (int) $func->get('ct'),
-            'inclusive' => (int) $func->get($metric->value),
-            'inclusive_percent' => $metric === Metric::Count ? null : (float) $func->get('p_' . $metric->value),
-            'exclusive' => (int) $func->get('excl_' . $metric->value),
-            'exclusive_percent' => $metric === Metric::Count ? null : (float) $func->get('p_excl_' . $metric->value),
+            'inclusive' => $inclusive,
+            'inclusive_percent' => $this->percent($metric, $inclusive),
+            'exclusive' => $exclusive,
+            'exclusive_percent' => $this->percent($metric, $exclusive),
         ];
     }
 
@@ -234,7 +264,7 @@ final class ProfileAnalysis
             $this->computing['ids'] = true;
             try {
                 $graph = $this->profile->calls;
-                $slice = new TimeSlice();
+                $slice = $this->timeSlice();
                 $ids = [];
                 foreach ($graph->functions() as $id) {
                     $ids[$graph->callers($id)[0]->callee][] = $id;
@@ -268,7 +298,22 @@ final class ProfileAnalysis
         }
 
         // Freed memory and timer jitter make a negative own cost possible
-        return $inclusive > 0 && $own > 0 ? (float) $own * (float) $value / (float) $inclusive : 0.0;
+        return $inclusive > 0 && $own > 0
+            ? \min((float) $own * (float) $value / (float) $inclusive, (float) $value)
+            : 0.0;
+    }
+
+    /**
+     * The values of the function as the rows show them: XHProf's `mu` is signed, so its sums may be negative, and
+     * the own memory of a function freeing what its callees allocated may pass the inclusive one.
+     *
+     * @return array{int<0, max>, int<0, max>} The inclusive and the exclusive value.
+     */
+    private static function values(Func $func, Metric $metric): array
+    {
+        $inclusive = \max(0, (int) $func->get($metric->value));
+
+        return [$inclusive, \min(\max(0, (int) $func->get('excl_' . $metric->value)), $inclusive)];
     }
 
     /**

@@ -60,17 +60,17 @@ enum Metric: string
     }
 
     /**
-     * @return int<0, max>
+     * @return int<0, max> A negative value, as XHProf's `mu` of calls that free more than they allocate, as zero.
      */
     public function of(Cost $cost): int
     {
-        return match ($this) {
+        return \max(0, match ($this) {
             self::WallTime => $cost->wt,
             self::CpuTime => $cost->cpu,
             self::Memory => $cost->mu,
             self::PeakMemory => $cost->pmu,
             self::Count => $cost->ct,
-        };
+        });
     }
 
     /**

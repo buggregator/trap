@@ -136,6 +136,13 @@ final class ProfileTopTest
                 \rsort($sorted);
                 Assert::same($values, $sorted);
                 Assert::notBlank($result['functions']);
+                foreach ($result['functions'] as $row) {
+                    Assert::int($row['inclusive'])->greaterThanOrEqual(0);
+                    Assert::int($row['exclusive'])->greaterThanOrEqual(0)->lessThanOrEqual($row['inclusive']);
+                    foreach (['inclusive_percent', 'exclusive_percent'] as $percent) {
+                        $row[$percent] === null or Assert::numeric($row[$percent])->between(0, 100);
+                    }
+                }
                 Assert::same(JsonSchema::errors($result, $tool->outputSchema()), []);
             }
         }

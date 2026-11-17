@@ -23,6 +23,7 @@ final class ProfileCallGraph implements Tool
     private const MAX_DEPTH = 30;
     private const MAX_MAX_DEPTH = 200;
     private const MAX_LENGTH = 20_000;
+    private const MAX_MAX_LENGTH = 200_000;
 
     public function __construct(
         private readonly ProfileAnalyses $analyses,
@@ -71,7 +72,7 @@ final class ProfileCallGraph implements Tool
                     'default' => self::MAX_DEPTH,
                     'description' => 'The deepest level to show; the root is 1.',
                 ],
-                'max_length' => MaxLength::schema(self::MAX_LENGTH),
+                'max_length' => MaxLength::schema(self::MAX_LENGTH, maximum: self::MAX_MAX_LENGTH),
             ],
             'required' => ['id'],
             'additionalProperties' => false,
@@ -98,13 +99,13 @@ final class ProfileCallGraph implements Tool
         $threshold = Arguments::number($arguments, 'threshold', self::MIN_THRESHOLD) ?? self::THRESHOLD;
         $threshold <= 100.0 or throw new \InvalidArgumentException('`threshold` must be a number from 0.01 to 100.');
         $maxDepth = Arguments::integer($arguments, 'max_depth', 1, self::MAX_MAX_DEPTH) ?? self::MAX_DEPTH;
-        $maxLength = MaxLength::fromArguments($arguments, self::MAX_LENGTH);
+        $maxLength = MaxLength::fromArguments($arguments, self::MAX_LENGTH, self::MAX_MAX_LENGTH);
 
         $profile = $analysis->profile;
         $tree = $analysis->tree();
         $peak = $analysis->peak($metric);
         $lines = [\sprintf(
-            '%s profile %s: the call tree by %s, the calls of %s%% or more; 100%% is %s, %s in parentheses.%s%s',
+            '%s profile %s: the call tree by %s, the calls of %s%% or more; %s%s in parentheses.%s%s',
             $analysis->payload->type->value,
             $analysis->id,
             match ($metric) {
@@ -115,11 +116,12 @@ final class ProfileCallGraph implements Tool
                 Metric::Count => $analysis->countType,
             },
             self::number($threshold),
-            $metric->format($peak),
+            $metric === Metric::Count ? '' : \sprintf('100%% is %s, ', $metric->format($peak)),
             $analysis->countType,
             $profile->exactTree ? '' : ' The profiler sums the calls by caller and callee, so the tree is unfolded '
                 . 'from them: a function called from several places has its callees split by their shares.',
-            $tree->cut ? ' The tree unfolds into too many calls, so it is cut: some calls are left out.' : '',
+            $tree->cut ? ' The tree unfolds into too many calls, so it is cut to its heaviest calls: the lighter ones '
+                . 'are left out.' : '',
         )];
 
         $minValue = (float) $peak * $threshold / 100.0;
@@ -127,8 +129,10 @@ final class ProfileCallGraph implements Tool
         // Iterative: the depth follows the recursion in the profiled code. A string is a line to add after a subtree.
         /** @var list<array{list<Branch<Edge>>, int<1, max>}|string> $stack */
         $stack = [[\array_values($tree->root), 1]];
+        $slice = $analysis->timeSlice();
         // Past `max_length` the rest would be cut anyway, so the length of the whole text stays unknown
         while ($stack !== [] && $length <= $maxLength) {
+            $slice->tick();
             $entry = \array_pop($stack);
             if (\is_string($entry)) {
                 $lines[] = $entry;

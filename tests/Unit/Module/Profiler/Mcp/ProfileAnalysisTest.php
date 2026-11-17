@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Profiler\Frame\Payload;
 use Buggregator\Trap\Module\Profiler\Frame\Type;
 use Buggregator\Trap\Module\Profiler\Mcp\ProfileAnalysis;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
+use Buggregator\Trap\Support\TimeSlice;
 use Buggregator\Trap\Tests\Unit\Module\Profiler\Mcp\Stub\Profiles;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -19,8 +20,8 @@ final class ProfileAnalysisTest
 {
     public function testConcurrentCallsAggregateOnce(): void
     {
-        $calls = ['main()' => ['ct' => 1, 'wt' => 1_000_000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0]];
-        for ($i = 0; $i < 30_000; ++$i) {
+        $calls = ['main()' => ['ct' => 1, 'wt' => 1_000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0]];
+        for ($i = 0; $i < 100; ++$i) {
             $calls["main()==>f$i"] = ['ct' => 1, 'wt' => 10, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
         }
         $analysis = self::analysis(Profiles::xhprof($calls));
@@ -36,7 +37,7 @@ final class ProfileAnalysisTest
 
     public function testConcurrentCallsUnfoldOnce(): void
     {
-        $analysis = self::analysis(Profiles::xhprof(Profiles::lattice(levels: 12, chain: 5)));
+        $analysis = self::analysis(Profiles::xhprof(Profiles::lattice(levels: 4, chain: 5)));
 
         [$first, $second, $suspensions] = self::concurrently($analysis->tree(...), $analysis->tree(...));
 
@@ -44,9 +45,16 @@ final class ProfileAnalysisTest
         Assert::true($first === $second);
     }
 
+    /**
+     * Every tick suspends the fiber, however fast the machine.
+     */
     private static function analysis(Profile $profile): ProfileAnalysis
     {
-        return new ProfileAnalysis('id', Payload::new(Type::XHProf, static fn(): Profile => $profile));
+        return new ProfileAnalysis(
+            'id',
+            Payload::new(Type::XHProf, static fn(): Profile => $profile),
+            static fn(): TimeSlice => new TimeSlice(0.0, 1),
+        );
     }
 
     /**
