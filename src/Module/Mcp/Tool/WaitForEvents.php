@@ -9,11 +9,14 @@ use Buggregator\Trap\Module\Mcp\WaitingTool;
 use Buggregator\Trap\Server\Event\EventStore;
 
 /**
- * Waits until events matching a filter arrive, and lists them as `list_events` does.
+ * Waits until `list_events` with the same `since` and filter, `order: oldest` and `limit: count` lists
+ * `count` events, and returns that list.
  *
  * The call suspends the fiber of its request and the server goes on meanwhile. On each resume it checks
- * only that the store has changed since the last check, so a wait without new events costs nearly nothing;
- * a change gets the changed records checked against the filter, within the {@see Scan} budget.
+ * only that the store has changed since the last pass, so a wait without new events costs nearly nothing;
+ * a change gets the list collected again from the original `since`, within the {@see Scan} budget: the cached
+ * texts and summaries keep that cheap. A pass that runs out of time is followed by another one: when the texts
+ * are too large for the {@see TextCache}, the passes get no further and the wait searches until the timeout.
  *
  * @internal
  *
@@ -56,14 +59,14 @@ final class WaitForEvents implements WaitingTool
     {
         return \sprintf(
             'Waits until the running application sends events matching the filter, instead of polling '
-            . '`list_events`, and lists them as `list_events` does. Call it after triggering the code, such as '
-            . 'running the tests or sending a request: it returns as soon as `count` matching events have arrived, '
-            . 'or after `timeout` seconds (%d by default, %d at most) with those that arrived meanwhile and '
-            . '`timed_out: true`, which is not an error. Without `since` it waits for the events changed after the '
-            . 'call starts; events the code sends before that are missed, so to be safe take a `cursor` from '
-            . '`list_events` (or from an earlier wait) before triggering the code, and pass it as `since`. The '
-            . 'returned `cursor` goes on from the last returned event: pass it to the next wait or `list_events` '
-            . 'to miss nothing. The filter is the one of `list_events`.',
+            . '`list_events`. Call it after triggering the code, such as running the tests or sending a request. '
+            . 'The result is what `list_events` with the same arguments and `limit: count` returns once it holds '
+            . '`count` events, or once the texts of `include: text` fill it; after `timeout` seconds (%d by '
+            . 'default, %d at most) it is what that call returns then, possibly no events, with `timed_out: true`, '
+            . 'which is not an error. Without `since` it waits for the events changed after the call starts; '
+            . 'events the code sends before that are missed, so to be safe take a `cursor` from `list_events` '
+            . '(or from an earlier wait) before triggering the code, and pass it as `since`. Pass the returned '
+            . '`cursor` to the next wait or `list_events` to miss nothing.',
             self::DEFAULT_TIMEOUT,
             self::MAX_TIMEOUT,
         );
@@ -123,15 +126,14 @@ final class WaitForEvents implements WaitingTool
         $schema['properties']['events']['description'] = 'Oldest change first.';
         $schema['properties']['has_more'] = [
             'type' => 'boolean',
-            'description' => 'Whether more matching events wait for `list_events` or the next wait with the '
-                . 'returned cursor: `count` events were found and there are more, the texts of `include: text` '
-                . 'filled the response, or the time ran out before all the changed events were checked, '
-                . 'with `timed_out: true` only when fewer than `count` events were found.',
+            'description' => 'As with `list_events`: whether more matching events wait for the next call with '
+                . 'the returned cursor, past `count`, past the texts of `include: text`, or left unchecked as the '
+                . 'time ran out.',
         ];
         $schema['properties']['timed_out'] = [
             'type' => 'boolean',
-            'description' => 'Whether the time ran out before `count` matching events arrived; `events` has those '
-                . 'that did.',
+            'description' => 'Whether the time ran out, or the client disconnected, before the result held `count` '
+                . 'events or filled with texts; `events` has those that arrived.',
         ];
         $schema['required'][] = 'timed_out';
 
@@ -167,72 +169,69 @@ final class WaitForEvents implements WaitingTool
 
         $deadline = \hrtime(true) + (int) ($timeout * 1e9);
         $canWait = \Fiber::getCurrent() !== null;
-        /** @var array<non-empty-string, ListedEvent> $events */
-        $events = [];
-        /** @var array<non-empty-string, int<0, max>> $textLengths */
-        $textLengths = [];
-        $first = true;
+        $page = null;
         while (true) {
-            $limit = \max(0, $count - \count($events));
+            $seen = $this->store->cursor();
             $page = $this->list->collect(
                 $since,
                 $filter,
-                $limit,
+                $count,
                 $text ? $maxLength : null,
-                kept: $textLengths,
                 // The full scan budget: a short `timeout` still gets the backlog of an older `since` checked
-                budget: $first ? null : (float) \max(0, $deadline - \hrtime(true)) / 1e9,
+                budget: $page === null ? null : (float) \max(0, $deadline - \hrtime(true)) / 1e9,
             );
-            $first = false;
-            foreach ($page['events'] as $event) {
-                // An event updated meanwhile, as a Ray message is, moves to its latest change and counts once
-                unset($events[$event['id']]);
-                $events[$event['id']] = $event;
-                $textLengths[$event['id']] = \mb_strlen($event['text'] ?? '');
+            // Cut by `count` or by the texts: the events arriving later can't change the result
+            $complete = \count($page['events']) >= $count || ($page['has_more'] && !$page['unchecked']);
+            if ($complete || !$canWait || $this->isOver($deadline)) {
+                return $this->result($page, !$complete);
             }
 
-            $since = $page['cursor'];
-            $limited = $page['has_more'] && !$page['unchecked'] && \count($page['events']) === $limit;
-            $filled = $page['has_more'] && !$page['unchecked'] && !$limited;
-            if ($page['rejected'] !== null) {
-                // The update that didn't fit lies past the cursor: the next call lists it at its latest text
-                unset($events[$page['rejected']], $textLengths[$page['rejected']]);
-            }
-
-            $done = \count($events) >= $count;
-            $over = !$canWait || \hrtime(true) >= $deadline || $this->caller->isDisconnected();
-            if ($done || $filled || $over) {
-                return $this->result($events, $since, $page['has_more'], !$done && !$filled);
-            }
-
-            // The rest of the changes to check right away: the time ran out, or updated events took the limit,
-            // and the cursor has gone past them
-            if ($page['has_more']) {
-                continue;
-            }
-
-            while ($this->store->cursor() <= $since && \hrtime(true) < $deadline && !$this->caller->isDisconnected()) {
+            // A pass out of time is followed by another one at once: the texts it rendered are cached,
+            // so the next pass gets further
+            do {
                 \Fiber::suspend();
-            }
+            } while (!$page['unchecked'] && $this->store->cursor() === $seen && !$this->isOver($deadline));
 
-            if ($this->caller->isDisconnected()) {
-                return $this->result($events, $since, false, true);
+            if ($this->isOver($deadline)) {
+                return $this->result($this->withoutDeleted($page), true);
             }
         }
     }
 
+    private function isOver(int $deadline): bool
+    {
+        return \hrtime(true) >= $deadline || $this->caller->isDisconnected();
+    }
+
     /**
-     * @param array<non-empty-string, ListedEvent> $events
-     * @param int<0, max> $cursor
+     * Drops the events deleted since the page was collected: a deletion doesn't move the cursor of the store,
+     * so it wakes no wait.
+     *
+     * @param array{events: list<ListedEvent>, cursor: int<0, max>, has_more: bool, unchecked: bool} $page
+     *
+     * @return array{events: list<ListedEvent>, cursor: int<0, max>, has_more: bool, unchecked: bool}
+     */
+    private function withoutDeleted(array $page): array
+    {
+        $page['events'] = \array_values(\array_filter(
+            $page['events'],
+            fn(array $event): bool => $this->store->record($event['id']) !== null,
+        ));
+
+        return $page;
+    }
+
+    /**
+     * @param array{events: list<ListedEvent>, cursor: int<0, max>, has_more: bool, unchecked: bool} $page
      *
      * @return array{events: list<ListedEvent>, cursor: non-empty-string, has_more: bool, timed_out: bool}
      */
-    private function result(array $events, int $cursor, bool $hasMore, bool $timedOut): array
+    private function result(array $page, bool $timedOut): array
     {
         return [
-            'events' => \array_values($events),
-            'cursor' => Cursor::encode($this->store->id, $cursor),
-            'has_more' => $hasMore,
+            'events' => $page['events'],
+            'cursor' => Cursor::encode($this->store->id, $page['cursor']),
+            'has_more' => $page['has_more'],
             'timed_out' => $timedOut,
         ];
     }

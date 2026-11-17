@@ -204,18 +204,10 @@ final class ListEvents implements Tool
      * @param int<0, max> $since
      * @param int<0, max> $limit
      * @param int<0, max>|null $maxLength Characters of the text of each event; no text when null.
-     * @param array<non-empty-string, int<0, max>> $kept Characters of the text of each event the response holds
-     *        already, from earlier pages, by ID; a newer copy of one of them takes the place of the old one.
      * @param float|null $budget Seconds to check events for, when fewer than the {@see Scan} budget.
      *
-     * @return array{
-     *     events: list<ListedEvent>,
-     *     cursor: int<0, max>,
-     *     has_more: bool,
-     *     unchecked: bool,
-     *     rejected: non-empty-string|null,
-     * } `unchecked`: the time ran out before all the events were checked. `rejected`: the ID of an event
-     *   of `$kept` whose newer copy was left out as its text didn't fit, so the kept copy is out of date.
+     * @return array{events: list<ListedEvent>, cursor: int<0, max>, has_more: bool, unchecked: bool}
+     *         `unchecked`: the time ran out before all the events were checked.
      */
     public function collect(
         int $since,
@@ -223,7 +215,6 @@ final class ListEvents implements Tool
         int $limit,
         ?int $maxLength,
         bool $newest = false,
-        array $kept = [],
         ?float $budget = null,
     ): array {
         $cursor = $this->store->cursor();
@@ -231,9 +222,8 @@ final class ListEvents implements Tool
         $newest and $records = \array_reverse($records);
         $events = [];
         $hasMore = false;
-        $rejected = null;
-        $last = $since;
-        $textLength = \array_sum($kept);
+        $last = 0;
+        $textLength = 0;
         $walk = $this->scan->walk($this->store, $records, $budget);
         foreach ($walk as $record) {
             if (!$filter->matches($record)) {
@@ -241,18 +231,15 @@ final class ListEvents implements Tool
             }
 
             $event = \count($events) === $limit ? null : $this->describe($record, $maxLength);
-            $others = $textLength - ($kept[$record->event->uuid] ?? 0);
-            $length = $others + \mb_strlen($event['text'] ?? '');
-            if ($event === null || (($events !== [] || $others > 0) && $length > self::MAX_TOTAL_TEXT_LENGTH)) {
+            $textLength += \mb_strlen($event['text'] ?? '');
+            if ($event === null || ($events !== [] && $textLength > self::MAX_TOTAL_TEXT_LENGTH)) {
                 $hasMore = true;
-                $event !== null && isset($kept[$record->event->uuid]) and $rejected = $record->event->uuid;
                 // The rest comes with the next call, which takes the last listed change as its cursor;
                 // the older events left out by `newest` never come, so the cursor stays at the latest change
                 $newest or $cursor = $last;
                 break;
             }
 
-            $textLength = $length;
             $last = $record->seq;
             $events[] = $event;
         }
@@ -264,13 +251,7 @@ final class ListEvents implements Tool
             $newest or $cursor = \max(0, $unchecked->seq - 1);
         }
 
-        return [
-            'events' => $events,
-            'cursor' => $cursor,
-            'has_more' => $hasMore,
-            'unchecked' => $unchecked !== null,
-            'rejected' => $rejected,
-        ];
+        return ['events' => $events, 'cursor' => $cursor, 'has_more' => $hasMore, 'unchecked' => $unchecked !== null];
     }
 
     private static function budgetHelp(float $budget): string
