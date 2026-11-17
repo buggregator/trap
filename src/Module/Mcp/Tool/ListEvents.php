@@ -66,7 +66,8 @@ final class ListEvents implements Tool
             . 'HTTP requests and profiles. They are the events the web UI shows. Returns the events added or '
             . 'updated after the `since` cursor, oldest first, each with an ID, a one-line summary and its fields, '
             . 'and a new opaque `cursor`. To see only what the application sends from now on, call it once, keep '
-            . 'the cursor, run the code, then call it again with `since` set to that cursor. When `has_more` is '
+            . 'the cursor, run the code, then call it again with `since` set to that cursor, or call '
+            . '`wait_for_events` with it to wait until the events arrive. When `has_more` is '
             . 'true, call again with the returned cursor to get the rest. Narrow the list in one call: by `type`, '
             . '`project`, time (`from`, `to`, such as `5m` for the last five minutes), text (`search`, `regex`) '
             . 'and fields (`where`). The fields by type: ' . $this->filters->fieldsHelp() . '. `order: newest` '
@@ -188,22 +189,57 @@ final class ListEvents implements Tool
         $text = Arguments::choice($arguments, 'include', ['summary', 'text']) === 'text';
         $maxLength = MaxLength::fromArguments($arguments, self::DEFAULT_TEXT_LENGTH, self::MAX_TEXT_LENGTH);
 
+        $page = $this->collect($since, $filter, $limit, $text ? $maxLength : null, $newest);
+
+        return [
+            'events' => $page['events'],
+            'cursor' => Cursor::encode($this->store->id, $page['cursor']),
+            'has_more' => $page['has_more'],
+        ];
+    }
+
+    /**
+     * The matching events changed after a cursor, as {@see self::call()} lists them.
+     *
+     * @param int<0, max> $since
+     * @param int<0, max> $limit
+     * @param int<0, max>|null $maxLength Characters of the text of each event; no text when null.
+     * @param int<0, max> $textLength Characters of the texts the response holds already, from earlier pages.
+     * @param float|null $budget Seconds to check events for, when fewer than the {@see Scan} budget.
+     *
+     * @return array{
+     *     events: list<ListedEvent>,
+     *     cursor: int<0, max>,
+     *     has_more: bool,
+     *     unchecked: bool,
+     *     text_length: int<0, max>,
+     * } `unchecked`: the time ran out before all the events were checked; `text_length` counts the earlier pages.
+     */
+    public function collect(
+        int $since,
+        EventFilter $filter,
+        int $limit,
+        ?int $maxLength,
+        bool $newest = false,
+        int $textLength = 0,
+        ?float $budget = null,
+    ): array {
         $cursor = $this->store->cursor();
         $records = $this->store->changedSince($since);
         $newest and $records = \array_reverse($records);
         $events = [];
         $hasMore = false;
-        $last = 0;
-        $textLength = 0;
-        $walk = $this->scan->walk($this->store, $records);
+        $last = $since;
+        $filled = $textLength > 0;
+        $walk = $this->scan->walk($this->store, $records, $budget);
         foreach ($walk as $record) {
             if (!$filter->matches($record)) {
                 continue;
             }
 
-            $event = \count($events) === $limit ? null : $this->describe($record, $text ? $maxLength : null);
-            $textLength += \mb_strlen($event['text'] ?? '');
-            if ($event === null || ($events !== [] && $textLength > self::MAX_TOTAL_TEXT_LENGTH)) {
+            $event = \count($events) === $limit ? null : $this->describe($record, $maxLength);
+            $length = $textLength + \mb_strlen($event['text'] ?? '');
+            if ($event === null || (($events !== [] || $filled) && $length > self::MAX_TOTAL_TEXT_LENGTH)) {
                 $hasMore = true;
                 // The rest comes with the next call, which takes the last listed change as its cursor;
                 // the older events left out by `newest` never come, so the cursor stays at the latest change
@@ -211,6 +247,7 @@ final class ListEvents implements Tool
                 break;
             }
 
+            $textLength = $length;
             $last = $record->seq;
             $events[] = $event;
         }
@@ -219,10 +256,16 @@ final class ListEvents implements Tool
         if ($unchecked !== null) {
             $hasMore = true;
             // The records of the snapshot before the unchecked one are all checked
-            $newest or $cursor = $unchecked->seq - 1;
+            $newest or $cursor = \max(0, $unchecked->seq - 1);
         }
 
-        return ['events' => $events, 'cursor' => Cursor::encode($this->store->id, $cursor), 'has_more' => $hasMore];
+        return [
+            'events' => $events,
+            'cursor' => $cursor,
+            'has_more' => $hasMore,
+            'unchecked' => $unchecked !== null,
+            'text_length' => $textLength,
+        ];
     }
 
     private static function budgetHelp(float $budget): string

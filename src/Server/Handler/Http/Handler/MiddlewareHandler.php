@@ -46,6 +46,10 @@ final class MiddlewareHandler implements RequestHandler
     #[\Override]
     public function handle(StreamClient $streamClient, ServerRequestInterface $request, callable $next): iterable
     {
+        $request = $request->withAttribute(
+            Middleware::DISCONNECTED,
+            static fn(): bool => $streamClient->isDisconnected(),
+        );
         try {
             $fiber = new \Fiber(($this->pipeline)(...));
             do {
