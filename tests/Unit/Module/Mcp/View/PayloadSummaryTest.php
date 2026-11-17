@@ -113,6 +113,98 @@ final class PayloadSummaryTest
         Assert::same((new PayloadSummary())->summary($event), 'INFO [0m two lines');
     }
 
+    #[DataSet(
+        [
+            'var-dump',
+            [
+                'payload' => ['type' => 'code', 'value' => 'SELECT 1', 'label' => 'Query', 'language' => 'sql'],
+                'context' => ['source' => ['file' => '/app/src/Repo.php', 'line' => 7]],
+            ],
+            ['label' => 'Query', 'value_type' => 'code', 'language' => 'sql', 'file' => '/app/src/Repo.php'],
+        ],
+        'dump',
+    )]
+    #[DataSet(['monolog', ['level_name' => 'ERROR', 'channel' => 'app'], ['level' => 'ERROR', 'channel' => 'app']], 'log')]
+    #[DataSet(
+        [
+            'sentry',
+            [
+                'level' => 'error',
+                'exception' => ['values' => [['type' => 'PDOException'], ['type' => 'RuntimeException']]],
+                'environment' => 'prod',
+                'release' => '1.2.0',
+                'transaction' => 'POST /orders',
+                'server_name' => 'web-1',
+                'contexts' => ['response' => ['status_code' => 500]],
+            ],
+            [
+                'level' => 'error',
+                'exception' => ['PDOException', 'RuntimeException'],
+                'environment' => 'prod',
+                'release' => '1.2.0',
+                'transaction' => 'POST /orders',
+                'server_name' => 'web-1',
+                'status' => 500,
+            ],
+        ],
+        'sentry',
+    )]
+    #[DataSet(
+        [
+            'http-dump',
+            ['host' => 'shop.test', 'request' => ['method' => 'POST', 'uri' => 'api/orders']],
+            ['method' => 'POST', 'path' => '/api/orders', 'host' => 'shop.test'],
+        ],
+        'HTTP request',
+    )]
+    public function testFields(string $type, array $payload, array $expected): void
+    {
+        Assert::same(\array_filter((array) (new PayloadSummary())->fields(self::event($type, $payload))), $expected);
+    }
+
+    public function testMailFields(): void
+    {
+        $event = self::event('smtp', [
+            'subject' => 'Welcome',
+            'from' => [new Contact('Shop', 'shop@example.com')],
+            'to' => [new Contact('Alice', 'alice@example.com'), new Contact('Bob', null)],
+            'cc' => [],
+        ]);
+
+        Assert::same((new PayloadSummary())->fields($event), [
+            'subject' => 'Welcome',
+            'from' => ['shop@example.com'],
+            'to' => ['alice@example.com', 'Bob'],
+            'cc' => [],
+            'bcc' => [],
+        ]);
+    }
+
+    public function testRayFields(): void
+    {
+        $event = self::event('ray', new RayPayload('5a4f8e1c-0000-4000-8000-000000000001', [
+            ['type' => 'log', 'content' => ['values' => ['first']]],
+            ['type' => 'exception', 'content' => ['class' => 'LogicException', 'message' => 'Oops']],
+            ['type' => 'color', 'content' => ['color' => 'red']],
+            ['type' => 'label', 'content' => ['label' => 'checkout']],
+            ['type' => 'log', 'content' => ['values' => ['second']]],
+        ], []));
+
+        Assert::same((new PayloadSummary())->fields($event), [
+            'payload_type' => ['log', 'exception', 'color', 'label'],
+            'exception' => ['LogicException'],
+            'label' => ['checkout'],
+            'color' => ['red'],
+        ]);
+    }
+
+    public function testTypeWithoutFieldsIsLeftToOtherProviders(): void
+    {
+        Assert::null((new PayloadSummary())->fields(self::event('profiler', ['peaks' => []])));
+        Assert::array((new PayloadSummary())->fieldNames())
+            ->hasKeys('var-dump', 'monolog', 'sentry', 'smtp', 'http-dump', 'ray');
+    }
+
     public function testNoText(): void
     {
         Assert::null((new PayloadSummary())->text(new Record(self::event('monolog', []), 1, [])));

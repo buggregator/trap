@@ -13,6 +13,7 @@ use Buggregator\Trap\Module\Tracing\Frame\Trace\SpanKind;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\SpanStatus;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\StatusCode;
 use Buggregator\Trap\Module\Tracing\Mcp\ListTraces;
+use Buggregator\Trap\Module\Tracing\Mcp\TraceFilter;
 use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\JsonSchema;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
@@ -24,6 +25,7 @@ use Testo\Test;
 
 #[Test]
 #[Covers(ListTraces::class)]
+#[Covers(TraceFilter::class)]
 final class ListTracesTest
 {
     public function testListsLeastRecentlyUpdatedFirst(): void
@@ -117,6 +119,42 @@ final class ListTracesTest
         Assert::same($result['cursor'], $store->id . ':1');
     }
 
+    #[DataSet([['service' => 'shop'], ['a', 'c']], 'service')]
+    #[DataSet([['service' => ['SHOP', 'd*']], ['a', 'b', 'c']], 'services with a wildcard')]
+    #[DataSet([['service' => 'none'], []], 'unknown service')]
+    #[DataSet([['name' => 'get /api/*'], ['a', 'b']], 'name wildcard')]
+    #[DataSet([['name' => 'GET /api/orders'], ['a']], 'whole name')]
+    #[DataSet([['min_duration_ms' => 2], ['a', 'c']], 'minimum duration')]
+    #[DataSet([['min_duration_ms' => 2.5], ['c']], 'fractional minimum duration')]
+    #[DataSet([['search' => 'SELECT'], ['b']], 'search in attributes')]
+    #[DataSet([['search' => 'charge'], ['c']], 'search in child span names')]
+    #[DataSet([['search' => 'db\.statement=select', 'regex' => true], ['b']], 'regex over attributes')]
+    #[DataSet([['from' => '1h'], ['a', 'b', 'c']], 'updated in the last hour')]
+    #[DataSet([['to' => '2001-01-01T00:00:00Z'], []], 'updated long ago')]
+    #[DataSet([['service' => 'shop', 'min_duration_ms' => 3, 'search' => 'charge'], ['c']], 'all together')]
+    public function testFilters(array $arguments, array $expected): void
+    {
+        $trap = new Trap();
+        $store = $trap->get(SpanStore::class);
+        $store->receive(self::frame('shop', self::span('a', 1, null, 'GET /api/orders', 0, 2_000_000)));
+        $store->receive(self::frame('db', new Span(
+            traceId: self::traceId('b'),
+            spanId: \sprintf('%016x', 2),
+            parentSpanId: null,
+            name: 'GET /api/users',
+            kind: SpanKind::Client,
+            startTimeUnixNano: 0,
+            endTimeUnixNano: 1_000_000,
+            attributes: ['db.statement' => 'SELECT * FROM users', 'db.rows' => 3],
+        )));
+        $store->receive(self::frame('shop', self::span('c', 3, null, 'POST /checkout', 0, 1_000_000)));
+        $store->receive(self::frame('shop', self::span('c', 4, 3, 'charge card', 0, 3_000_000)));
+
+        $result = $trap->get(ListTraces::class)->call($arguments);
+
+        Assert::same(self::ids($result), \array_map(self::traceId(...), $expected));
+    }
+
     #[DataSet([[]], 'some traces')]
     #[DataSet([['errors_only' => true]], 'no traces')]
     #[DataSet([['limit' => 1]], 'more to come')]
@@ -136,6 +174,12 @@ final class ListTracesTest
     #[DataSet([['since' => 1], '`since` must be a string.'], 'cursor not a string')]
     #[DataSet([['limit' => 101], '`limit` must be an integer from 1 to 100.'], 'limit above maximum')]
     #[DataSet([['errors_only' => 'yes'], '`errors_only` must be a boolean.'], 'flag not a boolean')]
+    #[DataSet([['name' => 1], '`name` must be a string.'], 'name not a string')]
+    #[DataSet([['service' => [1]], '`service` must be a string or a list of strings.'], 'service not a string')]
+    #[DataSet([['min_duration_ms' => -1], '`min_duration_ms` must be a number of at least 0.'], 'negative duration')]
+    #[DataSet([['min_duration_ms' => '5'], '`min_duration_ms` must be a number of at least 0.'], 'duration string')]
+    #[DataSet([['from' => '5m', 'to' => '1h'], '`from` is later than `to`.'], 'time range')]
+    #[DataSet([['search' => '[', 'regex' => true], '`search` is not a valid regular expression: Compilation failed: missing terminating ] for character class at offset 1.'], 'regex')]
     public function testRejectsInvalidArguments(array $arguments, string $message): never
     {
         Expect::exception(\InvalidArgumentException::class)->withMessage($message);
@@ -151,7 +195,10 @@ final class ListTracesTest
         Assert::instanceOf($tool, ListTraces::class);
         Assert::same($tool->annotations(), ['readOnlyHint' => true, 'openWorldHint' => false]);
         Assert::string($tool->description())->contains('get_trace');
-        Assert::same(\array_keys($tool->inputSchema()['properties']), ['since', 'limit', 'errors_only']);
+        Assert::same(
+            \array_keys($tool->inputSchema()['properties']),
+            ['since', 'limit', 'errors_only', 'from', 'to', 'service', 'name', 'min_duration_ms', 'search', 'regex'],
+        );
     }
 
     /**

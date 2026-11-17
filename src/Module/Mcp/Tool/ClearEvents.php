@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Mcp\Tool;
 
 use Buggregator\Trap\Module\Mcp\Tool;
-use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Event\EventStore;
 
 /**
@@ -15,15 +14,10 @@ use Buggregator\Trap\Server\Event\EventStore;
  */
 final class ClearEvents implements Tool
 {
-    /** @var list<non-empty-string> */
-    private readonly array $types;
-
     public function __construct(
         private readonly EventStore $store,
-        Modules $modules,
-    ) {
-        $this->types = EventFilter::knownTypes($modules);
-    }
+        private readonly EventFilters $filters,
+    ) {}
 
     #[\Override]
     public function name(): string
@@ -40,9 +34,10 @@ final class ClearEvents implements Tool
     #[\Override]
     public function description(): string
     {
-        return 'Deletes the caught events, all of them or those of a type or a project. The Trap web UI drops '
-            . 'them on its next load: a page already open keeps showing them. Returns the number of deleted '
-            . 'events. Not needed to see only new events: pass a cursor to `list_events` instead.';
+        return 'Deletes the caught events, all of them or those that match the filter: the same filter as '
+            . '`list_events` takes, by type, project, time, text and fields. The Trap web UI drops them on its '
+            . 'next load: a page already open keeps showing them. Returns the number of deleted events. Not '
+            . 'needed to see only new events: pass a cursor to `list_events` instead.';
     }
 
     #[\Override]
@@ -50,7 +45,7 @@ final class ClearEvents implements Tool
     {
         return [
             'type' => 'object',
-            'properties' => EventFilter::schema($this->types),
+            'properties' => $this->filters->schema(),
             'additionalProperties' => false,
         ];
     }
@@ -85,7 +80,7 @@ final class ClearEvents implements Tool
     #[\Override]
     public function call(array $arguments): array
     {
-        $filter = EventFilter::fromArguments($arguments, $this->types);
+        $filter = $this->filters->fromArguments($arguments);
         if ($filter->isEmpty()) {
             $removed = \count($this->store);
             $this->store->clear();
@@ -93,9 +88,10 @@ final class ClearEvents implements Tool
             return ['removed' => $removed];
         }
 
+        // Matched in full before the first deletion: a failing search deletes nothing
         $uuids = [];
-        foreach ($this->store as $uuid => $event) {
-            $filter->matches($event) and $uuids[] = $uuid;
+        foreach ($this->store->changedSince(0) as $record) {
+            $filter->matches($record) and $uuids[] = $record->event->uuid;
         }
 
         foreach ($uuids as $uuid) {

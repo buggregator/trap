@@ -17,28 +17,33 @@ final class MaxLength
     public const MIN = 100;
 
     /**
+     * @param int<100, max> $default
+     *
      * @return array<non-empty-string, mixed> The property of the input schema.
      */
-    public static function schema(): array
-    {
+    public static function schema(
+        int $default = self::DEFAULT,
+        string $description = 'The most characters of the text to return; a longer text is cut with a notice.',
+    ): array {
         return [
             'type' => 'integer',
             'minimum' => self::MIN,
-            'default' => self::DEFAULT,
-            'description' => 'The most characters of the text to return; a longer text is cut with a notice.',
+            'default' => $default,
+            'description' => $description,
         ];
     }
 
     /**
      * @param array<array-key, mixed> $arguments
+     * @param int<100, max> $default
      *
      * @return int<0, max>
      *
      * @throws \InvalidArgumentException
      */
-    public static function fromArguments(array $arguments): int
+    public static function fromArguments(array $arguments, int $default = self::DEFAULT): int
     {
-        return Arguments::integer($arguments, 'max_length', self::MIN) ?? self::DEFAULT;
+        return Arguments::integer($arguments, 'max_length', self::MIN) ?? $default;
     }
 
     /**

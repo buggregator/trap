@@ -28,12 +28,24 @@ final class ProfileViewTest
         Assert::same((new ProfileView())->summary(self::event($metadata, $wallTime)), $expected);
     }
 
+    #[DataSet([['app_name' => 'shop', 'filename' => 'run.xhprof'], 'shop'], 'app name')]
+    #[DataSet([['filename' => 'run.xhprof'], 'run.xhprof'], 'file name')]
+    #[DataSet([[], ''], 'no name')]
+    public function testFields(array $metadata, string $name): void
+    {
+        $view = new ProfileView();
+
+        Assert::same($view->fields(self::event($metadata, 0)), ['name' => $name, 'format' => 'XHProf']);
+        Assert::same($view->fieldNames(), ['profiler' => ['name', 'format']]);
+    }
+
     public function testOtherPayloadIsLeftToOtherViews(): void
     {
         $event = new Event('5a4f8e1c-0000-4000-8000-000000000001', 'profiler', [], 1.0);
 
         Assert::null((new ProfileView())->summary($event));
         Assert::null((new ProfileView())->text(new Record($event, 1, [])));
+        Assert::null((new ProfileView())->fields($event));
     }
 
     private static function event(array $metadata, int $wallTime): Event

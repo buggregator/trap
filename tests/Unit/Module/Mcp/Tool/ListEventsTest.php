@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Tool;
 
 use Buggregator\Trap\Module\Mcp\Tool\EventFilter;
 use Buggregator\Trap\Module\Mcp\Tool\ListEvents;
+use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\JsonSchema;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
 use Testo\Assert;
@@ -33,6 +34,7 @@ final class ListEventsTest
             'project' => 'default',
             'time' => '2023-11-14T22:13:20.500+00:00',
             'summary' => 'first',
+            'fields' => ['value_type' => 'string'],
         ]);
         Assert::same(self::summaries($result), ['first', 'ERROR app: second']);
         Assert::same($result['cursor'], $trap->store->id . ':2');
@@ -169,7 +171,11 @@ final class ListEventsTest
     #[DataSet([['type' => 'nope'], 'Unknown event type `nope`; known types: '], 'unknown type')]
     #[DataSet([['type' => [1]], 'Unknown event type int'], 'type of a wrong kind')]
     #[DataSet([['type' => ['a' => 'monolog']], '`type` must be a string or a list of strings.'], 'type map')]
-    #[DataSet([['project' => 1], '`project` must be a string.'], 'project')]
+    #[DataSet([['project' => 1], '`project` must be a string or a list of strings.'], 'project')]
+    #[DataSet([['order' => 'random'], '`order` must be one of: oldest, newest.'], 'order')]
+    #[DataSet([['include' => 'all'], '`include` must be one of: summary, text.'], 'include')]
+    #[DataSet([['max_length' => 99], '`max_length` must be an integer from 100 to'], 'max_length below minimum')]
+    #[DataSet([['where' => ['level' => null]], '`where.level` must be'], 'where')]
     #[DataSet([['since' => 1], '`since` must be a string.'], 'cursor integer')]
     #[DataSet([['limit' => 0], '`limit` must be an integer from 1 to 200.'], 'zero limit')]
     #[DataSet([['limit' => 201], '`limit` must be an integer from 1 to 200.'], 'limit above maximum')]
@@ -210,6 +216,9 @@ final class ListEventsTest
     #[DataSet([[]], 'some events')]
     #[DataSet([['type' => 'smtp']], 'no events')]
     #[DataSet([['limit' => 1]], 'more to come')]
+    #[DataSet([['order' => 'newest', 'limit' => 1]], 'newest')]
+    #[DataSet([['include' => 'text', 'max_length' => 100]], 'texts')]
+    #[DataSet([['where' => ['level' => 'error'], 'search' => 'second']], 'filtered')]
     public function testResultConformsToOutputSchema(array $arguments): void
     {
         $trap = new Trap();
@@ -222,13 +231,114 @@ final class ListEventsTest
         Assert::same(JsonSchema::errors($result, $tool->outputSchema()), []);
     }
 
+    public function testNewestGivesTheLatestMatchesFirst(): void
+    {
+        $trap = new Trap();
+        $tool = $trap->get(ListEvents::class);
+        foreach (['a', 'b', 'c', 'd'] as $value) {
+            $trap->add(Trap::dump($value));
+        }
+        $trap->add(Trap::log('log'));
+
+        $result = $tool->call(['order' => 'newest', 'type' => 'var-dump', 'limit' => 2]);
+
+        Assert::same(self::summaries($result), ['d', 'c']);
+        Assert::true($result['has_more']);
+        Assert::same($result['cursor'], $trap->store->id . ':5');
+    }
+
+    public function testNewestCursorGivesOnlyLaterEvents(): void
+    {
+        $trap = new Trap();
+        $tool = $trap->get(ListEvents::class);
+        $trap->add(Trap::dump('before'));
+        $cursor = $tool->call(['order' => 'newest'])['cursor'];
+        $trap->add(Trap::dump('one'));
+        $trap->add(Trap::dump('two'));
+
+        $result = $tool->call(['since' => $cursor, 'order' => 'newest']);
+
+        Assert::same(self::summaries($result), ['two', 'one']);
+        Assert::false($result['has_more']);
+        Assert::same($tool->call(['since' => $result['cursor'], 'order' => 'newest'])['events'], []);
+    }
+
+    public function testFilteredOutEventsMoveTheCursorOfTheSearch(): void
+    {
+        $trap = new Trap();
+        $tool = $trap->get(ListEvents::class);
+        $trap->add(Trap::dump('wanted'));
+        $trap->add(Trap::dump('other'));
+
+        $result = $tool->call(['search' => 'WANTED']);
+
+        Assert::same(self::summaries($result), ['wanted']);
+        Assert::same($result['cursor'], $trap->store->id . ':2');
+    }
+
+    public function testSearchFindsTheTextOfTheEvent(): void
+    {
+        $trap = new Trap();
+        $trap->add(Trap::dump(['order_id' => 42]));
+        $trap->add(Trap::dump('unrelated'));
+
+        $result = $trap->get(ListEvents::class)->call(['search' => '"order_id" => 42']);
+
+        Assert::count($result['events'], 1);
+        Assert::string($result['events'][0]['summary'])->contains('order_id');
+    }
+
+    public function testIncludeTextAddsTheTextOfEachEvent(): void
+    {
+        $trap = new Trap();
+        $trap->add(Trap::dump('short'));
+        $trap->add(Trap::dump(\str_repeat('long ', 100)));
+
+        $events = $trap->get(ListEvents::class)->call(['include' => 'text', 'max_length' => 100])['events'];
+
+        Assert::string($events[0]['text'])->contains('"short"')->notContains('[Truncated');
+        Assert::string($events[1]['text'])->contains('[Truncated: 100 of ');
+    }
+
+    public function testSummaryAloneByDefault(): void
+    {
+        $trap = new Trap();
+        $trap->add(Trap::dump('short'));
+
+        $event = $trap->get(ListEvents::class)->call([])['events'][0];
+
+        Assert::same(\array_keys($event), ['id', 'type', 'project', 'time', 'summary', 'fields']);
+    }
+
+    public function testEventWithoutFieldsHasNoFieldsKey(): void
+    {
+        $trap = new Trap();
+        $trap->store->add(new Event('5a4f8e1c-0000-4000-8000-000000000001', 'monolog', ['message' => 'bare'], 1.0));
+
+        $events = $trap->get(ListEvents::class)->call([])['events'];
+
+        Assert::same(\array_keys($events[0]), ['id', 'type', 'project', 'time', 'summary']);
+    }
+
+    public function testWhereFiltersByTheFields(): void
+    {
+        $trap = new Trap();
+        $trap->add(Trap::log('failed'));
+        $trap->add(Trap::log('done', 'INFO'));
+
+        $result = $trap->get(ListEvents::class)->call(['where' => ['level' => 'info']]);
+
+        Assert::same(self::summaries($result), ['INFO app: done']);
+        Assert::same($result['events'][0]['fields'], ['level' => 'INFO', 'channel' => 'app']);
+    }
+
     public function testIsReadOnly(): void
     {
         $tool = (new Trap())->get(ListEvents::class);
 
         Assert::same($tool->name(), 'list_events');
         Assert::same($tool->annotations(), ['readOnlyHint' => true, 'openWorldHint' => false]);
-        Assert::string($tool->description())->contains('get_event');
+        Assert::string($tool->description())->contains('get_event')->contains('monolog: level, channel');
     }
 
     /**

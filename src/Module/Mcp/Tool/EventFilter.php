@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mcp\Tool;
 
-use Buggregator\Trap\Server\Application\Module\Modules;
-use Buggregator\Trap\Server\Event\Event;
-use Buggregator\Trap\Server\Event\ProvidesEvents;
+use Buggregator\Trap\Module\Mcp\View\EventViews;
+use Buggregator\Trap\Module\Mcp\View\TextCache;
+use Buggregator\Trap\Server\Event\Record;
 
 /**
- * The `type` and `project` arguments of the event tools.
+ * Which events a tool takes, read by {@see EventFilters} from the arguments. The cheap conditions are checked
+ * first, and the text view is rendered only for an event whose summary does not contain the searched text.
  *
  * @internal
  */
@@ -17,87 +18,79 @@ final class EventFilter
 {
     /**
      * @param list<non-empty-string> $types Any type when empty.
-     * @param string|null $project Project key; any project when null.
+     * @param list<non-empty-string> $projects Project keys; any project when empty.
+     * @param float|null $from Unix time in seconds of the earliest caught event, inclusive.
+     * @param float|null $to Unix time in seconds of the latest caught event, inclusive.
+     * @param array<non-empty-string, list<\Closure(scalar): bool>> $where Field name => checks of a value of the
+     *        field, any of which must pass.
      */
-    private function __construct(
-        public readonly array $types,
-        public readonly ?string $project,
+    public function __construct(
+        private readonly EventViews $views,
+        private readonly TextCache $texts,
+        public readonly array $types = [],
+        public readonly array $projects = [],
+        public readonly ?float $from = null,
+        public readonly ?float $to = null,
+        private readonly ?TextSearch $search = null,
+        private readonly array $where = [],
     ) {}
-
-    /**
-     * @return list<non-empty-string> Event types the modules declare, in the module list order.
-     */
-    public static function knownTypes(Modules $modules): array
-    {
-        $types = [];
-        foreach ($modules->implementing(ProvidesEvents::class) as $module) {
-            $types = [...$types, ...$module->eventTypes()];
-        }
-
-        return \array_values(\array_unique($types));
-    }
-
-    /**
-     * @param list<non-empty-string> $known
-     *
-     * @return array<non-empty-string, array<non-empty-string, mixed>> Properties of the input schema.
-     */
-    public static function schema(array $known): array
-    {
-        $type = ['type' => 'string'];
-        $known === [] or $type['enum'] = $known;
-
-        return [
-            'type' => [
-                'description' => 'Only the events of this type or of any of these types.',
-                'anyOf' => [$type, ['type' => 'array', 'items' => $type, 'minItems' => 1]],
-            ],
-            'project' => [
-                'type' => 'string',
-                'description' => \sprintf(
-                    'Only the events of this project; events sent without a project belong to `%s`. All projects when omitted.',
-                    Event::DEFAULT_PROJECT,
-                ),
-            ],
-        ];
-    }
-
-    /**
-     * @param array<array-key, mixed> $arguments
-     * @param list<non-empty-string> $known
-     *
-     * @throws \InvalidArgumentException
-     */
-    public static function fromArguments(array $arguments, array $known): self
-    {
-        /** @var mixed $type */
-        $type = $arguments['type'] ?? [];
-        $types = \is_string($type) ? [$type] : $type;
-        \is_array($types) && \array_is_list($types)
-            or throw new \InvalidArgumentException('`type` must be a string or a list of strings.');
-        foreach ($types as $value) {
-            \is_string($value) && \in_array($value, $known, true) or throw new \InvalidArgumentException(\sprintf(
-                'Unknown event type %s; known types: %s.',
-                \is_string($value) ? "`$value`" : \get_debug_type($value),
-                \implode(', ', $known),
-            ));
-        }
-        /** @var mixed $project */
-        $project = $arguments['project'] ?? null;
-        $project === null || \is_string($project)
-            or throw new \InvalidArgumentException('`project` must be a string.');
-
-        return new self(\array_values(\array_intersect($known, $types)), $project === '' ? Event::DEFAULT_PROJECT : $project);
-    }
 
     public function isEmpty(): bool
     {
-        return $this->types === [] && $this->project === null;
+        return $this->types === []
+            && $this->projects === []
+            && $this->from === null
+            && $this->to === null
+            && $this->search === null
+            && $this->where === [];
     }
 
-    public function matches(Event $event): bool
+    /**
+     * @throws \InvalidArgumentException When the regular expression of the search fails on the event.
+     */
+    public function matches(Record $record): bool
     {
+        $event = $record->event;
+
         return ($this->types === [] || \in_array($event->type, $this->types, true))
-            && ($this->project === null || $event->projectKey() === $this->project);
+            && ($this->projects === [] || \in_array($event->projectKey(), $this->projects, true))
+            && ($this->from === null || $event->timestamp >= $this->from)
+            && ($this->to === null || $event->timestamp <= $this->to)
+            && $this->matchesFields($record)
+            && $this->matchesText($record);
+    }
+
+    private function matchesFields(Record $record): bool
+    {
+        if ($this->where === []) {
+            return true;
+        }
+
+        $fields = $this->views->fields($record->event);
+        foreach ($this->where as $name => $checks) {
+            $values = $fields[$name] ?? [];
+            $passed = false;
+            foreach (\is_array($values) ? $values : [$values] as $value) {
+                foreach ($checks as $check) {
+                    if ($check($value)) {
+                        $passed = true;
+                        break 2;
+                    }
+                }
+            }
+
+            if (!$passed) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function matchesText(Record $record): bool
+    {
+        return $this->search === null
+            || $this->search->matches($this->views->summary($record->event))
+            || $this->search->matches($this->texts->text($record));
     }
 }

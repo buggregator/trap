@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Tool;
 
 use Buggregator\Trap\Module\Mcp\Tool\ClearEvents;
+use Buggregator\Trap\Module\Mcp\Tool\EventFilter;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\JsonSchema;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
@@ -17,6 +18,7 @@ use Testo\Test;
 
 #[Test]
 #[Covers(ClearEvents::class)]
+#[Covers(EventFilter::class)]
 final class ClearEventsTest
 {
     public function testClearsAll(): void
@@ -37,6 +39,10 @@ final class ClearEventsTest
     #[DataSet([['project' => 'shop'], 1, ['monolog@default', 'var-dump@default']], 'project')]
     #[DataSet([['type' => 'var-dump', 'project' => 'default'], 1, ['monolog@default', 'var-dump@shop']], 'type and project')]
     #[DataSet([['type' => 'smtp'], 0, ['monolog@default', 'var-dump@default', 'var-dump@shop']], 'nothing matches')]
+    #[DataSet([['search' => 'SHOP'], 1, ['monolog@default', 'var-dump@default']], 'search')]
+    #[DataSet([['where' => ['level' => 'error']], 1, ['var-dump@default', 'var-dump@shop']], 'field')]
+    #[DataSet([['to' => '2023-11-15T00:00:00Z'], 2, ['monolog@default']], 'caught before a time')]
+    #[DataSet([['project' => ['shop', 'default'], 'search' => 'dump'], 2, ['monolog@default']], 'projects and search')]
     public function testDeletesMatchingEvents(array $arguments, int $removed, array $left): void
     {
         $trap = self::trap();
@@ -88,7 +94,10 @@ final class ClearEventsTest
             'idempotentHint' => true,
             'openWorldHint' => false,
         ]);
-        Assert::same(\array_keys($tool->inputSchema()['properties']), ['type', 'project']);
+        Assert::same(
+            \array_keys($tool->inputSchema()['properties']),
+            ['type', 'project', 'from', 'to', 'search', 'regex', 'where'],
+        );
     }
 
     #[DataSet([[]], 'all')]
