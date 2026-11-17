@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Module\Mcp\Tool;
 
 use Buggregator\Trap\Module\Mcp\Tool;
 use Buggregator\Trap\Module\Mcp\View\EventViews;
+use Buggregator\Trap\Module\Mcp\View\TextCache;
 use Buggregator\Trap\Server\Event\EventStore;
 
 /**
@@ -17,7 +18,7 @@ final class GetEvent implements Tool
 {
     public function __construct(
         private readonly EventStore $store,
-        private readonly EventViews $views,
+        private readonly TextCache $texts,
     ) {}
 
     #[\Override]
@@ -81,16 +82,17 @@ final class GetEvent implements Tool
         );
 
         $event = $record->event;
-        $text = \sprintf(
-            "%s event %s at %s, project %s\n%s\n\n%s",
+        $header = \sprintf(
+            "%s event %s at %s, project %s\n%s\n\n",
             $event->type,
             $event->uuid,
             Time::format($event->timestamp),
             $event->projectKey(),
-            $this->views->summary($event),
-            $this->views->text($record),
+            $this->texts->summary($record),
         );
+        $headerLength = \mb_strlen($header);
+        [$text, $length] = $this->texts->prefix($record, \max(0, $maxLength - $headerLength));
 
-        return MaxLength::cut($text, $maxLength);
+        return MaxLength::cut($header . $text, $maxLength, $headerLength + $length);
     }
 }

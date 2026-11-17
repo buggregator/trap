@@ -154,6 +154,10 @@ final class ServerTest
         $dump = $this->callMcpTool('get_event', ['id' => $events['var-dump']['id']]);
         $request = $this->callMcpTool('get_event', ['id' => $events['http-dump']['id']]);
         $stale = $this->callMcpTool('list_events', ['since' => 'stale:1'])['events'];
+        // The marker is in the request body: in the text of the event, not in its summary
+        $found = $this->callMcpTool('list_events', ['search' => 'MCP-HTTP-MARKER', 'include' => 'text'])['events'];
+        $dumps = $this->callMcpTool('list_events', ['search' => 'mcp-dump-marker', 'from' => '5m'])['events'];
+        $posts = $this->callMcpTool('list_events', ['where' => ['method' => 'post', 'path' => '/acceptance/*']])['events'];
 
         Assert::same($exitCode, 0);
         Assert::string($cursor)->matchesRegex('/^[0-9a-f]{8}:0$/');
@@ -164,6 +168,11 @@ final class ServerTest
         Assert::string($dump)->startsWith('var-dump event ')->contains('"acceptance" => "mcp-dump-marker"')
             ->notContains("\e[");
         Assert::string($request)->contains('/acceptance/mcp-http')->contains('{"order":"mcp-http-marker"}');
+        Assert::same(\array_column($found, 'type'), ['http-dump']);
+        Assert::string($found[0]['text'])->contains('{"order":"mcp-http-marker"}');
+        Assert::same(\array_column($dumps, 'id'), [$events['var-dump']['id']]);
+        Assert::same(\array_column($posts, 'id'), [$events['http-dump']['id']]);
+        Assert::same($posts[0]['fields']['path'], '/acceptance/mcp-http');
     }
 
     /**

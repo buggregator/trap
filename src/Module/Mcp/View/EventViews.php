@@ -13,6 +13,7 @@ use Internal\Container\Container;
 
 /**
  * The views of the modules, in the module list order, then {@see PayloadSummary} and {@see ConsoleText}.
+ * The views that implement {@see EventFields} give the fields of the events, in the same order.
  *
  * @internal
  */
@@ -54,6 +55,46 @@ final class EventViews
         }
 
         return $event->type;
+    }
+
+    /**
+     * @return array<non-empty-string, scalar|list<scalar>> Without empty strings and lists; empty when no
+     *         provider knows the event.
+     */
+    public function fields(Event $event): array
+    {
+        foreach ($this->views as $view) {
+            if (!$view instanceof EventFields) {
+                continue;
+            }
+
+            try {
+                $fields = $view->fields($event);
+            } catch (\Throwable) {
+                // A payload of an unexpected shape must not fail the whole listing
+                continue;
+            }
+
+            if ($fields !== null) {
+                return \array_filter($fields, static fn(mixed $value): bool => $value !== '' && $value !== []);
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * @return array<non-empty-string, list<non-empty-string>> Event type => field names; for a type several
+     *         providers know, the names of the first one.
+     */
+    public function fieldNames(): array
+    {
+        $names = [];
+        foreach ($this->views as $view) {
+            $view instanceof EventFields and $names += $view->fieldNames();
+        }
+
+        return $names;
     }
 
     /**

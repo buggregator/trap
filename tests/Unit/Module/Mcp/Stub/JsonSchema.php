@@ -8,7 +8,7 @@ use Buggregator\Trap\Support\Json;
 
 /**
  * Checks a tool result against its output schema, for the keywords the tools use: `type`, `properties`,
- * `required`, `additionalProperties: false`, `items`, `minimum` and `enum`.
+ * `required`, `additionalProperties`, `items`, `minimum`, `enum` and `anyOf`.
  */
 final class JsonSchema
 {
@@ -34,6 +34,16 @@ final class JsonSchema
             }
         }
 
+        if (isset($schema['anyOf'])) {
+            foreach ($schema['anyOf'] as $option) {
+                if (self::check($value, $option, $path) === []) {
+                    return [];
+                }
+            }
+
+            return ["$path: matches no `anyOf` schema"];
+        }
+
         $errors = [];
         if (isset($schema['enum']) && !\in_array($value, $schema['enum'], true)) {
             $errors[] = "$path: not in enum";
@@ -54,6 +64,8 @@ final class JsonSchema
                     $errors = [...$errors, ...self::check($item, $properties[$key], "$path.$key")];
                 } elseif (($schema['additionalProperties'] ?? true) === false) {
                     $errors[] = "$path: unexpected `$key`";
+                } elseif (\is_array($schema['additionalProperties'] ?? null)) {
+                    $errors = [...$errors, ...self::check($item, $schema['additionalProperties'], "$path.$key")];
                 }
             }
         }

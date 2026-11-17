@@ -50,6 +50,33 @@ final class EventViewsTest
         Assert::same(self::views()->summary(PayloadSummaryTest::event('broken', [])), 'broken');
     }
 
+    public function testModuleFieldsGoFirstWithoutEmptyValues(): void
+    {
+        Assert::same(self::views()->fields(PayloadSummaryTest::event('fixed', [])), ['answer' => 42]);
+    }
+
+    public function testPayloadFieldsAreNext(): void
+    {
+        $event = PayloadSummaryTest::event('monolog', ['level_name' => 'INFO', 'channel' => 'app']);
+
+        Assert::same(self::views()->fields($event), ['level' => 'INFO', 'channel' => 'app']);
+    }
+
+    public function testFailedOrUnknownEventHasNoFields(): void
+    {
+        Assert::same(self::views()->fields(PayloadSummaryTest::event('broken', [])), []);
+        Assert::same(self::views()->fields(PayloadSummaryTest::event('unknown', [])), []);
+    }
+
+    public function testFieldNamesOfTheFirstProviderWin(): void
+    {
+        $names = self::views()->fieldNames();
+
+        Assert::same($names['fixed'], ['answer', 'empty']);
+        Assert::same($names['monolog'], ['ignored']);
+        Assert::same($names['smtp'], ['subject', 'from', 'to', 'cc', 'bcc']);
+    }
+
     public function testTextFallsBackToPayloadJson(): void
     {
         $record = new Record(PayloadSummaryTest::event('unknown', ['key' => 'value/1']), 1, []);
