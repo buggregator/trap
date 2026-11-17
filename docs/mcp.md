@@ -26,6 +26,7 @@ the agent deletes is gone from the UI on its next load; a page already open keep
 | `list_events`     | `since` (cursor), [filters](#filters), `order`, `include`, `max_length`, `limit`   | `events`: `id`, `type`, `project`, `time`, `summary`, `fields`, `text` each; `cursor` to pass next; `has_more` |
 | `wait_for_events` | `since` (cursor), [filters](#filters), `count`, `timeout`, `include`, `max_length` | As `list_events`, and `timed_out`; see [Waiting for events](#waiting-for-events)                               |
 | `get_event`       | `id`, `max_length`                                                                 | The event as plain text: a header line, then the event as the console prints it                                |
+| `delete_event`    | `id`, or `ids` (200 at most)                                                       | `deleted`: the number of deleted events; `not_found`: the IDs of no stored event, when some are                 |
 | `clear_events`    | `since` (cursor), [filters](#filters)                                              | `removed`: the number of deleted events; `incomplete`, `cursor` when the call [ran out of time](#time-limit)   |
 
 - `list_events` returns the events added or updated after `since`, oldest first, at most `limit` of them
@@ -40,7 +41,11 @@ the agent deletes is gone from the UI on its next load; a page already open keep
   at most: the call stops before the event that would exceed that, with `has_more: true`. With `order: oldest`
   the returned `cursor` goes on from that event; with `order: newest` it still points at the latest change, and
   the events left out are the older ones, as past `limit`.
-- `get_event` cuts a text longer than `max_length` characters, 50 000 by default, and says so.
+- `get_event` cuts a text longer than `max_length` characters, 50 000 by default, and says so. A Sentry event has
+  [a text of its own](#sentry-events).
+- `delete_event` deletes the events of the given IDs. The store keeps no trace of a deleted event, so an ID deleted
+  before, pushed out by newer events or mistyped is the same: it is listed in `not_found`, and a call that finds none
+  of its IDs fails. A repeated call deletes nothing more, so the tool is marked idempotent.
 - `clear_events` without arguments deletes all the events. A malformed `since` is an error, so a typo doesn't
   turn "the newer ones" into all of them.
 - A tool that returns JSON declares its `outputSchema` and sends the object as `structuredContent`,
@@ -175,6 +180,78 @@ The agent runs the tests and waits for the error they log:
    }
    ```
 4. To catch what the tests send next, the agent waits again with `{"since": "5f3a9c1e:14", ...}`.
+
+### Sentry events
+
+`get_event` gives a [Sentry](sentry.md) event as a compact text to fix the error from, rather than as the console
+prints it:
+
+- The metadata, one `Name: value` line each: event ID, type when not `event`, level, message, transaction and its
+  duration, environment, release, server, platform, logger, SDK, fingerprint, tags and user.
+- The exception chain: the thrown exception first, then the ones that caused it down to the root cause, each with
+  its type, value and mechanism (`handled` or `unhandled`). An event without exceptions gets the stack trace of the
+  event, or of its crashed or current thread.
+- The stack frames, innermost first and numbered from `#0`: file and line, the function. The innermost frame and the
+  application frames come with the lines around their line, the absolute path and the local variables when the SDK
+  sends them. Frames of libraries are those with `in_app: false` and those under a `vendor`, `node_modules` or
+  `site-packages` directory, as some SDKs mark every frame in-app; a run of two or more of them is one line,
+  `… 23 vendor frames #2-#24 …`. When all the frames are of libraries, none are collapsed.
+- The request: method, URL, query, headers without cookies and the headers of the browser (`sec-*`, `accept-encoding`,
+  `accept-language`, `connection` and the like), body.
+- The contexts, such as `runtime`, `os` and `trace` with its IDs, one line each; the latest breadcrumbs, oldest first;
+  the extra data; the spans of a transaction with their durations.
+- An envelope of several items shows each of them under `--- Item 2 of 3: attachment ---`: an attachment by its
+  name, type and size. The web UI shows the first item only.
+
+Bounds; what is left out is counted, as `… 5 more …`:
+
+| What                                            | At most                  |
+|-------------------------------------------------|--------------------------|
+| Exceptions of a chain                           | 10                       |
+| Frame lines of a stack trace                    | 30                       |
+| Frames shown with their code                    | 3 per stack trace        |
+| Lines of code around the line of a frame        | 3 before, 3 after        |
+| Variables of a frame                            | 10                       |
+| Request headers                                 | 15                       |
+| Breadcrumbs                                     | the last 10              |
+| Tags, user fields, contexts, extra entries      | 20                       |
+| Spans                                           | 20                       |
+| Characters of an exception value, message, body | 2 000                    |
+| Characters of another value                     | 300; of a code line, 200 |
+
+The modules (installed packages) are left out. The fields of a Sentry event for `where` are in [Filters](#filters).
+
+```
+sentry event 0b9e4a1c-... at 2026-11-16T10:10:42.033+00:00, project default
+RuntimeException: Error when getting value.
+
+Event ID: 8beb0492c70349d28242468e7028cfa6
+Level: error
+Environment: production
+Platform: php
+SDK: sentry.php 4.10.0
+
+Exception chain of 2, the thrown one first, then what caused it; stack frames innermost first:
+RuntimeException: Error when getting value.
+  Mechanism: generic, unhandled
+  #0 src/Console/DoNothing.php:57 in App\Console\DoNothing::getValue
+     path: /app/src/Console/DoNothing.php
+     54 |     try {
+     55 |         $_SERVER['VAR_DUMPER_FORMAT'];
+     56 |     } catch (\Throwable $e) {
+   > 57 |         throw new \RuntimeException('Error when getting value.', 69, previous: $e);
+     58 |     }
+  #1 src/Console/DoNothing.php:41 in App\Console\DoNothing::__invoke
+     ...
+  … 23 vendor frames #2-#24 …
+  #25 app.php:33
+Caused by ErrorException: Warning: Undefined array key "VAR_DUMPER_FORMAT"
+  ...
+
+Contexts:
+  runtime: name=php, version=8.4.1
+  trace: trace_id=f6214e4aba254e41b6688c9b3a9d88b7, span_id=5da59e19760b4293
+```
 
 ### Traces
 

@@ -89,7 +89,7 @@ final class EventFilterArgumentsTest
         Assert::same($filter->projects, ['default']);
     }
 
-    #[DataSet([['where' => ['a', 'b']], 'Unknown field `0` in `where`: its keys must be field names, such as `{"level": "error"}`. Known fields: name, format, label, value_type, '], 'list')]
+    #[DataSet([['where' => ['a', 'b']], 'Unknown field `0` in `where`: its keys must be field names, such as `{"level": "error"}`. Known fields: level, exception, environment, release, transaction, server_name, status, name, format, '], 'list')]
     #[DataSet([['where' => [1 => 'x']], 'Unknown field `1` in `where`: its keys must be field names'], 'number key')]
     #[DataSet([['where' => ['nope' => 'x']], 'Unknown field `nope` in `where`'], 'unknown field')]
     #[DataSet([['where' => ['level' => true]], '`where.level` must be a string, a number or a non-empty list of them: no field holds a boolean.'], 'boolean')]
@@ -125,7 +125,7 @@ final class EventFilterArgumentsTest
 
         Assert::same(\array_keys($schema), ['type', 'project', 'from', 'to', 'search', 'regex', 'where']);
         Assert::string($filters->fieldsHelp())
-            ->startsWith('profiler: name, format; var-dump: label, value_type, language, file; monolog: level, channel; ')
+            ->startsWith('sentry: level, exception, environment, release, transaction, server_name, status; profiler: name, format; var-dump: label, value_type, language, file; monolog: level, channel; ')
             ->contains('smtp: subject, from, to, cc, bcc')
             ->contains('http-dump: method, path, host');
         Assert::string($schema['where']['description'])->contains($filters->fieldsHelp());
