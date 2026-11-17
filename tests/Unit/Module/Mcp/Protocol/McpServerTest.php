@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Mcp\McpStatus;
 use Buggregator\Trap\Module\Mcp\Protocol\McpServer;
 use Buggregator\Trap\Module\Mcp\Protocol\RpcError;
 use Buggregator\Trap\Server\Info;
+use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\WaitingToolsModule;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\ToolsTest;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -134,6 +135,20 @@ final class McpServerTest
         $result = self::server()->request('tools/call', ['name' => 'echo', 'arguments' => ['fail' => 'Broken']]);
 
         Assert::same($result, ['content' => [['type' => 'text', 'text' => 'Broken']], 'isError' => true]);
+    }
+
+    public function testWaitingToolFailsInBatch(): void
+    {
+        $server = self::server([WaitingToolsModule::class]);
+
+        $waiting = $server->request('tools/call', ['name' => 'wait'], batch: true);
+        $other = $server->request('tools/call', ['name' => 'echo', 'arguments' => ['text' => 'hi']], batch: true);
+        $single = $server->request('tools/call', ['name' => 'wait']);
+
+        Assert::true($waiting['isError']);
+        Assert::string($waiting['content'][0]['text'])->contains("`wait` can't run in a JSON-RPC batch");
+        Assert::false($other['isError']);
+        Assert::same($single['content'], [['type' => 'text', 'text' => 'done']]);
     }
 
     #[DataSet([['name' => 'missing']], 'unknown tool')]

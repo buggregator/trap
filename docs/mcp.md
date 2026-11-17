@@ -21,11 +21,12 @@ The tools read the events Trap has caught and the [traces](#traces) it has recei
 [web UI](web-ui.md) shows, kept with `--mcp` alone too. An event deleted in the UI is gone for the agent. An event
 the agent deletes is gone from the UI on its next load; a page already open keeps showing it.
 
-| Tool           | Arguments                                                                        | Result                                                                                                         |
-|----------------|----------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
-| `list_events`  | `since` (cursor), [filters](#filters), `order`, `include`, `max_length`, `limit` | `events`: `id`, `type`, `project`, `time`, `summary`, `fields`, `text` each; `cursor` to pass next; `has_more` |
-| `get_event`    | `id`, `max_length`                                                               | The event as plain text: a header line, then the event as the console prints it                                |
-| `clear_events` | `since` (cursor), [filters](#filters)                                            | `removed`: the number of deleted events; `incomplete`, `cursor` when the call [ran out of time](#time-limit)   |
+| Tool              | Arguments                                                                          | Result                                                                                                         |
+|-------------------|------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
+| `list_events`     | `since` (cursor), [filters](#filters), `order`, `include`, `max_length`, `limit`   | `events`: `id`, `type`, `project`, `time`, `summary`, `fields`, `text` each; `cursor` to pass next; `has_more` |
+| `wait_for_events` | `since` (cursor), [filters](#filters), `count`, `timeout`, `include`, `max_length` | As `list_events`, and `timed_out`; see [Waiting for events](#waiting-for-events)                               |
+| `get_event`       | `id`, `max_length`                                                                 | The event as plain text: a header line, then the event as the console prints it                                |
+| `clear_events`    | `since` (cursor), [filters](#filters)                                              | `removed`: the number of deleted events; `incomplete`, `cursor` when the call [ran out of time](#time-limit)   |
 
 - `list_events` returns the events added or updated after `since`, oldest first, at most `limit` of them
   (50 by default, 200 at most). `since` is the opaque `cursor` of an earlier call; without it, or with a cursor
@@ -47,7 +48,7 @@ the agent deletes is gone from the UI on its next load; a page already open keep
 
 ### Filters
 
-`list_events` and `clear_events` take the same filter. An event must match all the arguments given.
+`list_events`, `wait_for_events` and `clear_events` take the same filter. An event must match all the arguments given.
 
 | Argument  | Matches                                                                                                                          |
 |-----------|----------------------------------------------------------------------------------------------------------------------------------|
@@ -93,7 +94,8 @@ seconds. Trap catches events and answers other requests meanwhile, and a call st
   again with the same filter and that cursor as `since` to delete the rest.
 - An event deleted or changed while the call runs is left out: the changed one comes with the next call that
   passes the cursor, and `clear_events` deletes only the events that have not changed since they matched.
-- A call goes on until it is done or out of time even when the client disconnects or cancels it.
+- A call goes on until it is done or out of time even when the client disconnects or cancels it;
+  only [a wait](#waiting-for-events) stops then, in the middle of a check too.
 - Rendering the summaries counts too: a plain `list_events` over many very large events not rendered
   yet may return fewer than `limit` events with `has_more: true`.
 
@@ -114,6 +116,65 @@ The `list_events` description lists the fields too. Examples:
 - A dump containing `order_id`, with its text: `{"type": "var-dump", "search": "order_id", "include": "text"}`.
 - POST requests to `/api/orders*`: `{"type": "http-dump", "where": {"method": "POST", "path": "/api/orders*"}}`.
 - The latest mail to a customer: `{"where": {"to": "*@example.com"}, "order": "newest", "limit": 1}`.
+
+### Waiting for events
+
+`wait_for_events` saves the agent a loop of `list_events` calls while the code it has triggered runs. The result
+is what `list_events` with the same arguments, `order: oldest` and `limit: count` returns once it holds `count`
+events (1 by default, 50 at most), plus `timed_out: false`. After `timeout` seconds (30 by default, 50 at most)
+the result is what that call returns then, possibly no events, with `timed_out: true`: it is not an error.
+
+- Without `since` the wait counts only the events changed after it starts. The agent calls it after the command
+  that triggers the code, so the events sent before that are missed. Take a `cursor` with `list_events` before
+  triggering the code, and pass it as `since`: the events that came in between count, and a wait for the ones
+  already there returns at once.
+- `cursor` and `has_more` are those of `list_events`: pass the returned `cursor` to `list_events` or to the next
+  wait, and no event is missed.
+- An event updated while the call waits, as a Ray message updated by the application, is listed once, at its
+  latest change. An event deleted, or updated so that it no longer matches, is not listed and doesn't count.
+- When the texts of `include: text` fill the result before `count` events, the call returns at once with
+  `has_more: true`, as more events would not fit.
+- With a short `timeout`, or `0`, the events already there after an older `since` still get the full
+  [time limit](#time-limit) to be checked, as with `list_events`. A check that runs out of time goes on at once,
+  getting further each time, as the events already checked are not checked again.
+- The durations of `from` and `to`, such as `5m`, count back from the start of the wait.
+- A wait inside a JSON-RPC batch fails: the batch is answered once all its calls are done, so a wait would hold
+  up the rest. Send each wait as a request of its own.
+- The MCP TypeScript SDK and Codex give up on a call after 60 seconds by default, so the timeout stays below that.
+  To wait longer, wait again with the returned cursor.
+- A waiting call costs nothing until an event arrives: Trap catches events and answers other calls meanwhile,
+  other waits too. Only a change gets the events checked again, and then only the new and changed ones go
+  through the filter; a `search` over large events checks them a slice at a time, as under the
+  [time limit](#time-limit).
+- The wait stops when the client closes the connection, as clients do on cancelling a call, even in the middle
+  of a check, and returns nothing to it. A client that sends only `notifications/cancelled` and keeps the
+  connection open gets the wait running until it is done or out of time: the stateless server does not match the
+  notification to the call.
+
+The agent runs the tests and waits for the error they log:
+
+1. `list_events` with `{"order": "newest", "limit": 1}` → `{"events": [...], "cursor": "5f3a9c1e:12", ...}`.
+2. The agent starts the tests.
+3. `wait_for_events` with `{"since": "5f3a9c1e:12", "type": "monolog", "where": {"level": "error"}}`
+   → as soon as the record arrives, or at once if it already has:
+   ```json
+   {
+       "events": [
+           {
+               "id": "7c1d2e3f-...",
+               "type": "monolog",
+               "project": "default",
+               "time": "2026-11-16T10:10:42.033+00:00",
+               "summary": "ERROR app: Payment declined",
+               "fields": {"level": "ERROR", "channel": "app"}
+           }
+       ],
+       "cursor": "5f3a9c1e:14",
+       "has_more": false,
+       "timed_out": false
+   }
+   ```
+4. To catch what the tests send next, the agent waits again with `{"since": "5f3a9c1e:14", ...}`.
 
 ### Traces
 

@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Mcp\Sender\McpSender;
 use Buggregator\Trap\Module\Mcp\Tool\ClearEvents;
 use Buggregator\Trap\Module\Mcp\Tool\GetEvent;
 use Buggregator\Trap\Module\Mcp\Tool\ListEvents;
+use Buggregator\Trap\Module\Mcp\Tool\WaitForEvents;
 use Buggregator\Trap\Server\Sender\ProvidesSenders;
 
 /**
@@ -27,6 +28,6 @@ final class Module implements ProvidesSenders, ProvidesMcpTools
     #[\Override]
     public function mcpTools(): array
     {
-        return [ListEvents::class, GetEvent::class, ClearEvents::class];
+        return [ListEvents::class, WaitForEvents::class, GetEvent::class, ClearEvents::class];
     }
 }

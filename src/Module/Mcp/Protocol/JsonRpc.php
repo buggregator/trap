@@ -44,7 +44,7 @@ final class JsonRpc
         $responses = [];
         /** @var mixed $message */
         foreach ($payload as $message) {
-            $response = $this->message($message);
+            $response = $this->message($message, batch: true);
             $response === null or $responses[] = $response;
         }
 
@@ -54,7 +54,7 @@ final class JsonRpc
     /**
      * @return array<non-empty-string, mixed>|null
      */
-    private function message(mixed $message): ?array
+    private function message(mixed $message, bool $batch = false): ?array
     {
         if (!\is_array($message) || ($message['jsonrpc'] ?? null) !== '2.0') {
             return self::error(null, RpcError::INVALID_REQUEST, 'Not a JSON-RPC 2.0 message.');
@@ -86,7 +86,7 @@ final class JsonRpc
         }
 
         try {
-            return ['jsonrpc' => '2.0', 'id' => $id, 'result' => $this->server->request($method, $params)];
+            return ['jsonrpc' => '2.0', 'id' => $id, 'result' => $this->server->request($method, $params, $batch)];
         } catch (RpcError $e) {
             return self::error($id, $e->getCode(), $e->getMessage());
         } catch (\Throwable $e) {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mcp\Http;
 
+use Buggregator\Trap\Module\Mcp\Caller;
 use Buggregator\Trap\Module\Mcp\Protocol\JsonRpc;
 use Buggregator\Trap\Module\Mcp\Protocol\McpServer;
 use Buggregator\Trap\Module\Mcp\Protocol\RpcError;
@@ -29,6 +30,7 @@ final class Endpoint implements Middleware
 
     public function __construct(
         private readonly JsonRpc $rpc,
+        private readonly Caller $caller,
     ) {}
 
     #[\Override]
@@ -60,7 +62,11 @@ final class Endpoint implements Middleware
             return self::json(400, JsonRpc::error(null, RpcError::PARSE_ERROR, 'Parse error: ' . $e->getMessage()));
         }
 
-        $response = $this->rpc->process($payload);
+        /** @var (\Closure(): bool)|null $disconnected */
+        $disconnected = $request->getAttribute(Middleware::DISCONNECTED);
+        $response = $disconnected instanceof \Closure
+            ? $this->caller->connected($disconnected, fn(): ?array => $this->rpc->process($payload))
+            : $this->rpc->process($payload);
 
         return match (true) {
             $response === null => new Response(202),
