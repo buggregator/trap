@@ -100,7 +100,8 @@ final class ProfileSummary implements Tool
                     ...$values,
                     'description' => 'The largest value of each measured metric of one caller and callee pair, as '
                         . 'the console shows: the root\'s for the times and memory; for `ct`, the most calls or '
-                        . 'samples of one pair. The percentages are of them; none for `ct`.',
+                        . 'samples of one pair. The sum of the roots when larger, as of a root added to a profile '
+                        . 'without `main()`. The percentages are of them; none for `ct`.',
                 ],
                 'functions' => ['type' => 'integer', 'description' => 'Distinct functions.'],
                 'edges' => ['type' => 'integer', 'description' => 'Distinct caller-callee pairs.'],

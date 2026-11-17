@@ -120,8 +120,9 @@ final class ProfileCallGraph implements Tool
             $analysis->countType,
             $profile->exactTree ? '' : ' The profiler sums the calls by caller and callee, so the tree is unfolded '
                 . 'from them: a function called from several places has its callees split by their shares.',
-            $tree->cut ? ' The tree unfolds into too many calls, so it is cut to its heaviest calls: the lighter ones '
-                . 'are left out.' : '',
+            $tree->cut ? ' The tree unfolds into too many calls, so it is cut: it keeps the calls in the order they '
+                . 'were made up to a limit and may leave out later ones, heavy ones too. The hot path of '
+                . '`profile_summary` and `profile_calls` show the heaviest paths.' : '',
         )];
 
         $minValue = (float) $peak * $threshold / 100.0;
@@ -176,12 +177,13 @@ final class ProfileCallGraph implements Tool
                     $stack[] = [$children, $depth + 1];
                 }
                 $stack[] = \sprintf(
-                    '%s  %s  %s%s (%d)',
+                    '%s  %s  %s%s%s',
                     self::padLeft(self::percent($analysis->percent($metric, $value)), 6),
                     self::padLeft($metric->format($value), 11),
                     $indent,
                     $branch->item->callee,
-                    $cost->ct,
+                    // A root added for a profile without `main()` has no calls of its own
+                    $branch->item->callerId === null && $cost->ct === 0 ? '' : " ($cost->ct)",
                 );
             }
         }

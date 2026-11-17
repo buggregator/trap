@@ -198,16 +198,20 @@ final class Graph implements \IteratorAggregate, \Countable
     }
 
     /**
-     * Unfolds the graph into a call tree from the roots.
+     * Unfolds the graph into a call tree from the roots, depth first in the order of the calls.
      *
      * The tree is approximate: a function called from several callers is unfolded under each of them,
      * with its callees scaled by the share of the caller in the function's total cost.
      * Percentages are scaled the same way; deltas are against the parent node of the tree.
      *
+     * Only when the roots have no wall time, the scales and `$minShare` go by the call counts instead:
+     * scaled by a zero wall time, every node would keep the full cost of its callees, and shared functions
+     * calling each other would unfold into exponentially many nodes.
+     *
      * @param float $minShare Nodes with a smaller share of the roots' wall time are dropped:
-     *        unfolding multiplies the nodes of shared functions. Of the call counts when the roots have no wall time.
-     * @param int<1, max> $maxNodes Past it, the tree is {@see Tree::$cut} to the heaviest nodes that fit, in the
-     *        same order: shared functions calling each other unfold into exponentially many nodes.
+     *        unfolding multiplies the nodes of shared functions.
+     * @param int<1, max> $maxNodes Past it, the tree is {@see Tree::$cut}: it keeps the calls in the order they
+     *        were made up to the limit and leaves out the later ones, however heavy.
      * @param TimeSlice|null $timeSlice Lets other fibers run during a long unfolding.
      *
      * @return Tree<Edge> Node IDs are `n1`, `n2`, etc.
@@ -227,17 +231,59 @@ final class Graph implements \IteratorAggregate, \Countable
         }
 
         $minValue = (float) $total * $minShare;
-        $tree = $this->unfoldFrom($metric, $minValue, null, $maxNodes, $timeSlice);
-        if (!$tree->cut) {
-            return $tree;
-        }
 
-        // Cut in the order of the calls, the tree would keep the light calls made first and lose the heavy ones
-        // made after them: unfolded again, it keeps only the nodes as heavy as the heaviest ones that fit
-        unset($tree);
-        [$least, $ties] = $this->leastOfHeaviest($metric, $minValue, $maxNodes, $timeSlice);
-        $tree = $this->unfoldFrom($metric, $least, $ties, $maxNodes, $timeSlice);
-        $tree->cut = true;
+        /** @var Tree<Edge> $tree */
+        $tree = new Tree();
+        /** @var array<non-empty-string, true> $path Function IDs of the ancestors, to stop on a cycle */
+        $path = [];
+
+        // Iterative: the depth follows the recursion in the profiled code, deeper than Xdebug's nesting limit.
+        // An entry is an edge to unfold with its parent node and scale, or a function ID that leaves the path.
+        /** @var list<array{Edge, Branch<Edge>|null, float}|non-empty-string> $stack */
+        $stack = \array_map(static fn(Edge $edge): array => [$edge, null, 1.0], \array_reverse($this->roots));
+        while ($stack !== []) {
+            $entry = \array_pop($stack);
+            if (\is_string($entry)) {
+                unset($path[$entry]);
+                continue;
+            }
+
+            [$edge, $parent, $scale] = $entry;
+            $value = (float) $metric->of($edge->cost) * $scale;
+            if ($value < $minValue || isset($path[$edge->calleeId])) {
+                continue;
+            }
+
+            if (\count($tree) >= $maxNodes) {
+                $tree->cut = true;
+                break;
+            }
+
+            $timeSlice?->tick();
+            $id = 'n' . (\count($tree) + 1);
+            $tree->addItem(
+                new Edge(
+                    $edge->caller,
+                    $edge->callee,
+                    self::scaleCost($edge->cost, $scale, $parent?->item->cost),
+                    $edge->calleeId,
+                    $edge->callerId,
+                ),
+                $id,
+                $parent?->id,
+            );
+            /** @var Branch<Edge> $branch */
+            $branch = $tree->all[$id];
+
+            $calleeTotal = $metric->of($this->inclusiveCost($edge->calleeId));
+            $childScale = $calleeTotal > 0 ? $value / (float) $calleeTotal : $scale;
+
+            $path[$edge->calleeId] = true;
+            $stack[] = $edge->calleeId;
+            foreach (\array_reverse($this->callees($edge->calleeId)) as $child) {
+                $stack[] = [$child, $branch, $childScale];
+            }
+        }
 
         return $tree;
     }
@@ -309,126 +355,6 @@ final class Graph implements \IteratorAggregate, \Countable
     private static function scaleValue(int $value, float $scale): int
     {
         return \max(0, (int) \round((float) $value * $scale));
-    }
-
-    /**
-     * Unfolds the heaviest nodes first, as many as the tree takes.
-     *
-     * The cycles in received data are not followed: the nodes are counted without their ancestors, so a cycle
-     * just takes the place of lighter nodes.
-     *
-     * @param int<1, max> $maxNodes
-     *
-     * @return array{float, int<0, max>} The value of the lightest node unfolded, and how many nodes of this value
-     *         fit beside the heavier ones.
-     */
-    private function leastOfHeaviest(Metric $metric, float $minValue, int $maxNodes, ?TimeSlice $timeSlice): array
-    {
-        $queue = new \SplPriorityQueue();
-        foreach ($this->roots as $edge) {
-            $queue->insert([$edge, 1.0], (float) $metric->of($edge->cost));
-        }
-
-        $least = \INF;
-        $unfolded = $leastCount = 0;
-        while ($unfolded < $maxNodes && !$queue->isEmpty()) {
-            /** @var array{Edge, float} $entry */
-            $entry = $queue->extract();
-            [$edge, $scale] = $entry;
-            // The same arithmetic as in `self::unfoldFrom()`, so the values compare equal
-            $value = (float) $metric->of($edge->cost) * $scale;
-            if ($value < $minValue) {
-                continue;
-            }
-
-            ++$unfolded;
-            if ($value < $least) {
-                $least = $value;
-                $leastCount = 0;
-            }
-            $value === $least and ++$leastCount;
-
-            $calleeTotal = $metric->of($this->inclusiveCost($edge->calleeId));
-            $childScale = $calleeTotal > 0 ? $value / (float) $calleeTotal : $scale;
-            foreach ($this->callees($edge->calleeId) as $child) {
-                $queue->insert([$child, $childScale], (float) $metric->of($child->cost) * $childScale);
-            }
-            $timeSlice?->tick();
-        }
-
-        return [$least, \max(0, $maxNodes - ($unfolded - $leastCount))];
-    }
-
-    /**
-     * @param float $minValue Nodes with a smaller value are dropped.
-     * @param int<0, max>|null $ties Nodes of exactly `$minValue` to keep at most; null for all.
-     * @param int<1, max> $maxNodes
-     *
-     * @return Tree<Edge>
-     */
-    private function unfoldFrom(Metric $metric, float $minValue, ?int $ties, int $maxNodes, ?TimeSlice $timeSlice): Tree
-    {
-        /** @var Tree<Edge> $tree */
-        $tree = new Tree();
-        /** @var array<non-empty-string, true> $path Function IDs of the ancestors, to stop on a cycle */
-        $path = [];
-
-        // Iterative: the depth follows the recursion in the profiled code, deeper than Xdebug's nesting limit.
-        // An entry is an edge to unfold with its parent node and scale, or a function ID that leaves the path.
-        /** @var list<array{Edge, Branch<Edge>|null, float}|non-empty-string> $stack */
-        $stack = \array_map(static fn(Edge $edge): array => [$edge, null, 1.0], \array_reverse($this->roots));
-        while ($stack !== []) {
-            $entry = \array_pop($stack);
-            if (\is_string($entry)) {
-                unset($path[$entry]);
-                continue;
-            }
-
-            [$edge, $parent, $scale] = $entry;
-            $value = (float) $metric->of($edge->cost) * $scale;
-            if ($value < $minValue || isset($path[$edge->calleeId])) {
-                continue;
-            }
-
-            if ($ties !== null && $value === $minValue) {
-                if ($ties === 0) {
-                    continue;
-                }
-                --$ties;
-            }
-
-            if (\count($tree) >= $maxNodes) {
-                $tree->cut = true;
-                break;
-            }
-
-            $timeSlice?->tick();
-            $id = 'n' . (\count($tree) + 1);
-            $tree->addItem(
-                new Edge(
-                    $edge->caller,
-                    $edge->callee,
-                    self::scaleCost($edge->cost, $scale, $parent?->item->cost),
-                    $edge->calleeId,
-                    $edge->callerId,
-                ),
-                $id,
-                $parent?->id,
-            );
-            /** @var Branch<Edge> $branch */
-            $branch = $tree->all[$id];
-
-            $calleeTotal = $metric->of($this->inclusiveCost($edge->calleeId));
-            $childScale = $calleeTotal > 0 ? $value / (float) $calleeTotal : $scale;
-
-            $path[$edge->calleeId] = true;
-            $stack[] = $edge->calleeId;
-            foreach (\array_reverse($this->callees($edge->calleeId)) as $child) {
-                $stack[] = [$child, $branch, $childScale];
-            }
-        }
-
-        return $tree;
     }
 
     /**

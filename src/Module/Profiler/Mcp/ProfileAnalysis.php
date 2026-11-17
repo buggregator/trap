@@ -56,6 +56,12 @@ final class ProfileAnalysis
     /** @var array<string, list<non-empty-string>>|null Function IDs, one per recursion level, by names */
     private ?array $ids = null;
 
+    /** @var array<non-empty-string, int<0, max>> By metric values */
+    private array $peaks = [];
+
+    /** @var array<non-empty-string, array{int, int<0, max>}> Own and inclusive values by `metric:functionId` keys */
+    private array $own = [];
+
     /** @var array<non-empty-string, true> The computations a fiber has started and suspended in, by names */
     private array $computing = [];
 
@@ -126,13 +132,28 @@ final class ProfileAnalysis
     }
 
     /**
-     * The value of the metric the percentages are of: the peak value, as the console shows.
+     * The value of the metric the percentages are of: the peak value of one caller and callee pair, as the console
+     * shows, or the sum of the roots when larger. A root added for a profile without `main()` sums its calls,
+     * so it may pass every pair.
      *
      * @return int<0, max>
      */
     public function peak(Metric $metric): int
     {
-        return $metric->of($this->profile->peaks->toCost());
+        if (isset($this->peaks[$metric->value])) {
+            return $this->peaks[$metric->value];
+        }
+
+        $peak = $metric->of($this->profile->peaks->toCost());
+        if ($metric !== Metric::Count) {
+            $roots = 0;
+            foreach ($this->profile->calls->roots() as $edge) {
+                $roots += $metric->of($edge->cost);
+            }
+            $peak = \max($peak, $roots);
+        }
+
+        return $this->peaks[$metric->value] = $peak;
     }
 
     /**
@@ -217,8 +238,9 @@ final class ProfileAnalysis
     /**
      * @param int<0, max> $value
      *
-     * @return float|null Null for `ct`: its peak is the most calls of one caller and callee pair, while a function
-     *         sums the calls of all its callers, so the share could pass 100 %.
+     * @return float|null From 0 to 100: a function sums the calls of all its callers, which may pass the peak with
+     *         XHProf's signed `mu` or cycles in received data. Null for `ct`: its peak is the most calls of one
+     *         caller and callee pair, so the share would pass 100 % for most functions.
      */
     public function percent(Metric $metric, int|float $value): ?float
     {
@@ -228,7 +250,7 @@ final class ProfileAnalysis
 
         $peak = $this->peak($metric);
 
-        return $peak > 0 ? \round((float) $value / (float) $peak * 100.0, 3) : 0.0;
+        return $peak > 0 ? \round(\min(100.0, \max(0.0, (float) $value / (float) $peak * 100.0)), 3) : 0.0;
     }
 
     /**
@@ -290,12 +312,18 @@ final class ProfileAnalysis
             return (float) $value;
         }
 
-        $graph = $this->profile->calls;
-        $inclusive = $metric->of($graph->inclusiveCost($edge->calleeId));
-        $own = $inclusive;
-        foreach ($graph->callees($edge->calleeId) as $child) {
-            $own -= $metric->of($child->cost);
+        // Kept: a function with many callers would walk its callees once per caller
+        $key = $metric->value . ':' . $edge->calleeId;
+        if (!isset($this->own[$key])) {
+            $graph = $this->profile->calls;
+            $inclusive = $metric->of($graph->inclusiveCost($edge->calleeId));
+            $own = $inclusive;
+            foreach ($graph->callees($edge->calleeId) as $child) {
+                $own -= $metric->of($child->cost);
+            }
+            $this->own[$key] = [$own, $inclusive];
         }
+        [$own, $inclusive] = $this->own[$key];
 
         // Freed memory and timer jitter make a negative own cost possible
         return $inclusive > 0 && $own > 0

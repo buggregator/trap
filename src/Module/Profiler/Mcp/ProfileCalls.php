@@ -240,12 +240,14 @@ final class ProfileCalls implements Tool
     private static function links(ProfileAnalysis $analysis, Metric $metric, string $name, bool $callers): array
     {
         $graph = $analysis->profile->calls;
+        $slice = $analysis->timeSlice();
         /** @var array<string, list<Edge>> $edges The calls of each pair, an edge per pair of recursion levels */
         $edges = [];
         foreach ($analysis->ids($name) as $id) {
             foreach ($callers ? $graph->callers($id) : $graph->callees($id) as $edge) {
                 $other = $callers ? $edge->caller : $edge->callee;
                 $other === null or $edges[$other][] = $edge;
+                $slice->tick();
             }
         }
 
@@ -257,6 +259,7 @@ final class ProfileCalls implements Tool
                 $link['exclusive'] += $analysis->exclusive($edge, $metric);
                 $metric === Metric::Count || !self::isNested($edge, $pair)
                     and $link['inclusive'] += $metric->of($edge->cost);
+                $slice->tick();
             }
             $link['exclusive'] = \min($link['exclusive'], (float) $link['inclusive']);
             $links[$other] = $link;

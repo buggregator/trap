@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Profiler\Mcp;
 
 use Buggregator\Trap\Module\Profiler\Frame\Type;
+use Buggregator\Trap\Module\Profiler\Mcp\ProfileAnalyses;
 use Buggregator\Trap\Module\Profiler\Mcp\ProfileAnalysis;
 use Buggregator\Trap\Module\Profiler\Mcp\ProfileCalls;
 use Buggregator\Trap\Module\Profiler\Mcp\ProfileSummary;
 use Buggregator\Trap\Module\Profiler\Mcp\ProfileTop;
+use Buggregator\Trap\Support\TimeSlice;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\JsonSchema;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
 use Buggregator\Trap\Tests\Unit\Module\Profiler\Mcp\Stub\Profiles;
@@ -225,6 +227,89 @@ final class ProfileCallsTest
         Assert::count($limited['callees'], 30);
         Assert::false($limited['truncated']);
         Assert::same($limited['callees_count'], 10);
+    }
+
+    /**
+     * @param array<non-empty-string, array{ct: int, wt: int, cpu: int, mu: int, pmu: int}> $calls
+     */
+    #[DataSet([
+        [
+            'main()' => ['ct' => 1, 'wt' => 1000, 'cpu' => 0, 'mu' => 100, 'pmu' => 0],
+            'main()==>a' => ['ct' => 1, 'wt' => 500, 'cpu' => 0, 'mu' => 80, 'pmu' => 0],
+            'main()==>b' => ['ct' => 1, 'wt' => 400, 'cpu' => 0, 'mu' => -50, 'pmu' => 0],
+            'b==>a' => ['ct' => 1, 'wt' => 300, 'cpu' => 0, 'mu' => 80, 'pmu' => 0],
+        ],
+        'a',
+        'mu',
+        160,
+    ], 'signed memory summed over the callers')]
+    #[DataSet([
+        [
+            'main()' => ['ct' => 1, 'wt' => 100, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>a' => ['ct' => 1, 'wt' => 100, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'a==>b' => ['ct' => 1, 'wt' => 90, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'b==>a' => ['ct' => 1, 'wt' => 80, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        ],
+        'a',
+        'wt',
+        180,
+    ], 'cycle in received data')]
+    public function testPercentagesStayWithin100(array $calls, string $function, string $metric, int $inclusive): void
+    {
+        $trap = new Trap();
+        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof($calls));
+
+        $result = $trap->get(ProfileCalls::class)->call(['id' => $id, 'function' => $function, 'metric' => $metric]);
+
+        Assert::same([$result['function']['inclusive'], $result['function']['inclusive_percent']], [$inclusive, 100.0]);
+    }
+
+    public function testPercentagesOfProfileWithoutMainAreOfItsRoot(): void
+    {
+        $trap = new Trap();
+        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof([
+            'a==>x' => ['ct' => 1, 'wt' => 600, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'a==>y' => ['ct' => 1, 'wt' => 500, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        ]));
+
+        $result = $trap->get(ProfileCalls::class)->call(['id' => $id, 'function' => 'a']);
+
+        Assert::same([$result['peak'], $result['root']], [1100, true]);
+        Assert::same([$result['function']['inclusive'], $result['function']['inclusive_percent']], [1100, 100.0]);
+        Assert::same(\array_column($result['callees'], 'inclusive_percent', 'function'), ['x' => 54.545, 'y' => 45.455]);
+        Assert::same($trap->get(ProfileSummary::class)->call(['id' => $id])['peaks']['wt'], 1100);
+    }
+
+    public function testHubOfManyCallersAndCalleesTakesLinearTime(): void
+    {
+        // Walking the callees of the hub once per caller would take seconds
+        $n = 5000;
+        $cost = static fn(int $wt): array => ['ct' => 1, 'wt' => $wt, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
+        $calls = ['main()' => $cost(10 * $n)];
+        for ($i = 0; $i < $n; ++$i) {
+            $calls["main()==>caller$i"] = $cost(5);
+            $calls["caller$i==>hub"] = $cost(4);
+            $calls["hub==>callee$i"] = $cost(1);
+        }
+        $trap = new Trap();
+        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof($calls));
+        $tool = new ProfileCalls(new ProfileAnalyses($trap->store, static fn(): TimeSlice => new TimeSlice(0.0, 1)));
+        // The functions are summed and indexed here, so only the hub's calls are left to the fiber
+        $tool->call(['id' => $id, 'function' => 'main()', 'limit' => 1]);
+        $fiber = new \Fiber(static fn(): array => $tool->call(['id' => $id, 'function' => 'hub', 'limit' => 1]));
+        $start = \hrtime(true);
+
+        $suspensions = 0;
+        $fiber->start();
+        while (!$fiber->isTerminated()) {
+            ++$suspensions;
+            $fiber->resume();
+        }
+
+        $seconds = (\hrtime(true) - $start) / 1e9;
+        Assert::int($suspensions)->greaterThan(0);
+        Assert::same([$fiber->getReturn()['callers_count'], $fiber->getReturn()['callees_count']], [$n, $n]);
+        Assert::true($seconds < 1.0, \sprintf('The calls of the hub took %.2f s.', $seconds));
     }
 
     public function testUnknownFunctionFailsWithCloseNames(): never

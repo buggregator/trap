@@ -80,7 +80,8 @@ final class ProfileSchema
             'peak' => [
                 'type' => 'integer',
                 'description' => 'The value the percentages are of: the largest value of one caller and callee '
-                    . 'pair, the root\'s for the times and memory, as the console shows.',
+                    . 'pair, the root\'s for the times and memory, as the console shows; the sum of the roots when '
+                    . 'larger, as of a root added to a profile without `main()`.',
             ],
         ];
     }

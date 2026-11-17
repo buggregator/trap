@@ -116,24 +116,32 @@ final class GraphTest
         Assert::false(self::graph(self::SHARED)->unfold(maxNodes: 7)->cut);
     }
 
-    public function testCutTreeKeepsHeaviestCalls(): void
+    public function testCutTreeKeepsCallsInCallOrder(): void
     {
-        // `a()` comes first and makes 20 light calls, `b()` comes after it and takes most of the time
-        $calls = ['main()' => ['ct' => 1, 'wt' => 1000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0]];
-        $calls['main()==>a'] = ['ct' => 1, 'wt' => 100, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
-        for ($i = 0; $i < 20; ++$i) {
-            $calls["a==>x$i"] = ['ct' => 1, 'wt' => 4, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
-        }
-        $calls['main()==>b'] = ['ct' => 1, 'wt' => 900, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
-        $calls['b==>c'] = ['ct' => 1, 'wt' => 800, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
-        $graph = self::graph($calls);
-
-        $tree = $graph->unfold(maxNodes: 10);
+        $tree = self::graph(self::SHARED)->unfold(maxNodes: 4);
 
         Assert::true($tree->cut);
-        Assert::count($tree, 10);
         $names = \array_map(static fn(Branch $branch): string => $branch->item->callee, \array_values($tree->all));
-        Assert::same($names, ['main()', 'a', 'x0', 'x1', 'x2', 'x3', 'x4', 'x5', 'b', 'c']);
+        Assert::same($names, ['main()', 'a', 'x', 'y']);
+    }
+
+    public function testCutKeepsMemoryAndTimeBounded(): void
+    {
+        // 6 000 leaves under the last level: a body of 344 KB unfolding into about 2^14 * 3 000 nodes
+        $graph = self::graph(Profiles::lattice(levels: 13, chain: 30, leaves: 3000));
+        \gc_collect_cycles();
+        $before = \memory_get_usage();
+        \memory_reset_peak_usage();
+        $start = \hrtime(true);
+
+        $tree = $graph->unfold(minShare: 0.0001, maxNodes: 50_000);
+
+        $seconds = (\hrtime(true) - $start) / 1e9;
+        $peak = \memory_get_peak_usage() - $before;
+        Assert::true($tree->cut);
+        Assert::count($tree, 50_000);
+        Assert::true($peak < 96 * 1024 * 1024, \sprintf('Peak memory grew by %.1f MB.', $peak / 1048576));
+        Assert::true($seconds < 10.0, \sprintf('Unfolding took %.1f s.', $seconds));
     }
 
     public function testUnfoldPrunesByCallsWithoutWallTime(): void
