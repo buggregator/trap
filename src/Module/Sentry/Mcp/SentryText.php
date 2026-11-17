@@ -190,10 +190,11 @@ final class SentryText
     {
         $metadata = self::metadata($event, $itemType);
         $request = self::request($event);
+        $bytes = \min(self::MAX_CHAIN_BYTES, self::SEARCHED_BYTES - \strlen($metadata . $request));
         $sections = [
             $metadata,
-            self::exceptionChain($event, \min(self::MAX_CHAIN_BYTES, self::SEARCHED_BYTES - \strlen($metadata . $request))),
-            self::threadTrace($event),
+            self::exceptionChain($event, $bytes),
+            self::threadTrace($event, $bytes),
             $request,
             self::entries('Contexts', $event['contexts'] ?? null),
             self::breadcrumbs($event),
@@ -279,21 +280,31 @@ final class SentryText
     }
 
     /**
-     * The thrown exception within the given bytes: past them without code and variables, then with fewer frame lines.
+     * The thrown exception within the given bytes, as {@see self::boundedTrace()}.
      *
      * @param list<array<array-key, mixed>> $frames Outermost first, as Sentry sends them.
      * @param array<string, true> $withCode
      */
     private static function thrown(array $exception, array $frames, array &$withCode, int $bytes): string
     {
+        return self::boundedTrace(self::title($exception, true), $frames, $withCode, $bytes);
+    }
+
+    /**
+     * A title and a stack trace within the given bytes: past them without code and variables, then with fewer frame
+     * lines.
+     *
+     * @param array<string, true> $withCode
+     */
+    private static function boundedTrace(string $title, array $frames, array &$withCode, int $bytes): string
+    {
         $shown = $withCode;
-        $result = self::exception($exception, true, $frames, [], $shown);
+        $result = $title . self::trace($frames, $shown);
         if (\strlen($result) <= $bytes) {
             $withCode = $shown;
             return $result;
         }
 
-        $title = self::title($exception, true);
         [$lines, $starts, $count] = self::traceLines($frames, $withCode, false);
         $budget = $bytes - \strlen($title);
         $fits = 0;
@@ -404,9 +415,10 @@ final class SentryText
     }
 
     /**
-     * The stack trace of an event without exceptions: of the event, or of its crashed or current thread.
+     * The stack trace of an event without exceptions: of the event, or of its crashed or current thread; within the
+     * given bytes as the thrown exception.
      */
-    private static function threadTrace(array $event): string
+    private static function threadTrace(array $event, int $bytes): string
     {
         if (self::exceptions($event) !== []) {
             return '';
@@ -434,7 +446,9 @@ final class SentryText
 
         $withCode = [];
 
-        return \is_array($frames) ? "$title, frames innermost first:\n" . self::trace($frames, $withCode) : '';
+        return \is_array($frames)
+            ? self::boundedTrace("$title, frames innermost first:\n", $frames, $withCode, $bytes)
+            : '';
     }
 
     /**
@@ -880,8 +894,8 @@ final class SentryText
     }
 
     /**
-     * A query string with the values of {@see self::SECRET_NAMES} replaced, in URLs encoded in its values too,
-     * as of a redirect; `;` separates parameters as `&` does.
+     * A query string with the values of {@see self::SECRET_NAMES} replaced, in URLs in its values too, encoded or
+     * not, as of a redirect; `;` separates parameters as `&` does.
      */
     private static function filterQuery(string $query): string
     {
@@ -892,10 +906,18 @@ final class SentryText
                     return $m[1] . '=' . self::FILTERED;
                 }
 
+                // Ends: the query of a URL in a value is shorter than the value
                 $value = \urldecode($m[2]);
-                $filtered = $value === $m[2] ? $value : self::filterUrl($value);
+                if ($value === $m[2]) {
+                    return $m[1] . '=' . self::filterUrl($value);
+                }
 
-                return $filtered === $value ? $m[0] : $m[1] . '=' . \rawurlencode($filtered);
+                $filtered = self::filterUrl($value);
+
+                // Encoded anew only when masked: an unmasked value stays as sent
+                return $filtered === $value
+                    ? $m[0]
+                    : $m[1] . '=' . \str_replace('%5BFiltered%5D', self::FILTERED, \rawurlencode($filtered));
             },
             $query,
         );
@@ -909,7 +931,9 @@ final class SentryText
         $start = self::seconds($item['start_timestamp'] ?? null);
         $end = self::seconds($item['timestamp'] ?? null);
 
-        return $start === null || $end === null ? '' : \sprintf('%.1f ms', ($end - $start) * 1000.0);
+        $ms = $start === null || $end === null ? \NAN : ($end - $start) * 1000.0;
+
+        return \is_finite($ms) ? \sprintf('%.1f ms', $ms) : '';
     }
 
     /**
@@ -926,7 +950,7 @@ final class SentryText
         }
 
         // The parser takes words such as `now` and `1 hour` too, as times relative to the current one
-        $date = '/^\d{4}-\d\d-\d\d([T ]\d\d:\d\d(:\d\d(\.\d+)?)?(Z|[+-]\d\d:?\d\d)?)?$/iD';
+        $date = '/^\d{4}-\d\d-\d\d([T ]\d\d:\d\d(:\d\d(\.\d{1,9})?)?(Z|[+-]\d\d:?\d\d)?)?$/iD';
         if (!\is_string($timestamp) || \preg_match($date, $timestamp) !== 1) {
             return null;
         }

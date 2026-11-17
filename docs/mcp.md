@@ -204,7 +204,10 @@ prints it:
   `accept-language`, `connection` and the like), body. The values of the headers and query parameters (of the URL
   and its fragment too, at any depth of a query map) whose names contain `authorization` (`authorisation`),
   `authentication`, `token`, `secret`, `password` (`passwd`), `api-key` (`api_key`, `apikey`) or `cookie` in any
-  case, and the password of a URL, are `[Filtered]`. The body and the other sections are shown as sent.
+  case, and the password of a URL, are `[Filtered]`. The headers `Referer`, `Location`, `Origin` and
+  `Content-Location` are filtered as URLs, and so are URLs in query values, encoded or not, as of a redirect. The
+  body and the other sections are shown as sent. The query is one line of up to 300 characters; the request is at
+  most 16 KB with its body, and the headers past that are left out and counted.
 - The contexts, such as `runtime`, `os` and `trace` with its IDs, one line each; the latest breadcrumbs, oldest first;
   the extra data; the spans of a transaction with their durations.
 - An envelope of several items shows each of them under `--- Item 2 of 3: attachment ---`: an attachment by its
@@ -214,19 +217,21 @@ prints it:
 
 The sections come in this order: the metadata, the exception chain, the request, the contexts, the breadcrumbs, the
 extra data and the spans. A [search](#filters) looks through the first 64 KB of the text, so the causes that would
-take the chain past 32 KB are left out and counted. A thrown exception larger than that is shown without the code
-and variables of its frames, and then with fewer frame lines.
+take the chain past 32 KB are left out and counted; past less than 32 KB when the metadata and the request are
+large, so that the contexts and the breadcrumbs start within the 64 KB. A thrown exception larger than that is shown
+without the code and variables of its frames, and then with fewer frame lines; so is the stack trace of an event
+without exceptions.
 
 Bounds; what is left out is counted, as `… 5 more …`:
 
 | What                                            | At most                                  |
 |-------------------------------------------------|------------------------------------------|
-| Exceptions of a chain                           | 10 in 32 KB                              |
+| Exceptions of a chain                           | 10 in 32 KB or less, see above           |
 | Frame lines of a stack trace                    | 30                                       |
 | Frames shown with their code                    | 3 per stack trace                        |
 | Lines of code around the line of a frame        | 3 before, 3 after                        |
 | Variables of a frame                            | 10                                       |
-| Request headers                                 | 15                                       |
+| Request headers                                 | 15 in 16 KB of the request with its body |
 | Breadcrumbs                                     | the last 10                              |
 | Tags, user fields, contexts, extra entries      | 20                                       |
 | Spans                                           | 20                                       |

@@ -660,6 +660,7 @@ final class SentryViewTest
     #[DataSet(['2024-01-01T00:00:00 +1000000000000 years'], 'date with relative years')]
     #[DataSet(['2024-01-01 00:00 next monday'], 'date with a relative day')]
     #[DataSet(["2024-01-01\n"], 'date with a newline')]
+    #[DataSet(['2024-01-01T00:00:00.9999999999Z'], 'date with more than 9 fraction digits')]
     #[DataSet([\NAN], 'NaN')]
     #[DataSet([\INF], 'infinity')]
     #[DataSet(['1e999'], 'infinite numeric string')]
@@ -809,7 +810,7 @@ final class SentryViewTest
         ]]);
 
         Assert::string($text)
-            ->contains('Request: http://[::1]:8080/users/@ann?next=' . \rawurlencode('https://id.test/cb?code=1&access_token=[Filtered]') . "\n")
+            ->contains("Request: http://[::1]:8080/users/@ann?next=https%3A%2F%2Fid.test%2Fcb%3Fcode%3D1%26access_token%3D[Filtered]\n")
             ->contains(
                 "    Referer: https://user:[Filtered]@shop.test/cart?token=[Filtered]#access_token=[Filtered]\n"
                 . "    Location: https://shop.test/done?api_key=[Filtered]\n"
@@ -817,6 +818,77 @@ final class SentryViewTest
                 . "    Content-Location: http://[::1]:8080/users/@ann?page=2\n",
             )
             ->notContains('abc');
+    }
+
+    #[DataSet(['r=https://a.test/cb?access_token=abc', 'r=https://a.test/cb?access_token=[Filtered]'], 'not encoded')]
+    #[DataSet(['r=https://a.test/?s=https://b.test/?token=abc', 'r=https://a.test/?s=https://b.test/?token=[Filtered]'], 'nested twice')]
+    #[DataSet(['r=https%3A%2F%2Fa.test%2Fcb%3Fcode%3D1%26token%3Dabc', 'r=https%3A%2F%2Fa.test%2Fcb%3Fcode%3D1%26token%3D[Filtered]'], 'encoded')]
+    #[DataSet(['r=https%3a%2f%2fa.test%2f%3fq%3da+b', 'r=https%3a%2f%2fa.test%2f%3fq%3da+b'], 'encoded, not masked')]
+    #[DataSet(['r=https%3A%2F%2Fa.test%2F%3Fq%3Da+b%26secret%3Dabc', 'r=https%3A%2F%2Fa.test%2F%3Fq%3Da%20b%26secret%3D[Filtered]'], 'plus, masked')]
+    public function testUrlsNestedInQueryValuesAreFiltered(string $query, string $expected): void
+    {
+        $text = self::text(['request' => [
+            'url' => "https://shop.test/#$query",
+            'query_string' => $query,
+            'headers' => ['Referer' => "https://shop.test/?$query"],
+        ]]);
+
+        Assert::string($text)
+            ->contains("Request: https://shop.test/#$expected\n")
+            ->contains("  Query: $expected\n")
+            ->contains("    Referer: https://shop.test/?$expected\n");
+    }
+
+    public function testStackTraceOfAThreadLeavesContextsAndBreadcrumbsWithinTheSearchedText(): void
+    {
+        $long = \str_repeat('😀', 1000);
+        $frames = \array_map(static fn(int $line): array => self::frame("src/$long.php", $line, [
+            'function' => $long,
+            'pre_context' => [$long, $long, $long],
+            'context_line' => $long,
+            'post_context' => [$long, $long, $long],
+            'vars' => \array_fill_keys(\range(1, 10), $long),
+        ]), \range(1, 40));
+
+        $text = self::text([
+            'threads' => ['values' => [['id' => 1, 'crashed' => true, 'stacktrace' => ['frames' => $frames]]]],
+            'contexts' => ['runtime' => ['name' => 'php']],
+            'breadcrumbs' => [['message' => 'last step']],
+        ]);
+
+        Assert::string($text)->startsWith("Stack trace of thread 1, frames innermost first:\n  #0 src/");
+        Assert::int((int) \strpos($text, "\nContexts:\n  runtime: name=php\n"))->greaterThan(0)->lessThan(64 * 1024 - 100);
+        Assert::int((int) \strpos($text, "\nBreadcrumbs:\n  last step\n"))->greaterThan(0)->lessThan(64 * 1024 - 100);
+    }
+
+    public function testDateWithThousandsOfFractionDigitsIsLeftOut(): void
+    {
+        $time = '2024-01-01T00:00:00.' . \str_repeat('9', 5000) . 'Z';
+
+        $text = self::text([
+            'type' => 'transaction',
+            'start_timestamp' => 1_704_103_200.0,
+            'timestamp' => $time,
+            'breadcrumbs' => [['timestamp' => $time, 'message' => 'begin']],
+        ]);
+
+        Assert::string($text)
+            ->notContains('Duration:')
+            ->contains("Breadcrumbs:\n  begin\n");
+    }
+
+    public function testDurationTooLongForAFloatIsLeftOut(): void
+    {
+        $text = self::text([
+            'type' => 'transaction',
+            'start_timestamp' => -1e308,
+            'timestamp' => 1e308,
+            'spans' => [['op' => 'db', 'start_timestamp' => -1e308, 'timestamp' => 1e308]],
+        ]);
+
+        Assert::string($text)
+            ->notContains('Duration:')
+            ->contains("  db\n");
     }
 
     /**
