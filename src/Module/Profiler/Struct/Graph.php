@@ -205,18 +205,28 @@ final class Graph implements \IteratorAggregate, \Countable
      * Percentages are scaled the same way; deltas are against the parent node of the tree.
      *
      * @param float $minShare Nodes with a smaller share of the roots' wall time are dropped:
-     *        unfolding multiplies the nodes of shared functions.
+     *        unfolding multiplies the nodes of shared functions. Of the call counts when the roots have no wall time.
+     * @param int<1, max> $maxNodes Past it, the rest of the nodes are dropped and the tree is {@see Tree::$cut}:
+     *        shared functions calling each other unfold into exponentially many nodes.
+     * @param TimeSlice|null $timeSlice Lets other fibers run during a long unfolding.
      *
      * @return Tree<Edge> Node IDs are `n1`, `n2`, etc.
      */
-    public function unfold(float $minShare = 0.0): Tree
+    public function unfold(float $minShare = 0.0, int $maxNodes = \PHP_INT_MAX, ?TimeSlice $timeSlice = null): Tree
     {
+        $metric = Metric::WallTime;
         $total = 0;
         foreach ($this->roots as $edge) {
             $total += $edge->cost->wt;
         }
+        if ($total === 0) {
+            $metric = Metric::Count;
+            foreach ($this->roots as $edge) {
+                $total += $edge->cost->ct;
+            }
+        }
 
-        $minWt = (float) $total * $minShare;
+        $minValue = (float) $total * $minShare;
 
         /** @var Tree<Edge> $tree */
         $tree = new Tree();
@@ -235,11 +245,17 @@ final class Graph implements \IteratorAggregate, \Countable
             }
 
             [$edge, $parent, $scale] = $entry;
-            $wt = (float) $edge->cost->wt * $scale;
-            if ($wt < $minWt || isset($path[$edge->calleeId])) {
+            $value = (float) $metric->of($edge->cost) * $scale;
+            if ($value < $minValue || isset($path[$edge->calleeId])) {
                 continue;
             }
 
+            if (\count($tree) >= $maxNodes) {
+                $tree->cut = true;
+                break;
+            }
+
+            $timeSlice?->tick();
             $id = 'n' . (\count($tree) + 1);
             $tree->addItem(
                 new Edge(
@@ -255,8 +271,8 @@ final class Graph implements \IteratorAggregate, \Countable
             /** @var Branch<Edge> $branch */
             $branch = $tree->all[$id];
 
-            $calleeTotal = $this->inclusiveCost($edge->calleeId)->wt;
-            $childScale = $calleeTotal > 0 ? $wt / (float) $calleeTotal : $scale;
+            $calleeTotal = $metric->of($this->inclusiveCost($edge->calleeId));
+            $childScale = $calleeTotal > 0 ? $value / (float) $calleeTotal : $scale;
 
             $path[$edge->calleeId] = true;
             $stack[] = $edge->calleeId;

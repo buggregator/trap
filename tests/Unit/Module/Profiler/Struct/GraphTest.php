@@ -13,6 +13,8 @@ use Buggregator\Trap\Module\Profiler\Struct\Peaks;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Module\Profiler\Struct\Tree;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
+use Buggregator\Trap\Support\TimeSlice;
+use Buggregator\Trap\Tests\Unit\Module\Profiler\Mcp\Stub\Profiles;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Expect;
@@ -101,6 +103,44 @@ final class GraphTest
         ])->unfold();
 
         Assert::same(\count($tree), 3);
+    }
+
+    public function testUnfoldStopsAtMaxNodes(): void
+    {
+        $graph = self::graph(Profiles::lattice(levels: 12, chain: 100));
+
+        $tree = $graph->unfold(minShare: 0.0001, maxNodes: 1000);
+
+        Assert::same(\count($tree), 1000);
+        Assert::true($tree->cut);
+        Assert::false(self::graph(self::SHARED)->unfold(maxNodes: 7)->cut);
+    }
+
+    public function testUnfoldPrunesByCallsWithoutWallTime(): void
+    {
+        // Unpruned, 36 levels would unfold into 2^37 nodes
+        $graph = self::graph(Profiles::lattice(levels: 36, chain: 0, wt: 0));
+
+        $tree = $graph->unfold(minShare: 0.001, maxNodes: 100_000);
+
+        Assert::false($tree->cut);
+        Assert::int(\count($tree))->lessThan(10_000);
+    }
+
+    public function testUnfoldLetsOtherFibersRun(): void
+    {
+        $graph = self::graph(Profiles::lattice(levels: 12, chain: 10));
+        $fiber = new \Fiber(static fn(): Tree => $graph->unfold(0.0001, 5_000, new TimeSlice(0.0, 1)));
+
+        $suspensions = 0;
+        $fiber->start();
+        while (!$fiber->isTerminated()) {
+            ++$suspensions;
+            $fiber->resume();
+        }
+
+        Assert::int($suspensions)->greaterThan(0);
+        Assert::same(\count($fiber->getReturn()), \count($graph->unfold(0.0001, 5_000)));
     }
 
     public function testHotPathFollowsHeaviestCalls(): void

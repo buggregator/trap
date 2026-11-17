@@ -12,12 +12,21 @@ use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Data\DataSet;
 use Testo\Expect;
+use Testo\Lifecycle\AfterTest;
 use Testo\Test;
 
 #[Test]
 #[Covers(ProfileCallGraph::class)]
 final class ProfileCallGraphTest
 {
+    private ?string $memoryLimit = null;
+
+    #[AfterTest]
+    public function restoreMemoryLimit(): void
+    {
+        $this->memoryLimit === null or \ini_set('memory_limit', $this->memoryLimit);
+    }
+
     public function testPrunesCallsBelowThreshold(): void
     {
         [$trap, $id] = self::shop();
@@ -59,10 +68,10 @@ final class ProfileCallGraphTest
 
         Assert::string($text)->endsWith(<<<'TEXT'
             100% is 10, calls in parentheses. The profiler sums the calls by caller and callee, so the tree is unfolded from them: a function called from several places has its callees split by their shares.
-             10.0%            1  main() (1)
-             10.0%            1    App\Controller::index (1)
+                              1  main() (1)
+                              1    App\Controller::index (1)
                                      … deeper calls left out: `max_depth`
-             10.0%            1    App\Repo::find (1)
+                              1    App\Repo::find (1)
                                      … deeper calls left out: `max_depth`
 
             TEXT);
@@ -75,7 +84,22 @@ final class ProfileCallGraphTest
 
         $text = $trap->get(ProfileCallGraph::class)->call(['id' => $id, 'max_depth' => 200, 'max_length' => 1000]);
 
-        Assert::string($text)->matchesRegex('/\n\n\[Truncated: 1000 of \d+ characters shown\. Call again with a larger `max_length` for more\.]$/');
+        Assert::string($text)->matchesRegex('/\n\n\[Truncated: 1000 of at least \d+ characters shown\. Call again with a larger `max_length` for more\.]$/');
+        Assert::int(\mb_strlen($text))->lessThan(1200);
+    }
+
+    public function testTreeTooLargeToUnfoldIsCut(): void
+    {
+        $trap = new Trap();
+        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof(Profiles::lattice(levels: 12, chain: 100)));
+        // Little memory left: the tree gets a small budget of nodes, see NodeBudget
+        $limit = \ini_set('memory_limit', (string) (\memory_get_usage(true) + (48 << 20)));
+        $limit === false and throw new \RuntimeException('Failed to lower `memory_limit`.');
+        $this->memoryLimit = $limit;
+
+        $text = $trap->get(ProfileCallGraph::class)->call(['id' => $id, 'threshold' => 0.01, 'max_depth' => 200]);
+
+        Assert::string($text)->contains('The tree unfolds into too many calls, so it is cut: some calls are left out.');
     }
 
     #[DataSet(['XHProf'], 'XHProf')]

@@ -98,8 +98,9 @@ final class ProfileSummary implements Tool
                 'not_measured' => ['type' => 'array', 'items' => ['type' => 'string', 'enum' => $metrics]],
                 'peaks' => [
                     ...$values,
-                    'description' => 'The measured metrics of the whole run, the percentages are of them; '
-                        . 'for `ct`, the most calls or samples of one call.',
+                    'description' => 'The largest value of each measured metric of one caller and callee pair, as '
+                        . 'the console shows: the root\'s for the times and memory; for `ct`, the most calls or '
+                        . 'samples of one pair. The percentages are of them; none for `ct`.',
                 ],
                 'functions' => ['type' => 'integer', 'description' => 'Distinct functions.'],
                 'edges' => ['type' => 'integer', 'description' => 'Distinct caller-callee pairs.'],
@@ -119,7 +120,7 @@ final class ProfileSummary implements Tool
                             'function' => ['type' => 'string'],
                             'calls' => ['type' => 'integer'],
                             'value' => ['type' => 'integer', 'description' => 'The metric of these calls.'],
-                            'percent' => ['type' => 'number'],
+                            'percent' => ProfileSchema::percent(),
                         ],
                         'required' => ['depth', 'function', 'calls', 'value', 'percent'],
                         'additionalProperties' => false,

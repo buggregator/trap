@@ -10,7 +10,6 @@ use Buggregator\Trap\Module\Mcp\Tool\MaxLength;
 use Buggregator\Trap\Module\Profiler\Struct\Branch;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Metric;
-use Buggregator\Trap\Support\Measure;
 
 /**
  * The call tree of a profile as text, pruned to the calls above a share of the metric.
@@ -102,9 +101,10 @@ final class ProfileCallGraph implements Tool
         $maxLength = MaxLength::fromArguments($arguments, self::MAX_LENGTH);
 
         $profile = $analysis->profile;
+        $tree = $analysis->tree();
         $peak = $analysis->peak($metric);
         $lines = [\sprintf(
-            '%s profile %s: the call tree by %s, the calls of %s%% or more; 100%% is %s, %s in parentheses.%s',
+            '%s profile %s: the call tree by %s, the calls of %s%% or more; 100%% is %s, %s in parentheses.%s%s',
             $analysis->payload->type->value,
             $analysis->id,
             match ($metric) {
@@ -115,20 +115,24 @@ final class ProfileCallGraph implements Tool
                 Metric::Count => $analysis->countType,
             },
             self::number($threshold),
-            self::format($metric, $peak),
+            $metric->format($peak),
             $analysis->countType,
             $profile->exactTree ? '' : ' The profiler sums the calls by caller and callee, so the tree is unfolded '
                 . 'from them: a function called from several places has its callees split by their shares.',
+            $tree->cut ? ' The tree unfolds into too many calls, so it is cut: some calls are left out.' : '',
         )];
 
         $minValue = (float) $peak * $threshold / 100.0;
+        $length = \mb_strlen($lines[0]) + 1;
         // Iterative: the depth follows the recursion in the profiled code. A string is a line to add after a subtree.
         /** @var list<array{list<Branch<Edge>>, int<1, max>}|string> $stack */
-        $stack = [[\array_values($profile->tree()->root), 1]];
-        while ($stack !== []) {
+        $stack = [[\array_values($tree->root), 1]];
+        // Past `max_length` the rest would be cut anyway, so the length of the whole text stays unknown
+        while ($stack !== [] && $length <= $maxLength) {
             $entry = \array_pop($stack);
             if (\is_string($entry)) {
                 $lines[] = $entry;
+                $length += \mb_strlen($entry) + 1;
                 continue;
             }
 
@@ -152,7 +156,7 @@ final class ProfileCallGraph implements Tool
             $hidden === 0 or $stack[] = \sprintf(
                 '%s  %s  %s… %d more %s below %s%%',
                 self::padLeft(self::percent($analysis->percent($metric, $hiddenValue)), 6),
-                self::padLeft(self::format($metric, $hiddenValue), 11),
+                self::padLeft($metric->format($hiddenValue), 11),
                 $indent,
                 $hidden,
                 $hidden === 1 ? 'call' : 'calls',
@@ -170,7 +174,7 @@ final class ProfileCallGraph implements Tool
                 $stack[] = \sprintf(
                     '%s  %s  %s%s (%d)',
                     self::padLeft(self::percent($analysis->percent($metric, $value)), 6),
-                    self::padLeft(self::format($metric, $value), 11),
+                    self::padLeft($metric->format($value), 11),
                     $indent,
                     $branch->item->callee,
                     $cost->ct,
@@ -178,25 +182,12 @@ final class ProfileCallGraph implements Tool
             }
         }
 
-        return MaxLength::cut(\implode("\n", $lines) . "\n", $maxLength);
+        return MaxLength::cut(\implode("\n", $lines) . "\n", $maxLength, $length, more: $stack !== []);
     }
 
-    private static function format(Metric $metric, int $value): string
+    private static function percent(?float $percent): string
     {
-        return match ($metric) {
-            Metric::WallTime, Metric::CpuTime => match (true) {
-                $value < 1_000 => "$value µs",
-                $value < 1_000_000 => \sprintf('%.2f ms', (float) $value / 1e3),
-                default => \sprintf('%.2f s', (float) $value / 1e6),
-            },
-            Metric::Memory, Metric::PeakMemory => Measure::memory(\max(0, $value)),
-            Metric::Count => (string) $value,
-        };
-    }
-
-    private static function percent(float $percent): string
-    {
-        return $percent > 0 && $percent < 0.05 ? '<0.1%' : \sprintf('%.1f%%', $percent);
+        return $percent === null ? '' : Metric::formatPercent($percent);
     }
 
     private static function number(float $value): string

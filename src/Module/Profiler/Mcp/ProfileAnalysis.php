@@ -12,6 +12,7 @@ use Buggregator\Trap\Module\Profiler\Frontend\Message\TopFunctions\Func;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Metric;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
+use Buggregator\Trap\Module\Profiler\Struct\Tree;
 use Buggregator\Trap\Support\TimeSlice;
 
 /**
@@ -22,15 +23,18 @@ use Buggregator\Trap\Support\TimeSlice;
  *     function: string,
  *     calls: int,
  *     inclusive: int,
- *     inclusive_percent: float,
+ *     inclusive_percent: float|null,
  *     exclusive: int,
- *     exclusive_percent: float
+ *     exclusive_percent: float|null
  * }
  *
  * @internal
  */
 final class ProfileAnalysis
 {
+    /** Names compared to a misspelled one at most: a comparison takes the product of the lengths. */
+    private const MAX_SIMILAR_CANDIDATES = 5_000;
+
     public readonly Profile $profile;
 
     /**
@@ -51,6 +55,9 @@ final class ProfileAnalysis
 
     /** @var array<string, list<non-empty-string>>|null Function IDs, one per recursion level, by names */
     private ?array $ids = null;
+
+    /** @var array<non-empty-string, true> The computations a fiber has started and suspended in, by names */
+    private array $computing = [];
 
     public function __construct(
         public readonly string $id,
@@ -126,7 +133,31 @@ final class ProfileAnalysis
      */
     public function functions(): array
     {
-        return $this->functions ??= Func::aggregate($this->profile->calls, $this->profile->peaks, new TimeSlice());
+        $this->waitFor('functions');
+        if ($this->functions === null) {
+            $this->computing['functions'] = true;
+            try {
+                $this->functions = Func::aggregate($this->profile->calls, $this->profile->peaks, new TimeSlice());
+            } finally {
+                unset($this->computing['functions']);
+            }
+        }
+
+        return $this->functions;
+    }
+
+    /**
+     * @return Tree<Edge> See {@see Profile::tree()}.
+     */
+    public function tree(): Tree
+    {
+        $this->waitFor('tree');
+        $this->computing['tree'] = true;
+        try {
+            return $this->profile->tree(new TimeSlice());
+        } finally {
+            unset($this->computing['tree']);
+        }
     }
 
     /**
@@ -147,17 +178,24 @@ final class ProfileAnalysis
             'function' => $func->function,
             'calls' => (int) $func->get('ct'),
             'inclusive' => (int) $func->get($metric->value),
-            'inclusive_percent' => (float) $func->get('p_' . $metric->value),
+            'inclusive_percent' => $metric === Metric::Count ? null : (float) $func->get('p_' . $metric->value),
             'exclusive' => (int) $func->get('excl_' . $metric->value),
-            'exclusive_percent' => (float) $func->get('p_excl_' . $metric->value),
+            'exclusive_percent' => $metric === Metric::Count ? null : (float) $func->get('p_excl_' . $metric->value),
         ];
     }
 
     /**
      * @param int<0, max> $value
+     *
+     * @return float|null Null for `ct`: its peak is the most calls of one caller and callee pair, while a function
+     *         sums the calls of all its callers, so the share could pass 100 %.
      */
-    public function percent(Metric $metric, int|float $value): float
+    public function percent(Metric $metric, int|float $value): ?float
     {
+        if ($metric === Metric::Count) {
+            return null;
+        }
+
         $peak = $this->peak($metric);
 
         return $peak > 0 ? \round((float) $value / (float) $peak * 100.0, 3) : 0.0;
@@ -191,15 +229,21 @@ final class ProfileAnalysis
      */
     public function ids(string $name): array
     {
+        $this->waitFor('ids');
         if ($this->ids === null) {
-            $graph = $this->profile->calls;
-            $slice = new TimeSlice();
-            $ids = [];
-            foreach ($graph->functions() as $id) {
-                $ids[$graph->callers($id)[0]->callee][] = $id;
-                $slice->tick();
+            $this->computing['ids'] = true;
+            try {
+                $graph = $this->profile->calls;
+                $slice = new TimeSlice();
+                $ids = [];
+                foreach ($graph->functions() as $id) {
+                    $ids[$graph->callers($id)[0]->callee][] = $id;
+                    $slice->tick();
+                }
+                $this->ids = $ids;
+            } finally {
+                unset($this->computing['ids']);
             }
-            $this->ids = $ids;
         }
 
         return $this->ids[$name] ?? [];
@@ -228,6 +272,19 @@ final class ProfileAnalysis
     }
 
     /**
+     * Suspends the fiber while another one computes the same: computed twice, it would take twice the time and memory.
+     *
+     * @param non-empty-string $name
+     */
+    private function waitFor(string $name): void
+    {
+        // Outside a fiber nothing can wait: the computation starts over
+        while (isset($this->computing[$name]) && \Fiber::getCurrent() !== null) {
+            \Fiber::suspend();
+        }
+    }
+
+    /**
      * @return list<string> The names containing the given one in any case, heaviest first; else the most similar.
      */
     private function closeNames(string $name): array
@@ -250,12 +307,19 @@ final class ProfileAnalysis
         }
 
         $needle = \strtolower($name);
+        $maxDistance = \max(3, \intdiv(\strlen($name), 3));
         $distances = [];
-        foreach ($this->functions() as $function => $_) {
-            $distances[$function] = \levenshtein($needle, \strtolower((string) $function));
+        foreach ($this->ranked($metric, inclusive: true) as $func) {
+            // Names differing in length by more can't be close; the heaviest are kept of too many candidates
+            if (\abs(\strlen($func->function) - \strlen($name)) > $maxDistance) {
+                continue;
+            }
+            $distances[$func->function] = \levenshtein($needle, \strtolower($func->function));
+            if (\count($distances) === self::MAX_SIMILAR_CANDIDATES) {
+                break;
+            }
         }
         \asort($distances);
-        $maxDistance = \max(3, \intdiv(\strlen($name), 3));
 
         return \array_map(
             'strval',

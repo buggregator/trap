@@ -99,13 +99,13 @@ final class ProfileCalls implements Tool
                     'depth' => ['type' => 'integer', 'description' => '1 for the direct callers and callees.'],
                     'calls' => ['type' => 'integer', 'description' => 'Calls between the two functions.'],
                     'inclusive' => ['type' => 'integer', 'description' => 'The metric of the callee in these calls.'],
-                    'inclusive_percent' => ['type' => 'number'],
+                    'inclusive_percent' => ProfileSchema::percent(),
                     'exclusive' => [
                         'type' => 'integer',
                         'description' => 'The callee\'s own cost in these calls; split by the shares of its '
                             . 'inclusive cost when it is called from several places.',
                     ],
-                    'exclusive_percent' => ['type' => 'number'],
+                    'exclusive_percent' => ProfileSchema::percent(),
                 ],
                 'required' => ['function', 'via', 'depth', 'calls', 'inclusive', 'inclusive_percent', 'exclusive', 'exclusive_percent'],
                 'additionalProperties' => false,
@@ -252,8 +252,11 @@ final class ProfileCalls implements Tool
                 $link = $links[$other] ?? ['calls' => 0, 'inclusive' => 0, 'exclusive' => 0.0];
                 $value = $metric->of($edge->cost);
                 $link['calls'] += $edge->cost->ct;
-                // A nested call is a part of the outer one: summed, a recursion would count many times over
+                // A call of a nested caller, or of the function itself, is a part of an outer call of the same pair:
+                // summed, a recursion would count many times over. Other recursive calls, as `g()` calling `f@1`
+                // under `f()`, are apart from the calls of the pair outside the recursion.
                 $edge->isRecursive() && $metric !== Metric::Count
+                    && ($edge->callerId !== $edge->caller || $edge->caller === $edge->callee)
                     ? $nested[$other] = \max($nested[$other] ?? 0, $value)
                     : $link['inclusive'] += $value;
                 $link['exclusive'] += $analysis->exclusive($edge, $metric);
@@ -263,7 +266,7 @@ final class ProfileCalls implements Tool
 
         // Only nested calls, as of a function calling itself: the outermost ones include the rest
         foreach ($nested as $other => $value) {
-            $links[$other]['inclusive'] === 0 and $links[$other]['inclusive'] = $value;
+            $links[$other]['inclusive'] = \max($links[$other]['inclusive'], $value);
         }
 
         \uksort(

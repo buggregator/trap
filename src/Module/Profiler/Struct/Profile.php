@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\Struct;
 
+use Buggregator\Trap\Module\Profiler\Compaction\NodeBudget;
 use Buggregator\Trap\Support\TimeSlice;
 use Buggregator\Trap\Support\Uuid;
 
@@ -44,6 +45,12 @@ final class Profile implements \JsonSerializable
      * Unfolded nodes with a smaller share of the profile are dropped: they are too small to show.
      */
     private const UNFOLD_MIN_SHARE = 0.0001;
+
+    /**
+     * Unfolded nodes past the limit are dropped: a few kilobytes of shared functions calling each other
+     * unfold into millions of nodes.
+     */
+    private const UNFOLD_MAX_NODES = 200_000;
 
     /**
      * Name of the node that sums what came past the limit of the raw call tree.
@@ -168,13 +175,20 @@ final class Profile implements \JsonSerializable
     }
 
     /**
-     * Call tree: the exact one when the profiler records it, otherwise unfolded from the call graph.
+     * Call tree: the exact one when the profiler records it, otherwise unfolded from the call graph,
+     * up to the nodes the memory left affords.
+     *
+     * @param TimeSlice|null $timeSlice Lets other fibers run while the tree is unfolded.
      *
      * @return Tree<Edge>
      */
-    public function tree(): Tree
+    public function tree(?TimeSlice $timeSlice = null): Tree
     {
-        return $this->tree ??= $this->calls->unfold(self::UNFOLD_MIN_SHARE);
+        return $this->tree ??= $this->calls->unfold(
+            self::UNFOLD_MIN_SHARE,
+            \min(self::UNFOLD_MAX_NODES, NodeBudget::nodes()),
+            $timeSlice,
+        );
     }
 
     /**

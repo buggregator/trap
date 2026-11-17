@@ -46,12 +46,23 @@ final class ProfileSchema
                 'function' => ['type' => 'string'],
                 'calls' => ['type' => 'integer', 'description' => 'Calls, or samples with the function on the stack.'],
                 'inclusive' => ['type' => 'integer', 'description' => 'The metric with the callees.'],
-                'inclusive_percent' => ['type' => 'number'],
+                'inclusive_percent' => self::percent(),
                 'exclusive' => ['type' => 'integer', 'description' => 'The metric of the function itself.'],
-                'exclusive_percent' => ['type' => 'number'],
+                'exclusive_percent' => self::percent(),
             ],
             'required' => ['function', 'calls', 'inclusive', 'inclusive_percent', 'exclusive', 'exclusive_percent'],
             'additionalProperties' => false,
+        ];
+    }
+
+    /**
+     * @return array<non-empty-string, mixed> A share of the `peak`.
+     */
+    public static function percent(): array
+    {
+        return [
+            'type' => ['number', 'null'],
+            'description' => 'Of `peak`, %; null for `ct`, whose peak is the most calls of one caller and callee pair.',
         ];
     }
 
@@ -68,7 +79,8 @@ final class ProfileSchema
             ],
             'peak' => [
                 'type' => 'integer',
-                'description' => 'The value the percentages are of: of the whole run for the times and memory.',
+                'description' => 'The value the percentages are of: the largest value of one caller and callee '
+                    . 'pair, the root\'s for the times and memory, as the console shows.',
             ],
         ];
     }

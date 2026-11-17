@@ -54,6 +54,37 @@ final class Profiles
     }
 
     /**
+     * A small profile of a huge call tree: `main()` calls two functions, each of them calls both functions of the
+     * next level, and the last level calls a chain of functions. Each level unfolds into twice the nodes.
+     *
+     * @param int<1, max> $levels
+     * @param int<0, max> $chain
+     *
+     * @return array<non-empty-string, array{ct: int<0, max>, wt: int<0, max>, cpu: int<0, max>, mu: int<0, max>, pmu: int<0, max>}>
+     */
+    public static function lattice(int $levels, int $chain, int $wt = 1000): array
+    {
+        $cost = static fn(int $wt): array => ['ct' => 1, 'wt' => $wt, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
+        $calls = ['main()' => $cost(2 * $wt)];
+        $callers = ['main()'];
+        for ($level = 0; $level < $levels; ++$level) {
+            foreach ($callers as $caller) {
+                $calls["$caller==>l{$level}a"] = $cost($wt);
+                $calls["$caller==>l{$level}b"] = $cost($wt);
+            }
+            $callers = ["l{$level}a", "l{$level}b"];
+        }
+        foreach ($callers as $caller) {
+            $calls["$caller==>c0"] = $cost($wt);
+        }
+        for ($i = 1; $i < $chain; ++$i) {
+            $calls['c' . ($i - 1) . "==>c$i"] = $cost(2 * $wt);
+        }
+
+        return $calls;
+    }
+
+    /**
      * The real application profile: 582 functions, a hot path 473 calls long.
      */
     public static function xhprofApp(): Profile

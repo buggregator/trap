@@ -94,24 +94,52 @@ final class ProfileCallsTest
         Assert::same($result['callees_count'], 2);
     }
 
-    public function testRecursionIsNotCountedTwice(): void
+    #[DataSet(['XHProf'], 'XHProf')]
+    #[DataSet(['Xdebug'], 'Xdebug')]
+    #[DataSet(['SPX'], 'SPX')]
+    #[DataSet(['pprof'], 'pprof')]
+    #[DataSet(['Speedscope'], 'Speedscope')]
+    public function testRecursionIsNotCountedTwice(string $format): void
     {
         $trap = new Trap();
-        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprofApp());
-        $top = $trap->get(ProfileTop::class)->call(['id' => $id, 'limit' => 1]);
+        [$type, $profile] = Profiles::formats()[$format];
+        $id = Profiles::add($trap, $type, $profile());
+        $tool = $trap->get(ProfileCalls::class);
+        $top = $trap->get(ProfileTop::class)->call(['id' => $id, 'limit' => 50]);
 
-        $result = $trap->get(ProfileCalls::class)->call([
-            'id' => $id,
-            'function' => $top['functions'][0]['function'],
-            'depth' => 3,
-            'limit' => 50,
-        ]);
-
-        foreach ([...$result['callers'], ...$result['callees']] as $row) {
-            Assert::numeric($row['inclusive_percent'])->between(0, 100);
-            Assert::true($row['exclusive'] <= $row['inclusive'] || $row['function'] === $row['via']);
+        $rows = [];
+        foreach ($top['functions'] as $function) {
+            $result = $tool->call(['id' => $id, 'function' => $function['function'], 'limit' => 50]);
+            $rows = [...$rows, ...$result['callers'], ...$result['callees']];
         }
-        Assert::notBlank($result['callees']);
+
+        Assert::notBlank($rows);
+        foreach ($rows as $row) {
+            Assert::numeric($row['inclusive_percent'])->between(0, 100);
+            Assert::int($row['exclusive'])->lessThanOrEqual($row['inclusive']);
+        }
+    }
+
+    public function testRecursiveCallsOutsideTheRecursionAreSummed(): void
+    {
+        $trap = new Trap();
+        // `g()` calls `f()` both inside an outer `f()` and outside of it
+        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof([
+            'main()' => ['ct' => 1, 'wt' => 1000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>f' => ['ct' => 1, 'wt' => 500, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'f==>g' => ['ct' => 1, 'wt' => 400, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'g==>f@1' => ['ct' => 1, 'wt' => 300, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>g' => ['ct' => 1, 'wt' => 200, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'g==>f' => ['ct' => 1, 'wt' => 100, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        ]));
+        $tool = $trap->get(ProfileCalls::class);
+
+        $f = $tool->call(['id' => $id, 'function' => 'f']);
+        $g = $tool->call(['id' => $id, 'function' => 'g']);
+
+        // 300 µs of `f@1` and the share of `g()` in the own 200 µs of `f()`: 100 of 600
+        Assert::same($f['callers'][1], self::link('g', 'f', 1, 2, 400, 333));
+        Assert::same($g['callees'][0], self::link('f', 'g', 1, 2, 400, 333));
     }
 
     #[DataSet(['XHProf'], 'XHProf')]

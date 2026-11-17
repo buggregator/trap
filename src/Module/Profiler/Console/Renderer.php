@@ -84,8 +84,8 @@ final class Renderer implements RendererInterface
         $peaks = $profile->peaks;
         $countLabel = self::countLabel(Mapper::countType($frame->payload));
         Tables::renderKeyValueTable($output, 'Peak values', \array_filter([
-            'Wall time' => $peaks->wt > 0 ? self::formatTime($peaks->wt) : null,
-            'CPU time' => $peaks->cpu > 0 ? self::formatTime($peaks->cpu) : null,
+            'Wall time' => $peaks->wt > 0 ? Metric::WallTime->format($peaks->wt) : null,
+            'CPU time' => $peaks->cpu > 0 ? Metric::CpuTime->format($peaks->cpu) : null,
             'Memory usage' => $peaks->mu > 0 ? Measure::memory($peaks->mu) : null,
             'Peak memory usage' => $peaks->pmu > 0 ? Measure::memory($peaks->pmu) : null,
             $countLabel => (string) $peaks->ct,
@@ -112,33 +112,6 @@ final class Renderer implements RendererInterface
             Mapper::SAMPLES => 'Samples',
             default => \ucfirst(self::text($countType)),
         };
-    }
-
-    private static function formatMetric(Metric $metric, int|float $value): string
-    {
-        $value = \max(0, (int) $value);
-        return match ($metric) {
-            Metric::WallTime, Metric::CpuTime => self::formatTime($value),
-            Metric::Memory, Metric::PeakMemory => Measure::memory($value),
-            Metric::Count => (string) $value,
-        };
-    }
-
-    /**
-     * @param int<0, max> $microseconds
-     */
-    private static function formatTime(int $microseconds): string
-    {
-        return match (true) {
-            $microseconds < 1_000 => "$microseconds µs",
-            $microseconds < 1_000_000 => \sprintf('%.2f ms', (float) $microseconds / 1e3),
-            default => \sprintf('%.2f s', (float) $microseconds / 1e6),
-        };
-    }
-
-    private static function formatPercent(int|float $percent): string
-    {
-        return $percent > 0 && $percent < 0.05 ? '<0.1%' : \sprintf('%.1f%%', $percent);
     }
 
     /**
@@ -204,13 +177,13 @@ final class Renderer implements RendererInterface
             $row = [self::functionName($func->function), (string) $func->get('ct')];
             $rankLabel === null or $row = [
                 ...$row,
-                self::formatMetric($metric, $func->get("excl_$metric->value")),
-                self::formatPercent($func->get("p_excl_$metric->value")),
-                self::formatMetric($metric, $func->get($metric->value)),
-                self::formatPercent($func->get("p_$metric->value")),
+                $metric->format($func->get("excl_$metric->value")),
+                Metric::formatPercent($func->get("p_excl_$metric->value")),
+                $metric->format($func->get($metric->value)),
+                Metric::formatPercent($func->get("p_$metric->value")),
             ];
             foreach ($others as $key => $_) {
-                $row[] = self::formatMetric(Metric::from($key), $func->get("excl_$key"));
+                $row[] = Metric::from($key)->format($func->get("excl_$key"));
             }
             $rows[] = $row;
         }
@@ -250,8 +223,8 @@ final class Renderer implements RendererInterface
             $value = $metric->of($edge->cost);
             $lines[] = \sprintf(
                 '%s  %s  %s%s',
-                self::padLeft(self::formatPercent($total > 0 ? (float) $value / (float) $total * 100.0 : 0.0), 6),
-                self::padLeft(self::formatMetric($metric, $value), 11),
+                self::padLeft(Metric::formatPercent($total > 0 ? (float) $value / (float) $total * 100.0 : 0.0), 6),
+                self::padLeft($metric->format($value), 11),
                 $i === 0 ? '' : '└ ',
                 self::functionName($edge->callee),
             );

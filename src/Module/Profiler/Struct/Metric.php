@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\Struct;
 
+use Buggregator\Trap\Support\Measure;
+
 /**
  * A measure of the calls: times in microseconds, memory in bytes, counts of calls or samples.
  *
@@ -44,6 +46,14 @@ enum Metric: string
         return \array_values(\array_filter(self::cases(), static fn(self $metric): bool => $metric->isMeasured($peaks)));
     }
 
+    /**
+     * A share for people: `12.5%`, or `<0.1%` for a small one that would round to zero.
+     */
+    public static function formatPercent(int|float $percent): string
+    {
+        return $percent > 0 && $percent < 0.05 ? '<0.1%' : \sprintf('%.1f%%', $percent);
+    }
+
     public function isMeasured(Peaks $peaks): bool
     {
         return $this->of($peaks->toCost()) > 0;
@@ -60,6 +70,23 @@ enum Metric: string
             self::Memory => $cost->mu,
             self::PeakMemory => $cost->pmu,
             self::Count => $cost->ct,
+        };
+    }
+
+    /**
+     * A value for people: `1.50 ms`, `2.00 MB`, a negative one as zero.
+     */
+    public function format(int|float $value): string
+    {
+        $value = \max(0, (int) $value);
+        return match ($this) {
+            self::WallTime, self::CpuTime => match (true) {
+                $value < 1_000 => "$value µs",
+                $value < 1_000_000 => \sprintf('%.2f ms', (float) $value / 1e3),
+                default => \sprintf('%.2f s', (float) $value / 1e6),
+            },
+            self::Memory, self::PeakMemory => Measure::memory($value),
+            self::Count => (string) $value,
         };
     }
 }
