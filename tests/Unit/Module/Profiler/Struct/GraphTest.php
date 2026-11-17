@@ -158,6 +158,61 @@ final class GraphTest
         Assert::int($maxGrowth)->lessThan(512 * 1024);
     }
 
+    public function testUnfoldKeepsCalleesAsCheckedOneByOne(): void
+    {
+        $h = 4_000_000_000_000_000_000;
+        $calls = [
+            'main()' => ['ct' => 1, 'wt' => $h, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>neg' => ['ct' => 1, 'wt' => 1, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>f1' => ['ct' => 1, 'wt' => $h, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            // Equal values, and exactly at the threshold of a quarter
+            'main()==>a' => ['ct' => 1, 'wt' => $h / 4, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>b' => ['ct' => 1, 'wt' => $h / 4, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        ];
+        // The other caller brings the inclusive time of each `f` to 1: the scale grows by `$h` a level till INF
+        for ($i = 1; $i <= 20; ++$i) {
+            $calls['neg==>f' . $i] = ['ct' => 1, 'wt' => 1 - $h, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
+            $calls["f$i==>f" . ($i + 1)] = ['ct' => 1, 'wt' => $h, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
+            $calls["f$i==>z$i"] = ['ct' => 1, 'wt' => 0, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
+        }
+        $graph = self::graph($calls);
+
+        $tree = $graph->unfold(minShare: 0.25);
+
+        $expected = self::unfoldOneByOne($graph, 0.25);
+        Assert::contains($expected, 'n1:a');
+        Assert::contains($expected, 'n1:b');
+        // A zero time at an INF scale is NaN: not under the threshold
+        Assert::array(\preg_grep('/:z\d+$/', $expected))->hasCount(4);
+        Assert::same(
+            \array_map(static fn(Branch $branch): string => "{$branch->parentId}:{$branch->item->calleeId}", $tree->all),
+            $expected,
+        );
+    }
+
+    public function testUnfoldKeepsCalleesAtNegativeScale(): void
+    {
+        // Negative call counts of received data make a negative scale, which reverses the order of the values
+        $zero = ['wt' => 0, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
+        $graph = self::graph([
+            'A' => ['ct' => 0] + $zero,
+            'A==>q' => ['ct' => -1000] + $zero,
+            'A==>c2' => ['ct' => 100] + $zero,
+            'A==>c4' => ['ct' => 50] + $zero,
+            'A==>c5' => ['ct' => 20] + $zero,
+            'r==>A' => ['ct' => 5] + $zero,
+            'B' => ['ct' => 0] + $zero,
+            'B==>r' => ['ct' => -10_000_000] + $zero,
+        ]);
+
+        $tree = $graph->unfold(0.0001);
+
+        Assert::contains(
+            \array_map(static fn(Branch $branch): string => "{$branch->parentId}:{$branch->item->calleeId}", $tree->all),
+            'n1:q',
+        );
+    }
+
     public function testUnfoldPrunesByCallsWithoutWallTime(): void
     {
         // Unpruned, 36 levels would unfold into 2^37 nodes
@@ -340,6 +395,40 @@ final class GraphTest
         }
 
         return [$fiber->getReturn(), $ticks, $maxGrowth];
+    }
+
+    /**
+     * {@see Graph::unfold()} by wall time without its shortcuts: every callee is checked against the threshold.
+     *
+     * @return array<non-empty-string, non-empty-string> `parentId:calleeId` by node IDs.
+     */
+    private static function unfoldOneByOne(Graph $graph, float $minShare): array
+    {
+        $total = 0;
+        foreach ($graph->roots() as $edge) {
+            $total += $edge->cost->wt;
+        }
+        $minValue = (float) $total * $minShare;
+
+        $nodes = [];
+        $stack = \array_map(static fn(Edge $edge): array => [$edge, '', 1.0, []], \array_reverse($graph->roots()));
+        while ($stack !== []) {
+            [$edge, $parent, $scale, $path] = \array_pop($stack);
+            $value = (float) Metric::WallTime->of($edge->cost) * $scale;
+            if ($value < $minValue || isset($path[$edge->calleeId])) {
+                continue;
+            }
+
+            $id = 'n' . (\count($nodes) + 1);
+            $nodes[$id] = "$parent:{$edge->calleeId}";
+            $calleeTotal = Metric::WallTime->of($graph->inclusiveCost($edge->calleeId));
+            $childScale = $calleeTotal > 0 ? $value / (float) $calleeTotal : $scale;
+            foreach (\array_reverse($graph->callees($edge->calleeId)) as $callee) {
+                $stack[] = [$callee, $id, $childScale, $path + [$edge->calleeId => true]];
+            }
+        }
+
+        return $nodes;
     }
 
     private static function graph(array $calls): Graph

@@ -301,20 +301,20 @@ final class Graph implements \IteratorAggregate, \Countable
             }
 
             // Only the callees that pass `$minValue`: a function may call thousands, most of them too light.
-            // Received data with negative times may make the scale negative, which reverses the order: then all.
-            if ($childScale >= 0.0) {
-                [$values, $order] = $byValue[$edge->calleeId] ??= self::byValue($callees, $metric);
-                $low = 0;
-                $high = \count($values);
-                while ($low < $high) {
-                    $middle = ($low + $high) >> 1;
-                    $minValue <= $values[$middle] * $childScale ? $low = $middle + 1 : $high = $middle;
-                }
-                if ($low < \count($values)) {
-                    $passing = \array_slice($order, 0, $low);
-                    \sort($passing);
-                    $callees = \array_map(static fn(int $i): Edge => $callees[$i], $passing);
-                }
+            // The check above, negated: a zero value at an INF scale is NaN, which it keeps and `<=` would drop.
+            // A negative scale, from negative call counts in received data, reverses the order: the check above
+            // then takes every callee itself.
+            [$values, $order] = $byValue[$edge->calleeId] ??= self::byValue($callees, $metric);
+            $low = 0;
+            $high = \count($values);
+            while ($childScale >= 0.0 && $low < $high) {
+                $middle = ($low + $high) >> 1;
+                $minValue > $values[$middle] * $childScale ? $high = $middle : $low = $middle + 1;
+            }
+            if ($childScale >= 0.0 && $low < \count($values)) {
+                $passing = \array_slice($order, 0, $low);
+                \sort($passing);
+                $callees = \array_map(static fn(int $i): Edge => $callees[$i], $passing);
             }
             for ($i = \count($callees) - 1; $i >= 0; --$i) {
                 $stack[] = [$callees[$i], $branch, $childScale];

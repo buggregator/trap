@@ -149,7 +149,7 @@ final class ProfileAnalysis
             $roots = 0;
             foreach ($this->profile->calls->roots() as $edge) {
                 // Received data may pass the integer range: the sum would turn into a float
-                $value = \max(0, $metric->of($edge->cost));
+                $value = $metric->of($edge->cost);
                 $roots = $value > \PHP_INT_MAX - $roots ? \PHP_INT_MAX : $roots + $value;
             }
             $peak = \max($peak, $roots);

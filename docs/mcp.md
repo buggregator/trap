@@ -231,10 +231,10 @@ for it fails with the metrics the profile has:
   itself. The percentages are of the `peaks`, the largest values of one caller and callee pair as the console shows
   them: the root's wall time, CPU time and memory. A profile without `main()` gets a root that sums the times of
   its calls and takes the most memory of them, and its `peaks` are the root's values. With several roots, of the call
-  graph or of a recorded call tree, the peak is the sum of the roots when larger. A percentage is at
-  most 100, even when the sum over the callers passes the peak. `ct` has no percentages: its peak is the most calls or samples of one pair, while a function sums the calls
-  from all its callers. XHProf's `mu` is the memory a call allocated less what it freed: a negative value is shown
-  as zero, and an `exclusive` one as at most the `inclusive` one.
+  graph or of a recorded call tree, the peak is the sum of the roots when larger. A percentage is at most 100, even
+  when the sum over the callers passes the peak. `ct` has no percentages: its peak is the most calls or samples of
+  one pair, while a function sums the calls from all its callers. XHProf's `mu` is the memory a call allocated less
+  what it freed: a negative value is shown as zero, and an `exclusive` one as at most the `inclusive` one.
 - `profile_top` ranks by the `exclusive` value (`sort: inclusive` for the other), 20 functions by default and 200
   at most. `filter` keeps the functions whose names contain the text in any case; with `*`, it matches the whole
   name: `App\*` keeps the application code.

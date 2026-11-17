@@ -164,8 +164,9 @@ final class ProfileCalls implements Tool
         $calleeLinks = self::links($analysis, $metric, $name, false);
         $callers = $callees = [];
         $truncated = false;
-        self::walk($analysis, $metric, $name, $callerLinks, true, 1, $depth, $limit, [$name => true], $callers, $truncated);
-        self::walk($analysis, $metric, $name, $calleeLinks, false, 1, $depth, $limit, [$name => true], $callees, $truncated);
+        $callerCache = $calleeCache = [];
+        self::walk($analysis, $metric, $name, $callerLinks, true, 1, $depth, $limit, [$name => true], $callers, $truncated, $callerCache);
+        self::walk($analysis, $metric, $name, $calleeLinks, false, 1, $depth, $limit, [$name => true], $callees, $truncated, $calleeCache);
 
         return [
             'metric' => $metric->value,
@@ -190,6 +191,8 @@ final class ProfileCalls implements Tool
      * @param int<1, max> $limit
      * @param array<string, true> $path The functions on the way here, not expanded again.
      * @param list<array<non-empty-string, mixed>> $rows
+     * @param array<string, array<string, Link>> $cache The links of the functions met in this direction, by their
+     *        names: a function many rows reach is linked once.
      */
     private static function walk(
         ProfileAnalysis $analysis,
@@ -203,6 +206,7 @@ final class ProfileCalls implements Tool
         array $path,
         array &$rows,
         bool &$truncated,
+        array &$cache,
     ): void {
         foreach (\array_slice($links, 0, $limit, true) as $other => $link) {
             if (\count($rows) >= self::MAX_ROWS) {
@@ -226,7 +230,7 @@ final class ProfileCalls implements Tool
                 $analysis,
                 $metric,
                 $other,
-                self::links($analysis, $metric, $other, $callers),
+                $cache[$other] ??= self::links($analysis, $metric, $other, $callers),
                 $callers,
                 $depth + 1,
                 $maxDepth,
@@ -234,6 +238,7 @@ final class ProfileCalls implements Tool
                 $path + [$other => true],
                 $rows,
                 $truncated,
+                $cache,
             );
         }
     }
@@ -271,13 +276,18 @@ final class ProfileCalls implements Tool
             $links[$other] = $link;
         }
 
-        \uksort(
-            $links,
-            static fn(int|string $a, int|string $b): int => [$links[$b]['inclusive'], $links[$b]['calls'], (string) $a]
-                <=> [$links[$a]['inclusive'], $links[$a]['calls'], (string) $b],
-        );
+        // Not `uksort()`: a callback per comparison takes seconds for 200 000 callees, all in one tick
+        $names = \array_map(\strval(...), \array_keys($links));
+        $inclusive = \array_column($links, 'inclusive');
+        $calls = \array_column($links, 'calls');
+        \array_multisort($inclusive, \SORT_DESC, \SORT_NUMERIC, $calls, \SORT_DESC, \SORT_NUMERIC, $names, \SORT_STRING);
+        $sorted = [];
+        foreach ($names as $other) {
+            $sorted[$other] = $links[$other];
+            $slice->tick();
+        }
 
-        return $links;
+        return $sorted;
     }
 
     /**

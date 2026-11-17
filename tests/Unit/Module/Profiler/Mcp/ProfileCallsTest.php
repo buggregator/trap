@@ -298,6 +298,29 @@ final class ProfileCallsTest
         Assert::int($ticks)->greaterThan(0);
     }
 
+    public function testHubReachedFromManyCallersIsLinkedOnce(): void
+    {
+        // 50 rows reach the hub: linking it for each would take 600 000 ticks
+        $n = 2000;
+        $cost = static fn(int $wt): array => ['ct' => 1, 'wt' => $wt, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
+        $calls = ['main()' => $cost(100 * $n)];
+        for ($i = 0; $i < 50; ++$i) {
+            $calls["main()==>c$i"] = $cost(2 * $n);
+            $calls["c$i==>hub"] = $cost($n);
+        }
+        for ($i = 1; $i <= $n; ++$i) {
+            $calls['hub' . ($i === 1 ? '' : '@' . ($i - 1)) . "==>hub@$i"] = $cost(1);
+            $calls["hub@$i==>x"] = $cost(1);
+        }
+
+        [$result, $ticks] = self::callTicking($calls, 'main()', 20 * $n, ['depth' => 3, 'limit' => 50]);
+
+        Assert::count($result['callees'], 200);
+        Assert::false($result['truncated']);
+        Assert::same(\array_count_values(\array_column($result['callees'], 'function'))['x'], 50);
+        Assert::int($ticks)->greaterThan(0);
+    }
+
     public function testManyRecursionLevelsOfOnePairTakeLinearWork(): void
     {
         // Neither call is inside another: the deeper `g()` is, the shallower `f()` is
@@ -395,17 +418,19 @@ final class ProfileCallsTest
      * deterministically on any machine.
      *
      * @param positive-int $maxTicks Fails past them rather than run the unbounded work to the end.
+     * @param array<non-empty-string, mixed> $arguments Of the tool, besides `id` and `function`; `limit` is 1 by default.
      *
      * @return array{array, int} The result and the ticks.
      */
-    private static function callTicking(array $calls, string $function, int $maxTicks): array
+    private static function callTicking(array $calls, string $function, int $maxTicks, array $arguments = []): array
     {
         $trap = new Trap();
         $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof($calls));
         $tool = new ProfileCalls(new ProfileAnalyses($trap->store, static fn(): TimeSlice => new TimeSlice(0.0, 1)));
         // The functions are summed and indexed here, so only the calls of the function are left to the fiber
         $tool->call(['id' => $id, 'function' => 'main()', 'limit' => 1]);
-        $fiber = new \Fiber(static fn(): array => $tool->call(['id' => $id, 'function' => $function, 'limit' => 1]));
+        $arguments = ['id' => $id, 'function' => $function] + $arguments + ['limit' => 1];
+        $fiber = new \Fiber(static fn(): array => $tool->call($arguments));
 
         $ticks = 0;
         $fiber->start();
