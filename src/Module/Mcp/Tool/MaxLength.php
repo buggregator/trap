@@ -58,15 +58,17 @@ final class MaxLength
      *
      * @param int|null $length Characters of the whole text when `$text` is only its start, at least `$maxLength`
      *        characters of it; null when `$text` is whole.
+     * @param bool $more The whole text is longer than `$length`: it was not built past the limit.
      */
-    public static function cut(string $text, int $maxLength, ?int $length = null): string
+    public static function cut(string $text, int $maxLength, ?int $length = null, bool $more = false): string
     {
         $length ??= \mb_strlen($text);
-        if ($length <= $maxLength) {
+        if ($length <= $maxLength && !$more) {
             return $text;
         }
 
+        $total = $more ? "at least $length" : (string) $length;
         return \mb_substr($text, 0, $maxLength)
-            . "\n\n[Truncated: $maxLength of $length characters shown. Call again with a larger `max_length` for more.]";
+            . "\n\n[Truncated: $maxLength of $total characters shown. Call again with a larger `max_length` for more.]";
     }
 }

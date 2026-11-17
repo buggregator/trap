@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\Struct;
 
+use Buggregator\Trap\Module\Profiler\Compaction\NodeBudget;
 use Buggregator\Trap\Support\TimeSlice;
 use Buggregator\Trap\Support\Uuid;
 
@@ -46,6 +47,12 @@ final class Profile implements \JsonSerializable
     private const UNFOLD_MIN_SHARE = 0.0001;
 
     /**
+     * Unfolded nodes past the limit are dropped: a few kilobytes of shared functions calling each other
+     * unfold into millions of nodes.
+     */
+    private const UNFOLD_MAX_NODES = 200_000;
+
+    /**
      * Name of the node that sums what came past the limit of the raw call tree.
      */
     public const TRUNCATED = '(truncated)';
@@ -61,6 +68,12 @@ final class Profile implements \JsonSerializable
     /** @var non-empty-string some leaked bs required for Frontend */
     public string $uuid;
 
+    /** The profiler recorded the call tree: {@see self::tree()} is not unfolded from the call graph. */
+    public readonly bool $exactTree;
+
+    /** A fiber is unfolding the tree and has let the others run. */
+    private bool $unfolding = false;
+
     /**
      * @param Metadata $metadata
      * @param array<non-empty-string, non-empty-string> $tags
@@ -74,6 +87,7 @@ final class Profile implements \JsonSerializable
         ?Peaks $peaks = null,
         private ?Tree $tree = null,
     ) {
+        $this->exactTree = $tree !== null;
         $this->uuid = Uuid::uuid4();
         $this->calls = $calls ?? new Graph();
         if ($peaks === null) {
@@ -164,13 +178,24 @@ final class Profile implements \JsonSerializable
     }
 
     /**
-     * Call tree: the exact one when the profiler records it, otherwise unfolded from the call graph.
+     * Call tree: the exact one when the profiler records it, otherwise unfolded from the call graph,
+     * up to the nodes the memory left affords.
+     *
+     * A fiber asking while another one unfolds the tree waits for its tree. A caller outside a fiber can't wait,
+     * so it unfolds a tree of its own, and the first tree done is kept.
+     *
+     * @param TimeSlice|null $timeSlice Lets other fibers run while the tree is unfolded.
+     * @param int<1, max>|null $nodeBudget The nodes the memory left affords; {@see NodeBudget::nodes()} by default.
      *
      * @return Tree<Edge>
      */
-    public function tree(): Tree
+    public function tree(?TimeSlice $timeSlice = null, ?int $nodeBudget = null): Tree
     {
-        return $this->tree ??= $this->calls->unfold(self::UNFOLD_MIN_SHARE);
+        while ($this->tree === null && $this->unfolding && \Fiber::getCurrent() !== null) {
+            \Fiber::suspend();
+        }
+
+        return $this->tree ?? $this->unfold($timeSlice, $nodeBudget);
     }
 
     /**
@@ -248,5 +273,26 @@ final class Profile implements \JsonSerializable
             }
             $timeSlice?->tick();
         }
+    }
+
+    /**
+     * @param int<1, max>|null $nodeBudget
+     *
+     * @return Tree<Edge> The first tree unfolded: a caller outside a fiber may unfold one meanwhile.
+     */
+    private function unfold(?TimeSlice $timeSlice, ?int $nodeBudget): Tree
+    {
+        $this->unfolding = true;
+        try {
+            $tree = $this->calls->unfold(
+                self::UNFOLD_MIN_SHARE,
+                \min(self::UNFOLD_MAX_NODES, $nodeBudget ?? NodeBudget::nodes()),
+                $timeSlice,
+            );
+        } finally {
+            $this->unfolding = false;
+        }
+
+        return $this->tree ??= $tree;
     }
 }

@@ -8,10 +8,13 @@ use Buggregator\Trap\Module\Profiler\Struct\Branch;
 use Buggregator\Trap\Module\Profiler\Struct\Cost;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Graph;
+use Buggregator\Trap\Module\Profiler\Struct\Metric;
 use Buggregator\Trap\Module\Profiler\Struct\Peaks;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Module\Profiler\Struct\Tree;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
+use Buggregator\Trap\Support\TimeSlice;
+use Buggregator\Trap\Tests\Unit\Module\Profiler\Mcp\Stub\Profiles;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Expect;
@@ -102,12 +105,221 @@ final class GraphTest
         Assert::same(\count($tree), 3);
     }
 
+    public function testUnfoldStopsAtMaxNodes(): void
+    {
+        $graph = self::graph(Profiles::lattice(levels: 12, chain: 100));
+
+        $tree = $graph->unfold(minShare: 0.0001, maxNodes: 1000);
+
+        Assert::int(\count($tree))->greaterThan(0)->lessThanOrEqual(1000);
+        Assert::true($tree->cut);
+        Assert::false(self::graph(self::SHARED)->unfold(maxNodes: 7)->cut);
+    }
+
+    public function testCutTreeKeepsCallsInCallOrder(): void
+    {
+        $tree = self::graph(self::SHARED)->unfold(maxNodes: 4);
+
+        Assert::true($tree->cut);
+        $names = \array_map(static fn(Branch $branch): string => $branch->item->callee, \array_values($tree->all));
+        Assert::same($names, ['main()', 'a', 'x', 'y']);
+    }
+
+    public function testCutKeepsMemoryAndWorkBounded(): void
+    {
+        // 6 000 leaves under the last level: a body of 344 KB unfolding into about 2^14 * 3 000 nodes
+        $graph = self::graph(Profiles::lattice(levels: 13, chain: 30, leaves: 3000));
+        \gc_collect_cycles();
+        $before = \memory_get_usage();
+        \memory_reset_peak_usage();
+
+        [$tree, $ticks] = self::unfoldTicking($graph, 0.0001, 50_000, 3 * 50_000);
+
+        $peak = \memory_get_peak_usage() - $before;
+        Assert::true($tree->cut);
+        Assert::count($tree, 50_000);
+        Assert::true($peak < 96 * 1024 * 1024, \sprintf('Peak memory grew by %.1f MB.', $peak / 1048576));
+        Assert::int($ticks)->lessThanOrEqual(2 * 50_000 + 1);
+    }
+
+    public function testUnfoldSkipsLightCalleesOfLargeFanOut(): void
+    {
+        // Each of the 256 nodes of the last level calls 5 000 leaves too light to show
+        $graph = self::graph(Profiles::lattice(levels: 8, chain: 0, leaves: 5000));
+        $expected = $graph->unfold(0.0001);
+
+        [$tree, $ticks, $maxGrowth] = self::unfoldTicking($graph, 0.0001, \PHP_INT_MAX, 10 * \count($expected));
+
+        Assert::same(self::shape($tree), self::shape($expected));
+        Assert::same(\array_keys($tree->all), \array_keys($expected->all));
+        // Every entry of the stack is a tick: a node, the end of its subtree, a skipped call
+        Assert::int($ticks)->lessThanOrEqual(2 * \count($tree));
+        // The leaves of a function are sorted once, about 0.3 MB; stacking them all takes over 1 MB a node
+        Assert::int($maxGrowth)->lessThan(512 * 1024);
+    }
+
+    public function testUnfoldKeepsCalleesAsCheckedOneByOne(): void
+    {
+        $h = 4_000_000_000_000_000_000;
+        $calls = [
+            'main()' => ['ct' => 1, 'wt' => $h, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>neg' => ['ct' => 1, 'wt' => 1, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>f1' => ['ct' => 1, 'wt' => $h, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            // Equal values, and exactly at the threshold of a quarter
+            'main()==>a' => ['ct' => 1, 'wt' => $h / 4, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>b' => ['ct' => 1, 'wt' => $h / 4, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        ];
+        // The other caller brings the inclusive time of each `f` to 1: the scale grows by `$h` a level till INF
+        for ($i = 1; $i <= 20; ++$i) {
+            $calls['neg==>f' . $i] = ['ct' => 1, 'wt' => 1 - $h, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
+            $calls["f$i==>f" . ($i + 1)] = ['ct' => 1, 'wt' => $h, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
+            $calls["f$i==>z$i"] = ['ct' => 1, 'wt' => 0, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
+        }
+        $graph = self::graph($calls);
+
+        $tree = $graph->unfold(minShare: 0.25);
+
+        $expected = self::unfoldOneByOne($graph, 0.25);
+        Assert::contains($expected, 'n1:a');
+        Assert::contains($expected, 'n1:b');
+        // A zero time at an INF scale is NaN: not under the threshold
+        Assert::array(\preg_grep('/:z\d+$/', $expected))->hasCount(4);
+        Assert::same(
+            \array_map(static fn(Branch $branch): string => "{$branch->parentId}:{$branch->item->calleeId}", $tree->all),
+            $expected,
+        );
+    }
+
+    public function testUnfoldKeepsCalleesAtNegativeScale(): void
+    {
+        // Negative call counts of received data make a negative scale, which reverses the order of the values
+        $zero = ['wt' => 0, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
+        $graph = self::graph([
+            'A' => ['ct' => 0] + $zero,
+            'A==>q' => ['ct' => -1000] + $zero,
+            'A==>c2' => ['ct' => 100] + $zero,
+            'A==>c4' => ['ct' => 50] + $zero,
+            'A==>c5' => ['ct' => 20] + $zero,
+            'r==>A' => ['ct' => 5] + $zero,
+            'B' => ['ct' => 0] + $zero,
+            'B==>r' => ['ct' => -10_000_000] + $zero,
+        ]);
+
+        $tree = $graph->unfold(0.0001);
+
+        Assert::contains(
+            \array_map(static fn(Branch $branch): string => "{$branch->parentId}:{$branch->item->calleeId}", $tree->all),
+            'n1:q',
+        );
+    }
+
+    public function testUnfoldPrunesByCallsWithoutWallTime(): void
+    {
+        // Unpruned, 36 levels would unfold into 2^37 nodes
+        $graph = self::graph(Profiles::lattice(levels: 36, chain: 0, wt: 0));
+
+        $tree = $graph->unfold(minShare: 0.001, maxNodes: 100_000);
+
+        Assert::false($tree->cut);
+        Assert::int(\count($tree))->lessThan(10_000);
+    }
+
+    public function testUnfoldPrunesByCallsOfRootAddedWithoutMain(): void
+    {
+        $calls = Profiles::lattice(levels: 36, chain: 0, wt: 0);
+        unset($calls['main()']);
+        $graph = self::graph($calls);
+
+        $tree = $graph->unfold(minShare: 0.001, maxNodes: 100_000);
+
+        Assert::false($tree->cut);
+        Assert::int(\count($tree))->lessThan(10_000);
+        Assert::same($tree->all['n1']->item->cost->ct, 0);
+    }
+
+    public function testUnfoldLetsOtherFibersRun(): void
+    {
+        $graph = self::graph(Profiles::lattice(levels: 12, chain: 10));
+        $fiber = new \Fiber(static fn(): Tree => $graph->unfold(0.0001, 5_000, new TimeSlice(0.0, 1)));
+
+        $suspensions = 0;
+        $fiber->start();
+        while (!$fiber->isTerminated()) {
+            ++$suspensions;
+            $fiber->resume();
+        }
+
+        Assert::int($suspensions)->greaterThan(0);
+        Assert::same(\count($fiber->getReturn()), \count($graph->unfold(0.0001, 5_000)));
+    }
+
+    public function testHotPathFollowsHeaviestCalls(): void
+    {
+        $path = self::graph(self::SHARED)->hotPath(Metric::WallTime);
+
+        Assert::same(\array_map(static fn(Edge $edge): string => $edge->callee, $path), ['main()', 'b', 'x', 'y']);
+    }
+
+    public function testHotPathSkipsCallsWithoutTheMetric(): void
+    {
+        $graph = self::graph(self::SHARED);
+
+        Assert::same($graph->hotPath(Metric::CpuTime), []);
+        Assert::count($graph->hotPath(Metric::Count), 4);
+    }
+
+    public function testHotPathStopsOnCycle(): void
+    {
+        $path = self::graph([
+            'a==>b' => ['ct' => 1, 'wt' => 5, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'b==>a' => ['ct' => 1, 'wt' => 3, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>a' => ['ct' => 1, 'wt' => 10, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()' => ['ct' => 1, 'wt' => 10, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        ])->hotPath(Metric::WallTime);
+
+        Assert::same(\array_map(static fn(Edge $edge): string => $edge->callee, $path), ['main()', 'a', 'b']);
+    }
+
     public function testProfileTreeIsUnfoldedFromGraph(): void
     {
         $profile = (new ProfileBuilder())->createProfile(calls: self::SHARED);
 
         Assert::same(\count($profile->tree()), 7);
         Assert::same($profile->tree(), $profile->tree());
+        Assert::false($profile->exactTree);
+    }
+
+    public function testProfileTreeIsUnfoldedOnceByFibers(): void
+    {
+        $profile = (new ProfileBuilder())->createProfile(calls: Profiles::lattice(levels: 4, chain: 5));
+        $unfold = static fn(): Tree => $profile->tree(new TimeSlice(0.0, 1));
+        $fibers = [new \Fiber($unfold), new \Fiber($unfold)];
+
+        foreach ($fibers as $fiber) {
+            $fiber->start();
+        }
+        while (!$fibers[0]->isTerminated() || !$fibers[1]->isTerminated()) {
+            foreach ($fibers as $fiber) {
+                $fiber->isTerminated() or $fiber->resume();
+            }
+        }
+
+        Assert::same($fibers[0]->getReturn(), $fibers[1]->getReturn());
+    }
+
+    public function testProfileTreeOutsideFiberDoesNotWaitForFiber(): void
+    {
+        $profile = (new ProfileBuilder())->createProfile(calls: Profiles::lattice(levels: 4, chain: 5));
+        $fiber = new \Fiber(static fn(): Tree => $profile->tree(new TimeSlice(0.0, 1)));
+        $fiber->start();
+
+        $tree = $profile->tree();
+
+        while (!$fiber->isTerminated()) {
+            $fiber->resume();
+        }
+        Assert::same($fiber->getReturn(), $tree);
+        Assert::same($profile->tree(), $tree);
     }
 
     public function testProfileTreePrefersExactTree(): void
@@ -117,6 +329,7 @@ final class GraphTest
         $profile = new Profile(tree: $tree);
 
         Assert::same($profile->tree(), $tree);
+        Assert::true($profile->exactTree);
     }
 
     public function testFromTreeSumsNodesByCallerAndCallee(): void
@@ -158,6 +371,64 @@ final class GraphTest
 
         Expect::exception(\LogicException::class);
         $graph->add(new Edge('a', 'b', new Cost(1, 1, 1, 1, 1)));
+    }
+
+    /**
+     * Unfolds in a fiber suspended at every tick: the ticks count the work, deterministically on any machine.
+     *
+     * @param int<1, max> $maxNodes
+     * @param positive-int $maxTicks Fails past them rather than run the unbounded work to the end.
+     *
+     * @return array{Tree<Edge>, int, int} The tree, the ticks and the most memory a tick allocated, bytes.
+     */
+    private static function unfoldTicking(Graph $graph, float $minShare, int $maxNodes, int $maxTicks): array
+    {
+        $fiber = new \Fiber(static fn(): Tree => $graph->unfold($minShare, $maxNodes, new TimeSlice(0.0, 1)));
+        $ticks = $maxGrowth = 0;
+        $memory = \memory_get_usage();
+        $fiber->start();
+        while (!$fiber->isTerminated()) {
+            $maxGrowth = \max($maxGrowth, \memory_get_usage() - $memory);
+            ++$ticks <= $maxTicks or Assert::fail("Unfolding took more than $maxTicks ticks.");
+            $memory = \memory_get_usage();
+            $fiber->resume();
+        }
+
+        return [$fiber->getReturn(), $ticks, $maxGrowth];
+    }
+
+    /**
+     * {@see Graph::unfold()} by wall time without its shortcuts: every callee is checked against the threshold.
+     *
+     * @return array<non-empty-string, non-empty-string> `parentId:calleeId` by node IDs.
+     */
+    private static function unfoldOneByOne(Graph $graph, float $minShare): array
+    {
+        $total = 0;
+        foreach ($graph->roots() as $edge) {
+            $total += $edge->cost->wt;
+        }
+        $minValue = (float) $total * $minShare;
+
+        $nodes = [];
+        $stack = \array_map(static fn(Edge $edge): array => [$edge, '', 1.0, []], \array_reverse($graph->roots()));
+        while ($stack !== []) {
+            [$edge, $parent, $scale, $path] = \array_pop($stack);
+            $value = (float) Metric::WallTime->of($edge->cost) * $scale;
+            if ($value < $minValue || isset($path[$edge->calleeId])) {
+                continue;
+            }
+
+            $id = 'n' . (\count($nodes) + 1);
+            $nodes[$id] = "$parent:{$edge->calleeId}";
+            $calleeTotal = Metric::WallTime->of($graph->inclusiveCost($edge->calleeId));
+            $childScale = $calleeTotal > 0 ? $value / (float) $calleeTotal : $scale;
+            foreach (\array_reverse($graph->callees($edge->calleeId)) as $callee) {
+                $stack[] = [$callee, $id, $childScale, $path + [$edge->calleeId => true]];
+            }
+        }
+
+        return $nodes;
     }
 
     private static function graph(array $calls): Graph

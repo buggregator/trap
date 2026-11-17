@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Module\Profiler;
 use Buggregator\Trap\Module\Console\ProvidesRenderers;
 use Buggregator\Trap\Module\Frontend\ProvidesUi;
 use Buggregator\Trap\Module\Mcp\ProvidesEventViews;
+use Buggregator\Trap\Module\Mcp\ProvidesMcpTools;
 use Buggregator\Trap\Module\Profiler\Config\SPX;
 use Buggregator\Trap\Module\Profiler\Config\XDebug;
 use Buggregator\Trap\Module\Profiler\Config\XHProf;
@@ -18,6 +19,10 @@ use Buggregator\Trap\Module\Profiler\Http\SpeedscopeTrap;
 use Buggregator\Trap\Module\Profiler\Http\SPXTrap;
 use Buggregator\Trap\Module\Profiler\Http\XDebugTrap;
 use Buggregator\Trap\Module\Profiler\Http\XHProfTrap;
+use Buggregator\Trap\Module\Profiler\Mcp\ProfileCallGraph;
+use Buggregator\Trap\Module\Profiler\Mcp\ProfileCalls;
+use Buggregator\Trap\Module\Profiler\Mcp\ProfileSummary;
+use Buggregator\Trap\Module\Profiler\Mcp\ProfileTop;
 use Buggregator\Trap\Module\Profiler\Mcp\ProfileView;
 use Buggregator\Trap\Server\Event\ProvidesEvents;
 use Buggregator\Trap\Server\Handler\Http\ProvidesHttpMiddlewares;
@@ -34,7 +39,8 @@ final class Module implements
     ProvidesRenderers,
     ProvidesUi,
     ProvidesEvents,
-    ProvidesEventViews
+    ProvidesEventViews,
+    ProvidesMcpTools
 {
     #[\Override]
     public function httpMiddlewares(): array
@@ -88,5 +94,11 @@ final class Module implements
     public function eventViews(): array
     {
         return [ProfileView::class];
+    }
+
+    #[\Override]
+    public function mcpTools(): array
+    {
+        return [ProfileSummary::class, ProfileTop::class, ProfileCalls::class, ProfileCallGraph::class];
     }
 }

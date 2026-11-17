@@ -323,6 +323,48 @@ final class ServerTest
             ->notContains("\e[");
     }
 
+    public function testMcpToolsAnalyzeReceivedProfile(): void
+    {
+        $this->trap = TrapProcess::start(
+            'mcp-profile',
+            ["--port=$this->port", '--sender=file', "--mcp=$this->uiPort"],
+            [
+                'TRAP_TCP_PORTS' => (string) $this->port,
+                'TRAP_MCP_PORT' => (string) $this->uiPort,
+                'TRAP_MCP_HOST' => null,
+            ],
+            [$this->port, $this->uiPort],
+        );
+
+        $cursor = $this->callMcpTool('list_events', [])['cursor'];
+        [$status] = TrapProcess::http(
+            $this->port,
+            'POST',
+            '/api/profiler/store',
+            (string) \file_get_contents(Info::TRAP_ROOT . '/tests/Stub/xhprof/app.json'),
+            ['Content-Type' => 'application/json'],
+        );
+        $events = TrapProcess::waitFor(
+            fn(): ?array => $this->callMcpTool('list_events', ['since' => $cursor, 'type' => 'profiler'])['events'] ?: null,
+            'the profile listed by the MCP server',
+        );
+        $summary = $this->callMcpTool('profile_summary', ['id' => $events[0]['id']]);
+        $top = $this->callMcpTool('profile_top', ['id' => $events[0]['id'], 'metric' => 'cpu', 'limit' => 3]);
+        $calls = $this->callMcpTool('profile_calls', ['id' => $events[0]['id'], 'function' => 'main()']);
+
+        Assert::same($status, 200);
+        Assert::same(
+            [$summary['format'], $summary['functions'], $summary['edges'], $summary['peaks']['wt'], $summary['metric']],
+            ['XHProf', 582, 2223, 45310, 'wt'],
+        );
+        Assert::same($summary['hot_path'][0]['function'], 'main()');
+        Assert::count($summary['top'], 10);
+        Assert::same([$top['metric'], $top['matched'], $top['has_more']], ['cpu', 582, true]);
+        Assert::count($top['functions'], 3);
+        Assert::true($calls['root']);
+        Assert::notBlank($calls['callees']);
+    }
+
     public function testVarDumperDumpFromTrapFunctionIsCaptured(): void
     {
         $trap = $this->startTrap('var-dumper');
