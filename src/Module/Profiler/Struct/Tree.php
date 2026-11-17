@@ -22,6 +22,9 @@ final class Tree implements \IteratorAggregate, \Countable
     /** @var list<Branch<TItem>> */
     public array $lostChildren = [];
 
+    /** Nodes were left out past a limit of the node count, see {@see Graph::unfold()}. */
+    public bool $cut = false;
+
     /**
      * @template T of object
      *
