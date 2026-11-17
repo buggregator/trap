@@ -891,6 +891,66 @@ final class SentryViewTest
             ->contains("  db\n");
     }
 
+    #[DataSet(['=?'], 'queries')]
+    #[DataSet(['=#'], 'fragments')]
+    public function testUrlsNestedPastTheDepthAreFilteredWhole(string $nesting): void
+    {
+        $query = 'r' . \str_repeat($nesting, 150) . 'x=abc';
+
+        $text = self::text(['request' => [
+            'url' => "https://shop.test/?$query",
+            'query_string' => $query,
+            'headers' => ['Referer' => "https://shop.test/?$query"],
+        ]]);
+
+        Assert::string($text)
+            ->matchesRegex('~^Request: https://shop\.test/\?r[=?#]{10,14}\[Filtered\]$~m')
+            ->matchesRegex('~^  Query: r[=?#]{10,14}\[Filtered\]$~m')
+            ->matchesRegex('~^    Referer: https://shop\.test/\?r[=?#]{10,14}\[Filtered\]$~m')
+            ->notContains('abc');
+    }
+
+    #[DataSet([['next' => 'https://a.test/?token=abc', 'q' => 'a+b']], 'map')]
+    #[DataSet([[['next', 'https://a.test/?token=abc'], ['q', 'a+b']]], 'list of pairs')]
+    public function testUrlsInValuesOfAQueryMapAreFiltered(array $query): void
+    {
+        $text = self::text(['request' => ['url' => 'https://shop.test/', 'query_string' => $query]]);
+
+        Assert::string($text)->contains("  Query: next=https://a.test/?token=[Filtered], q=a+b\n");
+    }
+
+    public function testPasswordOfAUrlPastTheCutIsFiltered(): void
+    {
+        $url = 'https://' . \str_repeat('u', 250) . ':' . \str_repeat('p', 500) . '@shop.test/';
+
+        $text = self::text(['request' => ['url' => $url, 'headers' => ['Referer' => $url]]]);
+
+        $filtered = 'https://' . \str_repeat('u', 250) . ':[Filtered]@shop.test/';
+        Assert::string($text)
+            ->contains("Request: $filtered\n")
+            ->contains("    Referer: $filtered\n")
+            ->notContains('pp');
+    }
+
+    public function testEventThatFailsToRenderShowsNoPayload(): void
+    {
+        $payload = [
+            'message' => 'Boom',
+            'request' => ['url' => 'https://shop.test/?token=abc', 'headers' => ['Authorization' => 'Bearer abc']],
+            'extra' => ['broken' => new class implements \JsonSerializable {
+                #[\Override]
+                public function jsonSerialize(): never
+                {
+                    throw new \RuntimeException('Not serializable');
+                }
+            }],
+        ];
+
+        $text = (new Trap())->get(EventViews::class)->text(new Record(self::event($payload), 1, [new SentryStore($payload)]));
+
+        Assert::same($text, "Boom\n\nThe event could not be rendered: RuntimeException\n");
+    }
+
     /**
      * The decoded JSON body of a request in `resources/payloads`, as `trap test` sends it.
      */

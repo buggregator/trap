@@ -92,6 +92,15 @@ final class SentryText
 
     private const FILTERED = '[Filtered]';
 
+    /** URLs nested in query values that are filtered; the values nested deeper are {@see self::FILTERED}. */
+    private const MAX_URL_DEPTH = 5;
+
+    /**
+     * Bytes of a URL or a query string that are filtered, more than a line shows: the filter would be quadratic
+     * on the rest.
+     */
+    private const MAX_FILTERED_BYTES = 4096;
+
     /** Item types whose payload is an event; the payloads of others, as `session` or `client_report`, take a line. */
     private const EVENT_ITEMS = ['event', 'transaction', 'feedback'];
 
@@ -630,11 +639,12 @@ final class SentryText
         }
 
         $method = self::inline($request['method'] ?? '');
-        $result = 'Request: ' . \trim($method . ' ' . self::filterUrl(self::inline($request['url'] ?? ''))) . "\n";
+        $url = self::inline(self::filterUrl(self::string($request['url'] ?? '')));
+        $result = 'Request: ' . \trim("$method $url") . "\n";
 
         /** @var mixed $query */
         $query = $request['query_string'] ?? null;
-        $query = \is_array($query) ? self::pairs($query, filter: true) : self::filterQuery(self::inline($query));
+        $query = \is_array($query) ? self::pairs($query, filter: true) : self::inline(self::filterQuery(self::string($query)));
         $query === '' or $result .= '  Query: ' . self::cut($query, self::MAX_VALUE) . "\n";
 
         /** @var mixed $data */
@@ -652,11 +662,11 @@ final class SentryText
             /** @var mixed $value */
             $value = $pair[1];
             $name = $pair[0];
-            $value = self::inline(\is_array($value) ? \implode(', ', \array_map(self::inline(...), $value)) : $value);
+            $value = \is_array($value) ? \implode(', ', \array_map(self::string(...), $value)) : self::string($value);
             \preg_match(self::SKIPPED_HEADERS, $name) === 1 or $headers[] = "    $name: " . match (true) {
                 self::isSecret($name) => self::FILTERED,
-                \preg_match(self::URL_HEADERS, $name) === 1 => self::filterUrl($value),
-                default => $value,
+                \preg_match(self::URL_HEADERS, $name) === 1 => self::inline(self::filterUrl($value)),
+                default => self::inline($value),
             } . "\n";
         }
 
@@ -801,7 +811,7 @@ final class SentryText
     /**
      * Of a map of names and values, or of a list of name and value pairs as Sentry takes tags.
      *
-     * @param bool $filter Whether to hide the values of {@see self::SECRET_NAMES}.
+     * @param bool $filter Whether to filter the values as those of a query string.
      */
     private static function pairs(mixed $pairs, bool $filter = false): string
     {
@@ -816,6 +826,7 @@ final class SentryText
             $result[] = $pair[0] . '=' . match (true) {
                 !$filter => self::inline($pair[1]),
                 self::isSecret($pair[0]) => self::FILTERED,
+                \is_string($pair[1]) => self::inline(self::filterValue($pair[1], 0)),
                 default => self::inline(self::mask($pair[1])),
             };
         }
@@ -879,48 +890,67 @@ final class SentryText
 
     /**
      * A URL with the password of its user and the values of {@see self::SECRET_NAMES} in its query and fragment
-     * replaced: OAuth puts `access_token` in the fragment.
+     * replaced: OAuth puts `access_token` in the fragment. Of its first {@see self::MAX_FILTERED_BYTES}, the
+     * password masked before the cut.
+     *
+     * @param int $depth The URLs this one is nested in as a query value.
      */
-    private static function filterUrl(string $url): string
+    private static function filterUrl(string $url, int $depth = 0): string
     {
-        $fragment = \explode('#', $url, 2);
+        $url = (string) \preg_replace(
+            '~^([a-z][a-z\d+.-]*://[^/:@?#]*):[^/?#]*@~i',
+            '$1:' . self::FILTERED . '@',
+            $url,
+        );
+        $fragment = \explode('#', \mb_strcut($url, 0, self::MAX_FILTERED_BYTES), 2);
         $parts = \explode('?', $fragment[0], 2);
-        $parts[0] = (string) \preg_replace('~^([a-z][a-z\d+.-]*://[^/:@]*):[^/]*@~i', '$1:' . self::FILTERED . '@', $parts[0]);
-        isset($parts[1]) and $parts[1] = self::filterQuery($parts[1]);
+        isset($parts[1]) and $parts[1] = self::filterQuery($parts[1], $depth);
         $fragment[0] = \implode('?', $parts);
-        isset($fragment[1]) and $fragment[1] = self::filterQuery($fragment[1]);
+        isset($fragment[1]) and $fragment[1] = self::filterQuery($fragment[1], $depth);
 
         return \implode('#', $fragment);
     }
 
     /**
-     * A query string with the values of {@see self::SECRET_NAMES} replaced, in URLs in its values too, encoded or
-     * not, as of a redirect; `;` separates parameters as `&` does.
+     * Of the first {@see self::MAX_FILTERED_BYTES} of a query string, with the values of {@see self::SECRET_NAMES}
+     * replaced, as {@see self::filterValue()} filters the others; `;` separates parameters as `&` does.
+     *
+     * @param int $depth The URLs this query is nested in as a query value.
      */
-    private static function filterQuery(string $query): string
+    private static function filterQuery(string $query, int $depth = 0): string
     {
         return (string) \preg_replace_callback(
             '/([^&;=]*)=([^&;]*)/',
-            static function (array $m): string {
-                if (self::isSecret(\urldecode($m[1]))) {
-                    return $m[1] . '=' . self::FILTERED;
-                }
-
-                // Ends: the query of a URL in a value is shorter than the value
-                $value = \urldecode($m[2]);
-                if ($value === $m[2]) {
-                    return $m[1] . '=' . self::filterUrl($value);
-                }
-
-                $filtered = self::filterUrl($value);
-
-                // Encoded anew only when masked: an unmasked value stays as sent
-                return $filtered === $value
-                    ? $m[0]
-                    : $m[1] . '=' . \str_replace('%5BFiltered%5D', self::FILTERED, \rawurlencode($filtered));
-            },
-            $query,
+            static fn(array $m): string => $m[1] . '=' . (self::isSecret(\urldecode($m[1]))
+                ? self::FILTERED
+                : self::filterValue($m[2], $depth)),
+            \mb_strcut($query, 0, self::MAX_FILTERED_BYTES),
         );
+    }
+
+    /**
+     * A query value with a URL in it filtered, encoded or not, as of a redirect; a value nested past
+     * {@see self::MAX_URL_DEPTH} URLs is replaced whole.
+     *
+     * @param int $depth The URLs the value is nested in.
+     */
+    private static function filterValue(string $value, int $depth): string
+    {
+        if ($depth >= self::MAX_URL_DEPTH) {
+            return self::FILTERED;
+        }
+
+        $decoded = \urldecode($value);
+        if ($decoded === $value) {
+            return self::filterUrl($value, $depth + 1);
+        }
+
+        $filtered = self::filterUrl($decoded, $depth + 1);
+
+        // Encoded anew only when masked: an unmasked value stays as sent
+        return $filtered === $decoded
+            ? $value
+            : \str_replace('%5BFiltered%5D', self::FILTERED, \rawurlencode($filtered));
     }
 
     /**
@@ -1019,6 +1049,14 @@ final class SentryText
         $text = \is_string($value) ? \str_replace("\r\n", "\n", $value) : self::inline($value, self::MAX_TEXT);
 
         return self::cut(\trim($text), self::MAX_TEXT);
+    }
+
+    /**
+     * A string as is, uncut, to filter before {@see self::inline()} cuts it; any other value as one line.
+     */
+    private static function string(mixed $value): string
+    {
+        return \is_string($value) ? $value : self::inline($value);
     }
 
     private static function json(mixed $value): string

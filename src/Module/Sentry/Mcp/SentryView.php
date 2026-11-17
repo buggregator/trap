@@ -34,7 +34,8 @@ final class SentryView implements EventView, EventFields
     }
 
     /**
-     * @return string|null Null for an event that can't be rendered, left to the console text.
+     * @return string|null Null for an event that is not a Sentry one. For an event {@see SentryText} fails on, the
+     *         summary and the error, not left to the next views: they show the payload with its secrets.
      */
     #[\Override]
     public function text(Record $record): ?string
@@ -45,8 +46,15 @@ final class SentryView implements EventView, EventFields
 
         try {
             return SentryText::render($record);
-        } catch (\Throwable) {
-            return null;
+        } catch (\Throwable $e) {
+            try {
+                $summary = $this->summary($record->event);
+            } catch (\Throwable) {
+                $summary = null;
+            }
+
+            return ($summary === null ? '' : "$summary\n\n")
+                . 'The event could not be rendered: ' . \get_debug_type($e) . "\n";
         }
     }
 

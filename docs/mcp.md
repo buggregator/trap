@@ -205,8 +205,9 @@ prints it:
   and its fragment too, at any depth of a query map) whose names contain `authorization` (`authorisation`),
   `authentication`, `token`, `secret`, `password` (`passwd`), `api-key` (`api_key`, `apikey`) or `cookie` in any
   case, and the password of a URL, are `[Filtered]`. The headers `Referer`, `Location`, `Origin` and
-  `Content-Location` are filtered as URLs, and so are URLs in query values, encoded or not, as of a redirect. The
-  body and the other sections are shown as sent. The query is one line of up to 300 characters; the request is at
+  `Content-Location` are filtered as URLs, and so are URLs in query values, encoded or not, as of a redirect; a value
+  nested in more than 5 such URLs is `[Filtered]` whole. The first 4 KB of a URL or a query string are filtered,
+  more than its line shows. The body and the other sections are shown as sent. The query is one line of up to 300 characters; the request is at
   most 16 KB with its body, and the headers past that are left out and counted.
 - The contexts, such as `runtime`, `os` and `trace` with its IDs, one line each; the latest breadcrumbs, oldest first;
   the extra data; the spans of a transaction with their durations.
@@ -240,6 +241,8 @@ Bounds; what is left out is counted, as `… 5 more …`:
 | Characters of another value                     | 300; of a code line, 200                 |
 
 The modules (installed packages) are left out. The fields of a Sentry event for `where` are in [Filters](#filters).
+A Sentry event of a shape the text fails on is shown as its summary and the error, not as its payload, which would
+show the secrets; a search looks through that text only.
 
 ```
 sentry event 0b9e4a1c-... at 2026-11-16T10:10:42.033+00:00, project default
