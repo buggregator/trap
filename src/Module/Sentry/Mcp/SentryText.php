@@ -16,7 +16,10 @@ use Buggregator\Trap\Support\Json;
  * data. Every list is bounded by the constants; what is left out is counted in the text.
  *
  * Frames of libraries are those with `in_app: false` and those under a `vendor`, `node_modules` or `site-packages`
- * directory: some SDKs mark every frame as in-app. Runs of them are collapsed into one line.
+ * directory: some SDKs mark every frame as in-app. Runs of them are collapsed into one line, and so are the outermost
+ * frames a cause shares with the exception it caused.
+ *
+ * The values of request headers and query parameters named as secrets, such as `Authorization`, are `[Filtered]`.
  *
  * @internal
  */
@@ -58,8 +61,25 @@ final class SentryText
     /** Characters of a line of code. */
     public const MAX_CODE_LINE = 200;
 
+    /** Items of an envelope. */
+    public const MAX_ITEMS = 20;
+
+    /**
+     * Bytes of the exception chain, the thrown exception aside: a cause past them is left out, so that the request,
+     * the contexts and the breadcrumbs stay within the 64 KB a search looks through.
+     */
+    public const MAX_CHAIN_BYTES = 32 * 1024;
+
     private const SKIPPED_HEADERS = '/^(cookie|connection|accept-encoding|accept-language|cache-control|pragma|priority|dnt'
         . '|upgrade-insecure-requests|sec-.*)$/i';
+
+    /** Names of request headers and query parameters whose values are replaced with {@see self::FILTERED}. */
+    private const SECRET_NAMES = '/^(proxy-)?authorization$|token|secret|password|api[-_]?key/i';
+
+    private const FILTERED = '[Filtered]';
+
+    /** Item types whose payload is an event; the payloads of others, as `session` or `client_report`, take a line. */
+    private const EVENT_ITEMS = ['event', 'transaction', 'feedback'];
 
     /**
      * Of a Sentry record: of every item of an envelope, else of the payload.
@@ -78,8 +98,10 @@ final class SentryText
         if (\count($items) <= 1) {
             /** @var mixed $payload */
             $payload = $items[0]->payload ?? $record->event->payload;
-            if (\is_array($payload)) {
-                return self::event($payload, $items[0]->headers['type'] ?? null);
+            /** @var mixed $type */
+            $type = $items[0]->headers['type'] ?? null;
+            if (\is_array($payload) && ($type === null || \in_array($type, self::EVENT_ITEMS, true))) {
+                return self::event($payload, $type);
             }
 
             $items === [] and $items = [new EnvelopeItem([], $payload)];
@@ -87,34 +109,67 @@ final class SentryText
 
         $parts = [];
         $count = \count($items);
-        foreach ($items as $i => $item) {
-            $type = self::inline($item->headers['type'] ?? 'item');
-            $parts[] = \sprintf("--- Item %d of %d: %s ---\n", $i + 1, $count, $type)
-                . (\is_array($item->payload) ? self::event($item->payload) : self::attachment($item->headers));
+        foreach (\array_slice($items, 0, self::MAX_ITEMS) as $i => $item) {
+            /** @var mixed $type */
+            $type = $item->headers['type'] ?? null;
+            $parts[] = \sprintf("--- Item %d of %d: %s ---\n", $i + 1, $count, self::inline($type ?? 'item')) . match (true) {
+                !\is_array($item->payload) => self::attachment($item->headers),
+                $type === null || \in_array($type, self::EVENT_ITEMS, true) => self::event($item->payload),
+                default => self::itemLine($item->payload),
+            };
         }
+
+        $count > self::MAX_ITEMS and $parts[] = \sprintf("… %d more items …\n", $count - self::MAX_ITEMS);
 
         return \implode("\n", $parts);
     }
 
     /**
-     * Of `exception.values`, or of `exception` as older SDKs send it: from the root cause to the thrown one.
+     * Of `exception.values`, or of `exception` as older SDKs send it, a list or a single exception:
+     * from the root cause to the thrown one.
      *
      * @return list<array<array-key, mixed>>
      */
     public static function exceptions(array $event): array
     {
-        return self::arrays($event['exception']['values'] ?? $event['exception'] ?? null);
+        /** @var mixed $exceptions */
+        $exceptions = $event['exception'] ?? null;
+        if (\is_array($exceptions)) {
+            /** @var mixed $exceptions */
+            $exceptions = match (true) {
+                \array_key_exists('values', $exceptions) => $exceptions['values'],
+                \array_key_exists('type', $exceptions), \array_key_exists('stacktrace', $exceptions) => [$exceptions],
+                default => $exceptions,
+            };
+        }
+
+        return self::arrays($exceptions);
     }
 
     /**
-     * Of `logentry` or `message`, the formatted one first.
+     * The first of `logentry.formatted`, `message` (a string or its `formatted`), `logentry.message`.
      */
     public static function message(array $event): mixed
     {
+        /** @var mixed $logentry */
+        $logentry = $event['logentry'] ?? null;
         /** @var mixed $message */
-        $message = $event['logentry'] ?? $event['message'] ?? null;
+        $message = $event['message'] ?? null;
+        $candidates = [
+            \is_array($logentry) ? $logentry['formatted'] ?? null : null,
+            \is_array($message) ? $message['formatted'] ?? null : $message,
+            \is_array($logentry) ? $logentry['message'] ?? null : $logentry,
+            \is_array($message) ? $message['message'] ?? null : null,
+        ];
 
-        return \is_array($message) ? $message['formatted'] ?? $message['message'] ?? null : $message;
+        /** @var mixed $candidate */
+        foreach ($candidates as $candidate) {
+            if ($candidate !== null && $candidate !== '') {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
     private static function event(array $event, mixed $itemType = null): string
@@ -181,34 +236,105 @@ final class SentryText
         $result = $count === 1
             ? "Exception, stack frames innermost first:\n"
             : "Exception chain of $count, the thrown one first, then what caused it; stack frames innermost first:\n";
+        $shown = 0;
+        $above = [];
+        $withCode = [];
         foreach (\array_slice($exceptions, 0, self::MAX_EXCEPTIONS) as $i => $exception) {
-            $type = self::inline($exception['type'] ?? null);
-            $value = self::text($exception['value'] ?? null);
-            $title = $type === '' ? 'Exception' : $type;
-            $value === '' or $title .= ': ' . \str_replace("\n", "\n  ", $value);
-            $result .= ($i === 0 ? '' : 'Caused by ') . $title . "\n";
-
-            /** @var mixed $mechanism */
-            $mechanism = $exception['mechanism'] ?? null;
-            if (\is_array($mechanism)) {
-                $result .= '  Mechanism: ' . \implode(', ', \array_filter([
-                    self::inline($mechanism['type'] ?? ''),
-                    match ($mechanism['handled'] ?? null) {
-                        true => 'handled',
-                        false => 'unhandled',
-                        default => '',
-                    },
-                ])) . "\n";
+            $frames = self::arrays($exception['stacktrace']['frames'] ?? self::threadFrames($event, $exception));
+            $part = self::exception($exception, $i === 0, $frames, $above, $withCode);
+            if ($i > 0 && \strlen($result) + \strlen($part) > self::MAX_CHAIN_BYTES) {
+                break;
             }
 
-            /** @var mixed $frames */
-            $frames = $exception['stacktrace']['frames'] ?? null;
-            \is_array($frames) and $result .= self::trace($frames);
+            $result .= $part;
+            $above = $frames;
+            ++$shown;
         }
 
-        $count > self::MAX_EXCEPTIONS and $result .= \sprintf("… %d more causes …\n", $count - self::MAX_EXCEPTIONS);
+        $count > $shown and $result .= \sprintf("… %d more causes …\n", $count - $shown);
 
         return $result;
+    }
+
+    /**
+     * @param list<array<array-key, mixed>> $frames Outermost first, as Sentry sends them.
+     * @param list<array<array-key, mixed>> $above The frames of the exception this one caused.
+     * @param array<string, true> $withCode
+     */
+    private static function exception(array $exception, bool $thrown, array $frames, array $above, array &$withCode): string
+    {
+        $type = self::inline($exception['type'] ?? null);
+        $value = self::text($exception['value'] ?? null);
+        $title = $type === '' ? 'Exception' : $type;
+        $value === '' or $title .= ': ' . \str_replace("\n", "\n  ", $value);
+        $result = ($thrown ? '' : 'Caused by ') . $title . "\n";
+
+        /** @var mixed $mechanism */
+        $mechanism = $exception['mechanism'] ?? null;
+        $mechanism = \is_array($mechanism) ? \implode(', ', \array_filter([
+            self::inline($mechanism['type'] ?? ''),
+            match ($mechanism['handled'] ?? null) {
+                true => 'handled',
+                false => 'unhandled',
+                default => '',
+            },
+        ])) : '';
+        $mechanism === '' or $result .= "  Mechanism: $mechanism\n";
+
+        $common = self::commonFrames($frames, $above);
+        $result .= self::trace(\array_slice($frames, $common), $withCode);
+        $common > 0 and $result .= "  … $common frames in common with the exception above …\n";
+
+        return $result;
+    }
+
+    /**
+     * The frames of the thread an exception was thrown in, as native SDKs send them: of the thread of its
+     * `thread_id`, else of the crashed one.
+     */
+    private static function threadFrames(array $event, array $exception): mixed
+    {
+        $threads = self::arrays($event['threads']['values'] ?? $event['threads'] ?? null);
+        /** @var mixed $id */
+        $id = $exception['thread_id'] ?? null;
+        foreach ($threads as $thread) {
+            if ($id !== null && ($thread['id'] ?? null) === $id) {
+                return $thread['stacktrace']['frames'] ?? null;
+            }
+        }
+
+        foreach ($threads as $thread) {
+            if (($thread['crashed'] ?? false) === true) {
+                return $thread['stacktrace']['frames'] ?? null;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The number of the outermost frames a cause shares with the exception above it; the innermost one is kept.
+     *
+     * @param list<array<array-key, mixed>> $frames Outermost first, as Sentry sends them.
+     * @param list<array<array-key, mixed>> $above
+     */
+    private static function commonFrames(array $frames, array $above): int
+    {
+        $common = 0;
+        $max = \min(\count($frames) - 1, \count($above));
+        while ($common < $max && self::frameKey($frames[$common]) === self::frameKey($above[$common])) {
+            ++$common;
+        }
+
+        return $common;
+    }
+
+    /**
+     * What tells a frame from another: the file, the line and the function.
+     */
+    private static function frameKey(array $frame): string
+    {
+        return self::json([$frame['filename'] ?? $frame['abs_path'] ?? null, $frame['lineno'] ?? null, $frame['function'] ?? null]);
     }
 
     /**
@@ -240,10 +366,15 @@ final class SentryText
             }
         }
 
-        return \is_array($frames) ? "$title, frames innermost first:\n" . self::trace($frames) : '';
+        $withCode = [];
+
+        return \is_array($frames) ? "$title, frames innermost first:\n" . self::trace($frames, $withCode) : '';
     }
 
-    private static function trace(array $frames): string
+    /**
+     * @param array<string, true> $withCode The keys of the frames already shown with their code, not shown again.
+     */
+    private static function trace(array $frames, array &$withCode): string
     {
         $frames = \array_reverse(self::arrays($frames));
         $count = \count($frames);
@@ -273,9 +404,14 @@ final class SentryText
             }
 
             $result .= '  ' . self::frameLine($i, $frame) . "\n";
-            if (($isApp || $i === 0) && $code < self::MAX_CODE_FRAMES) {
+            $key = self::frameKey($frame);
+            if (($isApp || $i === 0) && $code < self::MAX_CODE_FRAMES && !isset($withCode[$key])) {
                 $snippet = self::code($frame);
-                $snippet === '' or ++$code;
+                if ($snippet !== '') {
+                    ++$code;
+                    $withCode[$key] = true;
+                }
+
                 $result .= $snippet;
             }
 
@@ -367,7 +503,7 @@ final class SentryText
             $result .= "     vars:\n";
             /** @var mixed $value */
             foreach (\array_slice($vars, 0, self::MAX_VARS, true) as $name => $value) {
-                $result .= "       $name = " . ($value === null ? 'null' : self::inline($value)) . "\n";
+                $result .= '       ' . self::inline($name) . ' = ' . ($value === null ? 'null' : self::inline($value)) . "\n";
             }
 
             \count($vars) > self::MAX_VARS and $result .= \sprintf("       … %d more …\n", \count($vars) - self::MAX_VARS);
@@ -385,12 +521,13 @@ final class SentryText
         }
 
         $method = self::inline($request['method'] ?? '');
-        $url = self::inline($request['url'] ?? '');
-        $result = 'Request: ' . \trim($method . ' ' . $url) . "\n";
+        $url = \explode('?', self::inline($request['url'] ?? ''), 2);
+        isset($url[1]) and $url[1] = self::filterQuery($url[1]);
+        $result = 'Request: ' . \trim($method . ' ' . \implode('?', $url)) . "\n";
 
         /** @var mixed $query */
         $query = $request['query_string'] ?? null;
-        $query = \is_array($query) ? self::pairs($query) : self::inline($query);
+        $query = \is_array($query) ? self::pairs($query, filter: true) : self::filterQuery(self::inline($query));
         $query === '' or $result .= "  Query: $query\n";
 
         $headers = [];
@@ -402,9 +539,9 @@ final class SentryText
             /** @var mixed $value */
             $value = $pair[1];
             $name = $pair[0];
-            \preg_match(self::SKIPPED_HEADERS, $name) === 1 or $headers[] = "    $name: " . self::inline(
-                \is_array($value) ? \implode(', ', \array_map(self::inline(...), $value)) : $value,
-            );
+            \preg_match(self::SKIPPED_HEADERS, $name) === 1 or $headers[] = "    $name: " . (self::isSecret($name)
+                ? self::FILTERED
+                : self::inline(\is_array($value) ? \implode(', ', \array_map(self::inline(...), $value)) : $value));
         }
 
         if ($headers !== []) {
@@ -440,7 +577,7 @@ final class SentryText
                 $value = \array_is_list($value) ? self::list($value) : self::pairs($value);
             }
 
-            $result .= "  $name: " . ($value === null ? 'null' : self::inline($value)) . "\n";
+            $result .= '  ' . self::inline($name) . ': ' . ($value === null ? 'null' : self::inline($value)) . "\n";
         }
 
         \count($entries) > self::MAX_ENTRIES
@@ -451,8 +588,11 @@ final class SentryText
 
     private static function breadcrumbs(array $event): string
     {
-        $crumbs = self::arrays($event['breadcrumbs']['values'] ?? $event['breadcrumbs'] ?? null);
-        $count = \count($crumbs);
+        $lines = \array_values(\array_filter(
+            \array_map(self::breadcrumb(...), self::arrays($event['breadcrumbs']['values'] ?? $event['breadcrumbs'] ?? null)),
+            static fn(string $line): bool => $line !== '',
+        ));
+        $count = \count($lines);
         if ($count === 0) {
             return '';
         }
@@ -460,24 +600,32 @@ final class SentryText
         $result = $count > self::MAX_BREADCRUMBS
             ? \sprintf("Breadcrumbs, the last %d of %d:\n", self::MAX_BREADCRUMBS, $count)
             : "Breadcrumbs:\n";
-        foreach (\array_slice($crumbs, -self::MAX_BREADCRUMBS) as $crumb) {
-            $parts = [
-                self::time($crumb['timestamp'] ?? null),
-                self::inline($crumb['level'] ?? ''),
-                self::inline($crumb['type'] ?? ''),
-            ];
-            $category = self::inline($crumb['category'] ?? '');
-            $message = self::inline($crumb['message'] ?? '');
-            $parts[] = $category === '' ? $message : "$category: $message";
-            /** @var mixed $data */
-            $data = $crumb['data'] ?? null;
-            \is_array($data) && \array_filter($data, static fn(mixed $value): bool => $value !== [] && $value !== null) !== []
-                and $parts[] = self::inline($data);
-            $parts = \array_filter($parts, static fn(string $part): bool => $part !== '');
-            $result .= '  ' . \implode(' ', $parts) . "\n";
+        foreach (\array_slice($lines, -self::MAX_BREADCRUMBS) as $line) {
+            $result .= "  $line\n";
         }
 
         return $result;
+    }
+
+    /**
+     * @return string Empty for a breadcrumb without fields.
+     */
+    private static function breadcrumb(array $crumb): string
+    {
+        $category = self::inline($crumb['category'] ?? '');
+        $message = self::inline($crumb['message'] ?? '');
+        $parts = [
+            self::time($crumb['timestamp'] ?? null),
+            self::inline($crumb['level'] ?? ''),
+            self::inline($crumb['type'] ?? ''),
+            $category === '' || $message === '' ? $category . $message : "$category: $message",
+        ];
+        /** @var mixed $data */
+        $data = $crumb['data'] ?? null;
+        \is_array($data) && \array_filter($data, static fn(mixed $value): bool => $value !== [] && $value !== null) !== []
+            and $parts[] = self::inline($data);
+
+        return \implode(' ', \array_filter($parts, static fn(string $part): bool => $part !== ''));
     }
 
     private static function spans(array $event): string
@@ -521,9 +669,21 @@ final class SentryText
     }
 
     /**
-     * Of a map of names and values, or of a list of name and value pairs as Sentry takes tags.
+     * The fields of an item that is not an event, as a session or a client report, in one line.
      */
-    private static function pairs(mixed $pairs): string
+    private static function itemLine(array $payload): string
+    {
+        $line = self::inline(self::pairs($payload));
+
+        return ($line === '' ? 'Empty' : $line) . "\n";
+    }
+
+    /**
+     * Of a map of names and values, or of a list of name and value pairs as Sentry takes tags.
+     *
+     * @param bool $filter Whether to hide the values of {@see self::SECRET_NAMES}.
+     */
+    private static function pairs(mixed $pairs, bool $filter = false): string
     {
         if (!\is_array($pairs) || $pairs === []) {
             return '';
@@ -533,7 +693,7 @@ final class SentryText
         /** @var mixed $value */
         foreach (\array_slice($pairs, 0, self::MAX_ENTRIES, true) as $name => $value) {
             $pair = self::pair($name, $value);
-            $result[] = $pair[0] . '=' . self::inline($pair[1]);
+            $result[] = $pair[0] . '=' . ($filter && self::isSecret($pair[0]) ? self::FILTERED : self::inline($pair[1]));
         }
 
         \count($pairs) > self::MAX_ENTRIES and $result[] = \sprintf('… %d more', \count($pairs) - self::MAX_ENTRIES);
@@ -569,19 +729,54 @@ final class SentryText
         return $result;
     }
 
+    private static function isSecret(string $name): bool
+    {
+        return \preg_match(self::SECRET_NAMES, $name) === 1;
+    }
+
     /**
-     * Between `start_timestamp` and `timestamp` of a transaction or a span; empty when one is not a Unix time.
+     * A query string with the values of {@see self::SECRET_NAMES} replaced.
+     */
+    private static function filterQuery(string $query): string
+    {
+        return (string) \preg_replace_callback(
+            '/([^&=#]*)=([^&#]*)/',
+            static fn(array $m): string => self::isSecret(\urldecode($m[1])) ? $m[1] . '=' . self::FILTERED : $m[0],
+            $query,
+        );
+    }
+
+    /**
+     * Between `start_timestamp` and `timestamp` of a transaction or a span; empty when one is not a time.
      */
     private static function duration(array $item): string
     {
-        /** @var mixed $start */
-        $start = $item['start_timestamp'] ?? null;
-        /** @var mixed $end */
-        $end = $item['timestamp'] ?? null;
+        $start = self::seconds($item['start_timestamp'] ?? null);
+        $end = self::seconds($item['timestamp'] ?? null);
 
-        return \is_numeric($start) && \is_numeric($end)
-            ? \sprintf('%.1f ms', ((float) $end - (float) $start) * 1000.0)
-            : '';
+        return $start === null || $end === null ? '' : \sprintf('%.1f ms', ($end - $start) * 1000.0);
+    }
+
+    /**
+     * Of a Unix time, or of a date as RFC 3339 that SDKs such as Python and Go send, UTC without an offset.
+     *
+     * @return float|null Seconds since the Unix epoch, null when the value is not a time.
+     */
+    private static function seconds(mixed $timestamp): ?float
+    {
+        if (\is_numeric($timestamp)) {
+            return (float) $timestamp;
+        }
+
+        if (!\is_string($timestamp) || $timestamp === '') {
+            return null;
+        }
+
+        try {
+            return (float) (new \DateTimeImmutable($timestamp, new \DateTimeZone('UTC')))->format('U.u');
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private static function list(array $values): string
@@ -591,18 +786,8 @@ final class SentryText
 
     private static function time(mixed $timestamp): string
     {
-        try {
-            $time = match (true) {
-                \is_int($timestamp), \is_float($timestamp) => \DateTimeImmutable::createFromFormat(
-                    'U.u',
-                    \sprintf('%.6F', $timestamp),
-                ),
-                \is_string($timestamp) && $timestamp !== '' => new \DateTimeImmutable($timestamp),
-                default => false,
-            };
-        } catch (\Throwable) {
-            return '';
-        }
+        $seconds = self::seconds($timestamp);
+        $time = $seconds === null ? false : \DateTimeImmutable::createFromFormat('U.u', \sprintf('%.6F', $seconds));
 
         return $time === false ? '' : $time->setTimezone(new \DateTimeZone('UTC'))->format('H:i:s.v');
     }

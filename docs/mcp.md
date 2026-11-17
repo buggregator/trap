@@ -25,8 +25,8 @@ the agent deletes is gone from the UI on its next load; a page already open keep
 |-------------------|------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
 | `list_events`     | `since` (cursor), [filters](#filters), `order`, `include`, `max_length`, `limit`   | `events`: `id`, `type`, `project`, `time`, `summary`, `fields`, `text` each; `cursor` to pass next; `has_more` |
 | `wait_for_events` | `since` (cursor), [filters](#filters), `count`, `timeout`, `include`, `max_length` | As `list_events`, and `timed_out`; see [Waiting for events](#waiting-for-events)                               |
-| `get_event`       | `id`, `max_length`                                                                 | The event as plain text: a header line, then the event as the console prints it                                |
-| `delete_event`    | `id`, or `ids` (200 at most)                                                       | `deleted`: the number of deleted events; `not_found`: the IDs of no stored event, when some are                 |
+| `get_event`       | `id`, `max_length`                                                                 | The event as plain text: a header line, then the text of its module, as for a Sentry event, or the console one |
+| `delete_event`    | `id`, or `ids` (200 at most)                                                       | `deleted`: the number of deleted events; `not_found`: the IDs of no stored event, when some are                |
 | `clear_events`    | `since` (cursor), [filters](#filters)                                              | `removed`: the number of deleted events; `incomplete`, `cursor` when the call [ran out of time](#time-limit)   |
 
 - `list_events` returns the events added or updated after `since`, oldest first, at most `limit` of them
@@ -187,37 +187,50 @@ The agent runs the tests and waits for the error they log:
 prints it:
 
 - The metadata, one `Name: value` line each: event ID, type when not `event`, level, message, transaction and its
-  duration, environment, release, server, platform, logger, SDK, fingerprint, tags and user.
+  duration, environment, release, server, platform, logger, SDK, fingerprint, tags and user. The message is
+  `logentry.formatted`, else `message`, else `logentry.message`.
 - The exception chain: the thrown exception first, then the ones that caused it down to the root cause, each with
-  its type, value and mechanism (`handled` or `unhandled`). An event without exceptions gets the stack trace of the
+  its type, value and mechanism (`handled` or `unhandled`). An exception without frames of its own, as native SDKs
+  send it, gets those of its thread, or of the crashed one. An event without exceptions gets the stack trace of the
   event, or of its crashed or current thread.
 - The stack frames, innermost first and numbered from `#0`: file and line, the function. The innermost frame and the
   application frames come with the lines around their line, the absolute path and the local variables when the SDK
   sends them. Frames of libraries are those with `in_app: false` and those under a `vendor`, `node_modules` or
   `site-packages` directory, as some SDKs mark every frame in-app; a run of two or more of them is one line,
   `… 23 vendor frames #2-#24 …`. When all the frames are of libraries, none are collapsed.
+- The outermost frames a cause shares with the exception above it are one line, `… 20 frames in common with the
+  exception above …`, and a frame already shown with its code is not shown with it again.
 - The request: method, URL, query, headers without cookies and the headers of the browser (`sec-*`, `accept-encoding`,
-  `accept-language`, `connection` and the like), body.
+  `accept-language`, `connection` and the like), body. The values of the `Authorization`, `Proxy-Authorization`
+  headers, and of the headers and query parameters (of the URL too) whose names contain `token`, `secret`,
+  `password` or `api-key` (`api_key`, `apikey`) in any case, are `[Filtered]`. The body and the other sections are
+  shown as sent.
 - The contexts, such as `runtime`, `os` and `trace` with its IDs, one line each; the latest breadcrumbs, oldest first;
   the extra data; the spans of a transaction with their durations.
 - An envelope of several items shows each of them under `--- Item 2 of 3: attachment ---`: an attachment by its
-  name, type and size. The web UI shows the first item only.
+  name, type and size; an item that is not an event, such as `session`, `client_report` or `check_in`, by its
+  fields in one line. The web UI shows the first item only.
+
+The sections come in this order: the metadata, the exception chain, the request, the contexts, the breadcrumbs, the
+extra data and the spans. A [search](#filters) looks through the first 64 KB of the text, so the causes that would
+take the chain past 32 KB are left out and counted.
 
 Bounds; what is left out is counted, as `… 5 more …`:
 
-| What                                            | At most                  |
-|-------------------------------------------------|--------------------------|
-| Exceptions of a chain                           | 10                       |
-| Frame lines of a stack trace                    | 30                       |
-| Frames shown with their code                    | 3 per stack trace        |
-| Lines of code around the line of a frame        | 3 before, 3 after        |
-| Variables of a frame                            | 10                       |
-| Request headers                                 | 15                       |
-| Breadcrumbs                                     | the last 10              |
-| Tags, user fields, contexts, extra entries      | 20                       |
-| Spans                                           | 20                       |
-| Characters of an exception value, message, body | 2 000                    |
-| Characters of another value                     | 300; of a code line, 200 |
+| What                                            | At most                                  |
+|-------------------------------------------------|------------------------------------------|
+| Exceptions of a chain                           | 10 in 32 KB, the thrown one in any case  |
+| Frame lines of a stack trace                    | 30                                       |
+| Frames shown with their code                    | 3 per stack trace                        |
+| Lines of code around the line of a frame        | 3 before, 3 after                        |
+| Variables of a frame                            | 10                                       |
+| Request headers                                 | 15                                       |
+| Breadcrumbs                                     | the last 10                              |
+| Tags, user fields, contexts, extra entries      | 20                                       |
+| Spans                                           | 20                                       |
+| Items of an envelope                            | 20                                       |
+| Characters of an exception value, message, body | 2 000                                    |
+| Characters of another value                     | 300; of a code line, 200                 |
 
 The modules (installed packages) are left out. The fields of a Sentry event for `where` are in [Filters](#filters).
 

@@ -375,6 +375,222 @@ final class SentryViewTest
         );
     }
 
+    #[DataSet([1_704_103_200.123456, 1_704_103_200.623456], 'Unix times')]
+    #[DataSet(['1704103200.123456', '1704103200.623456'], 'numeric strings')]
+    #[DataSet(['2024-01-01T10:00:00.123456Z', '2024-01-01T10:00:00.623456789Z'], 'RFC 3339 of Go')]
+    #[DataSet(['2024-01-01T10:00:00.123456', '2024-01-01T12:00:00.623456+02:00'], 'ISO of Python')]
+    public function testDurationOfTimestamps(mixed $start, mixed $end): void
+    {
+        $text = self::text([
+            'type' => 'transaction',
+            'start_timestamp' => $start,
+            'timestamp' => $end,
+            'spans' => [['op' => 'db', 'start_timestamp' => $start, 'timestamp' => $end]],
+            'breadcrumbs' => [['timestamp' => $start, 'message' => 'begin']],
+        ]);
+
+        Assert::string($text)
+            ->contains("Duration: 500.0 ms\n")
+            ->contains("  db (500.0 ms)\n")
+            ->contains("  10:00:00.123 begin\n");
+    }
+
+    public function testExceptionFramesOfItsThread(): void
+    {
+        $text = self::text([
+            'exception' => ['values' => [['type' => 'EXC_BAD_ACCESS', 'value' => 'KERN_INVALID_ADDRESS', 'thread_id' => 2]]],
+            'threads' => ['values' => [
+                ['id' => 1, 'crashed' => true, 'stacktrace' => ['frames' => [self::frame('Main.swift', 1)]]],
+                ['id' => 2, 'stacktrace' => ['frames' => [self::frame('App.swift', 9), self::frame('Crash.swift', 3)]]],
+            ]],
+        ]);
+
+        Assert::same(
+            $text,
+            "Exception, stack frames innermost first:\nEXC_BAD_ACCESS: KERN_INVALID_ADDRESS\n"
+            . "  #0 Crash.swift:3 in App\\Code::run\n  #1 App.swift:9 in App\\Code::run\n",
+        );
+    }
+
+    public function testExceptionFramesOfTheCrashedThread(): void
+    {
+        $text = self::text([
+            'exception' => ['values' => [['type' => 'SIGSEGV']]],
+            'threads' => ['values' => [
+                ['id' => 1, 'stacktrace' => ['frames' => [self::frame('main.c', 1)]]],
+                ['id' => 2, 'crashed' => true, 'stacktrace' => ['frames' => [self::frame('crash.c', 2)]]],
+            ]],
+        ]);
+
+        Assert::string($text)->contains("SIGSEGV\n  #0 crash.c:2 in App\\Code::run\n")->notContains('main.c');
+    }
+
+    public function testSecretsOfTheRequestAreFiltered(): void
+    {
+        $text = self::text(['request' => [
+            'url' => 'https://shop.test/?page=2&password=abc#top',
+            'query_string' => 'page=2&access_token=abc&apiKey=def',
+            'headers' => [
+                'Authorization' => 'Bearer abc',
+                'Proxy-Authorization' => 'Basic abc',
+                'X-Api-Key' => 'abc',
+                'X-Auth-Token' => ['abc'],
+                'X-Client-Secret' => 'abc',
+                'X-Password' => 'abc',
+                'Accept' => 'text/html',
+            ],
+        ]]);
+        $listed = self::text(['request' => ['query_string' => [['page', '2'], ['api_key', 'abc']]]]);
+
+        Assert::string($text)
+            ->contains("Request: https://shop.test/?page=2&password=[Filtered]#top\n  Query: page=2&access_token=[Filtered]&apiKey=[Filtered]\n")
+            ->contains(
+                "    Authorization: [Filtered]\n    Proxy-Authorization: [Filtered]\n    X-Api-Key: [Filtered]\n"
+                . "    X-Auth-Token: [Filtered]\n    X-Client-Secret: [Filtered]\n    X-Password: [Filtered]\n"
+                . "    Accept: text/html\n",
+            )
+            ->notContains('abc')
+            ->notContains('def');
+        Assert::string($listed)->contains("  Query: page=2, api_key=[Filtered]\n");
+    }
+
+    public function testKeysAreCutToOneLine(): void
+    {
+        $key = "multi\nline" . \str_repeat('k', 5000);
+        $frame = self::frame('src/A.php', 1, ['context_line' => 'run();', 'vars' => [$key => 1]]);
+
+        $text = self::text([
+            'exception' => ['values' => [['type' => 'E', 'stacktrace' => ['frames' => [$frame]]]]],
+            'contexts' => [$key => ['a' => 1]],
+            'extra' => [$key => 2],
+        ]);
+
+        $cut = 'multi line' . \str_repeat('k', SentryText::MAX_VALUE - 10) . '…';
+        Assert::string($text)
+            ->contains("       $cut = 1\n")
+            ->contains("  $cut: a=1\n")
+            ->contains("  $cut: 2\n")
+            ->notContains("multi\n")
+            ->notContains(\str_repeat('k', SentryText::MAX_VALUE));
+    }
+
+    public function testEnvelopeItemsAreBounded(): void
+    {
+        $items = [
+            new EnvelopeItem(['type' => 'event'], ['message' => 'Boom']),
+            new EnvelopeItem(['type' => 'session'], ['sid' => 's1', 'status' => 'exited', 'errors' => 1]),
+            new EnvelopeItem(['type' => 'client_report'], []),
+            ...\array_map(
+                static fn(int $i): EnvelopeItem => new EnvelopeItem(['type' => 'check_in'], ['monitor_slug' => "job$i", 'status' => 'ok']),
+                \range(4, 25),
+            ),
+        ];
+
+        $text = (string) (new SentryView())->text(new Record(self::event([]), 1, [new SentryEnvelope([], $items)]));
+
+        Assert::string($text)
+            ->startsWith("--- Item 1 of 25: event ---\nMessage: Boom\n\n--- Item 2 of 25: session ---\nsid=s1, status=exited, errors=1\n")
+            ->contains("--- Item 3 of 25: client_report ---\nEmpty\n")
+            ->contains("--- Item 20 of 25: check_in ---\nmonitor_slug=job20, status=ok\n\n… 5 more items …\n")
+            ->notContains('Item 21');
+    }
+
+    public function testSingleItemThatIsNotAnEvent(): void
+    {
+        $envelope = new SentryEnvelope([], [new EnvelopeItem(['type' => 'session'], ['sid' => 's1', 'status' => 'ok'])]);
+
+        $text = (new SentryView())->text(new Record(self::event([]), 1, [$envelope]));
+
+        Assert::same($text, "--- Item 1 of 1: session ---\nsid=s1, status=ok\n");
+    }
+
+    #[DataSet([['logentry' => ['message' => 'User %s', 'formatted' => 'User 42'], 'message' => 'Plain'], 'User 42'], 'formatted log entry')]
+    #[DataSet([['logentry' => ['message' => 'User %s'], 'message' => 'Plain'], 'Plain'], 'message string')]
+    #[DataSet([['logentry' => ['message' => 'User %s'], 'message' => ['formatted' => 'Formatted']], 'Formatted'], 'formatted message')]
+    #[DataSet([['logentry' => ['message' => 'User %s']], 'User %s'], 'log entry template')]
+    public function testMessagePrecedence(array $payload, string $expected): void
+    {
+        Assert::same((new SentryView())->summary(self::event($payload)), $expected);
+        Assert::same(self::text($payload), "Message: $expected\n");
+    }
+
+    public function testSingleExceptionObject(): void
+    {
+        $payload = ['exception' => ['type' => 'TypeError', 'value' => 'x is undefined', 'stacktrace' => ['frames' => [self::frame('app.js', 3)]]]];
+        $view = new SentryView();
+
+        $text = self::text($payload);
+
+        Assert::same($text, "Exception, stack frames innermost first:\nTypeError: x is undefined\n  #0 app.js:3 in App\\Code::run\n");
+        Assert::same($view->summary(self::event($payload)), 'TypeError: x is undefined');
+        Assert::same(($view->fields(self::event($payload)) ?? [])['exception'] ?? null, ['TypeError']);
+    }
+
+    public function testCausesCollapseTheFramesInCommon(): void
+    {
+        $code = ['context_line' => 'call();'];
+        $outer = [self::frame('index.php', 1, $code), self::frame('src/Kernel.php', 2, $code), self::frame('src/Service.php', 3, $code)];
+        $cause = [...\array_slice($outer, 0, 2), self::frame('src/Service.php', 5, $code), self::frame('src/Db.php', 9, $code)];
+        $root = [...$cause];
+
+        $text = self::text(['exception' => ['values' => [
+            ['type' => 'PDOException', 'stacktrace' => ['frames' => $root]],
+            ['type' => 'DbException', 'stacktrace' => ['frames' => $cause]],
+            ['type' => 'ServiceException', 'stacktrace' => ['frames' => $outer]],
+        ]]]);
+
+        Assert::string($text)->contains(
+            "ServiceException\n"
+            . "  #0 src/Service.php:3 in App\\Code::run\n   > 3 | call();\n"
+            . "  #1 src/Kernel.php:2 in App\\Code::run\n   > 2 | call();\n"
+            . "  #2 index.php:1 in App\\Code::run\n   > 1 | call();\n"
+            . "Caused by DbException\n"
+            . "  #0 src/Db.php:9 in App\\Code::run\n   > 9 | call();\n"
+            . "  #1 src/Service.php:5 in App\\Code::run\n   > 5 | call();\n"
+            . "  … 2 frames in common with the exception above …\n"
+            . "Caused by PDOException\n"
+            . "  #0 src/Db.php:9 in App\\Code::run\n"
+            . "  … 3 frames in common with the exception above …\n",
+        );
+    }
+
+    public function testLongChainLeavesTheRequestWithinTheSearchedText(): void
+    {
+        $exceptions = \array_map(static fn(int $i): array => [
+            'type' => "E$i",
+            'value' => \str_repeat('message ', 200),
+            'stacktrace' => ['frames' => \array_map(static fn(int $line): array => self::frame("src/Module$i/Service.php", $line, [
+                'abs_path' => "/var/www/app/src/Module$i/Service.php",
+                'pre_context' => \array_fill(0, 5, \str_repeat('    $value = $this->call($value);', 3)),
+                'context_line' => \str_repeat('    $value = $this->call($value);', 3),
+                'post_context' => \array_fill(0, 5, \str_repeat('    $value = $this->call($value);', 3)),
+            ]), \range(1, 40))],
+        ], \range(1, 11));
+
+        $text = self::text([
+            'exception' => ['values' => $exceptions],
+            'request' => ['method' => 'GET', 'url' => 'https://shop.test/'],
+            'contexts' => ['runtime' => ['name' => 'php']],
+            'breadcrumbs' => [['message' => 'last step']],
+        ]);
+
+        Assert::int((int) \strpos($text, "\nBreadcrumbs:\n  last step\n"))->greaterThan(0)->lessThan(64 * 1024 - 100);
+        Assert::string($text)
+            ->contains("Request: GET https://shop.test/\n")
+            ->contains("Contexts:\n  runtime: name=php\n")
+            ->matchesRegex('/\n… \d more causes …\n/');
+    }
+
+    public function testEmptyBreadcrumbsAndMechanismAreLeftOut(): void
+    {
+        $text = self::text([
+            'exception' => ['values' => [['type' => 'E', 'mechanism' => []]]],
+            'breadcrumbs' => [['category' => 'query'], [], ['data' => []], ['message' => 'done']],
+        ]);
+
+        Assert::same($text, "Exception, stack frames innermost first:\nE\n\nBreadcrumbs:\n  query\n  done\n");
+    }
+
     /**
      * The decoded JSON body of a request in `resources/payloads`, as `trap test` sends it.
      */

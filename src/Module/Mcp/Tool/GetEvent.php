@@ -36,9 +36,11 @@ final class GetEvent implements Tool
     #[\Override]
     public function description(): string
     {
-        return 'Shows one caught event in full as plain text, as the Trap console prints it: the dumped value, '
-            . 'the log record with its context, the exception with its stack trace, the mail with its headers and '
-            . 'body, the HTTP request, or the profile with its top functions. Take the ID from `list_events`.';
+        return 'Shows one caught event in full as plain text: the dumped value, the log record with its context, '
+            . 'the exception with its stack trace, the mail with its headers and body, the HTTP request, or the profile '
+            . 'with its top functions. Some event types have a text of their own, such as a Sentry event with its '
+            . 'exception chain, code and context; the others are shown as the Trap console prints them. '
+            . 'Take the ID from `list_events`.';
     }
 
     #[\Override]
