@@ -93,40 +93,6 @@ final class TokenGuard implements Middleware
     }
 
     /**
-     * Masks the token as it is, not percent-encoded.
-     *
-     * @param non-empty-string $token
-     */
-    private static function redact(string $value, string $token): string
-    {
-        $value = \str_replace($token, '***', $value);
-        // A token of a character or two may be in the mask or come out of joining what is left
-        while (\str_contains($value, $token)) {
-            $value = \str_replace($token, '', $value);
-        }
-
-        return $value;
-    }
-
-    /**
-     * Whether a mask may sit next to a part of the token: the first character of the token right after it or
-     * the last one right before it. A periodic token like `abcabc` leaves `***abc` of `abcabcabc`.
-     *
-     * @param non-empty-string $token
-     */
-    private static function touchesMask(string $line, string $token): bool
-    {
-        $parts = \explode('***', $line);
-        for ($i = 1, $count = \count($parts); $i < $count; ++$i) {
-            if (\str_ends_with($parts[$i - 1], $token[-1]) || \str_starts_with($parts[$i], $token[0])) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
      * The first rejection of a run is a warning, so that a token turning up in ordinary traffic is noticed;
      * the next ones are debug lines.
      *
@@ -134,10 +100,14 @@ final class TokenGuard implements Middleware
      */
     private function logRejected(ServerRequestInterface $request, string $token): void
     {
-        $line = self::redact($request->getMethod() . ' ' . $request->getUri()->getPath(), $token);
-        // A percent-encoded token is left by the replace
-        self::contains($line, $token) || self::touchesMask($line, $token)
-            and $line = self::redact($request->getMethod() . ' (path withheld)', $token);
+        // A part that holds the token is left out whole: masking only the token can leave a piece of it
+        // where copies overlap, as with a token whose start repeats its end
+        $method = $request->getMethod();
+        $path = $request->getUri()->getPath();
+        $line = (self::contains($method, $token) ? '***' : $method)
+            . ' ' . (self::contains($path, $token) ? '(path withheld)' : $path);
+        // A token may span the method and the path, or be part of the words that stand for them
+        self::contains($line, $token) and $line = 'A request';
 
         if ($this->rejected) {
             $this->logger->debug('MCP: %s carries the MCP token, answered 404.', $line);

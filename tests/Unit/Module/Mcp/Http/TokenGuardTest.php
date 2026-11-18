@@ -108,7 +108,7 @@ final class TokenGuardTest
         Assert::same($output->fetch(), '');
     }
 
-    public function testFirstRejectionIsWarnedWithTokenMasked(): void
+    public function testFirstRejectionIsWarnedWithTokenWithheld(): void
     {
         $output = new BufferedOutput();
         $guard = self::guard('sixteen-chars-xx', $output);
@@ -117,7 +117,7 @@ final class TokenGuardTest
         self::pass($guard, new ServerRequest('POST', '/api/second/', ['X-Key' => 'sixteen-chars-xx']));
 
         Assert::string($output->fetch())
-            ->contains('POST /api/***/store/ carries the MCP token, answered 404.')
+            ->contains('POST (path withheld) carries the MCP token, answered 404.')
             ->notContains('sixteen-chars-xx')
             ->notContains('/api/second/');
     }
@@ -146,10 +146,10 @@ final class TokenGuardTest
             ->notContains('s3cr3t');
     }
 
-    #[DataSet(['a', '/api/1/store/', 'POST /***pi/1/store/ carries'], 'letter')]
-    #[DataSet(['*', '/x*y/', 'POST /xy/ carries'], 'character of the mask')]
-    #[DataSet(['/', '/api/1/store/', 'POST ***api***1***store*** carries'], 'slash')]
-    public function testOneCharacterTokenIsMaskedInLog(string $token, string $path, string $logged): void
+    #[DataSet(['a', '/api/1/store/', 'MCP: A request carries'], 'letter of the withheld words')]
+    #[DataSet(['*', '/x*y/', 'POST (path withheld) carries'], 'character of the mask')]
+    #[DataSet(['/', '/api/1/store/', 'POST (path withheld) carries'], 'slash')]
+    public function testOneCharacterTokenIsKeptOutOfLog(string $token, string $path, string $logged): void
     {
         $output = new BufferedOutput();
         $guard = self::guard($token, $output);
@@ -169,12 +169,13 @@ final class TokenGuardTest
         self::pass($guard, new ServerRequest('GET', '/GET/x'));
 
         Assert::string($output->fetch())
-            ->contains('MCP: *** /***/x carries')
+            ->contains('MCP: *** (path withheld) carries')
             ->notContains('GET');
     }
 
     #[DataSet(['/x/abcabcabc'], 'repeated part after the mask')]
     #[DataSet(['/x/cabcabc'], 'repeated part before the mask')]
+    #[DataSet(['/x/abcabcbcabc'], 'overlapping copies')]
     public function testPathWithPartOfPeriodicTokenNextToMaskIsWithheldFromLog(string $path): void
     {
         $output = new BufferedOutput();
@@ -186,6 +187,21 @@ final class TokenGuardTest
         Assert::string($output->fetch())
             ->contains('GET (path withheld) carries')
             ->notContains('abc');
+    }
+
+    public function testPathWithOverlappingCopiesOfTokenIsWithheldFromLog(): void
+    {
+        // The token starts with its last character: two copies sharing it would leave the second one unmasked
+        $token = 'qWk3Zp9LmX2vB7nRq';
+        $output = new BufferedOutput();
+        $guard = self::guard($token, $output);
+        $output->fetch();
+
+        self::pass($guard, new ServerRequest('GET', '/x/qWk3Zp9LmX2vB7nRqWk3Zp9LmX2vB7nRq'));
+
+        Assert::string($output->fetch())
+            ->contains('GET (path withheld) carries')
+            ->notContains('Wk3Zp9');
     }
 
     /**
