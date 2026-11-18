@@ -443,7 +443,14 @@ final class RendererTest
 
             CACHEGRIND);
 
-        $output = self::render(new Frame(Payload::new(Type::XDebug, static fn(): Profile => $profile)));
+        // A walk around the cycle grows the path until the memory runs out: fail fast, not with the suite's limit
+        $limit = (string) \ini_get('memory_limit');
+        \ini_set('memory_limit', (string) (\memory_get_usage() + 64 * 1024 * 1024));
+        try {
+            $output = self::render(new Frame(Payload::new(Type::XDebug, static fn(): Profile => $profile)));
+        } finally {
+            \ini_set('memory_limit', $limit);
+        }
 
         Assert::string($output)->endsWith(
             "## Hot path \n100.0%       500 µs  {main}\n 80.0%       400 µs  └ a\n 60.0%       300 µs  └ b\n",

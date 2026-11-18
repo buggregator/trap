@@ -300,7 +300,7 @@ final class Renderer implements RendererInterface
     }
 
     /**
-     * Follows the heaviest call from the heaviest root down to a leaf.
+     * Follows the heaviest call from the heaviest root down to a leaf, or to a function already on the path.
      *
      * @param 'wt'|'cpu'|'mu'|'ct' $metric
      */
