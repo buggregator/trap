@@ -447,9 +447,48 @@ The MCP port is `8000` by default. Change it with `--mcp=<port>`, `TRAP_MCP_PORT
 The [web UI](web-ui.md) and the MCP server can share a port: `vendor/bin/trap --ui --mcp` serves both on `8000`.
 On a port of their own, the one without a host set takes the host of the other; two different hosts fail the startup.
 
+## Security
+
+The tools read everything Trap has caught, mails and request bodies with their secrets too, and delete events.
+
+- By default the server listens on `127.0.0.1`, so only the local machine reaches it.
+- A request with an `Origin` header of any host but `localhost`, `127.0.0.1` or `[::1]` gets `403`, so a web page
+  can't reach the server through DNS rebinding.
+- To reach Trap from a Docker container, WSL or another machine, the port has to listen on another host:
+  `TRAP_MCP_HOST=0.0.0.0`, or `TRAP_TCP_HOST=0.0.0.0` when the MCP port is a TCP one (see [Port](#port)).
+  Then set a token too: anyone who reaches the port can call the tools otherwise. At startup Trap warns when the
+  server listens on a host other than a loopback one (`127.0.0.1` and the rest of `127.0.0.0/8`, `::1`,
+  `localhost`) without a token.
+
+| Setting | Variable         | `trap.xml`         | Default |
+|---------|------------------|--------------------|---------|
+| Token   | `TRAP_MCP_TOKEN` | `/trap/mcp/@token` | none    |
+
+There is no CLI option for it, as the command line shows in the process list. With a token set, every request
+to `/mcp` must carry it:
+
+```
+Authorization: Bearer <token>
+```
+
+```bash
+export TRAP_MCP_TOKEN="$(openssl rand -hex 32)"
+TRAP_MCP_HOST=0.0.0.0 vendor/bin/trap --mcp=8001
+
+claude mcp add --transport http trap http://192.168.1.10:8001/mcp --header "Authorization: Bearer $TRAP_MCP_TOKEN"
+```
+
+Other clients take the header in their server settings, as `"headers": {"Authorization": "Bearer ..."}`.
+
+- A request without the token, with a wrong one or with another scheme gets `401` with `WWW-Authenticate: Bearer`
+  and no JSON-RPC body. The `Bearer` scheme is matched in any case. This check goes first: a request without the
+  token gets `401` for a foreign `Origin`, `GET` or a broken body too, so it learns nothing of the server. With the
+  token, the `Origin` check and the others follow.
+- An empty `TRAP_MCP_TOKEN` asks for no token, even when `trap.xml` sets one: the environment variable wins.
+- The token is sent in plain text over HTTP: on a network you don't trust, put Trap behind a TLS proxy or an
+  SSH tunnel.
+
 ## Notes
 
 - The server is stateless and answers with JSON only: it does not open SSE streams, and `GET /mcp` gets `405`.
-- A request with an `Origin` header of any host but `localhost`, `127.0.0.1` or `[::1]` gets `403`, so a web page
-  can't reach the server through DNS rebinding.
 - Protocol versions `2025-11-25`, `2025-06-18` and `2025-03-26` are supported.

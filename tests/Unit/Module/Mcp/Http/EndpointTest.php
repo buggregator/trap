@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Http;
 
 use Buggregator\Trap\Module\Mcp\Caller;
+use Buggregator\Trap\Module\Mcp\Config\Mcp;
 use Buggregator\Trap\Module\Mcp\Http\Endpoint;
 use Buggregator\Trap\Module\Mcp\Protocol\JsonRpc;
 use Buggregator\Trap\Module\Mcp\Protocol\RpcError;
@@ -143,6 +144,90 @@ final class EndpointTest
         Assert::same($response->getStatusCode(), 400);
     }
 
+    #[DataSet([null], 'unset')]
+    #[DataSet([''], 'empty')]
+    public function testWithoutTokenNoAuthorizationIsAsked(?string $token): void
+    {
+        $response = self::handle(self::post(self::INITIALIZE), $token);
+
+        Assert::same($response->getStatusCode(), 200);
+    }
+
+    #[DataSet(['Bearer s3cr3t'], 'exact')]
+    #[DataSet(['bearer s3cr3t'], 'lower case scheme')]
+    #[DataSet(['BEARER s3cr3t'], 'upper case scheme')]
+    #[DataSet(['Bearer   s3cr3t'], 'several spaces after the scheme')]
+    public function testRightTokenIsAuthorized(string $authorization): void
+    {
+        $response = self::handle(self::post(self::INITIALIZE, ['Authorization' => $authorization]), 's3cr3t');
+
+        Assert::same($response->getStatusCode(), 200);
+    }
+
+    #[DataSet([null], 'no header')]
+    #[DataSet([''], 'empty header')]
+    #[DataSet(['Bearer'], 'scheme alone')]
+    #[DataSet(['Bearer '], 'scheme and space')]
+    #[DataSet(['Bearer wrong'], 'wrong token')]
+    #[DataSet(['Bearer s3cr3'], 'prefix of the token')]
+    #[DataSet(['Bearer s3cr3tt'], 'token with a suffix')]
+    #[DataSet(['Bearer S3CR3T'], 'token in another case')]
+    #[DataSet(['Bearer s3cr3t x'], 'extra word')]
+    #[DataSet(['Bearers3cr3t'], 'no space')]
+    #[DataSet(["Bearer\ts3cr3t"], 'tab after the scheme')]
+    #[DataSet(['s3cr3t'], 'token without a scheme')]
+    #[DataSet(['Basic s3cr3t'], 'other scheme')]
+    #[DataSet(['Token s3cr3t'], 'made-up scheme')]
+    public function testMissingOrWrongTokenIsUnauthorized(?string $authorization): void
+    {
+        $headers = $authorization === null ? [] : ['Authorization' => $authorization];
+
+        $response = self::handle(self::post(self::INITIALIZE, $headers), 's3cr3t');
+
+        Assert::same($response->getStatusCode(), 401);
+        Assert::same($response->getHeaderLine('WWW-Authenticate'), 'Bearer');
+        Assert::string((string) $response->getBody())->notContains('s3cr3t')->notContains('jsonrpc');
+    }
+
+    #[DataSet([new ServerRequest('GET', '/mcp')], 'GET')]
+    #[DataSet([new ServerRequest('POST', '/mcp', ['Origin' => 'https://evil.example'], self::INITIALIZE)], 'foreign origin')]
+    #[DataSet([new ServerRequest('POST', '/mcp', ['MCP-Protocol-Version' => '2024-11-05'], self::INITIALIZE)], 'unsupported version')]
+    #[DataSet([new ServerRequest('POST', '/mcp', [], '{"jsonrpc":')], 'broken JSON')]
+    public function testUnauthorizedGoesBeforeOtherErrors(ServerRequest $request): void
+    {
+        $response = self::handle($request, 's3cr3t');
+
+        Assert::same($response->getStatusCode(), 401);
+    }
+
+    public function testOriginIsCheckedWithRightToken(): void
+    {
+        $request = self::post(self::INITIALIZE, [
+            'Authorization' => 'Bearer s3cr3t',
+            'Origin' => 'https://evil.example',
+        ]);
+
+        $response = self::handle($request, 's3cr3t');
+
+        Assert::same($response->getStatusCode(), 403);
+    }
+
+    public function testOnlyPostIsAllowedWithRightToken(): void
+    {
+        $request = new ServerRequest('GET', '/mcp', ['Authorization' => 'Bearer s3cr3t']);
+
+        $response = self::handle($request, 's3cr3t');
+
+        Assert::same($response->getStatusCode(), 405);
+    }
+
+    public function testOtherPathsNeedNoToken(): void
+    {
+        $response = self::handle(new ServerRequest('POST', '/api/events'), 's3cr3t');
+
+        Assert::same($response->getStatusCode(), 299);
+    }
+
     /**
      * @param array<non-empty-string, string> $headers
      */
@@ -156,9 +241,11 @@ final class EndpointTest
         return \json_decode((string) $response->getBody(), true, 512, \JSON_THROW_ON_ERROR);
     }
 
-    private static function handle(ServerRequest $request): ResponseInterface
+    private static function handle(ServerRequest $request, ?string $token = null): ResponseInterface
     {
-        $endpoint = new Endpoint(new JsonRpc(McpServerTest::server()), new Caller());
+        $config = new Mcp();
+        $config->token = $token;
+        $endpoint = new Endpoint(new JsonRpc(McpServerTest::server()), new Caller(), $config);
 
         return $endpoint->handle($request, static fn(): ResponseInterface => new Response(299));
     }

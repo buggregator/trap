@@ -119,6 +119,39 @@ final class ServerTest
         Assert::same($uiStatus, 200);
     }
 
+    public function testMcpServerWithTokenAnswersOnlyRequestsCarryingIt(): void
+    {
+        $trap = $this->trap = TrapProcess::start(
+            'mcp-token',
+            ["--port=$this->port", '-s', "--mcp=$this->uiPort"],
+            [
+                'TRAP_TCP_PORTS' => (string) $this->port,
+                'TRAP_MCP_PORT' => (string) $this->uiPort,
+                'TRAP_MCP_TOKEN' => 'acceptance-s3cr3t',
+            ],
+            [$this->port, $this->uiPort],
+        );
+        $ping = '{"jsonrpc":"2.0","id":1,"method":"ping"}';
+
+        [$anonymousStatus, $anonymousHead, $anonymousBody] = TrapProcess::http($this->uiPort, 'POST', '/mcp', $ping);
+        [$wrongStatus] = TrapProcess::http($this->uiPort, 'POST', '/mcp', $ping, ['Authorization' => 'Bearer wrong']);
+        [$status, , $body] = TrapProcess::http(
+            $this->uiPort,
+            'POST',
+            '/mcp',
+            $ping,
+            ['Authorization' => 'Bearer acceptance-s3cr3t'],
+        );
+
+        Assert::same($anonymousStatus, 401);
+        Assert::string($anonymousHead)->ignoringCase()->contains('www-authenticate: bearer');
+        Assert::string($anonymousBody)->notContains('acceptance-s3cr3t');
+        Assert::same($wrongStatus, 401);
+        Assert::same($status, 200);
+        Assert::same(self::json($body)['result'], []);
+        Assert::string($trap->output())->notContains('acceptance-s3cr3t')->notContains('without a token');
+    }
+
     /**
      * Without the web UI: the MCP server alone has the caught events kept for its tools.
      */

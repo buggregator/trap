@@ -9,11 +9,12 @@ use Buggregator\Trap\Module\Mcp\Http\Endpoint;
 use Buggregator\Trap\Module\Mcp\McpStatus;
 use Buggregator\Trap\Module\Mcp\View\TextCache;
 use Buggregator\Trap\Server\Event\EventStore;
+use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Processable;
 use Buggregator\Trap\Server\Sender;
 use Buggregator\Trap\Server\Sender\ConsumesEvents;
 use Buggregator\Trap\Server\Sender\HttpEndpoint;
-use Buggregator\Trap\Server\Sender\ServesHttp;
+use Buggregator\Trap\Server\Sender\ObservesHttpHost;
 
 /**
  * Serves the MCP server at `/mcp` of its HTTP endpoint. The tools read the event buffer the web UI shows:
@@ -21,7 +22,7 @@ use Buggregator\Trap\Server\Sender\ServesHttp;
  *
  * @internal
  */
-final class McpSender implements Sender, ConsumesEvents, ServesHttp, Processable
+final class McpSender implements Sender, ConsumesEvents, ObservesHttpHost, Processable
 {
     /** Seconds to render the texts for at a time. */
     private const WARM_SLICE = 0.01;
@@ -48,6 +49,7 @@ final class McpSender implements Sender, ConsumesEvents, ServesHttp, Processable
         EventStore $events,
         private readonly McpStatus $status,
         private readonly TextCache $texts,
+        private readonly Logger $logger,
     ) {
         $events->keepFrames();
         $status->turnOn();
@@ -75,6 +77,25 @@ final class McpSender implements Sender, ConsumesEvents, ServesHttp, Processable
         $this->nextWarm = $end + \max(self::WARM_PAUSE, ($end - $start) * self::WARM_PAUSE_RATIO);
     }
 
+    /**
+     * Warns when anyone who reaches the port can read the events: the host is not a loopback one,
+     * and no token is asked for.
+     */
+    #[\Override]
+    public function listensOn(string $host): void
+    {
+        if (($this->config->token ?? '') !== '' || self::isLoopback($host)) {
+            return;
+        }
+
+        $this->logger->warning(
+            'MCP: http://%s:%d/mcp listens beyond the loopback without a token: anyone who reaches the port '
+            . 'can read the caught events. Set TRAP_MCP_TOKEN to require one.',
+            \str_contains($host, ':') && !\str_starts_with($host, '[') ? "[$host]" : $host,
+            $this->config->port,
+        );
+    }
+
     #[\Override]
     public function httpEndpoint(): HttpEndpoint
     {
@@ -84,5 +105,14 @@ final class McpSender implements Sender, ConsumesEvents, ServesHttp, Processable
             middlewares: [$this->endpoint],
             handlers: [],
         );
+    }
+
+    private static function isLoopback(string $host): bool
+    {
+        $host = \strtolower(\trim($host, '[]'));
+
+        return $host === 'localhost'
+            || $host === '::1'
+            || \filter_var($host, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV4) !== false && \str_starts_with($host, '127.');
     }
 }

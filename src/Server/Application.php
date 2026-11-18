@@ -213,10 +213,17 @@ final class Application implements Processable, Cancellable, Destroyable
             static fn(SocketServer $item): ?int => $item->protocol === 'tcp' ? $item->port : null,
             $map,
         );
+        $tcpHosts = [];
+        foreach ($map as $server) {
+            $server->protocol === 'tcp' and $tcpHosts[$server->port] = $server->host;
+        }
 
         $shared = [];
+        /** @var array<int, non-empty-string> $hosts The host each endpoint port listens on */
+        $hosts = [];
         foreach ($this->httpEndpoints($tcpPorts) as $endpoint) {
             if (\in_array($endpoint->port, $tcpPorts, true)) {
+                $hosts[$endpoint->port] = $tcpHosts[$endpoint->port] ?? Sender\HttpEndpoint::DEFAULT_HOST;
                 $this->processors[] = $shared[$endpoint->port] = $this->container->make(Inspector::class, [
                     'dispatchers' => $this->dispatchers(
                         $modules,
@@ -241,14 +248,20 @@ final class Application implements Processable, Cancellable, Destroyable
                 ],
             ]);
             $this->processors[] = $inspector;
+            $hosts[$endpoint->port] = $endpoint->host ?? Sender\HttpEndpoint::DEFAULT_HOST;
             $this->prepareServerFiber(
                 new SocketServer(
                     port: $endpoint->port,
-                    host: $endpoint->host ?? Sender\HttpEndpoint::DEFAULT_HOST,
+                    host: $hosts[$endpoint->port],
                 ),
                 $inspector,
                 $this->logger,
             );
+        }
+
+        foreach ($this->senders as $sender) {
+            $sender instanceof Sender\ObservesHttpHost
+                and $sender->listensOn($hosts[$sender->httpEndpoint()->port] ?? Sender\HttpEndpoint::DEFAULT_HOST);
         }
 
         return $shared;

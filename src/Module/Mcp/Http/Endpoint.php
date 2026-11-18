@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Mcp\Http;
 
 use Buggregator\Trap\Module\Mcp\Caller;
+use Buggregator\Trap\Module\Mcp\Config\Mcp as Config;
 use Buggregator\Trap\Module\Mcp\Protocol\JsonRpc;
 use Buggregator\Trap\Module\Mcp\Protocol\McpServer;
 use Buggregator\Trap\Module\Mcp\Protocol\RpcError;
@@ -17,6 +18,9 @@ use Psr\Http\Message\ServerRequestInterface;
 /**
  * The MCP Streamable HTTP transport at `/mcp`, stateless and without SSE: every request is answered
  * with a JSON response. Other paths go down the pipeline.
+ *
+ * With a token configured, a request without it gets `401` before any other check, so it learns
+ * nothing of the server.
  *
  * @internal
  * @psalm-internal Buggregator\Trap
@@ -31,6 +35,7 @@ final class Endpoint implements Middleware
     public function __construct(
         private readonly JsonRpc $rpc,
         private readonly Caller $caller,
+        private readonly Config $config,
     ) {}
 
     #[\Override]
@@ -38,6 +43,10 @@ final class Endpoint implements Middleware
     {
         if (\rtrim($request->getUri()->getPath(), '/') !== self::PATH) {
             return $next($request);
+        }
+
+        if (!$this->isAuthorized($request->getHeaderLine('Authorization'))) {
+            return new Response(401, ['WWW-Authenticate' => 'Bearer', 'Content-Type' => 'text/plain'], 'Unauthorized.');
         }
 
         // DNS rebinding: a page of any site may resolve its own host name to 127.0.0.1
@@ -89,5 +98,19 @@ final class Endpoint implements Middleware
     private static function json(int $status, array $body): ResponseInterface
     {
         return new Response($status, ['Content-Type' => 'application/json'], Json::encode($body));
+    }
+
+    /**
+     * The scheme is case-insensitive and may be followed by several spaces, as RFC 7235 has it.
+     */
+    private function isAuthorized(string $authorization): bool
+    {
+        $token = $this->config->token;
+        if ($token === null || $token === '') {
+            return true;
+        }
+
+        return \preg_match('/^Bearer +(.+)$/i', $authorization, $matches) === 1
+            && \hash_equals($token, $matches[1]);
     }
 }

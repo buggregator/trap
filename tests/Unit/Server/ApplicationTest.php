@@ -15,6 +15,7 @@ use Buggregator\Trap\Server\Handler\Http\RequestHandler;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Sender;
 use Buggregator\Trap\Server\Sender\HttpEndpoint;
+use Buggregator\Trap\Server\Sender\ObservesHttpHost;
 use Buggregator\Trap\Server\Sender\ServesHttp;
 use Buggregator\Trap\Server\Traffic\Dispatcher\Http;
 use Buggregator\Trap\Server\Traffic\Inspector;
@@ -126,6 +127,31 @@ final class ApplicationTest
         Assert::same($endpoints[9999]->host, $first ?? $second);
     }
 
+    #[DataSet([9912, null, '0.0.0.0'], 'TCP port: the TCP host')]
+    #[DataSet([9912, '127.0.0.1', '0.0.0.0'], 'TCP port: the TCP host over its own')]
+    #[DataSet([9999, null, '192.168.1.10'], 'own port: the host of the other endpoint')]
+    public function testObservingSenderLearnsTheHostItsPortListensOn(int $port, ?string $host, string $expected): void
+    {
+        $observer = self::observingSender($port, $host);
+
+        $app = $this->application(
+            [new SocketServer(port: 9912, host: '0.0.0.0')],
+            [$observer, self::endpointSender(9999, '192.168.1.10')],
+        );
+        $app->destroy();
+
+        Assert::same($observer->hosts, [$expected]);
+    }
+
+    public function testObservingSenderAloneOnItsPortLearnsTheDefaultHost(): void
+    {
+        $observer = self::observingSender(9999, null);
+
+        $this->application([], [$observer])->destroy();
+
+        Assert::same($observer->hosts, ['127.0.0.1']);
+    }
+
     public function testEventMapperConflictFailsAtStartup(): never
     {
         // The container wraps the exception of each object it fails to create
@@ -162,6 +188,31 @@ final class ApplicationTest
             public function httpEndpoint(): HttpEndpoint
             {
                 return new HttpEndpoint($this->port, $this->host, $this->middlewares, $this->handlers);
+            }
+        };
+    }
+
+    private static function observingSender(int $port, ?string $host): ObservesHttpHost&Sender
+    {
+        return new class($port, $host) implements Sender, ObservesHttpHost {
+            /** @var list<string> */
+            public array $hosts = [];
+
+            public function __construct(
+                private readonly int $port,
+                private readonly ?string $host,
+            ) {}
+
+            public function send(iterable $frames): void {}
+
+            public function httpEndpoint(): HttpEndpoint
+            {
+                return new HttpEndpoint($this->port, $this->host, [], []);
+            }
+
+            public function listensOn(string $host): void
+            {
+                $this->hosts[] = $host;
             }
         };
     }
