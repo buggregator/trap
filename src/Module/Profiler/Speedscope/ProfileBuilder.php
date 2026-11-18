@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Profiler\Compaction\NodeBudget;
 use Buggregator\Trap\Module\Profiler\Compaction\Nodes;
 use Buggregator\Trap\Module\Profiler\Compaction\Report;
 use Buggregator\Trap\Module\Profiler\Compaction\StackTree;
+use Buggregator\Trap\Module\Profiler\Struct\Cost;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Support\TimeSlice;
 
@@ -303,7 +304,7 @@ final class ProfileBuilder
 
             $value = (float) $weight * $scale;
             $count = match ($samplesPerUnit) {
-                null => (int) $weight,
+                null => Cost::saturate($weight),
                 0.0 => 1,
                 default => \max(1, (int) \round($value * $samplesPerUnit)),
             };

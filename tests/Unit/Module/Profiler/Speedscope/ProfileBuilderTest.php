@@ -229,6 +229,13 @@ final class ProfileBuilderTest
         self::build(self::sampled([[2], [2]], [\PHP_INT_MAX, \PHP_INT_MAX], 'none'));
     }
 
+    public function testRejectsCountPastIntegerRange(): never
+    {
+        Expect::exception(\InvalidArgumentException::class)->withMessageContaining('too large');
+
+        self::build(self::sampled([[2]], [1.0e19], 'none'));
+    }
+
     public function testRejectsUnknownUnit(): never
     {
         Expect::exception(\InvalidArgumentException::class)->withMessage('Unsupported unit: `furlongs`.');

@@ -21,6 +21,8 @@ final class CostTest
     #[DataSet([\PHP_INT_MIN - 1, \PHP_INT_MIN], 'integer underflow')]
     #[DataSet([1e19, \PHP_INT_MAX], 'float over the range')]
     #[DataSet([-1e19, \PHP_INT_MIN], 'float under the range')]
+    #[DataSet([\INF, \PHP_INT_MAX], 'infinity')]
+    #[DataSet([\NAN, 0], 'NaN')]
     public function saturateClampsToIntegerRange(int|float $value, int $expected): void
     {
         Assert::same(Cost::saturate($value), $expected);

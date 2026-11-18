@@ -91,12 +91,13 @@ final class Cost implements \JsonSerializable
      * Converts the result of arithmetic to an integer clamped to the integer range: received data may pass it,
      * where integer arithmetic turns into a float and an `(int)` cast wraps around.
      *
-     * @param int|float $value A float in the range is truncated, like by an `(int)` cast.
+     * @param int|float $value A float in the range is truncated, like by an `(int)` cast; NaN is 0.
      */
     public static function saturate(int|float $value): int
     {
         return match (true) {
             \is_int($value) => $value,
+            \is_nan($value) => 0,
             $value >= (float) \PHP_INT_MAX => \PHP_INT_MAX,
             $value <= (float) \PHP_INT_MIN => \PHP_INT_MIN,
             default => (int) $value,
