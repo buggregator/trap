@@ -197,4 +197,14 @@ final class ProfileSummaryTest
         Assert::same($tool->annotations(), ['readOnlyHint' => true, 'openWorldHint' => false]);
         Assert::same($tool->inputSchema()['required'], ['id']);
     }
+
+    public function testDescribesItselfAsTheStartOfAnAnalysis(): void
+    {
+        $tool = (new Trap())->get(ProfileSummary::class);
+
+        Assert::same($tool->title(), 'Profile summary');
+        Assert::string($tool->description())
+            ->contains('the 10 functions with the highest exclusive cost')
+            ->contains('Go on with `profile_top` and `profile_calls`.');
+    }
 }

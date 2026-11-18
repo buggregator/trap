@@ -122,6 +122,10 @@ final class DeleteEventTest
         $tool = (new Trap())->get(Tools::class)->get('delete_event');
 
         Assert::instanceOf($tool, DeleteEvent::class);
+        Assert::same($tool->title(), 'Delete event');
+        Assert::string($tool->description())
+            ->contains('up to ' . DeleteEvent::MAX_IDS . ' with `ids`')
+            ->contains('use `clear_events`');
         Assert::same($tool->annotations(), [
             'readOnlyHint' => false,
             'destructiveHint' => true,

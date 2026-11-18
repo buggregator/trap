@@ -527,6 +527,17 @@ final class SentryViewTest
         Assert::same(($view->fields(self::event($payload)) ?? [])['exception'] ?? null, ['TypeError']);
     }
 
+    public function testBareListOfExceptionsWithoutTheValuesWrapper(): void
+    {
+        $text = self::text(['exception' => [['type' => 'PDOException', 'value' => 'gone away'], ['type' => 'DbError', 'value' => 'query failed']]]);
+
+        Assert::same(
+            $text,
+            "Exception chain of 2, the thrown one first, then what caused it; stack frames innermost first:\n"
+            . "DbError: query failed\nCaused by PDOException: gone away\n",
+        );
+    }
+
     public function testCausesCollapseTheFramesInCommon(): void
     {
         $code = ['context_line' => 'call();'];
@@ -661,6 +672,8 @@ final class SentryViewTest
     #[DataSet(['2024-01-01 00:00 next monday'], 'date with a relative day')]
     #[DataSet(["2024-01-01\n"], 'date with a newline')]
     #[DataSet(['2024-01-01T00:00:00.9999999999Z'], 'date with more than 9 fraction digits')]
+    #[DataSet(['2024-13-01'], 'date with a month out of range')]
+    #[DataSet(['2024-01-01T25:00'], 'date with an hour out of range')]
     #[DataSet([\NAN], 'NaN')]
     #[DataSet([\INF], 'infinity')]
     #[DataSet(['1e999'], 'infinite numeric string')]
@@ -723,6 +736,16 @@ final class SentryViewTest
         ]);
 
         Assert::same($text, "Exception, stack frames innermost first:\nE\n\nBreadcrumbs:\n  query\n  done\n");
+    }
+
+    public function testDataOfBreadcrumbsIsShownAsJson(): void
+    {
+        $text = self::text(['breadcrumbs' => [
+            ['category' => 'http', 'message' => 'GET /orders', 'data' => ['status_code' => 500, 'reason' => null]],
+            ['message' => 'retry', 'data' => ['ratio' => \NAN]],
+        ]]);
+
+        Assert::same($text, "Breadcrumbs:\n  http: GET /orders {\"status_code\":500,\"reason\":null}\n  retry\n", 'Data JSON cannot encode is left out.');
     }
 
     public function testThrownExceptionWithoutRoomForFramesCountsThem(): void
@@ -1084,6 +1107,19 @@ final class SentryViewTest
         $text = (new Trap())->get(EventViews::class)->text(new Record(self::event($payload), 1, [new SentryStore($payload)]));
 
         Assert::same($text, "Boom\n\nThe event could not be rendered: RuntimeException\n");
+    }
+
+    public function testEventThatFailsToSummarizeShowsOnlyTheError(): void
+    {
+        $text = self::text(['message' => new class implements \JsonSerializable {
+            #[\Override]
+            public function jsonSerialize(): never
+            {
+                throw new \RuntimeException('Not serializable');
+            }
+        }]);
+
+        Assert::same($text, "The event could not be rendered: RuntimeException\n");
     }
 
     /**

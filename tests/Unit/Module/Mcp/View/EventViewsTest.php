@@ -83,4 +83,14 @@ final class EventViewsTest
 
         Assert::same(self::views()->text($record), "{\n    \"key\": \"value/1\"\n}");
     }
+
+    public function testPayloadJsonCannotEncodeIsReported(): void
+    {
+        $record = new Record(PayloadSummaryTest::event('unknown', ['value' => \INF]), 1, []);
+
+        $prefix = 'The event has no text view: ';
+        $text = self::views()->text($record);
+
+        Assert::string($text)->startsWith($prefix)->contains('Inf and NaN');
+    }
 }
