@@ -241,6 +241,8 @@ final class Http
         // Guess length
         $length = $request->hasHeader('Content-Length') ? $request->getHeaderLine('Content-Length') : null;
         $length = \is_numeric($length) ? (int) $length : null;
+        // HTTP/1.1: a request with neither `Content-Length` nor `Transfer-Encoding` has no body
+        $length === null && !$request->hasHeader('Transfer-Encoding') and $length = 0;
 
         $request = $request->withBody($this->createBody($stream, $length));
         $request->getBody()->rewind();
@@ -304,6 +306,11 @@ final class Http
         $written = 0;
         $slice = new TimeSlice(checkEvery: 1);
         $waited = false;
+
+        // The loop checks the limit only after a chunk arrives
+        if ($limit !== null && $limit <= 0) {
+            return $fileStream;
+        }
 
         foreach ($stream->getIterator() as $chunk) {
             // The stream has suspended the fiber while it waited for the chunk
