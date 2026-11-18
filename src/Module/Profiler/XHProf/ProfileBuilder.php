@@ -66,7 +66,8 @@ final class ProfileBuilder
         unset($data['value']);
 
         foreach ($data as $key => $value) {
-            [$callerId, $calleeId] = \explode('==>', $key, 2) + [1 => ''];
+            // An all-digit key is an int
+            [$callerId, $calleeId] = \explode('==>', (string) $key, 2) + [1 => ''];
             if ($calleeId === '') {
                 [$callerId, $calleeId] = [null, $callerId];
             }
