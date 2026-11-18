@@ -425,6 +425,23 @@ final class MapperTest
         );
     }
 
+    public function testTopFunctionsSumSignedCalleesInAnyOrder(): void
+    {
+        $memory = static fn(int $mu): array => ['ct' => 1, 'wt' => 0, 'cpu' => 0, 'mu' => $mu, 'pmu' => 0];
+        // The callees free and allocate past the integer range, and cancel out
+        $event = self::event([
+            'main()==>f' => $memory(5),
+            'f==>g1' => $memory(-\PHP_INT_MAX),
+            'f==>g2' => $memory(-\PHP_INT_MAX),
+            'f==>g3' => $memory(\PHP_INT_MAX),
+            'f==>g4' => $memory(\PHP_INT_MAX),
+        ]);
+
+        $f = self::find(self::json((new Mapper())->topFunctions($event, 'mu'))['functions'], 'f');
+
+        Assert::same($f['excl_mu'], 5);
+    }
+
     public function testFlameChartScalesSharedCalleeByCaller(): void
     {
         $chart = self::json((new Mapper())->flameChart(self::event(self::SHARED_STUB)));
