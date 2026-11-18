@@ -164,28 +164,28 @@ final class EndpointTest
         Assert::same($response->getStatusCode(), 200);
     }
 
-    #[DataSet([null], 'no header')]
-    #[DataSet([''], 'empty header')]
-    #[DataSet(['Bearer'], 'scheme alone')]
-    #[DataSet(['Bearer '], 'scheme and space')]
-    #[DataSet(['Bearer wrong'], 'wrong token')]
-    #[DataSet(['Bearer s3cr3'], 'prefix of the token')]
-    #[DataSet(['Bearer s3cr3tt'], 'token with a suffix')]
-    #[DataSet(['Bearer S3CR3T'], 'token in another case')]
-    #[DataSet(['Bearer s3cr3t x'], 'extra word')]
-    #[DataSet(['Bearers3cr3t'], 'no space')]
-    #[DataSet(["Bearer\ts3cr3t"], 'tab after the scheme')]
-    #[DataSet(['s3cr3t'], 'token without a scheme')]
-    #[DataSet(['Basic s3cr3t'], 'other scheme')]
-    #[DataSet(['Token s3cr3t'], 'made-up scheme')]
-    public function testMissingOrWrongTokenIsUnauthorized(?string $authorization): void
+    #[DataSet([null, 'Bearer'], 'no header')]
+    #[DataSet(['', 'Bearer'], 'empty header')]
+    #[DataSet(['Bearer', 'Bearer'], 'scheme alone')]
+    #[DataSet(['Bearer ', 'Bearer'], 'scheme and space')]
+    #[DataSet(['Bearers3cr3t', 'Bearer'], 'no space')]
+    #[DataSet(["Bearer\ts3cr3t", 'Bearer'], 'tab after the scheme')]
+    #[DataSet(['s3cr3t', 'Bearer'], 'token without a scheme')]
+    #[DataSet(['Basic s3cr3t', 'Bearer'], 'other scheme')]
+    #[DataSet(['Token s3cr3t', 'Bearer'], 'made-up scheme')]
+    #[DataSet(['Bearer wrong', 'Bearer error="invalid_token"'], 'wrong token')]
+    #[DataSet(['Bearer s3cr3', 'Bearer error="invalid_token"'], 'prefix of the token')]
+    #[DataSet(['Bearer s3cr3tt', 'Bearer error="invalid_token"'], 'token with a suffix')]
+    #[DataSet(['Bearer S3CR3T', 'Bearer error="invalid_token"'], 'token in another case')]
+    #[DataSet(['Bearer s3cr3t x', 'Bearer error="invalid_token"'], 'extra word')]
+    public function testMissingOrWrongTokenIsUnauthorized(?string $authorization, string $challenge): void
     {
         $headers = $authorization === null ? [] : ['Authorization' => $authorization];
 
         $response = self::handle(self::post(self::INITIALIZE, $headers), 's3cr3t');
 
         Assert::same($response->getStatusCode(), 401);
-        Assert::same($response->getHeaderLine('WWW-Authenticate'), 'Bearer');
+        Assert::same($response->getHeaderLine('WWW-Authenticate'), $challenge);
         Assert::string((string) $response->getBody())->notContains('s3cr3t')->notContains('jsonrpc');
     }
 
@@ -221,9 +221,53 @@ final class EndpointTest
         Assert::same($response->getStatusCode(), 405);
     }
 
-    public function testOtherPathsNeedNoToken(): void
+    #[DataSet([[]], 'no header')]
+    #[DataSet([['Authorization' => 'Bearer wrong']], 'wrong token')]
+    #[DataSet([['Authorization' => 'Basic s3cr3t']], 'other scheme')]
+    public function testOtherPathsWithoutTokenGoDownThePipeline(array $headers): void
     {
-        $response = self::handle(new ServerRequest('POST', '/api/events'), 's3cr3t');
+        $response = self::handle(new ServerRequest('POST', '/api/events', $headers), 's3cr3t');
+
+        Assert::same($response->getStatusCode(), 299);
+    }
+
+    #[DataSet(['//mcp'], 'repeated slashes')]
+    #[DataSet(['/MCP'], 'upper case')]
+    #[DataSet(['/mcp//'], 'repeated trailing slashes')]
+    #[DataSet(['//Mcp/'], 'all at once')]
+    public function testMcpPathIsNormalized(string $path): void
+    {
+        $unauthorized = self::handle(new ServerRequest('POST', "http://127.0.0.1:8000$path", [], self::INITIALIZE), 's3cr3t');
+        $authorized = self::handle(
+            new ServerRequest('POST', "http://127.0.0.1:8000$path", ['Authorization' => 'Bearer s3cr3t'], self::INITIALIZE),
+            's3cr3t',
+        );
+
+        Assert::same($unauthorized->getStatusCode(), 401);
+        Assert::same($authorized->getStatusCode(), 200);
+    }
+
+    #[DataSet(['/'], 'root')]
+    #[DataSet(['/api/events'], 'UI API')]
+    #[DataSet(['/mcp/tools'], 'nested path')]
+    #[DataSet(['/%6Dcp'], 'encoded path')]
+    public function testOtherPathWithTokenIsNotPassedOn(string $path): void
+    {
+        $passed = false;
+        $request = new ServerRequest('POST', $path, ['Authorization' => 'bearer  s3cr3t'], self::INITIALIZE);
+
+        $response = self::handle($request, 's3cr3t', $passed);
+
+        Assert::false($passed);
+        Assert::same($response->getStatusCode(), 404);
+        Assert::string((string) $response->getBody())->notContains('s3cr3t');
+    }
+
+    public function testOtherPathWithAnyBearerGoesDownThePipelineWithoutTokenConfigured(): void
+    {
+        $request = new ServerRequest('POST', '/api/events', ['Authorization' => 'Bearer s3cr3t']);
+
+        $response = self::handle($request);
 
         Assert::same($response->getStatusCode(), 299);
     }
@@ -241,12 +285,18 @@ final class EndpointTest
         return \json_decode((string) $response->getBody(), true, 512, \JSON_THROW_ON_ERROR);
     }
 
-    private static function handle(ServerRequest $request, ?string $token = null): ResponseInterface
+    /**
+     * @param bool $passed Set to whether the request went down the pipeline, answered there with `299`.
+     */
+    private static function handle(ServerRequest $request, ?string $token = null, bool &$passed = false): ResponseInterface
     {
         $config = new Mcp();
         $config->token = $token;
         $endpoint = new Endpoint(new JsonRpc(McpServerTest::server()), new Caller(), $config);
 
-        return $endpoint->handle($request, static fn(): ResponseInterface => new Response(299));
+        return $endpoint->handle($request, static function () use (&$passed): ResponseInterface {
+            $passed = true;
+            return new Response(299);
+        });
     }
 }

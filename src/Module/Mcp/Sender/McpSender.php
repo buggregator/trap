@@ -84,15 +84,14 @@ final class McpSender implements Sender, ConsumesEvents, ObservesHttpHost, Proce
     #[\Override]
     public function listensOn(string $host): void
     {
-        if (($this->config->token ?? '') !== '' || self::isLoopback($host)) {
+        if (($this->config->token ?? '') !== '' || HttpEndpoint::isLoopback($host)) {
             return;
         }
 
         $this->logger->warning(
-            'MCP: http://%s:%d/mcp listens beyond the loopback without a token: anyone who reaches the port '
+            'MCP: %s/mcp listens beyond the loopback without a token: anyone who reaches the port '
             . 'can read the caught events. Set TRAP_MCP_TOKEN to require one.',
-            \str_contains($host, ':') && !\str_starts_with($host, '[') ? "[$host]" : $host,
-            $this->config->port,
+            HttpEndpoint::url($host, $this->config->port),
         );
     }
 
@@ -105,14 +104,5 @@ final class McpSender implements Sender, ConsumesEvents, ObservesHttpHost, Proce
             middlewares: [$this->endpoint],
             handlers: [],
         );
-    }
-
-    private static function isLoopback(string $host): bool
-    {
-        $host = \strtolower(\trim($host, '[]'));
-
-        return $host === 'localhost'
-            || $host === '::1'
-            || \filter_var($host, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV4) !== false && \str_starts_with($host, '127.');
     }
 }

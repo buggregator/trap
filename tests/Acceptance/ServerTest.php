@@ -153,6 +153,44 @@ final class ServerTest
     }
 
     /**
+     * On a traffic port shared with the UI, the token guards `/mcp` only, and a request carrying it to
+     * another path is never dumped.
+     */
+    public function testMcpTokenOnPortSharedWithUiAndTraffic(): void
+    {
+        $trap = $this->trap = TrapProcess::start(
+            'mcp-token-shared',
+            ["--port=$this->port", '--sender=file', '--sender=console', "--ui=$this->port", "--mcp=$this->port"],
+            [
+                'TRAP_TCP_PORTS' => (string) $this->port,
+                'TRAP_UI_PORT' => (string) $this->port,
+                'TRAP_MCP_PORT' => (string) $this->port,
+                'TRAP_MCP_TOKEN' => 'acceptance-s3cr3t',
+            ],
+            [$this->port],
+        );
+        $ping = '{"jsonrpc":"2.0","id":1,"method":"ping"}';
+        $token = ['Authorization' => 'Bearer acceptance-s3cr3t'];
+
+        [$uiStatus] = TrapProcess::http($this->port, 'GET', '/api/events');
+        [$anonymousStatus] = TrapProcess::http($this->port, 'POST', '/mcp', $ping);
+        [$mistypedStatus] = TrapProcess::http($this->port, 'POST', '//mcp', $ping, $token);
+        [$wrongPathStatus] = TrapProcess::http($this->port, 'POST', '/acceptance/token', $ping, $token);
+        TrapProcess::http($this->port, 'POST', '/acceptance/after', '{"order":"acceptance-after"}');
+
+        Assert::same($uiStatus, 200);
+        Assert::same($anonymousStatus, 401);
+        Assert::same($mistypedStatus, 200);
+        Assert::same($wrongPathStatus, 404);
+        $event = $trap->waitForUiEvent($this->port, 'http-dump');
+        Assert::same($event['payload']['request']['uri'], 'acceptance/after');
+        [, , $events] = TrapProcess::http($this->port, 'GET', '/api/events');
+        Assert::string($events)->notContains('acceptance-s3cr3t');
+        Assert::string(\implode("\n", $trap->dumpedLines()))->notContains('acceptance-s3cr3t');
+        Assert::string($trap->output())->notContains('acceptance-s3cr3t');
+    }
+
+    /**
      * Without the web UI: the MCP server alone has the caught events kept for its tools.
      */
     public function testMcpToolsReadCaughtEvents(): void

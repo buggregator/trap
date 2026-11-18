@@ -20,7 +20,7 @@ use Psr\Http\Message\ServerRequestInterface;
  * with a JSON response. Other paths go down the pipeline.
  *
  * With a token configured, a request without it gets `401` before any other check, so it learns
- * nothing of the server.
+ * nothing of the server. A request of another path carrying the token gets `404` instead of going on.
  *
  * @internal
  * @psalm-internal Buggregator\Trap
@@ -41,12 +41,19 @@ final class Endpoint implements Middleware
     #[\Override]
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
-        if (\rtrim($request->getUri()->getPath(), '/') !== self::PATH) {
-            return $next($request);
+        $bearer = self::bearer($request->getHeaderLine('Authorization'));
+        if (!self::isMcpPath($request->getUri()->getPath())) {
+            // Down the pipeline, the HTTP dump would print and keep the token
+            return $this->isToken($bearer)
+                ? new Response(404, ['Content-Type' => 'text/plain'], 'Not found.')
+                : $next($request);
         }
 
-        if (!$this->isAuthorized($request->getHeaderLine('Authorization'))) {
-            return new Response(401, ['WWW-Authenticate' => 'Bearer', 'Content-Type' => 'text/plain'], 'Unauthorized.');
+        if (($this->config->token ?? '') !== '' && !$this->isToken($bearer)) {
+            return new Response(401, [
+                'WWW-Authenticate' => $bearer === null ? 'Bearer' : 'Bearer error="invalid_token"',
+                'Content-Type' => 'text/plain',
+            ], 'Unauthorized.');
         }
 
         // DNS rebinding: a page of any site may resolve its own host name to 127.0.0.1
@@ -101,16 +108,29 @@ final class Endpoint implements Middleware
     }
 
     /**
-     * The scheme is case-insensitive and may be followed by several spaces, as RFC 7235 has it.
+     * The token of a `Bearer` header, null for another scheme or none. The scheme is case-insensitive
+     * and may be followed by several spaces, as RFC 7235 has it.
      */
-    private function isAuthorized(string $authorization): bool
+    private static function bearer(string $authorization): ?string
+    {
+        return \preg_match('/^Bearer +(.+)$/i', $authorization, $matches) === 1 ? $matches[1] : null;
+    }
+
+    /**
+     * Repeated slashes, a trailing one and the case don't matter.
+     */
+    private static function isMcpPath(string $path): bool
+    {
+        return \strtolower(\rtrim((string) \preg_replace('#/{2,}#', '/', $path), '/')) === self::PATH;
+    }
+
+    /**
+     * Whether the configured token is set and is the given one.
+     */
+    private function isToken(?string $bearer): bool
     {
         $token = $this->config->token;
-        if ($token === null || $token === '') {
-            return true;
-        }
 
-        return \preg_match('/^Bearer +(.+)$/i', $authorization, $matches) === 1
-            && \hash_equals($token, $matches[1]);
+        return $token !== null && $token !== '' && $bearer !== null && \hash_equals($token, $bearer);
     }
 }

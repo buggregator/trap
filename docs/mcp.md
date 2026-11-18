@@ -457,8 +457,12 @@ The tools read everything Trap has caught, mails and request bodies with their s
 - To reach Trap from a Docker container, WSL or another machine, the port has to listen on another host:
   `TRAP_MCP_HOST=0.0.0.0`, or `TRAP_TCP_HOST=0.0.0.0` when the MCP port is a TCP one (see [Port](#port)).
   Then set a token too: anyone who reaches the port can call the tools otherwise. At startup Trap warns when the
-  server listens on a host other than a loopback one (`127.0.0.1` and the rest of `127.0.0.0/8`, `::1`,
+  server listens on a host other than a loopback one (`127.0.0.0/8`, `::1` and `::ffff:127.0.0.0/104`,
   `localhost`) without a token.
+- The token guards `/mcp` only. The [web UI](web-ui.md) on the same port, its `/api/...` and its WebSocket, asks
+  for none and shows the same events: on a host beyond the loopback, anyone who reaches the port reads them there.
+  Trap warns of the UI at startup too, token or not. Keep the UI on a loopback port of its own (`TRAP_UI_PORT`,
+  `TRAP_UI_HOST`), or leave it off.
 
 | Setting | Variable         | `trap.xml`         | Default |
 |---------|------------------|--------------------|---------|
@@ -480,10 +484,15 @@ claude mcp add --transport http trap http://192.168.1.10:8001/mcp --header "Auth
 
 Other clients take the header in their server settings, as `"headers": {"Authorization": "Bearer ..."}`.
 
-- A request without the token, with a wrong one or with another scheme gets `401` with `WWW-Authenticate: Bearer`
-  and no JSON-RPC body. The `Bearer` scheme is matched in any case. This check goes first: a request without the
-  token gets `401` for a foreign `Origin`, `GET` or a broken body too, so it learns nothing of the server. With the
-  token, the `Origin` check and the others follow.
+- A request without the token or with another scheme gets `401` with `WWW-Authenticate: Bearer` and no JSON-RPC
+  body; one with a wrong token gets `WWW-Authenticate: Bearer error="invalid_token"`. The `Bearer` scheme is matched
+  in any case. This check goes first: a request without the token gets `401` for a foreign `Origin`, `GET` or
+  a broken body too, so it learns nothing of the server. With the token, the `Origin` check and the others follow.
+- There is no OAuth: the server publishes no authorization metadata for a client to discover, and the token is set
+  by hand on both sides.
+- The path is matched loosely: `//mcp`, `/MCP` and `/mcp/` are `/mcp` too. A request of any other path
+  carrying the token gets `404` and goes no further, so a mistyped URL never has the token dumped with the request
+  to the console, the UI or the files.
 - An empty `TRAP_MCP_TOKEN` asks for no token, even when `trap.xml` sets one: the environment variable wins.
 - The token is sent in plain text over HTTP: on a network you don't trust, put Trap behind a TLS proxy or an
   SSH tunnel.

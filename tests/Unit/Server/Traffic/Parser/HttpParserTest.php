@@ -54,6 +54,16 @@ final class HttpParserTest
         ]);
     }
 
+    #[Test]
+    public function testPathStartingWithSlashesIsNotAuthority(): void
+    {
+        $request = $this->parseStream(["GET //mcp//x?a=b HTTP/1.1\r\nHost: 127.0.0.1:9912\r\n\r\n"]);
+
+        Assert::same($request->getUri()->getPath(), '/mcp//x');
+        Assert::same($request->getUri()->getQuery(), 'a=b');
+        Assert::same($request->getUri()->getHost(), '');
+    }
+
     /*\
      * Parer doesn't fail on wrong cookies
      */

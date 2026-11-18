@@ -153,6 +153,12 @@ final class Http
         [$method, $uri, $protocol] = $this->parseFirstLine($firstLine);
         $headers = self::parseHeaders($headersBlock);
 
+        // A path may start with `//`, which a URI string has for an authority: `//mcp` would be the host `mcp`
+        if (\str_starts_with($uri, '//')) {
+            [$path, $query] = \explode('?', $uri, 2) + [1 => ''];
+            $uri = $this->factory->createUri()->withPath($path)->withQuery($query);
+        }
+
         $request = $this->factory->createServerRequest($method, $uri, [])
             ->withProtocolVersion($protocol);
         foreach ($headers as $name => $value) {
