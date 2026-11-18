@@ -4,18 +4,20 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mcp;
 
+use Buggregator\Trap\Module\Mcp\Http\TokenGuard;
 use Buggregator\Trap\Module\Mcp\Sender\McpSender;
 use Buggregator\Trap\Module\Mcp\Tool\ClearEvents;
 use Buggregator\Trap\Module\Mcp\Tool\DeleteEvent;
 use Buggregator\Trap\Module\Mcp\Tool\GetEvent;
 use Buggregator\Trap\Module\Mcp\Tool\ListEvents;
 use Buggregator\Trap\Module\Mcp\Tool\WaitForEvents;
+use Buggregator\Trap\Server\Handler\Http\ProvidesHttpMiddlewares;
 use Buggregator\Trap\Server\Sender\ProvidesSenders;
 
 /**
  * @internal
  */
-final class Module implements ProvidesSenders, ProvidesMcpTools
+final class Module implements ProvidesSenders, ProvidesMcpTools, ProvidesHttpMiddlewares
 {
     /**
      * The `--mcp` option of the `run` command chooses the `mcp` sender.
@@ -30,5 +32,14 @@ final class Module implements ProvidesSenders, ProvidesMcpTools
     public function mcpTools(): array
     {
         return [ListEvents::class, WaitForEvents::class, GetEvent::class, DeleteEvent::class, ClearEvents::class];
+    }
+
+    /**
+     * Also when the MCP server is off: a token set in the environment is a secret all the same.
+     */
+    #[\Override]
+    public function httpMiddlewares(): array
+    {
+        return [TokenGuard::class];
     }
 }

@@ -191,6 +191,85 @@ final class ServerTest
     }
 
     /**
+     * On a traffic port other than the MCP one, no request carrying the token is dumped, while
+     * the traffic of every module is caught as before.
+     */
+    public function testMcpTokenIsNotDumpedOnTrafficPort(): void
+    {
+        $trap = $this->trap = TrapProcess::start(
+            'mcp-token-traffic',
+            [
+                "--port=$this->port",
+                '--sender=file',
+                '--sender=console',
+                "--ui=$this->uiPort",
+                "--mcp=$this->uiPort",
+            ],
+            [
+                'TRAP_TCP_PORTS' => (string) $this->port,
+                'TRAP_UI_PORT' => (string) $this->uiPort,
+                'TRAP_MCP_PORT' => (string) $this->uiPort,
+                'TRAP_MCP_TOKEN' => 'acceptance-s3cr3t',
+            ],
+            [$this->port, $this->uiPort],
+        );
+        $ping = '{"jsonrpc":"2.0","id":1,"method":"ping"}';
+        $json = ['Content-Type' => 'application/json'];
+
+        $mcp = TrapProcess::http($this->port, 'POST', '/mcp', $ping, ['Authorization' => 'Bearer acceptance-s3cr3t']);
+        $query = TrapProcess::http($this->port, 'GET', '/x?token=acceptance-s3cr3t');
+        $header = TrapProcess::http($this->port, 'GET', '/x', '', ['X-Api-Key' => 'acceptance-s3cr3t']);
+        TrapProcess::http($this->port, 'POST', '/acceptance/plain', '{"order":"acceptance-plain"}', $json);
+        [$sentryStatus] = TrapProcess::http(
+            $this->port,
+            'POST',
+            '/api/1/store/',
+            '{"event_id":"acceptance-sentry","level":"error","message":"acceptance sentry"}',
+            [...$json, 'X-Sentry-Auth' => 'Sentry sentry_key=acceptance'],
+        );
+        [$rayStatus] = TrapProcess::http(
+            $this->port,
+            'POST',
+            '/',
+            '{"uuid":"acceptance-ray","payloads":[{"type":"log","content":{"values":["acceptance ray"]},"origin":null}],"meta":[]}',
+            [...$json, 'User-Agent' => 'Ray 1.0'],
+        );
+        [$profileStatus] = TrapProcess::http(
+            $this->port,
+            'POST',
+            '/api/profiler/store',
+            (string) \file_get_contents(Info::TRAP_ROOT . '/tests/Stub/xhprof/app.json'),
+            $json,
+        );
+        [$otlpStatus] = TrapProcess::http(
+            $this->port,
+            'POST',
+            '/v1/traces',
+            (string) \file_get_contents(Info::TRAP_ROOT . '/tests/Stub/otlp-traces.json'),
+            $json,
+        );
+
+        foreach ([$mcp, $query, $header] as [$status, , $body]) {
+            Assert::same([$status, $body], [404, 'Not found.']);
+        }
+        Assert::same([$sentryStatus, $rayStatus, $profileStatus, $otlpStatus], [200, 200, 200, 200]);
+        foreach (['sentry', 'ray', 'profiler'] as $type) {
+            $trap->waitForUiEvent($this->uiPort, $type);
+        }
+        $dump = $trap->waitForUiEvent($this->uiPort, 'http-dump');
+        Assert::same($dump['payload']['request']['uri'], 'acceptance/plain');
+        $trap->waitForDumpedLine(
+            static fn(string $line): ?bool => \str_starts_with($line, '{"type":"otlp.traces"') ?: null,
+            'the OTLP traces in the dump file',
+        );
+        [, , $events] = TrapProcess::http($this->uiPort, 'GET', '/api/events');
+        Assert::count(\array_keys(\array_column(self::json($events)['data'], 'type'), 'http-dump'), 1);
+        Assert::string($events)->notContains('acceptance-s3cr3t');
+        Assert::string(\implode("\n", $trap->dumpedLines()))->notContains('acceptance-s3cr3t');
+        Assert::string($trap->output())->notContains('acceptance-s3cr3t');
+    }
+
+    /**
      * Without the web UI: the MCP server alone has the caught events kept for its tools.
      */
     public function testMcpToolsReadCaughtEvents(): void

@@ -490,9 +490,13 @@ Other clients take the header in their server settings, as `"headers": {"Authori
   a broken body too, so it learns nothing of the server. With the token, the `Origin` check and the others follow.
 - There is no OAuth: the server publishes no authorization metadata for a client to discover, and the token is set
   by hand on both sides.
-- The path is matched loosely: `//mcp`, `/MCP` and `/mcp/` are `/mcp` too. A request of any other path
-  carrying the token gets `404` and goes no further, so a mistyped URL never has the token dumped with the request
-  to the console, the UI or the files.
+- The path is matched loosely: `//mcp`, `/MCP` and `/mcp/` are `/mcp` too.
+- Any other request to a Trap HTTP port, traffic ports included, that carries the token in a header value
+  (whatever the header or scheme) or in the path or query (raw or percent-encoded) is never caught: it gets `404`
+  before any module sees it, unless the [web UI](web-ui.md) answers it on its own port. So a mistyped URL or port
+  never has the token dumped to the console, the UI, the files or the MCP tools. This holds with the MCP server
+  off too, as long as a token is set.
+- The request body is not searched: a token sent in a body is caught with the request as any other data.
 - An empty `TRAP_MCP_TOKEN` asks for no token, even when `trap.xml` sets one: the environment variable wins.
 - The token is sent in plain text over HTTP: on a network you don't trust, put Trap behind a TLS proxy or an
   SSH tunnel.

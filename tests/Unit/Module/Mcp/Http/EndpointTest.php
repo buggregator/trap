@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Http;
 use Buggregator\Trap\Module\Mcp\Caller;
 use Buggregator\Trap\Module\Mcp\Config\Mcp;
 use Buggregator\Trap\Module\Mcp\Http\Endpoint;
+use Buggregator\Trap\Module\Mcp\Http\TokenGuard;
 use Buggregator\Trap\Module\Mcp\Protocol\JsonRpc;
 use Buggregator\Trap\Module\Mcp\Protocol\RpcError;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Protocol\McpServerTest;
@@ -223,7 +224,7 @@ final class EndpointTest
 
     #[DataSet([[]], 'no header')]
     #[DataSet([['Authorization' => 'Bearer wrong']], 'wrong token')]
-    #[DataSet([['Authorization' => 'Basic s3cr3t']], 'other scheme')]
+    #[DataSet([['Authorization' => 'Basic d3Jvbmc=']], 'other scheme')]
     public function testOtherPathsWithoutTokenGoDownThePipeline(array $headers): void
     {
         $response = self::handle(new ServerRequest('POST', '/api/events', $headers), 's3cr3t');
@@ -292,7 +293,7 @@ final class EndpointTest
     {
         $config = new Mcp();
         $config->token = $token;
-        $endpoint = new Endpoint(new JsonRpc(McpServerTest::server()), new Caller(), $config);
+        $endpoint = new Endpoint(new JsonRpc(McpServerTest::server()), new Caller(), $config, new TokenGuard($config));
 
         return $endpoint->handle($request, static function () use (&$passed): ResponseInterface {
             $passed = true;

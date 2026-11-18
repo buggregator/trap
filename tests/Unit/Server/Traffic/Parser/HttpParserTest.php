@@ -64,6 +64,26 @@ final class HttpParserTest
         Assert::same($request->getUri()->getHost(), '');
     }
 
+    #[Test]
+    public function testAbsoluteFormTargetKeepsAuthority(): void
+    {
+        $request = $this->parseStream(["GET http://u:p@example.test:81/x?a=b HTTP/1.1\r\nHost: example.test\r\n\r\n"]);
+
+        Assert::same($request->getUri()->getHost(), 'example.test');
+        Assert::same($request->getUri()->getUserInfo(), 'u:p');
+        Assert::same($request->getUri()->getPath(), '/x');
+        Assert::same($request->getUri()->getQuery(), 'a=b');
+    }
+
+    #[Test]
+    public function testAsteriskFormTarget(): void
+    {
+        $request = $this->parseStream(["OPTIONS * HTTP/1.1\r\nHost: 127.0.0.1:9912\r\n\r\n"]);
+
+        Assert::same($request->getMethod(), 'OPTIONS');
+        Assert::same($request->getRequestTarget(), '*');
+    }
+
     /*\
      * Parer doesn't fail on wrong cookies
      */

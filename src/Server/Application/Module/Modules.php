@@ -23,6 +23,7 @@ final class Modules
      * The core places its own parts around the modules' ones.
      *
      * Channels go first: a source module that takes a sender name is then the one reported.
+     * The MCP module goes before the source modules: its token guard answers before any of them keeps a request.
      * The HTTP dump goes last: its middleware ends the HTTP pipeline.
      */
     private const LIST = [

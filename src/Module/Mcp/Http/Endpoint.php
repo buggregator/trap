@@ -20,7 +20,7 @@ use Psr\Http\Message\ServerRequestInterface;
  * with a JSON response. Other paths go down the pipeline.
  *
  * With a token configured, a request without it gets `401` before any other check, so it learns
- * nothing of the server. A request of another path carrying the token gets `404` instead of going on.
+ * nothing of the server. A request of another path goes through the {@see TokenGuard}.
  *
  * @internal
  * @psalm-internal Buggregator\Trap
@@ -36,19 +36,17 @@ final class Endpoint implements Middleware
         private readonly JsonRpc $rpc,
         private readonly Caller $caller,
         private readonly Config $config,
+        private readonly TokenGuard $guard,
     ) {}
 
     #[\Override]
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
-        $bearer = self::bearer($request->getHeaderLine('Authorization'));
         if (!self::isMcpPath($request->getUri()->getPath())) {
-            // Down the pipeline, the HTTP dump would print and keep the token
-            return $this->isToken($bearer)
-                ? new Response(404, ['Content-Type' => 'text/plain'], 'Not found.')
-                : $next($request);
+            return $this->guard->handle($request, $next);
         }
 
+        $bearer = self::bearer($request->getHeaderLine('Authorization'));
         if (($this->config->token ?? '') !== '' && !$this->isToken($bearer)) {
             return new Response(401, [
                 'WWW-Authenticate' => $bearer === null ? 'Bearer' : 'Bearer error="invalid_token"',
