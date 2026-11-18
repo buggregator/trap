@@ -122,6 +122,15 @@ Everything Trap catches is rendered right in the terminal:
 |--------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|
 | ![smtp](https://github.com/buggregator/trap/assets/4152481/b11c4a7f-072a-4e66-b11d-9bbd3177bfe2) | ![http-dump](https://github.com/buggregator/trap/assets/4152481/48201ce6-7756-4402-8954-76a27489b632) |
 
+Let an AI agent read it too: with `--mcp`, Trap serves what it caught over MCP, so an agent that adds `trap()` calls
+runs the code, waits for the dumps, logs, Sentry events, traces and profiles it sent, and filters them by time, type
+and fields. The agent sees what the web UI shows. → [MCP server](docs/mcp.md)
+
+```bash
+vendor/bin/trap --mcp
+claude mcp add --transport http trap http://127.0.0.1:8000/mcp
+```
+
 ## Installation
 
 Add Trap as a dev dependency with Composer:
@@ -189,6 +198,7 @@ The ports below are the defaults of the clients.
 | `TRAP_TCP_HOST`                  | `127.0.0.1`                | Host to listen on                           |
 | `-s`, `--sender`                 | `console`                  | Where events go: [senders](docs/senders.md) |
 | `--ui`, `TRAP_UI_PORT`           | off, port `8000`           | The [web UI](docs/web-ui.md)                |
+| `--mcp`, `TRAP_MCP_PORT`         | off, port `8000`           | The [MCP server](docs/mcp.md) for AI agents |
 | `TRAP_MEMORY_LIMIT`              | `512M`                     | Memory limit of the server                  |
 
 ```bash
@@ -209,6 +219,7 @@ All the options and variables: [CLI](docs/cli.md) and [Configuration](docs/confi
   [SMTP](docs/smtp.md), [Ray](docs/ray.md), [HTTP dumps](docs/http-dump.md), [OpenTelemetry](docs/opentelemetry.md)
 - [Senders](docs/senders.md)
 - [Web UI](docs/web-ui.md)
+- [MCP server](docs/mcp.md)
 
 ## Contributing
 
