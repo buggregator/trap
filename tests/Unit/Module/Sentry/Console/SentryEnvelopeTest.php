@@ -63,9 +63,11 @@ final class SentryEnvelopeTest
         Assert::string($output)->contains('Exceptions')->contains('RuntimeException')->contains('Boom')->contains('src/App.php')->contains(':42')->contains('run()')->notContains('There is no renderer for this item type.')->notContains('Render error');
     }
 
-    #[DataSet([['value' => 'Boom']], 'value only')]
-    #[DataSet([['value' => 'Boom', 'mechanism' => ['type' => 'generic', 'handled' => false]]], 'value with mechanism')]
-    public function testRendersExceptionWithValueOnly(array $exception): void
+    #[DataSet([['type' => 'RuntimeException'], 'RuntimeException'], 'type only')]
+    #[DataSet([['value' => 'Boom'], 'Boom'], 'value only')]
+    #[DataSet([['value' => 'Boom', 'mechanism' => ['type' => 'generic', 'handled' => false]], 'Boom'], 'value with mechanism')]
+    #[DataSet([['stacktrace' => ['frames' => [['filename' => 'src/App.php', 'lineno' => 42, 'function' => 'run']]]], 'src/App.php'], 'stacktrace only')]
+    public function testRendersPartialSingleException(array $exception, string $expected): void
     {
         $output = $this->render(new SentryEnvelopeFrame(['event_id' => 'abc'], [
             new EnvelopeItem(['type' => 'event'], [
@@ -74,7 +76,7 @@ final class SentryEnvelopeTest
             ]),
         ]));
 
-        Assert::string($output)->contains('Exceptions')->contains('Boom')->notContains('generic')->notContains('There is no renderer for this item type.')->notContains('Render error');
+        Assert::string($output)->contains('Exceptions')->contains($expected)->notContains('generic')->notContains('There is no renderer for this item type.')->notContains('Render error');
     }
 
     #[DataSet([['values' => null]], 'null values')]
