@@ -391,6 +391,31 @@ final class GraphTest
         Assert::same(\count($tree), 5);
     }
 
+    public function testRootAddedWithoutMainSaturatesPastIntegerRange(): void
+    {
+        $graph = self::graph([
+            'a==>f' => ['ct' => 1, 'wt' => 5_000_000_000_000_000_000, 'cpu' => 5_000_000_000_000_000_000],
+            'a==>g' => ['ct' => 1, 'wt' => 5_000_000_000_000_000_000, 'cpu' => 5_000_000_000_000_000_000],
+        ]);
+
+        $a = $graph->roots()[0]->cost;
+
+        Assert::same([$a->wt, $a->cpu], [\PHP_INT_MAX, \PHP_INT_MAX]);
+    }
+
+    public function testDeltasSaturatePastIntegerRange(): void
+    {
+        $graph = self::graph([
+            'main()==>a' => ['ct' => 1, 'wt' => -5_000_000_000_000_000_000],
+            'b==>a' => ['ct' => 1, 'wt' => -5_000_000_000_000_000_000],
+            'a==>f' => ['ct' => 1, 'wt' => 1],
+        ]);
+
+        $f = $graph->callers('f')[0]->cost;
+
+        Assert::same($f->d_wt, \PHP_INT_MAX);
+    }
+
     public function testAddingDuplicateEdgeFails(): void
     {
         $graph = new Graph();

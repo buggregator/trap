@@ -89,10 +89,13 @@ final class Peaks implements \JsonSerializable
         return new Cost($this->ct, $this->wt, $this->cpu, $this->mu, $this->pmu);
     }
 
+    /**
+     * @psalm-suppress PropertyTypeCoercion Received data may have negative costs: they are kept as they are
+     */
     public function add(Cost $cost): void
     {
-        $this->wt += $cost->wt;
-        $this->cpu += $cost->cpu;
+        $this->wt = Cost::saturate($this->wt + $cost->wt);
+        $this->cpu = Cost::saturate($this->cpu + $cost->cpu);
         $this->mu = \max($this->mu, $cost->mu);
         $this->pmu = \max($this->pmu, $cost->pmu);
     }

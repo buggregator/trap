@@ -88,6 +88,15 @@ final class Cost implements \JsonSerializable
     }
 
     /**
+     * Clamps the result of integer arithmetic to the integer range: received data may pass it,
+     * and the result then turns into a float.
+     */
+    public static function saturate(int|float $value): int
+    {
+        return \is_int($value) ? $value : ($value > 0 ? \PHP_INT_MAX : \PHP_INT_MIN);
+    }
+
+    /**
      * Sets the `p_*` metrics: shares of the peaks, %.
      */
     public function setPercentsOf(Peaks $peaks): void
@@ -105,11 +114,11 @@ final class Cost implements \JsonSerializable
      */
     public function setDeltasTo(self $parent): void
     {
-        $this->d_ct = $this->ct - $parent->ct;
-        $this->d_wt = $this->wt - $parent->wt;
-        $this->d_cpu = $this->cpu - $parent->cpu;
-        $this->d_mu = $this->mu - $parent->mu;
-        $this->d_pmu = $this->pmu - $parent->pmu;
+        $this->d_ct = self::saturate($this->ct - $parent->ct);
+        $this->d_wt = self::saturate($this->wt - $parent->wt);
+        $this->d_cpu = self::saturate($this->cpu - $parent->cpu);
+        $this->d_mu = self::saturate($this->mu - $parent->mu);
+        $this->d_pmu = self::saturate($this->pmu - $parent->pmu);
     }
 
     /**
