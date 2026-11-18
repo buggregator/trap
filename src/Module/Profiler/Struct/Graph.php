@@ -166,11 +166,11 @@ final class Graph implements \IteratorAggregate, \Countable
 
         $ct = $wt = $cpu = $mu = $pmu = 0;
         foreach ($this->callers($functionId) as $edge) {
-            $ct += $edge->cost->ct;
-            $wt += $edge->cost->wt;
-            $cpu += $edge->cost->cpu;
-            $mu += $edge->cost->mu;
-            $pmu += $edge->cost->pmu;
+            $ct = self::saturatedSum($ct, $edge->cost->ct);
+            $wt = self::saturatedSum($wt, $edge->cost->wt);
+            $cpu = self::saturatedSum($cpu, $edge->cost->cpu);
+            $mu = self::saturatedSum($mu, $edge->cost->mu);
+            $pmu = self::saturatedSum($pmu, $edge->cost->pmu);
         }
 
         return $this->inclusiveCosts[$functionId] = new Cost($ct, $wt, $cpu, \max(0, $mu), \max(0, $pmu));
@@ -399,6 +399,16 @@ final class Graph implements \IteratorAggregate, \Countable
         }
 
         return $result;
+    }
+
+    /**
+     * Received data may pass the integer range: the sum would turn into a float.
+     */
+    private static function saturatedSum(int $a, int $b): int
+    {
+        $sum = $a + $b;
+
+        return \is_int($sum) ? $sum : ($sum > 0 ? \PHP_INT_MAX : \PHP_INT_MIN);
     }
 
     /**

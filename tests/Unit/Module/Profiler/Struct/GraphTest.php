@@ -364,6 +364,33 @@ final class GraphTest
         Assert::same([$main->cost->p_wt, $main->cost->d_wt], [100.0, 0]);
     }
 
+    public function testInclusiveCostSaturatesPastIntegerRange(): void
+    {
+        $graph = new Graph();
+        $graph->add(new Edge('a', 'f', new Cost(-\PHP_INT_MAX, 5_000_000_000_000_000_000, 1, \PHP_INT_MAX, 0)));
+        $graph->add(new Edge('b', 'f', new Cost(-\PHP_INT_MAX, 5_000_000_000_000_000_000, \PHP_INT_MAX, 1, 0)));
+
+        $f = $graph->inclusiveCost('f');
+
+        Assert::same([$f->ct, $f->wt, $f->cpu, $f->mu], [\PHP_INT_MIN, \PHP_INT_MAX, \PHP_INT_MAX, \PHP_INT_MAX]);
+    }
+
+    public function testProfileWithCostsPastIntegerRangeUnfolds(): void
+    {
+        $graph = self::graph([
+            'main()' => ['ct' => 1, 'wt' => \PHP_INT_MAX],
+            'main()==>a' => ['ct' => 1, 'wt' => 5_000_000_000_000_000_000],
+            'main()==>b' => ['ct' => 1, 'wt' => 5_000_000_000_000_000_000],
+            'a==>f' => ['ct' => 1, 'wt' => 5_000_000_000_000_000_000],
+            'b==>f' => ['ct' => 1, 'wt' => 5_000_000_000_000_000_000],
+        ]);
+
+        $tree = $graph->unfold();
+
+        Assert::same($graph->inclusiveCost('f')->wt, \PHP_INT_MAX);
+        Assert::same(\count($tree), 5);
+    }
+
     public function testAddingDuplicateEdgeFails(): void
     {
         $graph = new Graph();
