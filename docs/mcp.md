@@ -494,10 +494,11 @@ Other clients take the header in their server settings, as `"headers": {"Authori
 - Any other HTTP/1.x request of a standard method (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`,
   `TRACE`, `CONNECT`) to a Trap HTTP port, traffic ports included, that carries the token in a header name or value
   (whatever the header or scheme) or in the path or query (raw or percent-encoded) is never caught: it gets `404`
-  before any module sees it, unless the [web UI](web-ui.md) answers it (its pages, `/api/...`, its WebSocket) on
-  a port it shares. So a mistyped URL or port never has the token dumped to the console, the UI, the files or
-  the MCP tools. This holds with the MCP server off too, as long as a token is set. The first such request of
-  a run is logged as a warning, with the token masked, the next ones only with `-vv`.
+  (or `400` if its target or headers can't be parsed) before any module sees it, unless the [web UI](web-ui.md)
+  answers it (its pages, `/api/...`, its WebSocket) on a port it shares. So a mistyped URL or port never has
+  the token dumped to the console, the UI, the files or the MCP tools. This holds with the MCP server off too, as
+  long as a token is set. The first such request of a run is logged as a warning, with the token masked, the next
+  ones only with `-vv`.
 - The token is matched as a plain substring, so pick a long random one: with a short or common token, ordinary
   requests that happen to contain it are answered `404` too. Trap warns at startup about a token shorter than
   16 characters.

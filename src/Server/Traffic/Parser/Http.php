@@ -157,10 +157,11 @@ final class Http
         $headers = self::parseHeaders($headersBlock);
 
         try {
-            // A path may start with `//`, which a URI string has for an authority: `//mcp` would be the host `mcp`
-            if (\str_starts_with($uri, '//')) {
+            // Not through `parse_url()`: it reads `//mcp` as the host `mcp` and `/user:42` as a host with a port
+            if (\str_starts_with($uri, '/')) {
+                [$uri, $fragment] = \explode('#', $uri, 2) + [1 => ''];
                 [$path, $query] = \explode('?', $uri, 2) + [1 => ''];
-                $uri = $this->factory->createUri()->withPath($path)->withQuery($query);
+                $uri = $this->factory->createUri()->withPath($path)->withQuery($query)->withFragment($fragment);
             }
 
             $request = $this->factory->createServerRequest($method, $uri, []);
@@ -170,8 +171,13 @@ final class Http
         }
 
         $request = $request->withProtocolVersion($protocol);
-        foreach ($headers as $name => $value) {
-            $request = $request->withHeader((string) $name, $value);
+        try {
+            foreach ($headers as $name => $value) {
+                $request = $request->withHeader((string) $name, $value);
+            }
+        } catch (\InvalidArgumentException) {
+            // Neither chained nor naming the header: its name or value may carry a secret
+            throw new InvalidRequest('Invalid header.');
         }
 
         // Todo refactor:

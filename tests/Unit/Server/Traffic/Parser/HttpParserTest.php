@@ -10,6 +10,7 @@ use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
 use Testo\Assert;
+use Testo\Data\DataSet;
 use Testo\Expect;
 use Testo\Test;
 
@@ -63,6 +64,67 @@ final class HttpParserTest
         Assert::same($request->getUri()->getPath(), '/mcp//x');
         Assert::same($request->getUri()->getQuery(), 'a=b');
         Assert::same($request->getUri()->getHost(), '');
+    }
+
+    #[Test]
+    #[DataSet(['/api/user:42', '/api/user:42', ''])]
+    #[DataSet(['/api/user:42/x', '/api/user:42/x', ''])]
+    #[DataSet(['/logs/12:30', '/logs/12:30', ''])]
+    #[DataSet(['/a:0', '/a:0', ''])]
+    #[DataSet(['/media/v1:9000', '/media/v1:9000', ''])]
+    #[DataSet(['/:80', '/:80', ''])]
+    #[DataSet(['/p:1/q?a=b:2', '/p:1/q', 'a=b:2'])]
+    public function testOriginFormTargetWithColonIsPath(string $target, string $path, string $query): void
+    {
+        $request = $this->parseStream(["GET {$target} HTTP/1.1\r\nHost: 127.0.0.1:9912\r\n\r\n"]);
+
+        Assert::same($request->getUri()->getPath(), $path);
+        Assert::same($request->getUri()->getQuery(), $query);
+        Assert::same($request->getUri()->getHost(), '');
+        Assert::null($request->getUri()->getPort());
+    }
+
+    /**
+     * Routing of the modules and the HTTP dump read these parts of the URI.
+     */
+    #[Test]
+    #[DataSet(['/', '/', '/', ''])]
+    #[DataSet(['/api/1/store/', '/api/1/store/', '/api/1/store/', ''])]
+    #[DataSet(['/v1/traces', '/v1/traces', '/v1/traces', ''])]
+    #[DataSet(['/api/profiler/store', '/api/profiler/store', '/api/profiler/store', ''])]
+    #[DataSet(['/x?a=1&b=%20', '/x?a=1&b=%20', '/x', 'a=1&b=%20'])]
+    #[DataSet(['/a+b', '/a+b', '/a+b', ''])]
+    #[DataSet(['/%7Euser', '/%7Euser', '/%7Euser', ''])]
+    #[DataSet(['/path;param', '/path;param', '/path;param', ''])]
+    #[DataSet(['/a|c?q=[1]', '/a%7Cc?q=%5B1%5D', '/a%7Cc', 'q=%5B1%5D'])]
+    #[DataSet(['/a?b#c', '/a?b#c', '/a', 'b'])]
+    public function testOriginFormTargetUri(string $target, string $uri, string $path, string $query): void
+    {
+        $request = $this->parseStream(["GET {$target} HTTP/1.1\r\nHost: 127.0.0.1:9912\r\n\r\n"]);
+
+        Assert::same((string) $request->getUri(), $uri);
+        Assert::same($request->getUri()->getPath(), $path);
+        Assert::same($request->getUri()->getQuery(), $query);
+    }
+
+    #[Test]
+    public function testIpv6AbsoluteFormTarget(): void
+    {
+        $request = $this->parseStream(["GET http://[::1]:9912/x?a=b HTTP/1.1\r\nHost: [::1]:9912\r\n\r\n"]);
+
+        Assert::same($request->getUri()->getHost(), '[::1]');
+        Assert::same($request->getUri()->getPort(), 9912);
+        Assert::same($request->getUri()->getPath(), '/x');
+    }
+
+    #[Test]
+    #[DataSet(["Bad Header: v\r\n"], 'space in name')]
+    #[DataSet(["X-Key: a\x01b\r\n"], 'control character in value')]
+    public function testInvalidHeaderIsNotQuotedInException(string $header): never
+    {
+        Expect::exception(Parser\InvalidRequest::class)->withMessage('Invalid header.');
+
+        $this->parseStream(["GET / HTTP/1.1\r\nHost: 127.0.0.1:9912\r\n{$header}\r\n"]);
     }
 
     #[Test]

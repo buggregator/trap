@@ -109,6 +109,24 @@ final class TokenGuard implements Middleware
     }
 
     /**
+     * Whether a mask may sit next to a part of the token: the first character of the token right after it or
+     * the last one right before it. A periodic token like `abcabc` leaves `***abc` of `abcabcabc`.
+     *
+     * @param non-empty-string $token
+     */
+    private static function touchesMask(string $line, string $token): bool
+    {
+        $parts = \explode('***', $line);
+        for ($i = 1, $count = \count($parts); $i < $count; ++$i) {
+            if (\str_ends_with($parts[$i - 1], $token[-1]) || \str_starts_with($parts[$i], $token[0])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * The first rejection of a run is a warning, so that a token turning up in ordinary traffic is noticed;
      * the next ones are debug lines.
      *
@@ -118,7 +136,8 @@ final class TokenGuard implements Middleware
     {
         $line = self::redact($request->getMethod() . ' ' . $request->getUri()->getPath(), $token);
         // A percent-encoded token is left by the replace
-        self::contains($line, $token) and $line = self::redact($request->getMethod() . ' (path withheld)', $token);
+        self::contains($line, $token) || self::touchesMask($line, $token)
+            and $line = self::redact($request->getMethod() . ' (path withheld)', $token);
 
         if ($this->rejected) {
             $this->logger->debug('MCP: %s carries the MCP token, answered 404.', $line);

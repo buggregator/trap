@@ -148,6 +148,7 @@ final class TokenGuardTest
 
     #[DataSet(['a', '/api/1/store/', 'POST /***pi/1/store/ carries'], 'letter')]
     #[DataSet(['*', '/x*y/', 'POST /xy/ carries'], 'character of the mask')]
+    #[DataSet(['/', '/api/1/store/', 'POST ***api***1***store*** carries'], 'slash')]
     public function testOneCharacterTokenIsMaskedInLog(string $token, string $path, string $logged): void
     {
         $output = new BufferedOutput();
@@ -157,6 +158,34 @@ final class TokenGuardTest
         self::pass($guard, new ServerRequest('POST', $path));
 
         Assert::string($output->fetch())->contains($logged);
+    }
+
+    public function testTokenEqualToMethodIsMaskedInLog(): void
+    {
+        $output = new BufferedOutput();
+        $guard = self::guard('GET', $output);
+        $output->fetch();
+
+        self::pass($guard, new ServerRequest('GET', '/GET/x'));
+
+        Assert::string($output->fetch())
+            ->contains('MCP: *** /***/x carries')
+            ->notContains('GET');
+    }
+
+    #[DataSet(['/x/abcabcabc'], 'repeated part after the mask')]
+    #[DataSet(['/x/cabcabc'], 'repeated part before the mask')]
+    public function testPathWithPartOfPeriodicTokenNextToMaskIsWithheldFromLog(string $path): void
+    {
+        $output = new BufferedOutput();
+        $guard = self::guard('abcabc', $output);
+        $output->fetch();
+
+        self::pass($guard, new ServerRequest('GET', $path));
+
+        Assert::string($output->fetch())
+            ->contains('GET (path withheld) carries')
+            ->notContains('abc');
     }
 
     /**
