@@ -52,6 +52,23 @@ final class ProfileTopTest
         Assert::same(JsonSchema::errors($result, $tool->outputSchema()), []);
     }
 
+    public function testRanksFunctionsNamedByDigits(): void
+    {
+        $trap = new Trap();
+        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof([
+            '10==>20' => ['ct' => 1, 'wt' => 30, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>10' => ['ct' => 1, 'wt' => 40, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()' => ['ct' => 1, 'wt' => 100, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        ]));
+
+        $result = $trap->get(ProfileTop::class)->call(['id' => $id]);
+
+        Assert::same(
+            \array_map(static fn(array $row): array => [$row['function'], $row['exclusive']], $result['functions']),
+            [['main()', 60], ['20', 30], ['10', 10]],
+        );
+    }
+
     public function testRanksByInclusiveValue(): void
     {
         [$trap, $id] = self::shop();
