@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Tool;
 
 use Buggregator\Trap\Module\Mcp\Tool\ClearEvents;
 use Buggregator\Trap\Module\Mcp\Tool\EventFilter;
+use Buggregator\Trap\Module\Mcp\Tool\Scan;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\JsonSchema;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
@@ -159,6 +160,7 @@ final class ClearEventsTest
         $tool = (new Trap())->get(ClearEvents::class);
 
         Assert::same($tool->name(), 'clear_events');
+        Assert::same($tool->title(), 'Clear events');
         Assert::same($tool->annotations(), [
             'readOnlyHint' => false,
             'destructiveHint' => true,
@@ -169,6 +171,19 @@ final class ClearEventsTest
             \array_keys($tool->inputSchema()['properties']),
             ['since', 'type', 'project', 'from', 'to', 'search', 'regex', 'where'],
         );
+    }
+
+    #[DataSet([null, 'after 5 seconds'], 'default budget')]
+    #[DataSet([0.25, 'after 0.25 seconds'], 'custom budget')]
+    #[DataSet([1 / 3, 'after 0.333 seconds'], 'rounded budget')]
+    public function testDescriptionStatesTheScanBudget(?float $budget, string $sentence): void
+    {
+        $trap = new Trap();
+        $budget === null or $trap->container->set(new Scan($budget));
+
+        $description = $trap->get(ClearEvents::class)->description();
+
+        Assert::string($description)->contains("A call stops checking events $sentence")->contains('`incomplete: true`');
     }
 
     #[DataSet([[]], 'all')]

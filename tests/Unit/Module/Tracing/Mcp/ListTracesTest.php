@@ -185,6 +185,27 @@ final class ListTracesTest
         Assert::same(self::ids($result), \array_map(self::traceId(...), $expected));
     }
 
+    #[DataSet([['search' => 'tags=["web","eu"]']], 'list as JSON')]
+    #[DataSet([['search' => '(?m)^ratio=$', 'regex' => true]], 'no value for what JSON cannot encode')]
+    public function testSearchCoversStructuredAttributes(array $arguments): void
+    {
+        $trap = new Trap();
+        $trap->get(SpanStore::class)->receive(self::frame('app', new Span(
+            traceId: self::traceId('a'),
+            spanId: \sprintf('%016x', 1),
+            parentSpanId: null,
+            name: 'GET /',
+            kind: SpanKind::Server,
+            startTimeUnixNano: 0,
+            endTimeUnixNano: 1,
+            attributes: ['tags' => ['web', 'eu'], 'ratio' => [\NAN]],
+        )));
+
+        $result = $trap->get(ListTraces::class)->call($arguments);
+
+        Assert::same(self::ids($result), [self::traceId('a')]);
+    }
+
     public function testListedUpdateTimeTakesItsTraceBack(): void
     {
         $trap = new Trap();
@@ -237,6 +258,7 @@ final class ListTracesTest
         $tool = $trap->get(Tools::class)->get('list_traces');
 
         Assert::instanceOf($tool, ListTraces::class);
+        Assert::same($tool->title(), 'List traces');
         Assert::same($tool->annotations(), ['readOnlyHint' => true, 'openWorldHint' => false]);
         Assert::string($tool->description())->contains('get_trace');
         Assert::same(
