@@ -100,6 +100,12 @@ final class SentryTrapTest
             "{\"event_id\":\"test123\"}\n{\"type\":\"event\"}\n{\"message\":\"test\"}",
         ];
 
+        yield 'text/plain with whitespace before parameters' => [
+            '/api/1/envelope/',
+            ['Content-Type' => 'text/plain ; charset=UTF-8'],
+            "{\"event_id\":\"test123\"}\n{\"type\":\"event\"}\n{\"message\":\"test\"}",
+        ];
+
         yield 'browser SDK binary envelope without content type' => [
             '/api/1/envelope/',
             [],
