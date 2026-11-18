@@ -76,6 +76,10 @@ final class Http implements Dispatcher
             ));
             $stream->disconnect();
             return;
+        } catch (Parser\InvalidRequest $e) {
+            HttpEmitter::emit($stream, new Response(400, ['Content-Type' => 'text/plain'], $e->getMessage()));
+            $stream->disconnect();
+            return;
         }
 
         $generator = ($this->pipeline)(

@@ -21,6 +21,9 @@ the environment variable wins.
 - Otherwise the UI gets a port of its own, which serves only the UI and listens on `TRAP_UI_HOST`
   (default `127.0.0.1`).
 
+The UI asks for no password or token, the [MCP token](mcp.md#security) included: anyone who reaches its port sees
+the caught events. Trap warns at startup when the port listens on a host other than a loopback one.
+
 ```bash
 # UI on its own port 8080, no console output
 vendor/bin/trap --ui=8080 -s
