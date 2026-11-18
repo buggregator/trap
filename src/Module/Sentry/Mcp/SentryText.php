@@ -933,7 +933,12 @@ final class SentryText
         if ($more > 0 && \array_is_list($value)) {
             $result[] = \sprintf('… %d more', $more);
         } elseif ($more > 0) {
-            $result['…'] = \sprintf('%d more', $more);
+            // The marker takes a key of its own, not one of the shown items
+            $key = '…';
+            while (\array_key_exists($key, $result)) {
+                $key .= '…';
+            }
+            $result[$key] = \sprintf('%d more', $more);
         }
 
         return $result;
@@ -984,7 +989,7 @@ final class SentryText
     private static function filterUrl(string $url, int $depth = 0): string
     {
         $url = (string) \preg_replace(
-            '~^(\s*(?:[a-z][a-z\d+.-]*:)?//[^/:@?#\s]*):[^/?#]*@~i',
+            '~^(\s*(?:[a-z][a-z\d+.-]*:)?//[^/:@?#\s]*):[^/?#\s]*@~i',
             '$1:' . self::FILTERED . '@',
             $url,
         );

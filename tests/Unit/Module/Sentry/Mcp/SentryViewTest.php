@@ -1041,6 +1041,32 @@ final class SentryViewTest
             ->contains("    Referer: //u:[Filtered]@x/\n");
     }
 
+    public function testTextWithSpacesAfterTwoSlashesIsNotAUrlWithAPassword(): void
+    {
+        $text = self::text(['request' => [
+            'url' => '//TODO: ping me@bob',
+            'headers' => ['Referer' => '//cdn.test:443 see ops@x'],
+        ]]);
+
+        Assert::string($text)
+            ->contains("Request: //TODO: ping me@bob\n")
+            ->contains("    Referer: //cdn.test:443 see ops@x\n");
+    }
+
+    public function testCountOfLeftOutEntriesKeepsAnEntryNamedLikeIt(): void
+    {
+        $map = ['…' => 'real'];
+        for ($i = 1; $i <= 25; ++$i) {
+            $map["k$i"] = 'v';
+        }
+
+        $text = self::text(['request' => ['query_string' => ['m' => $map]]]);
+
+        Assert::string($text)
+            ->contains('"…":"real"')
+            ->contains('"……":"6 more"');
+    }
+
     public function testEventThatFailsToRenderShowsNoPayload(): void
     {
         $payload = [
