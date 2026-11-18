@@ -12,6 +12,8 @@ use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Testo\Assert;
 use Testo\Codecov\Covers;
+use Testo\Core\Exception\SkipTest;
+use Testo\Data\DataSet;
 use Testo\Expect;
 use Testo\Test;
 
@@ -198,6 +200,50 @@ final class ServerTest
     }
 
     #[Test]
+    #[DataSet(['::1'], 'bare')]
+    #[DataSet(['[::1]'], 'bracketed')]
+    public function listensOnIpv6Address(string $address): void
+    {
+        $output = new BufferedOutput();
+        $accepted = 0;
+        [$server, $port] = $this->listen(static function () use (&$accepted): void {
+            ++$accepted;
+        }, new Logger($output), $address);
+        $remote = $this->connect($port, '::1');
+
+        try {
+            \usleep(50_000);
+            $server->process();
+
+            Assert::same($accepted, 1);
+            Assert::string($output->fetch())->contains("Server started on [::1]:$port");
+        } finally {
+            \socket_close($remote);
+            $server->destroy();
+        }
+    }
+
+    #[Test]
+    public function acceptsIpv4ClientsOnIpv6AnyAddress(): void
+    {
+        $accepted = 0;
+        [$server, $port] = $this->listen(static function () use (&$accepted): void {
+            ++$accepted;
+        }, address: '::');
+        $remote = $this->connect($port);
+
+        try {
+            \usleep(50_000);
+            $server->process();
+
+            Assert::same($accepted, 1);
+        } finally {
+            \socket_close($remote);
+            $server->destroy();
+        }
+    }
+
+    #[Test]
     public function hasNoSocketsWhenDestroyed(): void
     {
         [$server] = $this->listen();
@@ -209,27 +255,35 @@ final class ServerTest
 
     /**
      * @param null|\Closure(Client, int): mixed $inflector
+     * @param non-empty-string $address
      *
      * @return array{Server, int<1, 65535>}
      */
-    private function listen(?\Closure $inflector = null, Logger $logger = new Logger()): array
-    {
-        $probe = \socket_create(\AF_INET, \SOCK_STREAM, \SOL_TCP);
-        \socket_bind($probe, '127.0.0.1', 0);
-        \socket_getsockname($probe, $address, $port);
+    private function listen(
+        ?\Closure $inflector = null,
+        Logger $logger = new Logger(),
+        string $address = '127.0.0.1',
+    ): array {
+        $ipv6 = \str_contains($address, ':');
+        $probe = @\socket_create($ipv6 ? \AF_INET6 : \AF_INET, \SOCK_STREAM, \SOL_TCP);
+        if ($probe === false || !@\socket_bind($probe, $ipv6 ? '::1' : '127.0.0.1', 0)) {
+            $probe === false or \socket_close($probe);
+            throw new SkipTest(\sprintf('Loopback for `%s` is unavailable.', $address));
+        }
+        \socket_getsockname($probe, $probeAddress, $port);
         \socket_close($probe);
         \assert($port > 0 && $port < 65536);
 
         return [
-            Server::init('tcp', '127.0.0.1', $port, acceptPeriod: 3600.0, clientInflector: $inflector, logger: $logger),
+            Server::init('tcp', $address, $port, acceptPeriod: 3600.0, clientInflector: $inflector, logger: $logger),
             $port,
         ];
     }
 
-    private function connect(int $port): \Socket
+    private function connect(int $port, string $host = '127.0.0.1'): \Socket
     {
-        $socket = \socket_create(\AF_INET, \SOCK_STREAM, \SOL_TCP);
-        \socket_connect($socket, '127.0.0.1', $port);
+        $socket = \socket_create(\str_contains($host, ':') ? \AF_INET6 : \AF_INET, \SOCK_STREAM, \SOL_TCP);
+        \socket_connect($socket, $host, $port);
 
         return $socket;
     }

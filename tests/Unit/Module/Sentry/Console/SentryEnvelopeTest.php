@@ -12,12 +12,19 @@ use Nyholm\Psr7\Stream;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Testo\Assert;
 use Testo\Codecov\Covers;
+use Testo\Data\DataSet;
 use Testo\Test;
 
 #[Covers(SentryEnvelope::class)]
 #[Test]
 final class SentryEnvelopeTest
 {
+    private const EXCEPTION = [
+        'type' => 'RuntimeException',
+        'value' => 'Boom',
+        'stacktrace' => ['frames' => [['filename' => 'src/App.php', 'lineno' => 42, 'function' => 'run']]],
+    ];
+
     public function testSupportsOnlySentryEnvelopes(): void
     {
         $renderer = new SentryEnvelope();
@@ -38,6 +45,54 @@ final class SentryEnvelopeTest
         ]));
 
         Assert::string($output)->contains('Item 1')->contains('event')->contains('web-1')->contains('sentry.php 4.0.0')->contains('There is no renderer for this item type.')->notContains('Render error');
+    }
+
+    #[DataSet([['values' => [self::EXCEPTION]]], 'values')]
+    #[DataSet([[self::EXCEPTION]], 'list')]
+    #[DataSet([self::EXCEPTION], 'single object')]
+    public function testRendersEventException(array $exception): void
+    {
+        $output = $this->render(new SentryEnvelopeFrame(['event_id' => 'abc'], [
+            new EnvelopeItem(['type' => 'event'], [
+                'event_id' => 'abc',
+                'level' => 'error',
+                'exception' => $exception,
+            ]),
+        ]));
+
+        Assert::string($output)->contains('Exceptions')->contains('RuntimeException')->contains('Boom')->contains('src/App.php')->contains(':42')->contains('run()')->notContains('There is no renderer for this item type.')->notContains('Render error');
+    }
+
+    #[DataSet([['type' => 'RuntimeException'], 'RuntimeException'], 'type only')]
+    #[DataSet([['value' => 'Boom'], 'Boom'], 'value only')]
+    #[DataSet([['value' => 'Boom', 'mechanism' => ['type' => 'generic', 'handled' => false]], 'Boom'], 'value with mechanism')]
+    #[DataSet([['stacktrace' => ['frames' => [['filename' => 'src/App.php', 'lineno' => 42, 'function' => 'run']]]], 'src/App.php'], 'stacktrace only')]
+    public function testRendersPartialSingleException(array $exception, string $expected): void
+    {
+        $output = $this->render(new SentryEnvelopeFrame(['event_id' => 'abc'], [
+            new EnvelopeItem(['type' => 'event'], [
+                'event_id' => 'abc',
+                'exception' => $exception,
+            ]),
+        ]));
+
+        Assert::string($output)->contains('Exceptions')->contains($expected)->notContains('generic')->notContains('There is no renderer for this item type.')->notContains('Render error');
+    }
+
+    #[DataSet([['values' => null]], 'null values')]
+    #[DataSet([['values' => 'x']], 'string values')]
+    #[DataSet([['values' => [1, 2]]], 'scalar values')]
+    #[DataSet([['foo' => ['bar' => 1]]], 'unrelated object')]
+    public function testIgnoresMalformedEventException(array $exception): void
+    {
+        $output = $this->render(new SentryEnvelopeFrame(['event_id' => 'abc'], [
+            new EnvelopeItem(['type' => 'event'], [
+                'event_id' => 'abc',
+                'exception' => $exception,
+            ]),
+        ]));
+
+        Assert::string($output)->contains('There is no renderer for this item type.')->notContains('Exceptions')->notContains('Render error');
     }
 
     public function testRendersAttachmentItemHeader(): void

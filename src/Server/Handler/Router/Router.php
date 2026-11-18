@@ -243,9 +243,7 @@ final class Router
      */
     public function match(Method $method, string $uri, ?\ReflectionMethod $mock = null): ?callable
     {
-        $components = \parse_url($uri);
-        $path = \ltrim($components['path'] ?? '', '/');
-        $query = $components['query'] ?? '';
+        [$path, $query] = self::splitUri($uri);
 
         foreach ($this->routes[$method->value] as $route) {
             $match = self::matchPath($route->route, $path);
@@ -283,7 +281,7 @@ final class Router
      */
     public function resolve(Method $method, string $uri): ?\ReflectionMethod
     {
-        $path = \ltrim(\parse_url($uri)['path'] ?? '', '/');
+        [$path] = self::splitUri($uri);
 
         foreach ($this->routes[$method->value] as $route) {
             if (self::matchPath($route->route, $path) !== false) {
@@ -292,6 +290,19 @@ final class Router
         }
 
         return null;
+    }
+
+    /**
+     * @return array{string, string} The path without leading slashes, and the query
+     */
+    private static function splitUri(string $uri): array
+    {
+        // Not through `parse_url()`: it reads `/user:42` and `user:42` as a host with a port
+        [$uri] = \explode('#', $uri, 2);
+        [$path, $query] = \explode('?', $uri, 2) + [1 => ''];
+        $path = (string) \preg_replace('#^[a-z][a-z\d+.-]*+://[^/]*+#i', '', $path);
+
+        return [\ltrim($path, '/'), $query];
     }
 
     /**

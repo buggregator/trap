@@ -70,11 +70,18 @@ final class Server implements Processable, Cancellable, Destroyable
     ) {
         $protocolNumber = \getprotobyname($protocol);
         $protocolNumber === false and throw new \RuntimeException(\sprintf('Unknown protocol `%s`.', $protocol));
-        $this->socket = \socket_create(\AF_INET, \SOCK_STREAM, $protocolNumber)
+        $host = \str_starts_with($address, '[') && \str_ends_with($address, ']')
+            ? \substr($address, 1, -1)
+            : $address;
+        // Neither a hostname nor an IPv4 address has a colon; an IPv6 one may carry a `%zone` that filter_var() rejects
+        $ipv6 = \str_contains($host, ':');
+        $this->socket = \socket_create($ipv6 ? \AF_INET6 : \AF_INET, \SOCK_STREAM, $protocolNumber)
             ?: throw new \RuntimeException('Socket create failed.');
+        // Some systems make IPv6 sockets IPv6-only by default: `::` should take IPv4 clients too
+        $ipv6 and @\socket_set_option($this->socket, \IPPROTO_IPV6, \IPV6_V6ONLY, 0);
         @\socket_set_nonblock($this->socket)
             ?: throw new \RuntimeException('Socket set nonblock failed.');
-        @\socket_bind($this->socket, $address, $port)
+        @\socket_bind($this->socket, $host, $port)
             ?: throw new \RuntimeException('Socket bind failed.');
 
         /** @link https://github.com/buggregator/trap/pull/14 */
@@ -91,7 +98,7 @@ final class Server implements Processable, Cancellable, Destroyable
         @\socket_listen($this->socket, \SOMAXCONN)
             ?: throw new \RuntimeException('Socket listen failed.');
 
-        $logger->status('App', 'Server started on %s:%s', $address, $port);
+        $logger->status('App', 'Server started on %s:%s', $ipv6 ? "[$host]" : $host, $port);
     }
 
     /**

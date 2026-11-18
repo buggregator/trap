@@ -36,7 +36,7 @@ final class Graph implements \IteratorAggregate, \Countable
     /**
      * Sums the nodes of an exact call tree by caller and callee pairs.
      *
-     * @param Tree<Edge> $tree Items carry function IDs with recursion levels, so the graph has no cycles.
+     * @param Tree<Edge> $tree Items carry function IDs with recursion levels.
      * @param TimeSlice|null $timeSlice Lets other fibers run during a long build.
      *
      * @return self Edges without percentages and deltas: see {@see self::setPercentsAndDeltas()}.
@@ -191,7 +191,8 @@ final class Graph implements \IteratorAggregate, \Countable
         /** @var array<non-empty-string, true> $visited */
         $visited = [];
         $edge = self::heaviest($this->roots, $metric);
-        // The function IDs carry recursion levels, so a profiler's graph has no cycles; received data may have them
+        // Recursion levels only count the calls on one path, so the graph sums `a ==> b` from one path
+        // and `b ==> a` from another: a cycle
         while ($edge !== null && !isset($visited[$edge->calleeId])) {
             $visited[$edge->calleeId] = true;
             $path[] = $edge;
