@@ -154,6 +154,7 @@ final class Graph implements \IteratorAggregate, \Countable
     public function functions(): array
     {
         // PHP turns all-digit keys into ints; received profiles may name functions by numbers
+        /** @var list<non-empty-string> */
         return \array_map(\strval(...), \array_keys($this->incoming));
     }
 
