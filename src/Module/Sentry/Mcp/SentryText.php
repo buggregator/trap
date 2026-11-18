@@ -88,12 +88,15 @@ final class SentryText
         . '|upgrade-insecure-requests|sec-.*)$/i';
 
     /** Names of request headers and query parameters whose values are replaced with {@see self::FILTERED}. */
-    private const SECRET_NAMES = '/authori[sz]ation|authentication|token|secret|passw(or)?d|api[-_]?key|cookie/i';
+    private const SECRET_NAMES = '/authori[sz]ation|authentication|token|secret|passw(or)?d|api[-_ ]?key|cookie/i';
 
     private const FILTERED = '[Filtered]';
 
     /** URLs nested in query values that are filtered; the values nested deeper are {@see self::FILTERED}. */
     private const MAX_URL_DEPTH = 5;
+
+    /** Levels of a query value sent as a structure that are filtered; the deeper ones are {@see self::FILTERED}. */
+    private const MAX_QUERY_DEPTH = 32;
 
     /**
      * Bytes of a URL or a query string that are filtered, more than a line shows: the filter would be quadratic
@@ -639,7 +642,7 @@ final class SentryText
         }
 
         $method = self::inline($request['method'] ?? '');
-        $url = self::inline(self::filterUrl(self::string($request['url'] ?? '')));
+        $url = self::filterUrls($request['url'] ?? '');
         $result = 'Request: ' . \trim("$method $url") . "\n";
 
         /** @var mixed $query */
@@ -662,12 +665,10 @@ final class SentryText
             /** @var mixed $value */
             $value = $pair[1];
             $name = $pair[0];
-            $value = \is_array($value) ? \implode(', ', \array_map(self::string(...), $value)) : self::string($value);
-            \preg_match(self::SKIPPED_HEADERS, $name) === 1 or $headers[] = "    $name: " . match (true) {
-                self::isSecret($name) => self::FILTERED,
-                \preg_match(self::URL_HEADERS, $name) === 1 => self::inline(self::filterUrl($value)),
-                default => self::inline($value),
-            } . "\n";
+            $string = \preg_match(self::URL_HEADERS, $name) === 1 ? self::filterUrls(...) : self::string(...);
+            $value = \is_array($value) ? \implode(', ', \array_map($string, $value)) : $string($value);
+            \preg_match(self::SKIPPED_HEADERS, $name) === 1 or $headers[] = "    $name: "
+                . (self::isSecret($name) ? self::FILTERED : self::inline($value)) . "\n";
         }
 
         $shown = 0;
@@ -826,8 +827,7 @@ final class SentryText
             $result[] = $pair[0] . '=' . match (true) {
                 !$filter => self::inline($pair[1]),
                 self::isSecret($pair[0]) => self::FILTERED,
-                \is_string($pair[1]) => self::inline(self::filterValue($pair[1], 0)),
-                default => self::inline(self::mask($pair[1])),
+                default => self::inline(self::filterQueryValue($pair[1])),
             };
         }
 
@@ -870,22 +870,43 @@ final class SentryText
     }
 
     /**
-     * A structure with the values of {@see self::SECRET_NAMES} replaced at any depth.
+     * A value of a query map with the values of {@see self::SECRET_NAMES} replaced and its strings filtered by
+     * {@see self::filterValue()} at any depth; the levels past {@see self::MAX_QUERY_DEPTH} are replaced whole.
+     *
+     * @param int $level The structures the value is nested in.
      */
-    private static function mask(mixed $value): mixed
+    private static function filterQueryValue(mixed $value, int $level = 0): mixed
     {
+        if (\is_string($value)) {
+            return self::filterValue($value, 0);
+        }
+
         if (!\is_array($value)) {
             return $value;
+        }
+
+        if ($level >= self::MAX_QUERY_DEPTH) {
+            return self::FILTERED;
         }
 
         $result = [];
         /** @var mixed $item */
         foreach ($value as $name => $item) {
             /** @psalm-suppress MixedAssignment */
-            $result[$name] = \is_string($name) && self::isSecret($name) ? self::FILTERED : self::mask($item);
+            $result[$name] = \is_string($name) && self::isSecret($name)
+                ? self::FILTERED
+                : self::filterQueryValue($item, $level + 1);
         }
 
         return $result;
+    }
+
+    /**
+     * A URL in one line, filtered; URLs sent as a structure are filtered as a value of a query map.
+     */
+    private static function filterUrls(mixed $url): string
+    {
+        return self::inline(\is_array($url) ? self::filterQueryValue($url) : self::filterUrl(self::string($url)));
     }
 
     /**
@@ -898,7 +919,7 @@ final class SentryText
     private static function filterUrl(string $url, int $depth = 0): string
     {
         $url = (string) \preg_replace(
-            '~^([a-z][a-z\d+.-]*://[^/:@?#]*):[^/?#]*@~i',
+            '~^(\s*(?:[a-z][a-z\d+.-]*:)?//[^/:@?#]*):[^/?#]*@~i',
             '$1:' . self::FILTERED . '@',
             $url,
         );

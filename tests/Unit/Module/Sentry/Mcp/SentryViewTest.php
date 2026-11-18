@@ -932,6 +932,52 @@ final class SentryViewTest
             ->notContains('pp');
     }
 
+    #[DataSet([['r' => ['https://a.test/?token=abc']], 'r=["https://a.test/?token=[Filtered]"]'], 'list in a map')]
+    #[DataSet([['r' => ['a' => 'https://a.test/?token=abc']], 'r={"a":"https://a.test/?token=[Filtered]"}'], 'map in a map')]
+    #[DataSet([[['r', ['https://a.test/?token=abc']]], 'r=["https://a.test/?token=[Filtered]"]'], 'list in a pair')]
+    public function testUrlsNestedInValuesOfAQueryMapAreFiltered(array $query, string $expected): void
+    {
+        $text = self::text(['request' => ['url' => 'https://shop.test/', 'query_string' => $query]]);
+
+        Assert::string($text)
+            ->contains("  Query: $expected\n")
+            ->notContains('abc');
+    }
+
+    public function testQueryMapNestedPastTheDepthIsFilteredWhole(): void
+    {
+        $value = 'https://a.test/?token=abc';
+        for ($i = 0; $i < 600; ++$i) {
+            $value = [$value];
+        }
+
+        $text = self::text(['request' => ['url' => 'https://shop.test/', 'query_string' => ['r' => $value]]]);
+
+        Assert::string($text)->contains('  Query: r=' . \str_repeat('[', 32) . '"[Filtered]"' . \str_repeat(']', 32) . "\n");
+    }
+
+    #[DataSet(["\t https://user:abc@shop.test/"], 'leading whitespace')]
+    #[DataSet(['//user:abc@shop.test/'], 'protocol-relative')]
+    #[DataSet([['https://user:abc@shop.test/']], 'list')]
+    public function testPasswordOfAUrlInAnotherFormIsFiltered(string|array $url): void
+    {
+        $text = self::text(['request' => ['url' => $url, 'headers' => ['Referer' => $url]]]);
+
+        Assert::string($text)
+            ->matchesRegex('~^Request: .*//user:\[Filtered]@shop\.test/~m')
+            ->matchesRegex('~^    Referer: .*//user:\[Filtered]@shop\.test/~m')
+            ->notContains('abc');
+    }
+
+    public function testQueryParameterNamedWithAnEncodedSpaceIsFiltered(): void
+    {
+        $text = self::text(['request' => ['query_string' => 'api%20key=abc&api+key=abc', 'headers' => ['Api key' => 'abc']]]);
+
+        Assert::string($text)
+            ->contains("  Query: api%20key=[Filtered]&api+key=[Filtered]\n")
+            ->notContains('abc');
+    }
+
     public function testEventThatFailsToRenderShowsNoPayload(): void
     {
         $payload = [
