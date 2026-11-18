@@ -18,6 +18,7 @@ use Buggregator\Trap\Server\Handler\Router\Router;
 use Internal\Container\ObjectContainer;
 use Testo\Assert;
 use Testo\Data\DataProvider;
+use Testo\Data\DataSet;
 use Testo\Expect;
 use Testo\Test;
 
@@ -235,6 +236,25 @@ final class RouterTest
 
         Assert::same($router->match(Method::Get, '/top?n=3&metric=cpu')(), '3:cpu');
         Assert::same($router->match(Method::Get, '/top?limit=3')(), '5:wt');
+    }
+
+    #[DataSet(['/api/user:42', '42:short'])]
+    #[DataSet(['api/user:42', '42:short'])]
+    #[DataSet(['/api/user:42#top', '42:short'])]
+    #[DataSet(['/api/user:42?view=full', '42:full'])]
+    #[DataSet(['http://localhost:8000/api/user:42?view=full', '42:full'])]
+    public function testMatchesPathWithColon(string $uri, string $result): void
+    {
+        $router = Router::compose(new class {
+            #[RegexpRoute(Method::Get, '#^api/user:(?<id>\d++)$#')]
+            public function show(string $id, #[QueryParam] string $view = 'short'): string
+            {
+                return "$id:$view";
+            }
+        });
+
+        Assert::same($router->match(Method::Get, $uri)(), $result);
+        Assert::same($router->resolve(Method::Get, $uri)?->name, 'show');
     }
 
     public function testComposeRejectsObjectWithoutRoutes(): void

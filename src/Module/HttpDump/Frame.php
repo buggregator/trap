@@ -11,6 +11,7 @@ use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
 use Nyholm\Psr7\UploadedFile;
+use Nyholm\Psr7\Uri;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UploadedFileInterface as PsrUploadedFile;
@@ -56,9 +57,17 @@ final class Frame extends ProtoFrame implements FilesCarrier, StreamCarrier
          */
         $payload = \json_decode($payload, true, 64, \JSON_THROW_ON_ERROR);
 
+        $uri = $payload['uri'] ?? '/';
+        // Not through `parse_url()`: it reads `/user:42` as a host with a port
+        if (\str_starts_with($uri, '/')) {
+            [$uri, $fragment] = \explode('#', $uri, 2) + [1 => ''];
+            [$path, $query] = \explode('?', $uri, 2) + [1 => ''];
+            $uri = (new Uri())->withPath($path)->withQuery($query)->withFragment($fragment);
+        }
+
         $request = new ServerRequest(
             $payload['method'] ?? 'GET',
-            $payload['uri'] ?? '/',
+            $uri,
             (array) ($payload['headers'] ?? []),
             $payload['body'] ?? '',
             $payload['protocolVersion'] ?? '1.1',
