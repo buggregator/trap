@@ -20,6 +20,8 @@ Trap takes two kinds of requests:
 | `POST …/envelope/` with `Content-Type: application/x-sentry-envelope`                                          | current SDKs |
 | `POST …/store/` with the `X-Sentry-Auth` header, the `sentry` user in the URL or `X-Buggregator-Event: sentry` | older SDKs   |
 
+With [`--mcp`](mcp.md#sentry-events), AI agents read the events with their exception chains and code lines.
+
 ## Notes
 
 - A request body may be up to 2 MB; a bigger one gets `413`.

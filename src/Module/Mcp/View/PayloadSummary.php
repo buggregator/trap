@@ -21,11 +21,39 @@ final class PayloadSummary implements EventView, EventFields
     private const FIELDS = [
         'var-dump' => ['label', 'value_type', 'language', 'file'],
         'monolog' => ['level', 'channel'],
-        'sentry' => ['level', 'exception', 'environment', 'release', 'transaction', 'server_name', 'status'],
         'smtp' => ['subject', 'from', 'to', 'cc', 'bcc'],
         'http-dump' => ['method', 'path', 'host'],
         'ray' => ['payload_type', 'exception', 'label', 'color'],
     ];
+
+    /**
+     * One line of text: an HTML dump loses its markup, a structure becomes JSON.
+     */
+    public static function plain(mixed $value): string
+    {
+        $text = match (true) {
+            \is_string($value) => \html_entity_decode(
+                \strip_tags((string) \preg_replace('~<(script|style)\b.*?</\1>~si', '', $value)),
+                \ENT_QUOTES | \ENT_HTML5,
+            ),
+            \is_bool($value) => $value ? 'true' : 'false',
+            $value === null => '',
+            \is_scalar($value) => (string) $value,
+            default => self::json($value),
+        };
+
+        return \trim((string) \preg_replace('/\s+/u', ' ', $text));
+    }
+
+    /**
+     * Without control characters, cut to {@see self::MAX_LENGTH}: a summary of any view.
+     */
+    public static function shorten(string $text): string
+    {
+        $text = \trim((string) \preg_replace('/[\x00-\x1F\x7F]+/', ' ', $text));
+
+        return \mb_strlen($text) > self::MAX_LENGTH ? \mb_substr($text, 0, self::MAX_LENGTH) . '…' : $text;
+    }
 
     #[\Override]
     public function summary(Event $event): ?string
@@ -38,7 +66,6 @@ final class PayloadSummary implements EventView, EventFields
         $summary = match ($event->type) {
             'var-dump' => self::dump($payload),
             'monolog' => self::log($payload),
-            'sentry' => self::sentry($payload),
             'smtp' => self::mail($payload),
             'http-dump' => self::http($payload),
             'ray' => self::ray($payload),
@@ -72,7 +99,6 @@ final class PayloadSummary implements EventView, EventFields
         return match ($event->type) {
             'var-dump' => self::dumpFields($payload),
             'monolog' => ['level' => self::plain($payload['level_name'] ?? null), 'channel' => self::plain($payload['channel'] ?? null)],
-            'sentry' => self::sentryFields($payload),
             'smtp' => [
                 'subject' => self::plain($payload['subject'] ?? null),
                 'from' => self::contactList($payload['from'] ?? null),
@@ -121,35 +147,6 @@ final class PayloadSummary implements EventView, EventFields
             'value_type' => self::plain($dump['type'] ?? null),
             'language' => self::plain($dump['language'] ?? null),
             'file' => \is_array($source) ? self::plain($source['file'] ?? null) : '',
-        ];
-    }
-
-    /**
-     * @return array<non-empty-string, scalar|list<string>>
-     */
-    private static function sentryFields(array $payload): array
-    {
-        /** @var mixed $exceptions */
-        $exceptions = $payload['exception']['values'] ?? $payload['exception'] ?? null;
-        $types = [];
-        /** @var mixed $exception */
-        foreach (\is_array($exceptions) ? $exceptions : [] as $exception) {
-            \is_array($exception) and $types[] = self::plain($exception['type'] ?? null);
-        }
-
-        /** @var mixed $response */
-        $response = $payload['contexts']['response'] ?? null;
-        /** @var mixed $status */
-        $status = \is_array($response) ? $response['status_code'] ?? null : null;
-
-        return [
-            'level' => self::plain($payload['level'] ?? null),
-            'exception' => \array_values(\array_filter($types)),
-            'environment' => self::plain($payload['environment'] ?? null),
-            'release' => self::plain($payload['release'] ?? null),
-            'transaction' => self::plain($payload['transaction'] ?? null),
-            'server_name' => self::plain($payload['server_name'] ?? null),
-            'status' => \is_int($status) ? $status : '',
         ];
     }
 
@@ -217,32 +214,6 @@ final class PayloadSummary implements EventView, EventFields
         return \array_values(\array_filter($result));
     }
 
-    /**
-     * One line of text: an HTML dump loses its markup, a structure becomes JSON.
-     */
-    private static function plain(mixed $value): string
-    {
-        $text = match (true) {
-            \is_string($value) => \html_entity_decode(
-                \strip_tags((string) \preg_replace('~<(script|style)\b.*?</\1>~si', '', $value)),
-                \ENT_QUOTES | \ENT_HTML5,
-            ),
-            \is_bool($value) => $value ? 'true' : 'false',
-            $value === null => '',
-            \is_scalar($value) => (string) $value,
-            default => self::json($value),
-        };
-
-        return \trim((string) \preg_replace('/\s+/u', ' ', $text));
-    }
-
-    private static function shorten(string $text): string
-    {
-        $text = \trim((string) \preg_replace('/[\x00-\x1F\x7F]+/', ' ', $text));
-
-        return \mb_strlen($text) > self::MAX_LENGTH ? \mb_substr($text, 0, self::MAX_LENGTH) . '…' : $text;
-    }
-
     private static function json(mixed $value): string
     {
         try {
@@ -277,33 +248,6 @@ final class PayloadSummary implements EventView, EventFields
         $message = self::plain($payload['message'] ?? null);
 
         return \trim($level . ' ' . self::labeled($channel, $message));
-    }
-
-    private static function sentry(array $payload): string
-    {
-        /** @var mixed $exceptions */
-        $exceptions = $payload['exception']['values'] ?? $payload['exception'] ?? null;
-        if (\is_array($exceptions) && $exceptions !== []) {
-            // The last one is the exception that was thrown, the others are its previous ones
-            /** @var mixed $exception */
-            $exception = \end($exceptions);
-            if (\is_array($exception)) {
-                return self::labeled($exception['type'] ?? null, self::plain($exception['value'] ?? null));
-            }
-        }
-
-        /** @var mixed $message */
-        $message = $payload['message'] ?? $payload['logentry'] ?? null;
-        if (\is_array($message)) {
-            /** @var mixed $message */
-            $message = $message['formatted'] ?? $message['message'] ?? null;
-        }
-        $message = self::plain($message);
-        if ($message !== '') {
-            return $message;
-        }
-
-        return self::labeled($payload['type'] ?? null, self::plain($payload['transaction'] ?? null));
     }
 
     private static function mail(array $payload): string
