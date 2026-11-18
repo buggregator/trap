@@ -300,7 +300,7 @@ final class Renderer implements RendererInterface
     }
 
     /**
-     * Follows the heaviest call from the heaviest root down to a leaf.
+     * Follows the heaviest call from the heaviest root down to a leaf, or to a function already on the path.
      *
      * @param 'wt'|'cpu'|'mu'|'ct' $metric
      */
@@ -308,9 +308,13 @@ final class Renderer implements RendererInterface
     {
         $graph = $profile->calls;
         $path = [];
+        /** @var array<non-empty-string, true> $visited */
+        $visited = [];
         $edge = self::heaviest($graph->roots(), $metric);
-        // The function IDs carry recursion levels, so the graph has no cycles and the walk ends
-        while ($edge !== null) {
+        // Recursion levels only count the calls on one path, so the graph sums `a ==> b` from one path
+        // and `b ==> a` from another: a cycle
+        while ($edge !== null && !isset($visited[$edge->calleeId])) {
+            $visited[$edge->calleeId] = true;
             $path[] = $edge;
             $edge = self::heaviest($graph->callees($edge->calleeId), $metric);
         }

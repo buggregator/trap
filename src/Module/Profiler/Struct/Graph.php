@@ -36,7 +36,7 @@ final class Graph implements \IteratorAggregate, \Countable
     /**
      * Sums the nodes of an exact call tree by caller and callee pairs.
      *
-     * @param Tree<Edge> $tree Items carry function IDs with recursion levels, so the graph has no cycles.
+     * @param Tree<Edge> $tree Items carry function IDs with recursion levels.
      * @param TimeSlice|null $timeSlice Lets other fibers run during a long build.
      *
      * @return self Edges without percentages and deltas: see {@see self::setPercentsAndDeltas()}.

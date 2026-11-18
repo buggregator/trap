@@ -91,8 +91,8 @@ final class Profile implements \JsonSerializable
     /**
      * Builds a profile of a profiler that sums the calls by caller and callee pairs.
      *
-     * @param Graph $calls Edges with raw costs; function IDs carry recursion levels (`foo@1`),
-     *        so the graph has no cycles. Callers that are never called get synthetic roots.
+     * @param Graph $calls Edges with raw costs; function IDs carry recursion levels (`foo@1`).
+     *        Callers that are never called get synthetic roots.
      * @param Metadata $metadata
      * @param array<non-empty-string, non-empty-string> $tags
      */
