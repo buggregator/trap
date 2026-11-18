@@ -202,6 +202,7 @@ final class HttpParserTest
                 Accept-Encoding: gzip, deflate, br\r
                 DNT: 1\r
                 Content-Type: application/x-www-form-urlencoded\r
+                Content-Length: 33\r
                 Connection: close\r
                 Cookie: koa.sess=Ijo4NjQwMDAwMH0=; koa.sess.sig=liV7oStLo; csrf-token=Gmch9; csrf-token.sig=X0fR\r
                 Upgrade-Insecure-Requests: 1\r
@@ -222,6 +223,31 @@ final class HttpParserTest
         Assert::same($request->getHeader('host'), ['foo.bar.com']);
         Assert::same($request->getBody()->__toString(), 'foo=bar&baz=qux&quux=corge+grault');
         Assert::same($request->getParsedBody(), ['foo' => 'bar', 'baz' => 'qux', 'quux' => 'corge grault']);
+    }
+
+    /**
+     * The next pipelined request stays in the stream: a body read past the request would consume it
+     * or wait for bytes that never come.
+     */
+    #[Test]
+    #[DataSet(['POST', "Content-Length: 0\r\n"], 'POST with zero length')]
+    #[DataSet(['PUT', "Content-Length: 0\r\n"], 'PUT with zero length')]
+    #[DataSet(['DELETE', "Content-Length: 0\r\n"], 'DELETE with zero length')]
+    #[DataSet(['POST', ''], 'POST without length')]
+    #[DataSet(['DELETE', ''], 'DELETE without length')]
+    public function testEmptyBodyIsNotReadFromStream(string $method, string $lengthHeader): void
+    {
+        $next = "GET /next HTTP/1.1\r\nHost: 127.0.0.1:9912\r\n\r\n";
+        $stream = StreamClientMock::createFromGenerator(
+            (static function () use ($method, $lengthHeader, $next) {
+                yield "{$method} /x HTTP/1.1\r\nHost: 127.0.0.1:9912\r\n{$lengthHeader}\r\n{$next}";
+            })(),
+        );
+
+        $request = $this->runInFiber(static fn() => (new Parser\Http())->parseStream($stream));
+
+        Assert::same($request->getBody()->__toString(), '');
+        Assert::same($stream->getData(), $next);
     }
 
     #[Test]
