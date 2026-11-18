@@ -88,6 +88,36 @@ final class Cost implements \JsonSerializable
     }
 
     /**
+     * Converts the result of arithmetic to an integer clamped to the integer range: received data may pass it,
+     * where integer arithmetic turns into a float and an `(int)` cast wraps around.
+     *
+     * @param int|float $value A float in the range is truncated, like by an `(int)` cast; NaN is 0.
+     */
+    public static function saturate(int|float $value): int
+    {
+        return match (true) {
+            \is_int($value) => $value,
+            \is_nan($value) => 0,
+            $value >= (float) \PHP_INT_MAX => \PHP_INT_MAX,
+            $value <= (float) \PHP_INT_MIN => \PHP_INT_MIN,
+            default => (int) $value,
+        };
+    }
+
+    /**
+     * Sums values of at least 0, saturated at the integer maximum like {@see self::saturate()}.
+     *
+     * @param int<0, max> $a
+     * @param int<0, max> $b
+     *
+     * @return int<0, max>
+     */
+    public static function sum(int $a, int $b): int
+    {
+        return $a > \PHP_INT_MAX - $b ? \PHP_INT_MAX : $a + $b;
+    }
+
+    /**
      * Sets the `p_*` metrics: shares of the peaks, %.
      */
     public function setPercentsOf(Peaks $peaks): void
@@ -105,11 +135,11 @@ final class Cost implements \JsonSerializable
      */
     public function setDeltasTo(self $parent): void
     {
-        $this->d_ct = $this->ct - $parent->ct;
-        $this->d_wt = $this->wt - $parent->wt;
-        $this->d_cpu = $this->cpu - $parent->cpu;
-        $this->d_mu = $this->mu - $parent->mu;
-        $this->d_pmu = $this->pmu - $parent->pmu;
+        $this->d_ct = self::saturate($this->ct - $parent->ct);
+        $this->d_wt = self::saturate($this->wt - $parent->wt);
+        $this->d_cpu = self::saturate($this->cpu - $parent->cpu);
+        $this->d_mu = self::saturate($this->mu - $parent->mu);
+        $this->d_pmu = self::saturate($this->pmu - $parent->pmu);
     }
 
     /**

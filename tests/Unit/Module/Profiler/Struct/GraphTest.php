@@ -352,6 +352,20 @@ final class GraphTest
         Assert::same(\array_map(static fn(Edge $e): string => $e->calleeId, $graph->callees('main')), ['a']);
     }
 
+    public function testFromTreeSaturatesSumsPastIntegerRange(): void
+    {
+        /** @var Tree<Edge> $tree */
+        $tree = new Tree();
+        $max = \PHP_INT_MAX;
+        $tree->addItem(new Edge(null, 'main', new Cost(1, $max, $max, $max, $max)), 'n1', null);
+        $tree->addItem(new Edge('main', 'a', new Cost($max, $max, $max, $max, $max)), 'n2', 'n1');
+        $tree->addItem(new Edge('main', 'a', new Cost(1, 1, 1, 1, 1)), 'n3', 'n1');
+
+        $a = Graph::fromTree($tree)->callers('a')[0]->cost;
+
+        Assert::same([$a->ct, $a->wt, $a->cpu, $a->mu, $a->pmu], [$max, $max, $max, $max, $max]);
+    }
+
     public function testSetsPercentsAndDeltasOfEdges(): void
     {
         $graph = new Graph();
@@ -362,6 +376,61 @@ final class GraphTest
 
         Assert::same([$a->cost->p_wt, $a->cost->d_wt], [25.0, -75]);
         Assert::same([$main->cost->p_wt, $main->cost->d_wt], [100.0, 0]);
+    }
+
+    public function testInclusiveCostSaturatesPastIntegerRange(): void
+    {
+        $graph = new Graph();
+        $graph->add(new Edge('a', 'f', new Cost(-\PHP_INT_MAX, 5_000_000_000_000_000_000, 1, \PHP_INT_MAX, \PHP_INT_MAX)));
+        $graph->add(new Edge('b', 'f', new Cost(-\PHP_INT_MAX, 5_000_000_000_000_000_000, \PHP_INT_MAX, 1, 1)));
+
+        $f = $graph->inclusiveCost('f');
+
+        Assert::same(
+            [$f->ct, $f->wt, $f->cpu, $f->mu, $f->pmu],
+            [\PHP_INT_MIN, \PHP_INT_MAX, \PHP_INT_MAX, \PHP_INT_MAX, \PHP_INT_MAX],
+        );
+    }
+
+    public function testProfileWithCostsPastIntegerRangeUnfolds(): void
+    {
+        $graph = self::graph([
+            'main()' => ['ct' => 1, 'wt' => \PHP_INT_MAX],
+            'main()==>a' => ['ct' => 1, 'wt' => 5_000_000_000_000_000_000],
+            'main()==>b' => ['ct' => 1, 'wt' => 5_000_000_000_000_000_000],
+            'a==>f' => ['ct' => 1, 'wt' => 5_000_000_000_000_000_000],
+            'b==>f' => ['ct' => 1, 'wt' => 5_000_000_000_000_000_000],
+        ]);
+
+        $tree = $graph->unfold();
+
+        Assert::same($graph->inclusiveCost('f')->wt, \PHP_INT_MAX);
+        Assert::same(\count($tree), 5);
+    }
+
+    public function testRootAddedWithoutMainSaturatesPastIntegerRange(): void
+    {
+        $graph = self::graph([
+            'a==>f' => ['ct' => 1, 'wt' => 5_000_000_000_000_000_000, 'cpu' => 5_000_000_000_000_000_000],
+            'a==>g' => ['ct' => 1, 'wt' => 5_000_000_000_000_000_000, 'cpu' => 5_000_000_000_000_000_000],
+        ]);
+
+        $a = $graph->roots()[0]->cost;
+
+        Assert::same([$a->wt, $a->cpu], [\PHP_INT_MAX, \PHP_INT_MAX]);
+    }
+
+    public function testDeltasSaturatePastIntegerRange(): void
+    {
+        $graph = self::graph([
+            'main()==>a' => ['ct' => -5_000_000_000_000_000_000, 'wt' => -5_000_000_000_000_000_000],
+            'b==>a' => ['ct' => -5_000_000_000_000_000_000, 'wt' => -5_000_000_000_000_000_000],
+            'a==>f' => ['ct' => 1, 'wt' => 1],
+        ]);
+
+        $f = $graph->callers('f')[0]->cost;
+
+        Assert::same([$f->d_ct, $f->d_wt], [\PHP_INT_MAX, \PHP_INT_MAX]);
     }
 
     public function testFunctionIdsOfDigitsAreStrings(): void

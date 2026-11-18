@@ -52,6 +52,21 @@ final class ProfileTopTest
         Assert::same(JsonSchema::errors($result, $tool->outputSchema()), []);
     }
 
+    public function testSumsSaturatePastIntegerRange(): void
+    {
+        $trap = new Trap();
+        $cost = ['ct' => 5_000_000_000_000_000_000, 'wt' => 5_000_000_000_000_000_000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
+        // The calls of `f` sum both recursion levels
+        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof(['a==>f' => $cost, 'f==>f@1' => $cost]));
+        $tool = $trap->get(ProfileTop::class);
+
+        $result = $tool->call(['id' => $id]);
+
+        $f = \array_column($result['functions'], null, 'function')['f'];
+        Assert::same([$f['calls'], $f['inclusive']], [\PHP_INT_MAX, 5_000_000_000_000_000_000]);
+        Assert::same(JsonSchema::errors($result, $tool->outputSchema()), []);
+    }
+
     public function testRanksFunctionsNamedByDigits(): void
     {
         $trap = new Trap();

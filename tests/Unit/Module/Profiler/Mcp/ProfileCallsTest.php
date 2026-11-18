@@ -149,6 +149,21 @@ final class ProfileCallsTest
         Assert::same(\array_column($g['callees'], 'inclusive', 'function')['f'], 650);
     }
 
+    public function testSumsSaturatePastIntegerRange(): void
+    {
+        $trap = new Trap();
+        $cost = ['ct' => 5_000_000_000_000_000_000, 'wt' => 5_000_000_000_000_000_000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
+        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof(['a==>a@1' => $cost, 'a==>f' => $cost, 'a@1==>f' => $cost]));
+        $tool = $trap->get(ProfileCalls::class);
+
+        $result = $tool->call(['id' => $id, 'function' => 'f']);
+
+        Assert::same(\array_column($result['callers'], 'calls', 'function'), ['a' => \PHP_INT_MAX]);
+        Assert::same(\array_column($result['callers'], 'inclusive', 'function'), ['a' => \PHP_INT_MAX]);
+        Assert::same(\array_column($result['callers'], 'exclusive', 'function'), ['a' => \PHP_INT_MAX]);
+        Assert::same(JsonSchema::errors($result, $tool->outputSchema()), []);
+    }
+
     public function testSignedMemoryIsClamped(): void
     {
         $trap = new Trap();

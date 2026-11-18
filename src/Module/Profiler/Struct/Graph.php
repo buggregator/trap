@@ -51,11 +51,11 @@ final class Graph implements \IteratorAggregate, \Countable
             $key = ($edge->callerId ?? '') . '==>' . $edge->calleeId;
             // Summed in place: a new array per node would be allocated and the old one freed
             if (isset($sums[$key])) {
-                $sums[$key][1] += $cost->ct;
-                $sums[$key][2] += $cost->wt;
-                $sums[$key][3] += $cost->cpu;
-                $sums[$key][4] += $cost->mu;
-                $sums[$key][5] += $cost->pmu;
+                $sums[$key][1] = Cost::saturate($sums[$key][1] + $cost->ct);
+                $sums[$key][2] = Cost::saturate($sums[$key][2] + $cost->wt);
+                $sums[$key][3] = Cost::saturate($sums[$key][3] + $cost->cpu);
+                $sums[$key][4] = Cost::saturate($sums[$key][4] + $cost->mu);
+                $sums[$key][5] = Cost::saturate($sums[$key][5] + $cost->pmu);
             } else {
                 $sums[$key] = [$edge, $cost->ct, $cost->wt, $cost->cpu, $cost->mu, $cost->pmu];
             }
@@ -169,13 +169,14 @@ final class Graph implements \IteratorAggregate, \Countable
 
         $ct = $wt = $cpu = $mu = $pmu = 0;
         foreach ($this->callers($functionId) as $edge) {
-            $ct += $edge->cost->ct;
-            $wt += $edge->cost->wt;
-            $cpu += $edge->cost->cpu;
-            $mu += $edge->cost->mu;
-            $pmu += $edge->cost->pmu;
+            $ct = Cost::saturate($ct + $edge->cost->ct);
+            $wt = Cost::saturate($wt + $edge->cost->wt);
+            $cpu = Cost::saturate($cpu + $edge->cost->cpu);
+            $mu = Cost::saturate($mu + $edge->cost->mu);
+            $pmu = Cost::saturate($pmu + $edge->cost->pmu);
         }
 
+        /** @psalm-suppress ArgumentTypeCoercion Received data may have negative costs: they are kept as they are */
         return $this->inclusiveCosts[$functionId] = new Cost($ct, $wt, $cpu, \max(0, $mu), \max(0, $pmu));
     }
 
@@ -412,7 +413,7 @@ final class Graph implements \IteratorAggregate, \Countable
      */
     private static function scaleValue(int $value, float $scale): int
     {
-        return \max(0, (int) \round((float) $value * $scale));
+        return \max(0, Cost::saturate(\round((float) $value * $scale)));
     }
 
     /**

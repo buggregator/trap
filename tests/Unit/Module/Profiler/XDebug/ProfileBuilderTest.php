@@ -98,6 +98,52 @@ final class ProfileBuilderTest
         Assert::same([$main->cost->wt, $f->cost->ct, $f->cost->wt], [500, 1000, 500]);
     }
 
+    public function testSaturatesTimesPastIntegerRange(): void
+    {
+        $time = '500000000000000000000';
+        $profile = (new ProfileBuilder())->createProfile(self::profile(
+            'Time_(ns) Memory_(bytes)',
+            "fn=(1) a\n2 $time 0\n\nfn=(2) b\n3 $time 0\n\n"
+                . "fn=(3) {main}\n1 0 0\ncfn=(1)\ncalls=1 0 0\n2 $time 0\ncfn=(2)\ncalls=1 0 0\n3 $time 0\n",
+        ));
+
+        // `PHP_INT_MAX` ns in µs; the time of `{main}` saturates, so it takes the sum of its callees
+        Assert::same(self::shape($profile->tree()), [
+            '{main}:18446744073709552' => ['a:9223372036854776' => [], 'b:9223372036854776' => []],
+        ]);
+    }
+
+    public function testSaturatesTimeOfPairPastIntegerRange(): void
+    {
+        $profile = (new ProfileBuilder())->createProfile(self::profile('Time Memory_(bytes)', self::twoHugeCalls()));
+
+        // The calls of a pair are rounded so that they sum to its total, here saturated; the tree keeps them as floats
+        Assert::same(self::shape($profile->tree()), [
+            '{main}:9223372036854775807' => ['a:5000000000000000000' => [], 'a:4223372036854775808' => []],
+        ]);
+    }
+
+    public function testSaturatesTimeOfCalleesPastIntegerRange(): void
+    {
+        $time = '5000000000000000000';
+        $profile = (new ProfileBuilder())->createProfile(self::profile(
+            'Time Memory_(bytes)',
+            "fn=(1) a\n1 $time 0\n\nfn=(2) b\n1 $time 0\n\nfn=(3) {main}\n1 0 0\n" . self::calls(1, 2),
+        ));
+
+        Assert::same(self::shape($profile->tree()), [
+            '{main}:9223372036854775807' => ['a:5000000000000000000' => [], 'b:5000000000000000000' => []],
+        ]);
+    }
+
+    public function testSaturatesMergedCallsPastIntegerRange(): void
+    {
+        $profile = (new ProfileBuilder(maxNodes: 2))->createProfile(self::profile('Time Memory_(bytes)', self::twoHugeCalls()));
+
+        $a = $profile->calls->callers('a')[0]->cost;
+        Assert::same([$a->ct, $a->wt, $a->mu], [2, \PHP_INT_MAX, \PHP_INT_MAX]);
+    }
+
     public function testCallNeverTakesLessThanItsChildren(): void
     {
         // 0.6 µs each: the children round up to 1 µs, while 1.2 µs of the parent would round down
@@ -328,6 +374,16 @@ final class ProfileBuilderTest
     private static function calls(int ...$ids): string
     {
         return \implode('', \array_map(static fn(int $id): string => "cfn=($id)\ncalls=1 0 0\n1 0 0\n", $ids));
+    }
+
+    /**
+     * `{main}` calls `a` twice; each call takes 5e18 µs and bytes.
+     */
+    private static function twoHugeCalls(): string
+    {
+        $cost = '5000000000000000000 5000000000000000000';
+
+        return "fn=(1) a\n1 $cost\n\nfn=(1)\n1 $cost\n\nfn=(2) {main}\n1 0 0\n" . self::calls(1, 1);
     }
 
     private static function build(string $stub): Profile

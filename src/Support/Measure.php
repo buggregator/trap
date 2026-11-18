@@ -16,11 +16,11 @@ final class Measure
      */
     public static function memory(int $size): string
     {
-        $units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+        $units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB'];
         $power = (int) \floor(\log($size, 1024));
         $float = $power > 0 ? \round($size / (1024 ** $power), 2) : $size;
 
-        \assert($power >= 0 && $power <= 5);
+        \assert($power >= 0 && $power <= 6);
 
         return \sprintf('%s %s', \number_format($float, 2), $units[$power]);
     }
