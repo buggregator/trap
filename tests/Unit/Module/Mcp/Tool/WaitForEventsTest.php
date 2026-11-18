@@ -460,7 +460,9 @@ final class WaitForEventsTest
         Assert::same($tool->name(), 'wait_for_events');
         Assert::same($tool->title(), 'Wait for events');
         Assert::same($tool->annotations(), ['readOnlyHint' => true, 'openWorldHint' => false]);
-        Assert::string($tool->description())->contains('(30 by default, 50 at most)')->contains('`list_events`');
+        Assert::string($tool->description())
+            ->contains(\sprintf('(%d by default, %d at most)', WaitForEvents::DEFAULT_TIMEOUT, WaitForEvents::MAX_TIMEOUT))
+            ->contains('`list_events`');
     }
 
     public function testSchemaTakesTheListArgumentsWithCountAndTimeout(): void

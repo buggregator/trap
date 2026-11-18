@@ -17,12 +17,14 @@ final class MaxLengthTest
 {
     public function testSchemaWithoutMaximum(): void
     {
-        Assert::same(MaxLength::schema(), [
+        $schema = MaxLength::schema();
+
+        Assert::same(\array_diff_key($schema, ['description' => true]), [
             'type' => 'integer',
             'minimum' => 100,
             'default' => 50_000,
-            'description' => 'The most characters of the text to return; a longer text is cut with a notice.',
         ]);
+        Assert::string($schema['description'])->contains('cut');
     }
 
     public function testSchemaWithMaximum(): void

@@ -210,16 +210,32 @@ final class ProfileTopTest
 
     public function testSchemaBoundsAreTheAcceptedArguments(): void
     {
+        [$trap, $id] = self::shop();
+        $tool = $trap->get(ProfileTop::class);
+        $limit = $tool->inputSchema()['properties']['limit'];
+
+        foreach ([$limit['minimum'], $limit['maximum']] as $bound) {
+            $tool->call(['id' => $id, 'limit' => $bound]);
+        }
+        foreach ([$limit['minimum'] - 1, $limit['maximum'] + 1] as $outside) {
+            try {
+                $tool->call(['id' => $id, 'limit' => $outside]);
+                Assert::fail("`limit` of $outside must be rejected.");
+            } catch (\InvalidArgumentException $e) {
+                Assert::string($e->getMessage())->startsWith('`limit` must be');
+            }
+        }
+    }
+
+    public function testSchemaListsTheArguments(): void
+    {
         $schema = (new Trap())->get(ProfileTop::class)->inputSchema();
         $properties = $schema['properties'];
 
         Assert::same(\array_keys($properties), ['id', 'metric', 'sort', 'filter', 'limit']);
         Assert::same([$schema['required'], $schema['additionalProperties']], [['id'], false]);
         Assert::same([$properties['sort']['enum'], $properties['sort']['default']], [['exclusive', 'inclusive'], 'exclusive']);
-        Assert::same(
-            [$properties['limit']['minimum'], $properties['limit']['maximum'], $properties['limit']['default']],
-            [1, 200, 20],
-        );
+        Assert::same($properties['limit']['default'], 20);
     }
 
     public function testMetricSchemaListsEveryMetricAndWhatTheyAre(): void
@@ -227,7 +243,7 @@ final class ProfileTopTest
         $metric = ProfileSchema::metric();
 
         Assert::same([$metric['type'], $metric['enum']], ['string', ['wt', 'cpu', 'mu', 'pmu', 'ct']]);
-        Assert::string($metric['description'])->contains(ProfileSchema::METRICS);
+        Assert::string($metric['description'])->contains('`pmu` peak memory');
     }
 
     /**

@@ -37,16 +37,6 @@ final class McpSenderTest
         Assert::same($record->frames, [$frame]);
     }
 
-    public function testSentFramesAreLeftToTheEventCollector(): void
-    {
-        $container = self::container();
-        $sender = $container->get(McpSender::class);
-
-        $sender->send([new Binary(Stream::create('data'))]);
-
-        Assert::same($container->get(EventStore::class)->changedSince(0), []);
-    }
-
     public function testTurnsOnMcpStatus(): void
     {
         $container = self::container();

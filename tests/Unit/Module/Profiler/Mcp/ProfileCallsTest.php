@@ -395,15 +395,16 @@ final class ProfileCallsTest
         $trap->get(ProfileCalls::class)->call(['id' => $id, 'function' => 'F']);
     }
 
-    public function testSimilarNamesAreSoughtAmongTheHeaviestCandidates(): never
+    public function testSimilarNamesAreSoughtAmongAtMostTheBoundOfHeaviestCandidates(): never
     {
+        $bound = (new \ReflectionClassConstant(ProfileAnalysis::class, 'MAX_SIMILAR_CANDIDATES'))->getValue();
         $calls = [
             'main()' => ['ct' => 1, 'wt' => 1_000_000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
             'main()==>zzzzy' => ['ct' => 1, 'wt' => 100_000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
             'main()==>zzzza' => ['ct' => 1, 'wt' => 1, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
         ];
         // Heavier than `zzzza` and as long as the name sought, they push it past the candidates kept
-        for ($i = 0; $i < 5_000; ++$i) {
+        for ($i = 0; $i < $bound; ++$i) {
             $calls[\sprintf('main()==>a%04d', $i)] = ['ct' => 1, 'wt' => 10_000 - $i, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
         }
         $trap = new Trap();
@@ -448,7 +449,28 @@ final class ProfileCallsTest
         Assert::same($tool->annotations(), ['readOnlyHint' => true, 'openWorldHint' => false]);
     }
 
-    public function testSchemaBoundsAreTheAcceptedArguments(): void
+    #[DataSet(['depth'], 'depth')]
+    #[DataSet(['limit'], 'limit')]
+    public function testSchemaBoundsAreTheAcceptedArguments(string $argument): void
+    {
+        [$trap, $id] = self::shop();
+        $tool = $trap->get(ProfileCalls::class);
+        $property = $tool->inputSchema()['properties'][$argument];
+
+        foreach ([$property['minimum'], $property['maximum']] as $bound) {
+            $tool->call(['id' => $id, 'function' => 'main()', $argument => $bound]);
+        }
+        foreach ([$property['minimum'] - 1, $property['maximum'] + 1] as $outside) {
+            try {
+                $tool->call(['id' => $id, 'function' => 'main()', $argument => $outside]);
+                Assert::fail("`$argument` of $outside must be rejected.");
+            } catch (\InvalidArgumentException $e) {
+                Assert::string($e->getMessage())->startsWith("`$argument` must be");
+            }
+        }
+    }
+
+    public function testSchemaListsTheArguments(): void
     {
         $schema = (new Trap())->get(ProfileCalls::class)->inputSchema();
         $properties = $schema['properties'];
@@ -457,14 +479,7 @@ final class ProfileCallsTest
         Assert::same([$schema['required'], $schema['additionalProperties']], [['id', 'function'], false]);
         Assert::same($properties['id'], ProfileAnalyses::idSchema());
         Assert::same($properties['metric']['enum'], ['wt', 'cpu', 'mu', 'pmu', 'ct']);
-        Assert::same(
-            [$properties['depth']['minimum'], $properties['depth']['maximum'], $properties['depth']['default']],
-            [1, 3, 1],
-        );
-        Assert::same(
-            [$properties['limit']['minimum'], $properties['limit']['maximum'], $properties['limit']['default']],
-            [1, 50, 10],
-        );
+        Assert::same([$properties['depth']['default'], $properties['limit']['default']], [1, 10]);
     }
 
     /**

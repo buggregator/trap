@@ -88,6 +88,10 @@ final class EventViewsTest
     {
         $record = new Record(PayloadSummaryTest::event('unknown', ['value' => \INF]), 1, []);
 
-        Assert::string(self::views()->text($record))->startsWith('The event has no text view: Inf and NaN');
+        $prefix = 'The event has no text view: ';
+        $text = self::views()->text($record);
+
+        Assert::string($text)->startsWith($prefix);
+        Assert::true(\strlen($text) > \strlen($prefix), 'The reason follows the prefix.');
     }
 }

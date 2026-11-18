@@ -214,7 +214,29 @@ final class ProfileCallGraphTest
         Assert::same($tool->annotations(), ['readOnlyHint' => true, 'openWorldHint' => false]);
     }
 
-    public function testSchemaBoundsAreTheAcceptedArguments(): void
+    #[DataSet(['threshold', 0.001], 'threshold')]
+    #[DataSet(['max_depth', 1], 'max_depth')]
+    #[DataSet(['max_length', 1], 'max_length')]
+    public function testSchemaBoundsAreTheAcceptedArguments(string $argument, int|float $step): void
+    {
+        [$trap, $id] = self::shop();
+        $tool = $trap->get(ProfileCallGraph::class);
+        $property = $tool->inputSchema()['properties'][$argument];
+
+        foreach ([$property['minimum'], $property['maximum']] as $bound) {
+            $tool->call(['id' => $id, $argument => $bound]);
+        }
+        foreach ([$property['minimum'] - $step, $property['maximum'] + $step] as $outside) {
+            try {
+                $tool->call(['id' => $id, $argument => $outside]);
+                Assert::fail("`$argument` of $outside must be rejected.");
+            } catch (\InvalidArgumentException $e) {
+                Assert::string($e->getMessage())->startsWith("`$argument` must be");
+            }
+        }
+    }
+
+    public function testSchemaListsTheArguments(): void
     {
         $schema = (new Trap())->get(ProfileCallGraph::class)->inputSchema();
         $properties = $schema['properties'];
@@ -224,16 +246,8 @@ final class ProfileCallGraphTest
         Assert::same($properties['id'], ProfileAnalyses::idSchema());
         Assert::same($properties['metric']['enum'], ['wt', 'cpu', 'mu', 'pmu', 'ct']);
         Assert::same(
-            [$properties['threshold']['minimum'], $properties['threshold']['maximum'], $properties['threshold']['default']],
-            [0.01, 100, 1.0],
-        );
-        Assert::same(
-            [$properties['max_depth']['minimum'], $properties['max_depth']['maximum'], $properties['max_depth']['default']],
-            [1, 200, 30],
-        );
-        Assert::same(
-            [$properties['max_length']['minimum'], $properties['max_length']['maximum'], $properties['max_length']['default']],
-            [100, 200_000, 20_000],
+            [$properties['threshold']['default'], $properties['max_depth']['default'], $properties['max_length']['default']],
+            [1.0, 30, 20_000],
         );
     }
 
