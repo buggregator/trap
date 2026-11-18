@@ -170,8 +170,11 @@ final class SentryText
             /** @var mixed $exceptions */
             $exceptions = match (true) {
                 \array_key_exists('values', $exceptions) => $exceptions['values'],
-                \array_key_exists('type', $exceptions), \array_key_exists('stacktrace', $exceptions) => [$exceptions],
-                default => $exceptions,
+                \array_key_exists('type', $exceptions),
+                \array_key_exists('value', $exceptions),
+                \array_key_exists('stacktrace', $exceptions) => [$exceptions],
+                // An object of other keys, such as only a `mechanism`, holds no exception
+                default => \array_is_list($exceptions) ? $exceptions : [],
             };
         }
 
