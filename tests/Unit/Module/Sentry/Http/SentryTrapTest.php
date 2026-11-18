@@ -56,6 +56,22 @@ final class SentryTrapTest
             [],
             '/api/sentry/store/',
         ];
+
+        yield 'text/plain outside envelope path' => [
+            ['Content-Type' => 'text/plain;charset=UTF-8'],
+            '/api/sentry/store/',
+        ];
+
+        yield 'text/html on envelope path' => [
+            ['Content-Type' => 'text/html'],
+            '/api/1/envelope/',
+        ];
+
+        yield 'GET without content type on envelope path' => [
+            [],
+            '/api/1/envelope/',
+            'GET',
+        ];
     }
 
     public static function provideSentryEnvelopeRequests(): \Generator
@@ -69,6 +85,36 @@ final class SentryTrapTest
         yield [
             '/api/1/envelope/',
             ['Content-Type' => 'application/x-sentry-envelope'],
+            "{\"event_id\":\"test123\"}\n{\"type\":\"event\"}\n{\"message\":\"test\"}",
+        ];
+
+        yield 'browser SDK text/plain with charset' => [
+            '/api/1/envelope/',
+            ['Content-Type' => 'text/plain;charset=UTF-8'],
+            "{\"event_id\":\"test123\"}\n{\"type\":\"event\"}\n{\"message\":\"test\"}",
+        ];
+
+        yield 'bare text/plain' => [
+            '/api/1/envelope/',
+            ['Content-Type' => 'text/plain'],
+            "{\"event_id\":\"test123\"}\n{\"type\":\"event\"}\n{\"message\":\"test\"}",
+        ];
+
+        yield 'text/plain with whitespace before parameters' => [
+            '/api/1/envelope/',
+            ['Content-Type' => 'text/plain ; charset=UTF-8'],
+            "{\"event_id\":\"test123\"}\n{\"type\":\"event\"}\n{\"message\":\"test\"}",
+        ];
+
+        yield 'browser SDK binary envelope without content type' => [
+            '/api/1/envelope/',
+            [],
+            "{\"event_id\":\"test123\"}\n{\"type\":\"event\"}\n{\"message\":\"test\"}",
+        ];
+
+        yield 'envelope type with parameters and mixed case' => [
+            '/api/1/envelope/',
+            ['Content-Type' => 'Application/X-Sentry-Envelope; charset=utf-8'],
             "{\"event_id\":\"test123\"}\n{\"type\":\"event\"}\n{\"message\":\"test\"}",
         ];
     }
@@ -102,6 +148,7 @@ final class SentryTrapTest
 
         // Assert
         Assert::same($response->getStatusCode(), 200);
+        Assert::same($response->getHeaderLine('Access-Control-Allow-Origin'), '*');
         Assert::instanceOf($frames[0], SentryEnvelope::class);
     }
 
@@ -134,11 +181,11 @@ final class SentryTrapTest
     }
 
     #[DataProvider('provideNonSentryRequests')]
-    public function testHandleRejectsNonSentryRequests(array $headers, string $uri): void
+    public function testHandleRejectsNonSentryRequests(array $headers, string $uri, string $method = 'POST'): void
     {
         // Arrange
         $expectedResponse = new Response(200);
-        $request = $this->request(uri: $uri, headers: $headers);
+        $request = $this->request(method: $method, uri: $uri, headers: $headers);
         $next = static fn() => $expectedResponse;
 
         // Act

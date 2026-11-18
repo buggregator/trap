@@ -30,11 +30,10 @@ final class SentryTrap implements Middleware
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
         try {
-            // Detect Sentry envelope
-            if ($request->getHeaderLine('Content-Type') === 'application/x-sentry-envelope'
-                && \str_contains($request->getUri()->getPath(), '/envelope/')
-            ) {
-                return $this->processEnvelope($request);
+            if ($this->isEnvelopeRequest($request)) {
+                // The browser SDK posts from another origin and needs this header to read the answer.
+                return $this->processEnvelope($request)
+                    ->withHeader('Access-Control-Allow-Origin', '*');
             }
 
             if (\str_ends_with($request->getUri()->getPath(), '/store/')
@@ -52,6 +51,23 @@ final class SentryTrap implements Middleware
         }
 
         return $next($request);
+    }
+
+    private function isEnvelopeRequest(ServerRequestInterface $request): bool
+    {
+        if ($request->getMethod() !== 'POST'
+            || !\str_contains($request->getUri()->getPath(), '/envelope/')
+        ) {
+            return false;
+        }
+
+        $mediaType = \strtolower(\trim(\explode(';', $request->getHeaderLine('Content-Type'), 2)[0]));
+
+        // The browser SDK sends `text/plain` to skip the CORS preflight, and no type at all
+        // when an item is binary.
+        return $mediaType === 'application/x-sentry-envelope'
+            || $mediaType === 'text/plain'
+            || $mediaType === '';
     }
 
     /**
