@@ -107,7 +107,7 @@ final class McpSenderTest
     #[DataSet(['LocalHost', []], 'localhost')]
     #[DataSet(['localhost.', []], 'localhost with the root dot')]
     #[DataSet(['::ffff:127.0.0.1', []], 'IPv4-mapped loopback')]
-    #[DataSet(['0.0.0.0', ['TRAP_MCP_TOKEN' => 's3cr3t']], 'any host with token')]
+    #[DataSet(['0.0.0.0', ['TRAP_MCP_TOKEN' => 's3cr3t-of-16-chars']], 'any host with token')]
     public function testDoesNotWarnOfLoopbackOrToken(string $host, array $environment): void
     {
         $output = new BufferedOutput();

@@ -10,6 +10,7 @@ use Buggregator\Trap\Module\Mcp\Http\Endpoint;
 use Buggregator\Trap\Module\Mcp\Http\TokenGuard;
 use Buggregator\Trap\Module\Mcp\Protocol\JsonRpc;
 use Buggregator\Trap\Module\Mcp\Protocol\RpcError;
+use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Protocol\McpServerTest;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;
@@ -293,7 +294,7 @@ final class EndpointTest
     {
         $config = new Mcp();
         $config->token = $token;
-        $endpoint = new Endpoint(new JsonRpc(McpServerTest::server()), new Caller(), $config, new TokenGuard($config));
+        $endpoint = new Endpoint(new JsonRpc(McpServerTest::server()), new Caller(), $config, new TokenGuard($config, new Logger()));
 
         return $endpoint->handle($request, static function () use (&$passed): ResponseInterface {
             $passed = true;

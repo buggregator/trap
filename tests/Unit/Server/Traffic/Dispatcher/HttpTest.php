@@ -147,6 +147,20 @@ final class HttpTest
         Assert::string($this->sent)->contains('more than 1024 bytes. The limit is set with TRAP_HTTP_MAX_INFLATED_SIZE.');
     }
 
+    public function testUnparsableTargetIsAnsweredWith400WithoutQuotingIt(): void
+    {
+        $stream = $this->createStream("GET http:///s3cr3t HTTP/1.1\r\n", "Host: localhost\r\n", "\r\n");
+
+        $frames = $this->dispatch(new Http([new Dump()]), $stream);
+
+        Assert::same($frames, []);
+        Assert::true($stream->isDisconnected());
+        Assert::string($this->sent)
+            ->startsWith('HTTP/1.1 400')
+            ->endsWith('Invalid request target.')
+            ->notContains('s3cr3t');
+    }
+
     public function testGzipBodyWithinLimitReachesMiddlewaresInflated(): void
     {
         $dispatcher = new Http([new Dump()], maxInflatedBodySize: 1024);

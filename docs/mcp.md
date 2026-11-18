@@ -491,11 +491,18 @@ Other clients take the header in their server settings, as `"headers": {"Authori
 - There is no OAuth: the server publishes no authorization metadata for a client to discover, and the token is set
   by hand on both sides.
 - The path is matched loosely: `//mcp`, `/MCP` and `/mcp/` are `/mcp` too.
-- Any other request to a Trap HTTP port, traffic ports included, that carries the token in a header value
+- Any other HTTP/1.x request of a standard method (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`,
+  `TRACE`, `CONNECT`) to a Trap HTTP port, traffic ports included, that carries the token in a header name or value
   (whatever the header or scheme) or in the path or query (raw or percent-encoded) is never caught: it gets `404`
-  before any module sees it, unless the [web UI](web-ui.md) answers it on its own port. So a mistyped URL or port
-  never has the token dumped to the console, the UI, the files or the MCP tools. This holds with the MCP server
-  off too, as long as a token is set.
+  before any module sees it, unless the [web UI](web-ui.md) answers it (its pages, `/api/...`, its WebSocket) on
+  a port it shares. So a mistyped URL or port never has the token dumped to the console, the UI, the files or
+  the MCP tools. This holds with the MCP server off too, as long as a token is set. The first such request of
+  a run is logged as a warning, with the token masked, the next ones only with `-vv`.
+- The token is matched as a plain substring, so pick a long random one: with a short or common token, ordinary
+  requests that happen to contain it are answered `404` too. Trap warns at startup about a token shorter than
+  16 characters.
+- Other streams on a traffic port, such as an HTTP/2 connection, a lower-case or another method, are not read
+  as HTTP: they are printed raw to the console, and written by the `file-body` sender, token included.
 - The request body is not searched: a token sent in a body is caught with the request as any other data.
 - An empty `TRAP_MCP_TOKEN` asks for no token, even when `trap.xml` sets one: the environment variable wins.
 - The token is sent in plain text over HTTP: on a network you don't trust, put Trap behind a TLS proxy or an

@@ -10,6 +10,7 @@ use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
 use Testo\Assert;
+use Testo\Expect;
 use Testo\Test;
 
 final class HttpParserTest
@@ -82,6 +83,14 @@ final class HttpParserTest
 
         Assert::same($request->getMethod(), 'OPTIONS');
         Assert::same($request->getRequestTarget(), '*');
+    }
+
+    #[Test]
+    public function testUnparsableTargetIsNotQuotedInException(): never
+    {
+        Expect::exception(Parser\InvalidRequest::class)->withMessage('Invalid request target.');
+
+        $this->parseStream(["GET http:///s3cr3t HTTP/1.1\r\nHost: 127.0.0.1:9912\r\n\r\n"]);
     }
 
     /*\
