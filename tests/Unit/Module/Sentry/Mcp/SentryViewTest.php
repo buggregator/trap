@@ -527,7 +527,7 @@ final class SentryViewTest
         Assert::same(($view->fields(self::event($payload)) ?? [])['exception'] ?? null, ['TypeError']);
     }
 
-    public function testListOfExceptionsWithoutValues(): void
+    public function testBareListOfExceptionsWithoutTheValuesWrapper(): void
     {
         $text = self::text(['exception' => [['type' => 'PDOException', 'value' => 'gone away'], ['type' => 'DbError', 'value' => 'query failed']]]);
 

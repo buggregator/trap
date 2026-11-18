@@ -56,13 +56,13 @@ final class TextCacheTest
         $trap = Trap::scripted();
         $cache = $trap->get(TextCache::class);
         $old = $trap->store->add(ScriptedView::event('changed', 'old'));
-        $new = $trap->store->add(ScriptedView::event('changed', 'new'));
+        $new = $trap->store->add(ScriptedView::event('changed', 'newer'));
         $cache->searchable($new);
 
         Assert::same($cache->searchable($old), 'old');
-        Assert::same($cache->searchable($new), 'new');
+        Assert::same($cache->searchable($new), 'newer');
         Assert::same($trap->view()->renders, 3);
-        Assert::same($cache->bytes(), 3);
+        Assert::same($cache->bytes(), \strlen('newer'));
     }
 
     public function testDeletedAndClearedEventsAreForgotten(): void

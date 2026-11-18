@@ -479,7 +479,27 @@ final class ProfileCallsTest
         Assert::same([$schema['required'], $schema['additionalProperties']], [['id', 'function'], false]);
         Assert::same($properties['id'], ProfileAnalyses::idSchema());
         Assert::same($properties['metric']['enum'], ['wt', 'cpu', 'mu', 'pmu', 'ct']);
-        Assert::same([$properties['depth']['default'], $properties['limit']['default']], [1, 10]);
+    }
+
+    #[DataSet(['depth'], 'depth')]
+    #[DataSet(['limit'], 'limit')]
+    public function testSchemaDefaultsAreTheDefaultsOfTheCall(string $argument): void
+    {
+        $trap = new Trap();
+        // A function of 9 callers and 24 callees
+        $base = ['id' => Profiles::add($trap, Type::XHProf, Profiles::xhprofApp()), 'function' => 'Id8\Id60::id99'];
+        $tool = $trap->get(ProfileCalls::class);
+        $property = $tool->inputSchema()['properties'][$argument];
+        $default = $property['default'];
+
+        Assert::same($tool->call($base), $tool->call($base + [$argument => $default]));
+        foreach ([$default - 1, $default + 1] as $other) {
+            $other < $property['minimum'] or Assert::notSame(
+                $tool->call($base + [$argument => $other]),
+                $tool->call($base),
+                "`$argument` of $other must change the result.",
+            );
+        }
     }
 
     /**

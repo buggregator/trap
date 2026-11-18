@@ -21,8 +21,8 @@ final class MaxLengthTest
 
         Assert::same(\array_diff_key($schema, ['description' => true]), [
             'type' => 'integer',
-            'minimum' => 100,
-            'default' => 50_000,
+            'minimum' => MaxLength::MIN,
+            'default' => MaxLength::DEFAULT,
         ]);
         Assert::string($schema['description'])->contains('cut');
     }

@@ -234,8 +234,24 @@ final class ProfileTopTest
 
         Assert::same(\array_keys($properties), ['id', 'metric', 'sort', 'filter', 'limit']);
         Assert::same([$schema['required'], $schema['additionalProperties']], [['id'], false]);
-        Assert::same([$properties['sort']['enum'], $properties['sort']['default']], [['exclusive', 'inclusive'], 'exclusive']);
-        Assert::same($properties['limit']['default'], 20);
+        Assert::same($properties['sort']['enum'], ['exclusive', 'inclusive']);
+    }
+
+    #[DataSet(['sort'], 'sort')]
+    #[DataSet(['limit'], 'limit')]
+    public function testSchemaDefaultsAreTheDefaultsOfTheCall(string $argument): void
+    {
+        $trap = new Trap();
+        $base = ['id' => Profiles::add($trap, Type::XHProf, Profiles::xhprofApp())];
+        $tool = $trap->get(ProfileTop::class);
+        $property = $tool->inputSchema()['properties'][$argument];
+        $default = $property['default'];
+
+        Assert::same($tool->call($base), $tool->call($base + [$argument => $default]));
+        $others = isset($property['enum']) ? \array_diff($property['enum'], [$default]) : [$default - 1, $default + 1];
+        foreach ($others as $other) {
+            Assert::notSame($tool->call($base + [$argument => $other]), $tool->call($base), "`$argument` of $other must change the result.");
+        }
     }
 
     public function testMetricSchemaListsEveryMetricAndWhatTheyAre(): void

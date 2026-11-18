@@ -245,10 +245,22 @@ final class ProfileCallGraphTest
         Assert::same([$schema['required'], $schema['additionalProperties']], [['id'], false]);
         Assert::same($properties['id'], ProfileAnalyses::idSchema());
         Assert::same($properties['metric']['enum'], ['wt', 'cpu', 'mu', 'pmu', 'ct']);
-        Assert::same(
-            [$properties['threshold']['default'], $properties['max_depth']['default'], $properties['max_length']['default']],
-            [1.0, 30, 20_000],
-        );
+    }
+
+    #[DataSet(['threshold', 0.01, []], 'threshold')]
+    #[DataSet(['max_depth', 1, []], 'max_depth')]
+    #[DataSet(['max_length', 1, ['threshold' => 0.01, 'max_depth' => 200]], 'max_length')]
+    public function testSchemaDefaultsAreTheDefaultsOfTheCall(string $argument, int|float $step, array $arguments): void
+    {
+        $trap = new Trap();
+        $base = ['id' => Profiles::add($trap, Type::XHProf, Profiles::xhprofApp())] + $arguments;
+        $tool = $trap->get(ProfileCallGraph::class);
+        $default = $tool->inputSchema()['properties'][$argument]['default'];
+
+        Assert::same($tool->call($base), $tool->call($base + [$argument => $default]));
+        foreach ([$default - $step, $default + $step] as $other) {
+            Assert::notSame($tool->call($base + [$argument => $other]), $tool->call($base), "`$argument` of $other must change the tree.");
+        }
     }
 
     /**

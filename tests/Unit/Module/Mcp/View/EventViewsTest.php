@@ -91,7 +91,6 @@ final class EventViewsTest
         $prefix = 'The event has no text view: ';
         $text = self::views()->text($record);
 
-        Assert::string($text)->startsWith($prefix);
-        Assert::true(\strlen($text) > \strlen($prefix), 'The reason follows the prefix.');
+        Assert::string($text)->startsWith($prefix)->contains('Inf and NaN');
     }
 }
