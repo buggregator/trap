@@ -61,8 +61,11 @@ final class SentryTrap implements Middleware
 
         $mediaType = \strtolower(\trim(\explode(';', $request->getHeaderLine('Content-Type'), 2)[0]));
 
-        // The browser SDK sends `text/plain` to skip the CORS preflight.
-        return $mediaType === 'application/x-sentry-envelope' || $mediaType === 'text/plain';
+        // The browser SDK sends `text/plain` to skip the CORS preflight, and no type at all
+        // when an item is binary.
+        return $mediaType === 'application/x-sentry-envelope'
+            || $mediaType === 'text/plain'
+            || $mediaType === '';
     }
 
     /**

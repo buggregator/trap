@@ -94,6 +94,12 @@ final class SentryTrapTest
             "{\"event_id\":\"test123\"}\n{\"type\":\"event\"}\n{\"message\":\"test\"}",
         ];
 
+        yield 'browser SDK binary envelope without content type' => [
+            '/api/1/envelope/',
+            [],
+            "{\"event_id\":\"test123\"}\n{\"type\":\"event\"}\n{\"message\":\"test\"}",
+        ];
+
         yield 'envelope type with parameters and mixed case' => [
             '/api/1/envelope/',
             ['Content-Type' => 'Application/X-Sentry-Envelope; charset=utf-8'],
