@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Tool;
 
+use Buggregator\Trap\Module\Mcp\Tool\CollectMemo;
 use Buggregator\Trap\Module\Mcp\Tool\EventFilter;
+use Buggregator\Trap\Module\Mcp\Tool\EventFilterArguments;
 use Buggregator\Trap\Module\Mcp\Tool\ListEvents;
+use Buggregator\Trap\Module\Mcp\View\EventViews;
+use Buggregator\Trap\Module\Mcp\View\TextCache;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\JsonSchema;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\ScriptedView;
@@ -431,8 +435,31 @@ final class ListEventsTest
         $tool = (new Trap())->get(ListEvents::class);
 
         Assert::same($tool->name(), 'list_events');
+        Assert::same($tool->title(), 'List events');
         Assert::same($tool->annotations(), ['readOnlyHint' => true, 'openWorldHint' => false]);
         Assert::string($tool->description())->contains('get_event')->contains('monolog: level, channel');
+    }
+
+    public function testCollectWithAMemoDescribesAnUnchangedEventOnce(): void
+    {
+        $trap = Trap::scripted();
+        // No text is kept: each description of a record renders it
+        $trap->container->set(new TextCache($trap->get(EventViews::class), $trap->store, maxBytes: 0));
+        $trap->store->add(ScriptedView::event('1', 'first', 1.0));
+        $trap->store->add(ScriptedView::event('2', 'second', 2.0));
+        $tool = $trap->get(ListEvents::class);
+        $filter = $trap->get(EventFilterArguments::class)->parse([]);
+        $memo = new CollectMemo();
+
+        $tool->collect(0, $filter, 10, 100, memo: $memo);
+        $first = $trap->view()->renders;
+        $trap->store->add(ScriptedView::event('3', 'third', 3.0));
+        $page = $tool->collect(0, $filter, 10, 100, memo: $memo);
+
+        Assert::same($first, 2);
+        Assert::same($trap->view()->renders, 3, 'Only the new event is rendered.');
+        Assert::same(\array_column($page['events'], 'text'), ['first', 'second', 'third']);
+        Assert::same($page['events'], $tool->collect(0, $filter, 10, 100)['events']);
     }
 
     /**

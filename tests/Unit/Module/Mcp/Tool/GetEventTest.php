@@ -120,7 +120,10 @@ final class GetEventTest
         $tool = (new Trap())->get(GetEvent::class);
 
         Assert::same($tool->name(), 'get_event');
+        Assert::same($tool->title(), 'Get event');
+        Assert::string($tool->description())->contains('in full as plain text')->contains('`list_events`');
         Assert::same($tool->inputSchema()['required'], ['id']);
+        Assert::null($tool->outputSchema(), 'The result is plain text, with no structured content.');
         Assert::same($tool->annotations(), ['readOnlyHint' => true, 'openWorldHint' => false]);
     }
 }

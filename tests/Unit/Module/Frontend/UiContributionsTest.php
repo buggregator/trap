@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Frontend;
 
 use Buggregator\Trap\Module\Frontend\Service;
 use Buggregator\Trap\Module\Frontend\UiControllers;
+use Buggregator\Trap\Module\HttpDump\Frame as HttpDumpFrame;
 use Buggregator\Trap\Module\HttpDump\Module as HttpDumpModule;
 use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Event\EventStore;
@@ -57,6 +58,14 @@ final class UiContributionsTest
         Assert::same($mapper->map(new ChildFrame())?->type, 'binary');
     }
 
+    public function testMapperFoundForFrameClassServesLaterFrames(): void
+    {
+        $mapper = (self::container())->get(FrameMapper::class);
+        $mapper->map(new ChildFrame());
+
+        Assert::same($mapper->map(new ChildFrame())?->type, 'binary');
+    }
+
     public function testMapperOfExactFrameClassWinsOverParentOne(): void
     {
         $container = new ObjectContainer();
@@ -88,7 +97,12 @@ final class UiContributionsTest
     {
         $container = self::container(HttpDumpModule::class, TakingHttpUi::class);
 
-        Expect::exception(\LogicException::class)->withMessageContaining('is already given by');
+        Expect::exception(\LogicException::class)->withMessage(\sprintf(
+            'The event mapper of %s from %s is already given by %s.',
+            HttpDumpFrame::class,
+            TakingHttpUi::class,
+            HttpDumpModule::class,
+        ));
 
         new FrameMapper($container->get(Modules::class), $container);
     }

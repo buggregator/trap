@@ -60,9 +60,12 @@ final class GetTraceTest
         $tool = (new Trap())->get(Tools::class)->get('get_trace');
 
         Assert::instanceOf($tool, GetTrace::class);
+        Assert::same($tool->title(), 'Get trace');
+        Assert::string($tool->description())->contains('plain text')->contains('`list_traces`');
         Assert::null($tool->outputSchema());
         Assert::same($tool->annotations(), ['readOnlyHint' => true, 'openWorldHint' => false]);
         Assert::same($tool->inputSchema()['required'], ['id']);
+        Assert::same(\array_keys($tool->inputSchema()['properties']), ['id', 'max_length']);
     }
 
     private static function trap(): Trap

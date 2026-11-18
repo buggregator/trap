@@ -200,6 +200,36 @@ final class ProfileTopTest
         }
     }
 
+    public function testDescribesItself(): void
+    {
+        $tool = (new Trap())->get(ProfileTop::class);
+
+        Assert::same($tool->title(), 'Top functions of a profile');
+        Assert::string($tool->description())->contains('Sort by `exclusive`')->contains('`filter`')->contains('`App\*`');
+    }
+
+    public function testSchemaBoundsAreTheAcceptedArguments(): void
+    {
+        $schema = (new Trap())->get(ProfileTop::class)->inputSchema();
+        $properties = $schema['properties'];
+
+        Assert::same(\array_keys($properties), ['id', 'metric', 'sort', 'filter', 'limit']);
+        Assert::same([$schema['required'], $schema['additionalProperties']], [['id'], false]);
+        Assert::same([$properties['sort']['enum'], $properties['sort']['default']], [['exclusive', 'inclusive'], 'exclusive']);
+        Assert::same(
+            [$properties['limit']['minimum'], $properties['limit']['maximum'], $properties['limit']['default']],
+            [1, 200, 20],
+        );
+    }
+
+    public function testMetricSchemaListsEveryMetricAndWhatTheyAre(): void
+    {
+        $metric = ProfileSchema::metric();
+
+        Assert::same([$metric['type'], $metric['enum']], ['string', ['wt', 'cpu', 'mu', 'pmu', 'ct']]);
+        Assert::string($metric['description'])->contains(ProfileSchema::METRICS);
+    }
+
     /**
      * @return array{Trap, non-empty-string}
      */

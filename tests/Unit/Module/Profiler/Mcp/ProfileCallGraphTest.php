@@ -203,6 +203,40 @@ final class ProfileCallGraphTest
         $trap->get(ProfileCallGraph::class)->call(['id' => $id] + $arguments);
     }
 
+    public function testDescribesItselfAsReadOnlyText(): void
+    {
+        $tool = (new Trap())->get(ProfileCallGraph::class);
+
+        Assert::same($tool->name(), 'profile_call_graph');
+        Assert::same($tool->title(), 'Call tree of a profile');
+        Assert::string($tool->description())->contains('at least `threshold` percent')->contains('`profile_calls`');
+        Assert::null($tool->outputSchema(), 'The result is plain text, with no structured content.');
+        Assert::same($tool->annotations(), ['readOnlyHint' => true, 'openWorldHint' => false]);
+    }
+
+    public function testSchemaBoundsAreTheAcceptedArguments(): void
+    {
+        $schema = (new Trap())->get(ProfileCallGraph::class)->inputSchema();
+        $properties = $schema['properties'];
+
+        Assert::same(\array_keys($properties), ['id', 'metric', 'threshold', 'max_depth', 'max_length']);
+        Assert::same([$schema['required'], $schema['additionalProperties']], [['id'], false]);
+        Assert::same($properties['id'], ProfileAnalyses::idSchema());
+        Assert::same($properties['metric']['enum'], ['wt', 'cpu', 'mu', 'pmu', 'ct']);
+        Assert::same(
+            [$properties['threshold']['minimum'], $properties['threshold']['maximum'], $properties['threshold']['default']],
+            [0.01, 100, 1.0],
+        );
+        Assert::same(
+            [$properties['max_depth']['minimum'], $properties['max_depth']['maximum'], $properties['max_depth']['default']],
+            [1, 200, 30],
+        );
+        Assert::same(
+            [$properties['max_length']['minimum'], $properties['max_length']['maximum'], $properties['max_length']['default']],
+            [100, 200_000, 20_000],
+        );
+    }
+
     /**
      * @return array{Trap, non-empty-string}
      */

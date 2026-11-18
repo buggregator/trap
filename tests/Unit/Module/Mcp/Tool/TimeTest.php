@@ -120,6 +120,16 @@ final class TimeTest
         Time::range(['from' => '5m', 'to' => '1h'], self::NOW);
     }
 
+    public function testSchemaDescribesBothFormats(): void
+    {
+        $schema = Time::schema('Events since this time.');
+
+        Assert::same($schema['type'], 'string');
+        Assert::string($schema['description'])
+            ->startsWith('Events since this time. ISO 8601 such as `2026-11-16T10:00:00Z`')
+            ->contains('`30s`, `5m`, `2h`, `1d`, `1w`, the unit in lower case.');
+    }
+
     #[DataSet([1_700_000_000.5, '2023-11-14T22:13:20.500+00:00'], 'half a second')]
     #[DataSet([1_700_000_000.7379, '2023-11-14T22:13:20.737+00:00'], 'cut to milliseconds')]
     public function testFormat(float $timestamp, string $expected): void

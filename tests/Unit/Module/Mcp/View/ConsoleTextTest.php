@@ -8,7 +8,10 @@ use Buggregator\Trap\Module\Mcp\View\ConsoleText;
 use Buggregator\Trap\Module\VarDumper\Frame as VarDumperFrame;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\Record;
+use Buggregator\Trap\Server\Proto\Frame\Binary;
+use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\BinaryRendererModule;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
+use Nyholm\Psr7\Stream;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
@@ -43,6 +46,17 @@ final class ConsoleTextTest
         $text = $trap->get(ConsoleText::class)->text(new Record($event, 1, [$first, $second]));
 
         Assert::string($text)->matchesRegex('/first.*MONOLOG.*second/s');
+    }
+
+    public function testRendererSuspendingItsFiberIsRenderedToTheEnd(): void
+    {
+        $trap = new Trap([BinaryRendererModule::class]);
+        $event = new Event('5a4f8e1c-0000-4000-8000-000000000001', 'binary', [], 1.0);
+        $record = new Record($event, 1, [new Binary(Stream::create('trap'))]);
+
+        $text = $trap->get(ConsoleText::class)->text($record);
+
+        Assert::string($text)->startsWith('BINARY')->contains('74 72 61 70');
     }
 
     public function testEventWithoutFramesHasNoText(): void

@@ -453,6 +453,38 @@ final class WaitForEventsTest
         (new Trap())->get(WaitForEvents::class)->call($arguments);
     }
 
+    public function testIsReadOnly(): void
+    {
+        $tool = (new Trap())->get(WaitForEvents::class);
+
+        Assert::same($tool->name(), 'wait_for_events');
+        Assert::same($tool->title(), 'Wait for events');
+        Assert::same($tool->annotations(), ['readOnlyHint' => true, 'openWorldHint' => false]);
+        Assert::string($tool->description())->contains('(30 by default, 50 at most)')->contains('`list_events`');
+    }
+
+    public function testSchemaTakesTheListArgumentsWithCountAndTimeout(): void
+    {
+        $trap = new Trap();
+        $list = $trap->get(ListEvents::class)->inputSchema()['properties'];
+
+        $schema = $trap->get(WaitForEvents::class)->inputSchema();
+        $properties = $schema['properties'];
+
+        Assert::same(
+            \array_keys($properties),
+            ['since', 'type', 'project', 'from', 'to', 'search', 'regex', 'where', 'count', 'timeout', 'include', 'max_length'],
+        );
+        Assert::same($properties['count']['maximum'], WaitForEvents::MAX_COUNT);
+        Assert::same($properties['timeout']['maximum'], WaitForEvents::MAX_TIMEOUT);
+        Assert::same($properties['include']['enum'], $list['include']['enum']);
+        Assert::string($properties['include']['description'])
+            ->contains((string) ListEvents::MAX_TOTAL_TEXT_LENGTH)
+            ->contains('as past `count`');
+        Assert::same($properties['max_length'], $list['max_length']);
+        Assert::false($schema['additionalProperties']);
+    }
+
     public function testStopsWhenTheClientDisconnects(): void
     {
         $trap = new Trap();
