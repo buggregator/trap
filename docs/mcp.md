@@ -207,9 +207,11 @@ prints it:
   in any case, and the password of a URL, are `[Filtered]`. A password with a raw `/`, `?` or `#` in it, not
   percent-encoded, may still show in part. The headers `Referer`, `Location`, `Origin` and `Content-Location` are
   filtered as URLs, and so are URLs in query values, encoded or not, as of a redirect, and in the strings of a query
-  map or of a URL sent as a list at any depth; a value nested in more than 5 such URLs, or 32 levels of a query map, is `[Filtered]` whole. The
-  first 4 KB of a URL or a query string are filtered, more than its line shows. The body and the other sections are shown as sent. The query is one line of up to 300 characters; the request is at
-  most 16 KB with its body, and the headers past that are left out and counted.
+  map or of a URL sent as a list at any depth; a value nested in more than 5 such URLs, or 32 levels of a query map,
+  is `[Filtered]` whole. Of such a map or list, and of a header sent as a list, the items past 20 of a level or past
+  the first 2400 bytes are counted. The first 4 KB of a URL or a query string are filtered, more than its line shows.
+  The body and the other sections are shown as sent. The query is one line of up to 300 characters; the request is
+  at most 16 KB with its body, and the headers past that are left out and counted.
 - The contexts, such as `runtime`, `os` and `trace` with its IDs, one line each; the latest breadcrumbs, oldest first;
   the extra data; the spans of a transaction with their durations.
 - An envelope of several items shows each of them under `--- Item 2 of 3: attachment ---`: an attachment by its

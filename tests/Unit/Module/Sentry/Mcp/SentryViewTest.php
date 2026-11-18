@@ -978,6 +978,69 @@ final class SentryViewTest
             ->notContains('abc');
     }
 
+    public function testUrlsOfAListStayReadable(): void
+    {
+        $text = self::text(['request' => [
+            'url' => ['https://shop.test/?token=abc&q=a%20b', 'https://shop.test/?q=a%20b'],
+            'headers' => ['Referer' => ['https://shop.test/?token=abc&q=a%20b']],
+        ]]);
+
+        Assert::string($text)
+            ->contains("Request: [\"https://shop.test/?token=[Filtered]&q=a%20b\",\"https://shop.test/?q=a%20b\"]\n")
+            ->contains("    Referer: https://shop.test/?token=[Filtered]&q=a%20b\n")
+            ->notContains('abc');
+    }
+
+    public function testUrlsOfAListNestedPastTheDepthAreFilteredWhole(): void
+    {
+        $value = 'https://a.test/?token=abc';
+        for ($i = 0; $i < 600; ++$i) {
+            $value = [$value];
+        }
+
+        $text = self::text(['request' => ['url' => $value, 'headers' => ['Referer' => $value]]]);
+
+        $filtered = \str_repeat('[', 32) . '"[Filtered]"' . \str_repeat(']', 32);
+        Assert::string($text)
+            ->contains("Request: $filtered\n")
+            ->contains("    Referer: $filtered\n")
+            ->notContains('abc');
+    }
+
+    public function testHugeNestedListsAreBounded(): void
+    {
+        $list = \array_fill(0, 300_000, 'x');
+
+        $start = \microtime(true);
+        $text = self::text(['request' => [
+            'url' => [$list],
+            'query_string' => ['r' => [$list]],
+            'headers' => ['Referer' => $list, 'Location' => [$list]],
+        ]]);
+        $seconds = \microtime(true) - $start;
+
+        $shown = \str_repeat('"x",', 20) . '"… 299980 more"';
+        Assert::string($text)
+            ->contains("Request: [[$shown]]\n")
+            ->contains("  Query: r=[[$shown]]\n")
+            ->contains('    Referer: ' . \str_repeat('x, ', 20) . "… 299980 more\n")
+            ->contains("    Location: [$shown]\n");
+        Assert::numeric(\strlen($text))->lessThan(4096);
+        Assert::numeric($seconds)->lessThan(1.0);
+    }
+
+    public function testTextWithTwoSlashesIsNotAUrlWithAPassword(): void
+    {
+        $text = self::text(['request' => [
+            'url' => '// TODO: ping me@bob',
+            'headers' => ['Referer' => '//u:abc@x/'],
+        ]]);
+
+        Assert::string($text)
+            ->contains("Request: // TODO: ping me@bob\n")
+            ->contains("    Referer: //u:[Filtered]@x/\n");
+    }
+
     public function testEventThatFailsToRenderShowsNoPayload(): void
     {
         $payload = [

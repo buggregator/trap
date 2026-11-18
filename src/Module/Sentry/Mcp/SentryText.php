@@ -99,6 +99,12 @@ final class SentryText
     private const MAX_QUERY_DEPTH = 32;
 
     /**
+     * Bytes of the strings and keys of a structure filtered by {@see self::filterQueryValue()}, or of the values of
+     * a header sent as a list, after which the rest is counted: far more than a line shows.
+     */
+    private const MAX_STRUCTURE_BYTES = 8 * self::MAX_VALUE;
+
+    /**
      * Bytes of a URL or a query string that are filtered, more than a line shows: the filter would be quadratic
      * on the rest.
      */
@@ -666,7 +672,7 @@ final class SentryText
             $value = $pair[1];
             $name = $pair[0];
             $string = \preg_match(self::URL_HEADERS, $name) === 1 ? self::filterUrls(...) : self::string(...);
-            $value = \is_array($value) ? \implode(', ', \array_map($string, $value)) : $string($value);
+            $value = \is_array($value) ? self::headerValues($value, $string) : $string($value);
             \preg_match(self::SKIPPED_HEADERS, $name) === 1 or $headers[] = "    $name: "
                 . (self::isSecret($name) ? self::FILTERED : self::inline($value)) . "\n";
         }
@@ -827,7 +833,10 @@ final class SentryText
             $result[] = $pair[0] . '=' . match (true) {
                 !$filter => self::inline($pair[1]),
                 self::isSecret($pair[0]) => self::FILTERED,
-                default => self::inline(self::filterQueryValue($pair[1])),
+                default => self::inline(self::filterQueryValue(
+                    $pair[1],
+                    static fn(string $value): string => self::filterValue($value, 0),
+                )),
             };
         }
 
@@ -870,15 +879,30 @@ final class SentryText
     }
 
     /**
-     * A value of a query map with the values of {@see self::SECRET_NAMES} replaced and its strings filtered by
-     * {@see self::filterValue()} at any depth; the levels past {@see self::MAX_QUERY_DEPTH} are replaced whole.
+     * A value of a query map, or URLs sent as a structure, with the values of {@see self::SECRET_NAMES} replaced
+     * and its strings filtered by the leaf filter at any depth. The levels past {@see self::MAX_QUERY_DEPTH} are
+     * replaced whole; past {@see self::MAX_ENTRIES} items of a level, or once the items seen take
+     * {@see self::MAX_STRUCTURE_BYTES}, the rest of each level is counted.
      *
+     * @param \Closure(string): string $leaf
+     */
+    private static function filterQueryValue(mixed $value, \Closure $leaf): mixed
+    {
+        $bytes = self::MAX_STRUCTURE_BYTES;
+
+        return self::filterLevel($value, $leaf, $bytes, 0);
+    }
+
+    /**
+     * @param \Closure(string): string $leaf
+     * @param int $bytes What is left of {@see self::MAX_STRUCTURE_BYTES}, shared by the whole structure.
      * @param int $level The structures the value is nested in.
      */
-    private static function filterQueryValue(mixed $value, int $level = 0): mixed
+    private static function filterLevel(mixed $value, \Closure $leaf, int &$bytes, int $level): mixed
     {
         if (\is_string($value)) {
-            return self::filterValue($value, 0);
+            $bytes -= \strlen($value);
+            return $leaf($value);
         }
 
         if (!\is_array($value)) {
@@ -890,12 +914,26 @@ final class SentryText
         }
 
         $result = [];
+        $shown = 0;
         /** @var mixed $item */
         foreach ($value as $name => $item) {
+            if ($shown >= self::MAX_ENTRIES || $bytes <= 0) {
+                break;
+            }
+
+            ++$shown;
+            $bytes -= \strlen((string) $name) + 1;
             /** @psalm-suppress MixedAssignment */
             $result[$name] = \is_string($name) && self::isSecret($name)
                 ? self::FILTERED
-                : self::filterQueryValue($item, $level + 1);
+                : self::filterLevel($item, $leaf, $bytes, $level + 1);
+        }
+
+        $more = \count($value) - $shown;
+        if ($more > 0 && \array_is_list($value)) {
+            $result[] = \sprintf('… %d more', $more);
+        } elseif ($more > 0) {
+            $result['…'] = \sprintf('%d more', $more);
         }
 
         return $result;
@@ -906,7 +944,34 @@ final class SentryText
      */
     private static function filterUrls(mixed $url): string
     {
-        return self::inline(\is_array($url) ? self::filterQueryValue($url) : self::filterUrl(self::string($url)));
+        return self::inline(
+            \is_array($url) ? self::filterQueryValue($url, self::filterUrl(...)) : self::filterUrl(self::string($url)),
+        );
+    }
+
+    /**
+     * The values of a header sent as a list in one line: the first {@see self::MAX_ENTRIES} that fit in
+     * {@see self::MAX_STRUCTURE_BYTES}, the rest counted.
+     *
+     * @param \Closure(mixed): string $string
+     */
+    private static function headerValues(array $values, \Closure $string): string
+    {
+        $result = [];
+        $bytes = self::MAX_STRUCTURE_BYTES;
+        /** @var mixed $value */
+        foreach ($values as $value) {
+            if (\count($result) >= self::MAX_ENTRIES || $bytes <= 0) {
+                break;
+            }
+
+            $result[] = $item = $string($value);
+            $bytes -= \strlen($item);
+        }
+
+        \count($values) > \count($result) and $result[] = \sprintf('… %d more', \count($values) - \count($result));
+
+        return \implode(', ', $result);
     }
 
     /**
@@ -919,7 +984,7 @@ final class SentryText
     private static function filterUrl(string $url, int $depth = 0): string
     {
         $url = (string) \preg_replace(
-            '~^(\s*(?:[a-z][a-z\d+.-]*:)?//[^/:@?#]*):[^/?#]*@~i',
+            '~^(\s*(?:[a-z][a-z\d+.-]*:)?//[^/:@?#\s]*):[^/?#]*@~i',
             '$1:' . self::FILTERED . '@',
             $url,
         );
