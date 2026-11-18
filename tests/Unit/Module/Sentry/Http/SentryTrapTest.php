@@ -66,6 +66,12 @@ final class SentryTrapTest
             ['Content-Type' => 'text/html'],
             '/api/1/envelope/',
         ];
+
+        yield 'GET without content type on envelope path' => [
+            [],
+            '/api/1/envelope/',
+            'GET',
+        ];
     }
 
     public static function provideSentryEnvelopeRequests(): \Generator
@@ -169,11 +175,11 @@ final class SentryTrapTest
     }
 
     #[DataProvider('provideNonSentryRequests')]
-    public function testHandleRejectsNonSentryRequests(array $headers, string $uri): void
+    public function testHandleRejectsNonSentryRequests(array $headers, string $uri, string $method = 'POST'): void
     {
         // Arrange
         $expectedResponse = new Response(200);
-        $request = $this->request(uri: $uri, headers: $headers);
+        $request = $this->request(method: $method, uri: $uri, headers: $headers);
         $next = static fn() => $expectedResponse;
 
         // Act

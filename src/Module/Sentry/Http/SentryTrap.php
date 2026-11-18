@@ -55,7 +55,9 @@ final class SentryTrap implements Middleware
 
     private function isEnvelopeRequest(ServerRequestInterface $request): bool
     {
-        if (!\str_contains($request->getUri()->getPath(), '/envelope/')) {
+        if ($request->getMethod() !== 'POST'
+            || !\str_contains($request->getUri()->getPath(), '/envelope/')
+        ) {
             return false;
         }
 
