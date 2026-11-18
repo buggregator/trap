@@ -250,6 +250,42 @@ final class ProfileBuilderTest
         Assert::same(self::shape($profile->tree()), $shape);
     }
 
+    public function testSaturatesTimesPastIntegerRange(): void
+    {
+        $json = '{"enabled_metrics": ["wt"], "called_function_count": 2, "recorded_call_count": 3}';
+        // `f` takes 5e18 µs twice
+        $trace = "[events]\n0 1 0\n1 1 0\n1 0 5000000000000000000000\n1 1 5000000000000000000000\n"
+            . "1 0 10000000000000000000000\n0 0 10000000000000000000000\n[functions]\na\nf\n";
+
+        $profile = self::build($json, $trace);
+
+        // The calls of a pair are rounded so that they sum to its total, here saturated
+        Assert::same(self::shape($profile->tree()), [
+            'a:9223372036854775807:0:0:1' => [
+                'f:4223372036854775807:0:0:1' => [],
+                'f:5000000000000000000:0:0:1' => [],
+            ],
+        ]);
+        Assert::same($profile->calls->callers('f')[0]->cost->wt, \PHP_INT_MAX);
+    }
+
+    public function testSaturatesSumOfCalleesPastIntegerRange(): void
+    {
+        $json = '{"enabled_metrics": ["wt"], "called_function_count": 3, "recorded_call_count": 3}';
+        // `f` and `g` take 5e18 µs each
+        $trace = "[events]\n0 1 0\n1 1 0\n1 0 5000000000000000000000\n2 1 5000000000000000000000\n"
+            . "2 0 10000000000000000000000\n0 0 10000000000000000000000\n[functions]\na\nf\ng\n";
+
+        $profile = self::build($json, $trace);
+
+        Assert::same(self::shape($profile->tree()), [
+            'a:9223372036854775807:0:0:1' => [
+                'f:5000000000000000000:0:0:1' => [],
+                'g:5000000000000000000:0:0:1' => [],
+            ],
+        ]);
+    }
+
     #[DataSet([1400, '1 µs'], 'rounded down')]
     #[DataSet([1600, '2 µs'], 'rounded up')]
     public function testShowsTotalsOfOtherMetrics(int $idle, string $idleShown): void

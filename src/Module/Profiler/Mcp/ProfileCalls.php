@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Module\Profiler\Mcp;
 
 use Buggregator\Trap\Module\Mcp\Tool;
 use Buggregator\Trap\Module\Mcp\Tool\Arguments;
+use Buggregator\Trap\Module\Profiler\Struct\Cost;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Metric;
 use Buggregator\Trap\Support\TimeSlice;
@@ -215,7 +216,7 @@ final class ProfileCalls implements Tool
             }
 
             $other = (string) $other;
-            $exclusive = \max(0, (int) \round($link['exclusive']));
+            $exclusive = \max(0, Cost::saturate(\round($link['exclusive'])));
             $rows[] = [
                 'function' => $other,
                 'via' => $name,
@@ -267,9 +268,9 @@ final class ProfileCalls implements Tool
             $nested = $metric === Metric::Count ? [] : self::nested($pair, $slice);
             $link = ['calls' => 0, 'inclusive' => 0, 'exclusive' => 0.0];
             foreach ($pair as $i => $edge) {
-                $link['calls'] += $edge->cost->ct;
+                $link['calls'] = Cost::saturate($link['calls'] + $edge->cost->ct);
                 $link['exclusive'] += $analysis->exclusive($edge, $metric, $slice);
-                isset($nested[$i]) or $link['inclusive'] += $metric->of($edge->cost);
+                isset($nested[$i]) or $link['inclusive'] = Cost::sum($link['inclusive'], $metric->of($edge->cost));
                 $slice->tick();
             }
             $link['exclusive'] = \min($link['exclusive'], (float) $link['inclusive']);

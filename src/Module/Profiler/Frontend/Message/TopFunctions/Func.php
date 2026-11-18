@@ -97,19 +97,29 @@ final class Func implements \JsonSerializable
     {
         $this->serialized = null;
         $own = self::metrics($cost);
+        // Summed apart by sign: signed values, as XHProf's `mu`, may leave the integer range in the middle
+        // of one sum and come back, where saturating each step would depend on the order of the callees
+        $added = $freed = ['wt' => 0, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
         foreach ($children as $child) {
             $child = self::metrics($child);
-            $own['wt'] -= $child['wt'];
-            $own['cpu'] -= $child['cpu'];
-            $own['mu'] -= $child['mu'];
-            $own['pmu'] -= $child['pmu'];
+            foreach (['wt', 'cpu', 'mu', 'pmu'] as $metric) {
+                $value = $child[$metric];
+                if ($value < 0) {
+                    $freed[$metric] = Cost::saturate($freed[$metric] - $value);
+                } else {
+                    $added[$metric] = Cost::saturate($added[$metric] + $value);
+                }
+            }
+        }
+        foreach ($added as $metric => $sum) {
+            $own[$metric] = Cost::saturate($own[$metric] - $sum + $freed[$metric]);
         }
 
         foreach ($own as $metric => $value) {
-            $this->exclusive[$metric] += $value;
+            $this->exclusive[$metric] = Cost::saturate($this->exclusive[$metric] + $value);
         }
 
-        $this->inclusive['ct'] += $cost->ct;
+        $this->inclusive['ct'] = Cost::saturate($this->inclusive['ct'] + $cost->ct);
         if (!$recursive) {
             $this->inclusive['wt'] += $cost->wt;
             $this->inclusive['cpu'] += $cost->cpu;

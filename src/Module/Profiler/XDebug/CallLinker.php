@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\XDebug;
 
+use Buggregator\Trap\Module\Profiler\Struct\Cost;
 use Buggregator\Trap\Support\TimeSlice;
 
 /**
@@ -100,9 +101,9 @@ final class CallLinker
                 "Call of `$name` lists `{$call->callees[$i]}`, but `$childName` ended there.",
             );
             $this->round($child, $function, $this->time[$at], $this->calleesWt[$at]);
-            $time += $this->time[$at];
+            $time = Cost::saturate($time + $this->time[$at]);
             $memory += $this->memory[$child];
-            $calleesWt += $this->wt[$child];
+            $calleesWt = Cost::saturate($calleesWt + $this->wt[$child]);
             $this->caller[$child] = $node;
             $this->offset[$child] = $size;
             $size += $this->size[$at];
@@ -169,7 +170,7 @@ final class CallLinker
         $time += $this->pairTime[$caller][$callee] ?? 0;
         $this->pairTime[$caller][$callee] = $time;
         $given = $this->pairWt[$caller][$callee] ?? 0;
-        $value = \max($calleesWt, (int) \round((float) $time / $this->timeDivisor) - $given);
+        $value = \max($calleesWt, Cost::saturate(\round((float) $time / $this->timeDivisor)) - $given);
         $this->pairWt[$caller][$callee] = $given + $value;
         $this->wt[$node] = $value;
     }

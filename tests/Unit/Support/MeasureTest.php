@@ -21,6 +21,7 @@ final class MeasureTest
     #[DataSet([3 * 1024 * 1024, '3.00 MiB'], 'mebibytes')]
     #[DataSet([5 * 1024 ** 3, '5.00 GiB'], 'gibibytes')]
     #[DataSet([2 * 1024 ** 4, '2.00 TiB'], 'tebibytes')]
+    #[DataSet([\PHP_INT_MAX, '8.00 EiB'], 'largest integer')]
     public function formatsMemorySizeInBinaryUnits(int $size, string $expected): void
     {
         Assert::same(Measure::memory($size), $expected);
