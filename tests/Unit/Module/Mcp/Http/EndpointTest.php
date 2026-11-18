@@ -10,8 +10,10 @@ use Buggregator\Trap\Module\Mcp\Http\Endpoint;
 use Buggregator\Trap\Module\Mcp\Http\TokenGuard;
 use Buggregator\Trap\Module\Mcp\Protocol\JsonRpc;
 use Buggregator\Trap\Module\Mcp\Protocol\RpcError;
+use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Protocol\McpServerTest;
+use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;
 use Psr\Http\Message\ResponseInterface;
@@ -272,6 +274,31 @@ final class EndpointTest
         $response = self::handle($request);
 
         Assert::same($response->getStatusCode(), 299);
+    }
+
+    public function testWaitingToolStopsWhenTheConnectionCloses(): void
+    {
+        $trap = new Trap();
+        $gone = false;
+        $request = self::post('{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"wait_for_events"}}')
+            ->withAttribute(Middleware::DISCONNECTED, static function () use (&$gone): bool {
+                return $gone;
+            });
+        $endpoint = $trap->get(Endpoint::class);
+        $fiber = new \Fiber(static fn(): ResponseInterface => $endpoint->handle(
+            $request,
+            static fn(): ResponseInterface => new Response(299),
+        ));
+
+        $fiber->start();
+        $waiting = $fiber->isSuspended();
+        $gone = true;
+        $fiber->resume();
+
+        Assert::true($waiting);
+        $response = $fiber->getReturn();
+        Assert::same($response->getStatusCode(), 200);
+        Assert::true(self::body($response)['result']['structuredContent']['timed_out']);
     }
 
     /**
