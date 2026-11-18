@@ -406,6 +406,51 @@ final class RendererTest
     }
 
     #[Test]
+    public function stopsHotPathOnCycleOfCallGraph(): void
+    {
+        // `{main}` calls `a()` that calls `b()`, then `b()` that calls `a()`: no recursion, but `a ==> b ==> a`
+        $profile = (new XDebugProfileBuilder())->createProfile(<<<'CACHEGRIND'
+            version: 1
+            creator: xdebug 3.4.0 (PHP 8.4.0)
+            events: Time_(10ns) Memory_(bytes)
+
+            fn=(1) b
+            1 30000 0
+
+            fn=(2) a
+            1 10000 0
+            cfn=(1)
+            calls=1 0 0
+            1 30000 0
+
+            fn=(2)
+            1 5000 0
+
+            fn=(1)
+            1 5000 0
+            cfn=(2)
+            calls=1 0 0
+            1 5000 0
+
+            fn=(3) {main}
+            1 0 0
+            cfn=(2)
+            calls=1 0 0
+            1 40000 0
+            cfn=(1)
+            calls=1 0 0
+            1 10000 0
+
+            CACHEGRIND);
+
+        $output = self::render(new Frame(Payload::new(Type::XDebug, static fn(): Profile => $profile)));
+
+        Assert::string($output)->endsWith(
+            "## Hot path \n100.0%       500 µs  {main}\n 80.0%       400 µs  └ a\n 60.0%       300 µs  └ b\n",
+        );
+    }
+
+    #[Test]
     public function keepsCountWiderThanItsColumn(): void
     {
         $output = self::render(self::xhprofFrame([
