@@ -538,6 +538,23 @@ final class SentryViewTest
         );
     }
 
+    public function testSingleExceptionWithOnlyValue(): void
+    {
+        $payload = ['exception' => ['value' => 'gone away']];
+
+        $text = self::text($payload);
+
+        Assert::same($text, "Exception, stack frames innermost first:\nException: gone away\n");
+        Assert::same((new SentryView())->summary(self::event($payload)), 'gone away');
+    }
+
+    public function testObjectOfOtherKeysIsNoException(): void
+    {
+        $text = self::text(['exception' => ['mechanism' => ['type' => 'generic', 'handled' => false]]]);
+
+        Assert::same($text, '');
+    }
+
     public function testCausesCollapseTheFramesInCommon(): void
     {
         $code = ['context_line' => 'call();'];
