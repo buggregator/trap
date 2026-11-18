@@ -54,6 +54,22 @@ final class SentryEnvelope implements Renderer
     }
 
     /**
+     * Sentry SDKs send `{"values": [...]}`, but some send a bare list or a single exception object.
+     */
+    private static function exceptions(mixed $exception): array
+    {
+        if (!\is_array($exception)) {
+            return [];
+        }
+
+        if (isset($exception['values']) && \is_array($exception['values'])) {
+            return $exception['values'];
+        }
+
+        return \array_is_list($exception) ? $exception : [$exception];
+    }
+
+    /**
      * Renders an item whose payload is not an event, e.g. an attachment stream.
      */
     private function renderItemHeaders(OutputInterface $output, EnvelopeItem $item): void
@@ -69,8 +85,9 @@ final class SentryEnvelope implements Renderer
 
     private function renderItem(OutputInterface $output, EnvelopeItem $data): void
     {
-        if (\is_array($data->payload) && isset($data->payload['exceptions'])) {
-            Exceptions::render($output, $data->payload['exceptions']);
+        $exceptions = \is_array($data->payload) ? self::exceptions($data->payload['exception'] ?? null) : [];
+        if ($exceptions !== []) {
+            Exceptions::render($output, $exceptions);
             return;
         }
 
