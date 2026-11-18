@@ -98,6 +98,21 @@ final class ProfileBuilderTest
         Assert::same([$main->cost->wt, $f->cost->ct, $f->cost->wt], [500, 1000, 500]);
     }
 
+    public function testSaturatesTimesPastIntegerRange(): void
+    {
+        $time = '500000000000000000000';
+        $profile = (new ProfileBuilder())->createProfile(self::profile(
+            'Time_(ns) Memory_(bytes)',
+            "fn=(1) a\n2 $time 0\n\nfn=(2) b\n3 $time 0\n\n"
+                . "fn=(3) {main}\n1 0 0\ncfn=(1)\ncalls=1 0 0\n2 $time 0\ncfn=(2)\ncalls=1 0 0\n3 $time 0\n",
+        ));
+
+        // `PHP_INT_MAX` ns in µs; the time of `{main}` saturates, so it takes the sum of its callees
+        Assert::same(self::shape($profile->tree()), [
+            '{main}:18446744073709552' => ['a:9223372036854776' => [], 'b:9223372036854776' => []],
+        ]);
+    }
+
     public function testCallNeverTakesLessThanItsChildren(): void
     {
         // 0.6 µs each: the children round up to 1 µs, while 1.2 µs of the parent would round down

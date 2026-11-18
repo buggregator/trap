@@ -233,9 +233,9 @@ final class ProfileBuilder
                     },
                     cost: new Cost(
                         ct: \max(0, $flat->count[$node]),
-                        wt: \max(0, (int) \round($flat->value[$node])),
+                        wt: \max(0, Cost::saturate(\round($flat->value[$node]))),
                         cpu: 0,
-                        mu: \max(0, (int) \round($flat->memory[$node])),
+                        mu: \max(0, Cost::saturate(\round($flat->memory[$node]))),
                         pmu: 0,
                     ),
                 ),

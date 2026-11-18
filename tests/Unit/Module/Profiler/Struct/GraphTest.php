@@ -352,6 +352,19 @@ final class GraphTest
         Assert::same(\array_map(static fn(Edge $e): string => $e->calleeId, $graph->callees('main')), ['a']);
     }
 
+    public function testFromTreeSaturatesSumsPastIntegerRange(): void
+    {
+        /** @var Tree<Edge> $tree */
+        $tree = new Tree();
+        $tree->addItem(new Edge(null, 'main', new Cost(1, \PHP_INT_MAX, \PHP_INT_MAX, 0, 0)), 'n1', null);
+        $tree->addItem(new Edge('main', 'a', new Cost(1, \PHP_INT_MAX, \PHP_INT_MAX, 0, 0)), 'n2', 'n1');
+        $tree->addItem(new Edge('main', 'a', new Cost(1, 1, 1, 0, 0)), 'n3', 'n1');
+
+        $a = Graph::fromTree($tree)->callers('a')[0]->cost;
+
+        Assert::same([$a->ct, $a->wt, $a->cpu], [2, \PHP_INT_MAX, \PHP_INT_MAX]);
+    }
+
     public function testSetsPercentsAndDeltasOfEdges(): void
     {
         $graph = new Graph();

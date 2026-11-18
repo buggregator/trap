@@ -51,11 +51,11 @@ final class Graph implements \IteratorAggregate, \Countable
             $key = ($edge->callerId ?? '') . '==>' . $edge->calleeId;
             // Summed in place: a new array per node would be allocated and the old one freed
             if (isset($sums[$key])) {
-                $sums[$key][1] += $cost->ct;
-                $sums[$key][2] += $cost->wt;
-                $sums[$key][3] += $cost->cpu;
-                $sums[$key][4] += $cost->mu;
-                $sums[$key][5] += $cost->pmu;
+                $sums[$key][1] = Cost::saturate($sums[$key][1] + $cost->ct);
+                $sums[$key][2] = Cost::saturate($sums[$key][2] + $cost->wt);
+                $sums[$key][3] = Cost::saturate($sums[$key][3] + $cost->cpu);
+                $sums[$key][4] = Cost::saturate($sums[$key][4] + $cost->mu);
+                $sums[$key][5] = Cost::saturate($sums[$key][5] + $cost->pmu);
             } else {
                 $sums[$key] = [$edge, $cost->ct, $cost->wt, $cost->cpu, $cost->mu, $cost->pmu];
             }
@@ -223,7 +223,7 @@ final class Graph implements \IteratorAggregate, \Countable
         $metric = Metric::WallTime;
         $total = 0;
         foreach ($this->roots as $edge) {
-            $total += $edge->cost->wt;
+            $total = Cost::saturate($total + $edge->cost->wt);
         }
         /** @var array<non-empty-string, int> $rootCounts Counts of the roots with no calls of their own, by IDs */
         $rootCounts = [];
@@ -234,11 +234,11 @@ final class Graph implements \IteratorAggregate, \Countable
                 if ($edge->cost->ct === 0) {
                     $count = 0;
                     foreach ($this->callees($edge->calleeId) as $child) {
-                        $count += $child->cost->ct;
+                        $count = Cost::saturate($count + $child->cost->ct);
                     }
                     $rootCounts[$edge->calleeId] = $count;
                 }
-                $total += $rootCounts[$edge->calleeId] ?? $edge->cost->ct;
+                $total = Cost::saturate($total + ($rootCounts[$edge->calleeId] ?? $edge->cost->ct));
             }
         }
 
@@ -409,7 +409,7 @@ final class Graph implements \IteratorAggregate, \Countable
      */
     private static function scaleValue(int $value, float $scale): int
     {
-        return \max(0, (int) \round((float) $value * $scale));
+        return \max(0, Cost::saturate(\round((float) $value * $scale)));
     }
 
     /**
