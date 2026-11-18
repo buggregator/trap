@@ -40,6 +40,8 @@ final class PayloadSummaryTest
     #[DataSet(['http-dump', ['request' => ['method' => 'POST', 'uri' => 'api/orders']], 'POST /api/orders'], 'HTTP request')]
     #[DataSet(['profiler', ['peaks' => []], null], 'type without summary')]
     #[DataSet(['monolog', [], null], 'empty payload')]
+    #[DataSet(['var-dump', ['payload' => 'broken'], null], 'dump without a payload structure')]
+    #[DataSet(['http-dump', ['request' => 'broken'], null], 'HTTP dump without a request structure')]
     public function testSummary(string $type, array $payload, ?string $expected): void
     {
         Assert::same((new PayloadSummary())->summary(self::event($type, $payload)), $expected);
@@ -69,6 +71,24 @@ final class PayloadSummaryTest
         ], []));
 
         Assert::same((new PayloadSummary())->summary($event), 'log: first, 2; exception: LogicException: Oops');
+    }
+
+    public function testRayItemsOfOtherShapes(): void
+    {
+        $event = self::event('ray', ['payloads' => [
+            'broken',
+            ['type' => 'text', 'content' => 'plain text'],
+            ['type' => 'table', 'content' => ['a' => 1]],
+        ]]);
+
+        Assert::same((new PayloadSummary())->summary($event), 'text: plain text; table: {"a":1}');
+    }
+
+    #[DataSet([['a' => 1, 'b' => [true]], '{"a":1,"b":[true]}'], 'structure becomes JSON')]
+    #[DataSet([[\INF], ''], 'structure JSON cannot encode')]
+    public function testPlainStructure(array $value, string $expected): void
+    {
+        Assert::same(PayloadSummary::plain($value), $expected);
     }
 
     public function testOtherObjectPayloadIsNotSerialized(): void
@@ -158,6 +178,21 @@ final class PayloadSummaryTest
             'exception' => ['LogicException'],
             'label' => ['checkout'],
             'color' => ['red'],
+        ]);
+    }
+
+    public function testRayFieldsSkipItemsOfOtherShapes(): void
+    {
+        $event = self::event('ray', ['payloads' => [
+            'broken',
+            ['type' => 'exception', 'content' => 'not a structure'],
+        ]]);
+
+        Assert::same((new PayloadSummary())->fields($event), [
+            'payload_type' => ['exception'],
+            'exception' => [],
+            'label' => [],
+            'color' => [],
         ]);
     }
 
