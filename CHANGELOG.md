@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.19.1](https://github.com/buggregator/trap/compare/1.19.0...1.19.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **http:** handle request paths with a colon where URIs are still parsed with parse_url ([#326](https://github.com/buggregator/trap/issues/326)) ([6222dae](https://github.com/buggregator/trap/commit/6222daef755d7190890c5c57ea003ae1dddfa2c6)), closes [#319](https://github.com/buggregator/trap/issues/319)
+* **profiler:** stop the console hot path at a cycle of the call graph ([#328](https://github.com/buggregator/trap/issues/328)) ([efcbeb1](https://github.com/buggregator/trap/commit/efcbeb1eea5901f523476cafb3d51bf319549346)), closes [#316](https://github.com/buggregator/trap/issues/316)
+* **sentry:** accept envelopes sent as text/plain by the browser SDK ([#323](https://github.com/buggregator/trap/issues/323)) ([4d544f3](https://github.com/buggregator/trap/commit/4d544f31e7a242a0e0b194a86caaeaa22f5f4748)), closes [#312](https://github.com/buggregator/trap/issues/312)
+* **sentry:** render exceptions of envelope events in the console ([#321](https://github.com/buggregator/trap/issues/321)) ([ca68c0d](https://github.com/buggregator/trap/commit/ca68c0dbc9fb7dae5a5bf123fe021e6d14dbef52)), closes [#313](https://github.com/buggregator/trap/issues/313)
+* **server:** listen on IPv6 addresses ([#324](https://github.com/buggregator/trap/issues/324)) ([5be544e](https://github.com/buggregator/trap/commit/5be544ec837a3eb50bb09865a8e5ab6658440f04)), closes [#314](https://github.com/buggregator/trap/issues/314)
+
 ## [1.19.0](https://github.com/buggregator/trap/compare/1.18.0...1.19.0) (2026-11-14)
 
 
