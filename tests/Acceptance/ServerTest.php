@@ -323,6 +323,65 @@ final class ServerTest
             ->notContains("\e[");
     }
 
+    public function testMcpShowsAndDeletesSentryEvent(): void
+    {
+        $this->trap = TrapProcess::start(
+            'mcp-sentry',
+            ["--port=$this->port", '--sender=file', "--mcp=$this->uiPort"],
+            [
+                'TRAP_TCP_PORTS' => (string) $this->port,
+                'TRAP_MCP_PORT' => (string) $this->uiPort,
+                'TRAP_MCP_HOST' => null,
+            ],
+            [$this->port, $this->uiPort],
+        );
+        $frame = [
+            'filename' => 'src/Checkout.php',
+            'lineno' => 42,
+            'function' => 'App\\Checkout::pay',
+            'in_app' => true,
+            'pre_context' => ['    {'],
+            'context_line' => '        $gateway->charge($order);',
+            'post_context' => ['    }'],
+        ];
+        $event = [
+            'event_id' => 'acceptance-sentry',
+            'level' => 'error',
+            'platform' => 'php',
+            'exception' => ['values' => [
+                ['type' => 'PDOException', 'value' => 'gone away', 'stacktrace' => ['frames' => [$frame]]],
+                ['type' => 'App\\PaymentFailed', 'value' => 'Payment declined', 'stacktrace' => ['frames' => [$frame]]],
+            ]],
+        ];
+
+        $cursor = $this->callMcpTool('list_events', [])['cursor'];
+        [$status] = TrapProcess::http(
+            $this->port,
+            'POST',
+            '/api/1/store/',
+            \json_encode($event, \JSON_THROW_ON_ERROR),
+            ['Content-Type' => 'application/json', 'X-Sentry-Auth' => 'Sentry sentry_key=acceptance'],
+        );
+        $events = TrapProcess::waitFor(
+            fn(): ?array => $this->callMcpTool('list_events', ['since' => $cursor, 'type' => 'sentry'])['events'] ?: null,
+            'the Sentry event listed by the MCP server',
+        );
+        $text = $this->callMcpTool('get_event', ['id' => $events[0]['id']]);
+        $deleted = $this->callMcpTool('delete_event', ['id' => $events[0]['id']]);
+        $left = $this->callMcpTool('list_events', ['type' => 'sentry'])['events'];
+
+        Assert::same($status, 200);
+        Assert::same($events[0]['summary'], 'App\\PaymentFailed: Payment declined');
+        Assert::same($events[0]['fields']['exception'], ['PDOException', 'App\\PaymentFailed']);
+        Assert::string($text)
+            ->contains("App\\PaymentFailed: Payment declined\n  #0 src/Checkout.php:42 in App\\Checkout::pay\n")
+            ->contains("     41 | {\n   > 42 |     \$gateway->charge(\$order);\n     43 | }\n")
+            ->contains('Caused by PDOException: gone away')
+            ->notContains("\e[");
+        Assert::same($deleted, ['deleted' => 1]);
+        Assert::same($left, []);
+    }
+
     public function testMcpToolsAnalyzeReceivedProfile(): void
     {
         $this->trap = TrapProcess::start(

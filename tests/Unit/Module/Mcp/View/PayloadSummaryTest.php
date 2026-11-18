@@ -37,19 +37,6 @@ final class PayloadSummaryTest
         'HTML dump',
     )]
     #[DataSet(['monolog', ['message' => 'Disk full', 'level_name' => 'ERROR', 'channel' => 'app'], 'ERROR app: Disk full'], 'log')]
-    #[DataSet(
-        [
-            'sentry',
-            ['exception' => ['values' => [
-                ['type' => 'PDOException', 'value' => 'gone away'],
-                ['type' => 'RuntimeException', 'value' => 'Query failed'],
-            ]]],
-            'RuntimeException: Query failed',
-        ],
-        'sentry exception',
-    )]
-    #[DataSet(['sentry', ['message' => ['formatted' => 'Something happened']], 'Something happened'], 'sentry message')]
-    #[DataSet(['sentry', ['type' => 'transaction', 'transaction' => 'GET /'], 'transaction: GET /'], 'sentry transaction')]
     #[DataSet(['http-dump', ['request' => ['method' => 'POST', 'uri' => 'api/orders']], 'POST /api/orders'], 'HTTP request')]
     #[DataSet(['profiler', ['peaks' => []], null], 'type without summary')]
     #[DataSet(['monolog', [], null], 'empty payload')]
@@ -127,30 +114,6 @@ final class PayloadSummaryTest
     #[DataSet(['monolog', ['level_name' => 'ERROR', 'channel' => 'app'], ['level' => 'ERROR', 'channel' => 'app']], 'log')]
     #[DataSet(
         [
-            'sentry',
-            [
-                'level' => 'error',
-                'exception' => ['values' => [['type' => 'PDOException'], ['type' => 'RuntimeException']]],
-                'environment' => 'prod',
-                'release' => '1.2.0',
-                'transaction' => 'POST /orders',
-                'server_name' => 'web-1',
-                'contexts' => ['response' => ['status_code' => 500]],
-            ],
-            [
-                'level' => 'error',
-                'exception' => ['PDOException', 'RuntimeException'],
-                'environment' => 'prod',
-                'release' => '1.2.0',
-                'transaction' => 'POST /orders',
-                'server_name' => 'web-1',
-                'status' => 500,
-            ],
-        ],
-        'sentry',
-    )]
-    #[DataSet(
-        [
             'http-dump',
             ['host' => 'shop.test', 'request' => ['method' => 'POST', 'uri' => 'api/orders']],
             ['method' => 'POST', 'path' => '/api/orders', 'host' => 'shop.test'],
@@ -202,7 +165,7 @@ final class PayloadSummaryTest
     {
         Assert::null((new PayloadSummary())->fields(self::event('profiler', ['peaks' => []])));
         Assert::array((new PayloadSummary())->fieldNames())
-            ->hasKeys('var-dump', 'monolog', 'sentry', 'smtp', 'http-dump', 'ray');
+            ->hasKeys('var-dump', 'monolog', 'smtp', 'http-dump', 'ray');
     }
 
     public function testNoText(): void
