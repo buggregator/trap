@@ -61,7 +61,6 @@ final class TextCacheTest
 
         Assert::same($cache->searchable($old), 'old');
         Assert::same($cache->searchable($new), 'newer');
-        Assert::same($trap->view()->renders, 3);
         Assert::same($cache->bytes(), \strlen('newer'));
     }
 

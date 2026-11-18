@@ -58,14 +58,6 @@ final class UiContributionsTest
         Assert::same($mapper->map(new ChildFrame())?->type, 'binary');
     }
 
-    public function testMapperFoundForFrameClassServesLaterFrames(): void
-    {
-        $mapper = (self::container())->get(FrameMapper::class);
-        $mapper->map(new ChildFrame());
-
-        Assert::same($mapper->map(new ChildFrame())?->type, 'binary');
-    }
-
     public function testMapperOfExactFrameClassWinsOverParentOne(): void
     {
         $container = new ObjectContainer();

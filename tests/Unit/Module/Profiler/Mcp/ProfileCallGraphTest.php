@@ -258,8 +258,10 @@ final class ProfileCallGraphTest
         $default = $tool->inputSchema()['properties'][$argument]['default'];
 
         Assert::same($tool->call($base), $tool->call($base + [$argument => $default]));
+        // The header names the threshold, so only the tree below it shows whether the calls were pruned
+        $tree = static fn(string $text): string => (string) \strstr($text, "\n");
         foreach ([$default - $step, $default + $step] as $other) {
-            Assert::notSame($tool->call($base + [$argument => $other]), $tool->call($base), "`$argument` of $other must change the tree.");
+            Assert::notSame($tree($tool->call($base + [$argument => $other])), $tree($tool->call($base)), "`$argument` of $other must change the tree.");
         }
     }
 
