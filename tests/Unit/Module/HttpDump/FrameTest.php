@@ -11,6 +11,7 @@ use Nyholm\Psr7\Stream;
 use Nyholm\Psr7\UploadedFile;
 use Testo\Assert;
 use Testo\Codecov\Covers;
+use Testo\Data\DataSet;
 use Testo\Test;
 
 #[Covers(Frame::class)]
@@ -82,6 +83,18 @@ final class FrameTest
         Assert::same($restored->request->getQueryParams(), ['b' => 'c']);
         Assert::same($restored->request->getServerParams(), ['SERVER_PORT' => '80']);
         Assert::same($restored->request->getProtocolVersion(), '1.0');
+    }
+
+    #[DataSet(['/api/user:42', '/api/user:42', ''])]
+    #[DataSet(['/logs/12:30?at=9:15#top', '/logs/12:30', 'at=9:15'])]
+    #[DataSet(['http://example.com:8080/api/user:42?x=1', '/api/user:42', 'x=1'])]
+    public function testFromStringKeepsUriWithColonInPath(string $uri, string $path, string $query): void
+    {
+        $frame = Frame::fromString(Json::encode(['uri' => $uri]), new \DateTimeImmutable());
+
+        Assert::same((string) $frame->request->getUri(), $uri);
+        Assert::same($frame->request->getUri()->getPath(), $path);
+        Assert::same($frame->request->getUri()->getQuery(), $query);
     }
 
     public function testFromStringAppliesDefaults(): void
