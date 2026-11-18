@@ -100,7 +100,8 @@ final class Graph implements \IteratorAggregate, \Countable
         }
 
         foreach ($missing as $callerId => [$name, $cost]) {
-            $this->add(new Edge(caller: null, callee: $name, cost: $cost->toCost(), calleeId: $callerId));
+            // An all-digit key is an int
+            $this->add(new Edge(caller: null, callee: $name, cost: $cost->toCost(), calleeId: (string) $callerId));
         }
     }
 
@@ -152,7 +153,9 @@ final class Graph implements \IteratorAggregate, \Countable
      */
     public function functions(): array
     {
-        return \array_keys($this->incoming);
+        // PHP turns all-digit keys into ints; received profiles may name functions by numbers
+        /** @var list<non-empty-string> */
+        return \array_map(\strval(...), \array_keys($this->incoming));
     }
 
     /**
