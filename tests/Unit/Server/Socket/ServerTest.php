@@ -12,6 +12,7 @@ use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Testo\Assert;
 use Testo\Codecov\Covers;
+use Testo\Core\Exception\SkipTest;
 use Testo\Data\DataSet;
 use Testo\Expect;
 use Testo\Test;
@@ -201,10 +202,11 @@ final class ServerTest
     #[DataSet(['[::1]'], 'bracketed')]
     public function listensOnIpv6Address(string $address): void
     {
+        $output = new BufferedOutput();
         $accepted = 0;
         [$server, $port] = $this->listen(static function () use (&$accepted): void {
             ++$accepted;
-        }, address: $address);
+        }, new Logger($output), $address);
         $remote = $this->connect($port, '::1');
 
         try {
@@ -212,6 +214,7 @@ final class ServerTest
             $server->process();
 
             Assert::same($accepted, 1);
+            Assert::string($output->fetch())->contains("Server started on [::1]:$port");
         } finally {
             \socket_close($remote);
             $server->destroy();
@@ -260,8 +263,11 @@ final class ServerTest
         string $address = '127.0.0.1',
     ): array {
         $ipv6 = \str_contains($address, ':');
-        $probe = \socket_create($ipv6 ? \AF_INET6 : \AF_INET, \SOCK_STREAM, \SOL_TCP);
-        \socket_bind($probe, $ipv6 ? '::1' : '127.0.0.1', 0);
+        $probe = @\socket_create($ipv6 ? \AF_INET6 : \AF_INET, \SOCK_STREAM, \SOL_TCP);
+        if ($probe === false || !@\socket_bind($probe, $ipv6 ? '::1' : '127.0.0.1', 0)) {
+            $probe === false or \socket_close($probe);
+            throw new SkipTest(\sprintf('Loopback for `%s` is unavailable.', $address));
+        }
         \socket_getsockname($probe, $probeAddress, $port);
         \socket_close($probe);
         \assert($port > 0 && $port < 65536);

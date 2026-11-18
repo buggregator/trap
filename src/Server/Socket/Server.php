@@ -73,7 +73,8 @@ final class Server implements Processable, Cancellable, Destroyable
         $host = \str_starts_with($address, '[') && \str_ends_with($address, ']')
             ? \substr($address, 1, -1)
             : $address;
-        $ipv6 = \filter_var($host, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV6) !== false;
+        // Neither a hostname nor an IPv4 address has a colon; an IPv6 one may carry a `%zone` that filter_var() rejects
+        $ipv6 = \str_contains($host, ':');
         $this->socket = \socket_create($ipv6 ? \AF_INET6 : \AF_INET, \SOCK_STREAM, $protocolNumber)
             ?: throw new \RuntimeException('Socket create failed.');
         // Some systems make IPv6 sockets IPv6-only by default: `::` should take IPv4 clients too
@@ -97,7 +98,7 @@ final class Server implements Processable, Cancellable, Destroyable
         @\socket_listen($this->socket, \SOMAXCONN)
             ?: throw new \RuntimeException('Socket listen failed.');
 
-        $logger->status('App', 'Server started on %s:%s', $address, $port);
+        $logger->status('App', 'Server started on %s:%s', $ipv6 ? "[$host]" : $host, $port);
     }
 
     /**
