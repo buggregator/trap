@@ -42,3 +42,7 @@
 /resources       -export-ignore
 /resources/**    -export-ignore
 /trap.xml        -export-ignore
+
+# The AI-agent skill, installed into projects by llm/skills
+/skills          -export-ignore
+/skills/**       -export-ignore

@@ -83,6 +83,7 @@
         "ext-xhprof": "To profile code with trap()::profile() using XHProf",
         "ext-zlib": "To accept gzip-compressed HTTP request bodies and profiles",
         "google/protobuf": "To receive OpenTelemetry traces encoded as OTLP/HTTP protobuf (with open-telemetry/gen-otlp-protobuf)",
+        "llm/skills": "To install the `trap` AI-agent skill into your project: debugging, profiling and the MCP tools",
         "open-telemetry/gen-otlp-protobuf": "To receive OpenTelemetry traces encoded as OTLP/HTTP protobuf",
         "roxblnfk/unpoly": "If you want to remove unnecessary PHP polyfills depend on PHP version."
     },
@@ -116,6 +117,9 @@
         "sort-packages": true
     },
     "extra": {
+        "skills": {
+            "source": "skills"
+        },
         "bamarni-bin": {
             "bin-links": true,
             "forward-command": false,
