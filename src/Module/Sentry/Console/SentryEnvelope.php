@@ -65,8 +65,10 @@ final class SentryEnvelope implements Renderer
         /** @var mixed $list */
         $list = match (true) {
             \array_key_exists('values', $exception) => $exception['values'],
-            \array_key_exists('type', $exception), \array_key_exists('stacktrace', $exception) => [$exception],
-            default => $exception,
+            \array_key_exists('type', $exception),
+            \array_key_exists('value', $exception),
+            \array_key_exists('stacktrace', $exception) => [$exception],
+            default => \array_is_list($exception) ? $exception : [],
         };
 
         return \is_array($list) ? \array_values(\array_filter($list, \is_array(...))) : [];

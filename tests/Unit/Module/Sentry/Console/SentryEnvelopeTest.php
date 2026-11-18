@@ -63,10 +63,24 @@ final class SentryEnvelopeTest
         Assert::string($output)->contains('Exceptions')->contains('RuntimeException')->contains('Boom')->contains('src/App.php')->contains(':42')->contains('run()')->notContains('There is no renderer for this item type.')->notContains('Render error');
     }
 
+    #[DataSet([['value' => 'Boom']], 'value only')]
+    #[DataSet([['value' => 'Boom', 'mechanism' => ['type' => 'generic', 'handled' => false]]], 'value with mechanism')]
+    public function testRendersExceptionWithValueOnly(array $exception): void
+    {
+        $output = $this->render(new SentryEnvelopeFrame(['event_id' => 'abc'], [
+            new EnvelopeItem(['type' => 'event'], [
+                'event_id' => 'abc',
+                'exception' => $exception,
+            ]),
+        ]));
+
+        Assert::string($output)->contains('Exceptions')->contains('Boom')->notContains('generic')->notContains('There is no renderer for this item type.')->notContains('Render error');
+    }
+
     #[DataSet([['values' => null]], 'null values')]
     #[DataSet([['values' => 'x']], 'string values')]
     #[DataSet([['values' => [1, 2]]], 'scalar values')]
-    #[DataSet([['foo' => 1]], 'unrelated object')]
+    #[DataSet([['foo' => ['bar' => 1]]], 'unrelated object')]
     public function testIgnoresMalformedEventException(array $exception): void
     {
         $output = $this->render(new SentryEnvelopeFrame(['event_id' => 'abc'], [
