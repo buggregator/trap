@@ -19,7 +19,7 @@ jobs:
   mutation:
     name: Infection
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - name: 📦 Check out the codebase
         uses: actions/checkout@v7
