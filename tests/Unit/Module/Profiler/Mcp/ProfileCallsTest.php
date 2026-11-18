@@ -160,6 +160,7 @@ final class ProfileCallsTest
 
         Assert::same(\array_column($result['callers'], 'calls', 'function'), ['a' => \PHP_INT_MAX]);
         Assert::same(\array_column($result['callers'], 'inclusive', 'function'), ['a' => \PHP_INT_MAX]);
+        Assert::same(\array_column($result['callers'], 'exclusive', 'function'), ['a' => \PHP_INT_MAX]);
         Assert::same(JsonSchema::errors($result, $tool->outputSchema()), []);
     }
 

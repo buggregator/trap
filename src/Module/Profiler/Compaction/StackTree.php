@@ -218,8 +218,8 @@ final class StackTree
             $pair = ($node === $root ? $none : $nameOf[$parent]) * $span + $nameOf[$node];
             $pairValue[$pair] = ($pairValue[$pair] ?? 0.0) + $valueOf[$node];
             $given = $pairRounded[$pair] ?? 0;
-            $value = \max($childrenSum[$node], Cost::saturate(Cost::saturate(\round($pairValue[$pair])) - $given));
-            $pairRounded[$pair] = Cost::sum($given, $value);
+            $value = \max($childrenSum[$node], Cost::saturate(\round($pairValue[$pair])) - $given);
+            $pairRounded[$pair] = $given + $value;
             $rounded[$node] = $value;
             $node === $root or $childrenSum[$parent] = Cost::sum($childrenSum[$parent], $value);
             $nodes->timeSlice?->tick();

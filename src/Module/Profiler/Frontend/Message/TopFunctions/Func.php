@@ -99,10 +99,10 @@ final class Func implements \JsonSerializable
         $own = self::metrics($cost);
         foreach ($children as $child) {
             $child = self::metrics($child);
-            $own['wt'] = Cost::saturate($own['wt'] - $child['wt']);
-            $own['cpu'] = Cost::saturate($own['cpu'] - $child['cpu']);
-            $own['mu'] = Cost::saturate($own['mu'] - $child['mu']);
-            $own['pmu'] = Cost::saturate($own['pmu'] - $child['pmu']);
+            $own['wt'] -= $child['wt'];
+            $own['cpu'] -= $child['cpu'];
+            $own['mu'] -= $child['mu'];
+            $own['pmu'] -= $child['pmu'];
         }
 
         foreach ($own as $metric => $value) {
@@ -111,10 +111,10 @@ final class Func implements \JsonSerializable
 
         $this->inclusive['ct'] = Cost::saturate($this->inclusive['ct'] + $cost->ct);
         if (!$recursive) {
-            $this->inclusive['wt'] = Cost::saturate($this->inclusive['wt'] + $cost->wt);
-            $this->inclusive['cpu'] = Cost::saturate($this->inclusive['cpu'] + $cost->cpu);
-            $this->inclusive['mu'] = Cost::saturate($this->inclusive['mu'] + $cost->mu);
-            $this->inclusive['pmu'] = Cost::saturate($this->inclusive['pmu'] + $cost->pmu);
+            $this->inclusive['wt'] += $cost->wt;
+            $this->inclusive['cpu'] += $cost->cpu;
+            $this->inclusive['mu'] += $cost->mu;
+            $this->inclusive['pmu'] += $cost->pmu;
         }
     }
 

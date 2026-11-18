@@ -226,7 +226,7 @@ final class Graph implements \IteratorAggregate, \Countable
         $metric = Metric::WallTime;
         $total = 0;
         foreach ($this->roots as $edge) {
-            $total = Cost::saturate($total + $edge->cost->wt);
+            $total += $edge->cost->wt;
         }
         /** @var array<non-empty-string, int> $rootCounts Counts of the roots with no calls of their own, by IDs */
         $rootCounts = [];
@@ -237,11 +237,11 @@ final class Graph implements \IteratorAggregate, \Countable
                 if ($edge->cost->ct === 0) {
                     $count = 0;
                     foreach ($this->callees($edge->calleeId) as $child) {
-                        $count = Cost::saturate($count + $child->cost->ct);
+                        $count += $child->cost->ct;
                     }
                     $rootCounts[$edge->calleeId] = $count;
                 }
-                $total = Cost::saturate($total + ($rootCounts[$edge->calleeId] ?? $edge->cost->ct));
+                $total += $rootCounts[$edge->calleeId] ?? $edge->cost->ct;
             }
         }
 

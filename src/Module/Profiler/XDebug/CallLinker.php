@@ -102,7 +102,7 @@ final class CallLinker
             );
             $this->round($child, $function, $this->time[$at], $this->calleesWt[$at]);
             $time = Cost::saturate($time + $this->time[$at]);
-            $memory = Cost::saturate($memory + $this->memory[$child]);
+            $memory += $this->memory[$child];
             $calleesWt = Cost::saturate($calleesWt + $this->wt[$child]);
             $this->caller[$child] = $node;
             $this->offset[$child] = $size;
@@ -167,11 +167,11 @@ final class CallLinker
     private function round(int $node, int $caller, int $time, int $calleesWt): void
     {
         $callee = $this->function[$node];
-        $time = Cost::saturate($time + ($this->pairTime[$caller][$callee] ?? 0));
+        $time += $this->pairTime[$caller][$callee] ?? 0;
         $this->pairTime[$caller][$callee] = $time;
         $given = $this->pairWt[$caller][$callee] ?? 0;
-        $value = \max($calleesWt, Cost::saturate(Cost::saturate(\round((float) $time / $this->timeDivisor)) - $given));
-        $this->pairWt[$caller][$callee] = Cost::saturate($given + $value);
+        $value = \max($calleesWt, Cost::saturate(\round((float) $time / $this->timeDivisor)) - $given);
+        $this->pairWt[$caller][$callee] = $given + $value;
         $this->wt[$node] = $value;
     }
 }

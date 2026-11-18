@@ -405,6 +405,26 @@ final class MapperTest
         Assert::count($top['functions'], 5);
     }
 
+    public function testTopFunctionsSaturateExclusiveCostsPastIntegerRange(): void
+    {
+        $cost = static fn(int $value): array => ['ct' => 1, 'wt' => $value, 'cpu' => $value, 'mu' => $value, 'pmu' => $value];
+        // Negative callees of received data add to the own cost: `f` and `f@1` have 5e18 each over its maximum
+        $event = self::event([
+            'main()' => $cost(\PHP_INT_MAX),
+            'main()==>f' => $cost(\PHP_INT_MAX),
+            'f==>f@1' => $cost(1),
+            'f==>g' => $cost(-5_000_000_000_000_000_000),
+            'f@1==>h' => $cost(-5_000_000_000_000_000_000),
+        ]);
+
+        $f = self::find(self::json((new Mapper())->topFunctions($event, 'wt'))['functions'], 'f');
+
+        Assert::same(
+            [$f['excl_wt'], $f['excl_cpu'], $f['excl_mu'], $f['excl_pmu']],
+            [\PHP_INT_MAX, \PHP_INT_MAX, \PHP_INT_MAX, \PHP_INT_MAX],
+        );
+    }
+
     public function testFlameChartScalesSharedCalleeByCaller(): void
     {
         $chart = self::json((new Mapper())->flameChart(self::event(self::SHARED_STUB)));
@@ -462,15 +482,16 @@ final class MapperTest
 
     public function testCallGraphSaturatesCallsThroughHiddenFunctionsPastIntegerRange(): void
     {
+        $cost = static fn(int $value): array => ['ct' => $value, 'wt' => $value, 'cpu' => $value, 'mu' => $value, 'pmu' => $value];
         // `h1` and `h2` are hidden: `a => f` sums its direct call and both calls through them
         $event = self::event([
-            'main()' => ['ct' => 1, 'wt' => \PHP_INT_MAX],
-            'main()==>a' => ['ct' => 1, 'wt' => \PHP_INT_MAX],
-            'a==>h1' => ['ct' => 1, 'wt' => \intdiv(\PHP_INT_MAX, 200)],
-            'a==>h2' => ['ct' => 1, 'wt' => \intdiv(\PHP_INT_MAX, 200)],
-            'h1==>f' => ['ct' => 1, 'wt' => 5_000_000_000_000_000_000],
-            'h2==>f' => ['ct' => 1, 'wt' => 5_000_000_000_000_000_000],
-            'a==>f' => ['ct' => 1, 'wt' => 5_000_000_000_000_000_000],
+            'main()' => $cost(\PHP_INT_MAX),
+            'main()==>a' => $cost(\PHP_INT_MAX),
+            'a==>h1' => $cost(\intdiv(\PHP_INT_MAX, 200)),
+            'a==>h2' => $cost(\intdiv(\PHP_INT_MAX, 200)),
+            'h1==>f' => $cost(5_000_000_000_000_000_000),
+            'h2==>f' => $cost(5_000_000_000_000_000_000),
+            'a==>f' => $cost(5_000_000_000_000_000_000),
         ]);
 
         $graph = self::json((new Mapper())->callGraph($event));
