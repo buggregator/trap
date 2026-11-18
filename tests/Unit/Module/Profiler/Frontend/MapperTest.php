@@ -229,6 +229,24 @@ final class MapperTest
         Assert::same(\array_column($top['functions'], 'function')[0], 'main()');
     }
 
+    public function testFunctionsNamedByDigits(): void
+    {
+        $event = self::event([
+            '10==>20' => ['ct' => 1, 'wt' => 30, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>10' => ['ct' => 1, 'wt' => 40, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()' => ['ct' => 1, 'wt' => 100, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        ]);
+
+        $top = self::json((new Mapper())->topFunctions($event, 'excl_wt'));
+        $graph = self::json((new Mapper())->callGraph($event, threshold: 0, percentage: 0));
+
+        Assert::same(
+            \array_map(static fn(array $row): array => [$row['function'], $row['excl_wt']], $top['functions']),
+            [['main()', 60], ['20', 30], ['10', 10]],
+        );
+        Assert::same(\array_column(\array_column($graph['nodes'], 'data'), 'name'), ['20 (1x)', '10 (1x)', 'main() (1x)']);
+    }
+
     public function testTopFunctionsSchemaSkipsMetricsNotMeasured(): void
     {
         // The stub has no CPU time and no peak memory

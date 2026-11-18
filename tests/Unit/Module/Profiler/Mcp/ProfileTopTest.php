@@ -67,6 +67,23 @@ final class ProfileTopTest
         Assert::same(JsonSchema::errors($result, $tool->outputSchema()), []);
     }
 
+    public function testRanksFunctionsNamedByDigits(): void
+    {
+        $trap = new Trap();
+        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof([
+            '10==>20' => ['ct' => 1, 'wt' => 30, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>10' => ['ct' => 1, 'wt' => 40, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()' => ['ct' => 1, 'wt' => 100, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        ]));
+
+        $result = $trap->get(ProfileTop::class)->call(['id' => $id]);
+
+        Assert::same(
+            \array_map(static fn(array $row): array => [$row['function'], $row['exclusive']], $result['functions']),
+            [['main()', 60], ['20', 30], ['10', 10]],
+        );
+    }
+
     public function testRanksByInclusiveValue(): void
     {
         [$trap, $id] = self::shop();
@@ -213,6 +230,68 @@ final class ProfileTopTest
         foreach (['profile_summary', 'profile_top', 'profile_calls', 'profile_call_graph'] as $name) {
             Assert::same($tools->get($name)?->annotations(), ['readOnlyHint' => true, 'openWorldHint' => false]);
         }
+    }
+
+    public function testDescribesItself(): void
+    {
+        $tool = (new Trap())->get(ProfileTop::class);
+
+        Assert::same($tool->title(), 'Top functions of a profile');
+        Assert::string($tool->description())->contains('Sort by `exclusive`')->contains('`filter`')->contains('`App\*`');
+    }
+
+    public function testSchemaBoundsAreTheAcceptedArguments(): void
+    {
+        [$trap, $id] = self::shop();
+        $tool = $trap->get(ProfileTop::class);
+        $limit = $tool->inputSchema()['properties']['limit'];
+
+        foreach ([$limit['minimum'], $limit['maximum']] as $bound) {
+            $tool->call(['id' => $id, 'limit' => $bound]);
+        }
+        foreach ([$limit['minimum'] - 1, $limit['maximum'] + 1] as $outside) {
+            try {
+                $tool->call(['id' => $id, 'limit' => $outside]);
+                Assert::fail("`limit` of $outside must be rejected.");
+            } catch (\InvalidArgumentException $e) {
+                Assert::string($e->getMessage())->startsWith('`limit` must be');
+            }
+        }
+    }
+
+    public function testSchemaListsTheArguments(): void
+    {
+        $schema = (new Trap())->get(ProfileTop::class)->inputSchema();
+        $properties = $schema['properties'];
+
+        Assert::same(\array_keys($properties), ['id', 'metric', 'sort', 'filter', 'limit']);
+        Assert::same([$schema['required'], $schema['additionalProperties']], [['id'], false]);
+        Assert::same($properties['sort']['enum'], ['exclusive', 'inclusive']);
+    }
+
+    #[DataSet(['sort'], 'sort')]
+    #[DataSet(['limit'], 'limit')]
+    public function testSchemaDefaultsAreTheDefaultsOfTheCall(string $argument): void
+    {
+        $trap = new Trap();
+        $base = ['id' => Profiles::add($trap, Type::XHProf, Profiles::xhprofApp())];
+        $tool = $trap->get(ProfileTop::class);
+        $property = $tool->inputSchema()['properties'][$argument];
+        $default = $property['default'];
+
+        Assert::same($tool->call($base), $tool->call($base + [$argument => $default]));
+        $others = isset($property['enum']) ? \array_diff($property['enum'], [$default]) : [$default - 1, $default + 1];
+        foreach ($others as $other) {
+            Assert::notSame($tool->call($base + [$argument => $other]), $tool->call($base), "`$argument` of $other must change the result.");
+        }
+    }
+
+    public function testMetricSchemaListsEveryMetricAndWhatTheyAre(): void
+    {
+        $metric = ProfileSchema::metric();
+
+        Assert::same([$metric['type'], $metric['enum']], ['string', ['wt', 'cpu', 'mu', 'pmu', 'ct']]);
+        Assert::string($metric['description'])->contains('`pmu` peak memory');
     }
 
     /**

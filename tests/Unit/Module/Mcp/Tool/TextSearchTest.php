@@ -15,6 +15,18 @@ use Testo\Test;
 #[Covers(TextSearch::class)]
 final class TextSearchTest
 {
+    public function testSchema(): void
+    {
+        $schema = TextSearch::schema('events');
+
+        Assert::same(\array_keys($schema), ['search', 'regex']);
+        Assert::same($schema['search']['type'], 'string');
+        Assert::same($schema['search']['minLength'], 1);
+        Assert::same($schema['search']['description'], 'Only the events that contain this text, in any case.');
+        Assert::same($schema['regex']['type'], 'boolean');
+        Assert::false($schema['regex']['default']);
+    }
+
     public function testNoSearch(): void
     {
         Assert::null(TextSearch::fromArguments([]));

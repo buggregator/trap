@@ -394,6 +394,42 @@ final class ProfileCallsTest
         $trap->get(ProfileCalls::class)->call(['id' => $id, 'function' => 'mian()']);
     }
 
+    public function testUnknownFunctionListsTenHeaviestCloseNames(): never
+    {
+        $calls = ['main()' => ['ct' => 1, 'wt' => 10_000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0]];
+        for ($i = 0; $i < 15; ++$i) {
+            $calls["main()==>f$i"] = ['ct' => 1, 'wt' => 100 + $i, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
+        }
+        $trap = new Trap();
+        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof($calls));
+
+        Expect::exception(\InvalidArgumentException::class)
+            ->withMessage("Profile `$id` has no function `F`. Close matches:\nf14\nf13\nf12\nf11\nf10\nf9\nf8\nf7\nf6\nf5");
+
+        $trap->get(ProfileCalls::class)->call(['id' => $id, 'function' => 'F']);
+    }
+
+    public function testSimilarNamesAreSoughtAmongAtMostTheBoundOfHeaviestCandidates(): never
+    {
+        $bound = (new \ReflectionClassConstant(ProfileAnalysis::class, 'MAX_SIMILAR_CANDIDATES'))->getValue();
+        $calls = [
+            'main()' => ['ct' => 1, 'wt' => 1_000_000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>zzzzy' => ['ct' => 1, 'wt' => 100_000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>zzzza' => ['ct' => 1, 'wt' => 1, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        ];
+        // Heavier than `zzzza` and as long as the name sought, they push it past the candidates kept
+        for ($i = 0; $i < $bound; ++$i) {
+            $calls[\sprintf('main()==>a%04d', $i)] = ['ct' => 1, 'wt' => 10_000 - $i, 'cpu' => 0, 'mu' => 0, 'pmu' => 0];
+        }
+        $trap = new Trap();
+        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof($calls));
+
+        Expect::exception(\InvalidArgumentException::class)
+            ->withMessage("Profile `$id` has no function `zzzzz`. Close matches:\nzzzzy");
+
+        $trap->get(ProfileCalls::class)->call(['id' => $id, 'function' => 'zzzzz']);
+    }
+
     public function testUnrelatedFunctionFails(): never
     {
         [$trap, $id] = self::shop();
@@ -415,6 +451,69 @@ final class ProfileCallsTest
         Expect::exception(\InvalidArgumentException::class)->withMessage($message);
 
         $trap->get(ProfileCalls::class)->call(['id' => $id] + $arguments);
+    }
+
+    public function testDescribesItselfAsReadOnly(): void
+    {
+        $tool = (new Trap())->get(ProfileCalls::class);
+
+        Assert::same($tool->name(), 'profile_calls');
+        Assert::same($tool->title(), 'Callers and callees of a function in a profile');
+        Assert::string($tool->description())->contains('`profile_top`')->contains('`depth` adds the callers of the callers');
+        Assert::same($tool->annotations(), ['readOnlyHint' => true, 'openWorldHint' => false]);
+    }
+
+    #[DataSet(['depth'], 'depth')]
+    #[DataSet(['limit'], 'limit')]
+    public function testSchemaBoundsAreTheAcceptedArguments(string $argument): void
+    {
+        [$trap, $id] = self::shop();
+        $tool = $trap->get(ProfileCalls::class);
+        $property = $tool->inputSchema()['properties'][$argument];
+
+        foreach ([$property['minimum'], $property['maximum']] as $bound) {
+            $tool->call(['id' => $id, 'function' => 'main()', $argument => $bound]);
+        }
+        foreach ([$property['minimum'] - 1, $property['maximum'] + 1] as $outside) {
+            try {
+                $tool->call(['id' => $id, 'function' => 'main()', $argument => $outside]);
+                Assert::fail("`$argument` of $outside must be rejected.");
+            } catch (\InvalidArgumentException $e) {
+                Assert::string($e->getMessage())->startsWith("`$argument` must be");
+            }
+        }
+    }
+
+    public function testSchemaListsTheArguments(): void
+    {
+        $schema = (new Trap())->get(ProfileCalls::class)->inputSchema();
+        $properties = $schema['properties'];
+
+        Assert::same(\array_keys($properties), ['id', 'function', 'metric', 'depth', 'limit']);
+        Assert::same([$schema['required'], $schema['additionalProperties']], [['id', 'function'], false]);
+        Assert::same($properties['id'], ProfileAnalyses::idSchema());
+        Assert::same($properties['metric']['enum'], ['wt', 'cpu', 'mu', 'pmu', 'ct']);
+    }
+
+    #[DataSet(['depth'], 'depth')]
+    #[DataSet(['limit'], 'limit')]
+    public function testSchemaDefaultsAreTheDefaultsOfTheCall(string $argument): void
+    {
+        $trap = new Trap();
+        // A function of 9 callers and 24 callees
+        $base = ['id' => Profiles::add($trap, Type::XHProf, Profiles::xhprofApp()), 'function' => 'Id8\Id60::id99'];
+        $tool = $trap->get(ProfileCalls::class);
+        $property = $tool->inputSchema()['properties'][$argument];
+        $default = $property['default'];
+
+        Assert::same($tool->call($base), $tool->call($base + [$argument => $default]));
+        foreach ([$default - 1, $default + 1] as $other) {
+            $other < $property['minimum'] or Assert::notSame(
+                $tool->call($base + [$argument => $other]),
+                $tool->call($base),
+                "`$argument` of $other must change the result.",
+            );
+        }
     }
 
     /**

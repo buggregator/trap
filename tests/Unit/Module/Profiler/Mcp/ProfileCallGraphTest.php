@@ -223,6 +223,68 @@ final class ProfileCallGraphTest
         $trap->get(ProfileCallGraph::class)->call(['id' => $id] + $arguments);
     }
 
+    public function testDescribesItselfAsReadOnlyText(): void
+    {
+        $tool = (new Trap())->get(ProfileCallGraph::class);
+
+        Assert::same($tool->name(), 'profile_call_graph');
+        Assert::same($tool->title(), 'Call tree of a profile');
+        Assert::string($tool->description())->contains('at least `threshold` percent')->contains('`profile_calls`');
+        Assert::null($tool->outputSchema(), 'The result is plain text, with no structured content.');
+        Assert::same($tool->annotations(), ['readOnlyHint' => true, 'openWorldHint' => false]);
+    }
+
+    #[DataSet(['threshold', 0.001], 'threshold')]
+    #[DataSet(['max_depth', 1], 'max_depth')]
+    #[DataSet(['max_length', 1], 'max_length')]
+    public function testSchemaBoundsAreTheAcceptedArguments(string $argument, int|float $step): void
+    {
+        [$trap, $id] = self::shop();
+        $tool = $trap->get(ProfileCallGraph::class);
+        $property = $tool->inputSchema()['properties'][$argument];
+
+        foreach ([$property['minimum'], $property['maximum']] as $bound) {
+            $tool->call(['id' => $id, $argument => $bound]);
+        }
+        foreach ([$property['minimum'] - $step, $property['maximum'] + $step] as $outside) {
+            try {
+                $tool->call(['id' => $id, $argument => $outside]);
+                Assert::fail("`$argument` of $outside must be rejected.");
+            } catch (\InvalidArgumentException $e) {
+                Assert::string($e->getMessage())->startsWith("`$argument` must be");
+            }
+        }
+    }
+
+    public function testSchemaListsTheArguments(): void
+    {
+        $schema = (new Trap())->get(ProfileCallGraph::class)->inputSchema();
+        $properties = $schema['properties'];
+
+        Assert::same(\array_keys($properties), ['id', 'metric', 'threshold', 'max_depth', 'max_length']);
+        Assert::same([$schema['required'], $schema['additionalProperties']], [['id'], false]);
+        Assert::same($properties['id'], ProfileAnalyses::idSchema());
+        Assert::same($properties['metric']['enum'], ['wt', 'cpu', 'mu', 'pmu', 'ct']);
+    }
+
+    #[DataSet(['threshold', 0.01, []], 'threshold')]
+    #[DataSet(['max_depth', 1, []], 'max_depth')]
+    #[DataSet(['max_length', 1, ['threshold' => 0.01, 'max_depth' => 200]], 'max_length')]
+    public function testSchemaDefaultsAreTheDefaultsOfTheCall(string $argument, int|float $step, array $arguments): void
+    {
+        $trap = new Trap();
+        $base = ['id' => Profiles::add($trap, Type::XHProf, Profiles::xhprofApp())] + $arguments;
+        $tool = $trap->get(ProfileCallGraph::class);
+        $default = $tool->inputSchema()['properties'][$argument]['default'];
+
+        Assert::same($tool->call($base), $tool->call($base + [$argument => $default]));
+        // The header names the threshold, so only the tree below it shows whether the calls were pruned
+        $tree = static fn(string $text): string => (string) \strstr($text, "\n");
+        foreach ([$default - $step, $default + $step] as $other) {
+            Assert::notSame($tree($tool->call($base + [$argument => $other])), $tree($tool->call($base)), "`$argument` of $other must change the tree.");
+        }
+    }
+
     /**
      * @return array{Trap, non-empty-string}
      */

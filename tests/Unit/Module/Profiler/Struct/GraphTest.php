@@ -429,6 +429,24 @@ final class GraphTest
         Assert::same($f->d_wt, \PHP_INT_MAX);
     }
 
+    public function testFunctionIdsOfDigitsAreStrings(): void
+    {
+        $graph = self::graph([
+            '10==>20' => ['ct' => 1, 'wt' => 5, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>10' => ['ct' => 1, 'wt' => 10, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()' => ['ct' => 1, 'wt' => 100, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        ]);
+
+        Assert::same($graph->functions(), ['20', '10', 'main()']);
+    }
+
+    public function testMissingRootOfDigitsIsAdded(): void
+    {
+        $graph = self::graph(['10==>a' => ['ct' => 1, 'wt' => 5, 'cpu' => 0, 'mu' => 0, 'pmu' => 0]]);
+
+        Assert::same(\array_map(static fn(Edge $e): string => $e->calleeId, $graph->roots()), ['10']);
+    }
+
     public function testAddingDuplicateEdgeFails(): void
     {
         $graph = new Graph();

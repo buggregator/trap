@@ -7,7 +7,9 @@ namespace Buggregator\Trap\Tests\Unit\Module\Mcp\View;
 use Buggregator\Trap\Module\Mcp\View\EventViews;
 use Buggregator\Trap\Module\Mcp\View\TextCache;
 use Buggregator\Trap\Server\Config\Events;
+use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\Record;
+use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\ScriptedView;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
 use Testo\Assert;
@@ -47,6 +49,19 @@ final class TextCacheTest
         Assert::same($cache->bytes(), 0);
         Assert::string($cache->searchable($updated))->contains('"old"')->contains('"new"');
         Assert::same($cache->count(), 1);
+    }
+
+    public function testTextOfAnotherRecordOfTheEventIsNotServed(): void
+    {
+        $trap = Trap::scripted();
+        $cache = $trap->get(TextCache::class);
+        $old = $trap->store->add(ScriptedView::event('changed', 'old'));
+        $new = $trap->store->add(ScriptedView::event('changed', 'newer'));
+        $cache->searchable($new);
+
+        Assert::same($cache->searchable($old), 'old');
+        Assert::same($cache->searchable($new), 'newer');
+        Assert::same($cache->bytes(), \strlen('newer'));
     }
 
     public function testDeletedAndClearedEventsAreForgotten(): void
@@ -257,6 +272,42 @@ final class TextCacheTest
 
         Assert::same($cache->count(), 1);
         Assert::same($cache->bytes(), \strlen(self::render($trap, $small)) + \strlen($cache->summary($small)));
+    }
+
+    public function testWarmRendersAnEventWhosePayloadIsNotJson(): void
+    {
+        $trap = Trap::scripted();
+        $cache = $trap->get(TextCache::class);
+        $trap->store->add(new Event('infinite', 'scripted', ['text' => 'infinite', 'value' => \INF], 1.0));
+
+        $cache->warm(10.0);
+
+        Assert::same($cache->count(), 1);
+    }
+
+    public function testWarmLeavesEventsOfUnmeasurableFramesToTheTools(): void
+    {
+        $trap = Trap::scripted();
+        $cache = $trap->get(TextCache::class);
+        $frame = new class('unmeasurable') extends Frame {
+            public static function fromString(string $payload, \DateTimeImmutable $time): static
+            {
+                throw new \LogicException('Not parsed.');
+            }
+
+            public function __toString(): string
+            {
+                throw new \RuntimeException('The size is unknown.');
+            }
+        };
+        $record = $trap->store->add(ScriptedView::event('unmeasurable', 'unmeasurable'), $frame);
+
+        $left = $cache->warm(10.0);
+        $warmed = [$cache->count(), $trap->view()->renders];
+
+        Assert::false($left);
+        Assert::same($warmed, [0, 0]);
+        Assert::same($cache->searchable($record), 'unmeasurable');
     }
 
     public function testWarmStopsWhileTheNextTextMightNotFit(): void
