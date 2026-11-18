@@ -26,4 +26,12 @@ final class Mcp
     #[Env('TRAP_MCP_HOST')]
     #[XPath('/trap/mcp/@host')]
     public ?string $host = null;
+
+    /**
+     * The Bearer token every request must carry; null or empty asks for none. No CLI option: a command
+     * line shows in the process list.
+     */
+    #[Env('TRAP_MCP_TOKEN')]
+    #[XPath('/trap/mcp/@token')]
+    public ?string $token = null;
 }

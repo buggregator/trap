@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Mcp\Http;
 
 use Buggregator\Trap\Module\Mcp\Caller;
+use Buggregator\Trap\Module\Mcp\Config\Mcp as Config;
 use Buggregator\Trap\Module\Mcp\Protocol\JsonRpc;
 use Buggregator\Trap\Module\Mcp\Protocol\McpServer;
 use Buggregator\Trap\Module\Mcp\Protocol\RpcError;
@@ -17,6 +18,9 @@ use Psr\Http\Message\ServerRequestInterface;
 /**
  * The MCP Streamable HTTP transport at `/mcp`, stateless and without SSE: every request is answered
  * with a JSON response. Other paths go down the pipeline.
+ *
+ * With a token configured, a request without it gets `401` before any other check, so it learns
+ * nothing of the server. A request of another path goes through the {@see TokenGuard}.
  *
  * @internal
  * @psalm-internal Buggregator\Trap
@@ -31,13 +35,23 @@ final class Endpoint implements Middleware
     public function __construct(
         private readonly JsonRpc $rpc,
         private readonly Caller $caller,
+        private readonly Config $config,
+        private readonly TokenGuard $guard,
     ) {}
 
     #[\Override]
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
-        if (\rtrim($request->getUri()->getPath(), '/') !== self::PATH) {
-            return $next($request);
+        if (!self::isMcpPath($request->getUri()->getPath())) {
+            return $this->guard->handle($request, $next);
+        }
+
+        $bearer = self::bearer($request->getHeaderLine('Authorization'));
+        if (($this->config->token ?? '') !== '' && !$this->isToken($bearer)) {
+            return new Response(401, [
+                'WWW-Authenticate' => $bearer === null ? 'Bearer' : 'Bearer error="invalid_token"',
+                'Content-Type' => 'text/plain',
+            ], 'Unauthorized.');
         }
 
         // DNS rebinding: a page of any site may resolve its own host name to 127.0.0.1
@@ -89,5 +103,32 @@ final class Endpoint implements Middleware
     private static function json(int $status, array $body): ResponseInterface
     {
         return new Response($status, ['Content-Type' => 'application/json'], Json::encode($body));
+    }
+
+    /**
+     * The token of a `Bearer` header, null for another scheme or none. The scheme is case-insensitive
+     * and may be followed by several spaces, as RFC 7235 has it.
+     */
+    private static function bearer(string $authorization): ?string
+    {
+        return \preg_match('/^Bearer +(.+)$/i', $authorization, $matches) === 1 ? $matches[1] : null;
+    }
+
+    /**
+     * Repeated slashes, a trailing one and the case don't matter.
+     */
+    private static function isMcpPath(string $path): bool
+    {
+        return \strtolower(\rtrim((string) \preg_replace('#/{2,}#', '/', $path), '/')) === self::PATH;
+    }
+
+    /**
+     * Whether the configured token is set and is the given one.
+     */
+    private function isToken(?string $bearer): bool
+    {
+        $token = $this->config->token;
+
+        return $token !== null && $token !== '' && $bearer !== null && \hash_equals($token, $bearer);
     }
 }

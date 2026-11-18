@@ -147,6 +147,50 @@ final class HttpTest
         Assert::string($this->sent)->contains('more than 1024 bytes. The limit is set with TRAP_HTTP_MAX_INFLATED_SIZE.');
     }
 
+    public function testUnparsableTargetIsAnsweredWith400WithoutQuotingIt(): void
+    {
+        $stream = $this->createStream("GET http:///s3cr3t HTTP/1.1\r\n", "Host: localhost\r\n", "\r\n");
+
+        $frames = $this->dispatch(new Http([new Dump()]), $stream);
+
+        Assert::same($frames, []);
+        Assert::true($stream->isDisconnected());
+        Assert::string($this->sent)
+            ->startsWith('HTTP/1.1 400')
+            ->endsWith('Invalid request target.')
+            ->notContains('s3cr3t');
+    }
+
+    #[DataSet(["S3cr3t Header: v\r\n"], 'space in name')]
+    #[DataSet(["X-Key: s3cr3t\x01\r\n"], 'control character in value')]
+    public function testInvalidHeaderIsAnsweredWith400WithoutQuotingIt(string $header): void
+    {
+        $stream = $this->createStream("GET /foo HTTP/1.1\r\n", "Host: localhost\r\n", $header, "\r\n");
+
+        $frames = $this->dispatch(new Http([new Dump()]), $stream);
+
+        Assert::same($frames, []);
+        Assert::true($stream->isDisconnected());
+        Assert::string($this->sent)
+            ->startsWith('HTTP/1.1 400')
+            ->endsWith('Invalid header.')
+            ->notContains('s3cr3t');
+    }
+
+    #[DataSet(['/api/user:42'])]
+    #[DataSet(['/logs/12:30'])]
+    #[DataSet(['*'])]
+    #[DataSet(['http://[::1]:9912/x'])]
+    public function testValidTargetIsNotAnsweredWith400(string $target): void
+    {
+        $stream = $this->createStream("GET {$target} HTTP/1.1\r\n", "Host: localhost\r\n", "\r\n");
+
+        $frames = $this->dispatch(new Http([new Dump()]), $stream);
+
+        Assert::count($frames, 1);
+        Assert::string($this->sent)->startsWith('HTTP/1.1 404');
+    }
+
     public function testGzipBodyWithinLimitReachesMiddlewaresInflated(): void
     {
         $dispatcher = new Http([new Dump()], maxInflatedBodySize: 1024);

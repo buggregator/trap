@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Tests\Unit\Server\Application\Module;
 use Buggregator\Trap\Module\HttpDump\Http\DebugPage;
 use Buggregator\Trap\Module\HttpDump\Http\Dump;
 use Buggregator\Trap\Module\Mailer\Traffic\Dispatcher as MailerDispatcher;
+use Buggregator\Trap\Module\Mcp\Http\TokenGuard;
 use Buggregator\Trap\Module\Monolog\Traffic\Dispatcher as MonologDispatcher;
 use Buggregator\Trap\Module\Profiler\Config\SPX;
 use Buggregator\Trap\Module\Profiler\Config\XDebug;
@@ -108,6 +109,7 @@ final class ModulesTest
         Assert::same(
             $middlewares,
             [
+                TokenGuard::class,
                 RayTrap::class,
                 SentryTrap::class,
                 XHProfTrap::class,

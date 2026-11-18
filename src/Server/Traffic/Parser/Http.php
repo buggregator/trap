@@ -145,6 +145,9 @@ final class Http
         return $result;
     }
 
+    /**
+     * @throws InvalidRequest
+     */
     public function parseStream(StreamClient $stream): ServerRequestInterface
     {
         $firstLine = $stream->fetchLine();
@@ -153,10 +156,28 @@ final class Http
         [$method, $uri, $protocol] = $this->parseFirstLine($firstLine);
         $headers = self::parseHeaders($headersBlock);
 
-        $request = $this->factory->createServerRequest($method, $uri, [])
-            ->withProtocolVersion($protocol);
-        foreach ($headers as $name => $value) {
-            $request = $request->withHeader((string) $name, $value);
+        try {
+            // Not through `parse_url()`: it reads `//mcp` as the host `mcp` and `/user:42` as a host with a port
+            if (\str_starts_with($uri, '/')) {
+                [$uri, $fragment] = \explode('#', $uri, 2) + [1 => ''];
+                [$path, $query] = \explode('?', $uri, 2) + [1 => ''];
+                $uri = $this->factory->createUri()->withPath($path)->withQuery($query)->withFragment($fragment);
+            }
+
+            $request = $this->factory->createServerRequest($method, $uri, []);
+        } catch (\InvalidArgumentException) {
+            // Not chained: the URI parser quotes the target in its message, and the target may carry a secret
+            throw new InvalidRequest('Invalid request target.');
+        }
+
+        $request = $request->withProtocolVersion($protocol);
+        try {
+            foreach ($headers as $name => $value) {
+                $request = $request->withHeader((string) $name, $value);
+            }
+        } catch (\InvalidArgumentException) {
+            // Neither chained nor naming the header: its name or value may carry a secret
+            throw new InvalidRequest('Invalid header.');
         }
 
         // Todo refactor:
@@ -199,12 +220,12 @@ final class Http
     {
         $parts = \explode(' ', \trim($line));
         if (\count($parts) !== 3) {
-            throw new \InvalidArgumentException('Invalid first line.');
+            throw new InvalidRequest('Invalid first line.');
         }
 
         $parts[2] = \explode('/', $parts[2], 2)[1] ?? $parts[2];
         if ($parts[0] === '' || $parts[1] === '' || $parts[2] === '') {
-            throw new \InvalidArgumentException('Invalid first line.');
+            throw new InvalidRequest('Invalid first line.');
         }
 
         return $parts;
