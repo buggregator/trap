@@ -244,6 +244,18 @@ final class ProfileBuilderTest
         Assert::same($edge->callerId, 'bar');
     }
 
+    public function testRootNamedByDigitsIsBuilt(): void
+    {
+        $profile = self::build([
+            10 => self::cost(1, 100, 0, 0, 0),
+            '10==>20' => self::cost(1, 40, 0, 0, 0),
+        ]);
+
+        Assert::same(self::ids($profile->calls->roots()), ['10']);
+        Assert::same(self::edge($profile, '10')->callee, '10');
+        Assert::same(self::ids($profile->calls->callees('10')), ['20']);
+    }
+
     public function testXhprofOutputBuildsGraphInCallOrder(): void
     {
         $calls = self::build(self::XHPROF_STUB)->calls;
