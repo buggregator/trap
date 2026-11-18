@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Mcp\Tool;
 use Buggregator\Trap\Module\Mcp\Tool\Arguments;
 use Buggregator\Trap\Module\Mcp\Tool\MaxLength;
 use Buggregator\Trap\Module\Profiler\Struct\Branch;
+use Buggregator\Trap\Module\Profiler\Struct\Cost;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Metric;
 
@@ -156,7 +157,7 @@ final class ProfileCallGraph implements Tool
                     $shown[] = $branch;
                 } else {
                     ++$hidden;
-                    $hiddenValue += $value;
+                    $hiddenValue = Cost::sum($hiddenValue, $value);
                 }
             }
 

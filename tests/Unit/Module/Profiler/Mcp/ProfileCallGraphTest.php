@@ -58,6 +58,26 @@ final class ProfileCallGraphTest
             TEXT);
     }
 
+    public function testHiddenCallsSaturatePastIntegerRange(): void
+    {
+        $trap = new Trap();
+        $id = Profiles::add($trap, Type::XHProf, Profiles::xhprof([
+            'main()' => ['ct' => 1, 'wt' => \PHP_INT_MAX, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>a' => ['ct' => 1, 'wt' => \PHP_INT_MAX, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'a==>x' => ['ct' => 1, 'wt' => 5_000_000_000_000_000_000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'a==>y' => ['ct' => 1, 'wt' => 5_000_000_000_000_000_000, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        ]));
+
+        $text = $trap->get(ProfileCallGraph::class)->call(['id' => $id, 'threshold' => 60]);
+
+        // `x` and `y` take 54% each
+        Assert::string($text)->endsWith(<<<'TEXT'
+            100.0%  9223372036854.78 s    a (1)
+            100.0%  9223372036854.78 s      … 2 more calls below 60%
+
+            TEXT);
+    }
+
     public function testRootWithoutCallsShowsItsCallees(): void
     {
         $trap = new Trap();

@@ -318,11 +318,11 @@ final class Mapper implements EventMapper
             $calls[$key] = [
                 $callerId,
                 $calleeId,
-                $sum[2] + $cost->ct,
-                $sum[3] + $cost->wt,
-                $sum[4] + $cost->cpu,
-                $sum[5] + $cost->mu,
-                $sum[6] + $cost->pmu,
+                Cost::saturate($sum[2] + $cost->ct),
+                Cost::saturate($sum[3] + $cost->wt),
+                Cost::saturate($sum[4] + $cost->cpu),
+                Cost::saturate($sum[5] + $cost->mu),
+                Cost::saturate($sum[6] + $cost->pmu),
             ];
         };
 

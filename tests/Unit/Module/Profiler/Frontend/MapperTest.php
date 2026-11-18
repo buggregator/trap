@@ -442,6 +442,24 @@ final class MapperTest
         Assert::array(self::edges($graph))->sameElementsAs(['A => B: 100%', 'B => A: 100%', '{main} => B: 2%']);
     }
 
+    public function testCallGraphSaturatesCallsThroughHiddenFunctionsPastIntegerRange(): void
+    {
+        // `h1` and `h2` are hidden: `a => f` sums its direct call and both calls through them
+        $event = self::event([
+            'main()' => ['ct' => 1, 'wt' => \PHP_INT_MAX],
+            'main()==>a' => ['ct' => 1, 'wt' => \PHP_INT_MAX],
+            'a==>h1' => ['ct' => 1, 'wt' => \intdiv(\PHP_INT_MAX, 200)],
+            'a==>h2' => ['ct' => 1, 'wt' => \intdiv(\PHP_INT_MAX, 200)],
+            'h1==>f' => ['ct' => 1, 'wt' => 5_000_000_000_000_000_000],
+            'h2==>f' => ['ct' => 1, 'wt' => 5_000_000_000_000_000_000],
+            'a==>f' => ['ct' => 1, 'wt' => 5_000_000_000_000_000_000],
+        ]);
+
+        $graph = self::json((new Mapper())->callGraph($event));
+
+        Assert::contains(self::edges($graph), 'a => f: 100%');
+    }
+
     private static function event(array $calls = self::XHPROF_STUB): Event
     {
         $profile = (new ProfileBuilder())->createProfile(calls: $calls);
