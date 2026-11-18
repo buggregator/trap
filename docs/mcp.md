@@ -162,6 +162,7 @@ The agent runs the tests and waits for the error they log:
 2. The agent starts the tests.
 3. `wait_for_events` with `{"since": "5f3a9c1e:12", "type": "monolog", "where": {"level": "error"}}`
    → as soon as the record arrives, or at once if it already has:
+
    ```json
    {
        "events": [
@@ -179,6 +180,7 @@ The agent runs the tests and waits for the error they log:
        "timed_out": false
    }
    ```
+
 4. To catch what the tests send next, the agent waits again with `{"since": "5f3a9c1e:14", ...}`.
 
 ### Sentry events
@@ -247,7 +249,7 @@ The modules (installed packages) are left out. The fields of a Sentry event for 
 A Sentry event of a shape the text fails on is shown as its summary and the error, not as its payload, which would
 show the secrets; a search looks through that text only.
 
-```
+```text
 sentry event 0b9e4a1c-... at 2026-11-16T10:10:42.033+00:00, project default
 RuntimeException: Error when getting value.
 
@@ -313,10 +315,10 @@ an agent dig into it without reading the whole call graph.
 
 | Tool                 | Arguments                                                     | Result                                                                                                           |
 |----------------------|---------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------|
-| `profile_summary`    | `id`                                                          | `format`, `metrics`, `not_measured`, `peaks`, `functions`, `edges`, the `top` 10 functions and the `hot_path` |
-| `profile_top`        | `id`, `metric`, `sort`, `filter`, `limit`                     | `functions`: `function`, `calls`, `inclusive`, `exclusive` and their percentages each; `matched`, `has_more`   |
-| `profile_calls`      | `id`, `function`, `metric`, `depth`, `limit`                  | The function's row, its `callers` and `callees` with the calls and costs between them                           |
-| `profile_call_graph` | `id`, `metric`, `threshold`, `max_depth`, `max_length`        | The call tree as plain text, only the calls of at least `threshold` percent                                     |
+| `profile_summary`    | `id`                                                          | `format`, `metrics`, `not_measured`, `peaks`, `functions`, `edges`, the `top` 10 functions and the `hot_path`    |
+| `profile_top`        | `id`, `metric`, `sort`, `filter`, `limit`                     | `functions`: `function`, `calls`, `inclusive`, `exclusive` and their percentages each; `matched`, `has_more`     |
+| `profile_calls`      | `id`, `function`, `metric`, `depth`, `limit`                  | The function's row, its `callers` and `callees` with the calls and costs between them                            |
+| `profile_call_graph` | `id`, `metric`, `threshold`, `max_depth`, `max_length`        | The call tree as plain text, only the calls of at least `threshold` percent                                      |
 
 The metrics are the ones the console shows; a profiler that doesn't measure one leaves it out, and a tool asked
 for it fails with the metrics the profile has:
@@ -368,6 +370,7 @@ The agent profiles a slow request and finds what makes it slow:
    hot path, ending in `App\Repository\OrderRepository::findAll`.
 4. `profile_top` with `{"id": "9d0e...", "metric": "wt", "filter": "App\\*"}` → the application functions by their
    own wall time:
+
    ```json
    {
        "metric": "wt",
@@ -388,6 +391,7 @@ The agent profiles a slow request and finds what makes it slow:
        "has_more": true
    }
    ```
+
 5. `profile_calls` with `{"id": "9d0e...", "function": "App\\Repository\\OrderRepository::hydrate"}` → it is
    called 1 200 times from `OrderRepository::findAll`, once per row: the agent batches the hydration.
 
@@ -398,6 +402,7 @@ The agent remembers where the buffer is, runs the code, and reads what the code 
 1. `list_events` → `{"events": [...], "cursor": "5f3a9c1e:12", "has_more": false}`
 2. The agent runs the tests or sends a request to the application.
 3. `list_events` with `{"since": "5f3a9c1e:12"}` → only the new events:
+
    ```json
    {
        "events": [
@@ -414,8 +419,10 @@ The agent remembers where the buffer is, runs the code, and reads what the code 
        "has_more": false
    }
    ```
+
 4. `get_event` with `{"id": "0b9e4a1c-..."}` → the full dump:
-   ```
+
+   ```text
    var-dump event 0b9e4a1c-... at 2026-11-16T10:10:42.033+00:00, project default
    array:2 [ "hello" => "world" "n" => 42 ]
 
@@ -471,7 +478,7 @@ The tools read everything Trap has caught, mails and request bodies with their s
 There is no CLI option for it, as the command line shows in the process list. With a token set, every request
 to `/mcp` must carry it:
 
-```
+```http
 Authorization: Bearer <token>
 ```
 
