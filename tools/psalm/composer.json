@@ -1,5 +1,10 @@
 {
     "require": {
-        "vimeo/psalm": "^6 || ^7"
+        "vimeo/psalm": "^7"
+    },
+    "config": {
+        "platform": {
+            "php": "8.2.27"
+        }
     }
 }
