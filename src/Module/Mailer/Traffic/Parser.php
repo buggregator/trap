@@ -195,7 +195,9 @@ final class Parser
     ): void {
         foreach (Http::parseMultipartBody($stream, $boundary) as $part) {
             if ($part instanceof Field) {
-                \preg_match('/^\\s*text\\/(?:plain|html|watch-html)\\b/i', $part->getHeaderLine('Content-Type')) === 1
+                // A part without a Content-Type is text/plain
+                $type = $part->getHeaderLine('Content-Type');
+                $type === '' || \preg_match('/^\\s*text\\/(?:plain|html|watch-html)\\b/i', $type) === 1
                     ? $texts[] = $part
                     : $attachments[] = $this->textToFile($part);
                 continue;
@@ -234,8 +236,11 @@ final class Parser
             };
 
         $value = $part->getValue();
-        \strcasecmp($part->getHeaderLine('Content-Transfer-Encoding'), 'base64') === 0
-            and $value = \base64_decode($value);
+        $value = match (\strtolower(\trim($part->getHeaderLine('Content-Transfer-Encoding')))) {
+            'base64' => \base64_decode($value),
+            'quoted-printable' => \quoted_printable_decode($value),
+            default => $value,
+        };
 
         $stream = StreamHelper::createFileStream();
         $stream->write($value);

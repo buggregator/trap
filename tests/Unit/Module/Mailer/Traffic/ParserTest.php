@@ -307,6 +307,37 @@ final class ParserTest
     }
 
     #[Test]
+    public function partWithoutContentTypeIsText(): void
+    {
+        $message = $this->parse(
+            "Content-Type: multipart/mixed; boundary=o\r\n\r\n"
+            . "--o\r\nContent-Transfer-Encoding: 7bit\r\n\r\nno content-type body\r\n--o--\r\n.\r\n",
+        );
+
+        Assert::count($message->getMessages(), 1);
+        Assert::same($message->getMessages()[0]->getValue(), 'no content-type body');
+        Assert::count($message->getAttachments(), 0);
+    }
+
+    #[Test]
+    public function decodesQuotedPrintableTextAttachment(): void
+    {
+        $message = $this->parse(
+            "Content-Type: multipart/alternative; boundary=o\r\n\r\n"
+            . "--o\r\nContent-Type: text/calendar; method=REQUEST\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n"
+            . "DESCRIPTION:a=3Db and a long line that the client brea=\r\nks\r\n--o--\r\n.\r\n",
+        );
+
+        Assert::count($message->getMessages(), 0);
+        Assert::count($message->getAttachments(), 1);
+        Assert::same($message->getAttachments()[0]->getClientFilename(), 'invite.ics');
+        Assert::same(
+            (string) $message->getAttachments()[0]->getStream(),
+            'DESCRIPTION:a=b and a long line that the client breaks',
+        );
+    }
+
+    #[Test]
     public function keepsMultipartNestedTooDeepAsAttachment(): void
     {
         // Every level holds a text and the next level; levels close in reverse order.
