@@ -92,6 +92,7 @@ final class TraceTree
         $known = new KnownSpans(
             fn(string $spanId): ?Span => $this->store->get($traceId, $spanId),
             fn(string $spanId): array => $this->store->getChildren($traceId, $spanId),
+            fn(string $spanId): int => $this->store->getChildSeq($traceId, $spanId) ?? 0,
             $bounds[0],
             $bounds[1],
             \count($spans),
@@ -160,16 +161,29 @@ final class TraceTree
             $earlier > 0 ? "+$earlier received earlier" : '',
         );
 
-        // Keys of $shown are cast back to strings: an all-digit ID is an int key.
         $roots = [];
+        // Collected from the shown spans, not from the list of all children of a parent: a parent shown
+        // in every frame that brings one more of its children would make a series of frames quadratic.
+        /** @var array<non-empty-string, list<Span>> $children */
+        $children = [];
+        // Keys of $shown are cast back to strings: an all-digit ID is an int key.
         foreach ($shown as $spanId => $_) {
             $span = $known->get((string) $spanId);
             \assert($span !== null);
             $parentId = $span->parentSpanId;
-            $parentId !== null && isset($shown[$parentId]) or $roots[] = $span;
+            if ($parentId !== null && isset($shown[$parentId])) {
+                $children[$parentId][] = $span;
+            } else {
+                $roots[] = $span;
+            }
         }
+        foreach ($children as &$list) {
+            \usort($list, static fn(Span $a, Span $b): int => $a->startTimeUnixNano <=> $b->startTimeUnixNano
+                ?: $known->compareArrival($a, $b));
+        }
+        unset($list);
 
-        $context = new TraceView($known, $shown, $collapsed, $hiddenAncestors);
+        $context = new TraceView($known, $shown, $collapsed, $hiddenAncestors, $children);
         $this->rendered = [];
         foreach (self::sortByStart($roots) as $root) {
             $this->renderSpan($output, $context, $root);
@@ -300,10 +314,7 @@ final class TraceTree
             false => '├─ ',
         } . $header);
 
-        $nested = self::sortByStart(\array_filter(
-            $context->known->children($span->spanId),
-            static fn(Span $child): bool => isset($context->shown[$child->spanId]),
-        ));
+        $nested = $context->children[$span->spanId] ?? [];
         // Past the indentation limit children are drawn at their parent's level.
         $childPrefix = $depth >= self::MAX_INDENT ? $prefix : $prefix . match ($isLast) {
             null => '',

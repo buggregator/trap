@@ -122,6 +122,7 @@ final class Renderer implements RendererInterface
             return new KnownSpans(
                 fn(string $spanId): ?Span => $this->store->get($traceId, $spanId),
                 fn(string $spanId): array => $this->store->getChildren($traceId, $spanId),
+                fn(string $spanId): int => $this->store->getChildSeq($traceId, $spanId) ?? 0,
                 $bounds[0],
                 $bounds[1],
                 $this->store->countTraceSpans($traceId),
@@ -131,7 +132,10 @@ final class Renderer implements RendererInterface
         $known = $this->store->getTrace($traceId) + $received;
         /** @var array<non-empty-string, list<Span>> $children */
         $children = [];
+        /** @var array<non-empty-string, int> $arrival */
+        $arrival = [];
         foreach ($known as $span) {
+            $arrival[$span->spanId] = \count($arrival);
             $span->parentSpanId !== null && isset($known[$span->parentSpanId])
             and $children[$span->parentSpanId][] = $span;
         }
@@ -139,6 +143,7 @@ final class Renderer implements RendererInterface
         return new KnownSpans(
             static fn(string $spanId): ?Span => $known[$spanId] ?? null,
             static fn(string $spanId): array => $children[$spanId] ?? [],
+            static fn(string $spanId): int => $arrival[$spanId] ?? 0,
             \min(\array_map(static fn(Span $span): int => $span->startTimeUnixNano, $known)),
             \max(\array_map(static fn(Span $span): int => $span->endTimeUnixNano, $known)),
             \count($known),

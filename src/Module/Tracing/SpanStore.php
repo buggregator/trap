@@ -71,8 +71,8 @@ final class SpanStore
      * Children of each parent in the order of the trace, so that a trace is not rescanned
      * for every received span. The parent may be absent from the trace.
      *
-     * @var array<non-empty-string, array<non-empty-string, array<non-empty-string, true>>>
-     *      Trace ID => parent span ID => child span ID => true
+     * @var array<non-empty-string, array<non-empty-string, array<non-empty-string, int<1, max>>>>
+     *      Trace ID => parent span ID => child span ID => sequence number of the child
      */
     private array $children = [];
 
@@ -140,7 +140,7 @@ final class SpanStore
             $this->traces[$traceId] = $trace;
             $this->updatedAt[$traceId] = $now;
             $this->changedAt[$traceId] = ++$this->seq;
-            $this->index($span, \count($trace) === 1);
+            $this->index($span, \count($trace) === 1, $this->seq);
         }
 
         $this->evict($now);
@@ -240,6 +240,19 @@ final class SpanStore
         }
 
         return $result;
+    }
+
+    /**
+     * The sequence number of a stored span that has a parent. {@see getChildren()} lists children in the order
+     * of these numbers, so children picked by other means can be put in that order without the whole list.
+     *
+     * @return int<1, max>|null Null for an unknown span or a span without a parent.
+     */
+    public function getChildSeq(string $traceId, string $spanId): ?int
+    {
+        $parentId = ($this->traces[$traceId][$spanId] ?? null)?->parentSpanId;
+
+        return $parentId === null ? null : $this->children[$traceId][$parentId][$spanId] ?? null;
     }
 
     /**
@@ -391,9 +404,11 @@ final class SpanStore
         $this->services[$traceId] = \array_intersect_key($this->services[$traceId] ?? [], $trace);
         $this->resources[$traceId] = \array_intersect_key($this->resources[$traceId] ?? [], $trace);
 
+        $old = $this->children[$traceId] ?? [];
         $children = [];
         foreach ($trace as $span) {
-            $span->parentSpanId === null or $children[$span->parentSpanId][$span->spanId] = true;
+            $parentId = $span->parentSpanId;
+            $parentId === null or $children[$parentId][$span->spanId] = $old[$parentId][$span->spanId];
         }
         $this->children[$traceId] = $children;
         $this->bounds[$traceId] = self::computeBounds($trace);
@@ -403,11 +418,12 @@ final class SpanStore
      * Adds a span that has just been appended to its trace.
      *
      * @param bool $only Whether it is the only span of the trace.
+     * @param int<1, max> $seq
      */
-    private function index(Span $span, bool $only): void
+    private function index(Span $span, bool $only, int $seq): void
     {
         $span->parentSpanId === null
-            or $this->children[$span->traceId][$span->parentSpanId][$span->spanId] = true;
+            or $this->children[$span->traceId][$span->parentSpanId][$span->spanId] = $seq;
 
         $cached = $this->bounds[$span->traceId] ?? null;
         $this->bounds[$span->traceId] = match (true) {
