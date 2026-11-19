@@ -72,7 +72,7 @@ The client reads these variables from `$_ENV` or the process environment.
 |--------------------------|------------------|----------------------------------------------------------------------------------------------------------------------------------|
 | `VAR_DUMPER_FORMAT`      | `server`         | Where `trap()` dumps go, as in Symfony VarDumper: `server`, `tcp://host:port`, `cli` or `html`. See [var-dumper](var-dumper.md). |
 | `VAR_DUMPER_SERVER`      | `127.0.0.1:9912` | Host and port `trap()` sends dumps to with the `server` format.                                                                  |
-| `TRAP_MONOLOG_HOST`      | `127.0.0.1`      | Host of [`trap()::logger()`](functions.md#traplogger).                                                                           |
+| `TRAP_MONOLOG_HOST`      | `127.0.0.1`      | Host of [`trap()::logger()`](functions.md#traplogger). Prefix it with `tls://` to connect over TLS.                              |
 | `TRAP_MONOLOG_PORT`      | `9913`           | Port of `trap()::logger()`.                                                                                                      |
 | `TRAP_PROFILER_HOST`     | `127.0.0.1`      | Host `->toTrap()` of [profiling](profiling.md) sends to.                                                                         |
 | `TRAP_PROFILER_PORT`     | `9912`           | Port `->toTrap()` sends to.                                                                                                      |
