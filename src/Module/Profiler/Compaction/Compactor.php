@@ -299,6 +299,7 @@ final class Compactor
             $limit = $next;
         }
 
+        /** @var array<int, bool> $kept Psalm widens the keys to array-key while it analyses the loop above */
         return $kept;
     }
 

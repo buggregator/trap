@@ -61,7 +61,7 @@ final class Archive
             $header = '';
             if (\strlen($name) > self::NAME_SIZE) {
                 $record = self::paxRecord('path', $name);
-                $header = self::header('PaxHeader/' . \md5($name), \strlen($record), 'x')
+                $header = self::header('PaxHeader/' . \hash('xxh128', $name), \strlen($record), 'x')
                     . $record . self::padding(\strlen($record));
                 // Readers that know no pax get the start of the name
                 $name = \substr($name, 0, self::NAME_SIZE);
