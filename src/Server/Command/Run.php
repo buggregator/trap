@@ -10,9 +10,11 @@ use Buggregator\Trap\Server\Bootstrap;
 use Buggregator\Trap\Server\Config\App;
 use Buggregator\Trap\Server\Config\SocketServer;
 use Buggregator\Trap\Server\Config\TcpPorts;
+use Buggregator\Trap\Server\Config\Tls;
 use Buggregator\Trap\Server\Info;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Sender;
+use Buggregator\Trap\Server\Socket\Tls\Context;
 use Buggregator\Trap\Support\MemoryLimit;
 use Internal\Container\Container;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -185,6 +187,7 @@ final class Run extends Command implements SignalableCommandInterface
             $this->app = $container->get(Application::class, [
                 'map' => $this->getServers($container),
                 'senders' => $registry->getSenders(\array_values(\array_unique($senders))),
+                'tls' => Context::create($container->get(Tls::class), $this->logger),
             ]);
 
 

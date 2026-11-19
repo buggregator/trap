@@ -9,6 +9,8 @@ use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Processable;
 use Buggregator\Trap\Server\Socket\Exception\ClientDisconnected;
 use Buggregator\Trap\Server\Socket\Exception\ServerStopped;
+use Buggregator\Trap\Server\Socket\Exception\TlsHandshakeFailed;
+use Buggregator\Trap\Server\Socket\Tls\Context;
 use Buggregator\Trap\Support\Activity;
 use Internal\Destroy\Destroyable;
 
@@ -67,6 +69,7 @@ final class Server implements Processable, Cancellable, Destroyable
         private readonly float $acceptPeriod,
         private readonly ?\Closure $clientInflector,
         private readonly Logger $logger,
+        private readonly ?Context $tls,
     ) {
         $protocolNumber = \getprotobyname($protocol);
         $protocolNumber === false and throw new \RuntimeException(\sprintf('Unknown protocol `%s`.', $protocol));
@@ -109,6 +112,7 @@ final class Server implements Processable, Cancellable, Destroyable
      * @param float $acceptPeriod Seconds between socket_accept() calls the main loop doesn't wake for,
      *        and between socket_select() calls of the clients.
      * @param null|\Closure(Client, int $id): mixed $clientInflector
+     * @param Context|null $tls Accepts TLS connections next to plain ones when set.
      */
     public static function init(
         string $protocol,
@@ -118,8 +122,9 @@ final class Server implements Processable, Cancellable, Destroyable
         float $acceptPeriod = Client::POLL_PERIOD,
         ?\Closure $clientInflector = null,
         Logger $logger = new Logger(),
+        ?Context $tls = null,
     ): self {
-        return new self($protocol, $address, $port, $payloadSize, $acceptPeriod, $clientInflector, $logger);
+        return new self($protocol, $address, $port, $payloadSize, $acceptPeriod, $clientInflector, $logger, $tls);
     }
 
     #[\Override]
@@ -160,6 +165,9 @@ final class Server implements Processable, Cancellable, Destroyable
             } catch (\Throwable $e) {
                 if ($e instanceof ClientDisconnected) {
                     $this->logger->debug('Client %s disconnected', $key);
+                } elseif ($e instanceof TlsHandshakeFailed) {
+                    // A browser drops the handshake when it doesn't trust the certificate yet
+                    $this->logger->debug('Client %s TLS handshake failed: %s', $key, $e->getMessage());
                 } else {
                     $this->logger->exception($e, "Client $key fiber.");
                 }
@@ -294,7 +302,7 @@ final class Server implements Processable, Cancellable, Destroyable
     {
         $client = null;
         try {
-            $client = Client::init($socket, $this->payloadSize, $this->acceptPeriod);
+            $client = Client::init($socket, $this->payloadSize, $this->acceptPeriod, $this->tls);
             $key = (int) \array_key_last($this->clients) + 1;
             $this->clients[$key] = $client;
             $this->clientInflector !== null and ($this->clientInflector)($client, $key);
