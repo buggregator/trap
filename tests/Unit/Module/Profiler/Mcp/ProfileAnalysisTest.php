@@ -9,6 +9,7 @@ use Buggregator\Trap\Module\Profiler\Frame\Type;
 use Buggregator\Trap\Module\Profiler\Mcp\ProfileAnalysis;
 use Buggregator\Trap\Module\Profiler\Struct\Metric;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
+use Buggregator\Trap\Module\Profiler\XDebug\ProfileBuilder;
 use Buggregator\Trap\Support\TimeSlice;
 use Buggregator\Trap\Tests\Unit\Module\Profiler\Mcp\Stub\Profiles;
 use Testo\Assert;
@@ -54,6 +55,18 @@ final class ProfileAnalysisTest
         ]));
 
         Assert::same($analysis->peak(Metric::WallTime), \PHP_INT_MAX);
+    }
+
+    public function testPeakLeavesOutRootsOfXdebugFibers(): void
+    {
+        $profile = (new ProfileBuilder())->createProfile(
+            (string) \file_get_contents(__DIR__ . '/../../../../Stub/xdebug/fibers/fibers.cachegrind'),
+        );
+        $analysis = self::analysis($profile);
+
+        // `task` runs in a fiber: its 29 µs count in `{main}` too
+        Assert::same($analysis->peak(Metric::WallTime), 79);
+        Assert::same($analysis->peak(Metric::Memory), 17240);
     }
 
     /**

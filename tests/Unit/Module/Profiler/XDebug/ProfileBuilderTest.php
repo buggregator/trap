@@ -222,24 +222,139 @@ final class ProfileBuilderTest
         (new ProfileBuilder())->createProfile(self::profile('Time_(ms) Memory_(bytes)', "fn=(1) {main}\n1 10 0\n"));
     }
 
-    public function testRejectsCallsThatDidNotEndBefore(): void
+    public function testRestoresCallTreeOfEachFiber(): void
     {
-        Expect::exception(\InvalidArgumentException::class)->withMessageContaining('lists more calls');
+        $profile = self::build('fibers/fibers.cachegrind');
 
-        (new ProfileBuilder())->createProfile(self::profile(
-            'Time_(10ns) Memory_(bytes)',
-            "fn=(1) {main}\n1 10 0\ncfn=(2) foo\ncalls=1 0 0\n2 5 0\n",
-        ));
+        // The fiber's function is called by no listed call, so it is a root
+        Assert::same(self::shape($profile->tree()), [
+            'task:29' => [
+                'work:8' => ['php::str_repeat:1' => []],
+                'php::Fiber::suspend:10' => [],
+                'work:1' => ['php::str_repeat:0' => []],
+                'php::Fiber::suspend:2' => [],
+                'work:1 ' => ['php::str_repeat:0' => []],
+            ],
+            '{main}:79' => [
+                'run:68' => [
+                    'php::Fiber->__construct:2' => [],
+                    'php::Fiber->start:26' => [],
+                    'work:6' => ['php::str_repeat:1' => []],
+                    'php::Fiber->resume:3' => [],
+                    'work:0' => ['php::str_repeat:0' => []],
+                    'php::Fiber->resume:16' => [],
+                ],
+            ],
+        ]);
+        Assert::false(isset($profile->metadata['unlinked']));
+        Assert::same($profile->metadata['fibers'], ['roots' => 1, 'wt' => 29, 'mu' => 408]);
     }
 
-    public function testRejectsCallOfOtherFunction(): void
+    public function testKeepsCallsOfEachStackUnderTheirCaller(): void
     {
-        Expect::exception(\InvalidArgumentException::class)->withMessageContaining('lists `bar`, but `foo` ended there');
+        // `work()` runs on both sides of every switch, `work:60` and `work:50` on both
+        $profile = self::build('fibers/loop.cachegrind');
 
-        (new ProfileBuilder())->createProfile(self::profile(
-            'Time_(10ns) Memory_(bytes)',
+        $roots = \array_values($profile->tree()->root);
+        Assert::same(self::callees($roots), ['task', '{main}']);
+        Assert::same(self::callees($roots[0]->children), self::repeat(6, 'work', 'php::Fiber::suspend'));
+        Assert::same(
+            self::callees($roots[1]->children[0]->children),
+            ['php::Fiber->__construct', 'php::Fiber->start', ...self::repeat(5, 'work', 'php::Fiber->resume')],
+        );
+        Assert::false(isset($profile->metadata['unlinked']));
+        Assert::same($profile->metadata['fibers']['roots'], 1);
+    }
+
+    public function testPutsBackCallsEndedAfterFiberIsDestroyed(): void
+    {
+        // The fiber is destroyed while suspended: its calls end, and `run()` goes on with no switch between
+        $profile = self::build('fibers/destroyed.cachegrind');
+
+        Assert::same(self::shape($profile->tree()), [
+            'task:22' => ['work:7' => ['php::str_repeat:1' => []], 'php::Fiber::suspend:7' => []],
+            '{main}:73' => [
+                'run:62' => [
+                    'php::Fiber->__construct:2' => [],
+                    'php::Fiber->start:23' => [],
+                    'work:1' => ['php::str_repeat:1' => []],
+                    'work:1 ' => ['php::str_repeat:0' => []],
+                ],
+            ],
+        ]);
+        Assert::false(isset($profile->metadata['unlinked']));
+        Assert::same($profile->metadata['fibers']['roots'], 1);
+    }
+
+    public function testRestoresFiberStartedInFiber(): void
+    {
+        $profile = self::build('fibers/nested.cachegrind');
+
+        Assert::same(self::shape($profile->tree()), [
+            'inner:23' => [
+                'work:7' => ['php::str_repeat:2' => []],
+                'php::Fiber::suspend:9' => [],
+                'work:1' => ['php::str_repeat:0' => []],
+            ],
+            'outer:47' => [
+                'php::Fiber->__construct:0' => [],
+                'php::Fiber->start:18' => [],
+                'work:1' => ['php::str_repeat:0' => []],
+                'php::Fiber::suspend:3' => [],
+                'php::Fiber->resume:17' => [],
+                'work:1 ' => ['php::str_repeat:0' => []],
+            ],
+            '{main}:97' => [
+                'run:85' => [
+                    'php::Fiber->__construct:3' => [],
+                    'php::Fiber->start:35' => [],
+                    'work:1' => ['php::str_repeat:0' => []],
+                    'php::Fiber->resume:29' => [],
+                    'work:0' => ['php::str_repeat:0' => []],
+                ],
+            ],
+        ]);
+        Assert::same($profile->metadata['fibers']['roots'], 2);
+    }
+
+    public function testJoinsStacksOfFibersRunInTurns(): void
+    {
+        // 50 fibers of 3 to 6 steps, resumed in turns: the stacks they suspend look alike
+        $profile = self::build('fibers/scheduler.cachegrind.gz');
+
+        $tasks = [];
+        foreach ($profile->tree()->root as $root) {
+            $root->item->callee === 'task' and $tasks[] = \count($root->children);
+        }
+        \sort($tasks);
+        // A task of n steps makes n `work()` and `Fiber::suspend()` calls and the last `work()`
+        $expected = [...\array_fill(0, 13, 7), ...\array_fill(0, 13, 9), ...\array_fill(0, 12, 11), ...\array_fill(0, 12, 13)];
+        Assert::same($tasks, $expected);
+        Assert::false(isset($profile->metadata['unlinked']));
+        Assert::same($profile->metadata['fibers']['roots'], 50);
+    }
+
+    public function testKeepsCallWhoseCalleesDidNotEndBefore(): void
+    {
+        $profile = (new ProfileBuilder())->createProfile(self::profile(
+            'Time Memory_(bytes)',
+            "fn=(1) {main}\n1 10 0\ncfn=(2) foo\ncalls=1 0 0\n2 5 0\n",
+        ));
+
+        // The call takes the time of the callees it lists
+        Assert::same(self::shape($profile->tree()), ['{main}:15' => []]);
+        Assert::same($profile->metadata['unlinked'], 1);
+    }
+
+    public function testKeepsCallOfOtherFunctionAsRoot(): void
+    {
+        $profile = (new ProfileBuilder())->createProfile(self::profile(
+            'Time Memory_(bytes)',
             "fn=(2) foo\n2 5 0\n\nfn=(1) {main}\n1 10 0\ncfn=(3) bar\ncalls=1 0 0\n2 5 0\n",
         ));
+
+        Assert::same(self::shape($profile->tree()), ['foo:5' => [], '{main}:15' => []]);
+        Assert::same($profile->metadata['unlinked'], 1);
     }
 
     public function testMergesCallsOfSameFunctionOnSamePathOverNodeLimit(): void
@@ -395,6 +510,24 @@ final class ProfileBuilderTest
     {
         return "version: 1\ncreator: xdebug 3.4.0 (PHP 8.4.0)\ncmd: /app/a.php\npart: 1\npositions: line\n\n"
             . "events: $events\n\n$blocks";
+    }
+
+    /**
+     * @param list<Branch<Edge>> $branches
+     *
+     * @return list<string>
+     */
+    private static function callees(array $branches): array
+    {
+        return \array_map(static fn(Branch $branch): string => $branch->item->callee, $branches);
+    }
+
+    /**
+     * @return list<string> The names repeated `$times` times.
+     */
+    private static function repeat(int $times, string ...$names): array
+    {
+        return \array_merge(...\array_fill(0, $times, $names));
     }
 
     /**

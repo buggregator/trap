@@ -20,6 +20,12 @@ final class Call
     /** @var list<non-empty-string> Names of the called functions, in the call order. */
     public array $callees = [];
 
+    /** @var list<int> Inclusive time of the called functions in the units of the profile, in the order of `$callees`. */
+    public array $calleeTime = [];
+
+    /** @var list<int> Inclusive memory of the called functions in bytes, in the order of `$callees`. */
+    public array $calleeMemory = [];
+
     /**
      * @param non-empty-string $name
      */
