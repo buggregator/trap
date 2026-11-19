@@ -121,14 +121,19 @@ final class Handler implements \IteratorAggregate
     {
         foreach ($this->pending as $path => [$last, $changedAt, $old]) {
             \clearstatcache(true, $path);
-            if (!\is_file($path)) {
+            try {
+                $info = \is_file($path) ? FileInfo::fromSplFileInfo(new \SplFileInfo($path)) : null;
+            } catch (\Throwable) {
+                // Removed or renamed since the check
+                $info = null;
+            }
+            if ($info === null) {
                 // A file put back at the same path is new then, however soon it comes back
                 unset($this->cache[$path]);
                 $this->forget($path);
                 continue;
             }
 
-            $info = FileInfo::fromSplFileInfo(new \SplFileInfo($path));
             $changed = $info->size !== $last->size || $info->mtime !== $last->mtime;
             if ($changed) {
                 [$changedAt, $old] = [\microtime(true), false];

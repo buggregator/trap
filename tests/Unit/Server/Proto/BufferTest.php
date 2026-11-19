@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Server\Proto;
 
+use Buggregator\Trap\Module\Profiler\Frame as ProfilerFrame;
+use Buggregator\Trap\Module\Profiler\Frame\Payload;
 use Buggregator\Trap\Server\Proto\Buffer;
 use Buggregator\Trap\Server\Proto\Frame\Binary;
 use Nyholm\Psr7\Stream;
@@ -76,6 +78,23 @@ final class BufferTest
         \usleep(150_000);
 
         Assert::false($buffer->isReady());
+    }
+
+    public function frameFailingToSerializeIsNotAdded(): void
+    {
+        $buffer = new Buffer(bufferSize: 1000);
+        $frame = new ProfilerFrame(Payload::new(
+            ProfilerFrame\Type::XDebug,
+            static fn(): never => throw new \RuntimeException('Broken profile.'),
+        ));
+
+        try {
+            $buffer->addFrame($frame);
+        } catch (\RuntimeException) {
+        }
+
+        Assert::same($buffer->getAndClean(), []);
+        Assert::same($buffer->getSize(), 0);
     }
 
     private static function frame(int $size): Binary

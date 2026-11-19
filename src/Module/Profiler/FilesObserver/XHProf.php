@@ -54,11 +54,12 @@ final class XHProf implements FileFilterInterface
             yield new ProfilerFrame(
                 ProfilerFrame\Payload::new(
                     type: ProfilerFrame\Type::XHProf,
-                    callsProvider: function () use ($file): Profile {
+                    callsProvider: WarnOnFailure::wrap($this->logger, 'XHProf', $file->getName(), function () use ($file): Profile {
                         $content = \file_get_contents($file->path);
                         $content === false and throw new \RuntimeException('Unable to read the profile file.');
+                        $data = @\unserialize($content, ['allowed_classes' => false]);
+                        \is_array($data) or throw new \RuntimeException('Not a serialized XHProf run.');
                         /** @var RawData $data */
-                        $data = \unserialize($content, ['allowed_classes' => false]);
                         return $this->profileBuilder->createProfile(
                             date: new \DateTimeImmutable('@' . $file->mtime),
                             metadata: [
@@ -68,7 +69,7 @@ final class XHProf implements FileFilterInterface
                             ],
                             calls: $data,
                         );
-                    },
+                    }),
                 ),
             );
         } catch (\Throwable $e) {

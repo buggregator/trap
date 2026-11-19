@@ -40,7 +40,13 @@ final class FilesObserver implements Processable, Cancellable
 
             $this->fibers[] = new \Fiber(function () use ($config): void {
                 foreach ($this->container->make(Handler::class, ['config' => $config]) as $frame) {
-                    $this->propagateFrame($frame);
+                    // A profile is built from its file when it is serialized here: a broken file must not stop
+                    // the observer.
+                    try {
+                        $this->propagateFrame($frame);
+                    } catch (\Throwable $e) {
+                        $this->logger->exception($e);
+                    }
                 }
             });
         }

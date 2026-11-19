@@ -9,6 +9,7 @@ use Buggregator\Trap\Module\Profiler\Frame;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Service\FilesObserver\FileInfo;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
@@ -49,6 +50,33 @@ final class XHProfTest
         $fromEndpoint = \json_decode(\file_get_contents(self::STUB_DIR . '/app.json'), true, flags: \JSON_THROW_ON_ERROR);
 
         Assert::same($fromFile, $fromEndpoint['profile']);
+    }
+
+    public function testWarnsOnceWhenProfileFailsToBuild(): void
+    {
+        $path = \tempnam(\sys_get_temp_dir(), 'trap-xhprof-');
+        \file_put_contents($path, 'not a serialized run');
+        $output = new BufferedOutput();
+        $converter = new XHProf(new Logger($output), new ProfileBuilder());
+
+        try {
+            $payload = \iterator_to_array($converter->convert(new FileInfo($path, 20, 0, 0)), false)[0]->payload;
+            for ($i = 0; $i < 2; ++$i) {
+                try {
+                    $payload->getProfile();
+                    Assert::fail('The profile is built.');
+                } catch (\RuntimeException) {
+                }
+            }
+        } finally {
+            \unlink($path);
+        }
+
+        $log = $output->fetch();
+        $name = \pathinfo($path, \PATHINFO_FILENAME);
+        Assert::same(\substr_count($log, $name), 1);
+        Assert::string($log)->ignoringAnsi()
+            ->contains("XHProf: $name is skipped: Not a serialized XHProf run.");
     }
 
     private static function converter(): XHProf

@@ -29,12 +29,13 @@ curl -s http://localhost:6060/debug/pprof/profile?seconds=10 \
 Trap also picks up profiler files from a directory:
 
 - `TRAP_XHPROF_PATH` - XHProf files, by default from `xhprof.output_dir`
-- `TRAP_XDEBUG_PATH` - Xdebug cachegrind files, by default from `xdebug.output_dir` while `xdebug.mode`
-  includes `profile`
+- `TRAP_XDEBUG_PATH` - Xdebug cachegrind files, compressed (`xdebug.use_compression`) or not, by default from
+  `xdebug.output_dir` while `xdebug.mode` includes `profile`
 - `TRAP_SPX_PATH` - SPX full reports, by default from `spx.data_dir` when ext-spx is loaded in Trap's PHP;
   see [SPX](spx.md#watch-the-data-directory)
 
-The defaults are the INI settings of the PHP that runs Trap.
+The defaults are the INI settings of the PHP that runs Trap. A file Trap can't read is skipped, and a warning
+in the console tells why.
 
 ## Compaction
 

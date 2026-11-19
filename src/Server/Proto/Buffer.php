@@ -34,10 +34,14 @@ final class Buffer
         $this->timer?->stop();
     }
 
+    /**
+     * A frame that fails to serialize is not added: the senders would fail on it again.
+     */
     public function addFrame(Frame $frame): void
     {
+        $size = $frame->getSize();
         $this->frames[] = $frame;
-        $this->currentSize += $frame->getSize();
+        $this->currentSize += $size;
 
         $this->timer?->continue();
     }

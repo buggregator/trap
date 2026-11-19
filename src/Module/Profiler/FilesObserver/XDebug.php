@@ -88,13 +88,14 @@ final class XDebug implements FileFilterInterface, ForgetsFiles
             return;
         }
 
+        $name = \basename($file->path);
         try {
             yield new ProfilerFrame(
                 ProfilerFrame\Payload::new(
                     type: ProfilerFrame\Type::XDebug,
-                    // Built when the profile is first shown, in whatever fiber that is: it can't wait for a lock.
-                    // The node budget it gets is what the memory left affords.
-                    callsProvider: function () use ($file): Profile {
+                    // Built when the frame is first serialized, as the observer buffers it in its fiber: the build
+                    // can't wait for a lock. The node budget it gets is what the memory left affords.
+                    callsProvider: WarnOnFailure::wrap($this->logger, 'XDebug', $name, function () use ($file, $name): Profile {
                         // A byte over the limit is enough for the builder to reject a file that doesn't fit in memory
                         $content = \file_get_contents($file->path, length: $this->profileBuilder->maxSize + 1);
                         $content === false and throw new \RuntimeException('Unable to read the profile file.');
@@ -104,7 +105,7 @@ final class XDebug implements FileFilterInterface, ForgetsFiles
                             date: new \DateTimeImmutable('@' . $file->mtime),
                             metadata: [
                                 'hostname' => (string) \gethostname(),
-                                'filename' => \basename($file->path),
+                                'filename' => $name,
                                 'filesize' => $file->size,
                             ],
                         );
@@ -113,13 +114,13 @@ final class XDebug implements FileFilterInterface, ForgetsFiles
                         $compacted = $profile->metadata['compacted'] ?? null;
                         \is_array($compacted) and $this->logger->warning(
                             'XDebug: %s is compacted to %d call tree nodes: %s.',
-                            \basename($file->path),
+                            $name,
                             (int) ($compacted['limit'] ?? 0),
                             Report::summarize($compacted),
                         );
 
                         return $profile;
-                    },
+                    }),
                 ),
             );
         } catch (\Throwable $e) {

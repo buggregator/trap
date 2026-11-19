@@ -171,9 +171,30 @@ final class SPXTest
         \array_map(\unlink(...), (array) \glob($this->dir . '/*'));
 
         Expect::exception(\RuntimeException::class)
-            ->withMessage('The SPX report ' . self::KEY . '.txt.gz is removed before it is shown.');
+            ->withMessage('The report is removed before it is shown.');
 
         $frames[0]->payload->getProfile();
+    }
+
+    public function testWarnsOnceWhenProfileFailsToBuild(): void
+    {
+        $output = new BufferedOutput();
+        $converter = new SPX(new Logger($output), new ProfileBuilder(), grace: 0.0);
+        $payload = \iterator_to_array($converter->convert(self::info($this->writeReport())), false)[0]->payload;
+        \array_map(\unlink(...), (array) \glob($this->dir . '/*'));
+
+        for ($i = 0; $i < 2; ++$i) {
+            try {
+                $payload->getProfile();
+                Assert::fail('The profile is built.');
+            } catch (\RuntimeException) {
+            }
+        }
+
+        $log = $output->fetch();
+        Assert::same(\substr_count($log, self::KEY), 1);
+        Assert::string($log)->ignoringAnsi()
+            ->contains('SPX: ' . self::KEY . '.txt.gz is skipped: The report is removed before it is shown.');
     }
 
     public function testCorruptedTraceIsReadyToReportTheError(): void
