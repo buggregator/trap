@@ -238,7 +238,33 @@ final class PayloadSummary implements EventView, EventFields
             return '';
         }
 
-        return self::labeled($dump['label'] ?? null, self::plain($dump['value'] ?? null));
+        /** @var mixed $value */
+        $value = $dump['value'] ?? null;
+        $text = match ($dump['type'] ?? null) {
+            // The mapper casts the value: `1` or an empty string.
+            'boolean' => $value === null ? '' : (\in_array($value, [true, 1, '1'], true) ? 'true' : 'false'),
+            'string' => self::plain($value),
+            default => self::plain(\is_string($value) ? self::withoutDumpLabel($value) : $value),
+        };
+
+        return self::labeled($dump['label'] ?? null, $text);
+    }
+
+    /**
+     * An HTML dump starts with the label, which the summary already puts in front of the value.
+     * A code dump keeps its text as is unless the mapper rendered it with HtmlDumper.
+     */
+    private static function withoutDumpLabel(string $html): string
+    {
+        if (!\str_contains($html, '<pre class=sf-dump')) {
+            return $html;
+        }
+
+        return (string) \preg_replace(
+            '~<span class=sf-dump-label>((?:[^<]++|<(?!/?span\b)|<span\b[^>]*+>(?1)</span>)*+)</span>~',
+            '',
+            $html,
+        );
     }
 
     private static function log(array $payload): string
