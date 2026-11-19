@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mailer\Traffic;
 
+use Buggregator\Trap\Module\Mailer\EncodedWord;
 use Buggregator\Trap\Module\Mailer\Message;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\Part;
 use Buggregator\Trap\Server\Traffic\Parser\Http;
 use Buggregator\Trap\Server\Traffic\StreamClient;
+use Buggregator\Trap\Support\Charset;
 use Buggregator\Trap\Support\StreamHelper;
 use Buggregator\Trap\Support\TimeSlice;
 use Psr\Http\Message\StreamInterface;
@@ -165,60 +167,60 @@ final class Parser
             default => $charset,
         };
 
-        return self::toUtf8($value, $charset) ?? $value;
+        return Charset::toUtf8($value, $charset) ?? $value;
     }
 
     /**
-     * Finds the `charset` parameter of a Content-Type, stepping over the quoted values of other parameters.
+     * Finds the `charset` parameter of a Content-Type.
      *
      * @return string|null The charset unquoted, or null if there is none.
      */
     private static function findCharset(string $contentType): ?string
     {
+        $charset = self::findRawParameter($contentType, 'charset');
+        return $charset === null ? null : \trim($charset, "\"'");
+    }
+
+    /**
+     * Value of a header parameter, unquoted, with `\"` and `\\` unescaped.
+     *
+     * Mailers write Windows paths with bare backslashes, as `"C:\dir\"`, so any other backslash stays,
+     * and a quoted value that doesn't close after its escapes is taken as is up to the next quote.
+     *
+     * @return non-empty-string|null Null if the parameter is absent or empty.
+     */
+    private static function findParameter(string $header, string $parameter): ?string
+    {
+        $value = self::findRawParameter($header, $parameter);
+        if ($value !== null && \str_starts_with($value, '"')) {
+            $value = \preg_match('/^"((?:[^"\\\\]|\\\\.)*+)"$/s', $value, $matches) === 1
+                ? (string) \preg_replace('/\\\\([\\\\"])/', '$1', $matches[1])
+                : \rtrim(\substr($value, 1), '"');
+        }
+
+        return $value === null || $value === '' ? null : $value;
+    }
+
+    /**
+     * Value of the first header parameter of that name, as written.
+     * Parameters match left to right, each taking its quoted value whole, so a `;` or `=` inside one starts none.
+     */
+    private static function findRawParameter(string $header, string $parameter): ?string
+    {
         \preg_match_all(
-            '/;\\s*+([^\\s=;"]++)\\s*+=\\s*+("(?:[^"\\\\]|\\\\.)*+"|[^;"]*+)/',
-            $contentType,
+            '/;\\s*+([^\\s=;"]++)\\s*+=\\s*+("(?:[^"\\\\]|\\\\.)*+"|"[^"]*+"?|[^;"]*+)/',
+            $header,
             $params,
             \PREG_SET_ORDER,
         );
 
         foreach ($params as $param) {
-            if (\strcasecmp($param[1], 'charset') === 0) {
-                return \trim(\rtrim($param[2]), "\"'");
+            if (\strcasecmp($param[1], $parameter) === 0) {
+                return \rtrim($param[2]);
             }
         }
 
         return null;
-    }
-
-    /**
-     * Tries mbstring, then iconv: each knows charsets the other lacks, as mbstring lacks windows-1250.
-     *
-     * @return string|null The converted value, or null if neither knows the charset.
-     */
-    private static function toUtf8(string $value, string $charset): ?string
-    {
-        // A charset unknown to a converter warns or throws: either means trying the next one
-        \set_error_handler(static fn(): bool => true);
-        try {
-            try {
-                $converted = \function_exists('mb_convert_encoding')
-                    ? \mb_convert_encoding($value, 'UTF-8', $charset)
-                    : false;
-            } catch (\ValueError) {
-                $converted = false;
-            }
-
-            if (!\is_string($converted) && \function_exists('iconv')) {
-                $converted = \iconv($charset, 'UTF-8', $value);
-                // Not //IGNORE first: glibc's iconv returns false with it whenever it drops bytes
-                \is_string($converted) or $converted = \iconv($charset, 'UTF-8//IGNORE', $value);
-            }
-        } finally {
-            \restore_error_handler();
-        }
-
-        return \is_string($converted) ? $converted : null;
     }
 
     /**
@@ -240,6 +242,46 @@ final class Parser
             'quoted-printable' => \quoted_printable_decode($value),
             default => $value,
         };
+    }
+
+    /**
+     * The file with the name {@see findFileName()} gives.
+     */
+    private static function withFileName(File $file): File
+    {
+        $fileName = self::findFileName($file);
+        if ($fileName === $file->getClientFilename()) {
+            return $file;
+        }
+
+        /** @psalm-suppress InvalidArgument */
+        $named = new File($file->getHeaders(), $file->getName(), $fileName);
+        $file->hasStream() and $named->setStream($file->getStream(), $file->getSize());
+        return $named;
+    }
+
+    /**
+     * The file name of a mail part: the `filename` of Content-Disposition, else the `name` of Content-Type,
+     * as Outlook and older mailers name attachments. Either may be made of RFC 2047 encoded words.
+     *
+     * The name {@see Part::create()} gives comes after the own reading of `filename`: it reads quoted values
+     * as browsers write them in form data, where a backslash is no escape, yet it finds a name in values
+     * the own reading rejects.
+     *
+     * @return non-empty-string|null
+     */
+    private static function findFileName(Part $part): ?string
+    {
+        $disposition = $part->getHeaderLine('Content-Disposition');
+        $contentType = $part->getHeaderLine('Content-Type');
+        $fileName = Part::findExtendedParameter($disposition, 'filename')
+            ?? self::findParameter($disposition, 'filename')
+            ?? ($part instanceof File && $part->getClientFilename() !== '' ? $part->getClientFilename() : null)
+            ?? Part::findExtendedParameter($contentType, 'name')
+            ?? self::findParameter($contentType, 'name');
+
+        $fileName = $fileName === null ? '' : EncodedWord::decode($fileName);
+        return $fileName === '' ? null : $fileName;
     }
 
     /**
@@ -306,6 +348,7 @@ final class Parser
         $body = Part::create($headers);
 
         if ($body instanceof File) {
+            $body = self::withFileName($body);
             $file = StreamHelper::createFileStream();
             $file->write(self::decodeTransfer($content, $body->getHeaderLine('Content-Transfer-Encoding')));
             $file->rewind();
@@ -365,7 +408,7 @@ final class Parser
                 ? $this->findBoundary($part->getHeaderLine('Content-Type'))
                 : null;
             if ($nested === null) {
-                $attachments[] = $part;
+                $attachments[] = self::withFileName($part);
                 continue;
             }
 
@@ -380,10 +423,8 @@ final class Parser
      */
     private function textToFile(Field $part): File
     {
-        $contentType = $part->getHeaderLine('Content-Type');
-        $fileName = \preg_match('/;\\s*name=(?:"([^"]++)"|([^"\\s;]++))/i', $contentType, $matches) === 1
-            ? ($matches[1] ?: $matches[2])
-            : match (\strtolower(\trim(\explode(';', $contentType, 2)[0]))) {
+        $fileName = self::findFileName($part)
+            ?? match (\strtolower(\trim(\explode(';', $part->getHeaderLine('Content-Type'), 2)[0]))) {
                 'text/calendar' => 'invite.ics',
                 'text/csv' => 'attachment.csv',
                 default => 'attachment.txt',

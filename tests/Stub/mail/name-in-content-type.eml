@@ -1,0 +1,64 @@
+From: Trap Sender <sender@example.com>
+To: receiver@example.com
+Date: Thu, 19 Nov 2026 12:00:00 +0000
+Subject: Files named in Content-Type
+MIME-Version: 1.0
+X-Mailer: Microsoft Outlook Express 6.00.2900.5512
+Content-Type: multipart/mixed;
+	boundary="----=_NextPart_000_0000_01DB3A7C.5E2F1B30"
+
+This is a multi-part message in MIME format.
+
+------=_NextPart_000_0000_01DB3A7C.5E2F1B30
+Content-Type: multipart/related;
+	boundary="----=_NextPart_001_0001_01DB3A7C.5E2F1B30"
+
+------=_NextPart_001_0001_01DB3A7C.5E2F1B30
+Content-Type: text/plain;
+	charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Hello from the plain text part.
+------=_NextPart_001_0001_01DB3A7C.5E2F1B30
+Content-Type: text/html;
+	charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+<p>Hello from the <b>HTML</b> part.</p><img src="cid:logo.png">
+------=_NextPart_001_0001_01DB3A7C.5E2F1B30
+Content-Type: image/png;
+	name="logo.png"
+Content-Transfer-Encoding: base64
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6
+kgAAAABJRU5ErkJggg==
+
+------=_NextPart_001_0001_01DB3A7C.5E2F1B30--
+
+------=_NextPart_000_0000_01DB3A7C.5E2F1B30
+Content-Type: application/pdf;
+	name="report.pdf"
+Content-Transfer-Encoding: base64
+
+JVBERi0xLjQKMSAwIG9iaiA8PCAvVHlwZSAvQ2F0YWxvZyA+PiBlbmRvYmoKdHJhaWxlciA8PCAv
+Um9vdCAxIDAgUiA+PgolJUVPRgo=
+
+------=_NextPart_000_0000_01DB3A7C.5E2F1B30
+Content-Type: application/pdf;
+	name="=?utf-8?B?0L7RgtGH0ZHRgi5wZGY=?="
+Content-Disposition: attachment
+Content-Transfer-Encoding: base64
+
+JVBERi0xLjQKMSAwIG9iaiA8PCAvVHlwZSAvQ2F0YWxvZyA+PiBlbmRvYmoKdHJhaWxlciA8PCAv
+Um9vdCAxIDAgUiA+PgolJUVPRgo=
+
+------=_NextPart_000_0000_01DB3A7C.5E2F1B30
+Content-Type: text/plain;
+	name*0*=utf-8''%D0%B7%D0%B0%D0%BC;
+	name*1*=%D0%B5%D1%82%D0%BA%D0%B8.txt
+Content-Disposition: attachment
+Content-Transfer-Encoding: 7bit
+
+Notes.
+
+------=_NextPart_000_0000_01DB3A7C.5E2F1B30--
