@@ -126,6 +126,8 @@ final class ParserTest
             'Привет',
         ];
         yield 'charset: KOI8-R, 8bit' => ['text/plain; charset=KOI8-R', '8bit', "\xF0\xD2\xC9\xD7\xC5\xD4", 'Привет'];
+        yield 'type in upper case' => ['TEXT/PLAIN; CHARSET=US-ASCII', '7BIT', 'Hello from Pine', 'Hello from Pine'];
+        yield 'type in mixed case' => ['Text/Html; Charset=ISO-8859-1', 'quoted-printable', '<p class=3D"x">caf=E9</p>', '<p class="x">café</p>'];
         yield 'charset: Outlook name of Korean' => [
             'text/plain; charset="ks_c_5601-1987"',
             'base64',
@@ -440,6 +442,21 @@ final class ParserTest
         Assert::same($file->getClientFilename(), $fileName);
         Assert::same($file->getClientMediaType(), 'image/png');
         Assert::same((string) $file->getStream(), $png);
+    }
+
+    #[Test]
+    public function parsesMultipartTypeInAnyCase(): void
+    {
+        $message = $this->parse(
+            "Content-Type: Multipart/Alternative; Boundary=o\r\n\r\n"
+            . "--o\r\nContent-Type: text/plain\r\n\r\nplain\r\n--o\r\nContent-Type: text/html\r\n\r\n<p>html</p>\r\n--o--\r\n.\r\n",
+        );
+
+        Assert::count($message->getAttachments(), 0);
+        Assert::same(
+            \array_map(static fn(Field $text): string => $text->getValue(), $message->getMessages()),
+            ['plain', '<p>html</p>'],
+        );
     }
 
     #[Test]

@@ -50,7 +50,7 @@ abstract class Part implements \JsonSerializable
         $fileName = self::findExtendedParameter($contentDisposition, 'filename') ?? $fileName;
         $isFile = (string) $fileName !== ''
             || \preg_match('/^\\s*attachment\\b/i', $contentDisposition) === 1
-            || \preg_match('/text\\/.++/', self::findHeader($headers, 'Content-Type')[0] ?? 'text/plain') !== 1;
+            || \preg_match('/^\\s*text\\//i', self::findHeader($headers, 'Content-Type')[0] ?? 'text/plain') !== 1;
 
         return match ($isFile) {
             true => new File($headers, $name, $fileName),

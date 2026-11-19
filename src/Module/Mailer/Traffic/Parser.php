@@ -81,7 +81,7 @@ final class Parser
         // Message's body must be seeked to the beginning of the body.
         $fileStream->seek(-$stored, \SEEK_CUR);
 
-        $message = \str_contains($message->getHeaderLine('Content-Type'), 'multipart/')
+        $message = \stripos($message->getHeaderLine('Content-Type'), 'multipart/') !== false
             ? $this->processMultipartForm($message, $fileStream)
             : $this->processSingleBody($message, $fileStream);
 
