@@ -1,0 +1,50 @@
+From: Trap Sender <sender@example.com>
+Content-Type: multipart/alternative;
+	boundary="Apple-Mail=_5E3B6C1D-2A4F-4B8E-9C7D-1F0A2B3C4D5E"
+Mime-Version: 1.0 (Mac OS X Mail 16.0 \(3826.400.131.1.6\))
+Subject: Apple Mail: a PDF in the text
+Message-Id: <8C1E2F3A-4B5C-6D7E-8F90-A1B2C3D4E5F6@example.com>
+Date: Thu, 19 Nov 2026 12:00:00 +0000
+To: receiver@example.com
+X-Mailer: Apple Mail (2.3826.400.131.1.6)
+
+
+--Apple-Mail=_5E3B6C1D-2A4F-4B8E-9C7D-1F0A2B3C4D5E
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+	charset=us-ascii
+
+Hello from the plain text part.
+
+
+--Apple-Mail=_5E3B6C1D-2A4F-4B8E-9C7D-1F0A2B3C4D5E
+Content-Type: multipart/mixed;
+	boundary="Apple-Mail=_7A8B9C0D-1E2F-4A5B-8C6D-7E8F9A0B1C2D"
+
+
+--Apple-Mail=_7A8B9C0D-1E2F-4A5B-8C6D-7E8F9A0B1C2D
+Content-Transfer-Encoding: 7bit
+Content-Type: text/html;
+	charset=us-ascii
+
+<html><head><meta http-equiv="content-type" content="text/html; charset=us-ascii"></head><body style="overflow-wrap: break-word;"><div>Hello from the <b>HTML</b> part.</div><div></div></body></html>
+--Apple-Mail=_7A8B9C0D-1E2F-4A5B-8C6D-7E8F9A0B1C2D
+Content-Disposition: inline;
+	filename=report.pdf
+Content-Type: application/pdf;
+	x-unix-mode=0644;
+	name="report.pdf"
+Content-Transfer-Encoding: base64
+Content-Id: <1A2B3C4D-5E6F-4A7B-8C9D-0E1F2A3B4C5D>
+
+JVBERi0xLjQKMSAwIG9iaiA8PCAvVHlwZSAvQ2F0YWxvZyA+PiBlbmRvYmoKdHJhaWxlciA8PCAv
+Um9vdCAxIDAgUiA+PgolJUVPRgo=
+--Apple-Mail=_7A8B9C0D-1E2F-4A5B-8C6D-7E8F9A0B1C2D
+Content-Transfer-Encoding: 7bit
+Content-Type: text/html;
+	charset=us-ascii
+
+<html><head><meta http-equiv="content-type" content="text/html; charset=us-ascii"></head><body style="overflow-wrap: break-word;"><div></div><div><br></div></body></html>
+--Apple-Mail=_7A8B9C0D-1E2F-4A5B-8C6D-7E8F9A0B1C2D--
+
+--Apple-Mail=_5E3B6C1D-2A4F-4B8E-9C7D-1F0A2B3C4D5E--

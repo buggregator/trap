@@ -1,0 +1,68 @@
+From: Trap Sender <sender@example.com>
+To: "receiver@example.com" <receiver@example.com>
+Subject: Outlook: text, HTML, embedded image and attachment
+Thread-Topic: Outlook: text, HTML, embedded image and attachment
+Thread-Index: AdtNx2QkQ1n0b0X3S8W2mK7l1y9h0A==
+Date: Thu, 19 Nov 2026 12:00:00 +0000
+Message-ID: <AM0PR10MB3412C0FFEE0000000000000000000@AM0PR10MB3412.EURPRD10.PROD.OUTLOOK.COM>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: yes
+X-MS-TNEF-Correlator:
+Content-Type: multipart/mixed;
+	boundary="_004_AM0PR10MB3412C0FFEE0000000000000000000AM0PR10MB3412EURP_"
+MIME-Version: 1.0
+
+--_004_AM0PR10MB3412C0FFEE0000000000000000000AM0PR10MB3412EURP_
+Content-Type: multipart/related;
+	boundary="_003_AM0PR10MB3412C0FFEE0000000000000000000AM0PR10MB3412EURP_";
+	type="multipart/alternative"
+
+--_003_AM0PR10MB3412C0FFEE0000000000000000000AM0PR10MB3412EURP_
+Content-Type: multipart/alternative;
+	boundary="_000_AM0PR10MB3412C0FFEE0000000000000000000AM0PR10MB3412EURP_"
+
+--_000_AM0PR10MB3412C0FFEE0000000000000000000AM0PR10MB3412EURP_
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+Hello from the plain text part.
+
+[cid:image001.png@01DB3A7C.5E2F1B30]
+
+--_000_AM0PR10MB3412C0FFEE0000000000000000000AM0PR10MB3412EURP_
+Content-Type: text/html; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+<html><body><p class=3D"MsoNormal">Hello from the <b>HTML</b> part.</p>
+<p class=3D"MsoNormal"><img width=3D"1" height=3D"1" id=3D"Picture_x0020_1" src=3D"cid:image001.png@01DB3A7C.5E2F1B30"></p>
+</body></html>
+
+--_000_AM0PR10MB3412C0FFEE0000000000000000000AM0PR10MB3412EURP_--
+
+--_003_AM0PR10MB3412C0FFEE0000000000000000000AM0PR10MB3412EURP_
+Content-Type: image/png; name="image001.png"
+Content-Description: image001.png
+Content-Disposition: inline; filename="image001.png"; size=70;
+	creation-date="Thu, 19 Nov 2026 12:00:00 GMT";
+	modification-date="Thu, 19 Nov 2026 12:00:00 GMT"
+Content-ID: <image001.png@01DB3A7C.5E2F1B30>
+Content-Transfer-Encoding: base64
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6
+kgAAAABJRU5ErkJggg==
+
+--_003_AM0PR10MB3412C0FFEE0000000000000000000AM0PR10MB3412EURP_--
+
+--_004_AM0PR10MB3412C0FFEE0000000000000000000AM0PR10MB3412EURP_
+Content-Type: application/pdf; name="report.pdf"
+Content-Description: report.pdf
+Content-Disposition: attachment; filename="report.pdf"; size=77;
+	creation-date="Thu, 19 Nov 2026 12:00:00 GMT";
+	modification-date="Thu, 19 Nov 2026 12:00:00 GMT"
+Content-Transfer-Encoding: base64
+
+JVBERi0xLjQKMSAwIG9iaiA8PCAvVHlwZSAvQ2F0YWxvZyA+PiBlbmRvYmoKdHJhaWxlciA8PCAv
+Um9vdCAxIDAgUiA+PgolJUVPRgo=
+
+--_004_AM0PR10MB3412C0FFEE0000000000000000000AM0PR10MB3412EURP_--

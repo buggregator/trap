@@ -47,7 +47,9 @@ abstract class Part implements \JsonSerializable
         }
 
         $fileName = $fileName !== null ? \html_entity_decode($fileName) : null;
+        $fileName = self::findExtendedParameter($contentDisposition, 'filename') ?? $fileName;
         $isFile = (string) $fileName !== ''
+            || \preg_match('/^\\s*attachment\\b/i', $contentDisposition) === 1
             || \preg_match('/text\\/.++/', self::findHeader($headers, 'Content-Type')[0] ?? 'text/plain') !== 1;
 
         return match ($isFile) {
@@ -86,5 +88,53 @@ abstract class Part implements \JsonSerializable
         }
 
         return $data;
+    }
+
+    /**
+     * Value of a parameter in the `name*=charset'lang'%XX` form or split into `name*0*=`, `name*1*=`...:
+     * mail clients write non-ASCII and long file names so.
+     *
+     * @return non-empty-string|null UTF-8 value, or null if the parameter is absent or empty.
+     */
+    private static function findExtendedParameter(string $header, string $parameter): ?string
+    {
+        $count = \preg_match_all(
+            '/;\\s*' . \preg_quote($parameter, '/') . '\\*(\\d*+)(\\*?)=(?:"([^"]*+)"|([^\\s;"]*+))/i',
+            $header,
+            $matches,
+            \PREG_SET_ORDER,
+        );
+        if ($count === 0 || $count === false) {
+            return null;
+        }
+
+        $charset = 'UTF-8';
+        $pieces = [];
+        foreach ($matches as $match) {
+            $index = (int) $match[1];
+            $value = ($match[3] ?? '') . ($match[4] ?? '');
+            // `name*=` and `name*0*=` are percent-encoded, `name*0=` is not
+            if ($match[1] === '' || $match[2] === '*') {
+                if ($index === 0 && \preg_match("/^([^']*+)'[^']*+'(.*)$/s", $value, $prefix) === 1) {
+                    $prefix[1] === '' or $charset = $prefix[1];
+                    $value = $prefix[2];
+                }
+                $value = \rawurldecode($value);
+            }
+            $pieces[$index] = $value;
+        }
+        \ksort($pieces);
+        $result = \implode('', $pieces);
+
+        if (\strcasecmp($charset, 'UTF-8') !== 0 && \strcasecmp($charset, 'US-ASCII') !== 0) {
+            try {
+                $converted = \mb_convert_encoding($result, 'UTF-8', $charset);
+                \is_string($converted) and $result = $converted;
+            } catch (\ValueError) {
+                // Unknown charset: keep the bytes
+            }
+        }
+
+        return $result === '' ? null : $result;
     }
 }

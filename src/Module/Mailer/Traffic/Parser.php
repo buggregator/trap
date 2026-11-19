@@ -19,6 +19,9 @@ use Psr\Http\Message\StreamInterface;
  */
 final class Parser
 {
+    /** Each nesting level of multipart parts copies the part body into a new temporary stream */
+    private const MAX_MULTIPART_DEPTH = 16;
+
     /**
      * @return array<non-empty-string, list<non-empty-string>>
      */
@@ -163,22 +166,105 @@ final class Parser
 
     private function processMultipartForm(Message $message, StreamInterface $stream): Message
     {
-        if (\preg_match('/boundary="?([^"\\s;]++)"?/', $message->getHeaderLine('Content-Type'), $matches) !== 1) {
+        $boundary = $this->findBoundary($message->getHeaderLine('Content-Type'));
+        if ($boundary === null) {
             return $message;
         }
 
-        /** @var non-empty-string $boundary */
-        $boundary = $matches[1];
-        $parts = Http::parseMultipartBody($stream, $boundary);
         $attachments = $texts = [];
-        foreach ($parts as $part) {
-            if ($part instanceof Field) {
-                $texts[] = $part;
-            } elseif ($part instanceof File) {
-                $attachments[] = $part;
-            }
-        }
+        $this->collectParts($stream, $boundary, 1, $texts, $attachments);
 
         return $message->withMessages($texts)->withAttachments($attachments);
+    }
+
+    /**
+     * Collect the leaf parts of a multipart body, descending into nested multipart parts.
+     * A part nested deeper than {@see MAX_MULTIPART_DEPTH} stays an attachment.
+     *
+     * @param non-empty-string $boundary
+     * @param int<1, max> $depth Nesting level of the body, 1 for the message body.
+     * @param list<Field> $texts
+     * @param list<File> $attachments
+     */
+    private function collectParts(
+        StreamInterface $stream,
+        string $boundary,
+        int $depth,
+        array &$texts,
+        array &$attachments,
+    ): void {
+        foreach (Http::parseMultipartBody($stream, $boundary) as $part) {
+            if ($part instanceof Field) {
+                // A part without a Content-Type is text/plain
+                $type = $part->getHeaderLine('Content-Type');
+                $type === '' || \preg_match('/^\\s*text\\/(?:plain|html|watch-html)\\b/i', $type) === 1
+                    ? $texts[] = $part
+                    : $attachments[] = $this->textToFile($part);
+                continue;
+            }
+
+            if (!$part instanceof File) {
+                continue;
+            }
+
+            $nested = $depth < self::MAX_MULTIPART_DEPTH && $part->hasStream()
+                ? $this->findBoundary($part->getHeaderLine('Content-Type'))
+                : null;
+            if ($nested === null) {
+                $attachments[] = $part;
+                continue;
+            }
+
+            $body = $part->getStream();
+            $body->rewind();
+            $this->collectParts($body, $nested, $depth + 1, $texts, $attachments);
+        }
+    }
+
+    /**
+     * A text part that is not a message body, like a `text/calendar` invitation.
+     */
+    private function textToFile(Field $part): File
+    {
+        $contentType = $part->getHeaderLine('Content-Type');
+        $fileName = \preg_match('/;\\s*name=(?:"([^"]++)"|([^"\\s;]++))/i', $contentType, $matches) === 1
+            ? ($matches[1] ?: $matches[2])
+            : match (\strtolower(\trim(\explode(';', $contentType, 2)[0]))) {
+                'text/calendar' => 'invite.ics',
+                'text/csv' => 'attachment.csv',
+                default => 'attachment.txt',
+            };
+
+        $value = $part->getValue();
+        $value = match (\strtolower(\trim($part->getHeaderLine('Content-Transfer-Encoding')))) {
+            'base64' => \base64_decode($value),
+            'quoted-printable' => \quoted_printable_decode($value),
+            default => $value,
+        };
+
+        $stream = StreamHelper::createFileStream();
+        $stream->write($value);
+        $stream->rewind();
+        /** @psalm-suppress InvalidArgument */
+        $file = new File($part->getHeaders(), $part->getName(), $fileName);
+        $file->setStream($stream);
+
+        return $file;
+    }
+
+    /**
+     * @return non-empty-string|null Boundary of a `multipart/*` content type.
+     */
+    private function findBoundary(string $contentType): ?string
+    {
+        if (\preg_match('/^\\s*multipart\\//i', $contentType) !== 1
+            || \preg_match('/;\\s*boundary=(?:"([^"]++)"|([^"\\s;]++))/i', $contentType, $matches) !== 1
+        ) {
+            return null;
+        }
+
+        /** @var non-empty-string $boundary */
+        $boundary = $matches[1] ?: $matches[2];
+        return $boundary;
     }
 }

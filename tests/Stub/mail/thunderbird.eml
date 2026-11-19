@@ -1,0 +1,69 @@
+Content-Type: multipart/mixed; boundary="------------4x7NOnDrF0g2t0tWE1dzxkBV"
+Message-ID: <0f1d3a52-6f4e-4b1c-9a55-0e7a3c8b9d21@example.com>
+Date: Thu, 19 Nov 2026 12:00:00 +0000
+MIME-Version: 1.0
+User-Agent: Mozilla Thunderbird
+Content-Language: en-US
+To: receiver@example.com
+From: Trap Sender <sender@example.com>
+Subject: Thunderbird: text, HTML, embedded image and attachment
+
+This is a multi-part message in MIME format.
+--------------4x7NOnDrF0g2t0tWE1dzxkBV
+Content-Type: multipart/alternative;
+ boundary="------------Yb3mM6TqQd2W1n0cfR7xLpSa"
+
+--------------Yb3mM6TqQd2W1n0cfR7xLpSa
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
+
+Hello from the plain text part.
+
+
+--------------Yb3mM6TqQd2W1n0cfR7xLpSa
+Content-Type: multipart/related;
+ boundary="------------k2PZ0hJv1cWq8sTnXe4Gd9Ru"
+
+--------------k2PZ0hJv1cWq8sTnXe4Gd9Ru
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: 7bit
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  </head>
+  <body>
+    <p>Hello from the <b>HTML</b> part.</p>
+    <p><img src="cid:part1.Hq3vO9aL.T2nYk8cE@example.com" alt=""></p>
+  </body>
+</html>
+--------------k2PZ0hJv1cWq8sTnXe4Gd9Ru
+Content-Type: image/png; name="logo.png"
+Content-Disposition: inline; filename="logo.png"
+Content-Id: <part1.Hq3vO9aL.T2nYk8cE@example.com>
+Content-Transfer-Encoding: base64
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6
+kgAAAABJRU5ErkJggg==
+
+--------------k2PZ0hJv1cWq8sTnXe4Gd9Ru--
+
+--------------Yb3mM6TqQd2W1n0cfR7xLpSa--
+--------------4x7NOnDrF0g2t0tWE1dzxkBV
+Content-Type: application/pdf; name="report.pdf"
+Content-Disposition: attachment; filename="report.pdf"
+Content-Transfer-Encoding: base64
+
+JVBERi0xLjQKMSAwIG9iaiA8PCAvVHlwZSAvQ2F0YWxvZyA+PiBlbmRvYmoKdHJhaWxlciA8PCAv
+Um9vdCAxIDAgUiA+PgolJUVPRgo=
+--------------4x7NOnDrF0g2t0tWE1dzxkBV
+Content-Type: text/plain; charset=UTF-8;
+ name*=UTF-8''%D0%BE%D1%82%D1%87%D1%91%D1%82%2E%74%78%74
+Content-Disposition: attachment;
+ filename*=UTF-8''%D0%BE%D1%82%D1%87%D1%91%D1%82%2E%74%78%74
+Content-Transfer-Encoding: base64
+
+0J7RgtGH0ZHRgg==
+
+--------------4x7NOnDrF0g2t0tWE1dzxkBV--

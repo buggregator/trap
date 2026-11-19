@@ -24,6 +24,15 @@ final class FileTest
         yield [['Content-Disposition' => 'inline; name="embedding-name"'], 'embedding-name'];
         yield [['Content-Disposition' => 'inline; ; a-name="a"; name=embedding; file-name=3'], 'embedding'];
         yield [['Content-Disposition' => 'inline; name=\'embedding-1\''], 'embedding-1'];
+        yield [['Content-ID' => '<id@example.com>', 'Content-Disposition' => 'inline; name=logo'], 'id@example.com'];
+        yield [['Content-ID' => ' <id@example.com> ', 'Content-Type' => 'image/png; name=logo'], 'id@example.com'];
+        yield [['Content-ID' => 'id@example.com'], 'id@example.com'];
+        yield [['Content-ID' => '<>', 'Content-Disposition' => 'inline; name=logo'], 'logo'];
+        yield [['Content-ID' => '<id@example.com>', 'Content-Disposition' => 'attachment; filename=a.pdf'], null];
+        yield [['Content-ID' => '<id@example.com>', 'Content-Disposition' => 'Attachment; filename=a.pdf'], null];
+        yield [['Content-Type' => 'image/png; name=photo.png', 'Content-Disposition' => 'attachment; filename=photo.png'], null];
+        yield [['Content-Disposition' => ' attachment; name=photo'], null];
+        yield [['Content-ID' => '<pdf@example.com>', 'Content-Disposition' => 'inline; filename=report.pdf'], 'pdf@example.com'];
     }
 
     public function testGetters(): void

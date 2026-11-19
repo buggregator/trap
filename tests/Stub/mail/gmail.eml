@@ -1,0 +1,55 @@
+MIME-Version: 1.0
+Date: Thu, 19 Nov 2026 12:00:00 +0000
+Message-ID: <CAF3k9xZ0pQ7mW2vH8rT1yN4bL6cD5eG0sJ9uA2iK7oP3qR8tU@mail.gmail.com>
+Subject: Gmail: text, HTML, embedded image and attachment
+From: Trap Sender <sender@example.com>
+To: receiver@example.com
+Content-Type: multipart/mixed; boundary="0000000000003f2c1a0624b8e5d7"
+
+--0000000000003f2c1a0624b8e5d7
+Content-Type: multipart/related; boundary="0000000000003f2c190624b8e5d6"
+
+--0000000000003f2c190624b8e5d6
+Content-Type: multipart/alternative; boundary="0000000000003f2c180624b8e5d5"
+
+--0000000000003f2c180624b8e5d5
+Content-Type: text/plain; charset="UTF-8"
+
+Hello from the plain text part.
+[image: logo.png]
+
+--0000000000003f2c180624b8e5d5
+Content-Type: text/html; charset="UTF-8"
+
+<div dir="ltr"><div>Hello from the <b>HTML</b> part.</div><div><img src="cid:ii_m3p9x1ab0" alt="logo.png" width="1" height="1"><br></div></div>
+
+--0000000000003f2c180624b8e5d5--
+--0000000000003f2c190624b8e5d6
+Content-Type: image/png; name="logo.png"
+Content-Disposition: inline; filename="logo.png"
+Content-Transfer-Encoding: base64
+Content-ID: <ii_m3p9x1ab0>
+X-Attachment-Id: ii_m3p9x1ab0
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6
+kgAAAABJRU5ErkJggg==
+--0000000000003f2c190624b8e5d6--
+--0000000000003f2c1a0624b8e5d7
+Content-Type: application/pdf; name="report.pdf"
+Content-Disposition: attachment; filename="report.pdf"
+Content-Transfer-Encoding: base64
+Content-ID: <f_m3p9x1ac1>
+X-Attachment-Id: f_m3p9x1ac1
+
+JVBERi0xLjQKMSAwIG9iaiA8PCAvVHlwZSAvQ2F0YWxvZyA+PiBlbmRvYmoKdHJhaWxlciA8PCAv
+Um9vdCAxIDAgUiA+PgolJUVPRgo=
+--0000000000003f2c1a0624b8e5d7
+Content-Type: image/png; name="photo.png"
+Content-Disposition: attachment; filename="photo.png"
+Content-Transfer-Encoding: base64
+Content-ID: <f_m3p9x1ad2>
+X-Attachment-Id: f_m3p9x1ad2
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6
+kgAAAABJRU5ErkJggg==
+--0000000000003f2c1a0624b8e5d7--

@@ -1,0 +1,41 @@
+MIME-Version: 1.0
+Date: Thu, 19 Nov 2026 12:00:00 +0000
+Message-ID: <calendar-6b2f1c0e9d8a7b6c@google.com>
+Subject: Invitation: Trap demo @ Fri Nov 20, 2026 10am - 11am (UTC)
+From: Trap Sender <sender@example.com>
+To: receiver@example.com
+Content-Type: multipart/mixed; boundary="000000000000c1d2e30624b8e5f0"
+
+--000000000000c1d2e30624b8e5f0
+Content-Type: multipart/alternative; boundary="000000000000c1d2e20624b8e5ef"
+
+--000000000000c1d2e20624b8e5ef
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+
+Hello from the plain text part.
+
+--000000000000c1d2e20624b8e5ef
+Content-Type: text/html; charset="UTF-8"
+
+<p>Hello from the <b>HTML</b> part.</p>
+
+--000000000000c1d2e20624b8e5ef
+Content-Type: text/calendar; charset="UTF-8"; method=REQUEST
+Content-Transfer-Encoding: 7bit
+
+BEGIN:VCALENDAR
+METHOD:REQUEST
+BEGIN:VEVENT
+SUMMARY:Trap demo
+END:VEVENT
+END:VCALENDAR
+
+--000000000000c1d2e20624b8e5ef--
+--000000000000c1d2e30624b8e5f0
+Content-Type: application/ics; name="invite.ics"
+Content-Disposition: attachment; filename="invite.ics"
+Content-Transfer-Encoding: base64
+
+QkVHSU46VkNBTEVOREFSDQpNRVRIT0Q6UkVRVUVTVA0KQkVHSU46VkVWRU5UDQpTVU1NQVJZOlRy
+YXAgZGVtbw0KRU5EOlZFVkVOVA0KRU5EOlZDQUxFTkRBUg0K
+--000000000000c1d2e30624b8e5f0--

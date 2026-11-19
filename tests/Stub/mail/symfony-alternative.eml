@@ -1,0 +1,20 @@
+From: Trap Sender <sender@example.com>
+To: receiver@example.com
+Date: Thu, 19 Nov 2026 12:00:00 +0000
+Subject: Text and HTML
+MIME-Version: 1.0
+Message-ID: <b556ef9a7c1c193df9c99478d7c4e88f@example.com>
+Content-Type: multipart/alternative; boundary=4H7wm3Z1
+
+--4H7wm3Z1
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Hello from the plain text part.
+
+--4H7wm3Z1
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<p>Hello from the <b>HTML</b> part.</p>
+--4H7wm3Z1--

@@ -110,11 +110,11 @@ final class Http
                 $stream->seek($pos + \strlen($findBoundary), \SEEK_CUR);
                 $blockEnd = StreamHelper::strpos($stream, "\r\n\r\n");
                 // End of valid content
-                if ($blockEnd === false || $blockEnd - $pos <= 2) {
+                if ($blockEnd === false || $blockEnd <= 2) {
                     break;
                 }
-                // Parse part headers
-                $headers = self::parseHeaders($stream->read($blockEnd - $pos + 2));
+                // Parse part headers; a folded line continues the previous header
+                $headers = self::parseHeaders((string) \preg_replace("/\r\n(?=[ \t])/", '', $stream->read($blockEnd + 2)));
 
                 $part = Part::create($headers);
 
