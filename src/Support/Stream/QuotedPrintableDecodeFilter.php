@@ -37,12 +37,13 @@ final class QuotedPrintableDecodeFilter extends \php_user_filter
 
             $this->buffer .= $data;
             $length = \strlen($this->buffer);
-            // An `=` in the last two bytes may start an escape or a soft line break that the next data ends
-            $tail = 0;
-            if (!$closing) {
-                $length > 0 && $this->buffer[$length - 1] === '=' and $tail = 1;
-                $length > 1 && $this->buffer[$length - 2] === '=' and $tail = 2;
-            }
+            // The end may start an escape or a soft line break, `=` padded with spaces, that the next data ends.
+            // A line is at most 76 characters, which bounds the padding.
+            $window = \substr($this->buffer, -80);
+            $tail = !$closing
+                && \preg_match('/=(?:[ \\t]{0,76}\\r?|[0-9A-Fa-f])\\z/', $window, $matches, \PREG_OFFSET_CAPTURE) === 1
+                ? \strlen($window) - $matches[0][1]
+                : 0;
             $bucket->data = \quoted_printable_decode(\substr($this->buffer, 0, $length - $tail));
             $this->buffer = \substr($this->buffer, $length - $tail);
 

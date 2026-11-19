@@ -42,6 +42,28 @@ final class QuotedPrintableDecodeFilterTest
         Assert::same((string) $stream, \quoted_printable_decode(self::ENCODED));
     }
 
+    #[DataSet(["trail=  \r\nsoft ws"], 'spaces before CRLF')]
+    #[DataSet(["tab=\t \r\nnext=\t\r\nend"], 'tabs and spaces before CRLF')]
+    #[DataSet(["pad= \nnext"], 'space before LF')]
+    #[DataSet(["a=3Db=  \r\n=C3=A9 =\r\n"], 'escapes around a padded soft line break')]
+    public function decodesSoftLineBreakPaddedWithSpacesSplitAnywhere(string $encoded): void
+    {
+        $expected = \quoted_printable_decode($encoded);
+        $length = \strlen($encoded);
+        for ($i = 1; $i < $length; ++$i) {
+            for ($j = $i; $j < $length; ++$j) {
+                // Two chunks when `$j === $i`
+                $chunks = [\substr($encoded, 0, $i), \substr($encoded, $i, $j - $i), \substr($encoded, $j)];
+                $stream = StreamHelper::createFileStream(writeFilters: [QuotedPrintableDecodeFilter::FILTER_NAME]);
+                foreach ($chunks as $chunk) {
+                    $chunk === '' or $stream->write($chunk);
+                }
+
+                Assert::same((string) $stream, $expected, "split at $i and $j");
+            }
+        }
+    }
+
     #[DataSet(['x=3D'], 'escape')]
     #[DataSet(['x='], 'soft line break without a line end')]
     #[DataSet(['x=3'], 'cut escape')]
