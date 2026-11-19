@@ -7,6 +7,8 @@ namespace Buggregator\Trap\Tests\Unit\Client;
 use Buggregator\Trap\Client\Log\TrapLogger;
 use Buggregator\Trap\Client\TrapHandle;
 use Buggregator\Trap\Tests\Unit\Client\Stub\CaptureFilter;
+use Buggregator\Trap\Tests\Unit\Client\Stub\TlsCatcher;
+use Testo\Core\Exception\SkipTest;
 use Psr\Log\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use Testo\Assert;
@@ -217,12 +219,121 @@ final class TrapLoggerTest extends Base
         Assert::string($output)->contains('trap.ALERT: Nowhere []');
     }
 
+    #[Covers(TrapLogger::class)]
+    public function testSendsOverTls(): void
+    {
+        $catcher = $this->startTlsCatcher();
+
+        try {
+            $logger = new TrapLogger(host: 'tls://127.0.0.1', port: $catcher->port);
+
+            $output = $this->captureStderr(static fn() => $logger->info('Hello {name}', ['name' => 'TLS']));
+
+            Assert::same($output, '');
+            $payload = \json_decode((string) $catcher->line(), true, flags: \JSON_THROW_ON_ERROR);
+            Assert::same($payload['message'], 'Hello TLS');
+        } finally {
+            $catcher->close();
+        }
+    }
+
+    #[Covers(TrapLogger::class)]
+    public function testSendsOverTlsInsideFiber(): void
+    {
+        $catcher = $this->startTlsCatcher();
+
+        try {
+            $logger = new TrapLogger(host: 'ssl://127.0.0.1', port: $catcher->port, connectTimeout: 2.0);
+
+            $output = $this->captureStderr(
+                static fn() => (new \Fiber(static fn() => $logger->notice('Hello {name}', ['name' => 'Fiber'])))->start(),
+            );
+
+            Assert::same($output, '');
+            $payload = \json_decode((string) $catcher->line(), true, flags: \JSON_THROW_ON_ERROR);
+            Assert::same($payload['message'], 'Hello Fiber');
+        } finally {
+            $catcher->close();
+        }
+    }
+
+    #[Covers(TrapLogger::class)]
+    public function testLoggerFromEnvSendsOverTls(): void
+    {
+        $catcher = $this->startTlsCatcher();
+
+        try {
+            \putenv('TRAP_MONOLOG_HOST=tls://127.0.0.1');
+            \putenv("TRAP_MONOLOG_PORT={$catcher->port}");
+
+            $output = $this->captureStderr(static fn() => TrapHandle::logger()->warning('From env'));
+
+            Assert::same($output, '');
+            $payload = \json_decode((string) $catcher->line(), true, flags: \JSON_THROW_ON_ERROR);
+            Assert::same($payload['message'], 'From env');
+        } finally {
+            $catcher->close();
+        }
+    }
+
+    #[Covers(TrapLogger::class)]
+    public function testVerifiedTlsRejectsSelfSignedCertificate(): void
+    {
+        $catcher = $this->startTlsCatcher();
+
+        try {
+            $logger = new TrapLogger(host: 'tls://127.0.0.1', port: $catcher->port, connectTimeout: 2.0, verifyPeer: true);
+
+            $output = $this->captureStderr(static fn() => $logger->error('Untrusted'));
+
+            Assert::string($output)->contains('trap.ERROR: Untrusted []');
+            Assert::null($catcher->line());
+        } finally {
+            $catcher->close();
+        }
+    }
+
+    #[Covers(TrapLogger::class)]
+    public function testFallsBackToStderrWhenServerDoesNotAnswerTls(): void
+    {
+        $server = $this->startServer();
+
+        try {
+            $logger = new TrapLogger(host: 'tls://127.0.0.1', port: $this->serverPort($server), connectTimeout: 0.2);
+
+            $output = $this->captureStderr(static fn() => $logger->error('No handshake'));
+
+            Assert::string($output)->contains('trap.ERROR: No handshake []');
+        } finally {
+            \fclose($server);
+        }
+    }
+
+    #[Covers(TrapLogger::class)]
+    public function testFallsBackToStderrInsideFiberWhenServerDoesNotAnswerTls(): void
+    {
+        $server = $this->startServer();
+
+        try {
+            $logger = new TrapLogger(host: 'tls://127.0.0.1', port: $this->serverPort($server), connectTimeout: 0.2);
+
+            $output = $this->captureStderr(
+                static fn() => (new \Fiber(static fn() => $logger->error('No handshake')))->start(),
+            );
+
+            Assert::string($output)->contains('trap.ERROR: No handshake []');
+        } finally {
+            \fclose($server);
+        }
+    }
+
     #[BeforeTest]
     protected function setUp(): void
     {
         parent::setUp();
         $this->resetTrapLogger();
         \putenv('TRAP_MONOLOG_PORT');
+        \putenv('TRAP_MONOLOG_HOST');
     }
 
     #[AfterTest]
@@ -230,6 +341,7 @@ final class TrapLoggerTest extends Base
     {
         $this->resetTrapLogger();
         \putenv('TRAP_MONOLOG_PORT');
+        \putenv('TRAP_MONOLOG_HOST');
         parent::tearDown();
     }
 
@@ -294,6 +406,13 @@ final class TrapLoggerTest extends Base
         } finally {
             \fclose($client);
         }
+    }
+
+    private function startTlsCatcher(): TlsCatcher
+    {
+        \extension_loaded('openssl') or throw new SkipTest('ext-openssl is required.');
+
+        return new TlsCatcher();
     }
 
     /**
