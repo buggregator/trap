@@ -51,6 +51,15 @@ final class SocketStream implements \IteratorAggregate, StreamClient
     }
 
     #[\Override]
+    public function silence(): float
+    {
+        /** @psalm-suppress RedundantCondition, TypeDoesNotContainType The client is unset once it closes */
+        $checkedAt = isset($this->client) ? $this->client->checkedAt() : \microtime(true);
+
+        return \max(0.0, $checkedAt - (float) $this->createdAt->format('U.u'));
+    }
+
+    #[\Override]
     public function hasData(): bool
     {
         return !$this->queue->isEmpty();

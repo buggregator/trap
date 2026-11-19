@@ -17,6 +17,13 @@ interface StreamClient extends \IteratorAggregate
 {
     public function getCreatedAt(): \DateTimeImmutable;
 
+    /**
+     * Seconds from the connection to the last read of it: while the stream has no data, the client has sent
+     * nothing for that long. A busy server reads late, and the time since the connection would also count
+     * what the client sent meanwhile.
+     */
+    public function silence(): float;
+
     public function hasData(): bool;
 
     public function waitData(?Timer $timer = null): void;

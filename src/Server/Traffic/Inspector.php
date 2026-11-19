@@ -60,7 +60,7 @@ final class Inspector implements Processable
 
         do {
             foreach ($dispatchers as $key => $dispatcher) {
-                $result = $dispatcher->detect($stream->getData(), $stream->getCreatedAt());
+                $result = $dispatcher->detect($stream->getData(), $stream->silence());
                 if ($result === true) {
                     $dispatchers = [$dispatcher];
                     break 2;

@@ -29,7 +29,7 @@ final class Dispatcher implements DispatcherInterface
     }
 
     #[\Override]
-    public function detect(string $data, \DateTimeImmutable $createdAt): ?bool
+    public function detect(string $data, float $silence): ?bool
     {
         // Detect non-base64 symbols
         if (\preg_match_all('/[^a-zA-Z0-9\\/+=\\n]/', $data) !== 0) {

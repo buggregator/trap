@@ -33,6 +33,9 @@ final class Client implements Destroyable
     /** The send buffer is full: the client doesn't read until it is written */
     private bool $writeBlocked = false;
 
+    /** Seconds of {@see \microtime()} at the last check of the socket */
+    private float $checkedAt;
+
     private \Closure $onPayload;
     private \Closure $onClose;
     private Timer $selectTimer;
@@ -46,6 +49,7 @@ final class Client implements Destroyable
         float $selectPeriod,
     ) {
         $this->selectTimer = new Timer($selectPeriod);
+        $this->checkedAt = \microtime(true);
         \socket_set_nonblock($this->socket);
         $this->setOnPayload(static fn(string $payload) => null);
         $this->setOnClose(static fn() => null);
@@ -95,6 +99,15 @@ final class Client implements Destroyable
         $this->ready = true;
     }
 
+    /**
+     * @return float Seconds of {@see \microtime()} at the last check of the socket: what the peer had sent
+     *         by then is read, at least its first part.
+     */
+    public function checkedAt(): float
+    {
+        return $this->checkedAt;
+    }
+
     public function getSocket(): \Socket
     {
         return $this->socket;
@@ -122,6 +135,7 @@ final class Client implements Destroyable
 
         do {
             $progress = $this->ready = false;
+            $checkedAt = \microtime(true);
             $read = [$this->socket];
             $write = [$this->socket];
             $except = [$this->socket];
@@ -133,6 +147,7 @@ final class Client implements Destroyable
             if ($read !== []) {
                 $progress = $this->readMessage();
             }
+            $this->checkedAt = $checkedAt;
 
             /** @psalm-suppress RedundantCondition */
             if ($write !== [] && $this->writeQueue !== []) {

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Profiler\Compaction;
 
+use Buggregator\Trap\Support\TimeSlice;
+
 /**
  * Shrinks a call tree that is over its node limit, in stages, each lossy but keeping the sums:
  *
@@ -29,6 +31,7 @@ final class Compactor
      * @param array<int, true> $pinned Nodes kept with their ancestors, not merged into their callers: open calls.
      * @param list<array{int, int}> $pruned Gets the parents and frames of the pruned children, by new indexes,
      *        to send there what comes later on the same path.
+     * @param TimeSlice|null $timeSlice Lets other fibers run while a large tree is compacted.
      *
      * @return array<int, int> New indexes by old ones. A pruned node goes to the `(other)` node that sums it.
      */
@@ -38,27 +41,29 @@ final class Compactor
         Report $report,
         array $pinned = [],
         array &$pruned = [],
+        ?TimeSlice $timeSlice = null,
     ): array {
         $size = $tree->size();
         $longestRun = 0;
-        $map = self::rebuild($tree, $pinned, longestRun: $longestRun);
+        $map = self::rebuild($tree, $pinned, $timeSlice, longestRun: $longestRun);
         $report->merged += $size - $tree->size();
         $pinned = self::remapSet($pinned, $map);
 
         // With no deeper recursion the merged tree would be copied as it is
         if ($tree->size() > $target && $longestRun > self::RECURSION_DEPTH) {
             $size = $tree->size();
-            $step = self::rebuild($tree, $pinned, collapse: true);
+            $step = self::rebuild($tree, $pinned, $timeSlice, collapse: true);
             $report->collapsed += $size - $tree->size();
-            $map = self::compose($map, $step);
+            $map = self::compose($map, $step, $timeSlice);
             $pinned = self::remapSet($pinned, $step);
         }
 
         if ($tree->size() > $target) {
             $folded = 0;
-            $step = self::rebuild($tree, $pinned, kept: self::hottest($tree, $target, $pinned), pruned: $pruned, folded: $folded);
+            $kept = self::hottest($tree, $target, $pinned, $timeSlice);
+            $step = self::rebuild($tree, $pinned, $timeSlice, kept: $kept, pruned: $pruned, folded: $folded);
             $report->pruned += $folded;
-            $map = self::compose($map, $step);
+            $map = self::compose($map, $step, $timeSlice);
         }
 
         return $map;
@@ -79,6 +84,7 @@ final class Compactor
     private static function rebuild(
         FlatTree $tree,
         array $pinned,
+        ?TimeSlice $timeSlice,
         bool $collapse = false,
         ?array $kept = null,
         array &$pruned = [],
@@ -112,7 +118,8 @@ final class Compactor
         $byKey = [];
         $multiplier = ($frames === [] ? 0 : \max($frames)) + 4;
 
-        foreach (self::topDown($tree) as $node) {
+        foreach (self::topDown($tree, $timeSlice) as $node) {
+            $timeSlice?->tick();
             $frame = $frames[$node];
             $parent = $parents[$node];
             if ($parent === -1) {
@@ -192,7 +199,7 @@ final class Compactor
      *
      * @return array<int, bool> Whether to keep the node, by index.
      */
-    private static function hottest(FlatTree $tree, int $target, array $pinned): array
+    private static function hottest(FlatTree $tree, int $target, array $pinned, ?TimeSlice $timeSlice): array
     {
         $parents = $tree->parent;
         $size = \count($parents);
@@ -204,6 +211,7 @@ final class Compactor
         $rank = \array_fill(0, $size, 0);
         foreach ($ranked as $position => $node) {
             $rank[$node] = $position;
+            $timeSlice?->tick();
         }
 
         $forced = \array_fill(0, $size, false);
@@ -215,6 +223,7 @@ final class Compactor
             } elseif ($rank[$parent] > $rank[$node]) {
                 $closed = false;
             }
+            $timeSlice?->tick();
         }
         foreach ($pinned as $node => $_) {
             $forced[$node] = true;
@@ -223,8 +232,8 @@ final class Compactor
 
         $limit = \min($target, $size);
         return $closed
-            ? self::hottestClosed($parents, $ranked, $forced, $pinned, $target, $limit)
-            : self::hottestAny($parents, $ranked, $forced, $pinned, $target, $limit);
+            ? self::hottestClosed($parents, $ranked, $forced, $pinned, $target, $limit, $timeSlice)
+            : self::hottestAny($parents, $ranked, $forced, $pinned, $target, $limit, $timeSlice);
     }
 
     /**
@@ -247,6 +256,7 @@ final class Compactor
         array $pinned,
         int $target,
         int $limit,
+        ?TimeSlice $timeSlice,
     ): array {
         // The ancestors of the pinned nodes are kept whatever the limit: a kept ranked node has its ancestors kept
         foreach ($pinned as $node => $_) {
@@ -265,6 +275,7 @@ final class Compactor
         $count = 0;
         foreach ($parents as $node => $parent) {
             $kept[$node] ? ++$count : ++$dropped[$parent];
+            $timeSlice?->tick();
         }
         foreach ($dropped as $node => $children) {
             // A parent with a dropped child gets an `(other)` node
@@ -283,6 +294,7 @@ final class Compactor
                 $dropped[$node] > 0 and --$count;
                 $parent = $parents[$node];
                 ++$dropped[$parent] === 1 && $kept[$parent] and ++$count;
+                $timeSlice?->tick();
             }
             $limit = $next;
         }
@@ -309,6 +321,7 @@ final class Compactor
         array $pinned,
         int $target,
         int $limit,
+        ?TimeSlice $timeSlice,
     ): array {
         $size = \count($parents);
         do {
@@ -332,6 +345,7 @@ final class Compactor
                     $hasOther[$parent] = true;
                     ++$count;
                 }
+                $timeSlice?->tick();
             }
             unset($hasOther);
 
@@ -345,7 +359,7 @@ final class Compactor
     /**
      * @return array<int, int> Node indexes by position, parents before their children, siblings in their order.
      */
-    private static function topDown(FlatTree $tree): array
+    private static function topDown(FlatTree $tree, ?TimeSlice $timeSlice): array
     {
         $size = $tree->size();
         if ($size === 0) {
@@ -367,6 +381,7 @@ final class Compactor
             $levels[$level] = ($levels[$level] ?? 0) + 1;
             $level < $previous and $ordered = false;
             $previous = $level;
+            $timeSlice?->tick();
         }
         if ($ordered) {
             return \range(0, $size - 1);
@@ -384,6 +399,7 @@ final class Compactor
         $order = \array_fill(0, $size, 0);
         foreach ($depth as $node => $level) {
             $order[$start[$level]++] = $node;
+            $timeSlice?->tick();
         }
 
         return $order;
@@ -395,10 +411,11 @@ final class Compactor
      *
      * @return array<int, int>
      */
-    private static function compose(array $first, array $second): array
+    private static function compose(array $first, array $second, ?TimeSlice $timeSlice): array
     {
         foreach ($first as $old => $new) {
             $first[$old] = $second[$new];
+            $timeSlice?->tick();
         }
 
         return $first;

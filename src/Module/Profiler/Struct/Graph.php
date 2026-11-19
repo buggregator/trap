@@ -107,12 +107,15 @@ final class Graph implements \IteratorAggregate, \Countable
 
     /**
      * Sets the shares of the peaks and the deltas against the callers' total cost of every edge.
+     *
+     * @param TimeSlice|null $timeSlice Lets other fibers run over a large graph.
      */
-    public function setPercentsAndDeltas(Peaks $peaks): void
+    public function setPercentsAndDeltas(Peaks $peaks, ?TimeSlice $timeSlice = null): void
     {
         foreach ($this->edges as $edge) {
             $edge->cost->setPercentsOf($peaks);
             $edge->callerId === null or $edge->cost->setDeltasTo($this->inclusiveCost($edge->callerId));
+            $timeSlice?->tick();
         }
     }
 

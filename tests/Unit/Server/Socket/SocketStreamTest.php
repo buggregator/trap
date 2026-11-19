@@ -141,6 +141,17 @@ final class SocketStreamTest
         $this->clientFiber->resume();
     }
 
+    public function silenceLastsUntilTheLastCheckOfTheSocket(): void
+    {
+        \usleep(100_000);
+
+        $unread = $this->stream->silence();
+        $this->clientFiber->resume();
+
+        Assert::numeric($unread)->lessThan(0.05);
+        Assert::numeric($this->stream->silence())->greaterThanOrEqual(0.1);
+    }
+
     public function waitDataStopsWhenTheTimerIsReady(): void
     {
         $ready = false;

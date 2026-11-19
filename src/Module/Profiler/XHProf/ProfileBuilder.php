@@ -38,7 +38,7 @@ final class ProfileBuilder
         array $calls = [],
         ?TimeSlice $timeSlice = null,
     ): Profile {
-        return Profile::fromGraph($this->buildGraph($calls, $timeSlice), $date, $metadata, $tags);
+        return Profile::fromGraph($this->buildGraph($calls, $timeSlice), $date, $metadata, $tags, $timeSlice);
     }
 
     /**

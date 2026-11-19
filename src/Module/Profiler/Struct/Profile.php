@@ -109,17 +109,19 @@ final class Profile implements \JsonSerializable
      *        Callers that are never called get synthetic roots.
      * @param Metadata $metadata
      * @param array<non-empty-string, non-empty-string> $tags
+     * @param TimeSlice|null $timeSlice Lets other fibers run during a long build.
      */
     public static function fromGraph(
         Graph $calls,
         \DateTimeInterface $date = new \DateTimeImmutable(),
         array $metadata = [],
         array $tags = [],
+        ?TimeSlice $timeSlice = null,
     ): self {
         // Peaks of the recorded calls only: a synthetic root sums its children
-        $peaks = self::peaksOf($calls);
+        $peaks = self::peaksOf($calls, $timeSlice);
         $calls->addMissingRoots();
-        $calls->setPercentsAndDeltas($peaks);
+        $calls->setPercentsAndDeltas($peaks, $timeSlice);
 
         return new self($date, $metadata, $tags, $calls, $peaks);
     }
@@ -142,8 +144,8 @@ final class Profile implements \JsonSerializable
     ): self {
         self::addRecursionLevels($tree, $timeSlice);
         $calls = Graph::fromTree($tree, $timeSlice);
-        $peaks = self::peaksOf($calls);
-        $calls->setPercentsAndDeltas($peaks);
+        $peaks = self::peaksOf($calls, $timeSlice);
+        $calls->setPercentsAndDeltas($peaks, $timeSlice);
 
         foreach ($tree->getIterator() as $branch) {
             $branch->item->cost->setPercentsOf($peaks);
@@ -216,11 +218,12 @@ final class Profile implements \JsonSerializable
         ];
     }
 
-    private static function peaksOf(Graph $calls): Peaks
+    private static function peaksOf(Graph $calls, ?TimeSlice $timeSlice): Peaks
     {
         $peaks = new Peaks();
         foreach ($calls as $edge) {
             $peaks->update($edge->cost);
+            $timeSlice?->tick();
         }
 
         return $peaks;
