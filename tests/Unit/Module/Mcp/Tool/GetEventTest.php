@@ -86,6 +86,16 @@ final class GetEventTest
         Assert::string($text)->contains('MONOLOG')->notContains('[Truncated');
     }
 
+    public function testLogContextKeepsItsKeys(): void
+    {
+        $trap = new Trap();
+        $record = $trap->add(Trap::log('m', context: ['n' => 1, 'addr' => '127.0.0.1:19999']));
+
+        $text = $trap->get(GetEvent::class)->call(['id' => $record->event->uuid]);
+
+        Assert::string($text)->contains("context:\n            n: 1\n            addr: 127.0.0.1:19999\n");
+    }
+
     public function testUnknownEventFails(): never
     {
         Expect::exception(\InvalidArgumentException::class)->withMessageContaining('No event with ID `missing`');

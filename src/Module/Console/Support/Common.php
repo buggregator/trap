@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Console\Support;
 
+use Buggregator\Trap\Support\Json;
+use Symfony\Component\Console\Formatter\OutputFormatter;
+use Symfony\Component\Console\Helper\Helper;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -12,6 +15,8 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 final class Common
 {
+    private const NESTED_JSON_WIDTH = 80;
+
     public static function renderHeader1(OutputInterface $output, string $title, ?string ...$sub): void
     {
         $parts = ["<fg=white;bg=blue;options=bold> $title </>"];
@@ -145,24 +150,87 @@ final class Common
         Color $valueColor = Color::Default,
         Color $secondKeyColor = Color::Gray,
     ): void {
+        $items = \is_array($value) ? $value : [$value];
+
+        // A map, such as a log context, shows its keys under the name
+        if (!\array_is_list($items)) {
+            $output->writeln(\sprintf('<fg=%s;options=bold>%s</>:', $keyColor->value, $name));
+            $indent = \str_repeat(' ', Helper::width($name) + 2);
+            /** @var mixed $item */
+            foreach ($items as $key => $item) {
+                $key = (string) $key;
+                $text = match (true) {
+                    \is_bool($item), $item === null => Json::encode($item),
+                    \is_array($item) => self::formatNested($item),
+                    default => self::formatValue($item),
+                };
+                $output->writeln(\sprintf(
+                    '%s<fg=%s>%s</>: <fg=%s>%s</>',
+                    $indent,
+                    $secondKeyColor->value,
+                    OutputFormatter::escape($key),
+                    $valueColor->value,
+                    self::escapeLines($text, $indent . \str_repeat(' ', Helper::width($key) + 2)),
+                ));
+            }
+
+            return;
+        }
+
+        // A list, such as a repeated HTTP header, repeats the name for every value
         $i = 0;
         /** @var mixed $item */
-        foreach (\is_array($value) ? $value : [$value] as $item) {
+        foreach ($items as $item) {
             if ($i++ === 0) {
                 $output->write(\sprintf('<fg=%s;options=bold>%s</>: ', $keyColor->value, $name));
             } else {
                 $output->write(\sprintf('<fg=%s>%s</>: ', $secondKeyColor->value, $name));
             }
 
-            $item = match (true) {
-                $value instanceof \DateTimeInterface => $value->format('u') === '000000'
-                    ? $value->format('Y-m-d H:i:s')
-                    : $value->format('Y-m-d H:i:s.u'),
-                \is_scalar($value) || $value instanceof \Stringable => (string) $value,
-                default => \print_r($item, true),
-            };
-
-            $output->writeln(\sprintf('<fg=%s>%s</>', $valueColor->value, $item));
+            // A scalar value may carry the caller's markup, the items of an array are user data
+            $text = self::formatValue($item);
+            $output->writeln(\sprintf(
+                '<fg=%s>%s</>',
+                $valueColor->value,
+                \is_array($value) ? OutputFormatter::escape($text) : $text,
+            ));
         }
+    }
+
+    /**
+     * Escapes the markup in a value and indents its continuation lines by `$indent`.
+     */
+    private static function escapeLines(string $text, string $indent): string
+    {
+        return \implode("\n" . $indent, \array_map(
+            OutputFormatter::escape(...),
+            \preg_split('/\R/', $text) ?: [$text],
+        ));
+    }
+
+    /**
+     * Keeps a short array on one line; a long one, such as an exception with its trace, reads better spread out.
+     *
+     * @param array<array-key, mixed> $value
+     */
+    private static function formatNested(array $value): string
+    {
+        $json = Json::encode($value, \JSON_PARTIAL_OUTPUT_ON_ERROR);
+
+        return Helper::width($json) > self::NESTED_JSON_WIDTH
+            ? Json::encode($value, \JSON_PARTIAL_OUTPUT_ON_ERROR | \JSON_PRETTY_PRINT)
+            : $json;
+    }
+
+    private static function formatValue(mixed $value): string
+    {
+        return match (true) {
+            $value instanceof \DateTimeInterface => $value->format('u') === '000000'
+                ? $value->format('Y-m-d H:i:s')
+                : $value->format('Y-m-d H:i:s.u'),
+            \is_scalar($value) || $value instanceof \Stringable => (string) $value,
+            \is_array($value) => Json::encode($value, \JSON_PARTIAL_OUTPUT_ON_ERROR),
+            default => \print_r($value, true),
+        };
     }
 }

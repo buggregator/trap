@@ -56,13 +56,16 @@ final class Trap
         );
     }
 
-    public static function log(string $message, string $level = 'ERROR'): MonologFrame
+    /**
+     * @param array<array-key, mixed> $context
+     */
+    public static function log(string $message, string $level = 'ERROR', array $context = []): MonologFrame
     {
         return new MonologFrame([
             'message' => $message,
             'level_name' => $level,
             'channel' => 'app',
-            'context' => [],
+            'context' => $context,
         ]);
     }
 
