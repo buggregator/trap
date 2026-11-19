@@ -137,6 +137,28 @@ final class XDebugTest
             ->contains('XDebug: cachegrind.out.1234 is compacted to 5 call tree nodes: ');
     }
 
+    public function testWarnsOnceWhenProfileFailsToBuild(): void
+    {
+        $path = $this->dir . '/cachegrind.out.1234';
+        \file_put_contents($path, "not a profile\n\nsummary: 1 0\n\n");
+        $output = new BufferedOutput();
+        $converter = new XDebug(new Logger($output), new ProfileBuilder());
+        $payload = \iterator_to_array($converter->convert(self::info($path)), false)[0]->payload;
+
+        for ($i = 0; $i < 2; ++$i) {
+            try {
+                $payload->getProfile();
+                Assert::fail('The profile is built.');
+            } catch (\InvalidArgumentException) {
+            }
+        }
+
+        $log = $output->fetch();
+        Assert::same(\substr_count($log, 'cachegrind.out.1234'), 1);
+        Assert::string($log)->ignoringAnsi()
+            ->contains('XDebug: cachegrind.out.1234 is skipped: Not a cachegrind profile written by Xdebug.');
+    }
+
     public function testProfileWithinNodeLimitLogsNothing(): void
     {
         $path = $this->dir . '/cachegrind.out.1234';

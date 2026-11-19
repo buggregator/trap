@@ -124,11 +124,11 @@ final class SPX implements FrameConverter, ForgetsFiles
             yield new ProfilerFrame(
                 ProfilerFrame\Payload::new(
                     type: ProfilerFrame\Type::SPX,
-                    // Built when the profile is first shown, in whatever fiber that is: it can't wait for a lock.
-                    // The node budget it gets is what the memory left affords.
-                    callsProvider: function () use ($file, $metadata, $name): Profile {
+                    // Built when the frame is first serialized, as the observer buffers it in its fiber: the build
+                    // can't wait for a lock. The node budget it gets is what the memory left affords.
+                    callsProvider: WarnOnFailure::wrap($this->logger, 'SPX', $name, function () use ($file, $metadata, $name): Profile {
                         $handle = @\fopen($file->path, 'rb') ?: throw new \RuntimeException(
-                            "The SPX report $name is removed before it is shown.",
+                            'The report is removed before it is shown.',
                         );
                         try {
                             $profile = $this->profileBuilder->createProfile(
@@ -153,7 +153,7 @@ final class SPX implements FrameConverter, ForgetsFiles
                         );
 
                         return $profile;
-                    },
+                    }),
                 ),
             );
         } catch (\Throwable $e) {
