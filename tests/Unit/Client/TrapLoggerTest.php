@@ -12,7 +12,6 @@ use Psr\Log\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use Testo\Assert;
 use Testo\Codecov\Covers;
-use Testo\Core\Exception\SkipTest;
 use Testo\Expect;
 use Testo\Lifecycle\AfterTest;
 use Testo\Lifecycle\BeforeTest;
