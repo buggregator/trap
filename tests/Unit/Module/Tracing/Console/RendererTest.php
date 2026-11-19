@@ -149,6 +149,26 @@ final class RendererTest
         Assert::string($third)->contains('         attr: "grandchild"', 'Earlier spans keep their details.');
     }
 
+    public function testChildrenWithEqualStartKeepOrderOfArrival(): void
+    {
+        $renderer = new Renderer();
+        $renderer->render(new BufferedOutput(), self::frame(self::span('2', '1', 'first', 10, 20)));
+        $renderer->render(new BufferedOutput(), self::frame(self::span('3', '1', 'second', 10, 20)));
+
+        // The frame lists the third child before the earlier ones, which come in as descendants of the root.
+        $output = $this->render(
+            self::frame(self::span('4', '1', 'third', 10, 20), self::span('1', null, 'root', 0, 100)),
+            renderer: $renderer,
+        );
+
+        Assert::same($this->spanLines($output), [
+            'root INTERNAL 100 ns id:1111111111111111',
+            '├─ first INTERNAL 10 ns +10 ns id:2222222222222222',
+            '├─ second INTERNAL 10 ns +10 ns id:3333333333333333',
+            '└─ third INTERNAL 10 ns +10 ns id:4444444444444444',
+        ]);
+    }
+
     public function testShowsAncestorsReceivedEarlierAsContext(): void
     {
         $renderer = new Renderer();

@@ -179,6 +179,24 @@ final class SpanStoreTest
         Assert::same($store->getTraceBounds(self::traceId('a')), [10, 20]);
     }
 
+    public function testChildSeqFollowsOrderOfChildren(): void
+    {
+        $store = $this->store();
+        $store->add(self::timedSpan('a', 1, null, 0, 100), self::timedSpan('a', 2, 1, 10, 20));
+        $store->add(self::timedSpan('a', 3, 1, 10, 20));
+        $first = $store->getChildSeq(self::traceId('a'), \sprintf('%016x', 2));
+        $second = $store->getChildSeq(self::traceId('a'), \sprintf('%016x', 3));
+
+        $store->add(self::timedSpan('a', 2, 1, 10, 20));
+        $resent = $store->getChildSeq(self::traceId('a'), \sprintf('%016x', 2));
+
+        Assert::int($first)->lessThan($second);
+        Assert::int($resent)->greaterThan($second);
+        Assert::null($store->getChildSeq(self::traceId('a'), \sprintf('%016x', 1)), 'A span without a parent.');
+        Assert::null($store->getChildSeq(self::traceId('a'), \sprintf('%016x', 9)));
+        Assert::null($store->getChildSeq(self::traceId('b'), \sprintf('%016x', 2)));
+    }
+
     public function testResentSpanCoveringItsOldTimeKeepsCachedBounds(): void
     {
         $store = $this->store();
@@ -473,6 +491,10 @@ final class SpanStoreTest
             for ($id = 1; $id <= $maxId; ++$id) {
                 $children = $store->getChildren($traceId, $spanId = \sprintf('%016x', $id));
                 $children === [] or $actual[$spanId] = $children;
+                $seqs = \array_map(static fn(Span $child): ?int => $store->getChildSeq($traceId, $child->spanId), $children);
+                $sorted = \array_unique(\array_filter($seqs, static fn(?int $seq): bool => $seq !== null));
+                \sort($sorted);
+                Assert::same($seqs, $sorted, $case);
             }
             \ksort($expected);
             Assert::same($actual, $expected, $case);
