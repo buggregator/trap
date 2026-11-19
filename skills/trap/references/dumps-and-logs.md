@@ -63,5 +63,7 @@ at Trap, see [integrations.md](integrations.md#monolog).
 - `trap()` reads `VAR_DUMPER_SERVER` (default `127.0.0.1:9912`); the logger `TRAP_MONOLOG_HOST` and
   `TRAP_MONOLOG_PORT`. An application in Docker sets them to the host of Trap, see
   [server.md](server.md#another-host).
+- `TRAP_MONOLOG_HOST=tls://127.0.0.1` sends the logger's records over TLS. Dumps of `trap()` go plain only: a
+  `tls://` `VAR_DUMPER_SERVER` loses every dump without an error.
 - With no Trap listening, `trap()` prints the dump in place and the logger writes to STDERR. A RoadRunner worker
   reads its STDOUT as the protocol, so keep Trap running before dumping there.

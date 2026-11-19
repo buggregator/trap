@@ -5,6 +5,7 @@
 - [Installation](installation.md) - Composer, binary, Phar, optional extensions.
 - [CLI](cli.md) - the `run`, `test` and `joke` commands and their options.
 - [Configuration](configuration.md) - ports, environment variables, `trap.xml`.
+- [TLS](tls.md) - HTTPS, SMTPS, `STARTTLS` and `tls://` on the same ports, certificates.
 
 ## In your code
 

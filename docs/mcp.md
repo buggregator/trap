@@ -515,7 +515,7 @@ Other clients take the header in their server settings, as `"headers": {"Authori
   as HTTP: they are printed raw to the console, and written by the `file-body` sender, token included.
 - The request body is not searched: a token sent in a body is caught with the request as any other data.
 - An empty `TRAP_MCP_TOKEN` asks for no token, even when `trap.xml` sets one: the environment variable wins.
-- The token is sent in plain text over HTTP: on a network you don't trust, put Trap behind a TLS proxy or an
+- Over plain HTTP the token is sent in plain text: on a network you don't trust, connect over [HTTPS](tls.md) or an
   SSH tunnel.
 
 ## Notes

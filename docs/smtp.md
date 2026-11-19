@@ -36,4 +36,5 @@ vendor/bin/trap -sconsole -smail-to-file
 
 ## Limitations
 
-- Trap supports no `AUTH` and no `STARTTLS`: configure the mailer without a username and without TLS.
+- Trap supports no `AUTH`: configure the mailer without a username.
+- `STARTTLS` is offered only with your own certificate, implicit TLS (`smtps://`) works with any. See [TLS](tls.md).

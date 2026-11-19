@@ -98,6 +98,21 @@ final class SocketStream implements \IteratorAggregate, StreamClient
     }
 
     #[\Override]
+    public function canStartTls(): bool
+    {
+        return !$this->isDisconnected() && $this->client->canStartTls();
+    }
+
+    #[\Override]
+    public function startTls(): void
+    {
+        $this->canStartTls() or throw new \LogicException('TLS is unavailable on the stream.');
+        // Data read in plain text after the request for TLS would pass for data sent over TLS
+        $this->queue = new \SplQueue();
+        $this->client->startTls();
+    }
+
+    #[\Override]
     public function isDisconnected(): bool
     {
         return $this->disconnected;

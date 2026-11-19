@@ -14,7 +14,7 @@ The first source that has a value wins. Environment variables of the client (`tr
 ## Ports and traffic detection
 
 Trap recognizes the protocol of each connection by its first bytes, so every port accepts every kind of traffic:
-var-dumper, Monolog, SMTP and HTTP (Sentry, Ray, profilers, OpenTelemetry, HTTP dumps).
+var-dumper, Monolog, SMTP and HTTP (Sentry, Ray, profilers, OpenTelemetry, HTTP dumps), plain or over [TLS](tls.md).
 There is no need to open a port per protocol.
 
 By default Trap listens on the ports of the Buggregator Server: `9912`, `9913`, `1025` and `8000`,
@@ -50,6 +50,8 @@ TRAP_TCP_PORTS=9912,8000 vendor/bin/trap
 | `TRAP_GC_INTERVAL`            | `30`                       | How often, in seconds, the server collects garbage cycles in place of PHP's cycle collector; `0` keeps PHP's collector.                                                                                                                |
 | `TRAP_MAIN_LOOP_INTERVAL`     | `1000`                     | Longest wait, in microseconds, of an idle main loop. Data on a socket ends the wait sooner, and timers such as a buffer flush fire this much late at most. Values below `50` count as `50`. On Windows any wait lasts at least ~15 ms. |
 | `TRAP_HTTP_MAX_INFLATED_SIZE` | `64M`                      | Size a gzip-compressed HTTP request body may inflate to, and a chunked one may decode to; a larger one is answered with `413`. See [the format](#size-format).                                                                         |
+| `TRAP_TLS_CERT`               |                            | PEM certificate for [TLS](tls.md) on the listened ports. Without it Trap generates a self-signed one for `localhost`.                                                                                                                  |
+| `TRAP_TLS_KEY`                |                            | PEM private key of `TRAP_TLS_CERT`, when it is not in the certificate file.                                                                                                                                                            |
 | `TRAP_XHPROF_PATH`            | `xhprof.output_dir`        | Directory to pick up XHProf files from. See [Receiving profiles](profiles.md#directory-watching).                                                                                                                                      |
 | `TRAP_XDEBUG_PATH`            | `xdebug.output_dir`        | Directory to pick up Xdebug cachegrind files from. Without it, `xdebug.output_dir` is watched while `xdebug.mode` (or `XDEBUG_MODE`) includes `profile`.                                                                               |
 | `TRAP_SPX_PATH`               | `spx.data_dir`             | Directory to pick up [SPX](spx.md) full reports from; `spx.data_dir` is used when ext-spx is loaded in Trap's PHP.                                                                                                                     |
@@ -72,7 +74,7 @@ The client reads these variables from `$_ENV` or the process environment.
 |--------------------------|------------------|----------------------------------------------------------------------------------------------------------------------------------|
 | `VAR_DUMPER_FORMAT`      | `server`         | Where `trap()` dumps go, as in Symfony VarDumper: `server`, `tcp://host:port`, `cli` or `html`. See [var-dumper](var-dumper.md). |
 | `VAR_DUMPER_SERVER`      | `127.0.0.1:9912` | Host and port `trap()` sends dumps to with the `server` format.                                                                  |
-| `TRAP_MONOLOG_HOST`      | `127.0.0.1`      | Host of [`trap()::logger()`](functions.md#traplogger).                                                                           |
+| `TRAP_MONOLOG_HOST`      | `127.0.0.1`      | Host of [`trap()::logger()`](functions.md#traplogger). Prefix it with `tls://` to connect over TLS.                              |
 | `TRAP_MONOLOG_PORT`      | `9913`           | Port of `trap()::logger()`.                                                                                                      |
 | `TRAP_PROFILER_HOST`     | `127.0.0.1`      | Host `->toTrap()` of [profiling](profiling.md) sends to.                                                                         |
 | `TRAP_PROFILER_PORT`     | `9912`           | Port `->toTrap()` sends to.                                                                                                      |
@@ -100,6 +102,8 @@ The client reads these variables from `$_ENV` or the process environment.
 | `/trap/mcp/@port`         | Port of the MCP server, as `TRAP_MCP_PORT`                           |
 | `/trap/mcp/@host`         | Host of the MCP server, as `TRAP_MCP_HOST`                           |
 | `/trap/mcp/@token`        | Token of the MCP server, as `TRAP_MCP_TOKEN`                         |
+| `/trap/tls/@cert`         | Certificate for TLS, as `TRAP_TLS_CERT`                              |
+| `/trap/tls/@key`          | Key of the certificate, as `TRAP_TLS_KEY`                            |
 | `/trap/traces/@maxSpans`  | As `TRAP_TRACES_MAX_SPANS`                                           |
 | `/trap/traces/@ttl`       | As `TRAP_TRACES_TTL`                                                 |
 

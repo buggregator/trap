@@ -13,6 +13,9 @@ namespace Buggregator\Trap\Server\Traffic;
  */
 trait FetchLineTrait
 {
+    /** The first queued value is the rest of the chunk the last fetched line came in */
+    private bool $leftover = false;
+
     #[\Override]
     public function fetchLine(): string
     {
@@ -34,7 +37,8 @@ trait FetchLineTrait
 
             $line .= \substr($chunk, 0, $eol + 1);
             $rest = \substr($chunk, $eol + 1);
-            $rest === '' or $this->queue->unshift($rest);
+            $this->leftover = $rest !== '';
+            $this->leftover and $this->queue->unshift($rest);
             break;
         }
 

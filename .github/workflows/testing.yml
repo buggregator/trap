@@ -23,6 +23,8 @@ jobs:
         ['ubuntu-latest']
       dependencies: >-
         ['lowest', 'locked', 'highest']
+      # Mail clients for the SMTP acceptance tests, which skip without them
+      run: composer bin mailer install --no-interaction --no-progress && vendor/bin/testo
       codecov: true
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -49,6 +51,9 @@ jobs:
         uses: ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda  # 4.0.0
         with:
           dependency-versions: locked
+
+      - name: 📥 Install mail clients
+        run: composer bin mailer install --no-interaction --no-progress
 
       - name: 🧪 Run acceptance tests
         run: vendor/bin/testo --suite=Acceptance

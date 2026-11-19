@@ -172,11 +172,20 @@ final class TrapProcess
 
     /**
      * Writes raw bytes to the port and reads the answer until the server closes the connection.
+     *
+     * @param bool $tls Connects over TLS without verifying the certificate.
      */
-    public static function exchange(int $port, string $data, float $timeout = 5.0): string
+    public static function exchange(int $port, string $data, float $timeout = 5.0, bool $tls = false): string
     {
-        $socket = \stream_socket_client("tcp://127.0.0.1:$port", $errno, $error, $timeout)
-            ?: throw new \RuntimeException("Unable to connect to port $port: $error");
+        $context = \stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false]]);
+        $scheme = $tls ? 'tls' : 'tcp';
+        $socket = \stream_socket_client(
+            "$scheme://127.0.0.1:$port",
+            $errno,
+            $error,
+            $timeout,
+            context: $context,
+        ) ?: throw new \RuntimeException("Unable to connect to port $port: $error");
         try {
             \stream_set_timeout($socket, (int) \ceil($timeout));
             self::write($socket, $data);
@@ -201,10 +210,17 @@ final class TrapProcess
      * Sends an HTTP/1.1 request and returns the status code, the headers and the body of the response.
      *
      * @param array<non-empty-string, string> $headers
+     * @param bool $tls Sends the request over TLS without verifying the certificate.
      * @return array{int, string, string}
      */
-    public static function http(int $port, string $method, string $uri, string $body = '', array $headers = []): array
-    {
+    public static function http(
+        int $port,
+        string $method,
+        string $uri,
+        string $body = '',
+        array $headers = [],
+        bool $tls = false,
+    ): array {
         $headers = ['Host' => "127.0.0.1:$port", 'Connection' => 'close'] + $headers;
         $body === '' && $method === 'GET' or $headers['Content-Length'] = (string) \strlen($body);
 
@@ -213,7 +229,7 @@ final class TrapProcess
             $request .= "$name: $value\r\n";
         }
 
-        return self::parseResponse(self::exchange($port, $request . "\r\n" . $body));
+        return self::parseResponse(self::exchange($port, $request . "\r\n" . $body, tls: $tls));
     }
 
     /**
@@ -415,6 +431,8 @@ final class TrapProcess
             'TRAP_UI_HOST' => '127.0.0.1',
             'TRAP_MCP_HOST' => '127.0.0.1',
             'TRAP_MCP_TOKEN' => '',
+            'TRAP_TLS_CERT' => '',
+            'TRAP_TLS_KEY' => '',
             'TRAP_XHPROF_PATH' => $workDir . '/xhprof',
             'TRAP_XDEBUG_PATH' => $workDir . '/xdebug',
             'XDEBUG_MODE' => 'off',
