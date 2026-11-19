@@ -724,6 +724,25 @@ final class ServerTest
         }
     }
 
+    public function testMailsOfTestCommandAreCaptured(): void
+    {
+        $trap = $this->startTrap('smtp-test-command');
+
+        [$exitCode, $clientOutput] = TrapProcess::run('smtp-test-command-client', ['test', "--port=$this->port"], timeout: 30.0);
+
+        Assert::same($exitCode, 0, $clientOutput);
+        Assert::string($clientOutput)->notContains('Disconnected')->notContains('Mail protocol error');
+        $multipart = $trap->waitForDumpedLine(
+            static fn(string $line): ?array => \str_contains($line, 'Multipart Email Example') ? self::json($line) : null,
+            'the multipart mail in the dump file',
+        );
+        Assert::string($multipart['messages'][0]['value'])->startsWith('Plain text email goes here!');
+        $trap->waitForDumpedLine(
+            static fn(string $line): ?bool => \str_contains($line, 'Very important theme!') ? true : null,
+            'the plain mail in the dump file',
+        );
+    }
+
     public function testSentryEnvelopeIsCaptured(): void
     {
         $trap = $this->startTrap('sentry');

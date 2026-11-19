@@ -121,6 +121,8 @@ final class Test extends Command
         try {
             $socket = \socket_create(AF_INET, SOCK_STREAM, SOL_TCP) ?: throw new \RuntimeException('Cannot create socket.');
             \socket_connect($socket, $this->addr, $this->port);
+            // A server that misses the end of a command must not hang the command
+            \socket_set_option($socket, \SOL_SOCKET, \SO_RCVTIMEO, ['sec' => 5, 'usec' => 0]);
 
             $this->sendMailPackage($output, $socket, '', '220 ');
             $this->sendMailPackage($output, $socket, "HELO\r\n", '250 ');
@@ -187,9 +189,9 @@ final class Test extends Command
                 $this->sendMailPackage($output, $socket, "Content-Disposition: inline\r\n", '');
                 $this->sendMailPackage($output, $socket, "\r\n", '');
                 $this->sendMailPackage($output, $socket, "<b>Apple Watch formatted content</b>\r\n", '');
-                $this->sendMailPackage($output, $socket, "\r\n", '');
-                $this->sendMailPackage($output, $socket, "--boundary-string--\r\n", '');
-                $this->sendMailPackage($output, $socket, ".\r\n", '250 ');
+                // One packet: older trap servers end multipart data at the closing boundary with an empty line
+                // after it, not at the dot, and see them only when the whole sequence comes in a single read
+                $this->sendMailPackage($output, $socket, "\r\n--boundary-string--\r\n\r\n.\r\n", '250 ');
             } else {
                 $this->sendMailPackage($output, $socket, "From: Some User <someusername@somecompany.ru>\r\n", '');
                 $this->sendMailPackage($output, $socket, "To: User1 <user1@company.tld>\r\n", '');
