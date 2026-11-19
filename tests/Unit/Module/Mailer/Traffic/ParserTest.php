@@ -411,21 +411,26 @@ final class ParserTest
         Assert::same(\rtrim((string) $message->getBody(), ".\r\n"), \rtrim($email, "\r\n"));
     }
 
-    #[DataSet(["Content-Disposition: attachment; filename=logo.png\r\n", 'logo.png'], 'file name in Content-Disposition')]
-    #[DataSet(['', 'logo.png', '; name="logo.png"'], 'file name in Content-Type')]
-    #[DataSet(['', 'attachment'], 'no file name')]
+    #[DataSet(["Content-Disposition: attachment; filename=logo.png\r\n", 'logo.png'], 'file name')]
+    #[DataSet(
+        ["Content-Disposition: attachment; filename*=UTF-8''%D0%BB%D0%BE%D0%B3%D0%BE.png\r\n", 'лого.png'],
+        'percent-encoded file name',
+    )]
+    #[DataSet(['', null], 'no file name')]
+    #[DataSet(["content-disposition: attachment; filename=logo.png\r\n", 'logo.png', 'content-type', 'CONTENT-TRANSFER-ENCODING'], 'header names in any case')]
     #[Test]
     public function singlePartBodyThatIsNotTextIsAttachment(
         string $disposition,
-        string $fileName,
-        string $typeParameters = '',
+        ?string $fileName,
+        string $contentType = 'Content-Type',
+        string $encoding = 'Content-Transfer-Encoding',
     ): void {
         $png = \base64_decode(
             'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
         );
 
         $message = $this->parse(
-            "Content-Type: image/png{$typeParameters}\r\nContent-Transfer-Encoding: base64\r\n{$disposition}\r\n"
+            "{$contentType}: image/png\r\n{$encoding}: base64\r\n{$disposition}\r\n"
             . \chunk_split(\base64_encode($png), 76, "\r\n") . ".\r\n",
         );
 
@@ -435,6 +440,19 @@ final class ParserTest
         Assert::same($file->getClientFilename(), $fileName);
         Assert::same($file->getClientMediaType(), 'image/png');
         Assert::same((string) $file->getStream(), $png);
+    }
+
+    #[Test]
+    public function decodesSinglePartBodyWithHeaderNamesInAnyCase(): void
+    {
+        $message = $this->parse(
+            "Content-type: text/plain; charset=utf-8\r\nContent-transfer-encoding: quoted-printable\r\n\r\n"
+            . "caf=C3=A9 a=3Db\r\n.\r\n",
+        );
+
+        Assert::count($message->getAttachments(), 0);
+        Assert::count($message->getMessages(), 1);
+        Assert::same($message->getMessages()[0]->getValue(), 'café a=b');
     }
 
     #[Test]

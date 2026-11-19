@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Module\Mailer\Traffic;
 use Buggregator\Trap\Module\Mailer\Message;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
+use Buggregator\Trap\Server\Traffic\Message\Multipart\Part;
 use Buggregator\Trap\Server\Traffic\Parser\Http;
 use Buggregator\Trap\Server\Traffic\StreamClient;
 use Buggregator\Trap\Support\StreamHelper;
@@ -230,15 +231,25 @@ final class Parser
         // The line break before the end-of-data line is not a part of the text
         \str_ends_with($content, "\r\n") and $content = \substr($content, 0, -2);
 
-        /** @psalm-suppress InvalidArgument */
-        $body = new Field(
-            headers: \array_intersect_key(
-                $message->getHeaders(),
-                ['Content-Type' => true, 'Content-Transfer-Encoding' => true, 'Content-Disposition' => true],
-            ),
-            value: $content,
-        );
+        // The body is named and typed as a part of a multipart message would be
+        $headers = [];
+        foreach (['Content-Type', 'Content-Transfer-Encoding', 'Content-Disposition'] as $name) {
+            $value = $message->getHeader($name);
+            $value === [] or $headers[$name] = $value;
+        }
+        /** @psalm-suppress ArgumentTypeCoercion */
+        $body = Part::create($headers);
 
+        if ($body instanceof File) {
+            $file = StreamHelper::createFileStream();
+            $file->write(self::decodeTransfer($content, $body->getHeaderLine('Content-Transfer-Encoding')));
+            $file->rewind();
+            $body->setStream($file);
+            return $message->withAttachments([$body]);
+        }
+
+        \assert($body instanceof Field);
+        $body = $body->withValue($content);
         return self::isBodyText($body)
             ? $message->withMessages([$body->withValue(self::decodeText($body))])
             : $message->withAttachments([$this->textToFile($body)]);
@@ -300,21 +311,17 @@ final class Parser
     }
 
     /**
-     * A part that is not a message body: a text part like a `text/calendar` invitation,
-     * or the body of a single-part message that is not text.
+     * A text part that is not a message body, like a `text/calendar` invitation.
      */
     private function textToFile(Field $part): File
     {
         $contentType = $part->getHeaderLine('Content-Type');
-        $mediaType = \strtolower(\trim(\explode(';', $contentType, 2)[0]));
-        $param = '(?:"([^"]++)"|([^"\\s;]++))';
-        $fileName = \preg_match("/;\\s*filename={$param}/i", $part->getHeaderLine('Content-Disposition'), $matches) === 1
-            || \preg_match("/;\\s*name={$param}/i", $contentType, $matches) === 1
+        $fileName = \preg_match('/;\\s*name=(?:"([^"]++)"|([^"\\s;]++))/i', $contentType, $matches) === 1
             ? ($matches[1] ?: $matches[2])
-            : match ($mediaType) {
+            : match (\strtolower(\trim(\explode(';', $contentType, 2)[0]))) {
                 'text/calendar' => 'invite.ics',
                 'text/csv' => 'attachment.csv',
-                default => \str_starts_with($mediaType, 'text/') ? 'attachment.txt' : 'attachment',
+                default => 'attachment.txt',
             };
 
         $value = self::decodeTransfer($part->getValue(), $part->getHeaderLine('Content-Transfer-Encoding'));
