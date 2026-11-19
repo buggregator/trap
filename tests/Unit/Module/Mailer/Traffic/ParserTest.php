@@ -140,6 +140,88 @@ final class ParserTest
         yield '8bit: untouched' => ['text/plain; charset=utf-8', '8bit', 'café =3D', 'café =3D'];
         yield 'no Content-Transfer-Encoding: untouched' => ['text/plain', null, 'a=3Db', 'a=3Db'];
         yield 'unknown Content-Transfer-Encoding: untouched' => ['text/plain', 'x-uuencode', 'a=3Db', 'a=3Db'];
+        yield 'quoted-printable: LF-only soft line breaks' => [
+            'text/plain; charset=utf-8',
+            'quoted-printable',
+            "Gr=C3=BC=\n=C3=9Fe, so=\nft",
+            'Grüße, soft',
+        ];
+        yield 'charset: windows-1250, unknown to mbstring' => [
+            'text/plain; charset=windows-1250',
+            'quoted-printable',
+            '=C8esk=FD',
+            'Český',
+        ];
+        yield 'charset: in a quoted value of another parameter' => [
+            'text/plain; name="x; charset=koi8-r"; charset=iso-8859-1',
+            '8bit',
+            "Gr\xFC\xDFe",
+            'Grüße',
+        ];
+        yield 'charset: spaces around `=` and single quotes' => [
+            "text/plain; charset = 'ISO-8859-1' ; format=flowed",
+            '8bit',
+            "Gr\xFC\xDFe",
+            'Grüße',
+        ];
+        yield 'charset: uuencode is no charset' => ['text/plain; charset=uuencode', '7bit', 'begin 644 x', 'begin 644 x'];
+        yield 'charset: html-entities is no charset' => [
+            'text/html; charset=HTML-ENTITIES',
+            '7bit',
+            '&lt;b&gt; &amp;',
+            '&lt;b&gt; &amp;',
+        ];
+        yield 'charset: a list is no charset' => ['text/plain; charset="koi8-r,utf-8"', '7bit', 'abc', 'abc'];
+    }
+
+    public static function provideEncodedAttachments(): iterable
+    {
+        yield 'quoted-printable' => ['Quoted-Printable', "a=3Db, a long line that the client brea=\r\nks"];
+        yield 'quoted-printable with LF-only soft line breaks' => [
+            'quoted-printable',
+            "a=3Db, a long line that the client brea=\nks",
+        ];
+        yield 'quoted-printable ending with an escape' => ['quoted-printable', 'a=3Db, a long line that the client break=73'];
+        yield 'base64 in upper case' => [
+            'BASE64',
+            \chunk_split(\base64_encode('a=b, a long line that the client breaks'), 12, "\r\n"),
+        ];
+    }
+
+    #[DataProvider('provideEncodedAttachments')]
+    #[Test]
+    public function decodesTextAttachment(string $encoding, string $body): void
+    {
+        $message = $this->parse(
+            "Content-Type: multipart/mixed; boundary=o\r\n\r\n"
+            . "--o\r\nContent-Type: text/plain\r\n\r\nSee the notes.\r\n"
+            . "--o\r\nContent-Type: text/plain; name=notes.txt\r\nContent-Transfer-Encoding: {$encoding}\r\n"
+            . "Content-Disposition: attachment; filename=notes.txt\r\n\r\n{$body}\r\n--o--\r\n.\r\n",
+        );
+
+        Assert::count($message->getAttachments(), 1);
+        Assert::same($message->getAttachments()[0]->getClientFilename(), 'notes.txt');
+        Assert::same(
+            (string) $message->getAttachments()[0]->getStream(),
+            'a=b, a long line that the client breaks',
+        );
+    }
+
+    #[Test]
+    public function keepsPartsAfterMalformedQuotedPrintableAttachment(): void
+    {
+        $message = $this->parse(
+            "Content-Type: multipart/mixed; boundary=o\r\n\r\n"
+            . "--o\r\nContent-Type: text/plain; name=notes.txt\r\nContent-Transfer-Encoding: quoted-printable\r\n"
+            . "Content-Disposition: attachment; filename=notes.txt\r\n\r\nx = y, a=zz b, abc= \r\ndef\r\n"
+            . "--o\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n"
+            . "<p>Gr=C3=BC=C3=9Fe</p>\r\n--o--\r\n.\r\n",
+        );
+
+        Assert::count($message->getAttachments(), 1);
+        Assert::same((string) $message->getAttachments()[0]->getStream(), 'x = y, a=zz b, abcdef');
+        Assert::count($message->getMessages(), 1);
+        Assert::same($message->getMessages()[0]->getValue(), '<p>Grüße</p>');
     }
 
     #[DataProvider('provideHeaders')]

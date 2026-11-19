@@ -22,6 +22,25 @@ final class Parser
     /** Each nesting level of multipart parts copies the part body into a new temporary stream */
     private const MAX_MULTIPART_DEPTH = 16;
 
+    /** Charsets of a text already in UTF-8 */
+    private const NO_CONVERSION = ['', 'utf-8', 'utf8', 'us-ascii', 'ascii'];
+
+    /** Names mbstring takes for encodings that are not charsets: base64 decoding, HTML unescaping and alike */
+    private const NOT_CHARSETS = [
+        'base64' => true,
+        'uuencode' => true,
+        'html-entities' => true,
+        'html' => true,
+        'quoted-printable' => true,
+        'qprint' => true,
+        '7bit' => true,
+        '8bit' => true,
+        'binary' => true,
+        'pass' => true,
+        'wchar' => true,
+        'auto' => true,
+    ];
+
     /**
      * @return array<non-empty-string, list<non-empty-string>>
      */
@@ -130,30 +149,76 @@ final class Parser
     private static function decodeText(Field $part): string
     {
         $value = self::decodeTransfer($part->getValue(), $part->getHeaderLine('Content-Transfer-Encoding'));
-        $contentType = $part->getHeaderLine('Content-Type');
-        if (\preg_match('/;\\s*charset=(?:"([^"]*+)"|([^\\s;"]++))/i', $contentType, $matches) !== 1) {
-            return $value;
-        }
-
-        $charset = $matches[1] ?: $matches[2];
-        if ($charset === '' || \strcasecmp($charset, 'UTF-8') === 0 || \strcasecmp($charset, 'US-ASCII') === 0) {
+        $charset = \strtolower(self::findCharset($part->getHeaderLine('Content-Type')) ?? '');
+        // mbstring takes a comma-separated list for detecting the charset
+        if (\in_array($charset, self::NO_CONVERSION, true)
+            || isset(self::NOT_CHARSETS[$charset])
+            || \str_contains($charset, ',')
+        ) {
             return $value;
         }
 
         // Names mail clients write for charsets mbstring knows by another name
-        $charset = match (\strtolower($charset)) {
+        $charset = match ($charset) {
             'ks_c_5601-1987' => 'UHC',
             'iso-8859-8-i' => 'ISO-8859-8',
             default => $charset,
         };
 
-        try {
-            $converted = \mb_convert_encoding($value, 'UTF-8', $charset);
-        } catch (\ValueError) {
-            return $value;
+        return self::toUtf8($value, $charset) ?? $value;
+    }
+
+    /**
+     * Finds the `charset` parameter of a Content-Type, stepping over the quoted values of other parameters.
+     *
+     * @return string|null The charset unquoted, or null if there is none.
+     */
+    private static function findCharset(string $contentType): ?string
+    {
+        \preg_match_all(
+            '/;\\s*+([^\\s=;"]++)\\s*+=\\s*+("(?:[^"\\\\]|\\\\.)*+"|[^;"]*+)/',
+            $contentType,
+            $params,
+            \PREG_SET_ORDER,
+        );
+
+        foreach ($params as $param) {
+            if (\strcasecmp($param[1], 'charset') === 0) {
+                return \trim(\rtrim($param[2]), "\"'");
+            }
         }
 
-        return \is_string($converted) ? $converted : $value;
+        return null;
+    }
+
+    /**
+     * Tries mbstring, then iconv: each knows charsets the other lacks, as mbstring lacks windows-1250.
+     *
+     * @return string|null The converted value, or null if neither knows the charset.
+     */
+    private static function toUtf8(string $value, string $charset): ?string
+    {
+        // A charset unknown to a converter warns or throws: either means trying the next one
+        \set_error_handler(static fn(): bool => true);
+        try {
+            try {
+                $converted = \function_exists('mb_convert_encoding')
+                    ? \mb_convert_encoding($value, 'UTF-8', $charset)
+                    : false;
+            } catch (\ValueError) {
+                $converted = false;
+            }
+
+            if (!\is_string($converted) && \function_exists('iconv')) {
+                $converted = \iconv($charset, 'UTF-8', $value);
+                // Not //IGNORE first: glibc's iconv returns false with it whenever it drops bytes
+                \is_string($converted) or $converted = \iconv($charset, 'UTF-8//IGNORE', $value);
+            }
+        } finally {
+            \restore_error_handler();
+        }
+
+        return \is_string($converted) ? $converted : null;
     }
 
     /**

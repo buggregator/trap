@@ -56,7 +56,9 @@ MAIL_MAILER=smtp MAIL_HOST=127.0.0.1 MAIL_PORT=1025 # Laravel
 
 Leave the username and password out: Trap answers no `AUTH`, and a mailer that sends it hangs. Implicit TLS works
 (`smtps://127.0.0.1:1025?verify_peer=0`); `STARTTLS` is offered only with a certificate in `TRAP_TLS_CERT`. Events: `smtp`, fields `subject`, `from`, `to`, `cc`, `bcc`; `get_event` gives the
-headers, the text and HTML parts and the attachments. No mail leaves the machine.
+headers, the text and HTML parts and the attachments, all decoded from quoted-printable and base64. The text and HTML
+are UTF-8, converted from the declared charset by mbstring or iconv; a part in a charset neither knows keeps its raw
+bytes, and one with no charset is taken as UTF-8. No mail leaves the machine.
 
 `subject` and the contact names come decoded from RFC 2047 words: `where` on `subject` and a `search` match the
 plain text, such as `Привет, мир`. `from`, `to`, `cc` and `bcc` hold the addresses, so match a name with `search`.

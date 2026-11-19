@@ -9,7 +9,6 @@ use Buggregator\Trap\Tests\Acceptance\Support\TrapProcess;
 use Testo\Assert;
 use Testo\Lifecycle\AfterTest;
 use Testo\Lifecycle\BeforeTest;
-use Testo\Skip;
 use Testo\Test;
 
 /**
@@ -183,7 +182,6 @@ final class SymfonyMailerTest
      * Symfony Mailer encodes a non-ASCII subject as RFC 2047 words and a non-ASCII text as quoted-printable,
      * and quotes a display name holding a comma.
      */
-    #[Skip('Trap decodes neither RFC 2047 headers nor quoted-printable bodies, and splits a quoted name at its comma')]
     public function testNonAsciiMail(): void
     {
         SymfonyMailer::require();
@@ -227,6 +225,32 @@ final class SymfonyMailerTest
             ['name' => 'Doe, John', 'email' => 'john@acceptance.test'],
             ['name' => 'Иван Петров', 'email' => 'ivan@acceptance.test'],
         ]);
+    }
+
+    /**
+     * Symfony Mailer encodes a non-ASCII text and HTML as quoted-printable,
+     * breaking a line longer than 76 characters with soft line breaks.
+     */
+    public function testNonAsciiBodies(): void
+    {
+        SymfonyMailer::require();
+        $trap = $this->startTrap('symfony-mailer-non-ascii-bodies');
+        $long = \str_repeat('Größenwahn und Übermut, ', 8);
+
+        $result = SymfonyMailer::send("smtp://127.0.0.1:$this->port", [
+            'from' => 'sender@acceptance.test',
+            'to' => ['alice@acceptance.test'],
+            'subject' => 'Symfony non-ASCII bodies subject',
+            'text' => "Grüße aus Symfony Mailer.\n$long",
+            'html' => "<p>Привет, мир!</p><p>$long</p>",
+        ]);
+
+        Assert::same($result['error'], null, "{$result['error']}\n{$result['debug']}");
+        $mail = $this->waitForDumpedMail($trap, 'Symfony non-ASCII bodies subject');
+        Assert::same(\array_column($mail['messages'], 'value'), ["Grüße aus Symfony Mailer.\r\n$long", "<p>Привет, мир!</p><p>$long</p>"]);
+        $event = $trap->waitForUiEvent($this->uiPort, 'smtp');
+        Assert::same($event['payload']['text'], "Grüße aus Symfony Mailer.\r\n$long");
+        Assert::same($event['payload']['html'], "<p>Привет, мир!</p><p>$long</p>");
     }
 
     /**

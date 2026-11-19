@@ -208,6 +208,59 @@ final class MultipartBodyParserTest
         Assert::same($file->getStream()->__toString(), "sdg\n");
     }
 
+    /**
+     * A malformed escape stays as written, and the parts after the file are parsed.
+     */
+    #[Test]
+    public function decodesQuotedPrintableFile(): void
+    {
+        $body = $this->makeStream(
+            "--b\r\n"
+            . "Content-Type: text/plain; name=notes.txt\r\n"
+            . "Content-Transfer-Encoding: Quoted-Printable\r\n"
+            . "Content-Disposition: attachment; filename=notes.txt\r\n"
+            . "\r\n"
+            . "Gr=C3=BC=C3=9Fe, x = y, a=zz b, a soft= \r\nbreak\r\n"
+            . "--b\r\n"
+            . "Content-Type: text/html\r\n"
+            . "\r\n"
+            . "<p>After the file</p>\r\n"
+            . "--b--\r\n",
+        );
+
+        $result = $this->parse($body, 'b');
+
+        Assert::count($result, 2);
+        Assert::instanceOf($result[0], File::class);
+        Assert::same($result[0]->getStream()->__toString(), 'Grüße, x = y, a=zz b, a softbreak');
+        Assert::instanceOf($result[1], Field::class);
+        Assert::same($result[1]->getValue(), '<p>After the file</p>');
+    }
+
+    /**
+     * The decoding filters hold back the end of the data for the next write: the file ends with it.
+     */
+    #[DataSet(['quoted-printable', 'hello=3Dworld=A', 'hello=world=A'], 'quoted-printable ending with a partial escape')]
+    #[DataSet(['quoted-printable', 'a soft line break at the end=', 'a soft line break at the end'], 'quoted-printable ending with `=`')]
+    #[DataSet(['base64', 'QUJDRA', 'ABCD'], 'unpadded base64')]
+    #[Test]
+    public function fileEndsWithTheDataTheFilterHeldBack(string $encoding, string $encoded, string $decoded): void
+    {
+        $body = $this->makeStream(
+            "--b\r\nContent-Type: application/octet-stream\r\nContent-Transfer-Encoding: {$encoding}\r\n"
+            . "Content-Disposition: attachment; filename=data.bin\r\n\r\n{$encoded}\r\n"
+            . "--b\r\nContent-Type: text/plain\r\n\r\nafter\r\n--b--\r\n",
+        );
+
+        $result = $this->parse($body, 'b');
+
+        Assert::count($result, 2);
+        Assert::instanceOf($result[0], File::class);
+        Assert::same($result[0]->getStream()->__toString(), $decoded);
+        Assert::same($result[0]->getSize(), \strlen($decoded));
+        Assert::same($result[1]->getValue(), 'after');
+    }
+
     #[Test]
     public function parsesPartsAfterPreambleWithFoldedHeaders(): void
     {

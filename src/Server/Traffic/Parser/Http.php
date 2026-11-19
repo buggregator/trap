@@ -129,9 +129,7 @@ final class Http
                         default => [],
                     };
 
-                    $fileStream = StreamHelper::createFileStream(writeFilters: $writeFilters);
-                    StreamHelper::writeStreamUntil($stream, $fileStream, $findBoundary);
-                    $part->setStream($fileStream);
+                    $part->setStream(StreamHelper::copyUntilThroughFilters($stream, $findBoundary, $writeFilters));
                 } elseif ($part instanceof Field) {
                     $endOfContent = StreamHelper::strpos($stream, $findBoundary);
                     $endOfContent !== false or throw new \RuntimeException('Missing end of content');
