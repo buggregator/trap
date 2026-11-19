@@ -7,10 +7,14 @@ namespace Buggregator\Trap\Tests\Unit\Module\Mcp\View;
 use Buggregator\Trap\Module\Mailer\Contact;
 use Buggregator\Trap\Module\Mcp\View\PayloadSummary;
 use Buggregator\Trap\Module\Ray\Frontend\Payload as RayPayload;
+use Buggregator\Trap\Module\VarDumper\Frame as VarDumperFrame;
+use Buggregator\Trap\Module\VarDumper\Frontend\Mapper as VarDumperMapper;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\Record;
+use Symfony\Component\VarDumper\Cloner\VarCloner;
 use Testo\Assert;
 use Testo\Codecov\Covers;
+use Testo\Data\DataProvider;
 use Testo\Data\DataSet;
 use Testo\Test;
 
@@ -26,8 +30,26 @@ final class PayloadSummaryTest
         return new Event('5a4f8e1c-0000-4000-8000-000000000001', $type, $payload, 1.0);
     }
 
+    public static function provideDumpedValues(): iterable
+    {
+        yield 'int' => [42, 'n', 'n: 42'];
+        yield 'float' => [1.5, 'n', 'n: 1.5'];
+        yield 'true' => [true, 'flag', 'flag: true'];
+        yield 'false' => [false, 'flag', 'flag: false'];
+        yield 'null' => [null, 'nothing', 'nothing: null'];
+        yield 'string' => ['hello', 'plain', 'plain: hello'];
+        yield 'array' => [['id' => 42], 'order', 'order: array:1 [ "id" => 42 ]'];
+        yield 'object' => [(object) ['id' => 42], 'user', 'user: {# +"id": 42 }'];
+        yield 'label the dumper wraps in markup' => [42, "<b>a\u{00A0}b</b>", 'a b: 42'];
+        yield 'array without a label' => [['id' => 42], null, 'array:1 [ "id" => 42 ]'];
+        yield 'float without a label' => [1.5, null, '1.5'];
+    }
+
     #[DataSet(['var-dump', ['payload' => ['type' => 'string', 'value' => 'hello', 'label' => null]], 'hello'], 'string dump')]
     #[DataSet(['var-dump', ['payload' => ['type' => 'int', 'value' => '42', 'label' => 'Answer']], 'Answer: 42'], 'labeled dump')]
+    #[DataSet(['var-dump', ['payload' => ['type' => 'boolean', 'value' => true, 'label' => 'flag']], 'flag: true'], 'raw true dump')]
+    #[DataSet(['var-dump', ['payload' => ['type' => 'boolean', 'value' => 1, 'label' => 'flag']], 'flag: true'], 'integer true dump')]
+    #[DataSet(['var-dump', ['payload' => ['type' => 'boolean', 'value' => false, 'label' => 'flag']], 'flag: false'], 'raw false dump')]
     #[DataSet(
         [
             'var-dump',
@@ -45,6 +67,32 @@ final class PayloadSummaryTest
     public function testSummary(string $type, array $payload, ?string $expected): void
     {
         Assert::same((new PayloadSummary())->summary(self::event($type, $payload)), $expected);
+    }
+
+    /**
+     * The event comes from the var-dumper mapper, so the value is rendered as the server renders it.
+     */
+    #[DataProvider('provideDumpedValues')]
+    public function testDumpOfEachType(mixed $value, ?string $label, string $expected): void
+    {
+        $data = (new VarCloner())->cloneVar($value);
+        $label === null or $data = $data->withContext(['label' => $label]);
+        $event = (new VarDumperMapper())->map(new VarDumperFrame(\base64_encode(\serialize([$data, []]))));
+
+        $summary = (string) (new PayloadSummary())->summary($event);
+
+        // An object handle depends on the objects created before it.
+        Assert::same(\preg_replace('/#\d+/', '#', $summary), $expected);
+    }
+
+    #[DataSet(['SELECT 1', 'Query: SELECT 1'], 'string')]
+    #[DataSet([['id' => 42], 'Query: array:1 [ "id" => 42 ]'], 'array')]
+    public function testCodeDump(mixed $value, string $expected): void
+    {
+        $data = (new VarCloner())->cloneVar($value)->withContext(['label' => 'Query', 'language' => 'sql']);
+        $event = (new VarDumperMapper())->map(new VarDumperFrame(\base64_encode(\serialize([$data, []]))));
+
+        Assert::same((new PayloadSummary())->summary($event), $expected);
     }
 
     public function testMail(): void
