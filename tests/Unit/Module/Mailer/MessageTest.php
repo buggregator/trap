@@ -67,6 +67,105 @@ final class MessageTest
                 new Contact('Agency "Buggregator"', 'smith@home.example'),
             ],
         ];
+
+        yield 'comma in a quoted name' => [
+            ['"Doe, John" <john@example.com>, jane@example.com'],
+            [
+                new Contact('Doe, John', 'john@example.com'),
+                new Contact(null, 'jane@example.com'),
+            ],
+        ];
+
+        yield 'escaped quote before a comma' => [
+            ['"Say \"hi\", John" <john@example.com>'],
+            [
+                new Contact('Say "hi", John', 'john@example.com'),
+            ],
+        ];
+
+        yield 'comma in a comment' => [
+            ['john@example.com (Doe, John), jane@example.com'],
+            [
+                new Contact('Doe, John', 'john@example.com'),
+                new Contact(null, 'jane@example.com'),
+            ],
+        ];
+
+        yield 'group with a quoted name and a plain address after it' => [
+            ['Team: "Doe, John" <john@example.com>, jane@example.com;, boss@example.com'],
+            [
+                new Contact('Doe, John', 'john@example.com'),
+                new Contact(null, 'jane@example.com'),
+                new Contact(null, 'boss@example.com'),
+            ],
+        ];
+
+        yield 'empty group' => [
+            ['undisclosed-recipients:;'],
+            [],
+        ];
+
+        yield 'encoded name with a comma' => [
+            ['=?utf-8?Q?Doe=2C_John?= <john@example.com>, =?UTF-8?B?0JjQstCw0L0=?= <ivan@example.com>'],
+            [
+                new Contact('Doe, John', 'john@example.com'),
+                new Contact('Иван', 'ivan@example.com'),
+            ],
+        ];
+
+        yield 'encoded name in quotes' => [
+            ['"=?utf-8?Q?Gr=C3=BC=C3=9Fe?=" <g@example.com>'],
+            [
+                new Contact('Grüße', 'g@example.com'),
+            ],
+        ];
+
+        yield 'several header lines' => [
+            ['a@example.com', 'B <b@example.com>'],
+            [
+                new Contact(null, 'a@example.com'),
+                new Contact('B', 'b@example.com'),
+            ],
+        ];
+    }
+
+    public static function dataSender(): iterable
+    {
+        yield 'envelope and named header of one address' => [
+            ['sender@example.com'],
+            ['Sender <sender@example.com>'],
+            [new Contact('Sender', 'sender@example.com')],
+        ];
+
+        yield 'addresses differ in case' => [
+            ['SENDER@example.com'],
+            ['Sender <sender@Example.com>'],
+            [new Contact('Sender', 'sender@Example.com')],
+        ];
+
+        yield 'distinct envelope sender is kept' => [
+            ['bounces@example.com'],
+            ['Sender <sender@example.com>'],
+            [new Contact(null, 'bounces@example.com'), new Contact('Sender', 'sender@example.com')],
+        ];
+
+        yield 'null envelope sender' => [
+            [''],
+            ['Sender <sender@example.com>'],
+            [new Contact('Sender', 'sender@example.com')],
+        ];
+
+        yield 'encoded name with a comma' => [
+            ['sender@example.com'],
+            ['=?utf-8?Q?Doe=2C_John?= <sender@example.com>'],
+            [new Contact('Doe, John', 'sender@example.com')],
+        ];
+
+        yield 'header only' => [
+            [],
+            ['"Doe, John" <john@example.com>'],
+            [new Contact('Doe, John', 'john@example.com')],
+        ];
     }
 
     #[DataProvider('dataTo')]
@@ -156,6 +255,17 @@ final class MessageTest
         ]);
     }
 
+    #[DataProvider('dataSender')]
+    public function testGetSenderMergesByAddress(array $envelope, array $header, array $expected): void
+    {
+        $smtp = Message::create(
+            protocol: $envelope === [] ? [] : ['FROM' => $envelope],
+            headers: ['From' => $header],
+        );
+
+        Assert::equals($smtp->getSender(), $expected);
+    }
+
     public function testGetBccReadsProtocolRecipientsOnly(): void
     {
         $smtp = Message::create(
@@ -177,6 +287,8 @@ final class MessageTest
     #[DataSet([['Hello'], 'Hello'], 'single subject header')]
     #[DataSet([['Hello', 'World'], 'Hello World'], 'multiple subject headers are joined')]
     #[DataSet([[], ''], 'no subject header')]
+    #[DataSet([['=?utf-8?Q?=D0=9F=D1=80=D0=B8=D0=B2=D0=B5=D1=82=2C_=D0=BC=D0=B8=D1=80?='], 'Привет, мир'], 'encoded subject')]
+    #[DataSet([['=?utf-8?Q?a?=', '=?utf-8?Q?b?='], 'a b'], 'encoded subject headers are joined with a space')]
     public function testGetSubject(array $subject, string $expected): void
     {
         $smtp = Message::create([], $subject === [] ? [] : ['Subject' => $subject]);

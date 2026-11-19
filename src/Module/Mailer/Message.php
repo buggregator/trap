@@ -128,13 +128,26 @@ final class Message implements \JsonSerializable
     }
 
     /**
-     * @return Contact[]
+     * The envelope sender and the `From` header, one contact per address: a named one wins.
+     *
+     * @return list<Contact>
      */
     public function getSender(): array
     {
-        $addrs = \array_unique(\array_merge((array) ($this->protocol['FROM'] ?? []), $this->getHeader('From')));
+        /** @var array<non-empty-string, Contact> $result */
+        $result = [];
+        $contacts = \array_merge(
+            self::normalizeAddressList($this->protocol['FROM'] ?? []),
+            self::normalizeAddressList($this->getHeader('From')),
+        );
+        foreach ($contacts as $contact) {
+            $key = $contact->email === null ? "name:{$contact->name}" : 'email:' . \strtolower($contact->email);
+            if (!isset($result[$key]) || ($result[$key]->name === null && $contact->name !== null)) {
+                $result[$key] = $contact;
+            }
+        }
 
-        return \array_map(self::parseContact(...), $addrs);
+        return \array_values($result);
     }
 
     /**
@@ -174,7 +187,7 @@ final class Message implements \JsonSerializable
 
     public function getSubject(): string
     {
-        return \implode(' ', $this->getHeader('Subject'));
+        return \implode(' ', \array_map(EncodedWord::decode(...), $this->getHeader('Subject')));
     }
 
     public function getMessage(MessageFormat $type): ?Field
@@ -188,46 +201,92 @@ final class Message implements \JsonSerializable
         return null;
     }
 
-    private static function parseContact(string $line): Contact
+    /**
+     * @param string $address One address: `email`, `name <email>`, `"name" <email>` or `email (name)`.
+     */
+    private static function parseContact(string $address): ?Contact
     {
-        if (\preg_match('/^\s*+(?<name>.*?)\s*<(?<email>.*)>\s*$/', $line, $matches) === 1) {
-            $name = match (true) {
-                \preg_match('/^".*?"$/', $matches['name']) === 1 => \str_replace('\\"', '"', \substr($matches['name'], 1, -1)),
-                $matches['name'] === '' => null,
-                default => $matches['name'],
-            };
-
-            return new Contact(
-                $name,
-                $matches['email'] === '' ? null : \trim($matches['email']),
-            );
+        if (\preg_match('/^(?<name>.*?)\s*<(?<email>[^<>]*)>$/s', $address, $matches) === 1) {
+            $name = $matches['name'];
+            $email = \trim($matches['email']);
+        } elseif (\preg_match('/^(?<email>[^\s()]*)\s*\((?<name>.*)\)$/s', $address, $matches) === 1) {
+            $name = $matches['name'];
+            $email = $matches['email'];
+        } else {
+            $name = '';
+            $email = $address;
         }
 
-        return new Contact(null, $line);
+        if (\preg_match('/^"(.*)"$/s', $name, $matches) === 1) {
+            $name = (string) \preg_replace('/\\\\(.)/s', '$1', $matches[1]);
+        }
+
+        // Decoded after the split: a decoded name may hold a comma or a quote.
+        $name = $name === '' ? null : EncodedWord::decode($name);
+        $email = $email === '' ? null : $email;
+
+        return $name === null && $email === null ? null : new Contact($name, $email);
     }
 
     /**
-     * @return list<Contact>
+     * Splits an address list at the commas outside quoted strings, comments and angle brackets.
+     * A group `name: a, b;` gives its members.
+     *
+     * @return list<non-empty-string>
      */
-    private static function parseDestinationAddress(string $line): array
+    private static function splitAddressList(string $line): array
     {
-        // if this is a group recipient
-        if (\preg_match('/^[^"]+:(.*);$/', $line, $matches) === 1) {
-            $line = $matches[1];
-        }
+        $result = [];
+        $current = '';
+        $quoted = $angle = false;
+        $comment = 0;
+        $length = \strlen($line);
+        for ($i = 0; $i < $length; ++$i) {
+            $char = $line[$i];
+            if ($char === '\\' && ($quoted || $comment > 0) && $i + 1 < $length) {
+                $current .= $char . $line[++$i];
+                continue;
+            }
 
-        $emailList = \array_map(\trim(...), \explode(',', $line));
-        return \array_map(self::parseContact(...), $emailList);
+            if ($quoted) {
+                $quoted = $char !== '"';
+            } elseif ($comment > 0) {
+                $char === '(' and ++$comment;
+                $char === ')' and --$comment;
+            } elseif ($char === '"') {
+                $quoted = true;
+            } elseif ($char === '(') {
+                $comment = 1;
+            } elseif ($char === '<' || $char === '>') {
+                $angle = $char === '<';
+            } elseif (!$angle && \in_array($char, [',', ':', ';'], true)) {
+                // The name of a group is not an address.
+                $char === ':' or $result[] = \trim($current);
+                $current = '';
+                continue;
+            }
+
+            $current .= $char;
+        }
+        $result[] = \trim($current);
+
+        return \array_values(\array_filter($result, static fn(string $address): bool => $address !== ''));
     }
 
     /**
-     * @param list<string> $param
+     * @param list<string> $lines Header values or envelope addresses.
      * @return list<Contact>
      */
-    private static function normalizeAddressList(array $param): array
+    private static function normalizeAddressList(array $lines): array
     {
-        return \array_merge(
-            ...\array_map(self::parseDestinationAddress(...), $param),
-        );
+        $result = [];
+        foreach ($lines as $line) {
+            foreach (self::splitAddressList($line) as $address) {
+                $contact = self::parseContact($address);
+                $contact === null or $result[] = $contact;
+            }
+        }
+
+        return $result;
     }
 }

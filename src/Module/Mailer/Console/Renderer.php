@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Module\Mailer\Console;
 use Buggregator\Trap\Module\Console\Renderer as RendererInterface;
 use Buggregator\Trap\Module\Console\Support\Common;
 use Buggregator\Trap\Module\Console\Support\Files;
+use Buggregator\Trap\Module\Mailer\EncodedWord;
 use Buggregator\Trap\Module\Mailer\Frame as MailerFrame;
 use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Support\Measure;
@@ -42,7 +43,10 @@ final class Renderer implements RendererInterface
 
         // Headers table
         Common::renderHeader3($output, 'Headers');
-        Common::renderHeaders($output, $message->getHeaders());
+        Common::renderHeaders($output, \array_map(
+            static fn(array $values): array => \array_map(EncodedWord::decode(...), $values),
+            $message->getHeaders(),
+        ));
 
         // Text body
         $i = 0;
