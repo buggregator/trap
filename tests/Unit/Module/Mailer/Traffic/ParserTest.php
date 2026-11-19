@@ -261,6 +261,23 @@ final class ParserTest
     }
 
     #[Test]
+    public function keepsPartsAfterMalformedQuotedPrintableAttachment(): void
+    {
+        $message = $this->parse(
+            "Content-Type: multipart/mixed; boundary=o\r\n\r\n"
+            . "--o\r\nContent-Type: text/plain; name=notes.txt\r\nContent-Transfer-Encoding: quoted-printable\r\n"
+            . "Content-Disposition: attachment; filename=notes.txt\r\n\r\nx = y, a=zz b, abc= \r\ndef\r\n"
+            . "--o\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n"
+            . "<p>Gr=C3=BC=C3=9Fe</p>\r\n--o--\r\n.\r\n",
+        );
+
+        Assert::count($message->getAttachments(), 1);
+        Assert::same((string) $message->getAttachments()[0]->getStream(), 'x = y, a=zz b, abcdef');
+        Assert::count($message->getMessages(), 1);
+        Assert::same($message->getMessages()[0]->getValue(), '<p>Grüße</p>');
+    }
+
+    #[Test]
     public function keepsSinglePartNonTextBodyEncoded(): void
     {
         $message = $this->parse(

@@ -207,6 +207,35 @@ final class MultipartBodyParserTest
         Assert::same($file->getStream()->__toString(), "sdg\n");
     }
 
+    /**
+     * A malformed escape stays as written, and the parts after the file are parsed.
+     */
+    #[Test]
+    public function decodesQuotedPrintableFile(): void
+    {
+        $body = $this->makeStream(
+            "--b\r\n"
+            . "Content-Type: text/plain; name=notes.txt\r\n"
+            . "Content-Transfer-Encoding: Quoted-Printable\r\n"
+            . "Content-Disposition: attachment; filename=notes.txt\r\n"
+            . "\r\n"
+            . "Gr=C3=BC=C3=9Fe, x = y, a=zz b, a soft= \r\nbreak\r\n"
+            . "--b\r\n"
+            . "Content-Type: text/html\r\n"
+            . "\r\n"
+            . "<p>After the file</p>\r\n"
+            . "--b--\r\n",
+        );
+
+        $result = $this->parse($body, 'b');
+
+        Assert::count($result, 2);
+        Assert::instanceOf($result[0], File::class);
+        Assert::same($result[0]->getStream()->__toString(), 'Grüße, x = y, a=zz b, a softbreak');
+        Assert::instanceOf($result[1], Field::class);
+        Assert::same($result[1]->getValue(), '<p>After the file</p>');
+    }
+
     #[Test]
     public function parsesPartsAfterPreambleWithFoldedHeaders(): void
     {

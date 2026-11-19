@@ -9,6 +9,7 @@ use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\Part;
 use Buggregator\Trap\Server\Traffic\StreamClient;
 use Buggregator\Trap\Support\Stream\Base64DecodeFilter;
+use Buggregator\Trap\Support\Stream\QuotedPrintableDecodeFilter;
 use Buggregator\Trap\Support\Stream\SizeLimitExceeded;
 use Buggregator\Trap\Support\StreamHelper;
 use Buggregator\Trap\Support\TimeSlice;
@@ -124,7 +125,7 @@ final class Http
                 if ($part instanceof File) {
                     $writeFilters = match (\strtolower(\trim($part->getHeaderLine('Content-Transfer-Encoding')))) {
                         'base64' => [Base64DecodeFilter::FILTER_NAME],
-                        'quoted-printable' => ['convert.quoted-printable-decode'],
+                        'quoted-printable' => [QuotedPrintableDecodeFilter::FILTER_NAME],
                         default => [],
                     };
 

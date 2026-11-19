@@ -183,7 +183,7 @@ final class SymfonyMailerTest
      * Symfony Mailer encodes a non-ASCII subject as RFC 2047 words and a non-ASCII text as quoted-printable,
      * and quotes a display name holding a comma.
      */
-    #[Skip('Trap decodes neither RFC 2047 headers nor quoted-printable bodies, and splits a quoted name at its comma')]
+    #[Skip('Trap decodes no RFC 2047 subject, and splits a quoted name at its comma')]
     public function testNonAsciiMail(): void
     {
         SymfonyMailer::require();

@@ -26,7 +26,7 @@ MAIL_PORT=1025
 
 Trap decodes the text and HTML parts and the attached files from `quoted-printable` and `base64`. It converts the text
 and HTML parts to UTF-8 from the charset they declare when `ext-mbstring` or `ext-iconv` knows that charset; a part
-in a charset neither knows keeps its bytes.
+in a charset neither knows keeps its bytes, and a part with no charset is taken as UTF-8.
 
 `vendor/bin/trap test` sends two test emails, a plain and a multipart one.
 
