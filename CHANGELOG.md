@@ -1,5 +1,75 @@
 # Changelog
 
+## [1.20.0](https://github.com/buggregator/trap/compare/1.19.1...1.20.0) (2026-11-19)
+
+
+### Features
+
+* **client:** send TrapLogger records over TLS ([8f7a1e0](https://github.com/buggregator/trap/commit/8f7a1e09b76fb8b135bcee0eb3ee22ea532c5be6)), closes [#302](https://github.com/buggregator/trap/issues/302)
+* **mailer:** accept SMTP AUTH and show the credentials with each mail ([6b5e5c0](https://github.com/buggregator/trap/commit/6b5e5c09248109607a2447930410ef9eb3531162))
+* **mailer:** support STARTTLS in SMTP sessions ([88ffb33](https://github.com/buggregator/trap/commit/88ffb33df5ef341cbba2fe53a8b7fad2eb862f7a)), closes [#302](https://github.com/buggregator/trap/issues/302)
+* **mcp:** delete events by id with `delete_event` ([3c8360f](https://github.com/buggregator/trap/commit/3c8360ffb960545be5c50507cba92c74011e671a))
+* **mcp:** filter events and traces by time, text and fields ([#307](https://github.com/buggregator/trap/issues/307)) ([e3dafad](https://github.com/buggregator/trap/commit/e3dafade1eb1b701a7a314e535e1a6521d29c3d3))
+* **mcp:** require a Bearer token with `TRAP_MCP_TOKEN` ([#311](https://github.com/buggregator/trap/issues/311)) ([8bebab6](https://github.com/buggregator/trap/commit/8bebab6de7327219eb909620bd686d03bc990459))
+* **mcp:** return structured content with output schemas ([4e4b698](https://github.com/buggregator/trap/commit/4e4b6981a069d4ddc27e9c6e5d2ee2ad5c4aec37))
+* **mcp:** serve an MCP endpoint for AI agents with `--mcp` ([85c343a](https://github.com/buggregator/trap/commit/85c343adc6fb1afc9b280f7ed6d51c44d99aa293))
+* **mcp:** wait for events with `wait_for_events` ([#308](https://github.com/buggregator/trap/issues/308)) ([d2c28f1](https://github.com/buggregator/trap/commit/d2c28f1bf86fb21f53c224fa8caf4c73c68d56b1))
+* **profiler:** analyze profiles over MCP ([#309](https://github.com/buggregator/trap/issues/309)) ([af45a79](https://github.com/buggregator/trap/commit/af45a7916354654debba4bd967ee10b50b7107ed))
+* **sentry:** show Sentry events to agents and delete events by id ([#310](https://github.com/buggregator/trap/issues/310)) ([3c8360f](https://github.com/buggregator/trap/commit/3c8360ffb960545be5c50507cba92c74011e671a))
+* **server:** accept TLS connections on the listened ports, next to plain traffic ([f403472](https://github.com/buggregator/trap/commit/f4034729994b3e6a670d9ed4328dc6bac573ee45)), closes [#302](https://github.com/buggregator/trap/issues/302)
+* **server:** share one event buffer between the web UI and the agent ([85c343a](https://github.com/buggregator/trap/commit/85c343adc6fb1afc9b280f7ed6d51c44d99aa293))
+* ship the `trap` agent skill for llm/skills ([3d97845](https://github.com/buggregator/trap/commit/3d97845a7ff1ed42bc436366113d0b25247e2b8c)), closes [#305](https://github.com/buggregator/trap/issues/305)
+* **tracing:** filter traces by time, service, name, duration and text ([e3dafad](https://github.com/buggregator/trap/commit/e3dafade1eb1b701a7a314e535e1a6521d29c3d3))
+* **tracing:** read OpenTelemetry traces over MCP with `list_traces` and `get_trace` ([4e4b698](https://github.com/buggregator/trap/commit/4e4b6981a069d4ddc27e9c6e5d2ee2ad5c4aec37))
+
+
+### Bug Fixes
+
+* **console:** show the keys of map values in rendered headers ([#333](https://github.com/buggregator/trap/issues/333)) ([486c57a](https://github.com/buggregator/trap/commit/486c57a333f98afc17ceac5b036449880b11c785))
+* **http:** answer requests with an empty body instead of waiting for one ([#327](https://github.com/buggregator/trap/issues/327)) ([252fc8e](https://github.com/buggregator/trap/commit/252fc8e367a74348ca648bc6dee01173cd8f4a83)), closes [#315](https://github.com/buggregator/trap/issues/315)
+* **http:** decode chunked request bodies ([#350](https://github.com/buggregator/trap/issues/350)) ([545239f](https://github.com/buggregator/trap/commit/545239fbdedc7fd0a7f253500e4f9af71ba828b2))
+* **mailer:** convert mail text by iconv when mbstring can't, flush the decoding filters of attached files ([#362](https://github.com/buggregator/trap/issues/362)) ([5fdc434](https://github.com/buggregator/trap/commit/5fdc434e5caa97bbab468b77bf0cd56d396b9649))
+* **mailer:** decode encoded headers, split address lists by quotes, merge the sender ([#361](https://github.com/buggregator/trap/issues/361)) ([8d8f4b2](https://github.com/buggregator/trap/commit/8d8f4b25e3a8dba998ddc56e6784f89e35ca62eb))
+* **mailer:** reply to every SMTP command, read verbs in any case ([8ecb241](https://github.com/buggregator/trap/commit/8ecb241f4269cd14e9046d589b1283c0f540bd67))
+* **mcp:** fail a tool call with an argument the tool doesn't declare ([#338](https://github.com/buggregator/trap/issues/338)) ([ba6ffa3](https://github.com/buggregator/trap/commit/ba6ffa364b9ba9379e2ea88cb262940cf3f39027))
+* **mcp:** stop repeating the label in var-dump summaries ([#334](https://github.com/buggregator/trap/issues/334)) ([1ea5908](https://github.com/buggregator/trap/commit/1ea5908d414d67e190f8dcd320c56edcc016be00))
+* **profiler:** cap the unfolded call tree and prune it by calls without wall time ([af45a79](https://github.com/buggregator/trap/commit/af45a7916354654debba4bd967ee10b50b7107ed))
+* **profiler:** keep the MCP profile tools linear on crafted profiles and show root branches ([af45a79](https://github.com/buggregator/trap/commit/af45a7916354654debba4bd967ee10b50b7107ed))
+* **profiler:** keep watching profiler directories after a file fails to import, and warn about it ([#335](https://github.com/buggregator/trap/issues/335)) ([66cd0b6](https://github.com/buggregator/trap/commit/66cd0b6040f5194bae5e09b94c67b47f6e3c022d))
+* **profiler:** let other fibers run while a profile is compacted and its percentages are set ([b97d529](https://github.com/buggregator/trap/commit/b97d529fc10e1446ea60e1664fc01be418f2a744))
+* **profiler:** read all-digit function names as strings ([#325](https://github.com/buggregator/trap/issues/325)) ([4856a9b](https://github.com/buggregator/trap/commit/4856a9bfd50dcf5133566a46d1d3e505cba4b39e)), closes [#317](https://github.com/buggregator/trap/issues/317)
+* **profiler:** read Xdebug profiles of code that runs fibers ([#336](https://github.com/buggregator/trap/issues/336)) ([f3e9364](https://github.com/buggregator/trap/commit/f3e936446b98a63f4581c3f482bd340e0ddb20e6))
+* **profiler:** saturate profile costs past the integer range ([#322](https://github.com/buggregator/trap/issues/322)) ([7e31714](https://github.com/buggregator/trap/commit/7e317145090f0551e55ff5e907d41e5c60783fab)), closes [#318](https://github.com/buggregator/trap/issues/318)
+* **profiler:** stop the hot path walk on call graph cycles ([af45a79](https://github.com/buggregator/trap/commit/af45a7916354654debba4bd967ee10b50b7107ed))
+* **sentry:** read a single exception with only a value and skip objects of other keys in the MCP view ([a749459](https://github.com/buggregator/trap/commit/a749459eededd7341a0c2dc7329fcb4a00364692))
+* **server:** read queued chunks of a line without waiting for new data ([#355](https://github.com/buggregator/trap/issues/355)) ([0d27d3c](https://github.com/buggregator/trap/commit/0d27d3c04313f9fe583645d413761f2574ff9194)), closes [#352](https://github.com/buggregator/trap/issues/352)
+* **server:** stop taking requests read late by a busy server for SMTP ([#337](https://github.com/buggregator/trap/issues/337)) ([b97d529](https://github.com/buggregator/trap/commit/b97d529fc10e1446ea60e1664fc01be418f2a744))
+* **server:** treat a peer closing the connection as a disconnect, not a read error ([d2c28f1](https://github.com/buggregator/trap/commit/d2c28f1bf86fb21f53c224fa8caf4c73c68d56b1))
+* **smtp:** attach text parts that are not a message body, like a `text/calendar` invitation ([e8f7e22](https://github.com/buggregator/trap/commit/e8f7e224621acce383b98a64dfa6c24418d066f6))
+* **smtp:** decode a quoted-printable text part turned into an attachment ([e8f7e22](https://github.com/buggregator/trap/commit/e8f7e224621acce383b98a64dfa6c24418d066f6))
+* **smtp:** decode the transfer encoding of email text bodies ([#354](https://github.com/buggregator/trap/issues/354)) ([3f82dd6](https://github.com/buggregator/trap/commit/3f82dd6cc9743280e64629e662e41319ae523128))
+* **smtp:** detect an embedded file by an `inline` disposition or `image/` type in any case ([3f82dd6](https://github.com/buggregator/trap/commit/3f82dd6cc9743280e64629e662e41319ae523128))
+* **smtp:** end mail data at the dot line only ([#349](https://github.com/buggregator/trap/issues/349)) ([4057413](https://github.com/buggregator/trap/commit/4057413acbcb47be0510be3613cba3c8cedbf042))
+* **smtp:** keep a single-part body that is not text as an attachment ([3f82dd6](https://github.com/buggregator/trap/commit/3f82dd6cc9743280e64629e662e41319ae523128))
+* **smtp:** parse nested multipart emails ([#351](https://github.com/buggregator/trap/issues/351)) ([e8f7e22](https://github.com/buggregator/trap/commit/e8f7e224621acce383b98a64dfa6c24418d066f6))
+
+
+### Performance Improvements
+
+* **tracing:** collect the shown children of a parent once per console frame ([#347](https://github.com/buggregator/trap/issues/347)) ([a864c68](https://github.com/buggregator/trap/commit/a864c6866073422cdf8a597e76b2448960a74fda))
+
+
+### Documentation
+
+* add AGENTS.md with the starting context for agents ([3e69a25](https://github.com/buggregator/trap/commit/3e69a255d7eebfaf4b1f9a8131f77ef198aa2ef4))
+* describe the `trap` agent skill and its installation with llm/skills ([f05c655](https://github.com/buggregator/trap/commit/f05c65530b41813042b9f9fbf43648fb672480d3))
+* describe TLS on the listened ports and its certificates ([19b6144](https://github.com/buggregator/trap/commit/19b61449f97891d3cb86dd5b17a221c73df31ec6)), closes [#302](https://github.com/buggregator/trap/issues/302)
+* describe waiting for events over MCP ([d2c28f1](https://github.com/buggregator/trap/commit/d2c28f1bf86fb21f53c224fa8caf4c73c68d56b1))
+* introduce the agent skill in the README ([94d7eb0](https://github.com/buggregator/trap/commit/94d7eb02ed4beb8712270096c879b11f327b1910))
+* introduce the MCP server in the README ([1741de4](https://github.com/buggregator/trap/commit/1741de475369bb552fc0bab4b32274b8d6a28130))
+* **mcp:** fix markdownlint errors in `docs/mcp.md` ([ef70faf](https://github.com/buggregator/trap/commit/ef70faf31afd942f7bc01a805c06dd7bc79d8ea9))
+* **skill:** tell agents about TLS on the ports, its certificate and the plain-only dumps ([4a18bc2](https://github.com/buggregator/trap/commit/4a18bc2ea4ed11d4487bba049830676eeaa2e61b))
+
 ## [1.19.1](https://github.com/buggregator/trap/compare/1.19.0...1.19.1) (2026-11-18)
 
 
