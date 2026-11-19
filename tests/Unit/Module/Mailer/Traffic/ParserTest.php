@@ -12,7 +12,10 @@ use Buggregator\Trap\Test\Mock\StreamClientMock;
 use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Testo\Assert;
 use Testo\Codecov\Covers;
+use Testo\Data\DataCross;
 use Testo\Data\DataProvider;
+use Testo\Data\DataSet;
+use Testo\Data\DataUnion;
 use Testo\Test;
 
 #[Covers(Parser::class)]
@@ -38,15 +41,16 @@ final class ParserTest
         $html = ['text/html', 'Hello from the <b>HTML</b> part.'];
         $pdf = ['report.pdf', 'application/pdf', null, 77];
 
+        // Quoted-printable splits the `cid:` link with a soft line break and encodes `=` as `=3D`
         yield 'Symfony Mailer: mixed > related > alternative' => [
             'symfony-mixed-related-alternative.eml',
-            [$plain, $html],
+            [$plain, ['text/html', '<img src="cid:92fd177dacc4e60bbdcdd851b24be016@symfony">']],
             [['logo', 'image/png', '92fd177dacc4e60bbdcdd851b24be016@symfony', 70], $pdf],
         ];
         yield 'Symfony Mailer: alternative' => ['symfony-alternative.eml', [$plain, $html], []];
         yield 'Symfony Mailer: related without alternative' => [
             'symfony-related.eml',
-            [$html],
+            [['text/html', '<img src="cid:a494a0178b1158463e93077436c5493f@symfony">']],
             [['logo', 'image/png', 'a494a0178b1158463e93077436c5493f@symfony', 70]],
         ];
         yield 'Thunderbird: preamble, folded headers, mixed > alternative > related, non-ASCII file name' => [
@@ -60,7 +64,7 @@ final class ParserTest
         ];
         yield 'Outlook: mixed > related > alternative' => [
             'outlook.eml',
-            [$plain, $html],
+            [$plain, ['text/html', '<p class="MsoNormal"><img width="1" height="1"']],
             [['image001.png', 'image/png', 'image001.png@01DB3A7C.5E2F1B30', 70], $pdf],
         ];
         yield 'Gmail: attachments with a Content-ID' => [
@@ -92,6 +96,41 @@ final class ParserTest
             [['text/plain', 'The original email is attached.']],
             [['original.eml', 'message/rfc822', null, 373]],
         ];
+    }
+
+    /**
+     * `[Content-Type, Content-Transfer-Encoding or null, encoded body, decoded UTF-8 text]`.
+     */
+    public static function provideEncodedTexts(): iterable
+    {
+        yield 'quoted-printable: soft line break and =3D' => [
+            'text/html; charset=utf-8',
+            'quoted-printable',
+            "<img src=3D\"cid:92fd177dacc4=\r\ne60bbdcd@symfony\">\r\nnext line",
+            "<img src=\"cid:92fd177dacc4e60bbdcd@symfony\">\r\nnext line",
+        ];
+        yield 'quoted-printable: lowercase hex' => ['text/plain; charset=utf-8', 'quoted-printable', 'caf=c3=a9', 'café'];
+        yield 'quoted-printable: encoding name in odd case' => ['text/plain', 'Quoted-Printable', 'a=3Db', 'a=b'];
+        yield 'base64: lines of 76 characters' => [
+            'text/html; charset=UTF-8',
+            'base64',
+            \chunk_split(\base64_encode(\str_repeat('<p>Привет, мир!</p>', 5)), 76, "\r\n"),
+            \str_repeat('<p>Привет, мир!</p>', 5),
+        ];
+        yield 'base64: encoding name in upper case' => ['text/plain', ' BASE64 ', \base64_encode('decoded'), 'decoded'];
+        yield 'charset: iso-8859-1, quoted-printable' => ['text/plain; charset=iso-8859-1', 'quoted-printable', 'caf=E9', 'café'];
+        yield 'charset: quoted windows-1251, base64' => [
+            'text/plain; charset="windows-1251"',
+            'base64',
+            \base64_encode("\xCF\xF0\xE8\xE2\xE5\xF2"),
+            'Привет',
+        ];
+        yield 'charset: KOI8-R, 8bit' => ['text/plain; charset=KOI8-R', '8bit', "\xF0\xD2\xC9\xD7\xC5\xD4", 'Привет'];
+        yield 'charset: unknown keeps the bytes' => ['text/plain; charset=x-unknown', '8bit', "caf\xE9", "caf\xE9"];
+        yield '7bit: untouched' => ['text/plain; charset=us-ascii', '7bit', 'a=3Db', 'a=3Db'];
+        yield '8bit: untouched' => ['text/plain; charset=utf-8', '8bit', 'café =3D', 'café =3D'];
+        yield 'no Content-Transfer-Encoding: untouched' => ['text/plain', null, 'a=3Db', 'a=3Db'];
+        yield 'unknown Content-Transfer-Encoding: untouched' => ['text/plain', 'x-uuencode', 'a=3Db', 'a=3Db'];
     }
 
     #[DataProvider('provideHeaders')]
@@ -335,6 +374,34 @@ final class ParserTest
             (string) $message->getAttachments()[0]->getStream(),
             'DESCRIPTION:a=b and a long line that the client breaks',
         );
+    }
+
+    #[DataCross(
+        new DataProvider('provideEncodedTexts'),
+        new DataUnion(
+            new DataSet([false], 'single-part message'),
+            new DataSet([true], 'part of a multipart message'),
+        ),
+    )]
+    #[Test]
+    public function decodesTextBody(
+        string $contentType,
+        ?string $encoding,
+        string $encoded,
+        string $decoded,
+        bool $multipart,
+    ): void {
+        $headers = "Content-Type: {$contentType}\r\n";
+        $encoding === null or $headers .= "Content-Transfer-Encoding: {$encoding}\r\n";
+        $email = $multipart
+            ? "Content-Type: multipart/alternative; boundary=o\r\n\r\n--o\r\n{$headers}\r\n{$encoded}\r\n--o--\r\n"
+            : "{$headers}\r\n{$encoded}\r\n";
+
+        $message = $this->parse(\str_split($email . ".\r\n", 10));
+
+        Assert::count($message->getMessages(), 1);
+        Assert::same($message->getMessages()[0]->getValue(), $decoded);
+        Assert::same(\rtrim((string) $message->getBody(), ".\r\n"), \rtrim($email, "\r\n"));
     }
 
     #[Test]

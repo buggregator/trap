@@ -14,7 +14,6 @@ use Buggregator\Trap\Support\TimeSlice;
 use Psr\Http\Message\StreamInterface;
 
 /**
- * Todo: parse and decrypt `Content-Transfer-Encoding: base64`, `Content-Transfer-Encoding: 7bit`
  * @internal
  */
 final class Parser
@@ -123,6 +122,44 @@ final class Parser
     }
 
     /**
+     * A message body decoded from its transfer encoding and converted to UTF-8 from its charset:
+     * the console and the web UI show text as is, and the event JSON takes UTF-8 only.
+     * The bytes stay as they are in an unknown charset.
+     */
+    private static function decodeText(string $value, string $contentType, string $encoding): string
+    {
+        $value = self::decodeTransfer($value, $encoding);
+        if (\preg_match('/;\\s*charset=(?:"([^"]*+)"|([^\\s;"]++))/i', $contentType, $matches) !== 1) {
+            return $value;
+        }
+
+        $charset = $matches[1] ?: $matches[2];
+        if ($charset === '' || \strcasecmp($charset, 'UTF-8') === 0 || \strcasecmp($charset, 'US-ASCII') === 0) {
+            return $value;
+        }
+
+        try {
+            $converted = \mb_convert_encoding($value, 'UTF-8', $charset);
+        } catch (\ValueError) {
+            return $value;
+        }
+
+        return \is_string($converted) ? $converted : $value;
+    }
+
+    /**
+     * Content decoded from `base64` or `quoted-printable`; `7bit`, `8bit` and `binary` content is not encoded.
+     */
+    private static function decodeTransfer(string $value, string $encoding): string
+    {
+        return match (\strtolower(\trim($encoding))) {
+            'base64' => \base64_decode($value),
+            'quoted-printable' => \quoted_printable_decode($value),
+            default => $value,
+        };
+    }
+
+    /**
      * Writes the mail data into the file stream up to the end-of-data line, a single dot, undoing dot-stuffing.
      *
      * Data the client sends after that line in the same read is dropped: the server doesn't announce
@@ -179,7 +216,11 @@ final class Parser
         /** @psalm-suppress InvalidArgument */
         $body = new Field(
             headers: \array_intersect_key($message->getHeaders(), ['Content-Type' => true]),
-            value: $content,
+            value: self::decodeText(
+                $content,
+                $message->getHeaderLine('Content-Type'),
+                $message->getHeaderLine('Content-Transfer-Encoding'),
+            ),
         );
 
         return $message->withMessages([$body]);
@@ -219,7 +260,11 @@ final class Parser
                 // A part without a Content-Type is text/plain
                 $type = $part->getHeaderLine('Content-Type');
                 $type === '' || \preg_match('/^\\s*text\\/(?:plain|html|watch-html)\\b/i', $type) === 1
-                    ? $texts[] = $part
+                    ? $texts[] = $part->withValue(self::decodeText(
+                        $part->getValue(),
+                        $type,
+                        $part->getHeaderLine('Content-Transfer-Encoding'),
+                    ))
                     : $attachments[] = $this->textToFile($part);
                 continue;
             }
@@ -256,12 +301,7 @@ final class Parser
                 default => 'attachment.txt',
             };
 
-        $value = $part->getValue();
-        $value = match (\strtolower(\trim($part->getHeaderLine('Content-Transfer-Encoding')))) {
-            'base64' => \base64_decode($value),
-            'quoted-printable' => \quoted_printable_decode($value),
-            default => $value,
-        };
+        $value = self::decodeTransfer($part->getValue(), $part->getHeaderLine('Content-Transfer-Encoding'));
 
         $stream = StreamHelper::createFileStream();
         $stream->write($value);
