@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Mcp\Tool;
 
 use Buggregator\Trap\Module\Mcp\Tool\Arguments;
 use Testo\Assert;
+use Testo\Assert\ExpectNoAssertions;
 use Testo\Codecov\Covers;
 use Testo\Data\DataSet;
 use Testo\Expect;
@@ -108,5 +109,27 @@ final class ArgumentsTest
         Expect::exception(\InvalidArgumentException::class)->withMessage('`regex` must be a boolean.');
 
         Arguments::boolean(['regex' => 1], 'regex');
+    }
+
+    #[DataSet([['id' => 'a', 'limit' => 1], ['properties' => ['id' => [], 'limit' => []], 'additionalProperties' => false]], 'declared')]
+    #[DataSet([[], ['properties' => new \stdClass(), 'additionalProperties' => false]], 'none of none')]
+    #[DataSet([['other' => 1], ['properties' => ['id' => []]]], 'others allowed by default')]
+    #[DataSet([['other' => 1], ['properties' => ['id' => []], 'additionalProperties' => true]], 'others allowed')]
+    #[DataSet([['other' => 1], ['properties' => ['id' => []], 'additionalProperties' => ['type' => 'string']]], 'others of a schema')]
+    #[ExpectNoAssertions]
+    public function testDeclared(array $arguments, array $schema): void
+    {
+        Arguments::declared($arguments, $schema, 'tool');
+    }
+
+    #[DataSet([['idd' => 'a'], ['properties' => ['id' => []], 'additionalProperties' => false], 'Unknown argument `idd`; `tool` takes: `id`.'], 'one')]
+    #[DataSet([['id' => 'a', 'b' => 1, 7 => 2], ['properties' => ['id' => [], 'limit' => []], 'additionalProperties' => false], 'Unknown arguments `b`, `7`; `tool` takes: `id`, `limit`.'], 'several')]
+    #[DataSet([['id' => 'a'], ['properties' => new \stdClass(), 'additionalProperties' => false], 'Unknown argument `id`; `tool` takes no arguments.'], 'no properties')]
+    #[DataSet([['id' => 'a'], ['additionalProperties' => false], 'Unknown argument `id`; `tool` takes no arguments.'], 'properties missing')]
+    public function testDeclaredRejects(array $arguments, array $schema, string $message): never
+    {
+        Expect::exception(\InvalidArgumentException::class)->withMessage($message);
+
+        Arguments::declared($arguments, $schema, 'tool');
     }
 }

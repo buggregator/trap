@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Module\Mcp\Protocol;
 
 use Buggregator\Trap\Module\Mcp\McpStatus;
 use Buggregator\Trap\Module\Mcp\Tool;
+use Buggregator\Trap\Module\Mcp\Tool\Arguments;
 use Buggregator\Trap\Module\Mcp\Tools;
 use Buggregator\Trap\Module\Mcp\WaitingTool;
 use Buggregator\Trap\Server\Info;
@@ -153,6 +154,7 @@ final class McpServer
 
         $this->status->toolCalled();
         try {
+            Arguments::declared($arguments, $tool->inputSchema(), $name);
             $result = $tool->call($arguments);
             if (\is_string($result)) {
                 return self::result($result);
