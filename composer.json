@@ -77,6 +77,7 @@
     },
     "suggest": {
         "ext-excimer": "To profile code with trap()::profile() using the Excimer sampling profiler",
+        "ext-openssl": "To accept TLS connections (HTTPS, SMTPS, STARTTLS) and to connect over TLS",
         "ext-simplexml": "To load trap.xml",
         "ext-spx": "To profile code with trap()::profile() using the SPX profiler",
         "ext-tideways_xhprof": "To profile code with trap()::profile() using XHProf",
