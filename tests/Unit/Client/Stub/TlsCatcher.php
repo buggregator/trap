@@ -27,7 +27,6 @@ final class TlsCatcher
             echo base64_encode((string) $line), "\n";
         }
         PHP;
-
     private const OPENSSL_CONFIG = <<<'INI'
         [req]
         distinguished_name = dn
