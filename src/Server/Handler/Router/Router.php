@@ -33,12 +33,6 @@ final class Router
     {
         $index = \array_fill_keys(\array_column(Method::cases(), 'value'), []);
         foreach ($routes as $route) {
-            $route instanceof RouteAttribute or throw new \InvalidArgumentException(\sprintf(
-                'Routes expected to be `%s` instances, `%s` given.',
-                RouteAttribute::class,
-                $route::class,
-            ));
-
             $index[$route->method->value][] = new RouteDto(
                 method: $method,
                 route: $route,
@@ -51,12 +45,6 @@ final class Router
         $fails = [];
         $mockMethod = new \ReflectionMethod(self::class, 'doNothing');
         foreach ($assertions as $assertion) {
-            $assertion instanceof AssertAttribute or throw new \InvalidArgumentException(\sprintf(
-                'Assertions expected to be `%s` instances, `%s` given.',
-                AssertAttribute::class,
-                $assertion::class,
-            ));
-
             try {
                 $handler = $self->match($assertion->method, $assertion->path, $mockMethod);
             } catch (\Throwable $e) {

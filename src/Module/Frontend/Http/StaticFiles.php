@@ -87,7 +87,7 @@ final class StaticFiles implements Middleware
                     'Date' => [\gmdate('D, d M Y H:i:s T')],
                     'Cache-Control' => ['max-age=604801'],
                     'Accept-Ranges' => ['none'],
-                    'ETag' => [$cacheHash[$file] ??= \sha1($cacheContent[$file])],
+                    'ETag' => [$cacheHash[$file] ??= \hash('xxh128', $cacheContent[$file])],
                 ] + $headers,
                 $cacheContent[$file],
             );

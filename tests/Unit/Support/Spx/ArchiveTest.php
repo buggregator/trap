@@ -165,7 +165,7 @@ final class ArchiveTest
 
         $archive = Archive::pack([$name => '{}']);
 
-        Assert::same(\rtrim(\substr($archive, 0, 100), "\0"), 'PaxHeader/' . \md5($name));
+        Assert::same(\rtrim(\substr($archive, 0, 100), "\0"), 'PaxHeader/' . \hash('xxh128', $name));
         Assert::same($archive[156], 'x');
         Assert::same(\substr($archive, 512, 135), "135 path=$name\n");
         Assert::same(\rtrim(\substr($archive, 1024, 100), "\0"), \substr($name, 0, 100));

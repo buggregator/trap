@@ -172,7 +172,7 @@ final class TrapHandle
     public function times(int $times, bool $fullStack = false): self
     {
         $this->times = $times;
-        $this->timesCounterKey = \sha1(\serialize(
+        $this->timesCounterKey = \hash('xxh128', \serialize(
             $fullStack
                 ? $this->staticState->stackTrace
                 : $this->staticState->stackTrace[0],

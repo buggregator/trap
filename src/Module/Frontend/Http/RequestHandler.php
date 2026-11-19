@@ -38,6 +38,7 @@ final class RequestHandler implements RequestHandlernterace
 
         // Calculate the accept key for the handshake
         $key = $request->getHeaderLine('Sec-WebSocket-Key');
+        /** @psalm-suppress WeakHash RFC 6455 defines the accept key as SHA-1; a client rejects any other */
         $accept = \base64_encode(\sha1($key . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11', true));
 
         // Prepare the response for the handshake
