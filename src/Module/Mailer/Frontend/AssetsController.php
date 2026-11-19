@@ -47,7 +47,7 @@ final class AssetsController
         return new Response(
             200,
             [
-                'Content-Type' => 'text/html',
+                'Content-Type' => 'text/html; charset=utf-8',
                 'Cache-Control' => 'no-cache',
             ],
             $html,

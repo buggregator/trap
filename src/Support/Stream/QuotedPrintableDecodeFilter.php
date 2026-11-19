@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Support\Stream;
 
 /**
- * Decodes quoted-printable and never fails: a malformed escape stays as written. PHP's own
- * `convert.quoted-printable-decode` fails the write on one, losing the data written after it.
+ * Decodes quoted-printable data as {@see quoted_printable_decode()} does: malformed sequences stay as they are.
  *
- * Whitespace between a soft line break `=` and its line break is skipped, as RFC 2045 asks.
+ * Not the built-in `convert.quoted-printable-decode` filter: it drops the data and warns on a malformed sequence.
  *
  * @internal
  * @psalm-internal Buggregator\Trap
@@ -37,9 +36,17 @@ final class QuotedPrintableDecodeFilter extends \php_user_filter
             $consumed += $dataLen;
 
             $this->buffer .= $data;
-            $tail = $closing ? 0 : self::incompleteTail($this->buffer);
-            $bucket->data = \quoted_printable_decode(\substr($this->buffer, 0, \strlen($this->buffer) - $tail));
-            $this->buffer = \substr($this->buffer, \strlen($this->buffer) - $tail);
+            $length = \strlen($this->buffer);
+            // The end may start an escape or a soft line break, `=` padded with spaces, that the next data ends;
+            // an `=` before them is decoded by what follows it too. A line is at most 76 characters,
+            // which bounds the held tail.
+            $window = \substr($this->buffer, -80);
+            $tail = !$closing
+                && \preg_match('/=+(?:[ \\t]{0,76}\\r?|[0-9A-Fa-f])\\z/', $window, $matches, \PREG_OFFSET_CAPTURE) === 1
+                ? \strlen($window) - $matches[0][1]
+                : 0;
+            $bucket->data = \quoted_printable_decode(\substr($this->buffer, 0, $length - $tail));
+            $this->buffer = \substr($this->buffer, $length - $tail);
 
             \stream_bucket_append($out, $bucket);
         }
@@ -51,20 +58,5 @@ final class QuotedPrintableDecodeFilter extends \php_user_filter
         }
 
         return PSFS_PASS_ON;
-    }
-
-    /**
-     * @return int<0, max> Length of the trailing `=`, `=X`, or `=` with whitespace and a CR, that the next data
-     *         may complete into an escape or a soft line break.
-     */
-    private static function incompleteTail(string $data): int
-    {
-        $at = \strrpos($data, '=');
-        if ($at === false) {
-            return 0;
-        }
-
-        $tail = \substr($data, $at + 1);
-        return \preg_match('/^(?:[0-9A-Fa-f]?|[ \\t]*+\\r?)$/', $tail) === 1 ? \strlen($tail) + 1 : 0;
     }
 }

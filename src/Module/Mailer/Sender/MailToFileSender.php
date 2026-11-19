@@ -10,6 +10,7 @@ use Buggregator\Trap\Module\Mailer\Message;
 use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Server\Sender;
 use Buggregator\Trap\Support\FileSystem;
+use Buggregator\Trap\Support\Json;
 
 /**
  * @internal
@@ -40,10 +41,7 @@ class MailToFileSender implements Sender
                 $filepath = \sprintf("%s/%s.json", $path, $frame->time->format('Y-m-d-H-i-s-v'));
 
                 \assert(!\file_exists($filepath));
-                \file_put_contents($filepath, \json_encode(
-                    $frame->message,
-                    \JSON_PRETTY_PRINT | \JSON_THROW_ON_ERROR | \JSON_INVALID_UTF8_SUBSTITUTE,
-                ));
+                \file_put_contents($filepath, Json::encode($frame->message, \JSON_PRETTY_PRINT));
             }
         }
     }

@@ -133,7 +133,7 @@ final class UiControllersTest
         $file = self::get($container, "/api/smtp/{$event->uuid}/attachment/{$attachId}");
 
         Assert::same($html->getStatusCode(), 200);
-        Assert::same($html->getHeaderLine('Content-Type'), 'text/html');
+        Assert::same($html->getHeaderLine('Content-Type'), 'text/html; charset=utf-8');
         Assert::same((string) $html->getBody(), '<p>hi</p>');
         Assert::same($file->getStatusCode(), 200);
         Assert::same($file->getHeaderLine('Content-Disposition'), 'attachment; filename="doc.pdf"');

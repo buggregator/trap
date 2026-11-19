@@ -20,6 +20,9 @@ final class PartTest
     {
         yield 'form field' => [['Content-Disposition' => ['form-data; name="title"']], Field::class, null];
         yield 'inline text' => [['Content-Type' => ['text/plain'], 'Content-Disposition' => ['inline']], Field::class, null];
+        yield 'text type in upper case' => [['Content-Type' => ['TEXT/PLAIN; charset=US-ASCII']], Field::class, null];
+        yield 'text type in mixed case' => [['Content-Type' => [' Text/Html']], Field::class, null];
+        yield 'text/ inside another type' => [['Content-Type' => ['application/x-text/plain']], File::class, null];
         yield 'text attachment without a file name' => [
             ['Content-Type' => ['text/plain'], 'Content-Disposition' => ['attachment']],
             File::class,

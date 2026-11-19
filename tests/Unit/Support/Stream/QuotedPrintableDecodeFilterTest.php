@@ -16,24 +16,11 @@ use Testo\Test;
 #[Covers(QuotedPrintableDecodeFilter::class)]
 final class QuotedPrintableDecodeFilterTest
 {
-    /**
-     * Chunks as written, then the decoded data.
-     */
-    public static function provideChunks(): iterable
-    {
-        yield 'split inside an escape after `=`' => [['Gr=', 'C3=BC=C3=9Fe'], 'Grüße'];
-        yield 'split inside an escape after its first digit' => [['Gr=C', '3=BC=C3=9Fe'], 'Grüße'];
-        yield 'split between `=` and CRLF' => [["soft=", "\r\nbreak"], 'softbreak'];
-        yield 'split between CR and LF of a soft line break' => [["soft=\r", "\nbreak"], 'softbreak'];
-        yield 'split between `=` and LF' => [["soft=", "\nbreak"], 'softbreak'];
-        yield 'whitespace after a soft line break, split inside it' => [["soft= ", "\t\r\nbreak"], 'softbreak'];
-        yield 'a hard line break stays' => [["line\r", "\nnext"], "line\r\nnext"];
-        yield 'escaped `=` before a split' => [['a=3D', 'b'], 'a=b'];
-    }
+    private const ENCODED = "a=3Db caf=C3=a9 soft=\r\nbreak\r\nLF soft=\nbreak, malformed a=ZZb and price = 5. End=3D";
 
     public static function chunkSizes(): iterable
     {
-        foreach ([1, 2, 3, 5, 7, 13, 77] as $size) {
+        foreach ([1, 2, 3, 4, 5, 7, 13, 1000] as $size) {
             yield "chunks of $size bytes" => [$size];
         }
     }
@@ -43,31 +30,45 @@ final class QuotedPrintableDecodeFilterTest
         Assert::contains(\stream_get_filters(), QuotedPrintableDecodeFilter::FILTER_NAME);
     }
 
-    #[DataProvider('provideChunks')]
-    public function decodesAcrossChunks(array $chunks, string $decoded): void
-    {
-        Assert::same(self::write($chunks), $decoded);
-    }
-
     #[DataProvider('chunkSizes')]
     public function decodesChunkedAtAnyBoundary(int $size): void
     {
-        $source = \str_repeat("Grüße = Привет, a line long enough for soft line breaks.\r\n", 20);
-        $encoded = \quoted_printable_encode($source);
+        $stream = StreamHelper::createFileStream(writeFilters: [QuotedPrintableDecodeFilter::FILTER_NAME]);
 
-        Assert::same(self::write(\str_split($encoded, $size)), $source);
+        foreach (\str_split(self::ENCODED, $size) as $chunk) {
+            $stream->write($chunk);
+        }
+
+        Assert::same((string) $stream, \quoted_printable_decode(self::ENCODED));
     }
 
-    #[DataSet(['x = y', 'x = y'], 'a lone `=`')]
-    #[DataSet(['a=zz b', 'a=zz b'], 'not a hex escape')]
-    #[DataSet(["abc= \r\ndef", 'abcdef'], 'whitespace after a soft line break')]
-    public function keepsMalformedData(string $encoded, string $decoded): void
+    #[DataSet(["trail=  \r\nsoft ws"], 'spaces before CRLF')]
+    #[DataSet(["tab=\t \r\nnext=\t\r\nend"], 'tabs and spaces before CRLF')]
+    #[DataSet(["pad= \nnext"], 'space before LF')]
+    #[DataSet(["a=3Db=  \r\n=C3=A9 =\r\n"], 'escapes around a padded soft line break')]
+    #[DataSet(['a==3Db'], 'equals sign before an escape')]
+    #[DataSet(["==\r\n="], 'equals sign before a soft line break')]
+    public function decodesSoftLineBreakPaddedWithSpacesSplitAnywhere(string $encoded): void
     {
-        Assert::same(self::write([$encoded, ' end']), "$decoded end");
+        $expected = \quoted_printable_decode($encoded);
+        $length = \strlen($encoded);
+        for ($i = 1; $i < $length; ++$i) {
+            for ($j = $i; $j < $length; ++$j) {
+                // Two chunks when `$j === $i`
+                $chunks = [\substr($encoded, 0, $i), \substr($encoded, $i, $j - $i), \substr($encoded, $j)];
+                $stream = StreamHelper::createFileStream(writeFilters: [QuotedPrintableDecodeFilter::FILTER_NAME]);
+                foreach ($chunks as $chunk) {
+                    $chunk === '' or $stream->write($chunk);
+                }
+
+                Assert::same((string) $stream, $expected, "split at $i and $j");
+            }
+        }
     }
 
-    #[DataSet(["a=3D\r\nb=C3=BC"], 'complete')]
-    #[DataSet(["a=3D\r\nb=C3=BC="], 'with a trailing soft line break')]
+    #[DataSet(['x=3D'], 'escape')]
+    #[DataSet(['x='], 'soft line break without a line end')]
+    #[DataSet(['x=3'], 'cut escape')]
     public function decodesTheLastDataWithTheClosingCall(string $encoded): void
     {
         // A temp stream passes the last data in the same filter call that closes it
@@ -75,19 +76,6 @@ final class QuotedPrintableDecodeFilterTest
         $stream->write($encoded);
         $stream->rewind();
 
-        Assert::same($stream->getContents(), "a=\r\nbü");
-    }
-
-    /**
-     * @param list<string> $chunks
-     */
-    private static function write(array $chunks): string
-    {
-        $stream = StreamHelper::createFileStream(writeFilters: [QuotedPrintableDecodeFilter::FILTER_NAME]);
-        foreach ($chunks as $chunk) {
-            $stream->write($chunk);
-        }
-
-        return (string) $stream;
+        Assert::same($stream->getContents(), \quoted_printable_decode($encoded));
     }
 }

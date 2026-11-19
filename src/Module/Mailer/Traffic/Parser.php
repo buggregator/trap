@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Module\Mailer\Traffic;
 use Buggregator\Trap\Module\Mailer\Message;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
+use Buggregator\Trap\Server\Traffic\Message\Multipart\Part;
 use Buggregator\Trap\Server\Traffic\Parser\Http;
 use Buggregator\Trap\Server\Traffic\StreamClient;
 use Buggregator\Trap\Support\StreamHelper;
@@ -99,7 +100,7 @@ final class Parser
         // Message's body must be seeked to the beginning of the body.
         $fileStream->seek(-$stored, \SEEK_CUR);
 
-        $message = \str_contains($message->getHeaderLine('Content-Type'), 'multipart/')
+        $message = \stripos($message->getHeaderLine('Content-Type'), 'multipart/') !== false
             ? $this->processMultipartForm($message, $fileStream)
             : $this->processSingleBody($message, $fileStream);
 
@@ -140,97 +141,63 @@ final class Parser
         return \strlen($data);
     }
 
-    private static function isBodyText(Field $part): bool
-    {
-        // A part without a Content-Type is text/plain
-        $type = $part->getHeaderLine('Content-Type');
-        return $type === '' || \preg_match('/^\\s*text\\/(?:plain|html|watch-html)\\b/i', $type) === 1;
-    }
-
     /**
-     * Decodes a message body by its `Content-Transfer-Encoding` and converts it to UTF-8 from its charset.
-     *
-     * The headers of the result describe the decoded value: the decoded transfer encoding is dropped
-     * and a converted charset becomes UTF-8, so a consumer of the stored message doesn't decode it twice.
+     * A message body decoded from its transfer encoding and converted to UTF-8 from its charset:
+     * the console and the web UI show text as is, and the event JSON takes UTF-8 only.
+     * The bytes stay as they are in an unknown charset.
      */
-    private static function decodeText(Field $part): Field
+    private static function decodeText(Field $part): string
     {
         $value = self::decodeTransfer($part->getValue(), $part->getHeaderLine('Content-Transfer-Encoding'));
-        $value === null or $part = $part->withValue($value)->withoutHeader('Content-Transfer-Encoding');
-
-        $contentType = $part->getHeaderLine('Content-Type');
-        $charset = self::findCharset($contentType);
-        $converted = $charset === null ? null : self::toUtf8($part->getValue(), $charset[0]);
-        if ($charset === null || $converted === null) {
-            return $part;
+        $charset = \strtolower(self::findCharset($part->getHeaderLine('Content-Type')) ?? '');
+        // mbstring takes a comma-separated list for detecting the charset
+        if (\in_array($charset, self::NO_CONVERSION, true)
+            || isset(self::NOT_CHARSETS[$charset])
+            || \str_contains($charset, ',')
+        ) {
+            return $value;
         }
 
-        return $part->withValue($converted)->withHeader(
-            'Content-Type',
-            \substr_replace($contentType, '; charset=utf-8', $charset[1], $charset[2]),
-        );
+        // Names mail clients write for charsets mbstring knows by another name
+        $charset = match ($charset) {
+            'ks_c_5601-1987' => 'UHC',
+            'iso-8859-8-i' => 'ISO-8859-8',
+            default => $charset,
+        };
+
+        return self::toUtf8($value, $charset) ?? $value;
     }
 
     /**
      * Finds the `charset` parameter of a Content-Type, stepping over the quoted values of other parameters.
      *
-     * @return array{string, int<0, max>, int<0, max>}|null The charset unquoted, the offset and the length
-     *         of the whole parameter with its leading `;`.
+     * @return string|null The charset unquoted, or null if there is none.
      */
-    private static function findCharset(string $contentType): ?array
+    private static function findCharset(string $contentType): ?string
     {
         \preg_match_all(
             '/;\\s*+([^\\s=;"]++)\\s*+=\\s*+("(?:[^"\\\\]|\\\\.)*+"|[^;"]*+)/',
             $contentType,
             $params,
-            \PREG_SET_ORDER | \PREG_OFFSET_CAPTURE,
+            \PREG_SET_ORDER,
         );
 
         foreach ($params as $param) {
-            if (\strcasecmp($param[1][0], 'charset') !== 0) {
-                continue;
+            if (\strcasecmp($param[1], 'charset') === 0) {
+                return \trim(\rtrim($param[2]), "\"'");
             }
-
-            $value = \trim(\rtrim($param[2][0]), "\"'");
-            $length = \strlen(\rtrim($param[0][0]));
-            /** @var int<0, max> $offset */
-            $offset = $param[0][1];
-            return [$value, $offset, $length];
         }
 
         return null;
     }
 
     /**
-     * @return string|null The decoded value, or null if the encoding leaves the value as is:
-     *         `7bit`, `8bit`, `binary` or unknown.
-     */
-    private static function decodeTransfer(string $value, string $encoding): ?string
-    {
-        return match (\strtolower(\trim($encoding))) {
-            'base64' => \base64_decode($value),
-            'quoted-printable' => \quoted_printable_decode($value),
-            default => null,
-        };
-    }
-
-    /**
      * Tries mbstring, then iconv: each knows charsets the other lacks, as mbstring lacks windows-1250.
-     * Without both, a text in another charset keeps its bytes.
      *
-     * @return string|null The converted value, or null if it is UTF-8 already or the charset is unknown.
+     * @return string|null The converted value, or null if neither knows the charset.
      */
     private static function toUtf8(string $value, string $charset): ?string
     {
-        $charset = \strtolower($charset);
-        // mbstring takes a comma-separated list for detecting the charset
-        if (\in_array($charset, self::NO_CONVERSION, true)
-            || isset(self::NOT_CHARSETS[$charset])
-            || \str_contains($charset, ',')
-        ) {
-            return null;
-        }
-
         // A charset unknown to a converter warns or throws: either means trying the next one
         \set_error_handler(static fn(): bool => true);
         try {
@@ -252,6 +219,27 @@ final class Parser
         }
 
         return \is_string($converted) ? $converted : null;
+    }
+
+    /**
+     * A part without a Content-Type is `text/plain`; other text types, like `text/calendar`, are attachments.
+     */
+    private static function isBodyText(Field $part): bool
+    {
+        $type = $part->getHeaderLine('Content-Type');
+        return $type === '' || \preg_match('/^\\s*text\\/(?:plain|html|watch-html)\\b/i', $type) === 1;
+    }
+
+    /**
+     * Content decoded from `base64` or `quoted-printable`; `7bit`, `8bit` and `binary` content is not encoded.
+     */
+    private static function decodeTransfer(string $value, string $encoding): string
+    {
+        return match (\strtolower(\trim($encoding))) {
+            'base64' => \base64_decode($value),
+            'quoted-printable' => \quoted_printable_decode($value),
+            default => $value,
+        };
     }
 
     /**
@@ -308,16 +296,28 @@ final class Parser
         // The line break before the end-of-data line is not a part of the text
         \str_ends_with($content, "\r\n") and $content = \substr($content, 0, -2);
 
-        /** @psalm-suppress InvalidArgument */
-        $body = new Field(
-            headers: \array_intersect_key(
-                $message->getHeaders(),
-                ['Content-Type' => true, 'Content-Transfer-Encoding' => true],
-            ),
-            value: $content,
-        );
+        // The body is named and typed as a part of a multipart message would be
+        $headers = [];
+        foreach (['Content-Type', 'Content-Transfer-Encoding', 'Content-Disposition'] as $name) {
+            $value = $message->getHeader($name);
+            $value === [] or $headers[$name] = $value;
+        }
+        /** @psalm-suppress ArgumentTypeCoercion */
+        $body = Part::create($headers);
 
-        return $message->withMessages([self::isBodyText($body) ? self::decodeText($body) : $body]);
+        if ($body instanceof File) {
+            $file = StreamHelper::createFileStream();
+            $file->write(self::decodeTransfer($content, $body->getHeaderLine('Content-Transfer-Encoding')));
+            $file->rewind();
+            $body->setStream($file);
+            return $message->withAttachments([$body]);
+        }
+
+        \assert($body instanceof Field);
+        $body = $body->withValue($content);
+        return self::isBodyText($body)
+            ? $message->withMessages([$body->withValue(self::decodeText($body))])
+            : $message->withAttachments([$this->textToFile($body)]);
     }
 
     private function processMultipartForm(Message $message, StreamInterface $stream): Message
@@ -352,7 +352,7 @@ final class Parser
         foreach (Http::parseMultipartBody($stream, $boundary) as $part) {
             if ($part instanceof Field) {
                 self::isBodyText($part)
-                    ? $texts[] = self::decodeText($part)
+                    ? $texts[] = $part->withValue(self::decodeText($part))
                     : $attachments[] = $this->textToFile($part);
                 continue;
             }
@@ -389,8 +389,7 @@ final class Parser
                 default => 'attachment.txt',
             };
 
-        $value = self::decodeTransfer($part->getValue(), $part->getHeaderLine('Content-Transfer-Encoding'))
-            ?? $part->getValue();
+        $value = self::decodeTransfer($part->getValue(), $part->getHeaderLine('Content-Transfer-Encoding'));
 
         $stream = StreamHelper::createFileStream();
         $stream->write($value);

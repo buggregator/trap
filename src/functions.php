@@ -119,6 +119,7 @@ if (\class_exists(AbstractCloner::class)) {
     \Buggregator\Trap\Support\Stream\Base64DecodeFilter::FILTER_NAME,
     \Buggregator\Trap\Support\Stream\Base64DecodeFilter::class,
 );
+
 /** @psalm-suppress InternalClass The package bootstrap runs in the root namespace */
 \stream_filter_register(
     \Buggregator\Trap\Support\Stream\QuotedPrintableDecodeFilter::FILTER_NAME,
