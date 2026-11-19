@@ -122,11 +122,11 @@ final class Http
                 $findBoundary = "\r\n--{$boundary}";
 
                 if ($part instanceof File) {
-                    $writeFilters = [];
-                    if ($part->hasHeader('Content-Transfer-Encoding')) {
-                        $encoding = $part->getHeaderLine('Content-Transfer-Encoding');
-                        $encoding === 'base64' and $writeFilters[] = Base64DecodeFilter::FILTER_NAME;
-                    }
+                    $writeFilters = match (\strtolower(\trim($part->getHeaderLine('Content-Transfer-Encoding')))) {
+                        'base64' => [Base64DecodeFilter::FILTER_NAME],
+                        'quoted-printable' => ['convert.quoted-printable-decode'],
+                        default => [],
+                    };
 
                     $fileStream = StreamHelper::createFileStream(writeFilters: $writeFilters);
                     StreamHelper::writeStreamUntil($stream, $fileStream, $findBoundary);

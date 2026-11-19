@@ -135,12 +135,61 @@ final class ParserTest
             'Привет',
             'text/plain; charset=utf-8',
         ];
+        yield 'windows-1250, unknown to mbstring' => [
+            "Content-Type: text/plain; charset=windows-1250\r\nContent-Transfer-Encoding: quoted-printable",
+            '=C8esk=FD',
+            'Český',
+            'text/plain; charset=utf-8',
+        ];
+        yield 'quoted-printable with LF-only soft line breaks' => [
+            "Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable",
+            "Gr=C3=BC=\n=C3=9Fe, so=\nft",
+            'Grüße, soft',
+            'text/plain; charset=utf-8',
+        ];
+        yield 'charset in a quoted value of another parameter' => [
+            "Content-Type: text/plain; name=\"x; charset=koi8-r\"; charset=iso-8859-1\r\nContent-Transfer-Encoding: 8bit",
+            "Gr\xFC\xDFe",
+            'Grüße',
+            'text/plain; name="x; charset=koi8-r"; charset=utf-8',
+        ];
+        yield 'charset with spaces around the equals sign and in single quotes' => [
+            "Content-Type: text/plain; charset = 'ISO-8859-1' ; format=flowed\r\nContent-Transfer-Encoding: 8bit",
+            "Gr\xFC\xDFe",
+            'Grüße',
+            'text/plain; charset=utf-8 ; format=flowed',
+        ];
+        yield 'uuencode is no charset' => [
+            "Content-Type: text/plain; charset=uuencode\r\nContent-Transfer-Encoding: 7bit",
+            'begin 644 x',
+            'begin 644 x',
+            'text/plain; charset=uuencode',
+        ];
+        yield 'html-entities is no charset' => [
+            "Content-Type: text/html; charset=HTML-ENTITIES\r\nContent-Transfer-Encoding: 7bit",
+            '<p>&lt;b&gt; &amp;</p>',
+            '<p>&lt;b&gt; &amp;</p>',
+            'text/html; charset=HTML-ENTITIES',
+        ];
+        yield 'a list of charsets is no charset' => [
+            "Content-Type: text/plain; charset=\"koi8-r,utf-8\"\r\nContent-Transfer-Encoding: 7bit",
+            'abc',
+            'abc',
+            'text/plain; charset="koi8-r,utf-8"',
+        ];
         yield 'unknown charset keeps the bytes' => [
             "Content-Type: text/plain; charset=x-unknown\r\nContent-Transfer-Encoding: quoted-printable",
             'a=3Db',
             'a=b',
             'text/plain; charset=x-unknown',
         ];
+    }
+
+    public static function provideEncodedAttachments(): iterable
+    {
+        yield 'quoted-printable' => ['Quoted-Printable', "a=3Db, a long line that the client brea=\r\nks"];
+        yield 'quoted-printable with LF-only soft line breaks' => ['quoted-printable', "a=3Db, a long line that the client brea=\nks"];
+        yield 'base64 in upper case' => ['BASE64', \chunk_split(\base64_encode('a=b, a long line that the client breaks'), 12, "\r\n")];
     }
 
     #[DataProvider('provideEncodedBodies')]
@@ -190,6 +239,25 @@ final class ParserTest
         // The stored message keeps the decoded value: a reader decodes nothing twice
         $restored = Message::fromArray(\json_decode(\json_encode($message), true));
         Assert::same($restored->getMessages()[0]->getValue(), 'a=3Db');
+    }
+
+    #[DataProvider('provideEncodedAttachments')]
+    #[Test]
+    public function decodesTextAttachment(string $encoding, string $body): void
+    {
+        $message = $this->parse(
+            "Content-Type: multipart/mixed; boundary=o\r\n\r\n"
+            . "--o\r\nContent-Type: text/plain\r\n\r\nSee the notes.\r\n"
+            . "--o\r\nContent-Type: text/plain; name=notes.txt\r\nContent-Transfer-Encoding: {$encoding}\r\n"
+            . "Content-Disposition: attachment; filename=notes.txt\r\n\r\n{$body}\r\n--o--\r\n.\r\n",
+        );
+
+        Assert::count($message->getAttachments(), 1);
+        Assert::same($message->getAttachments()[0]->getClientFilename(), 'notes.txt');
+        Assert::same(
+            (string) $message->getAttachments()[0]->getStream(),
+            'a=b, a long line that the client breaks',
+        );
     }
 
     #[Test]

@@ -21,6 +21,25 @@ final class Parser
     /** Each nesting level of multipart parts copies the part body into a new temporary stream */
     private const MAX_MULTIPART_DEPTH = 16;
 
+    /** Charsets of a text already in UTF-8 */
+    private const NO_CONVERSION = ['', 'utf-8', 'utf8', 'us-ascii', 'ascii'];
+
+    /** Names mbstring takes for encodings that are not charsets: base64 decoding, HTML unescaping and alike */
+    private const NOT_CHARSETS = [
+        'base64' => true,
+        'uuencode' => true,
+        'html-entities' => true,
+        'html' => true,
+        'quoted-printable' => true,
+        'qprint' => true,
+        '7bit' => true,
+        '8bit' => true,
+        'binary' => true,
+        'pass' => true,
+        'wchar' => true,
+        'auto' => true,
+    ];
+
     /**
      * @return array<non-empty-string, list<non-empty-string>>
      */
@@ -140,25 +159,46 @@ final class Parser
         $value === null or $part = $part->withValue($value)->withoutHeader('Content-Transfer-Encoding');
 
         $contentType = $part->getHeaderLine('Content-Type');
-        $found = \preg_match(
-            '/;\\s*charset=(?:"([^"]*+)"|([^\\s;"]++))/i',
-            $contentType,
-            $matches,
-            \PREG_OFFSET_CAPTURE | \PREG_UNMATCHED_AS_NULL,
-        );
-        if ($found !== 1) {
-            return $part;
-        }
-
-        $converted = self::toUtf8($part->getValue(), (string) ($matches[1][0] ?? $matches[2][0]));
-        if ($converted === null) {
+        $charset = self::findCharset($contentType);
+        $converted = $charset === null ? null : self::toUtf8($part->getValue(), $charset[0]);
+        if ($charset === null || $converted === null) {
             return $part;
         }
 
         return $part->withValue($converted)->withHeader(
             'Content-Type',
-            \substr_replace($contentType, '; charset=utf-8', $matches[0][1], \strlen((string) $matches[0][0])),
+            \substr_replace($contentType, '; charset=utf-8', $charset[1], $charset[2]),
         );
+    }
+
+    /**
+     * Finds the `charset` parameter of a Content-Type, stepping over the quoted values of other parameters.
+     *
+     * @return array{string, int<0, max>, int<0, max>}|null The charset unquoted, the offset and the length
+     *         of the whole parameter with its leading `;`.
+     */
+    private static function findCharset(string $contentType): ?array
+    {
+        \preg_match_all(
+            '/;\\s*+([^\\s=;"]++)\\s*+=\\s*+("(?:[^"\\\\]|\\\\.)*+"|[^;"]*+)/',
+            $contentType,
+            $params,
+            \PREG_SET_ORDER | \PREG_OFFSET_CAPTURE,
+        );
+
+        foreach ($params as $param) {
+            if (\strcasecmp($param[1][0], 'charset') !== 0) {
+                continue;
+            }
+
+            $value = \trim(\rtrim($param[2][0]), "\"'");
+            $length = \strlen(\rtrim($param[0][0]));
+            /** @var int<0, max> $offset */
+            $offset = $param[0][1];
+            return [$value, $offset, $length];
+        }
+
+        return null;
     }
 
     /**
@@ -175,22 +215,40 @@ final class Parser
     }
 
     /**
-     * Without ext-mbstring the Symfony polyfill converts through ext-iconv;
-     * without either, a text in another charset keeps its bytes.
+     * Tries mbstring, then iconv: each knows charsets the other lacks, as mbstring lacks windows-1250.
+     * Without both, a text in another charset keeps its bytes.
      *
      * @return string|null The converted value, or null if it is UTF-8 already or the charset is unknown.
      */
     private static function toUtf8(string $value, string $charset): ?string
     {
-        $charset = \strtolower(\trim($charset));
-        if (\in_array($charset, ['', 'utf-8', 'utf8', 'us-ascii', 'ascii'], true)) {
+        $charset = \strtolower($charset);
+        // mbstring takes a comma-separated list for detecting the charset
+        if (\in_array($charset, self::NO_CONVERSION, true)
+            || isset(self::NOT_CHARSETS[$charset])
+            || \str_contains($charset, ',')
+        ) {
             return null;
         }
 
+        // A charset unknown to a converter warns or throws: either means trying the next one
+        \set_error_handler(static fn(): bool => true);
         try {
-            $converted = @\mb_convert_encoding($value, 'UTF-8', $charset);
-        } catch (\Throwable) {
-            return null;
+            try {
+                $converted = \function_exists('mb_convert_encoding')
+                    ? \mb_convert_encoding($value, 'UTF-8', $charset)
+                    : false;
+            } catch (\ValueError) {
+                $converted = false;
+            }
+
+            if (!\is_string($converted) && \function_exists('iconv')) {
+                $converted = \iconv($charset, 'UTF-8', $value);
+                // Not //IGNORE first: glibc's iconv returns false with it whenever it drops bytes
+                \is_string($converted) or $converted = \iconv($charset, 'UTF-8//IGNORE', $value);
+            }
+        } finally {
+            \restore_error_handler();
         }
 
         return \is_string($converted) ? $converted : null;
