@@ -168,7 +168,7 @@ jobs:
       - name: Download required PHP extensions
         run: |
           export SPC_SKIP_BREW_INSTALL=1
-          .build/bin/spc download micro --for-extensions=ctype,dom,filter,libxml,mbstring,phar,simplexml,sockets,tokenizer,xml,xmlwriter --with-php=8.3 --prefer-pre-built
+          .build/bin/spc download micro --for-extensions=ctype,dom,filter,libxml,mbstring,openssl,phar,simplexml,sockets,tokenizer,xml,xmlwriter --with-php=8.3 --prefer-pre-built
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
@@ -185,7 +185,7 @@ jobs:
         run: |
           # Skip Homebrew installation (we don't need it)
           export SPC_SKIP_BREW_INSTALL=1
-          .build/bin/spc build "ctype,dom,filter,libxml,mbstring,phar,simplexml,sockets,tokenizer,xml,xmlwriter" --build-micro
+          .build/bin/spc build "ctype,dom,filter,libxml,mbstring,openssl,phar,simplexml,sockets,tokenizer,xml,xmlwriter" --build-micro
 
       - name: Combine micro.sfx with the PHAR
         run: |
@@ -265,7 +265,7 @@ jobs:
 
       - name: Download required PHP extensions
         run: |
-          .build/bin/spc download micro --for-extensions=ctype,dom,filter,libxml,mbstring,phar,simplexml,sockets,tokenizer,xml,xmlwriter --with-php=8.3 --prefer-pre-built
+          .build/bin/spc download micro --for-extensions=ctype,dom,filter,libxml,mbstring,openssl,phar,simplexml,sockets,tokenizer,xml,xmlwriter --with-php=8.3 --prefer-pre-built
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
@@ -279,7 +279,7 @@ jobs:
 
       - name: Build the self-executable binary
         run: |
-          .build/bin/spc build "ctype,dom,filter,libxml,mbstring,phar,simplexml,sockets,tokenizer,xml,xmlwriter" --build-micro
+          .build/bin/spc build "ctype,dom,filter,libxml,mbstring,openssl,phar,simplexml,sockets,tokenizer,xml,xmlwriter" --build-micro
 
       - name: Combine micro.sfx with the PHAR
         run: |
@@ -356,7 +356,7 @@ jobs:
           Invoke-WebRequest -Uri "https://github.com/crazywhalecc/static-php-cli/releases/download/$env:SPC_VERSION/spc-windows-x64.exe" -OutFile ".build/bin/spc.exe"
 
       - name: Download required PHP extensions
-        run: .build/bin/spc.exe download micro --for-extensions=ctype,dom,filter,libxml,mbstring,phar,simplexml,sockets,tokenizer,xml,xmlwriter --with-php=8.3 --prefer-pre-built
+        run: .build/bin/spc.exe download micro --for-extensions=ctype,dom,filter,libxml,mbstring,openssl,phar,simplexml,sockets,tokenizer,xml,xmlwriter --with-php=8.3 --prefer-pre-built
 
       #   todo: fix this
       #      - name: Install UPX for compression
@@ -368,7 +368,7 @@ jobs:
           .build/bin/spc.exe doctor --auto-fix
 
       - name: Build the self-executable binary
-        run: .build/bin/spc.exe build "ctype,dom,filter,libxml,mbstring,phar,simplexml,sockets,tokenizer,xml,xmlwriter" --build-micro # --with-upx-pack
+        run: .build/bin/spc.exe build "ctype,dom,filter,libxml,mbstring,openssl,phar,simplexml,sockets,tokenizer,xml,xmlwriter" --build-micro # --with-upx-pack
 
       - name: Build PHAR file
         run: |
