@@ -193,7 +193,8 @@ final class SocketStreamTest
 
     public function silenceLastsUntilTheLastCheckOfTheSocket(): void
     {
-        \usleep(100_000);
+        // usleep() on Windows may return a fraction of a millisecond early: sleep with a margin over the threshold
+        \usleep(150_000);
 
         $unread = $this->stream->silence();
         $this->clientFiber->resume();
