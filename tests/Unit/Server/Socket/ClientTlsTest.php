@@ -109,6 +109,26 @@ final class ClientTlsTest
     }
 
     #[Test]
+    public function writesTlsDataLongerThanSendBuffer(): void
+    {
+        [$client, $peer] = $this->tlsConnection();
+        $fiber = new \Fiber($client->process(...));
+        $this->handshake($fiber, $client, $peer);
+
+        // The peer reads slowly: the server waits for a full send buffer again and again
+        $data = \str_repeat('0123456789abcdef', 512 * 1024);
+        $client->send($data);
+        $received = '';
+        $this->drive($fiber, $client, static function () use ($peer, $data, &$received): bool {
+            $received .= (string) \fread($peer, 256 * 1024);
+            return \strlen($received) >= \strlen($data);
+        }, timeout: 20.0);
+
+        Assert::true($received === $data);
+        $client->destroy();
+    }
+
+    #[Test]
     public function acceptsPlainConnectionWhenTlsIsOn(): void
     {
         [$client, $remote] = $this->plainConnection();

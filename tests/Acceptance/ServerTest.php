@@ -100,6 +100,44 @@ final class ServerTest
         Assert::string($response)->contains('<html');
     }
 
+    public function testUiWebSocketUpgradesOverTls(): void
+    {
+        \extension_loaded('openssl') or throw new SkipTest('TLS needs ext-openssl.');
+        $this->startTrap('wss-ui');
+
+        $context = \stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false]]);
+        $socket = \stream_socket_client("tls://127.0.0.1:$this->uiPort", $errno, $error, 5, context: $context)
+            ?: throw new \RuntimeException("Unable to connect over TLS: $error");
+        try {
+            \stream_set_timeout($socket, 5);
+            TrapProcess::write($socket, \implode("\r\n", [
+                'GET /connection/websocket HTTP/1.1',
+                "Host: 127.0.0.1:$this->uiPort",
+                'Upgrade: websocket',
+                'Connection: Upgrade',
+                'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==',
+                'Sec-WebSocket-Version: 13',
+                '',
+                '',
+            ]));
+
+            $head = '';
+            while (!\str_contains($head, "\r\n\r\n") && !\feof($socket)) {
+                $chunk = \fread($socket, 1024);
+                if ($chunk === false || $chunk === '') {
+                    break;
+                }
+                $head .= $chunk;
+            }
+        } finally {
+            \fclose($socket);
+        }
+
+        Assert::string($head)->startsWith("HTTP/1.1 101 Switching Protocols\r\n");
+        // The accept value of the key from RFC 6455
+        Assert::string($head)->contains('s3pPLMBiTxaQ9kYGzzhZRbK+xOo=');
+    }
+
     public function testUiOnTrafficPortServesUiAndCapturesRequests(): void
     {
         $trap = $this->trap = TrapProcess::start(

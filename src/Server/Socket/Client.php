@@ -331,13 +331,15 @@ final class Client implements Destroyable
     {
         if ($this->stream !== null) {
             // TLS must be given the same data again after a write it couldn't make
+            \error_clear_last();
             $result = @\fwrite($this->stream, $data);
             if ($result !== 0) {
                 return $result;
             }
 
-            // A connection reset after a full send buffer writes nothing again and again instead of failing
-            return \feof($this->stream) ? false : null;
+            // A full send buffer writes nothing silently. A reset connection writes nothing too, again and again,
+            // but warns, and the socket may no longer show it.
+            return \error_get_last() !== null || $this->peerClosed() ? false : null;
         }
 
         $result = @\socket_write($this->socket, $data);
@@ -431,7 +433,7 @@ final class Client implements Destroyable
                     break;
                 }
 
-                \feof($this->stream) and throw new ClientDisconnected();
+                $this->peerClosed() and throw new ClientDisconnected();
                 $data === false and throw new \RuntimeException('TLS read failed.');
                 break;
             }
@@ -460,6 +462,23 @@ final class Client implements Destroyable
 
         // A closed or failed connection is left to the plain reading to report
         return $data === self::TLS_HANDSHAKE_RECORD;
+    }
+
+    /**
+     * Checks the socket, not the TLS stream: {@see \feof()} of the stream peeks through TLS, which takes data
+     * just come in into its buffer, where the socket no longer shows it readable and it is never read.
+     */
+    private function peerClosed(): bool
+    {
+        $data = '';
+        $read = @\socket_recv($this->socket, $data, 1, \MSG_PEEK);
+        if ($read !== false) {
+            return $read === 0;
+        }
+
+        $errNo = \socket_last_error($this->socket);
+        \socket_clear_error($this->socket);
+        return $errNo !== \SOCKET_EAGAIN && $errNo !== \SOCKET_EWOULDBLOCK;
     }
 
     private function startHandshake(): void
@@ -492,7 +511,7 @@ final class Client implements Destroyable
         $result = @\stream_socket_enable_crypto($this->stream, true, \STREAM_CRYPTO_METHOD_TLSv1_2_SERVER);
         if ($result === 0) {
             // The handshake keeps waiting for data from a peer that has closed the connection
-            \feof($this->stream) and throw new ClientDisconnected();
+            $this->peerClosed() and throw new ClientDisconnected();
             return false;
         }
 
