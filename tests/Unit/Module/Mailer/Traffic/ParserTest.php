@@ -249,6 +249,23 @@ final class ParserTest
             "Content-Type: application/pdf\r\nContent-Disposition: attachment; filename=\"=?UTF-8?B?0L7RgtGH0ZHRgi5wZGY=?=\"\r\n",
             'отчёт.pdf',
         ];
+        yield 'Content-Type name, escaped quote' => ["Content-Type: application/pdf; name=\"a \\\"b\\\\c\\\".pdf\"\r\n", 'a "b\\c".pdf'];
+        yield 'Content-Type name, after one inside another quoted value' => [
+            "Content-Type: application/pdf; x-note=\"see; name=fake.pdf\"; name=\"real.pdf\"\r\n",
+            'real.pdf',
+        ];
+        yield 'Content-Type name*, windows-1250 unknown to mbstring' => [
+            "Content-Type: application/pdf; name*=windows-1250''%C8esk%FD.pdf\r\n",
+            'Český.pdf',
+        ];
+        yield 'Content-Disposition filename, escaped quote' => [
+            "Content-Type: application/pdf\r\nContent-Disposition: attachment; filename=\"a \\\"b\\\".pdf\"\r\n",
+            'a "b".pdf',
+        ];
+        yield 'Content-Disposition filename, after one inside another quoted value' => [
+            "Content-Type: application/pdf\r\nContent-Disposition: attachment; x-note=\"filename=fake.pdf\"; filename=real.pdf\r\n",
+            'real.pdf',
+        ];
         yield 'no name' => ["Content-Type: application/pdf\r\n", null];
         yield 'empty name' => ["Content-Type: application/pdf; name=\"\"\r\n", null];
     }

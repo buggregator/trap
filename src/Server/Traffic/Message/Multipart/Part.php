@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Server\Traffic\Message\Multipart;
 
 use Buggregator\Trap\Server\Traffic\Message\Headers;
+use Buggregator\Trap\Support\Charset;
 
 /**
  * @internal
@@ -95,12 +96,8 @@ abstract class Part implements \JsonSerializable
         $result = \implode('', $pieces);
 
         if (\strcasecmp($charset, 'UTF-8') !== 0 && \strcasecmp($charset, 'US-ASCII') !== 0) {
-            try {
-                $converted = \mb_convert_encoding($result, 'UTF-8', $charset);
-                \is_string($converted) and $result = $converted;
-            } catch (\ValueError) {
-                // Unknown charset: keep the bytes
-            }
+            // Unknown charset: keep the bytes
+            $result = Charset::toUtf8($result, $charset) ?? $result;
         }
 
         return $result === '' ? null : $result;
