@@ -58,6 +58,9 @@ Leave the username and password out: Trap answers no `AUTH`, and a mailer that s
 (`smtps://127.0.0.1:1025?verify_peer=0`); `STARTTLS` is offered only with a certificate in `TRAP_TLS_CERT`. Events: `smtp`, fields `subject`, `from`, `to`, `cc`, `bcc`; `get_event` gives the
 headers, the text and HTML parts and the attachments. No mail leaves the machine.
 
+`subject` and the contact names come decoded from RFC 2047 words, so a filter matches the plain text, such as
+`Привет, мир`. `from` holds each address once: the envelope sender and the `From` header merged.
+
 ## OpenTelemetry
 
 ```bash

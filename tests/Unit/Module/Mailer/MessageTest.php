@@ -120,6 +120,14 @@ final class MessageTest
             ],
         ];
 
+        yield 'domain literals' => [
+            ['Local <user@[IPv6:::1]>, other@[127.0.0.1]'],
+            [
+                new Contact('Local', 'user@[IPv6:::1]'),
+                new Contact(null, 'other@[127.0.0.1]'),
+            ],
+        ];
+
         yield 'several header lines' => [
             ['a@example.com', 'B <b@example.com>'],
             [

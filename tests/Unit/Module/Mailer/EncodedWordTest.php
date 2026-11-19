@@ -32,6 +32,12 @@ final class EncodedWordTest
         yield 'language suffix' => ['=?utf-8*en?Q?Hello?=', 'Hello'];
         yield 'broken base64 stays' => ['=?utf-8?B?***?=', '=?utf-8?B?***?='];
         yield 'not an encoded word' => ['=?utf-8?X?abc?=', '=?utf-8?X?abc?='];
+        yield 'unknown charset stays' => ['=?x-unknown?Q?caf=E9?=', '=?x-unknown?Q?caf=E9?='];
+        yield 'invalid UTF-8 stays' => ['=?utf-8?B?/w==?=', '=?utf-8?B?/w==?='];
+        yield 'invalid UTF-8 run stays with its whitespace' => ['=?utf-8?B?/w==?= =?utf-8?Q?a?=', '=?utf-8?B?/w==?= =?utf-8?Q?a?='];
+        yield 'whitespace before an undecoded word stays' => ['=?utf-8?Q?a?= =?utf-8?B?***?= b', 'a =?utf-8?B?***?= b'];
+        yield 'whitespace after an undecoded word stays' => ['=?utf-8?B?***?= =?utf-8?Q?a?=', '=?utf-8?B?***?= a'];
+        yield 'whitespace next to an unknown charset stays' => ['=?utf-8?Q?a?= =?x-unknown?Q?b?=', 'a =?x-unknown?Q?b?='];
         yield 'empty' => ['', ''];
     }
 

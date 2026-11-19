@@ -229,7 +229,7 @@ final class Message implements \JsonSerializable
     }
 
     /**
-     * Splits an address list at the commas outside quoted strings, comments and angle brackets.
+     * Splits an address list at the commas outside quoted strings, comments, angle and square brackets.
      * A group `name: a, b;` gives its members.
      *
      * @return list<non-empty-string>
@@ -238,7 +238,7 @@ final class Message implements \JsonSerializable
     {
         $result = [];
         $current = '';
-        $quoted = $angle = false;
+        $quoted = $angle = $literal = false;
         $comment = 0;
         $length = \strlen($line);
         for ($i = 0; $i < $length; ++$i) {
@@ -259,7 +259,10 @@ final class Message implements \JsonSerializable
                 $comment = 1;
             } elseif ($char === '<' || $char === '>') {
                 $angle = $char === '<';
-            } elseif (!$angle && \in_array($char, [',', ':', ';'], true)) {
+            } elseif ($char === '[' || $char === ']') {
+                // A domain literal, such as `[IPv6:::1]`.
+                $literal = $char === '[';
+            } elseif (!$angle && !$literal && \in_array($char, [',', ':', ';'], true)) {
                 // The name of a group is not an address.
                 $char === ':' or $result[] = \trim($current);
                 $current = '';

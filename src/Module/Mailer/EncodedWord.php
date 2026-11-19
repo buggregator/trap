@@ -14,7 +14,7 @@ final class EncodedWord
     private const PATTERN = '/=\?([^?\s]+)\?([BbQq])\?([^?\s]*)\?=/';
 
     /**
-     * A word that fails to decode stays as is.
+     * A word that fails to decode, or whose charset no converter knows, stays as is.
      */
     public static function decode(string $value): string
     {
@@ -27,36 +27,54 @@ final class EncodedWord
             return $value;
         }
 
-        // The parts go as: text, then charset, encoding and text of a word, then text again.
-        $result = '';
-        /** @var non-empty-string|null $charset Charset of the bytes collected from adjacent words. */
-        $charset = null;
-        $bytes = '';
+        // A string is text, an array is a run of words: the source and its UTF-8 text, null if undecoded.
+        /** @var list<string|array{string, string|null}> $items */
+        $items = [];
+        /** @var array{string, string, string}|null $run Charset, bytes and source of adjacent words of one charset. */
+        $run = null;
         $count = \count($parts);
+        // The parts go as: text, then charset, encoding and text of a word, then text again.
         for ($i = 0; $i < $count; $i += 4) {
             $text = $parts[$i];
-            if ($i + 3 >= $count) {
-                $result .= self::flush($charset, $bytes) . $text;
-                break;
-            }
+            $last = $i + 3 >= $count;
+            $source = $last ? '' : "=?{$parts[$i + 1]}?{$parts[$i + 2]}?{$parts[$i + 3]}?=";
+            $charset = $last ? '' : \strtoupper(\explode('*', $parts[$i + 1], 2)[0]);
+            $bytes = $last || $charset === '' ? null : self::decodeText($parts[$i + 2], $parts[$i + 3]);
 
-            // Whitespace between two encoded words is folding, not a part of the text.
-            if ($charset !== null && \trim($text) === '') {
-                $text = '';
-            }
-            $text === '' or $result .= self::flush($charset, $bytes) . $text;
-
-            $wordCharset = \strtoupper(\explode('*', $parts[$i + 1], 2)[0]);
-            $decoded = self::decodeText($parts[$i + 2], $parts[$i + 3]);
-            if ($decoded === null || $wordCharset === '') {
-                $result .= self::flush($charset, $bytes) . "=?{$parts[$i + 1]}?{$parts[$i + 2]}?{$parts[$i + 3]}?=";
+            // A multibyte character may be split between adjacent words of one charset.
+            if ($run !== null && $bytes !== null && $run[0] === $charset && \trim($text) === '') {
+                $run = [$charset, $run[1] . $bytes, $run[2] . $text . $source];
                 continue;
             }
 
-            // A multibyte character may be split between adjacent words of one charset.
-            $charset === $wordCharset or $result .= self::flush($charset, $bytes);
-            $charset = $wordCharset;
-            $bytes .= $decoded;
+            $run === null or $items[] = [$run[2], self::toUtf8($run[1], $run[0])];
+            $run = null;
+            $text === '' or $items[] = $text;
+            if ($last) {
+                break;
+            }
+
+            if ($bytes === null) {
+                $items[] = [$source, null];
+            } else {
+                $run = [$charset, $bytes, $source];
+            }
+        }
+
+        $result = '';
+        foreach ($items as $index => $item) {
+            if (\is_array($item)) {
+                $result .= $item[1] ?? $item[0];
+                continue;
+            }
+
+            // Whitespace between two decoded words is folding, not a part of the text.
+            $prev = $items[$index - 1] ?? null;
+            $next = $items[$index + 1] ?? null;
+            $folding = \trim($item) === ''
+                && \is_array($prev) && $prev[1] !== null
+                && \is_array($next) && $next[1] !== null;
+            $folding or $result .= $item;
         }
 
         return $result;
@@ -73,26 +91,21 @@ final class EncodedWord
     }
 
     /**
-     * Converts the collected bytes to UTF-8 and resets the collection.
+     * @return string|null Null when no converter knows the charset or the result is no valid UTF-8.
      */
-    private static function flush(?string &$charset, string &$bytes): string
+    private static function toUtf8(string $bytes, string $charset): ?string
     {
-        $result = $charset === null || $bytes === '' ? $bytes : self::toUtf8($bytes, $charset);
-        $charset = null;
-        $bytes = '';
+        $converted = match (true) {
+            \in_array($charset, ['UTF-8', 'UTF8', 'US-ASCII', 'ASCII'], true) => $bytes,
+            $charset === 'ISO-8859-1' || $charset === 'LATIN1' => self::latin1ToUtf8($bytes),
+            default => self::convert($bytes, $charset),
+        };
 
-        return $result;
+        return $converted !== null && \preg_match('//u', $converted) === 1 ? $converted : null;
     }
 
-    /**
-     * Keeps the bytes as they are when no extension knows the charset.
-     */
-    private static function toUtf8(string $bytes, string $charset): string
+    private static function convert(string $bytes, string $charset): ?string
     {
-        if (\in_array($charset, ['UTF-8', 'UTF8', 'US-ASCII', 'ASCII'], true)) {
-            return $bytes;
-        }
-
         if (\function_exists('mb_convert_encoding')) {
             try {
                 $converted = @\mb_convert_encoding($bytes, 'UTF-8', $charset);
@@ -111,9 +124,7 @@ final class EncodedWord
             }
         }
 
-        return $charset === 'ISO-8859-1' || $charset === 'LATIN1'
-            ? self::latin1ToUtf8($bytes)
-            : $bytes;
+        return null;
     }
 
     private static function latin1ToUtf8(string $bytes): string
