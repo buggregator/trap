@@ -46,6 +46,8 @@ final class QuotedPrintableDecodeFilterTest
     #[DataSet(["tab=\t \r\nnext=\t\r\nend"], 'tabs and spaces before CRLF')]
     #[DataSet(["pad= \nnext"], 'space before LF')]
     #[DataSet(["a=3Db=  \r\n=C3=A9 =\r\n"], 'escapes around a padded soft line break')]
+    #[DataSet(['a==3Db'], 'equals sign before an escape')]
+    #[DataSet(["==\r\n="], 'equals sign before a soft line break')]
     public function decodesSoftLineBreakPaddedWithSpacesSplitAnywhere(string $encoded): void
     {
         $expected = \quoted_printable_decode($encoded);
