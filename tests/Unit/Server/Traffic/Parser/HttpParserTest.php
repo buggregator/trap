@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Server\Traffic\Parser;
 
 use Buggregator\Trap\Server\Traffic\Parser;
+use Buggregator\Trap\Support\Stream\SizeLimitExceeded;
 use Buggregator\Trap\Test\Mock\StreamClientMock;
 use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Psr\Http\Message\ServerRequestInterface;
@@ -326,7 +327,207 @@ final class HttpParserTest
         Assert::same($request->getBody()->__toString(), $file);
     }
 
-    private function parseStream(array|string $body): ServerRequestInterface
+    #[Test]
+    public function testChunkedBody(): void
+    {
+        $request = $this->parseStream(
+            "POST /api/1/store/ HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-Encoding: chunked\r\n"
+            . "Content-Type: application/json\r\n\r\n11\r\n{\"hello\":\"world\"}\r\n0\r\n\r\n",
+        );
+
+        Assert::same((string) $request->getBody(), '{"hello":"world"}');
+        Assert::false($request->hasHeader('Transfer-Encoding'));
+        Assert::same($request->getHeaderLine('Content-Length'), '17');
+    }
+
+    /**
+     * Chunk sizes, extensions, data and line ends arrive split across stream reads.
+     */
+    #[Test]
+    #[DataSet([1])]
+    #[DataSet([2])]
+    #[DataSet([3])]
+    #[DataSet([7])]
+    #[DataSet([4096])]
+    public function testChunkedBodySplitAcrossReads(int $readSize): void
+    {
+        $http = "PUT /x HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-Encoding: chunked\r\n\r\n"
+            . "4;name=value\r\nWiki\r\n6\r\npedia \r\nE\r\nin \r\n\r\nchunks.\r\n0\r\nExpires: never\r\n\r\n";
+
+        $request = $this->parseStream(\str_split($http, $readSize));
+
+        Assert::same((string) $request->getBody(), "Wikipedia in \r\n\r\nchunks.");
+        Assert::same($request->getHeaderLine('Content-Length'), '24');
+        Assert::false($request->hasHeader('Expires'));
+    }
+
+    /**
+     * A client keeping the connection open after the last chunk gets the request parsed without waiting.
+     */
+    #[Test]
+    public function testChunkedBodyEndsAtTheLastChunk(): void
+    {
+        $stream = StreamClientMock::createFromGenerator((static function (): \Generator {
+            yield "POST /x HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-Encoding: chunked\r\n\r\n";
+            yield "3\r\nabc\r\n0\r\n\r\n";
+            while (true) {
+                yield '';
+            }
+        })());
+
+        $request = $this->runInFiber(static fn() => (new Parser\Http())->parseStream($stream));
+
+        Assert::same((string) $request->getBody(), 'abc');
+    }
+
+    #[Test]
+    public function testChunkedBodyOverridesContentLength(): void
+    {
+        $request = $this->parseStream(
+            "POST /x HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 2\r\nTransfer-Encoding: chunked\r\n\r\n"
+            . "3\r\nabc\r\n0\r\n\r\n",
+        );
+
+        Assert::same((string) $request->getBody(), 'abc');
+        Assert::same($request->getHeader('Content-Length'), ['3']);
+    }
+
+    #[Test]
+    public function testChunkedBodyCutByDisconnectKeepsDecodedPart(): void
+    {
+        $request = $this->parseStream(
+            "POST /x HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nabc\r\n5\r\nde",
+        );
+
+        Assert::same((string) $request->getBody(), 'abcde');
+    }
+
+    #[Test]
+    public function testChunkedGzippedContent(): void
+    {
+        $gzip = \gzencode($json = '{"hello":"world"}');
+        [$head, $tail] = [\substr($gzip, 0, 10), \substr($gzip, 10)];
+
+        $request = $this->parseStream(
+            "POST /x HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Encoding: gzip\r\nTransfer-Encoding: chunked\r\n\r\n"
+            . \dechex(\strlen($head)) . "\r\n{$head}\r\n" . \dechex(\strlen($tail)) . "\r\n{$tail}\r\n0\r\n\r\n",
+        );
+
+        Assert::same((string) $request->getBody(), $json);
+    }
+
+    #[Test]
+    #[DataSet(['gzip, chunked'])]
+    #[DataSet(['GZIP , Chunked'])]
+    public function testGzipTransferCodingIsDecodedAfterChunked(string $transferEncoding): void
+    {
+        $gzip = \gzencode($json = '{"hello":"world"}');
+
+        $request = $this->parseStream(
+            "POST /x HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-Encoding: {$transferEncoding}\r\n\r\n"
+            . \dechex(\strlen($gzip)) . "\r\n{$gzip}\r\n0\r\n\r\n",
+        );
+
+        Assert::same((string) $request->getBody(), $json);
+        Assert::false($request->hasHeader('Transfer-Encoding'));
+        Assert::same($request->getHeaderLine('Content-Length'), '17');
+    }
+
+    #[Test]
+    public function testUnknownTransferCodingStaysAfterChunked(): void
+    {
+        $request = $this->parseStream(
+            "POST /x HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-Encoding: br, chunked\r\n\r\n3\r\nabc\r\n0\r\n\r\n",
+        );
+
+        Assert::same((string) $request->getBody(), 'abc');
+        Assert::same($request->getHeaderLine('Transfer-Encoding'), 'br');
+    }
+
+    #[Test]
+    public function testChunkedUrlEncodedForm(): void
+    {
+        $request = $this->parseStream(
+            "POST /x HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-Encoding: chunked\r\n"
+            . "Content-Type: application/x-www-form-urlencoded\r\n\r\n4\r\nfoo=\r\n7\r\nbar&a=b\r\n0\r\n\r\n",
+        );
+
+        Assert::same($request->getParsedBody(), ['foo' => 'bar', 'a' => 'b']);
+    }
+
+    #[Test]
+    public function testChunkedMultipartForm(): void
+    {
+        $body = "--XyZ\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\nHello\r\n"
+            . "--XyZ\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.txt\"\r\n"
+            . "Content-Type: text/plain\r\n\r\nfile\r\ncontent\r\n--XyZ--\r\n";
+        $chunked = '';
+        foreach (\str_split($body, 16) as $chunk) {
+            $chunked .= \dechex(\strlen($chunk)) . "\r\n{$chunk}\r\n";
+        }
+
+        $request = $this->parseStream(\str_split(
+            "POST /x HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-Encoding: chunked\r\n"
+            . "Content-Type: multipart/form-data; boundary=XyZ\r\n\r\n{$chunked}0\r\n\r\n",
+            5,
+        ));
+
+        Assert::same($request->getParsedBody(), ['title' => 'Hello']);
+        /** @var array<string, list<UploadedFileInterface>> $files */
+        $files = $request->getUploadedFiles();
+        Assert::same($files['file'][0]->getClientFilename(), 'a.txt');
+        Assert::same((string) $files['file'][0]->getStream(), "file\r\ncontent");
+    }
+
+    #[Test]
+    public function testChunkedBodyOfExactlyTheLimit(): void
+    {
+        $request = $this->parseStream(
+            "POST /x HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-Encoding: chunked\r\n\r\n4\r\nabcd\r\n0\r\n\r\n",
+            maxBodySize: 4,
+        );
+
+        Assert::same((string) $request->getBody(), 'abcd');
+    }
+
+    #[Test]
+    public function testChunkedBodyPastLimit(): never
+    {
+        Expect::exception(SizeLimitExceeded::class)
+            ->withMessage('The chunked request body is larger than 4 bytes.');
+
+        $this->parseStream(
+            "POST /x HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-Encoding: chunked\r\n\r\n4\r\nabcd\r\n1\r\ne\r\n0\r\n\r\n",
+            maxBodySize: 4,
+        );
+    }
+
+    #[Test]
+    public function testChunkedGzipTransferCodingInflatingPastLimit(): never
+    {
+        $gzip = \gzencode(\str_repeat('a', 100));
+
+        Expect::exception(SizeLimitExceeded::class)
+            ->withMessage('The request body inflates to more than 64 bytes.');
+
+        $this->parseStream(
+            "POST /x HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-Encoding: gzip, chunked\r\n\r\n"
+            . \dechex(\strlen($gzip)) . "\r\n{$gzip}\r\n0\r\n\r\n",
+            maxBodySize: 64,
+        );
+    }
+
+    #[Test]
+    public function testBrokenChunkedFraming(): never
+    {
+        Expect::exception(Parser\InvalidRequest::class)->withMessage('Invalid chunked body.');
+
+        $this->parseStream(
+            "POST /x HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-Encoding: chunked\r\n\r\nnot-a-size\r\n",
+        );
+    }
+
+    private function parseStream(array|string $body, int $maxBodySize = 0): ServerRequestInterface
     {
         $stream = StreamClientMock::createFromGenerator(
             (static function () use ($body) {
@@ -337,6 +538,6 @@ final class HttpParserTest
                 yield from $body;
             })(),
         );
-        return $this->runInFiber(static fn() => (new Parser\Http())->parseStream($stream));
+        return $this->runInFiber(static fn() => (new Parser\Http($maxBodySize))->parseStream($stream));
     }
 }
