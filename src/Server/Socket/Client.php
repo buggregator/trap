@@ -42,6 +42,9 @@ final class Client implements Destroyable
     /** TLS holds decrypted data that the socket doesn't show as readable */
     private bool $tlsPending = false;
 
+    /** The handshake starts once the write queue is empty */
+    private bool $startTls = false;
+
     private bool $toDisconnect = false;
 
     /** The main loop has seen the socket ready */
@@ -180,6 +183,14 @@ final class Client implements Destroyable
                 $progress = true;
             }
 
+            // The peer starts the handshake once it has read the answer to its request for TLS
+            /** @psalm-suppress RedundantCondition */
+            if ($this->startTls && $this->writeQueue === []) {
+                $this->startTls = false;
+                $this->startHandshake();
+                $progress = true;
+            }
+
             /** @psalm-suppress RedundantCondition */
             if ($except !== [] || \socket_last_error($this->socket) !== 0) {
                 throw new \RuntimeException('Socket exception.');
@@ -204,7 +215,13 @@ final class Client implements Destroyable
             /** @psalm-suppress RedundantCondition The properties change while the fiber is suspended */
             do {
                 \Fiber::suspend();
-            } while (!$this->ready && $this->writeQueue === [] && !$this->toDisconnect && !$this->selectTimer->isReady());
+            } while (
+                !$this->ready
+                && $this->writeQueue === []
+                && !$this->toDisconnect
+                && !$this->startTls
+                && !$this->selectTimer->isReady()
+            );
         } while (true);
     }
 
@@ -228,6 +245,25 @@ final class Client implements Destroyable
         $closure = $callable(...);
         /** @psalm-suppress PossiblyNullPropertyAssignmentValue, InvalidArgument */
         $this->onClose = @\Closure::bind($closure, $this) ?? $closure;
+    }
+
+    /**
+     * @return bool Whether {@see self::startTls()} can switch the connection to TLS.
+     */
+    public function canStartTls(): bool
+    {
+        return $this->tls !== null && $this->stream === null && !$this->startTls && !$this->toDisconnect;
+    }
+
+    /**
+     * Switches the connection to TLS once the queued data is written.
+     *
+     * @throws \LogicException When {@see self::canStartTls()} is false.
+     */
+    public function startTls(): void
+    {
+        $this->canStartTls() or throw new \LogicException('TLS is unavailable on the connection.');
+        $this->startTls = true;
     }
 
     public function send(string $payload): void

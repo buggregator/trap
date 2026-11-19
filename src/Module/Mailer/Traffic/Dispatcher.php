@@ -18,6 +18,7 @@ final class Dispatcher implements DispatcherInterface
     public const OK = 250;
     public const CLOSING = 221;
     public const START_MAIL_INPUT = 354;
+    public const TLS_UNAVAILABLE = 454;
 
     /** Seconds of silence after which a connection is taken for SMTP. */
     public const SILENCE = 0.5;
@@ -39,8 +40,23 @@ final class Dispatcher implements DispatcherInterface
             $response = \ltrim($stream->fetchLine(), ' ');
             if (\str_starts_with($response, 'NOOP')) {
                 $stream->sendData($this->createResponse(self::OK));
-            } elseif (\preg_match('/^(?:EHLO|HELO|RSET)/', $response)) {
+            } elseif (\str_starts_with($response, 'EHLO')) {
+                $stream->sendData($stream->canStartTls()
+                    ? "250-mailamie\r\n250 STARTTLS\r\n"
+                    : $this->createResponse(self::OK));
+                $protocol = [];
+            } elseif (\preg_match('/^(?:HELO|RSET)/', $response)) {
                 $stream->sendData($this->createResponse(self::OK));
+                $protocol = [];
+            } elseif (\str_starts_with($response, 'STARTTLS')) {
+                if (!$stream->canStartTls()) {
+                    $stream->sendData($this->createResponse(self::TLS_UNAVAILABLE, 'TLS not available'));
+                    continue;
+                }
+
+                $stream->sendData($this->createResponse(self::READY, 'Ready to start TLS'));
+                $stream->startTls();
+                // The client starts the session over, with EHLO
                 $protocol = [];
             } elseif (\preg_match('/^MAIL FROM:\s*<(.*)>/', $response, $matches)) {
                 /** @var array{0: non-empty-string, 1: string} $matches */

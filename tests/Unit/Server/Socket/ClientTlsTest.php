@@ -143,6 +143,50 @@ final class ClientTlsTest
     }
 
     #[Test]
+    public function switchesPlainConnectionToTls(): void
+    {
+        [$client, $peer] = $this->tlsConnection();
+        $fiber = new \Fiber($client->process(...));
+        \fwrite($peer, "STARTTLS\r\n");
+        $this->drive($fiber, $client, fn(): bool => $this->payloads === ["STARTTLS\r\n"]);
+
+        $client->send("220 Ready\r\n");
+        $client->startTls();
+        Assert::false($client->canStartTls());
+        $reply = '';
+        $this->drive($fiber, $client, static function () use ($peer, &$reply): bool {
+            $reply .= (string) \fread($peer, 100);
+            return $reply === "220 Ready\r\n";
+        });
+        $this->handshake($fiber, $client, $peer);
+        \fwrite($peer, "EHLO\r\n");
+        $this->drive($fiber, $client, fn(): bool => \implode('', $this->payloads) === "STARTTLS\r\nEHLO\r\n");
+
+        Assert::false($client->canStartTls());
+        $client->destroy();
+    }
+
+    #[Test]
+    public function cannotStartTlsWithoutContext(): void
+    {
+        [$listener, $port] = $this->listen();
+        $remote = \socket_create(\AF_INET, \SOCK_STREAM, \SOL_TCP);
+        \socket_connect($remote, '127.0.0.1', $port);
+        $this->resources[] = $remote;
+        $socket = \socket_accept($listener);
+        \assert($socket instanceof \Socket);
+        $client = Client::init($socket);
+
+        Assert::false($client->canStartTls());
+        Expect::exception(\LogicException::class);
+        try {
+            $client->startTls();
+        } finally {
+            $client->destroy();
+        }
+    }
+
+    #[Test]
     public function dropsHandshakeThatNeverCompletes(): void
     {
         [$client, $remote] = $this->plainConnection(handshakeTimeout: 0.1);

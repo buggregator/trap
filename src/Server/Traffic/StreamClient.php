@@ -36,6 +36,20 @@ interface StreamClient extends \IteratorAggregate
     public function disconnect(): void;
 
     /**
+     * @return bool Whether {@see self::startTls()} can switch the stream to TLS: the stream is plain and
+     *         the server has TLS on.
+     */
+    public function canStartTls(): bool;
+
+    /**
+     * Switches the stream to TLS once the data sent so far is written, for a protocol that upgrades
+     * a plain connection, such as SMTP `STARTTLS`.
+     *
+     * @throws \LogicException When {@see self::canStartTls()} is false.
+     */
+    public function startTls(): void;
+
+    /**
      * @return bool Return {@see true} if stream was closed.
      */
     public function isDisconnected(): bool;
