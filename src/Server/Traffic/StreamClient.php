@@ -43,7 +43,8 @@ interface StreamClient extends \IteratorAggregate
 
     /**
      * Switches the stream to TLS once the data sent so far is written, for a protocol that upgrades
-     * a plain connection, such as SMTP `STARTTLS`.
+     * a plain connection, such as SMTP `STARTTLS`. Data read but not fetched yet, and data that comes before
+     * the handshake, is dropped.
      *
      * @throws \LogicException When {@see self::canStartTls()} is false.
      */

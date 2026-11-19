@@ -7,7 +7,10 @@ configured for `https://`, `smtps://` or `tls://` talks to the same port as a pl
 - HTTP over TLS: Sentry DSNs, OTLP exporters, Ray, profilers and HTTP dumps with an `https://` URL;
 - the [web UI](web-ui.md) at `https://127.0.0.1:8000`, its WebSocket over `wss://`;
 - SMTP with implicit TLS (`smtps://`), and `STARTTLS` with [your own certificate](#starttls);
-- var-dumper and Monolog sockets with a `tls://` address.
+- Monolog sockets and [`trap()::logger()`](functions.md#traplogger) with a `tls://` address.
+
+Dumps of Symfony VarDumper and `trap()` stay plain: VarDumper writes with `stream_socket_sendto()`, which PHP sends
+past TLS, so a `tls://` `VAR_DUMPER_SERVER` loses every dump without an error.
 
 TLS needs ext-openssl in the PHP that runs Trap. Without it Trap takes plain traffic only and says so in the log
 with `-v`. The [binaries](installation.md) are built with it.
@@ -45,7 +48,7 @@ TRAP_TLS_CERT=trap.pem TRAP_TLS_KEY=trap-key.pem vendor/bin/trap
 ## Clients
 
 ```bash
-# Sentry
+# Sentry: needs a trusted certificate, or sentry-php with 'http_ssl_verify_peer' => false
 SENTRY_DSN=https://key@127.0.0.1:8000/1
 
 # Symfony Mailer: implicit TLS without checking the self-signed certificate
@@ -55,18 +58,18 @@ MAILER_DSN=smtps://127.0.0.1:1025?verify_peer=0
 TRAP_MONOLOG_HOST=tls://127.0.0.1
 ```
 
-Symfony VarDumper takes `VAR_DUMPER_SERVER=tls://127.0.0.1:9912` and checks the certificate, so it needs a
-trusted one.
+Most clients check the certificate by default: with the self-signed one, turn the check off in the client or
+trust the certificate.
 
 ## STARTTLS
 
-The SMTP server offers `STARTTLS` only with a certificate set by `TRAP_TLS_CERT`. Mailers such as Symfony Mailer
+The SMTP server offers `STARTTLS` only with a certificate set by `TRAP_TLS_CERT` or `trap.xml`. Mailers such as Symfony Mailer
 and PHPMailer upgrade to TLS on their own once it is offered and check the certificate, so with the self-signed one
 every plain mail would fail. Implicit TLS (`smtps://`) works with any certificate: the client asks for it.
 
 ## Limitations
 
-- TLS 1.2 at most. With TLS 1.3 the server sends session tickets after the handshake, and a client that writes
+- TLS 1.2 only. With TLS 1.3 the server sends session tickets after the handshake, and a client that writes
   and closes the connection without reading, as log and dump handlers do, resets the connection: its data is lost.
 - HTTP/1.1 only: the server offers no HTTP/2.
 - No client certificates (mutual TLS).

@@ -382,7 +382,8 @@ final class Client implements Destroyable
             return false;
         }
 
-        $this->processPayload($payload);
+        // What comes in plain text after the request for TLS would pass for data sent over TLS
+        $this->startTls or $this->processPayload($payload);
         return true;
     }
 

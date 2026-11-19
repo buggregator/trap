@@ -8,6 +8,7 @@ use Buggregator\Trap\Server\Socket\Tls\SelfSignedCertificate;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Core\Exception\SkipTest;
+use Testo\Expect;
 use Testo\Lifecycle\AfterTest;
 use Testo\Lifecycle\BeforeTest;
 use Testo\Test;
@@ -67,5 +68,22 @@ final class SelfSignedCertificateTest
 
         Assert::same(SelfSignedCertificate::ensure($this->directory), $path);
         Assert::true(\openssl_x509_parse((string) \file_get_contents($path)) !== false);
+    }
+
+    #[Test]
+    public function refusesSymbolicLinkInPlaceOfDirectory(): void
+    {
+        SelfSignedCertificate::userId() === null and throw new SkipTest('Files have no owners to compare here.');
+        $target = $this->directory . '-target';
+        \mkdir($target, 0700);
+        \symlink($target, $this->directory);
+
+        try {
+            Expect::exception(\RuntimeException::class);
+            SelfSignedCertificate::ensure($this->directory);
+        } finally {
+            \unlink($this->directory);
+            \rmdir($target);
+        }
     }
 }

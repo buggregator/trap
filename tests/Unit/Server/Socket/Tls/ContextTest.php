@@ -91,6 +91,20 @@ final class ContextTest
         Assert::string($output->fetch())->contains('localhost.pem');
     }
 
+    #[Test]
+    public function tellsCertificateFileThatIsGone(): void
+    {
+        $directory = 'trap-tls-gone-' . \bin2hex(\random_bytes(4));
+        $pem = self::certificate($directory);
+        $context = Context::fromFiles($pem);
+        Assert::null($context->missingFile());
+
+        \unlink($pem);
+        \rmdir(\dirname($pem));
+
+        Assert::same($context->missingFile(), $pem);
+    }
+
     /**
      * @param non-empty-string $directory
      *

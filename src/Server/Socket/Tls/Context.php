@@ -89,6 +89,22 @@ final class Context
     }
 
     /**
+     * @return string|null The certificate or key file that has gone, as a cleaner of the temporary directory
+     *         may remove it: every handshake fails then.
+     */
+    public function missingFile(): ?string
+    {
+        foreach (['local_cert', 'local_pk'] as $option) {
+            $file = $this->options[$option] ?? null;
+            if (\is_string($file) && !\is_file($file)) {
+                return $file;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * @return string|null Why the certificate and the key can't be used, null when they can.
      */
     private static function checkPair(string $cert, string $key): ?string
@@ -121,8 +137,14 @@ final class Context
      */
     private static function defaultDirectory(): string
     {
-        // On Linux the temporary directory is shared by the users
-        $user = \function_exists('posix_geteuid') ? (string) \posix_geteuid() : \get_current_user();
+        // On Linux the temporary directory is shared by the users. get_current_user() would name the owner of
+        // the script, not the user who runs it.
+        $user = (string) SelfSignedCertificate::userId();
+        foreach (['USERNAME', 'USER'] as $name) {
+            $value = \getenv($name);
+            $user === '' && \is_string($value) and $user = $value;
+        }
+        $user === '' and $user = 'user';
 
         return \sys_get_temp_dir() . \DIRECTORY_SEPARATOR . 'trap-tls-' . (string) \preg_replace('/[^\w.-]/', '_', $user);
     }

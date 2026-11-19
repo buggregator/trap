@@ -83,15 +83,42 @@ final class SelfSignedCertificate
      */
     private static function checkOwner(string $directory): void
     {
-        if (!\function_exists('posix_geteuid')) {
+        $user = self::userId();
+        if ($user === null) {
             return;
         }
 
-        $owner = @\fileowner($directory);
-        $owner === \posix_geteuid() or throw new \RuntimeException(
+        \is_link($directory) and throw new \RuntimeException(
+            \sprintf('The directory `%s` is a symbolic link.', $directory),
+        );
+        @\fileowner($directory) === $user or throw new \RuntimeException(
             \sprintf('The directory `%s` belongs to another user.', $directory),
         );
         @\chmod($directory, 0700);
+    }
+
+    /**
+     * @return int|null The user ID the process runs as, null where files have no owners to compare, as on Windows.
+     */
+    public static function userId(): ?int
+    {
+        if (\function_exists('posix_geteuid')) {
+            return \posix_geteuid();
+        }
+
+        if (\PHP_OS_FAMILY === 'Windows') {
+            return null;
+        }
+
+        // The static binaries come without ext-posix: a new file belongs to the user who creates it
+        $probe = @\tempnam(\sys_get_temp_dir(), 'trap-uid');
+        if ($probe === false) {
+            return null;
+        }
+
+        $owner = @\fileowner($probe);
+        @\unlink($probe);
+        return $owner === false ? null : $owner;
     }
 
     private static function isUsable(string $path): bool

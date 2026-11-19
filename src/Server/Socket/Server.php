@@ -44,6 +44,9 @@ final class Server implements Processable, Cancellable, Destroyable
 
     private bool $cancelled = false;
 
+    /** The certificate or key file whose loss is reported */
+    private ?string $reportedMissing = null;
+
     /** Timestamp with microseconds when last socket_accept() was called */
     private float $lastAccept = 0;
 
@@ -168,6 +171,11 @@ final class Server implements Processable, Cancellable, Destroyable
                 } elseif ($e instanceof TlsHandshakeFailed) {
                     // A browser drops the handshake when it doesn't trust the certificate yet
                     $this->logger->debug('Client %s TLS handshake failed: %s', $key, $e->getMessage());
+                    $missing = $this->tls?->missingFile();
+                    if ($missing !== null && $missing !== $this->reportedMissing) {
+                        $this->reportedMissing = $missing;
+                        $this->logger->warning('TLS fails: the file `%s` is gone.', $missing);
+                    }
                 } else {
                     $this->logger->exception($e, "Client $key fiber.");
                 }

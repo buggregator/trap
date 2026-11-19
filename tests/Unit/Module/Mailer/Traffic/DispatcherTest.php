@@ -139,6 +139,29 @@ final class DispatcherTest
     }
 
     #[Test]
+    public function testCommandsSentInPlainTextWithStartTlsAreDropped(): void
+    {
+        $replies = [];
+        $stream = StreamClientMock::createFromGenerator(
+            self::session(
+                $replies,
+                "EHLO a\r\n",
+                "STARTTLS\r\nMAIL FROM: <injected@evil>\r\nRCPT TO: <injected@evil>\r\n",
+                // Over TLS, with no EHLO to start the session over
+                "RCPT TO: <recipient@example.com>\r\n",
+                "DATA\r\n",
+                "Subject: Over TLS\r\n\r\nHello\r\n.\r\n",
+            ),
+            tls: true,
+        );
+
+        $frames = $this->dispatch($stream);
+
+        Assert::count($frames, 1);
+        Assert::same($frames[0]->message->getProtocol(), ['BCC' => ['recipient@example.com']]);
+    }
+
+    #[Test]
     public function testStartTlsIsRefusedWhenTlsIsOff(): void
     {
         $replies = [];

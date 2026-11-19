@@ -22,6 +22,9 @@ final class StreamClientMock implements StreamClient
     /** The stream has switched to TLS */
     private bool $tlsStarted = false;
 
+    /** The first queued value is the rest of the chunk the last fetched line came in */
+    private bool $leftover = false;
+
     private function __construct(
         private readonly \Generator $generator,
         private readonly float $silence,
@@ -81,6 +84,10 @@ final class StreamClientMock implements StreamClient
     public function startTls(): void
     {
         $this->canStartTls() or throw new \LogicException('TLS is unavailable on the stream.');
+        // The rest of the chunk the last line came in was sent in plain text. The generator's next values
+        // stand for what comes over TLS, though the stream may have taken them already.
+        $this->leftover and $this->queue->dequeue();
+        $this->leftover = false;
         $this->tlsStarted = true;
     }
 
@@ -128,10 +135,11 @@ final class StreamClientMock implements StreamClient
                 $split = \explode("\n", $this->queue[0], 2);
                 $line .= $split[0] . "\n";
 
-                if (!isset($split[1]) || $split[1] === '') {
-                    $this->queue->dequeue();
-                } else {
+                $this->leftover = isset($split[1]) && $split[1] !== '';
+                if ($this->leftover) {
                     $this->queue[0] = $split[1];
+                } else {
+                    $this->queue->dequeue();
                 }
                 break;
             }

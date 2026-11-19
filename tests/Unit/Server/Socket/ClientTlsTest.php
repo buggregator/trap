@@ -226,6 +226,31 @@ final class ClientTlsTest
     }
 
     #[Test]
+    public function dropsPlainDataSentAfterRequestForTls(): void
+    {
+        [$client, $peer] = $this->tlsConnection();
+        $fiber = new \Fiber($client->process(...));
+        \fwrite($peer, "STARTTLS\r\n");
+        $this->drive($fiber, $client, fn(): bool => $this->payloads === ["STARTTLS\r\n"]);
+
+        $client->send("220 Ready\r\n");
+        $client->startTls();
+        \fwrite($peer, "MAIL FROM:<injected@evil>\r\n");
+        \usleep(50_000);
+        $reply = '';
+        $this->drive($fiber, $client, static function () use ($peer, &$reply): bool {
+            $reply .= (string) \fread($peer, 100);
+            return $reply === "220 Ready\r\n";
+        });
+        $this->handshake($fiber, $client, $peer);
+        \fwrite($peer, "EHLO\r\n");
+        $this->drive($fiber, $client, fn(): bool => \str_contains(\implode('', $this->payloads), 'EHLO'));
+
+        Assert::same($this->payloads, ["STARTTLS\r\n", "EHLO\r\n"]);
+        $client->destroy();
+    }
+
+    #[Test]
     public function cannotStartTlsWithSelfSignedCertificate(): void
     {
         [$listener, $port] = $this->listen();
