@@ -8,5 +8,6 @@
 /vendor/
 /tools/*/vendor/
 /tools/*/composer.lock
+!/tools/psalm/composer.lock
 /.env
 *.log
