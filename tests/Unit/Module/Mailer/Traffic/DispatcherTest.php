@@ -98,6 +98,110 @@ final class DispatcherTest
         Assert::same((new Dispatcher())->detect($data, $silence), $expected);
     }
 
+    #[Test]
+    public function testEhloAdvertisesStartTlsWhenTlsIsOn(): void
+    {
+        $replies = [];
+        $stream = StreamClientMock::createFromGenerator(self::session($replies, "EHLO a\r\n"), tls: true);
+
+        $this->dispatch($stream);
+
+        Assert::same($replies[1], "250-mailamie\r\n250 STARTTLS\r\n");
+    }
+
+    #[Test]
+    public function testEhloDoesNotAdvertiseStartTlsWhenTlsIsOff(): void
+    {
+        $replies = [];
+        $stream = StreamClientMock::createFromGenerator(self::session($replies, "EHLO a\r\n"));
+
+        $this->dispatch($stream);
+
+        Assert::same($replies[1], "250 \r\n");
+    }
+
+    #[Test]
+    public function testStartTlsSwitchesTheStreamAndStartsTheSessionOver(): void
+    {
+        $replies = [];
+        $stream = StreamClientMock::createFromGenerator(
+            self::session($replies, "EHLO a\r\n", "MAIL FROM: <a@b.c>\r\n", "STARTTLS\r\n", "EHLO a\r\n"),
+            tls: true,
+        );
+
+        $frames = $this->dispatch($stream);
+
+        Assert::same($replies[3], "220 Ready to start TLS \r\n");
+        Assert::true($stream->isTlsStarted());
+        // Over TLS the stream can't switch again
+        Assert::same($replies[4], "250 \r\n");
+        Assert::same($frames, []);
+    }
+
+    #[Test]
+    public function testCommandsSentInPlainTextWithStartTlsAreDropped(): void
+    {
+        $replies = [];
+        $stream = StreamClientMock::createFromGenerator(
+            self::session(
+                $replies,
+                "EHLO a\r\n",
+                "STARTTLS\r\nMAIL FROM: <injected@evil>\r\nRCPT TO: <injected@evil>\r\n",
+                // Over TLS, with no EHLO to start the session over
+                "RCPT TO: <recipient@example.com>\r\n",
+                "DATA\r\n",
+                "Subject: Over TLS\r\n\r\nHello\r\n.\r\n",
+            ),
+            tls: true,
+        );
+
+        $frames = $this->dispatch($stream);
+
+        Assert::count($frames, 1);
+        Assert::same($frames[0]->message->getProtocol(), ['BCC' => ['recipient@example.com']]);
+    }
+
+    #[Test]
+    public function testStartTlsIsRefusedWhenTlsIsOff(): void
+    {
+        $replies = [];
+        $stream = StreamClientMock::createFromGenerator(self::session($replies, "EHLO a\r\n", "STARTTLS\r\n"));
+
+        $this->dispatch($stream);
+
+        Assert::same($replies[2], "454 TLS not available \r\n");
+        Assert::false($stream->isTlsStarted());
+    }
+
+    /**
+     * Sends the commands and the closing QUIT, collecting the reply to each.
+     *
+     * @param list<string> $replies The greeting, then the reply to each command.
+     */
+    private static function session(array &$replies, string ...$commands): \Generator
+    {
+        // The stream reports what was sent before each read, nothing on the first one
+        foreach ([...$commands, "QUIT\r\n", ''] as $command) {
+            $reply = yield $command;
+            $reply === '' or $replies[] = $reply;
+        }
+    }
+
+    /**
+     * @return list<SmtpFrame>
+     */
+    private function dispatch(StreamClientMock $stream): array
+    {
+        $frames = [];
+        $this->runInFiber(static function () use ($stream, &$frames): void {
+            foreach ((new Dispatcher())->dispatch($stream) as $frame) {
+                $frames[] = $frame;
+            }
+        });
+
+        return $frames;
+    }
+
     private function mailMe(string $subject = 'Test email', bool $quit = false): \Generator
     {
         yield "EHLO\r\n";
