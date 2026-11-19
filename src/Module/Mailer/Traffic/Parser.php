@@ -182,18 +182,21 @@ final class Parser
     }
 
     /**
-     * Value of a header parameter, unquoted and unescaped.
+     * Value of a header parameter, unquoted, with `\"` and `\\` unescaped.
+     *
+     * Mailers write Windows paths with bare backslashes, as `"C:\dir\"`, so any other backslash stays,
+     * and a quoted value that doesn't close after its escapes is taken as is up to the next quote.
      *
      * @return non-empty-string|null Null if the parameter is absent or empty.
      */
     private static function findParameter(string $header, string $parameter): ?string
     {
         $value = self::findRawParameter($header, $parameter);
-        $value !== null && \str_starts_with($value, '"') and $value = (string) \preg_replace(
-            '/\\\\(.)/s',
-            '$1',
-            \substr($value, 1, -1),
-        );
+        if ($value !== null && \str_starts_with($value, '"')) {
+            $value = \preg_match('/^"((?:[^"\\\\]|\\\\.)*+)"$/s', $value, $matches) === 1
+                ? (string) \preg_replace('/\\\\([\\\\"])/', '$1', $matches[1])
+                : \rtrim(\substr($value, 1), '"');
+        }
 
         return $value === null || $value === '' ? null : $value;
     }
@@ -205,7 +208,7 @@ final class Parser
     private static function findRawParameter(string $header, string $parameter): ?string
     {
         \preg_match_all(
-            '/;\\s*+([^\\s=;"]++)\\s*+=\\s*+("(?:[^"\\\\]|\\\\.)*+"|[^;"]*+)/',
+            '/;\\s*+([^\\s=;"]++)\\s*+=\\s*+("(?:[^"\\\\]|\\\\.)*+"|"[^"]*+"?|[^;"]*+)/',
             $header,
             $params,
             \PREG_SET_ORDER,
@@ -261,8 +264,9 @@ final class Parser
      * The file name of a mail part: the `filename` of Content-Disposition, else the `name` of Content-Type,
      * as Outlook and older mailers name attachments. Either may be made of RFC 2047 encoded words.
      *
-     * Not the name {@see Part::create()} gives: it reads quoted values as browsers write them in form data,
-     * where a backslash is no escape.
+     * The name {@see Part::create()} gives comes after the own reading of `filename`: it reads quoted values
+     * as browsers write them in form data, where a backslash is no escape, yet it finds a name in values
+     * the own reading rejects.
      *
      * @return non-empty-string|null
      */
@@ -272,6 +276,7 @@ final class Parser
         $contentType = $part->getHeaderLine('Content-Type');
         $fileName = Part::findExtendedParameter($disposition, 'filename')
             ?? self::findParameter($disposition, 'filename')
+            ?? ($part instanceof File && $part->getClientFilename() !== '' ? $part->getClientFilename() : null)
             ?? Part::findExtendedParameter($contentType, 'name')
             ?? self::findParameter($contentType, 'name');
 

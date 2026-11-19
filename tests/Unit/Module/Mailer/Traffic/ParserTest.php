@@ -266,6 +266,22 @@ final class ParserTest
             "Content-Type: application/pdf\r\nContent-Disposition: attachment; x-note=\"filename=fake.pdf\"; filename=real.pdf\r\n",
             'real.pdf',
         ];
+        yield 'Content-Disposition filename, bare backslashes of a path' => [
+            "Content-Type: application/pdf\r\nContent-Disposition: attachment; filename=\"C:\\dir\\file.pdf\"\r\n",
+            'C:\\dir\\file.pdf',
+        ];
+        yield 'Content-Disposition filename, ending with a bare backslash' => [
+            "Content-Type: application/pdf\r\nContent-Disposition: attachment; filename=\"C:\\dir\\\"\r\n",
+            'C:\\dir\\',
+        ];
+        yield 'Content-Disposition filename, unterminated quote' => [
+            "Content-Type: application/pdf\r\nContent-Disposition: attachment; filename=\"report.pdf\r\n",
+            'report.pdf',
+        ];
+        yield 'Content-Disposition filename without a semicolon, over Content-Type name' => [
+            "Content-Type: application/pdf; name=other.pdf\r\nContent-Disposition: attachment filename=report.pdf\r\n",
+            'report.pdf',
+        ];
         yield 'no name' => ["Content-Type: application/pdf\r\n", null];
         yield 'empty name' => ["Content-Type: application/pdf; name=\"\"\r\n", null];
     }
