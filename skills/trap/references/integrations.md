@@ -60,6 +60,10 @@ headers, the text and HTML parts and the attachments, all decoded from quoted-pr
 are UTF-8, converted from the declared charset by mbstring or iconv; a part in a charset neither knows keeps its raw
 bytes, and one with no charset is taken as UTF-8. No mail leaves the machine.
 
+`subject` and the contact names come decoded from RFC 2047 words: `where` on `subject` and a `search` match the
+plain text, such as `Привет, мир`. `from`, `to`, `cc` and `bcc` hold the addresses, so match a name with `search`.
+`from` holds each address once: the envelope sender and the `From` header merged.
+
 ## OpenTelemetry
 
 ```bash
