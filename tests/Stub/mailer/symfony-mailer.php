@@ -6,8 +6,8 @@
  * Usage: php symfony-mailer.php <dsn> < mails.json
  * The input is a list of mails, sent one after another over one transport. A mail holds `from`,
  * `to`, `cc`, `bcc`, `subject`, `text`, `html` and `attachments` as a list of `{name, content, type}`.
- * Prints `{"sent": int, "error": ?string, "debug": string}`: the number of mails sent, the error
- * that stopped sending and the SMTP transcript.
+ * Ends with a line of `@@symfony-mailer-result@@` and `{"sent": int, "error": ?string, "debug": string}`:
+ * the number of mails sent, the error that stopped sending and the SMTP transcript.
  */
 
 declare(strict_types=1);
@@ -45,4 +45,5 @@ try {
     $result['debug'] .= $e->getDebug();
 }
 
-echo \json_encode($result, \JSON_THROW_ON_ERROR | \JSON_INVALID_UTF8_SUBSTITUTE);
+// A marked line of its own: warnings and deprecations printed before it are no part of the result
+echo "\n@@symfony-mailer-result@@", \json_encode($result, \JSON_THROW_ON_ERROR | \JSON_INVALID_UTF8_SUBSTITUTE), "\n";

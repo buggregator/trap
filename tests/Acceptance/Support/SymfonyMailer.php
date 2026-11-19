@@ -15,14 +15,23 @@ final class SymfonyMailer
 {
     private const TIMEOUT = 15.0;
 
+    /** Starts the line of the client's result, see `tests/Stub/mailer/symfony-mailer.php`. */
+    private const RESULT_MARKER = '@@symfony-mailer-result@@';
+
     /**
      * Skips the calling test when the tool is not installed: `composer bin mailer install`.
+     * Fails it on CI instead, where the tool is installed unless a workflow lost the step.
      */
     public static function require(): void
     {
-        \is_file(Info::TRAP_ROOT . '/tools/mailer/vendor/autoload.php') or throw new SkipTest(
-            'Symfony Mailer is not installed: run `composer bin mailer install`.',
-        );
+        if (\is_file(Info::TRAP_ROOT . '/tools/mailer/vendor/autoload.php')) {
+            return;
+        }
+
+        $message = 'Symfony Mailer is not installed: run `composer bin mailer install`.';
+        \getenv('CI') === false
+            ? throw new SkipTest($message)
+            : throw new \RuntimeException($message);
     }
 
     /**
@@ -71,10 +80,14 @@ final class SymfonyMailer
         \fclose($pipes[1]);
         $exitCode = \proc_close($process);
 
-        $result = \json_decode($output, true);
+        // Warnings and deprecations of the client come before its result line
+        $at = \strrpos($output, self::RESULT_MARKER);
+        $result = $at === false ? null : \json_decode(\substr($output, $at + \strlen(self::RESULT_MARKER)), true);
         $exitCode === 0 && \is_array($result) or throw new \RuntimeException(
             "The Symfony Mailer client failed with exit code $exitCode:\n$output",
         );
+        $diagnostics = \trim(\substr($output, 0, $at));
+        $diagnostics === '' or $result['debug'] = "Client output:\n$diagnostics\n\n{$result['debug']}";
 
         /** @var array{sent: int, error: string|null, debug: string} $result */
         return $result;
