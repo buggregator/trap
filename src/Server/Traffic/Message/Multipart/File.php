@@ -137,11 +137,15 @@ final class File extends Part implements UploadedFileInterface
      */
     public function getEmbeddingId(): ?string
     {
+        // Gmail gives attachments a Content-ID too, and an attached image has a name
+        if (\preg_match('/^\\s*attachment\\b/i', $this->getHeaderLine('Content-Disposition')) === 1) {
+            return null;
+        }
+
         $matches = [];
         $result = match (true) {
-            // HTML refers to an embedded part as `cid:` and its Content-ID.
-            // Gmail gives attachments a Content-ID too, so the attachment disposition wins.
-            !\str_starts_with($this->getHeaderLine('Content-Disposition'), 'attachment') && \preg_match(
+            // HTML refers to an embedded part as `cid:` and its Content-ID
+            \preg_match(
                 '/^\\s*<?([^<>\\s]++)>?\\s*$/',
                 $this->getHeaderLine('Content-ID'),
                 $matches,

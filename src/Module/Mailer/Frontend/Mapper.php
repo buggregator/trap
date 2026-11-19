@@ -66,17 +66,23 @@ final class Mapper implements EventMapper
         /** @var \ArrayObject<non-empty-string, Asset> $assets */
         $assets = new \ArrayObject();
 
+        $html = $message->getMessage(MessageFormat::Html)?->getValue() ?? '';
         foreach ($message->getAttachments() as $attachment) {
-            $asset = self::asset($attachment);
+            $asset = self::asset($attachment, $html);
             $assets->offsetSet($asset->uuid, $asset);
         }
 
         return $assets;
     }
 
-    private static function asset(File $attachment): Asset
+    /**
+     * The UI lists attached files only and shows an embedded one in the HTML,
+     * so a file the HTML doesn't refer to is listed as attached.
+     */
+    private static function asset(File $attachment, string $html): Asset
     {
         $embedded = $attachment->getEmbeddingId();
+        $embedded === null || \str_contains($html, "cid:{$embedded}") or $embedded = null;
         return $embedded === null
             ? new AttachedFile(
                 id: Uuid::generate(),

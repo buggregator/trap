@@ -14,8 +14,10 @@ Every one carries the same 1×1 PNG (70 bytes) and PDF (77 bytes), so the tests 
   ```
 
   `symfony-alternative.eml` has no embedded image and attachment, `symfony-related.eml` has no text and attachment.
-- `thunderbird.eml`, `outlook.eml`, `gmail.eml` — hand-written in the structure and headers of the emails
-  these clients send: Thunderbird puts a preamble before the first part and folds `Content-Type`,
-  Gmail gives an attachment a `Content-ID`.
+- `thunderbird.eml`, `outlook.eml`, `gmail.eml`, `apple-mail.eml` — hand-written in the structure and headers
+  of the emails these clients send: Thunderbird puts a preamble before the first part, folds `Content-Type`
+  and percent-encodes a non-ASCII file name in `filename*=`; Gmail gives attachments a `Content-ID`;
+  Apple Mail puts an attached PDF inline, with a `Content-ID`, between two HTML parts.
+- `calendar-invite.eml` — a Google Calendar invitation: `text/calendar` next to the text and HTML.
 - `deeply-nested.eml` — four levels of multipart; the embedded image has a `Content-ID` only.
 - `forwarded-as-attachment.eml` — a whole email attached as `message/rfc822`.

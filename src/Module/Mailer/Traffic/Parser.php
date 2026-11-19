@@ -195,7 +195,9 @@ final class Parser
     ): void {
         foreach (Http::parseMultipartBody($stream, $boundary) as $part) {
             if ($part instanceof Field) {
-                $texts[] = $part;
+                \preg_match('/^\\s*text\\/(?:plain|html|watch-html)\\b/i', $part->getHeaderLine('Content-Type')) === 1
+                    ? $texts[] = $part
+                    : $attachments[] = $this->textToFile($part);
                 continue;
             }
 
@@ -215,6 +217,34 @@ final class Parser
             $body->rewind();
             $this->collectParts($body, $nested, $depth + 1, $texts, $attachments);
         }
+    }
+
+    /**
+     * A text part that is not a message body, like a `text/calendar` invitation.
+     */
+    private function textToFile(Field $part): File
+    {
+        $contentType = $part->getHeaderLine('Content-Type');
+        $fileName = \preg_match('/;\\s*name=(?:"([^"]++)"|([^"\\s;]++))/i', $contentType, $matches) === 1
+            ? ($matches[1] ?: $matches[2])
+            : match (\strtolower(\trim(\explode(';', $contentType, 2)[0]))) {
+                'text/calendar' => 'invite.ics',
+                'text/csv' => 'attachment.csv',
+                default => 'attachment.txt',
+            };
+
+        $value = $part->getValue();
+        \strcasecmp($part->getHeaderLine('Content-Transfer-Encoding'), 'base64') === 0
+            and $value = \base64_decode($value);
+
+        $stream = StreamHelper::createFileStream();
+        $stream->write($value);
+        $stream->rewind();
+        /** @psalm-suppress InvalidArgument */
+        $file = new File($part->getHeaders(), $part->getName(), $fileName);
+        $file->setStream($stream);
+
+        return $file;
     }
 
     /**

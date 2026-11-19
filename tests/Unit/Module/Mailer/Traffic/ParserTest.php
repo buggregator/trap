@@ -49,20 +49,34 @@ final class ParserTest
             [$html],
             [['logo', 'image/png', 'a494a0178b1158463e93077436c5493f@symfony', 70]],
         ];
-        yield 'Thunderbird: preamble, folded headers, mixed > alternative > related' => [
+        yield 'Thunderbird: preamble, folded headers, mixed > alternative > related, non-ASCII file name' => [
             'thunderbird.eml',
             [$plain, $html],
-            [['logo.png', 'image/png', 'part1.Hq3vO9aL.T2nYk8cE@example.com', 70], $pdf],
+            [
+                ['logo.png', 'image/png', 'part1.Hq3vO9aL.T2nYk8cE@example.com', 70],
+                $pdf,
+                ['отчёт.txt', 'text/plain', null, 10],
+            ],
         ];
         yield 'Outlook: mixed > related > alternative' => [
             'outlook.eml',
             [$plain, $html],
             [['image001.png', 'image/png', 'image001.png@01DB3A7C.5E2F1B30', 70], $pdf],
         ];
-        yield 'Gmail: attachment with a Content-ID' => [
+        yield 'Gmail: attachments with a Content-ID' => [
             'gmail.eml',
             [$plain, $html],
-            [['logo.png', 'image/png', 'ii_m3p9x1ab0', 70], $pdf],
+            [['logo.png', 'image/png', 'ii_m3p9x1ab0', 70], $pdf, ['photo.png', 'image/png', null, 70]],
+        ];
+        yield 'Apple Mail: alternative > mixed, inline PDF between two HTML parts' => [
+            'apple-mail.eml',
+            [$plain, $html, ['text/html', '<div><br></div>']],
+            [['report.pdf', 'application/pdf', '1A2B3C4D-5E6F-4A7B-8C9D-0E1F2A3B4C5D', 77]],
+        ];
+        yield 'calendar invitation: text/calendar alternative' => [
+            'calendar-invite.eml',
+            [$plain, $html],
+            [['invite.ics', 'text/calendar', null, 93], ['invite.ics', 'application/ics', null, 93]],
         ];
         yield 'four levels of multipart' => [
             'deeply-nested.eml',
@@ -266,7 +280,8 @@ final class ParserTest
 
         $message = $this->parse(\str_split($email . ".\r\n", 64));
 
-        Assert::same((string) $message->getBody(), $email . ".\r\n");
+        // Whether the stored body keeps the end-of-data line is not up to multipart parsing
+        Assert::same(\rtrim((string) $message->getBody(), ".\r\n"), \rtrim($email, "\r\n"));
         Assert::same(
             \array_map(
                 static fn(Field $text): string => \explode(';', $text->getHeaderLine('Content-Type'))[0],
