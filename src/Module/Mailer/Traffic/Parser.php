@@ -19,6 +19,9 @@ use Psr\Http\Message\StreamInterface;
  */
 final class Parser
 {
+    /** Each nesting level of multipart parts copies the part body into a new temporary stream */
+    private const MAX_MULTIPART_DEPTH = 16;
+
     /**
      * @return array<non-empty-string, list<non-empty-string>>
      */
@@ -163,22 +166,70 @@ final class Parser
 
     private function processMultipartForm(Message $message, StreamInterface $stream): Message
     {
-        if (\preg_match('/boundary="?([^"\\s;]++)"?/', $message->getHeaderLine('Content-Type'), $matches) !== 1) {
+        $boundary = $this->findBoundary($message->getHeaderLine('Content-Type'));
+        if ($boundary === null) {
             return $message;
         }
 
-        /** @var non-empty-string $boundary */
-        $boundary = $matches[1];
-        $parts = Http::parseMultipartBody($stream, $boundary);
         $attachments = $texts = [];
-        foreach ($parts as $part) {
-            if ($part instanceof Field) {
-                $texts[] = $part;
-            } elseif ($part instanceof File) {
-                $attachments[] = $part;
-            }
-        }
+        $this->collectParts($stream, $boundary, 1, $texts, $attachments);
 
         return $message->withMessages($texts)->withAttachments($attachments);
+    }
+
+    /**
+     * Collect the leaf parts of a multipart body, descending into nested multipart parts.
+     * A part nested deeper than {@see MAX_MULTIPART_DEPTH} stays an attachment.
+     *
+     * @param non-empty-string $boundary
+     * @param int<1, max> $depth Nesting level of the body, 1 for the message body.
+     * @param list<Field> $texts
+     * @param list<File> $attachments
+     */
+    private function collectParts(
+        StreamInterface $stream,
+        string $boundary,
+        int $depth,
+        array &$texts,
+        array &$attachments,
+    ): void {
+        foreach (Http::parseMultipartBody($stream, $boundary) as $part) {
+            if ($part instanceof Field) {
+                $texts[] = $part;
+                continue;
+            }
+
+            if (!$part instanceof File) {
+                continue;
+            }
+
+            $nested = $depth < self::MAX_MULTIPART_DEPTH && $part->hasStream()
+                ? $this->findBoundary($part->getHeaderLine('Content-Type'))
+                : null;
+            if ($nested === null) {
+                $attachments[] = $part;
+                continue;
+            }
+
+            $body = $part->getStream();
+            $body->rewind();
+            $this->collectParts($body, $nested, $depth + 1, $texts, $attachments);
+        }
+    }
+
+    /**
+     * @return non-empty-string|null Boundary of a `multipart/*` content type.
+     */
+    private function findBoundary(string $contentType): ?string
+    {
+        if (\preg_match('/^\\s*multipart\\//i', $contentType) !== 1
+            || \preg_match('/;\\s*boundary=(?:"([^"]++)"|([^"\\s;]++))/i', $contentType, $matches) !== 1
+        ) {
+            return null;
+        }
+
+        /** @var non-empty-string $boundary */
+        $boundary = $matches[1] ?: $matches[2];
+        return $boundary;
     }
 }

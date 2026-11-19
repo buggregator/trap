@@ -6,6 +6,8 @@ namespace Buggregator\Trap\Tests\Unit\Module\Mailer\Traffic;
 
 use Buggregator\Trap\Module\Mailer\Message;
 use Buggregator\Trap\Module\Mailer\Traffic\Parser;
+use Buggregator\Trap\Server\Traffic\Message\Multipart\Field;
+use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
 use Buggregator\Trap\Test\Mock\StreamClientMock;
 use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Testo\Assert;
@@ -23,6 +25,58 @@ final class ParserTest
         yield [
             "To: User1 <gam6itko@mail.ru>, User2 <gam6itko@gmail.com>, User3\r\n <gam6itko@yandex.ru>\r\n",
             ['To' => ['User1 <gam6itko@mail.ru>, User2 <gam6itko@gmail.com>, User3 <gam6itko@yandex.ru>']],
+        ];
+    }
+
+    /**
+     * Texts are `[Content-Type prefix, substring of the value]`,
+     * attachments are `[file name, media type, embedding ID, decoded size]`.
+     */
+    public static function provideNestedMultipartEmails(): iterable
+    {
+        $plain = ['text/plain', 'Hello from the plain text part.'];
+        $html = ['text/html', 'Hello from the <b>HTML</b> part.'];
+        $pdf = ['report.pdf', 'application/pdf', null, 77];
+
+        yield 'Symfony Mailer: mixed > related > alternative' => [
+            'symfony-mixed-related-alternative.eml',
+            [$plain, $html],
+            [['logo', 'image/png', '92fd177dacc4e60bbdcdd851b24be016@symfony', 70], $pdf],
+        ];
+        yield 'Symfony Mailer: alternative' => ['symfony-alternative.eml', [$plain, $html], []];
+        yield 'Symfony Mailer: related without alternative' => [
+            'symfony-related.eml',
+            [$html],
+            [['logo', 'image/png', 'a494a0178b1158463e93077436c5493f@symfony', 70]],
+        ];
+        yield 'Thunderbird: preamble, folded headers, mixed > alternative > related' => [
+            'thunderbird.eml',
+            [$plain, $html],
+            [['logo.png', 'image/png', 'part1.Hq3vO9aL.T2nYk8cE@example.com', 70], $pdf],
+        ];
+        yield 'Outlook: mixed > related > alternative' => [
+            'outlook.eml',
+            [$plain, $html],
+            [['image001.png', 'image/png', 'image001.png@01DB3A7C.5E2F1B30', 70], $pdf],
+        ];
+        yield 'Gmail: attachment with a Content-ID' => [
+            'gmail.eml',
+            [$plain, $html],
+            [['logo.png', 'image/png', 'ii_m3p9x1ab0', 70], $pdf],
+        ];
+        yield 'four levels of multipart' => [
+            'deeply-nested.eml',
+            [$plain, $html],
+            [
+                [null, 'image/png', 'logo@example.com', 70],
+                ['notes.txt', 'text/plain', null, 30],
+                $pdf,
+            ],
+        ];
+        yield 'message/rfc822 stays an attachment' => [
+            'forwarded-as-attachment.eml',
+            [['text/plain', 'The original email is attached.']],
+            [['original.eml', 'message/rfc822', null, 373]],
         ];
     }
 
@@ -202,6 +256,61 @@ final class ParserTest
 
         // Check attachments
         Assert::count($message->getAttachments(), 1);
+    }
+
+    #[DataProvider('provideNestedMultipartEmails')]
+    #[Test]
+    public function parsesNestedMultipart(string $fixture, array $texts, array $attachments): void
+    {
+        $email = \file_get_contents(\dirname(__DIR__, 4) . "/Stub/mail/$fixture");
+
+        $message = $this->parse(\str_split($email . ".\r\n", 64));
+
+        Assert::same((string) $message->getBody(), $email . ".\r\n");
+        Assert::same(
+            \array_map(
+                static fn(Field $text): string => \explode(';', $text->getHeaderLine('Content-Type'))[0],
+                $message->getMessages(),
+            ),
+            \array_column($texts, 0),
+        );
+        foreach ($message->getMessages() as $i => $text) {
+            Assert::string($text->getValue())->contains($texts[$i][1]);
+        }
+        Assert::same(
+            \array_map(
+                static fn(File $file): array => [
+                    $file->getClientFilename(),
+                    $file->getClientMediaType(),
+                    $file->getEmbeddingId(),
+                    $file->getSize(),
+                ],
+                $message->getAttachments(),
+            ),
+            $attachments,
+        );
+    }
+
+    #[Test]
+    public function keepsMultipartNestedTooDeepAsAttachment(): void
+    {
+        // Every level holds a text and the next level; levels close in reverse order.
+        // `b1` would also match `b10`, hence the `_` closing each boundary.
+        $email = $tail = '';
+        for ($level = 0; $level < 20; ++$level) {
+            $next = $level + 1;
+            $email .= "--b{$level}_\r\nContent-Type: text/plain\r\n\r\nLevel {$level}\r\n"
+                . "--b{$level}_\r\nContent-Type: multipart/mixed; boundary=b{$next}_\r\n\r\n";
+            $tail = "\r\n--b{$level}_--\r\n" . $tail;
+        }
+        $email .= "--b20_\r\nContent-Type: text/plain\r\n\r\nLevel 20\r\n--b20_--" . $tail;
+
+        $message = $this->parse("Content-Type: multipart/mixed; boundary=b0_\r\n\r\n{$email}\r\n.\r\n");
+
+        Assert::count($message->getMessages(), 16);
+        Assert::same($message->getMessages()[15]->getValue(), 'Level 15');
+        Assert::count($message->getAttachments(), 1);
+        Assert::same($message->getAttachments()[0]->getClientMediaType(), 'multipart/mixed');
     }
 
     private function parse(array|string $body, array $protocol = []): Message

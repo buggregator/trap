@@ -139,6 +139,14 @@ final class File extends Part implements UploadedFileInterface
     {
         $matches = [];
         $result = match (true) {
+            // HTML refers to an embedded part as `cid:` and its Content-ID.
+            // Gmail gives attachments a Content-ID too, so the attachment disposition wins.
+            !\str_starts_with($this->getHeaderLine('Content-Disposition'), 'attachment') && \preg_match(
+                '/^\\s*<?([^<>\\s]++)>?\\s*$/',
+                $this->getHeaderLine('Content-ID'),
+                $matches,
+            ) === 1 => $matches[1],
+
             // Content-Disposition is inline and name is present
             \str_starts_with($this->getHeaderLine('Content-Disposition'), 'inline') && \preg_match(
                 '/(?:\\s|^|;|,)name=(?:\"([^\"]++)\"|\'([^\']++)\'|([^;,\\s]++))/',
