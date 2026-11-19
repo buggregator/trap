@@ -157,7 +157,6 @@ final class SymfonyMailerTest
      * Text and HTML alternatives with a file attached: a `multipart/mixed` message holding
      * a `multipart/alternative` one, the way Symfony Mailer builds it.
      */
-    #[Skip('Trap takes the nested multipart/alternative part for an attachment: no text, no HTML')]
     public function testTextAndHtmlWithAttachment(): void
     {
         SymfonyMailer::require();
