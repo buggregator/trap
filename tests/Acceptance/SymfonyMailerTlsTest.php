@@ -16,14 +16,16 @@ use Testo\Test;
 /**
  * Symfony Mailer (`tools/mailer`) sends mail to the SMTP server of `bin/trap` over TLS, on the same
  * port as plain SMTP: implicit TLS (SMTPS) and STARTTLS. Without `TRAP_TLS_CERT` and `TRAP_TLS_KEY`
- * the server has a self-signed certificate, so the client does not verify the peer.
- * Skipped when the tool or ext-openssl is not installed.
+ * the server has a self-signed certificate and offers SMTPS only: a client that upgrades by itself would
+ * fail to verify it. STARTTLS needs the certificate configured. Clients here verify the certificate
+ * by its fingerprint or not at all. Skipped when the tool or ext-openssl is not installed.
  */
 #[Test]
 final class SymfonyMailerTlsTest
 {
     private const CERT = Info::TRAP_ROOT . '/tests/Stub/tls/localhost.crt';
     private const KEY = Info::TRAP_ROOT . '/tests/Stub/tls/localhost.key';
+    private const CERTIFICATE_ENV = ['TRAP_TLS_CERT' => self::CERT, 'TRAP_TLS_KEY' => self::KEY];
     private const MAIL = [
         'from' => 'sender@acceptance.test',
         'to' => ['Alice <alice@acceptance.test>'],
@@ -71,11 +73,10 @@ final class SymfonyMailerTlsTest
     public function testImplicitTlsWithConfiguredCertificate(): void
     {
         self::requireTls();
-        $trap = $this->startTrap('symfony-mailer-smtps-cert', ['TRAP_TLS_CERT' => self::CERT, 'TRAP_TLS_KEY' => self::KEY]);
-        $fingerprint = \openssl_x509_fingerprint((string) \file_get_contents(self::CERT), 'sha1');
+        $trap = $this->startTrap('symfony-mailer-smtps-cert', self::CERTIFICATE_ENV);
 
         $result = SymfonyMailer::send(
-            "smtps://127.0.0.1:$this->port?verify_peer=0&peer_fingerprint=$fingerprint",
+            "smtps://127.0.0.1:$this->port?" . self::pinnedPeer(),
             ['subject' => 'Symfony SMTPS certificate subject'] + self::MAIL,
         );
 
@@ -84,16 +85,16 @@ final class SymfonyMailerTlsTest
     }
 
     /**
-     * The client upgrades the session by itself when `EHLO` advertises `STARTTLS`, and says `EHLO` again.
-     * `require_tls` makes the client fail rather than send in plain text.
+     * With a configured certificate the client upgrades the session by itself, as `EHLO` advertises
+     * `STARTTLS`, and says `EHLO` again. `require_tls` makes the client fail rather than send in plain text.
      */
     public function testStartTls(): void
     {
         self::requireTls();
-        $trap = $this->startTrap('symfony-mailer-starttls');
+        $trap = $this->startTrap('symfony-mailer-starttls', self::CERTIFICATE_ENV);
 
         $result = SymfonyMailer::send(
-            "smtp://127.0.0.1:$this->port?verify_peer=0&require_tls=1",
+            "smtp://127.0.0.1:$this->port?require_tls=1&" . self::pinnedPeer(),
             ['subject' => 'Symfony STARTTLS subject'] + self::MAIL,
         );
 
@@ -105,12 +106,31 @@ final class SymfonyMailerTlsTest
     }
 
     /**
+     * With the self-signed certificate `EHLO` offers no `STARTTLS`, and the default DSN, which would upgrade
+     * and then fail to verify the certificate, sends in plain text.
+     */
+    public function testDefaultSetupSendsInPlainText(): void
+    {
+        self::requireTls();
+        $trap = $this->startTrap('symfony-mailer-default');
+
+        $result = SymfonyMailer::send(
+            "smtp://127.0.0.1:$this->port",
+            ['subject' => 'Symfony default DSN subject'] + self::MAIL,
+        );
+
+        Assert::same($result['error'], null, "{$result['error']}\n{$result['debug']}");
+        Assert::string($result['debug'])->contains('> EHLO')->notContains('STARTTLS');
+        $this->waitForDumpedMail($trap, 'Symfony default DSN subject');
+    }
+
+    /**
      * A client that does not take the `STARTTLS` offered by the server goes on in plain text.
      */
     public function testPlainSessionWhenClientSkipsStartTls(): void
     {
         self::requireTls();
-        $trap = $this->startTrap('symfony-mailer-no-auto-tls');
+        $trap = $this->startTrap('symfony-mailer-no-auto-tls', self::CERTIFICATE_ENV);
 
         $result = SymfonyMailer::send(
             "smtp://127.0.0.1:$this->port?auto_tls=false",
@@ -128,18 +148,18 @@ final class SymfonyMailerTlsTest
     public function testPlainAndTlsClientsOnSamePort(): void
     {
         self::requireTls();
-        $trap = $this->startTrap('symfony-mailer-mixed');
+        $trap = $this->startTrap('symfony-mailer-mixed', self::CERTIFICATE_ENV);
 
         $plain = SymfonyMailer::send(
             "smtp://127.0.0.1:$this->port?auto_tls=false",
             ['subject' => 'Symfony mixed plain subject'] + self::MAIL,
         );
         $smtps = SymfonyMailer::send(
-            "smtps://127.0.0.1:$this->port?verify_peer=0",
+            "smtps://127.0.0.1:$this->port?" . self::pinnedPeer(),
             ['subject' => 'Symfony mixed SMTPS subject'] + self::MAIL,
         );
         $startTls = SymfonyMailer::send(
-            "smtp://127.0.0.1:$this->port?verify_peer=0&require_tls=1",
+            "smtp://127.0.0.1:$this->port?require_tls=1&" . self::pinnedPeer(),
             ['subject' => 'Symfony mixed STARTTLS subject'] + self::MAIL,
         );
 
@@ -149,6 +169,16 @@ final class SymfonyMailerTlsTest
         $this->waitForDumpedMail($trap, 'Symfony mixed plain subject');
         $this->waitForDumpedMail($trap, 'Symfony mixed SMTPS subject');
         $this->waitForDumpedMail($trap, 'Symfony mixed STARTTLS subject');
+    }
+
+    /**
+     * DSN options that accept the fixture certificate only: it is self-signed, so the chain is not verified.
+     */
+    private static function pinnedPeer(): string
+    {
+        $fingerprint = \openssl_x509_fingerprint((string) \file_get_contents(self::CERT), 'sha1');
+
+        return "verify_peer=0&peer_fingerprint=$fingerprint";
     }
 
     private static function requireTls(): void
