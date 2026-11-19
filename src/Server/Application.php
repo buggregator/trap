@@ -16,6 +16,7 @@ use Buggregator\Trap\Server\Service\FilesObserver\ProvidesFileObservers;
 use Buggregator\Trap\Server\Socket\Client;
 use Buggregator\Trap\Server\Socket\Server;
 use Buggregator\Trap\Server\Socket\SocketStream;
+use Buggregator\Trap\Server\Socket\Tls\Context;
 use Buggregator\Trap\Server\Traffic\Inspector;
 use Buggregator\Trap\Support\Activity;
 use Buggregator\Trap\Support\LoopPacer;
@@ -48,11 +49,13 @@ final class Application implements Processable, Cancellable, Destroyable
     /**
      * @param SocketServer[] $map
      * @param Sender[] $senders
+     * @param Context|null $tls The listened ports accept TLS next to plain traffic when set.
      */
     public function __construct(
         private readonly Container $container,
         array $map = [],
         private array $senders = [],
+        private readonly ?Context $tls = null,
     ) {
         $this->logger = $this->container->get(Logger::class);
         $this->buffer = new Buffer(bufferSize: 10485760, timer: 0.1);
@@ -361,6 +364,7 @@ final class Application implements Processable, Cancellable, Destroyable
             payloadSize: 524_288,
             clientInflector: $clientInflector,
             logger: $this->logger,
+            tls: $this->tls,
         );
     }
 

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Server\Socket;
 
 use Buggregator\Trap\Server\Socket\Exception\ClientDisconnected;
+use Buggregator\Trap\Server\Socket\Exception\TlsHandshakeFailed;
+use Buggregator\Trap\Server\Socket\Tls\Context;
 use Buggregator\Trap\Support\Activity;
 use Buggregator\Trap\Support\Timer;
 use Internal\Destroy\Destroyable;
@@ -22,8 +24,26 @@ final class Client implements Destroyable
      */
     public const POLL_PERIOD = 0.01;
 
+    /** The type of a TLS record with a handshake message: a TLS connection opens with a ClientHello in one */
+    private const TLS_HANDSHAKE_RECORD = "\x16";
+
     /** @var string[] */
     private array $writeQueue = [];
+
+    /** @var resource|null The socket as a stream, once TLS is on */
+    private mixed $stream = null;
+
+    /** The first bytes are yet to be checked for a TLS handshake */
+    private bool $detectTls;
+
+    /** Seconds of {@see \microtime()} the TLS handshake ends by, null while none runs */
+    private ?float $handshakeUntil = null;
+
+    /** TLS holds decrypted data that the socket doesn't show as readable */
+    private bool $tlsPending = false;
+
+    /** The handshake starts once the write queue is empty */
+    private bool $startTls = false;
 
     private bool $toDisconnect = false;
 
@@ -47,7 +67,9 @@ final class Client implements Destroyable
         private readonly \Socket $socket,
         private readonly int $payloadSize,
         float $selectPeriod,
+        private readonly ?Context $tls,
     ) {
+        $this->detectTls = $tls !== null;
         $this->selectTimer = new Timer($selectPeriod);
         $this->checkedAt = \microtime(true);
         \socket_set_nonblock($this->socket);
@@ -58,16 +80,19 @@ final class Client implements Destroyable
     /**
      * @param positive-int $payloadSize Max payload size.
      * @param float $selectPeriod Seconds between socket_select() calls the main loop doesn't wake for.
+     * @param Context|null $tls Accepts a TLS connection next to a plain one when set.
      */
     public static function init(
         \Socket $socket,
         int $payloadSize = 10485760,
         float $selectPeriod = self::POLL_PERIOD,
+        ?Context $tls = null,
     ): self {
         return new self(
             socket: $socket,
             payloadSize: $payloadSize,
             selectPeriod: $selectPeriod,
+            tls: $tls,
         );
     }
 
@@ -126,7 +151,7 @@ final class Client implements Destroyable
      */
     public function writableSocket(): ?\Socket
     {
-        return $this->writeQueue === [] ? null : $this->socket;
+        return $this->writeQueue === [] || $this->handshakeUntil !== null ? null : $this->socket;
     }
 
     public function process(): void
@@ -144,14 +169,25 @@ final class Client implements Destroyable
             }
 
             /** @psalm-suppress RedundantCondition */
-            if ($read !== []) {
+            if ($read !== [] || $this->tlsPending) {
                 $progress = $this->readMessage();
             }
             $this->checkedAt = $checkedAt;
 
+            $this->handshakeUntil !== null && $checkedAt > $this->handshakeUntil
+                and throw new TlsHandshakeFailed('Timed out.');
+
             /** @psalm-suppress RedundantCondition */
-            if ($write !== [] && $this->writeQueue !== []) {
+            if ($write !== [] && $this->writeQueue !== [] && $this->handshakeUntil === null) {
                 $this->writeQueue();
+                $progress = true;
+            }
+
+            // The peer starts the handshake once it has read the answer to its request for TLS
+            /** @psalm-suppress RedundantCondition */
+            if ($this->startTls && $this->writeQueue === []) {
+                $this->startTls = false;
+                $this->startHandshake();
                 $progress = true;
             }
 
@@ -179,7 +215,13 @@ final class Client implements Destroyable
             /** @psalm-suppress RedundantCondition The properties change while the fiber is suspended */
             do {
                 \Fiber::suspend();
-            } while (!$this->ready && $this->writeQueue === [] && !$this->toDisconnect && !$this->selectTimer->isReady());
+            } while (
+                !$this->ready
+                && $this->writeQueue === []
+                && !$this->toDisconnect
+                && !$this->startTls
+                && !$this->selectTimer->isReady()
+            );
         } while (true);
     }
 
@@ -203,6 +245,25 @@ final class Client implements Destroyable
         $closure = $callable(...);
         /** @psalm-suppress PossiblyNullPropertyAssignmentValue, InvalidArgument */
         $this->onClose = @\Closure::bind($closure, $this) ?? $closure;
+    }
+
+    /**
+     * @return bool Whether {@see self::startTls()} can switch the connection to TLS.
+     */
+    public function canStartTls(): bool
+    {
+        return $this->tls?->trusted === true && $this->stream === null && !$this->startTls && !$this->toDisconnect;
+    }
+
+    /**
+     * Switches the connection to TLS once the queued data is written.
+     *
+     * @throws \LogicException When {@see self::canStartTls()} is false.
+     */
+    public function startTls(): void
+    {
+        $this->canStartTls() or throw new \LogicException('TLS is unavailable on the connection.');
+        $this->startTls = true;
     }
 
     public function send(string $payload): void
@@ -234,17 +295,16 @@ final class Client implements Destroyable
         // The queue is read on each pass: more data can be sent while the fiber is suspended
         while ($this->writeQueue !== []) {
             $data = $this->writeQueue[0];
-            $result = @\socket_write($this->socket, $data);
+            $result = $this->write($data);
+            if ($result === null) {
+                // The send buffer is full: retry once the main loop sees the socket writable
+                $this->writeBlocked = true;
+                \Fiber::suspend();
+                continue;
+            }
+
+            // Unrecoverable error, stop writing
             if ($result === false) {
-                $errno = \socket_last_error($this->socket);
-                // If the send buffer is temporarily full, suspend the fiber and retry
-                if ($errno === \SOCKET_EAGAIN || $errno === \SOCKET_EWOULDBLOCK) {
-                    \socket_clear_error($this->socket);
-                    $this->writeBlocked = true;
-                    \Fiber::suspend();
-                    continue;
-                }
-                // Unrecoverable error, stop writing
                 break;
             }
 
@@ -265,11 +325,69 @@ final class Client implements Destroyable
     }
 
     /**
+     * @return int|false|null Bytes written, null when the send buffer is full, false on an error.
+     */
+    private function write(string $data): int|false|null
+    {
+        if ($this->stream !== null) {
+            // TLS must be given the same data again after a write it couldn't make
+            \error_clear_last();
+            $result = @\fwrite($this->stream, $data);
+            if ($result !== 0) {
+                return $result;
+            }
+
+            // A full send buffer writes nothing silently. A reset connection writes nothing too, again and again,
+            // but warns, and the socket may no longer show it.
+            return \error_get_last() !== null || $this->peerClosed() ? false : null;
+        }
+
+        $result = @\socket_write($this->socket, $data);
+        if ($result !== false) {
+            return $result;
+        }
+
+        $errNo = \socket_last_error($this->socket);
+        if ($errNo === \SOCKET_EAGAIN || $errNo === \SOCKET_EWOULDBLOCK) {
+            \socket_clear_error($this->socket);
+            return null;
+        }
+
+        return false;
+    }
+
+    /**
      * Reads what the socket has, up to the payload size.
      *
      * @return bool Whether anything was read.
      */
     private function readMessage(): bool
+    {
+        if ($this->detectTls) {
+            $tls = $this->opensTls();
+            if ($tls === null) {
+                return false;
+            }
+
+            $this->detectTls = false;
+            $tls and $this->startHandshake();
+        }
+
+        if ($this->handshakeUntil !== null && !$this->handshake()) {
+            return false;
+        }
+
+        $payload = $this->stream === null ? $this->readSocket() : $this->readStream();
+        if ($payload === '') {
+            return false;
+        }
+
+        // What comes in plain text after the request for TLS would pass for data sent over TLS
+        $this->startTls or $this->processPayload($payload);
+        return true;
+    }
+
+    private function readSocket(): string
     {
         $payload = '';
         while (($left = $this->payloadSize - \strlen($payload)) > 0) {
@@ -298,11 +416,113 @@ final class Client implements Destroyable
             $payload .= $data;
         }
 
-        if ($payload === '') {
+        return $payload;
+    }
+
+    /**
+     * Reads until TLS has no more data: what it has decrypted doesn't make the socket readable.
+     */
+    private function readStream(): string
+    {
+        \assert($this->stream !== null);
+        $payload = '';
+        while (($left = $this->payloadSize - \strlen($payload)) > 0) {
+            $data = @\fread($this->stream, $left);
+            if ($data === false || $data === '') {
+                // The read data goes first: the next iteration fails again
+                if ($payload !== '') {
+                    break;
+                }
+
+                $this->peerClosed() and throw new ClientDisconnected();
+                $data === false and throw new \RuntimeException('TLS read failed.');
+                break;
+            }
+
+            $payload .= $data;
+        }
+
+        $this->tlsPending = \strlen($payload) >= $this->payloadSize;
+        return $payload;
+    }
+
+    /**
+     * @return bool|null Whether the peer has started a TLS handshake, null while it has sent nothing.
+     */
+    private function opensTls(): ?bool
+    {
+        $data = '';
+        $read = @\socket_recv($this->socket, $data, 1, \MSG_PEEK);
+        if ($read === false) {
+            $errNo = \socket_last_error($this->socket);
+            if ($errNo === \SOCKET_EAGAIN || $errNo === \SOCKET_EWOULDBLOCK) {
+                \socket_clear_error($this->socket);
+                return null;
+            }
+        }
+
+        // A closed or failed connection is left to the plain reading to report
+        return $data === self::TLS_HANDSHAKE_RECORD;
+    }
+
+    /**
+     * Checks the socket, not the TLS stream: {@see \feof()} of the stream peeks through TLS, which takes data
+     * just come in into its buffer, where the socket no longer shows it readable and it is never read.
+     */
+    private function peerClosed(): bool
+    {
+        $data = '';
+        $read = @\socket_recv($this->socket, $data, 1, \MSG_PEEK);
+        if ($read !== false) {
+            return $read === 0;
+        }
+
+        $errNo = \socket_last_error($this->socket);
+        \socket_clear_error($this->socket);
+        return $errNo !== \SOCKET_EAGAIN && $errNo !== \SOCKET_EWOULDBLOCK;
+    }
+
+    private function startHandshake(): void
+    {
+        \assert($this->tls !== null);
+        $stream = \socket_export_stream($this->socket);
+        $stream === false and throw new \RuntimeException('Failed to export the socket to a stream.');
+        \stream_set_blocking($stream, false);
+        foreach ($this->tls->options as $name => $value) {
+            \stream_context_set_option($stream, 'ssl', $name, $value);
+        }
+
+        $this->stream = $stream;
+        $this->handshakeUntil = \microtime(true) + $this->tls->handshakeTimeout;
+    }
+
+    /**
+     * Takes the handshake as far as the data read allows.
+     *
+     * @return bool Whether the handshake has completed.
+     *
+     * @throws TlsHandshakeFailed
+     */
+    private function handshake(): bool
+    {
+        \assert($this->stream !== null);
+        \error_clear_last();
+        // TLS 1.3 sends session tickets after the handshake: a client that writes and closes without reading
+        // them resets the connection, and its data is lost before it is read
+        $result = @\stream_socket_enable_crypto($this->stream, true, \STREAM_CRYPTO_METHOD_TLSv1_2_SERVER);
+        if ($result === 0) {
+            // The handshake keeps waiting for data from a peer that has closed the connection
+            $this->peerClosed() and throw new ClientDisconnected();
             return false;
         }
 
-        $this->processPayload($payload);
+        if ($result !== true) {
+            $error = \error_get_last()['message'] ?? 'Unknown error.';
+            while (\openssl_error_string() !== false);
+            throw new TlsHandshakeFailed($error);
+        }
+
+        $this->handshakeUntil = null;
         return true;
     }
 }

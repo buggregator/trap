@@ -19,9 +19,16 @@ final class StreamClientMock implements StreamClient
     private string $sendBuffer = '';
     private bool $disconnected = false;
 
+    /** The stream has switched to TLS */
+    private bool $tlsStarted = false;
+
+    /** The first queued value is the rest of the chunk the last fetched line came in */
+    private bool $leftover = false;
+
     private function __construct(
         private readonly \Generator $generator,
         private readonly float $silence,
+        private readonly bool $tls,
         private readonly \DateTimeInterface $createdAt = new \DateTimeImmutable(),
     ) {
         $this->queue = new \SplQueue();
@@ -33,10 +40,14 @@ final class StreamClientMock implements StreamClient
     /**
      * @param float $silence What {@see self::silence()} reports: a fixed value keeps tests independent of
      *        how long they run.
+     * @param bool $tls Whether the server has TLS on: the stream can switch to it.
      */
-    public static function createFromGenerator(\Generator $generator, float $silence = 0.0): StreamClient
-    {
-        return new self($generator, $silence);
+    public static function createFromGenerator(
+        \Generator $generator,
+        float $silence = 0.0,
+        bool $tls = false,
+    ): self {
+        return new self($generator, $silence, $tls);
     }
 
     public function hasData(): bool
@@ -63,6 +74,26 @@ final class StreamClientMock implements StreamClient
         $this->sendBuffer .= $data;
 
         return true;
+    }
+
+    public function canStartTls(): bool
+    {
+        return $this->tls && !$this->tlsStarted && !$this->isDisconnected();
+    }
+
+    public function startTls(): void
+    {
+        $this->canStartTls() or throw new \LogicException('TLS is unavailable on the stream.');
+        // The rest of the chunk the last line came in was sent in plain text. The generator's next values
+        // stand for what comes over TLS, though the stream may have taken them already.
+        $this->leftover and $this->queue->dequeue();
+        $this->leftover = false;
+        $this->tlsStarted = true;
+    }
+
+    public function isTlsStarted(): bool
+    {
+        return $this->tlsStarted;
     }
 
     public function disconnect(): void
@@ -104,10 +135,11 @@ final class StreamClientMock implements StreamClient
                 $split = \explode("\n", $this->queue[0], 2);
                 $line .= $split[0] . "\n";
 
-                if (!isset($split[1]) || $split[1] === '') {
-                    $this->queue->dequeue();
-                } else {
+                $this->leftover = isset($split[1]) && $split[1] !== '';
+                if ($this->leftover) {
                     $this->queue[0] = $split[1];
+                } else {
+                    $this->queue->dequeue();
                 }
                 break;
             }
