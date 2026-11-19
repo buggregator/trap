@@ -252,7 +252,7 @@ final class Client implements Destroyable
      */
     public function canStartTls(): bool
     {
-        return $this->tls !== null && $this->stream === null && !$this->startTls && !$this->toDisconnect;
+        return $this->tls?->trusted === true && $this->stream === null && !$this->startTls && !$this->toDisconnect;
     }
 
     /**
@@ -332,7 +332,12 @@ final class Client implements Destroyable
         if ($this->stream !== null) {
             // TLS must be given the same data again after a write it couldn't make
             $result = @\fwrite($this->stream, $data);
-            return $result === 0 ? null : $result;
+            if ($result !== 0) {
+                return $result;
+            }
+
+            // A connection reset after a full send buffer writes nothing again and again instead of failing
+            return \feof($this->stream) ? false : null;
         }
 
         $result = @\socket_write($this->socket, $data);
@@ -482,7 +487,9 @@ final class Client implements Destroyable
     {
         \assert($this->stream !== null);
         \error_clear_last();
-        $result = @\stream_socket_enable_crypto($this->stream, true, \STREAM_CRYPTO_METHOD_TLS_SERVER);
+        // TLS 1.3 sends session tickets after the handshake: a client that writes and closes without reading
+        // them resets the connection, and its data is lost before it is read
+        $result = @\stream_socket_enable_crypto($this->stream, true, \STREAM_CRYPTO_METHOD_TLSv1_2_SERVER);
         if ($result === 0) {
             // The handshake keeps waiting for data from a peer that has closed the connection
             \feof($this->stream) and throw new ClientDisconnected();

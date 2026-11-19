@@ -44,27 +44,52 @@ final class SelfSignedCertificate
     public static function ensure(string $directory): string
     {
         $path = $directory . \DIRECTORY_SEPARATOR . 'localhost.pem';
+        \is_dir($directory) or @\mkdir($directory, 0700, true) or \is_dir($directory)
+            or throw new \RuntimeException(\sprintf('Failed to create the directory `%s`.', $directory));
+        self::checkOwner($directory);
+
         if (self::isUsable($path)) {
             return $path;
         }
 
-        \is_dir($directory) or @\mkdir($directory, 0700, true) or \is_dir($directory)
-            or throw new \RuntimeException(\sprintf('Failed to create the directory `%s`.', $directory));
-
         $pem = self::generate($directory);
         // Another Trap may be reading the file: it gets either the old pair or the new one
         $temp = $path . '.' . \bin2hex(\random_bytes(4));
-        if (@\file_put_contents($temp, $pem) !== \strlen($pem)) {
+        $file = @\fopen($temp, 'x');
+        $file === false and throw new \RuntimeException(\sprintf('Failed to write the certificate to `%s`.', $temp));
+        // The key is not readable by others even for a moment
+        @\chmod($temp, 0600);
+        $written = \fwrite($file, $pem);
+        \fclose($file);
+        if ($written !== \strlen($pem)) {
             @\unlink($temp);
             throw new \RuntimeException(\sprintf('Failed to write the certificate to `%s`.', $temp));
         }
-        @\chmod($temp, 0600);
         if (!@\rename($temp, $path)) {
             @\unlink($temp);
             throw new \RuntimeException(\sprintf('Failed to write the certificate to `%s`.', $path));
         }
 
         return $path;
+    }
+
+    /**
+     * In a shared temporary directory another user could create the directory first and plant a key
+     * they know.
+     *
+     * @throws \RuntimeException
+     */
+    private static function checkOwner(string $directory): void
+    {
+        if (!\function_exists('posix_geteuid')) {
+            return;
+        }
+
+        $owner = @\fileowner($directory);
+        $owner === \posix_geteuid() or throw new \RuntimeException(
+            \sprintf('The directory `%s` belongs to another user.', $directory),
+        );
+        @\chmod($directory, 0700);
     }
 
     private static function isUsable(string $path): bool

@@ -37,7 +37,7 @@ interface StreamClient extends \IteratorAggregate
 
     /**
      * @return bool Whether {@see self::startTls()} can switch the stream to TLS: the stream is plain and
-     *         the server has TLS on.
+     *         the server has TLS on with the user's own certificate.
      */
     public function canStartTls(): bool;
 

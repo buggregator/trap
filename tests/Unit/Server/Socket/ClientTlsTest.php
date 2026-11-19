@@ -70,6 +70,45 @@ final class ClientTlsTest
     }
 
     #[Test]
+    public function receivesDataOfPeerThatClosesWithoutReading(): void
+    {
+        [$listener, $port] = $this->listen();
+        $code = \sprintf(
+            '$c = stream_socket_client("tls://127.0.0.1:%d", $e, $s, 5, STREAM_CLIENT_CONNECT, '
+            . 'stream_context_create(["ssl" => ["verify_peer" => false, "verify_peer_name" => false]])); '
+            . 'fwrite($c, "fire and forget"); fclose($c);',
+            $port,
+        );
+        $process = \proc_open([\PHP_BINARY, '-d', 'xdebug.mode=off', '-r', $code], [], $pipes);
+        \assert(\is_resource($process));
+        try {
+            \socket_set_nonblock($listener);
+            $until = \microtime(true) + 5;
+            while (($socket = @\socket_accept($listener)) === false && \microtime(true) < $until) {
+                \usleep(1000);
+            }
+            \assert($socket instanceof \Socket);
+            $client = Client::init($socket, selectPeriod: 3600.0, tls: self::context());
+            $payloads = &$this->payloads;
+            $client->setOnPayload(static function (string $payload) use (&$payloads): void {
+                $payloads[] = $payload;
+            });
+
+            $fiber = new \Fiber($client->process(...));
+            try {
+                $this->drive($fiber, $client, fn(): bool => \implode('', $this->payloads) === 'fire and forget');
+            } catch (ClientDisconnected) {
+                // The assertion below tells what was lost
+            }
+
+            Assert::same(\implode('', $this->payloads), 'fire and forget');
+            $client->destroy();
+        } finally {
+            \proc_close($process);
+        }
+    }
+
+    #[Test]
     public function acceptsPlainConnectionWhenTlsIsOn(): void
     {
         [$client, $remote] = $this->plainConnection();
@@ -167,6 +206,22 @@ final class ClientTlsTest
     }
 
     #[Test]
+    public function cannotStartTlsWithSelfSignedCertificate(): void
+    {
+        [$listener, $port] = $this->listen();
+        $remote = \socket_create(\AF_INET, \SOCK_STREAM, \SOL_TCP);
+        \socket_connect($remote, '127.0.0.1', $port);
+        $this->resources[] = $remote;
+        $socket = \socket_accept($listener);
+        \assert($socket instanceof \Socket);
+        $context = self::context();
+        $client = Client::init($socket, tls: Context::fromFiles($context->options['local_cert'], trusted: false));
+
+        Assert::false($client->canStartTls());
+        $client->destroy();
+    }
+
+    #[Test]
     public function cannotStartTlsWithoutContext(): void
     {
         [$listener, $port] = $this->listen();
@@ -213,6 +268,35 @@ final class ClientTlsTest
         Expect::exception(TlsHandshakeFailed::class);
         try {
             $this->drive($fiber, $client, static fn(): bool => false, timeout: 2.0);
+        } finally {
+            $client->destroy();
+        }
+    }
+
+    #[Test]
+    public function stopsWritingToTlsPeerThatResetsConnection(): void
+    {
+        [$listener, $port] = $this->listen();
+        $socket = \socket_create(\AF_INET, \SOCK_STREAM, \SOL_TCP);
+        \socket_connect($socket, '127.0.0.1', $port);
+        $peer = \socket_export_stream($socket);
+        \assert($peer !== false);
+        \stream_set_blocking($peer, false);
+        \stream_context_set_option($peer, 'ssl', 'verify_peer', false);
+        \stream_context_set_option($peer, 'ssl', 'verify_peer_name', false);
+        $client = $this->accept($listener, 1024 * 1024);
+        $fiber = new \Fiber($client->process(...));
+        $this->handshake($fiber, $client, $peer);
+
+        // More than the socket buffers take: the server waits for the peer to read
+        $client->send(\str_repeat('x', 30 * 1024 * 1024));
+        $this->drive($fiber, $client, static fn(): bool => true);
+        \socket_set_option($socket, \SOL_SOCKET, \SO_LINGER, ['l_onoff' => 1, 'l_linger' => 0]);
+        \socket_close($socket);
+
+        Expect::exception(ClientDisconnected::class);
+        try {
+            $this->drive($fiber, $client, static fn(): bool => false, timeout: 3.0);
         } finally {
             $client->destroy();
         }
