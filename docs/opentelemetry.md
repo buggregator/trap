@@ -48,8 +48,6 @@ With the [`file` sender](senders.md#file), each export request is saved as one J
 
 - Traces are shown in the console and given to AI agents by the [MCP server](mcp.md#traces);
   the [web UI](web-ui.md) doesn't show them.
-- Requests with `Transfer-Encoding: chunked` are not supported by the HTTP parser of Trap;
-  OpenTelemetry SDK exporters send `Content-Length`.
 - Exporters running in a browser are not supported: Trap does not answer CORS preflight requests.
 - One export request may carry up to 10 MB (after decompression) and up to 10 000 spans; a bigger one gets `413`.
   SDK batch processors export 512 spans at a time by default.

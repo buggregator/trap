@@ -9,6 +9,7 @@ use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\Part;
 use Buggregator\Trap\Server\Traffic\StreamClient;
 use Buggregator\Trap\Support\Stream\Base64DecodeFilter;
+use Buggregator\Trap\Support\Stream\SizeLimitExceeded;
 use Buggregator\Trap\Support\StreamHelper;
 use Buggregator\Trap\Support\TimeSlice;
 use Nyholm\Psr7\Factory\Psr17Factory;
@@ -32,8 +33,8 @@ final class Http
     private readonly int $maxInflatedBodySize;
 
     /**
-     * @param int $maxInflatedBodySize Limit of a compressed body after inflating, in bytes;
-     *        values below 1 fall back to {@see MAX_INFLATED_BODY_SIZE}.
+     * @param int $maxInflatedBodySize Limit of a compressed body after inflating and of a chunked body
+     *        after decoding, in bytes; values below 1 fall back to {@see MAX_INFLATED_BODY_SIZE}.
      */
     public function __construct(int $maxInflatedBodySize = self::MAX_INFLATED_BODY_SIZE)
     {
@@ -238,14 +239,24 @@ final class Http
             return $request;
         }
 
-        // Guess length
-        $length = $request->hasHeader('Content-Length') ? $request->getHeaderLine('Content-Length') : null;
-        $length = \is_numeric($length) ? (int) $length : null;
-        // HTTP/1.1: a request with neither `Content-Length` nor `Transfer-Encoding` has no body
-        $length === null && !$request->hasHeader('Transfer-Encoding') and $length = 0;
+        $codings = $this->getTransferCodings($request);
+        if (\in_array('chunked', $codings, true)) {
+            // HTTP/1.1 allows `chunked` only once and only as the last coding: elsewhere the framing is unknown
+            \array_pop($codings) === 'chunked' && !\in_array('chunked', $codings, true)
+                or throw new InvalidRequest('Invalid transfer coding.');
 
-        $request = $request->withBody($this->createBody($stream, $length));
-        $request->getBody()->rewind();
+            // Before `Content-Length`: `Transfer-Encoding` overrides it
+            $request = $this->decodeTransferCodings($stream, $request, $codings);
+        } else {
+            // Guess length
+            $length = $request->hasHeader('Content-Length') ? $request->getHeaderLine('Content-Length') : null;
+            $length = \is_numeric($length) ? (int) $length : null;
+            // HTTP/1.1: a request with neither `Content-Length` nor `Transfer-Encoding` has no body
+            $length === null && $codings === [] and $length = 0;
+
+            $request = $request->withBody($this->createBody($stream, $length));
+            $request->getBody()->rewind();
+        }
 
         // Decode encoded content
         if ($request->hasHeader('Content-Encoding')) {
@@ -261,6 +272,85 @@ final class Http
             \str_contains($contentType, 'multipart/') => $this->processMultipartForm($request),
             default => $request,
         };
+    }
+
+    /**
+     * @return list<non-empty-lowercase-string> Transfer codings in the order they were applied.
+     */
+    private function getTransferCodings(ServerRequestInterface $request): array
+    {
+        $codings = [];
+        foreach ($request->getHeader('Transfer-Encoding') as $value) {
+            foreach (\explode(',', $value) as $coding) {
+                // Parameters of a coding don't matter to the codings decoded here
+                $coding = \strtolower(\trim(\explode(';', $coding, 2)[0]));
+                $coding === '' or $codings[] = $coding;
+            }
+        }
+
+        return $codings;
+    }
+
+    /**
+     * Read a chunked body and undo the transfer codings, leaving the request as if it came with `Content-Length`.
+     *
+     * @param list<non-empty-lowercase-string> $codings Transfer codings applied before `chunked`.
+     *
+     * @throws InvalidRequest
+     * @throws SizeLimitExceeded
+     */
+    private function decodeTransferCodings(
+        StreamClient $stream,
+        ServerRequestInterface $request,
+        array $codings,
+    ): ServerRequestInterface {
+        $request = $request->withBody($this->createChunkedBody($stream));
+        $request->getBody()->rewind();
+
+        if ($codings === ['gzip'] || $codings === ['x-gzip']) {
+            $request = StreamHelper::unzipBody($request, $this->maxInflatedBodySize);
+            $request->getBody()->rewind();
+            $codings = [];
+        }
+
+        $request = $codings === []
+            ? $request->withoutHeader('Transfer-Encoding')
+            : $request->withHeader('Transfer-Encoding', \implode(', ', $codings));
+
+        return $request->withHeader('Content-Length', (string) $request->getBody()->getSize());
+    }
+
+    /**
+     * The body ends with the stream if the stream ends before the last chunk.
+     *
+     * @throws InvalidRequest
+     * @throws SizeLimitExceeded
+     */
+    private function createChunkedBody(StreamClient $stream): StreamInterface
+    {
+        $fileStream = StreamHelper::createFileStream();
+        $decoder = new ChunkedDecoder($fileStream, $this->maxInflatedBodySize);
+        $slice = new TimeSlice(checkEvery: 1);
+        $waited = false;
+
+        try {
+            foreach ($stream->getIterator() as $chunk) {
+                // The stream has suspended the fiber while it waited for the chunk
+                $waited and $slice->reset();
+                if ($decoder->write($chunk)) {
+                    return $fileStream;
+                }
+
+                unset($chunk);
+                $waited = !$stream->hasData();
+                $waited or $slice->tick();
+            }
+        } catch (\Throwable $e) {
+            $fileStream->close();
+            throw $e;
+        }
+
+        return $fileStream;
     }
 
     private function processMultipartForm(ServerRequestInterface $request): ServerRequestInterface

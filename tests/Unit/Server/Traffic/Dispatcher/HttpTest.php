@@ -215,6 +215,65 @@ final class HttpTest
         Assert::same((string) $frames[0]->request->getBody(), $body);
     }
 
+    public function testChunkedBodyReachesMiddlewaresDecoded(): void
+    {
+        $stream = $this->createChunkedPostStream("11\r\n", '{"hello":"world"}', "\r\n0\r\n\r\n");
+
+        $frames = $this->dispatch(new Http([new Dump()]), $stream);
+
+        Assert::count($frames, 1);
+        Assert::instanceOf($frames[0], HttpFrame::class);
+        Assert::same((string) $frames[0]->request->getBody(), '{"hello":"world"}');
+        Assert::false($frames[0]->request->hasHeader('Transfer-Encoding'));
+    }
+
+    public function testChunkedBodyPastLimitIsAnsweredWith413(): void
+    {
+        $dispatcher = new Http([new Dump()], maxInflatedBodySize: 4);
+
+        $frames = $this->dispatch($dispatcher, $this->createChunkedPostStream("5\r\nabcde\r\n0\r\n\r\n"));
+
+        Assert::same($frames, []);
+        Assert::string($this->sent)
+            ->startsWith('HTTP/1.1 413')
+            ->contains('The chunked request body is larger than 4 bytes.');
+    }
+
+    public function testBrokenChunkedFramingIsAnsweredWith400(): void
+    {
+        $frames = $this->dispatch(new Http([new Dump()]), $this->createChunkedPostStream("zz\r\nabc\r\n0\r\n\r\n"));
+
+        Assert::same($frames, []);
+        Assert::string($this->sent)->startsWith('HTTP/1.1 400')->endsWith('Invalid chunked body.');
+    }
+
+    public function testChunkedAppliedTwiceIsAnsweredWith400(): void
+    {
+        $stream = $this->createStream(
+            "POST /foo HTTP/1.1\r\n",
+            "Host: localhost\r\n",
+            "Transfer-Encoding: chunked, chunked\r\n",
+            "\r\n",
+            "3\r\nabc\r\n0\r\n\r\n",
+        );
+
+        $frames = $this->dispatch(new Http([new Dump()]), $stream);
+
+        Assert::same($frames, []);
+        Assert::string($this->sent)->startsWith('HTTP/1.1 400')->endsWith('Invalid transfer coding.');
+    }
+
+    private function createChunkedPostStream(string ...$body): StreamClient
+    {
+        return $this->createStream(
+            "POST /foo HTTP/1.1\r\n",
+            "Host: localhost\r\n",
+            "Transfer-Encoding: chunked\r\n",
+            "\r\n",
+            ...$body,
+        );
+    }
+
     private function createGzipPostStream(string $body): StreamClient
     {
         $gzip = \gzencode($body);
