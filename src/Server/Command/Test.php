@@ -25,6 +25,7 @@ final class Test extends Command
 {
     private string $addr = '127.0.0.1';
     private int $port = 9912;
+    private bool $failed = false;
 
     /** @psalm-suppress PropertyNotSetInConstructor */
     private Logger $logger;
@@ -72,8 +73,7 @@ final class Test extends Command
         \usleep(100_000);
         $this->sendContent('logo.png');
 
-
-        return Command::SUCCESS;
+        return $this->failed ? Command::FAILURE : Command::SUCCESS;
     }
 
     private function dump(): void
@@ -108,6 +108,7 @@ final class Test extends Command
             @\socket_connect($socket, $this->addr, $this->port);
             @\socket_write($socket, $message->serializeToString());
         } catch (\Throwable $e) {
+            $this->failed = true;
             $this->logger->exception($e, "Proto sending error", important: true);
         } finally {
             if (isset($socket)) {
@@ -121,6 +122,8 @@ final class Test extends Command
         try {
             $socket = \socket_create(AF_INET, SOCK_STREAM, SOL_TCP) ?: throw new \RuntimeException('Cannot create socket.');
             \socket_connect($socket, $this->addr, $this->port);
+            // A server that misses the end of a command must not hang the command
+            \socket_set_option($socket, \SOL_SOCKET, \SO_RCVTIMEO, ['sec' => 5, 'usec' => 0]);
 
             $this->sendMailPackage($output, $socket, '', '220 ');
             $this->sendMailPackage($output, $socket, "HELO\r\n", '250 ');
@@ -187,9 +190,9 @@ final class Test extends Command
                 $this->sendMailPackage($output, $socket, "Content-Disposition: inline\r\n", '');
                 $this->sendMailPackage($output, $socket, "\r\n", '');
                 $this->sendMailPackage($output, $socket, "<b>Apple Watch formatted content</b>\r\n", '');
-                $this->sendMailPackage($output, $socket, "\r\n", '');
-                $this->sendMailPackage($output, $socket, "--boundary-string--\r\n", '');
-                $this->sendMailPackage($output, $socket, "\r\n", '250 ');
+                // One packet: older trap servers end multipart data at the closing boundary with an empty line
+                // after it, not at the dot, and see them only when the whole sequence comes in a single read
+                $this->sendMailPackage($output, $socket, "\r\n--boundary-string--\r\n\r\n.\r\n", '250 ');
             } else {
                 $this->sendMailPackage($output, $socket, "From: Some User <someusername@somecompany.ru>\r\n", '');
                 $this->sendMailPackage($output, $socket, "To: User1 <user1@company.tld>\r\n", '');
@@ -201,11 +204,11 @@ final class Test extends Command
             }
             // End of data
             $this->sendMailPackage($output, $socket, "QUIT\r\n", '221 ');
-
-            \socket_close($socket);
-
         } catch (\Throwable $e) {
+            $this->failed = true;
             $this->logger->exception($e, 'Mail protocol error', important: true);
+        } finally {
+            isset($socket) and \socket_close($socket);
         }
     }
 
@@ -228,7 +231,9 @@ final class Test extends Command
         if ($expectedResponsePrefix === '') {
             return;
         }
-        @\socket_recv($socket, $buf, 65536, 0);
+        @\socket_recv($socket, $buf, 65536, 0) === false and throw new \RuntimeException(
+            'No SMTP reply: ' . \socket_strerror(\socket_last_error($socket)),
+        );
         /** @var string|null $buf */
         if ($buf === null) {
             $output->writeln('<error>Disconnected</>');
@@ -272,6 +277,7 @@ final class Test extends Command
             }
 
         } catch (\Throwable $e) {
+            $this->failed = true;
             $this->logger->exception($e, "$file sending error", important: true);
         } finally {
             if ($fp !== false) {

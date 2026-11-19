@@ -733,6 +733,88 @@ final class ServerTest
         Assert::string($event['payload']['text'])->contains('Hello from the acceptance test.');
     }
 
+    /**
+     * Mail data ends with the dot line only: right after the closing boundary, as Python smtplib sends it,
+     * and not at a closing boundary followed by an empty line.
+     */
+    public function testSmtpMultipartMailEndsAtDotLine(): void
+    {
+        $trap = $this->startTrap('smtp-multipart');
+        $socket = \stream_socket_client("tcp://127.0.0.1:$this->port", $errno, $error, 5.0)
+            ?: throw new \RuntimeException("Unable to connect: $error");
+        \stream_set_timeout($socket, 5);
+
+        try {
+            $replies = ['greeting' => self::readSmtpReply($socket)];
+            foreach ([
+                'EHLO' => "EHLO acceptance.test\r\n",
+                'MAIL' => "MAIL FROM:<sender@acceptance.test>\r\n",
+                'RCPT' => "RCPT TO:<alice@acceptance.test>\r\n",
+                'DATA' => "DATA\r\n",
+                'smtplib' => self::multipartMail('Dot after the boundary') . ".\r\n",
+                'MAIL2' => "MAIL FROM:<sender@acceptance.test>\r\n",
+                'RCPT2' => "RCPT TO:<alice@acceptance.test>\r\n",
+                'DATA2' => "DATA\r\n",
+            ] as $step => $command) {
+                TrapProcess::write($socket, $command);
+                $replies[$step] = self::readSmtpReply($socket);
+            }
+
+            TrapProcess::write($socket, self::multipartMail('Dot in a later packet') . "\r\n");
+            \usleep(300_000);
+            \stream_set_blocking($socket, false);
+            $early = (string) \fread($socket, 1024);
+            \stream_set_blocking($socket, true);
+            TrapProcess::write($socket, ".\r\n");
+            $replies['later dot'] = self::readSmtpReply($socket);
+            TrapProcess::write($socket, "QUIT\r\n");
+            $replies['QUIT'] = self::readSmtpReply($socket);
+        } finally {
+            \fclose($socket);
+        }
+
+        Assert::same($early, '', 'The server has replied before the end of data.');
+        Assert::same(\array_map(static fn(string $reply): string => \substr($reply, 0, 3), $replies), [
+            'greeting' => '220',
+            'EHLO' => '250',
+            'MAIL' => '250',
+            'RCPT' => '250',
+            'DATA' => '354',
+            'smtplib' => '250',
+            'MAIL2' => '250',
+            'RCPT2' => '250',
+            'DATA2' => '354',
+            'later dot' => '250',
+            'QUIT' => '221',
+        ]);
+        foreach (['Dot after the boundary', 'Dot in a later packet'] as $subject) {
+            $mail = $trap->waitForDumpedLine(
+                static fn(string $line): ?array => \str_contains($line, $subject) ? self::json($line) : null,
+                "the mail `$subject` in the dump file",
+            );
+            Assert::same(\array_column($mail['messages'], 'value'), ['Plain text', '<p>HTML text</p>']);
+        }
+    }
+
+    public function testMailsOfTestCommandAreCaptured(): void
+    {
+        $trap = $this->startTrap('smtp-test-command');
+
+        [$exitCode, $clientOutput] = TrapProcess::run('smtp-test-command-client', ['test', "--port=$this->port"], timeout: 30.0);
+
+        Assert::same($exitCode, 0, $clientOutput);
+        Assert::string($clientOutput)->notContains('Disconnected')->notContains('Mail protocol error');
+        $multipart = $trap->waitForDumpedLine(
+            static fn(string $line): ?array => \str_contains($line, 'Multipart Email Example') ? self::json($line) : null,
+            'the multipart mail in the dump file',
+        );
+        Assert::string($multipart['messages'][0]['value'])->startsWith('Plain text email goes here!');
+        $trap->waitForDumpedLine(
+            static fn(string $line): ?bool => \str_contains($line, 'Very important theme!') ? true : null,
+            'the plain mail in the dump file',
+        );
+    }
+
     public function testSentryEnvelopeIsCaptured(): void
     {
         $trap = $this->startTrap('sentry');
@@ -840,6 +922,31 @@ final class ServerTest
         } while (\preg_match('/^\d{3}-/', $line) === 1);
 
         return $reply;
+    }
+
+    /**
+     * A multipart/alternative message up to its closing boundary, with a boundary as Python's email package makes.
+     */
+    private static function multipartMail(string $subject): string
+    {
+        return \implode("\r\n", [
+            "Subject: $subject",
+            'From: sender@acceptance.test',
+            'To: alice@acceptance.test',
+            'MIME-Version: 1.0',
+            'Content-Type: multipart/alternative; boundary="===============0123456789012345678=="',
+            '',
+            '--===============0123456789012345678==',
+            'Content-Type: text/plain; charset="utf-8"',
+            '',
+            'Plain text',
+            '--===============0123456789012345678==',
+            'Content-Type: text/html; charset="utf-8"',
+            '',
+            '<p>HTML text</p>',
+            '--===============0123456789012345678==--',
+            '',
+        ]);
     }
 
     /**

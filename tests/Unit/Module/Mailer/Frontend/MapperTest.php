@@ -97,4 +97,19 @@ final class MapperTest
             "<img src=\"/api/smtp/{$event->uuid}/attachment/{$second->uuid}\"><img src=\"cid:other\">",
         );
     }
+
+    public function testEmbeddableFileTheHtmlDoesNotReferToIsAttached(): void
+    {
+        $inline = new File(['Content-ID' => ['<pdf@example.org>'], 'Content-Disposition' => ['inline']], null, 'a.pdf');
+        $noHtml = SmtpMessage::create(protocol: [], headers: [])->withAttachments([$inline]);
+        $otherCid = $noHtml->withMessages([new Field(['Content-Type' => ['text/html']], value: '<img src="cid:logo">')]);
+
+        foreach ([$noHtml, $otherCid] as $message) {
+            $assets = \array_values(\iterator_to_array((new Mapper())->map(new SmtpFrame($message))->assets));
+
+            Assert::count($assets, 1);
+            Assert::instanceOf($assets[0], AttachedFile::class);
+            Assert::same($assets[0]->file, $inline);
+        }
+    }
 }

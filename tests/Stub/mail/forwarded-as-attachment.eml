@@ -1,0 +1,31 @@
+From: Trap Sender <sender@example.com>
+To: receiver@example.com
+Date: Thu, 19 Nov 2026 12:00:00 +0000
+Subject: Fwd: an email attached as a whole
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="outer-boundary"
+
+--outer-boundary
+Content-Type: text/plain; charset=utf-8
+
+The original email is attached.
+--outer-boundary
+Content-Type: message/rfc822; name="original.eml"
+Content-Disposition: attachment; filename="original.eml"
+
+From: Someone <someone@example.com>
+To: sender@example.com
+Subject: The original
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="inner-boundary"
+
+--inner-boundary
+Content-Type: text/plain; charset=utf-8
+
+Text of the original email.
+--inner-boundary
+Content-Type: text/html; charset=utf-8
+
+<p>HTML of the original email.</p>
+--inner-boundary--
+--outer-boundary--

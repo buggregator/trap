@@ -1,0 +1,23 @@
+From: Trap Sender <sender@example.com>
+To: receiver@example.com
+Date: Thu, 19 Nov 2026 12:00:00 +0000
+Subject: HTML with an embedded image
+MIME-Version: 1.0
+Message-ID: <112408ac5e7be3f1965d6c6e770d9726@example.com>
+Content-Type: multipart/related; boundary=SuVFMZbC
+
+--SuVFMZbC
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<p>Hello from the <b>HTML</b> part.</p><img src=3D"cid:a494a0178b1158463e93=
+077436c5493f@symfony">
+--SuVFMZbC
+Content-ID: <a494a0178b1158463e93077436c5493f@symfony>
+Content-Type: image/png; name=logo
+Content-Transfer-Encoding: base64
+Content-Disposition: inline; name=logo; filename=logo
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6
+kgAAAABJRU5ErkJggg==
+--SuVFMZbC--

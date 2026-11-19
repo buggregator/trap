@@ -1,0 +1,47 @@
+From: Trap Sender <sender@example.com>
+To: receiver@example.com
+Date: Thu, 19 Nov 2026 12:00:00 +0000
+Subject: Four levels of multipart
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="level-1"
+
+--level-1
+Content-Type: multipart/mixed; boundary="level-2"
+
+--level-2
+Content-Type: multipart/related; boundary="level-3"; type="multipart/alternative"
+
+--level-3
+Content-Type: multipart/alternative; boundary="level-4"
+
+--level-4
+Content-Type: text/plain; charset=utf-8
+
+Hello from the plain text part.
+--level-4
+Content-Type: text/html; charset=utf-8
+
+<p>Hello from the <b>HTML</b> part.</p><img src="cid:logo@example.com">
+--level-4--
+--level-3
+Content-Type: image/png
+Content-ID: <logo@example.com>
+Content-Transfer-Encoding: base64
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6
+kgAAAABJRU5ErkJggg==
+--level-3--
+--level-2
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: attachment; filename="notes.txt"
+
+Notes attached as a text file.
+--level-2--
+--level-1
+Content-Type: application/pdf; name="report.pdf"
+Content-Disposition: attachment; filename="report.pdf"
+Content-Transfer-Encoding: base64
+
+JVBERi0xLjQKMSAwIG9iaiA8PCAvVHlwZSAvQ2F0YWxvZyA+PiBlbmRvYmoKdHJhaWxlciA8PCAv
+Um9vdCAxIDAgUiA+PgolJUVPRgo=
+--level-1--

@@ -19,6 +19,9 @@ use Psr\Http\Message\StreamInterface;
  */
 final class Parser
 {
+    /** Each nesting level of multipart parts copies the part body into a new temporary stream */
+    private const MAX_MULTIPART_DEPTH = 16;
+
     /**
      * @return array<non-empty-string, list<non-empty-string>>
      */
@@ -64,7 +67,7 @@ final class Parser
      */
     public function parseStream(array $protocol, StreamClient $stream): Message
     {
-        $headerBlock = Http::getBlock($stream);
+        [$headerBlock, $ended] = self::readHeaderBlock($stream);
         $headers = self::parseHeaders($headerBlock);
         $fileStream = StreamHelper::createFileStream();
         // Store read headers to the file stream.
@@ -73,26 +76,12 @@ final class Parser
         // Create message with headers only.
         $message = Message::create($protocol, headers: $headers);
 
-        // Defaults
-        $endOfStream = ["\r\n.\r\n"];
-        $isMultipart = false;
-
-        // Check the message is multipart.
-        $contentType = $message->getHeaderLine('Content-Type');
-        if (\str_contains($contentType, 'multipart/')
-            && \preg_match('/boundary="?([^"\\s;]++)"?/', $contentType, $matches) === 1
-        ) {
-            $isMultipart = true;
-            $endOfStream = ["\r\n--{$matches[1]}--\r\n\r\n"];
-            $endOfStream[] = $endOfStream[0] . ".\r\n";
-        }
-
-        $stored = $this->storeBody($fileStream, $stream, $endOfStream);
+        $stored = $ended ? 0 : $this->storeBody($fileStream, $stream);
         $message = $message->withBody($fileStream);
         // Message's body must be seeked to the beginning of the body.
         $fileStream->seek(-$stored, \SEEK_CUR);
 
-        $message = $isMultipart
+        $message = \str_contains($message->getHeaderLine('Content-Type'), 'multipart/')
             ? $this->processMultipartForm($message, $fileStream)
             : $this->processSingleBody($message, $fileStream);
 
@@ -100,20 +89,53 @@ final class Parser
     }
 
     /**
-     * Flush stream data into PSR stream.
-     * Note: there can be read more data than {@see $limit} bytes but write only {@see $limit} bytes.
+     * Reads the header block up to the empty line.
      *
-     * @param non-empty-array<non-empty-string> $endings
+     * @return array{string, bool} The block without the trailing line break, and whether the mail data has
+     *         ended with it: a message may have no body, and then no empty line before the end of data.
+     */
+    private static function readHeaderBlock(StreamClient $stream): array
+    {
+        $block = '';
+        while (!$stream->isFinished()) {
+            $line = $stream->fetchLine();
+            if ($line === "\r\n" || $line === ".\r\n") {
+                return [\rtrim($block, "\r\n"), $line === ".\r\n"];
+            }
+
+            $block .= $line;
+        }
+
+        return [\rtrim($block, "\r\n"), true];
+    }
+
+    /**
+     * @param int<0, 2> $prefix Leading bytes of the data that are not a part of the message.
      *
      * @return int<0, max> Number of bytes written to the stream.
      */
-    private function storeBody(
-        StreamInterface $fileStream,
-        StreamClient $stream,
-        array $endings = ["\r\n.\r\n"],
-    ): int {
+    private static function writeData(StreamInterface $stream, string $data, int $prefix): int
+    {
+        $data = \substr(\str_replace("\r\n.", "\r\n", $data), $prefix);
+        $data === '' or $stream->write($data);
+
+        return \strlen($data);
+    }
+
+    /**
+     * Writes the mail data into the file stream up to the end-of-data line, a single dot, undoing dot-stuffing.
+     *
+     * Data the client sends after that line in the same read is dropped: the server doesn't announce
+     * the PIPELINING extension, so a client waits for the reply before the next command.
+     *
+     * @return int<0, max> Number of bytes written to the stream.
+     */
+    private function storeBody(StreamInterface $fileStream, StreamClient $stream): int
+    {
         $written = 0;
-        $endLen = \min(\array_map('\strlen', $endings));
+        // The line break that ended the header block: the data may start with the end-of-data line.
+        $buffer = "\r\n";
+        $prefix = 2;
         $slice = new TimeSlice(checkEvery: 1);
         $waited = false;
 
@@ -122,35 +144,37 @@ final class Parser
             // The stream has suspended the fiber while it waited for the chunk
             $waited and $slice->reset();
 
-            // Write chunk to the file stream.
-            $fileStream->write($chunk);
-            $written += \strlen($chunk);
+            $buffer .= $chunk;
+            unset($chunk);
 
-            // Check the end of the message.
-            if (!$stream->hasData()) {
-                if (\strlen($chunk) < $endLen) {
-                    $fileStream->seek(-$endLen, \SEEK_CUR);
-                    $chunk = $fileStream->read($endLen);
-                }
-
-                foreach ($endings as $end) {
-                    if (\str_ends_with($chunk, $end)) {
-                        return $written;
-                    }
-                }
+            $end = \strpos($buffer, "\r\n.\r\n");
+            if ($end !== false) {
+                return $written + self::writeData($fileStream, \substr($buffer, 0, $end + 2), $prefix);
             }
 
-            unset($chunk);
+            // Kept for the next chunk: the tail may start the end-of-data line, and a line break a stuffed dot.
+            $cut = \max(0, \strlen($buffer) - 4);
+            $cut > 0 && $buffer[$cut - 1] === "\r" and --$cut;
+            $cut > 1 && \substr($buffer, $cut - 2, 2) === "\r\n" and $cut -= 2;
+            if ($cut > 0) {
+                $written += self::writeData($fileStream, \substr($buffer, 0, $cut), $prefix);
+                $buffer = \substr($buffer, $cut);
+                $prefix = 0;
+            }
+
             $waited = !$stream->hasData();
             $waited or $slice->tick();
         }
 
-        return $written;
+        // The client has disconnected before the end of data
+        return $written + self::writeData($fileStream, $buffer, $prefix);
     }
 
     private function processSingleBody(Message $message, StreamInterface $stream): Message
     {
-        $content = \preg_replace(["/^\.([^\r])/m", "/(\r\n\\.\r\n)$/D"], ['$1', ''], $stream->getContents());
+        $content = $stream->getContents();
+        // The line break before the end-of-data line is not a part of the text
+        \str_ends_with($content, "\r\n") and $content = \substr($content, 0, -2);
 
         /** @psalm-suppress InvalidArgument */
         $body = new Field(
@@ -163,22 +187,105 @@ final class Parser
 
     private function processMultipartForm(Message $message, StreamInterface $stream): Message
     {
-        if (\preg_match('/boundary="?([^"\\s;]++)"?/', $message->getHeaderLine('Content-Type'), $matches) !== 1) {
+        $boundary = $this->findBoundary($message->getHeaderLine('Content-Type'));
+        if ($boundary === null) {
             return $message;
         }
 
-        /** @var non-empty-string $boundary */
-        $boundary = $matches[1];
-        $parts = Http::parseMultipartBody($stream, $boundary);
         $attachments = $texts = [];
-        foreach ($parts as $part) {
-            if ($part instanceof Field) {
-                $texts[] = $part;
-            } elseif ($part instanceof File) {
-                $attachments[] = $part;
-            }
-        }
+        $this->collectParts($stream, $boundary, 1, $texts, $attachments);
 
         return $message->withMessages($texts)->withAttachments($attachments);
+    }
+
+    /**
+     * Collect the leaf parts of a multipart body, descending into nested multipart parts.
+     * A part nested deeper than {@see MAX_MULTIPART_DEPTH} stays an attachment.
+     *
+     * @param non-empty-string $boundary
+     * @param int<1, max> $depth Nesting level of the body, 1 for the message body.
+     * @param list<Field> $texts
+     * @param list<File> $attachments
+     */
+    private function collectParts(
+        StreamInterface $stream,
+        string $boundary,
+        int $depth,
+        array &$texts,
+        array &$attachments,
+    ): void {
+        foreach (Http::parseMultipartBody($stream, $boundary) as $part) {
+            if ($part instanceof Field) {
+                // A part without a Content-Type is text/plain
+                $type = $part->getHeaderLine('Content-Type');
+                $type === '' || \preg_match('/^\\s*text\\/(?:plain|html|watch-html)\\b/i', $type) === 1
+                    ? $texts[] = $part
+                    : $attachments[] = $this->textToFile($part);
+                continue;
+            }
+
+            if (!$part instanceof File) {
+                continue;
+            }
+
+            $nested = $depth < self::MAX_MULTIPART_DEPTH && $part->hasStream()
+                ? $this->findBoundary($part->getHeaderLine('Content-Type'))
+                : null;
+            if ($nested === null) {
+                $attachments[] = $part;
+                continue;
+            }
+
+            $body = $part->getStream();
+            $body->rewind();
+            $this->collectParts($body, $nested, $depth + 1, $texts, $attachments);
+        }
+    }
+
+    /**
+     * A text part that is not a message body, like a `text/calendar` invitation.
+     */
+    private function textToFile(Field $part): File
+    {
+        $contentType = $part->getHeaderLine('Content-Type');
+        $fileName = \preg_match('/;\\s*name=(?:"([^"]++)"|([^"\\s;]++))/i', $contentType, $matches) === 1
+            ? ($matches[1] ?: $matches[2])
+            : match (\strtolower(\trim(\explode(';', $contentType, 2)[0]))) {
+                'text/calendar' => 'invite.ics',
+                'text/csv' => 'attachment.csv',
+                default => 'attachment.txt',
+            };
+
+        $value = $part->getValue();
+        $value = match (\strtolower(\trim($part->getHeaderLine('Content-Transfer-Encoding')))) {
+            'base64' => \base64_decode($value),
+            'quoted-printable' => \quoted_printable_decode($value),
+            default => $value,
+        };
+
+        $stream = StreamHelper::createFileStream();
+        $stream->write($value);
+        $stream->rewind();
+        /** @psalm-suppress InvalidArgument */
+        $file = new File($part->getHeaders(), $part->getName(), $fileName);
+        $file->setStream($stream);
+
+        return $file;
+    }
+
+    /**
+     * @return non-empty-string|null Boundary of a `multipart/*` content type.
+     */
+    private function findBoundary(string $contentType): ?string
+    {
+        if (\preg_match('/^\\s*multipart\\//i', $contentType) !== 1
+            || \preg_match('/;\\s*boundary=(?:"([^"]++)"|([^"\\s;]++))/i', $contentType, $matches) !== 1
+        ) {
+            return null;
+        }
+
+        /** @var non-empty-string $boundary */
+        $boundary = $matches[1] ?: $matches[2];
+        return $boundary;
     }
 }

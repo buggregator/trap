@@ -207,6 +207,32 @@ final class MultipartBodyParserTest
         Assert::same($file->getStream()->__toString(), "sdg\n");
     }
 
+    #[Test]
+    public function parsesPartsAfterPreambleWithFoldedHeaders(): void
+    {
+        $body = $this->makeStream(
+            "This is a multi-part message in MIME format.\r\n"
+            . "--b\r\n"
+            . "Content-Type: multipart/related;\r\n boundary=\"inner\"\r\n"
+            . "\r\n"
+            . "--inner--\r\n"
+            . "--b\r\n"
+            . "Content-Type: image/png\r\n"
+            . "Content-Disposition: inline;\r\n\tfilename=\"logo.png\"\r\n"
+            . "\r\n"
+            . "png\r\n"
+            . "--b--\r\n",
+        );
+
+        $result = $this->parse($body, 'b');
+
+        Assert::count($result, 2);
+        Assert::same($result[0]->getHeaders(), ['Content-Type' => ['multipart/related; boundary="inner"']]);
+        Assert::instanceOf($result[1], File::class);
+        Assert::same($result[1]->getClientFilename(), 'logo.png');
+        Assert::same($result[1]->getStream()->__toString(), 'png');
+    }
+
     private function makeStream(string $body): StreamInterface
     {
         $stream = Stream::create($body);
