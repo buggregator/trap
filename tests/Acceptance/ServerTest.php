@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Tests\Acceptance;
 use Buggregator\Trap\Server\Info;
 use Buggregator\Trap\Tests\Acceptance\Support\TrapProcess;
 use Testo\Assert;
+use Testo\Core\Exception\SkipTest;
 use Testo\Lifecycle\AfterTest;
 use Testo\Lifecycle\BeforeTest;
 use Testo\Test;
@@ -64,6 +65,39 @@ final class ServerTest
         $event = $trap->waitForUiEvent($this->uiPort, 'http-dump');
         Assert::same($event['payload']['request']['method'], 'POST');
         Assert::same($event['payload']['request']['uri'], 'acceptance/orders');
+    }
+
+    public function testHttpsRequestIsCapturedOnThePlainPort(): void
+    {
+        \extension_loaded('openssl') or throw new SkipTest('TLS needs ext-openssl.');
+        $trap = $this->startTrap('https');
+
+        [$status] = TrapProcess::http($this->port, 'POST', '/acceptance/tls', '{"order":"acceptance-https"}', tls: true);
+        [$plainStatus] = TrapProcess::http($this->port, 'POST', '/acceptance/plain', '{"order":"acceptance-plain"}');
+
+        Assert::same([$status, $plainStatus], [404, 404]);
+        $request = $trap->waitForDumpedLine(
+            static fn(string $line): ?array => \str_contains($line, 'acceptance-https') ? self::json($line) : null,
+            'the HTTPS request in the dump file',
+        );
+        Assert::same($request['body'], '{"order":"acceptance-https"}');
+        Assert::string($trap->output())->contains('localhost.pem');
+    }
+
+    public function testUiIsServedOverHttps(): void
+    {
+        \extension_loaded('openssl') or throw new SkipTest('TLS needs ext-openssl.');
+        $this->startTrap('https-ui');
+
+        $response = TrapProcess::exchange(
+            $this->uiPort,
+            "GET / HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
+            tls: true,
+        );
+
+        // Early hints go before the page
+        Assert::string($response)->contains("HTTP/1.1 200 OK\r\n");
+        Assert::string($response)->contains('<html');
     }
 
     public function testUiOnTrafficPortServesUiAndCapturesRequests(): void
