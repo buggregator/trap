@@ -76,28 +76,6 @@ final class SelfSignedCertificate
     }
 
     /**
-     * In a shared temporary directory another user could create the directory first and plant a key
-     * they know.
-     *
-     * @throws \RuntimeException
-     */
-    private static function checkOwner(string $directory): void
-    {
-        $user = self::userId();
-        if ($user === null) {
-            return;
-        }
-
-        \is_link($directory) and throw new \RuntimeException(
-            \sprintf('The directory `%s` is a symbolic link.', $directory),
-        );
-        @\fileowner($directory) === $user or throw new \RuntimeException(
-            \sprintf('The directory `%s` belongs to another user.', $directory),
-        );
-        @\chmod($directory, 0700);
-    }
-
-    /**
      * @return int|null The user ID the process runs as, null where files have no owners to compare, as on Windows.
      */
     public static function userId(): ?int
@@ -119,6 +97,28 @@ final class SelfSignedCertificate
         $owner = @\fileowner($probe);
         @\unlink($probe);
         return $owner === false ? null : $owner;
+    }
+
+    /**
+     * In a shared temporary directory another user could create the directory first and plant a key
+     * they know.
+     *
+     * @throws \RuntimeException
+     */
+    private static function checkOwner(string $directory): void
+    {
+        $user = self::userId();
+        if ($user === null) {
+            return;
+        }
+
+        \is_link($directory) and throw new \RuntimeException(
+            \sprintf('The directory `%s` is a symbolic link.', $directory),
+        );
+        @\fileowner($directory) === $user or throw new \RuntimeException(
+            \sprintf('The directory `%s` belongs to another user.', $directory),
+        );
+        @\chmod($directory, 0700);
     }
 
     private static function isUsable(string $path): bool
