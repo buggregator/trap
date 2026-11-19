@@ -131,6 +131,20 @@ vendor/bin/trap --mcp
 claude mcp add --transport http trap http://127.0.0.1:8000/mcp
 ```
 
+## Agent skills
+
+Trap comes with the `trap` [Agent Skill](https://agentskills.io): it teaches coding agents such as Claude Code and
+Codex to debug and profile a running application through Trap — start the server, add `trap()` calls or a profiler,
+run the code, read what it sent over MCP, and take the debug code out again. Install the
+[llm/skills](https://github.com/roxblnfk/skills) Composer plugin, and it copies the skill into `.agents/skills/` on
+every `composer install` and `update`, in the version of Trap the project has:
+
+```bash
+composer require --dev llm/skills
+```
+
+→ [Agent skills](docs/agent-skills.md)
+
 ## Installation
 
 Add Trap as a dev dependency with Composer:
@@ -220,6 +234,7 @@ All the options and variables: [CLI](docs/cli.md) and [Configuration](docs/confi
 - [Senders](docs/senders.md)
 - [Web UI](docs/web-ui.md)
 - [MCP server](docs/mcp.md)
+- [Agent skills](docs/agent-skills.md)
 
 ## Contributing
 
