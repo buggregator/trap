@@ -58,45 +58,13 @@ abstract class Part implements \JsonSerializable
         };
     }
 
-    public function getName(): ?string
-    {
-        return $this->name;
-    }
-
-    public function withName(?string $name): static
-    {
-        $clone = clone $this;
-        $clone->name = $name;
-        return $clone;
-    }
-
-    /**
-     * @return array{
-     *      headers: array<array-key, non-empty-list<string>>,
-     *      name?: string
-     *  }
-     */
-    #[\Override]
-    public function jsonSerialize(): array
-    {
-        $data = [
-            'headers' => $this->headers,
-        ];
-
-        if ($this->name !== null) {
-            $data['name'] = $this->name;
-        }
-
-        return $data;
-    }
-
     /**
      * Value of a parameter in the `name*=charset'lang'%XX` form or split into `name*0*=`, `name*1*=`...:
      * mail clients write non-ASCII and long file names so.
      *
      * @return non-empty-string|null UTF-8 value, or null if the parameter is absent or empty.
      */
-    private static function findExtendedParameter(string $header, string $parameter): ?string
+    public static function findExtendedParameter(string $header, string $parameter): ?string
     {
         $count = \preg_match_all(
             '/;\\s*' . \preg_quote($parameter, '/') . '\\*(\\d*+)(\\*?)=(?:"([^"]*+)"|([^\\s;"]*+))/i',
@@ -136,5 +104,37 @@ abstract class Part implements \JsonSerializable
         }
 
         return $result === '' ? null : $result;
+    }
+
+    public function getName(): ?string
+    {
+        return $this->name;
+    }
+
+    public function withName(?string $name): static
+    {
+        $clone = clone $this;
+        $clone->name = $name;
+        return $clone;
+    }
+
+    /**
+     * @return array{
+     *      headers: array<array-key, non-empty-list<string>>,
+     *      name?: string
+     *  }
+     */
+    #[\Override]
+    public function jsonSerialize(): array
+    {
+        $data = [
+            'headers' => $this->headers,
+        ];
+
+        if ($this->name !== null) {
+            $data['name'] = $this->name;
+        }
+
+        return $data;
     }
 }

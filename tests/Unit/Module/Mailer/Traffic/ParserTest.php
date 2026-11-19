@@ -91,6 +91,16 @@ final class ParserTest
                 $pdf,
             ],
         ];
+        yield 'Outlook Express: files named in Content-Type only' => [
+            'name-in-content-type.eml',
+            [$plain, $html],
+            [
+                ['logo.png', 'image/png', 'logo.png', 70],
+                $pdf,
+                ['отчёт.pdf', 'application/pdf', null, 77],
+                ['заметки.txt', 'text/plain', null, 8],
+            ],
+        ];
         yield 'message/rfc822 stays an attachment' => [
             'forwarded-as-attachment.eml',
             [['text/plain', 'The original email is attached.']],
@@ -186,6 +196,61 @@ final class ParserTest
             'BASE64',
             \chunk_split(\base64_encode('a=b, a long line that the client breaks'), 12, "\r\n"),
         ];
+    }
+
+    /**
+     * `[headers of the file part, file name]`.
+     */
+    public static function provideNamedFiles(): iterable
+    {
+        yield 'Content-Type name, quoted' => ["Content-Type: application/pdf; name=\"my report.pdf\"\r\n", 'my report.pdf'];
+        yield 'Content-Type name, unquoted' => ["Content-Type: application/pdf; name=report.pdf\r\n", 'report.pdf'];
+        yield 'Content-Type name, folded and in upper case' => [
+            "Content-Type: application/pdf;\r\n\tNAME=\"report.pdf\"\r\n",
+            'report.pdf',
+        ];
+        yield 'Content-Type name*, UTF-8' => [
+            "Content-Type: application/pdf; name*=UTF-8''%D0%BE%D1%82%D1%87%D1%91%D1%82.pdf\r\n",
+            'отчёт.pdf',
+        ];
+        yield 'Content-Type name*, windows-1251' => [
+            "Content-Type: application/pdf; name*=windows-1251''%EE%F2%F7%B8%F2.pdf\r\n",
+            'отчёт.pdf',
+        ];
+        yield 'Content-Type name*, continuations' => [
+            "Content-Type: application/pdf;\r\n name*0*=UTF-8''%D0%BE%D1%82;\r\n name*1*=%D1%87%D1%91%D1%82;\r\n name*2=\".pdf\"\r\n",
+            'отчёт.pdf',
+        ];
+        yield 'Content-Type name*, wins over name' => [
+            "Content-Type: application/pdf; name=\"otchet.pdf\"; name*=UTF-8''%D0%BE%D1%82%D1%87%D1%91%D1%82.pdf\r\n",
+            'отчёт.pdf',
+        ];
+        yield 'Content-Type name, base64 encoded word' => [
+            "Content-Type: application/pdf; name=\"=?UTF-8?B?0L7RgtGH0ZHRgi5wZGY=?=\"\r\n",
+            'отчёт.pdf',
+        ];
+        yield 'Content-Type name, encoded words split in two' => [
+            "Content-Type: application/pdf;\r\n name=\"=?UTF-8?B?0L7RgtGH?=\r\n =?UTF-8?B?0ZHRgi5wZGY=?=\"\r\n",
+            'отчёт.pdf',
+        ];
+        yield 'Content-Type name, quoted-printable encoded word' => [
+            "Content-Type: application/pdf; name=\"=?iso-8859-1?Q?caf=E9.pdf?=\"\r\n",
+            'café.pdf',
+        ];
+        yield 'bare attachment disposition, Content-Type name' => [
+            "Content-Type: application/pdf; name=\"report.pdf\"\r\nContent-Disposition: attachment\r\n",
+            'report.pdf',
+        ];
+        yield 'Content-Disposition filename wins over Content-Type name' => [
+            "Content-Type: application/pdf; name=\"name.pdf\"\r\nContent-Disposition: attachment; filename=\"file.pdf\"\r\n",
+            'file.pdf',
+        ];
+        yield 'Content-Disposition filename, encoded word' => [
+            "Content-Type: application/pdf\r\nContent-Disposition: attachment; filename=\"=?UTF-8?B?0L7RgtGH0ZHRgi5wZGY=?=\"\r\n",
+            'отчёт.pdf',
+        ];
+        yield 'no name' => ["Content-Type: application/pdf\r\n", null];
+        yield 'empty name' => ["Content-Type: application/pdf; name=\"\"\r\n", null];
     }
 
     #[DataProvider('provideEncodedAttachments')]
@@ -524,6 +589,58 @@ final class ParserTest
         Assert::same($file->getClientFilename(), $fileName);
         Assert::same($file->getClientMediaType(), 'image/png');
         Assert::same((string) $file->getStream(), $png);
+    }
+
+    #[DataCross(
+        new DataProvider('provideNamedFiles'),
+        new DataUnion(
+            new DataSet([false], 'single-part message'),
+            new DataSet([true], 'part of a multipart message'),
+        ),
+    )]
+    #[Test]
+    public function namesFile(string $headers, ?string $fileName, bool $multipart): void
+    {
+        $part = "{$headers}Content-Transfer-Encoding: base64\r\n\r\ncGRm\r\n";
+        $email = $multipart
+            ? "Content-Type: multipart/mixed; boundary=o\r\n\r\n--o\r\n{$part}--o--\r\n"
+            : $part;
+
+        $message = $this->parse(\str_split($email . ".\r\n", 10));
+
+        Assert::count($message->getMessages(), 0);
+        Assert::count($message->getAttachments(), 1);
+        Assert::same($message->getAttachments()[0]->getClientFilename(), $fileName);
+        Assert::same((string) $message->getAttachments()[0]->getStream(), 'pdf');
+    }
+
+    #[Test]
+    public function namesTextAttachmentByEncodedContentTypeName(): void
+    {
+        $message = $this->parse(
+            "Content-Type: multipart/mixed; boundary=o\r\n\r\n"
+            . "--o\r\nContent-Type: text/calendar; method=REQUEST; name=\"=?UTF-8?Q?=D0=B2=D1=81=D1=82=D1=80=D0=B5=D1=87=D0=B0.ics?=\"\r\n"
+            . "\r\nBEGIN:VCALENDAR\r\n--o--\r\n.\r\n",
+        );
+
+        Assert::count($message->getAttachments(), 1);
+        Assert::same($message->getAttachments()[0]->getClientFilename(), 'встреча.ics');
+    }
+
+    /**
+     * Some mailers name the message text too; without a disposition the name doesn't make the text an attachment.
+     */
+    #[Test]
+    public function keepsNamedTextWithoutDispositionAsBody(): void
+    {
+        $message = $this->parse(
+            "Content-Type: multipart/mixed; boundary=o\r\n\r\n"
+            . "--o\r\nContent-Type: text/plain; charset=utf-8; name=\"message.txt\"\r\n\r\nHello\r\n--o--\r\n.\r\n",
+        );
+
+        Assert::count($message->getAttachments(), 0);
+        Assert::count($message->getMessages(), 1);
+        Assert::same($message->getMessages()[0]->getValue(), 'Hello');
     }
 
     #[Test]

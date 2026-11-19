@@ -307,6 +307,22 @@ final class MultipartBodyParserTest
         Assert::same($result[0]->getStream()->__toString(), 'pdf');
     }
 
+    #[Test]
+    public function takesFormDataFileNameFromContentDispositionOnly(): void
+    {
+        $body = $this->makeStream(
+            "--b\r\nContent-Disposition: form-data; name=\"doc\"\r\nContent-Type: application/pdf; name=\"report.pdf\"\r\n"
+            . "\r\npdf\r\n--b--\r\n",
+        );
+
+        $result = $this->parse($body, 'b');
+
+        Assert::count($result, 1);
+        Assert::instanceOf($result[0], File::class);
+        Assert::same($result[0]->getName(), 'doc');
+        Assert::null($result[0]->getClientFilename());
+    }
+
     private function makeStream(string $body): StreamInterface
     {
         $stream = Stream::create($body);

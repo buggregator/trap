@@ -65,7 +65,9 @@ taken as UTF-8. No mail leaves the machine.
 
 `subject` and the contact names come decoded from RFC 2047 words: `where` on `subject` and a `search` match the
 plain text, such as `Привет, мир`. `from`, `to`, `cc` and `bcc` hold the addresses, so match a name with `search`.
-`from` holds each address once: the envelope sender and the `From` header merged.
+`from` holds each address once: the envelope sender and the `From` header merged. An attachment's file name comes from
+`filename` of `Content-Disposition`, else from `name` of `Content-Type`, decoded from RFC 2047 words and RFC 2231
+`*=` parameters alike.
 
 ## OpenTelemetry
 

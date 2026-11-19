@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mailer\Traffic;
 
+use Buggregator\Trap\Module\Mailer\EncodedWord;
 use Buggregator\Trap\Module\Mailer\Message;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
@@ -243,6 +244,44 @@ final class Parser
     }
 
     /**
+     * The file with the name {@see findFileName()} gives.
+     */
+    private static function withFileName(File $file): File
+    {
+        $fileName = self::findFileName($file, $file->getClientFilename());
+        if ($fileName === $file->getClientFilename()) {
+            return $file;
+        }
+
+        /** @psalm-suppress InvalidArgument */
+        $named = new File($file->getHeaders(), $file->getName(), $fileName);
+        $file->hasStream() and $named->setStream($file->getStream(), $file->getSize());
+        return $named;
+    }
+
+    /**
+     * The file name of a mail part: the Content-Disposition one, else the `name` of Content-Type,
+     * as Outlook and older mailers name attachments. Either may be made of RFC 2047 encoded words.
+     *
+     * @param string|null $fileName The name Content-Disposition gives.
+     *
+     * @return non-empty-string|null
+     */
+    private static function findFileName(Part $part, ?string $fileName): ?string
+    {
+        if ($fileName === null) {
+            $contentType = $part->getHeaderLine('Content-Type');
+            $fileName = Part::findExtendedParameter($contentType, 'name')
+                ?? (\preg_match('/;\\s*name\\s*=\\s*(?:"([^"]*+)"|([^\\s;"]++))/i', $contentType, $matches) === 1
+                    ? $matches[1] . ($matches[2] ?? '')
+                    : null);
+        }
+
+        $fileName = $fileName === null ? '' : EncodedWord::decode($fileName);
+        return $fileName === '' ? null : $fileName;
+    }
+
+    /**
      * Writes the mail data into the file stream up to the end-of-data line, a single dot, undoing dot-stuffing.
      *
      * Data the client sends after that line in the same read is dropped: the server doesn't announce
@@ -306,6 +345,7 @@ final class Parser
         $body = Part::create($headers);
 
         if ($body instanceof File) {
+            $body = self::withFileName($body);
             $file = StreamHelper::createFileStream();
             $file->write(self::decodeTransfer($content, $body->getHeaderLine('Content-Transfer-Encoding')));
             $file->rewind();
@@ -365,7 +405,7 @@ final class Parser
                 ? $this->findBoundary($part->getHeaderLine('Content-Type'))
                 : null;
             if ($nested === null) {
-                $attachments[] = $part;
+                $attachments[] = self::withFileName($part);
                 continue;
             }
 
@@ -380,10 +420,8 @@ final class Parser
      */
     private function textToFile(Field $part): File
     {
-        $contentType = $part->getHeaderLine('Content-Type');
-        $fileName = \preg_match('/;\\s*name=(?:"([^"]++)"|([^"\\s;]++))/i', $contentType, $matches) === 1
-            ? ($matches[1] ?: $matches[2])
-            : match (\strtolower(\trim(\explode(';', $contentType, 2)[0]))) {
+        $fileName = self::findFileName($part, null)
+            ?? match (\strtolower(\trim(\explode(';', $part->getHeaderLine('Content-Type'), 2)[0]))) {
                 'text/calendar' => 'invite.ics',
                 'text/csv' => 'attachment.csv',
                 default => 'attachment.txt',

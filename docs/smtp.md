@@ -31,8 +31,9 @@ in a charset neither knows keeps its bytes, and a part with no charset is taken 
 
 `vendor/bin/trap test` sends two test emails, a plain and a multipart one.
 
-Encoded subjects and names, such as `=?utf-8?Q?...?=`, are shown decoded. The sender is listed once when the envelope
-sender and the `From` header have the same address.
+Encoded subjects, names and file names, such as `=?utf-8?Q?...?=`, are shown decoded. An attached file without
+a `filename` in `Content-Disposition` takes the `name` of its `Content-Type`, as Outlook and older mailers name files.
+The sender is listed once when the envelope sender and the `From` header have the same address.
 
 ## Authentication
 
