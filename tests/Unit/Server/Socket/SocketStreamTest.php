@@ -7,10 +7,12 @@ namespace Buggregator\Trap\Tests\Unit\Server\Socket;
 use Buggregator\Trap\Server\Socket\Client;
 use Buggregator\Trap\Server\Socket\Exception\ClientDisconnected;
 use Buggregator\Trap\Server\Socket\SocketStream;
+use Buggregator\Trap\Server\Traffic\FetchLineTrait;
 use Buggregator\Trap\Support\Activity;
 use Buggregator\Trap\Support\Timer;
 use Testo\Assert;
 use Testo\Codecov\Covers;
+use Testo\Data\DataProvider;
 use Testo\Expect;
 use Testo\Lifecycle\AfterTest;
 use Testo\Lifecycle\BeforeTest;
@@ -18,6 +20,7 @@ use Testo\Test;
 
 #[Test]
 #[Covers(SocketStream::class)]
+#[Covers(FetchLineTrait::class)]
 final class SocketStreamTest
 {
     private \Socket $server;
@@ -25,6 +28,24 @@ final class SocketStreamTest
     private Client $client;
     private \Fiber $clientFiber;
     private SocketStream $stream;
+
+    /**
+     * @return iterable<non-empty-string, array{non-empty-list<string>, non-empty-list<string>, string}> The
+     *         chunks queued before the reader runs, the lines it reads, and the data left in the queue.
+     */
+    public static function queuedChunks(): iterable
+    {
+        yield 'line in two chunks' => [['Hea', "ders\nrest"], ["Headers\n"], 'rest'];
+        yield 'line in three chunks' => [['He', 'ad', "ers\n"], ["Headers\n"], ''];
+        yield 'line byte by byte' => [\str_split("Headers only\n"), ["Headers only\n"], ''];
+        yield 'line end at the start of the next chunk' => [['first', "\nsecond\n"], ["first\n", "second\n"], ''];
+        yield 'CR and LF in separate chunks' => [["first\r", "\n", "second\r\n"], ["first\r\n", "second\r\n"], ''];
+        yield 'lines in one chunk, the last one continued' => [
+            ["one\ntwo\nthr", "ee\nfo", 'ur'],
+            ["one\n", "two\n", "three\n"],
+            'four',
+        ];
+    }
 
     #[BeforeTest]
     public function connect(): void
@@ -89,6 +110,35 @@ final class SocketStreamTest
 
         Assert::same($this->read($reader), "partial\n");
         Assert::same($this->stream->getData(), 'rest');
+    }
+
+    /**
+     * The rest of a line is already queued: the reader takes it without waiting for the client.
+     *
+     * @param non-empty-list<string> $chunks
+     * @param non-empty-list<string> $lines
+     */
+    #[DataProvider('queuedChunks')]
+    public function fetchLineReadsQueuedChunks(array $chunks, array $lines, string $rest): void
+    {
+        foreach ($chunks as $chunk) {
+            $this->deliver($chunk);
+        }
+
+        foreach ($lines as $line) {
+            Assert::same($this->read($this->stream->fetchLine(...)), $line);
+        }
+        Assert::same($this->stream->getData(), $rest);
+    }
+
+    public function fetchLineReturnsQueuedChunksOnDisconnect(): void
+    {
+        $this->deliver('par');
+        $this->deliver('tial');
+        $this->client->destroy();
+
+        Assert::same($this->read($this->stream->fetchLine(...)), 'partial');
+        Assert::true($this->stream->isFinished());
     }
 
     public function fetchLineReturnsTheRestOnDisconnect(): void

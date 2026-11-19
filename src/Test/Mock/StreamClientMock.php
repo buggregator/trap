@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Test\Mock;
 
+use Buggregator\Trap\Server\Traffic\FetchLineTrait;
 use Buggregator\Trap\Server\Traffic\StreamClient;
 use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Test\Mock\StreamClientMock\DisconnectCommand;
@@ -13,6 +14,8 @@ use Buggregator\Trap\Test\Mock\StreamClientMock\DisconnectCommand;
  */
 final class StreamClientMock implements StreamClient
 {
+    use FetchLineTrait;
+
     /** @var \SplQueue<string> */
     private \SplQueue $queue;
 
@@ -84,38 +87,6 @@ final class StreamClientMock implements StreamClient
     public function isFinished(): bool
     {
         return $this->isDisconnected() && $this->queue->isEmpty();
-    }
-
-    /**
-     * Copy of {@see \Buggregator\Trap\Server\Socket\SocketStream::fetchLine()}
-     */
-    public function fetchLine(): string
-    {
-        $line = '';
-
-        while (!$this->isFinished()) {
-            while (!$this->queue->isEmpty() && !\str_contains($this->queue[0], "\n")) {
-                $line .= $this->queue->dequeue();
-                $this->waitData();
-            }
-
-            // Split chunk by EOL
-            if (!$this->queue->isEmpty()) {
-                $split = \explode("\n", $this->queue[0], 2);
-                $line .= $split[0] . "\n";
-
-                if (!isset($split[1]) || $split[1] === '') {
-                    $this->queue->dequeue();
-                } else {
-                    $this->queue[0] = $split[1];
-                }
-                break;
-            }
-
-            $this->waitData();
-        }
-
-        return $line;
     }
 
     public function fetchAll(): string
