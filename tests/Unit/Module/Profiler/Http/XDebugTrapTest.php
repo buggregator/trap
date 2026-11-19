@@ -22,6 +22,7 @@ use Testo\Test;
 final class XDebugTrapTest
 {
     private const STUB = __DIR__ . '/../../../../Stub/xdebug/shared.cachegrind';
+    private const FIBERS = __DIR__ . '/../../../../Stub/xdebug/fibers/fibers.cachegrind';
 
     public function testStoresProfileWithQueryMetadata(): void
     {
@@ -105,6 +106,28 @@ final class XDebugTrapTest
         Assert::same($response->getStatusCode(), 503);
         Assert::same($frames, []);
         Assert::string($log)->contains('XDebug: profile rejected with 503: 0 profile builds are waiting already.');
+    }
+
+    public function testStoresProfileOfFibers(): void
+    {
+        $request = new ServerRequest('POST', '/api/profiler/xdebug', body: \file_get_contents(self::FIBERS));
+
+        [$response, $frames, $log] = self::handle($request);
+
+        Assert::same($response->getStatusCode(), 200);
+        Assert::count($frames[0]->payload->getProfile()->calls->roots(), 2);
+        Assert::same($log, '');
+    }
+
+    public function testWarnsThatCallsAreUnlinked(): void
+    {
+        $content = "version: 1\ncreator: xdebug 3.4.0 (PHP 8.4.0)\ncmd: /app/a.php\npart: 1\npositions: line\n\n"
+            . "events: Time Memory_(bytes)\n\nfn=(1) {main}\n1 10 0\ncfn=(2) foo\ncalls=1 0 0\n2 5 0\n";
+
+        [$response, , $log] = self::handle(new ServerRequest('POST', '/api/profiler/xdebug', body: $content));
+
+        Assert::same($response->getStatusCode(), 200);
+        Assert::string($log)->contains('XDebug: 1 calls of the profile list calls not found');
     }
 
     /**

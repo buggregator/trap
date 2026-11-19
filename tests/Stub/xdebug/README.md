@@ -3,7 +3,8 @@
 Generated with Xdebug 3.4.0 on PHP 8.4.23; script paths are replaced with `/app/`.
 
 - `*.cachegrind` — profiler output (`xdebug.mode=profile`). Xdebug writes a block per call, in the order the calls end,
-  so the exact call tree can be restored from it. Recursion levels are not marked: `bar()` calling itself is `bar ==> bar`.
+  so the exact call tree can be restored from it; with fibers, the calls of different stacks interleave, see `fibers/`.
+  Recursion levels are not marked: `bar()` calling itself is `bar ==> bar`.
 - `*.trace.xt` — computerized trace (`xdebug.mode=trace`, `xdebug.trace_format=1`): entry and exit records of every call.
 
 ```sh
@@ -38,3 +39,15 @@ function b() { x(); x(); return x(); }
 a();
 b();
 ```
+
+## fibers/
+
+Profiles of the scripts next to them, made with the profile command above from the `fibers` directory.
+Xdebug writes the calls of all the fiber stacks into one log as they end, interleaved, and a fiber's function
+is listed by no call.
+
+- `fibers` — `task()` lists `work()` and `Fiber::suspend()` calls ended between the calls of `run()`.
+- `loop` — `work()` runs on both sides of every switch, several times for the same time on both.
+- `destroyed` — the fiber is destroyed while suspended: its calls end with no `Fiber->resume()` after them.
+- `nested` — a fiber starts and resumes another one.
+- `scheduler` — 50 fibers resumed in turns; gzipped with `gzip -9 -n`.

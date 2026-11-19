@@ -118,6 +118,13 @@ final class XDebug implements FileFilterInterface, ForgetsFiles
                             (int) ($compacted['limit'] ?? 0),
                             Report::summarize($compacted),
                         );
+                        /** @var mixed $unlinked */
+                        $unlinked = $profile->metadata['unlinked'] ?? null;
+                        \is_int($unlinked) and $this->logger->warning(
+                            'XDebug: %d calls of %s list calls not found; calls left without a caller are shown as roots.',
+                            $unlinked,
+                            \basename($file->path),
+                        );
 
                         return $profile;
                     }),

@@ -1,0 +1,98 @@
+version: 1
+creator: xdebug 3.4.0 (PHP 8.4.23)
+cmd: /app/destroyed.php
+part: 1
+positions: line
+
+events: Time_(10ns) Memory_(bytes)
+
+fl=(1) php:internal
+fn=(1) php::Fiber->__construct
+19 240 0
+
+fl=(1)
+fn=(2) php::str_repeat
+7 140 48
+
+fl=(2) /app/destroyed.php
+fn=(3) work
+5 530 40
+cfl=(1)
+cfn=(2)
+calls=1 0 0
+7 140 48
+
+fl=(1)
+fn=(4) php::Fiber->start
+20 2300 16552
+
+fl=(1)
+fn=(2)
+7 20 48
+
+fl=(2)
+fn=(3)
+5 80 40
+cfl=(1)
+cfn=(2)
+calls=1 0 0
+7 20 48
+
+fl=(1)
+fn=(5) php::Fiber::suspend
+13 680 72
+
+fl=(2)
+fn=(6) task
+10 810 0
+cfl=(2)
+cfn=(3)
+calls=1 0 0
+12 670 88
+cfl=(1)
+cfn=(5)
+calls=1 0 0
+13 680 72
+
+fl=(1)
+fn=(2)
+7 10 48
+
+fl=(2)
+fn=(3)
+5 60 40
+cfl=(1)
+cfn=(2)
+calls=1 0 0
+7 10 48
+
+fl=(2)
+fn=(7) run
+17 3510 0
+cfl=(1)
+cfn=(1)
+calls=1 0 0
+19 240 0
+cfl=(1)
+cfn=(4)
+calls=1 0 0
+20 2300 16552
+cfl=(2)
+cfn=(3)
+calls=1 0 0
+21 100 88
+cfl=(2)
+cfn=(3)
+calls=1 0 0
+23 70 88
+
+fl=(2)
+fn=(8) {main}
+1 1090 0
+cfl=(2)
+cfn=(7)
+calls=1 0 0
+26 6220 152
+
+summary: 12280 443800
+

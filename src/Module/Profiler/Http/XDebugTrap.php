@@ -96,6 +96,12 @@ final class XDebugTrap implements Middleware
             (int) ($compacted['limit'] ?? 0),
             Report::summarize($compacted),
         );
+        /** @var mixed $unlinked */
+        $unlinked = $profile->metadata['unlinked'] ?? null;
+        \is_int($unlinked) and $this->logger->warning(
+            'XDebug: %d calls of the profile list calls not found; calls left without a caller are shown as roots.',
+            $unlinked,
+        );
 
         \Fiber::suspend(
             new Frame(

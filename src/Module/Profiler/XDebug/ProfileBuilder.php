@@ -55,11 +55,15 @@ final class ProfileBuilder
     /**
      * @param string $content Cachegrind data, gzipped or not.
      * @param Metadata $metadata Gets `compacted` when the tree was over the node limit: what
-     *        {@see Report::toArray()} tells and the `limit`.
+     *        {@see Report::toArray()} tells and the `limit`; and `unlinked` when calls of the profile did not
+     *        lead to the calls they list, which then stand as roots, see {@see CallLinker}; and `fibers` when
+     *        fibers ran functions that stand as roots: their count in `roots` and their sums of `wt` and `mu`,
+     *        which the other roots also hold.
      * @param array<non-empty-string, non-empty-string> $tags
      * @param TimeSlice|null $timeSlice Lets other fibers run during a long build.
      *
      * @throws \InvalidArgumentException When the content is not a profile written by Xdebug or is too large.
+     *         A call tree that does not add up is no reason: its consistent part is kept.
      */
     public function createProfile(
         string $content,
@@ -80,6 +84,8 @@ final class ProfileBuilder
 
         $linker = $this->link($content, $timeSlice);
         unset($content);
+        $linker->unlinked > 0 and $metadata['unlinked'] = $linker->unlinked;
+        $linker->fibers === [] or $metadata['fibers'] = self::fibers($linker);
         // The calls read take their memory first
         $limit = $this->maxNodes ?? NodeBudget::nodes();
         $nodes = self::nodes($linker, $limit, $timeSlice);
@@ -94,6 +100,21 @@ final class ProfileBuilder
 
         /** @var Metadata $metadata */
         return Profile::fromTree($tree, $date, $metadata, $tags, $timeSlice);
+    }
+
+    /**
+     * @return array{roots: int<1, max>, wt: int<0, max>, mu: int<0, max>}
+     */
+    private static function fibers(CallLinker $linker): array
+    {
+        $wt = $mu = 0;
+        foreach ($linker->fibers as $call) {
+            $wt = Cost::saturate($wt + $linker->wt[$call]);
+            // A negative memory shows as zero, as on the root edges
+            $mu = Cost::saturate($mu + \max(0, $linker->memory[$call]));
+        }
+
+        return ['roots' => \max(1, \count($linker->fibers)), 'wt' => \max(0, $wt), 'mu' => \max(0, $mu)];
     }
 
     /**
@@ -318,9 +339,11 @@ final class ProfileBuilder
                         $current->time = (int) $m[1];
                         $current->memory = (int) $m[2];
                     }
-                } elseif (\preg_match('/^[+-]?\d+ -?\d+ -?\d+/', $line) === 1) {
+                } elseif (\preg_match('/^[+-]?\d+ (-?\d+) (-?\d+)/', $line, $m) === 1) {
                     $expectCost = false;
                     $current->callees[] = $callee;
+                    $current->calleeTime[] = (int) $m[1];
+                    $current->calleeMemory[] = (int) $m[2];
                     $callee = null;
                 }
             }

@@ -159,6 +159,24 @@ final class XDebugTest
             ->contains('XDebug: cachegrind.out.1234 is skipped: Not a cachegrind profile written by Xdebug.');
     }
 
+    public function testWarnsWhenCallsAreUnlinked(): void
+    {
+        $path = $this->dir . '/cachegrind.out.1234';
+        \file_put_contents(
+            $path,
+            "version: 1\ncreator: xdebug 3.4.0\ncmd: /app/x.php\npart: 1\npositions: line\n\n"
+                . "events: Time Memory_(bytes)\n\nfn=(1) {main}\n1 10 0\ncfn=(2) foo\ncalls=1 0 0\n2 5 0\n\nsummary: 15 0\n\n",
+        );
+        $output = new BufferedOutput();
+        $converter = new XDebug(new Logger($output), new ProfileBuilder());
+
+        $profile = \iterator_to_array($converter->convert(self::info($path)), false)[0]->payload->getProfile();
+
+        Assert::same($profile->metadata['unlinked'] ?? null, 1);
+        Assert::string($output->fetch())->ignoringAnsi()
+            ->contains('XDebug: 1 calls of cachegrind.out.1234 list calls not found; calls left without a caller are shown as roots.');
+    }
+
     public function testProfileWithinNodeLimitLogsNothing(): void
     {
         $path = $this->dir . '/cachegrind.out.1234';

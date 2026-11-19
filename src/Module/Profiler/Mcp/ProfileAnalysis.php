@@ -134,7 +134,8 @@ final class ProfileAnalysis
     /**
      * The value of the metric the percentages are of: the peak value of one caller and callee pair, as the console
      * shows, or the sum of the roots when larger, up to `PHP_INT_MAX`. A root added for a profile without `main()`
-     * sums the times of its calls, so it may pass every pair.
+     * sums the times of its calls, so it may pass every pair. The roots of Xdebug fibers are left out: their cost
+     * counts in the calls that started or resumed the fibers too.
      *
      * @return int<0, max>
      */
@@ -152,6 +153,9 @@ final class ProfileAnalysis
                 $value = $metric->of($edge->cost);
                 $roots = $value > \PHP_INT_MAX - $roots ? \PHP_INT_MAX : $roots + $value;
             }
+            /** @var mixed $fibers */
+            $fibers = $this->profile->metadata['fibers'][$metric->value] ?? 0;
+            \is_int($fibers) && $fibers > 0 && $roots < \PHP_INT_MAX and $roots = \max(0, $roots - $fibers);
             $peak = \max($peak, $roots);
         }
 

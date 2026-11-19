@@ -43,3 +43,17 @@ Large profiles are compacted to the memory Trap has (see `TRAP_MEMORY_LIMIT` in
 [Configuration](configuration.md#server-environment-variables)): calls of the same function
 are merged, deep recursion is collapsed and the coldest calls are folded into `(other)` nodes;
 the profile metadata tells how much was folded. One profile is built at a time.
+
+## Xdebug and fibers
+
+Xdebug profiles have no record of the fiber a call ran in. Trap tells the fiber stacks apart by the fiber switches
+in the profile and restores the call tree of each fiber; the function a fiber runs becomes a root of its own beside
+`{main}`, and its time also counts in the `Fiber->start()` or `Fiber->resume()` calls that ran it.
+Fibers that make the same calls for the same time can't be told apart, so their calls may be swapped between them.
+The `fibers` metadata tells how many roots ended in fiber stacks and their time and memory; the percentages of the
+[MCP tools](mcp.md#profiles) leave them out of the total. The count is approximate: a call left without a caller
+in a fiber stack counts too.
+
+When Trap can't find the calls a call lists, that call keeps their cost as its own, the calls left without a caller
+are shown as roots, and the `unlinked` metadata counts such calls; the log warns about them. The cost of a listed
+call that is in the profile then counts twice: in its caller and in its root.

@@ -1,0 +1,154 @@
+version: 1
+creator: xdebug 3.4.0 (PHP 8.4.23)
+cmd: /app/fibers.php
+part: 1
+positions: line
+
+events: Time_(10ns) Memory_(bytes)
+
+fl=(1) php:internal
+fn=(1) php::Fiber->__construct
+21 200 0
+
+fl=(1)
+fn=(2) php::str_repeat
+7 130 48
+
+fl=(2) /app/fibers.php
+fn=(3) work
+5 690 40
+cfl=(1)
+cfn=(2)
+calls=1 0 0
+7 130 48
+
+fl=(1)
+fn=(4) php::Fiber->start
+22 2580 16552
+
+fl=(1)
+fn=(2)
+7 20 48
+
+fl=(2)
+fn=(3)
+5 570 40
+cfl=(1)
+cfn=(2)
+calls=1 0 0
+7 20 48
+
+fl=(1)
+fn=(5) php::Fiber::suspend
+13 950 72
+
+fl=(1)
+fn=(2)
+7 1 48
+
+fl=(2)
+fn=(3)
+5 79 40
+cfl=(1)
+cfn=(2)
+calls=1 0 0
+7 1 48
+
+fl=(1)
+fn=(6) php::Fiber->resume
+24 320 72
+
+fl=(1)
+fn=(2)
+7 10 48
+
+fl=(2)
+fn=(3)
+5 40 40
+cfl=(1)
+cfn=(2)
+calls=1 0 0
+7 10 48
+
+fl=(1)
+fn=(5)
+15 240 72
+
+fl=(1)
+fn=(2)
+7 1 48
+
+fl=(2)
+fn=(3)
+5 49 40
+cfl=(1)
+cfn=(2)
+calls=1 0 0
+7 1 48
+
+fl=(2)
+fn=(7) task
+10 740 0
+cfl=(2)
+cfn=(3)
+calls=1 0 0
+12 820 88
+cfl=(1)
+cfn=(5)
+calls=1 0 0
+13 950 72
+cfl=(2)
+cfn=(3)
+calls=1 0 0
+14 80 88
+cfl=(1)
+cfn=(5)
+calls=1 0 0
+15 240 72
+cfl=(2)
+cfn=(3)
+calls=1 0 0
+16 50 88
+
+fl=(1)
+fn=(6)
+26 1560 0
+
+fl=(2)
+fn=(8) run
+19 1530 440
+cfl=(1)
+cfn=(1)
+calls=1 0 0
+21 200 0
+cfl=(1)
+cfn=(4)
+calls=1 0 0
+22 2580 16552
+cfl=(2)
+cfn=(3)
+calls=1 0 0
+23 590 88
+cfl=(1)
+cfn=(6)
+calls=1 0 0
+24 320 72
+cfl=(2)
+cfn=(3)
+calls=1 0 0
+25 50 88
+cfl=(1)
+cfn=(6)
+calls=1 0 0
+26 1560 0
+
+fl=(2)
+fn=(9) {main}
+1 1110 0
+cfl=(2)
+cfn=(8)
+calls=1 0 0
+29 6830 616
+
+summary: 13750 444616
+
