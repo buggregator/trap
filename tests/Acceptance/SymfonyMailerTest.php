@@ -9,7 +9,6 @@ use Buggregator\Trap\Tests\Acceptance\Support\TrapProcess;
 use Testo\Assert;
 use Testo\Lifecycle\AfterTest;
 use Testo\Lifecycle\BeforeTest;
-use Testo\Skip;
 use Testo\Test;
 
 /**
@@ -183,7 +182,6 @@ final class SymfonyMailerTest
      * Symfony Mailer encodes a non-ASCII subject as RFC 2047 words and a non-ASCII text as quoted-printable,
      * and quotes a display name holding a comma.
      */
-    #[Skip('Trap decodes no RFC 2047 subject, and splits a quoted name at its comma')]
     public function testNonAsciiMail(): void
     {
         SymfonyMailer::require();
