@@ -204,6 +204,32 @@ final class SymfonyMailerTest
     }
 
     /**
+     * Symfony Mailer encodes a non-ASCII text and HTML as quoted-printable,
+     * breaking a line longer than 76 characters with soft line breaks.
+     */
+    public function testNonAsciiBodies(): void
+    {
+        SymfonyMailer::require();
+        $trap = $this->startTrap('symfony-mailer-non-ascii-bodies');
+        $long = \str_repeat('Größenwahn und Übermut, ', 8);
+
+        $result = SymfonyMailer::send("smtp://127.0.0.1:$this->port", [
+            'from' => 'sender@acceptance.test',
+            'to' => ['alice@acceptance.test'],
+            'subject' => 'Symfony non-ASCII bodies subject',
+            'text' => "Grüße aus Symfony Mailer.\n$long",
+            'html' => "<p>Привет, мир!</p><p>$long</p>",
+        ]);
+
+        Assert::same($result['error'], null, "{$result['error']}\n{$result['debug']}");
+        $mail = $this->waitForDumpedMail($trap, 'Symfony non-ASCII bodies subject');
+        Assert::same(\array_column($mail['messages'], 'value'), ["Grüße aus Symfony Mailer.\r\n$long", "<p>Привет, мир!</p><p>$long</p>"]);
+        $event = $trap->waitForUiEvent($this->uiPort, 'smtp');
+        Assert::same($event['payload']['text'], "Grüße aus Symfony Mailer.\r\n$long");
+        Assert::same($event['payload']['html'], "<p>Привет, мир!</p><p>$long</p>");
+    }
+
+    /**
      * One connection, several messages: the server takes each one after the previous.
      */
     public function testSeveralMailsInOneSession(): void

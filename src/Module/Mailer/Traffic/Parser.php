@@ -14,7 +14,6 @@ use Buggregator\Trap\Support\TimeSlice;
 use Psr\Http\Message\StreamInterface;
 
 /**
- * Todo: parse and decrypt `Content-Transfer-Encoding: base64`, `Content-Transfer-Encoding: 7bit`
  * @internal
  */
 final class Parser
@@ -122,6 +121,81 @@ final class Parser
         return \strlen($data);
     }
 
+    private static function isBodyText(Field $part): bool
+    {
+        // A part without a Content-Type is text/plain
+        $type = $part->getHeaderLine('Content-Type');
+        return $type === '' || \preg_match('/^\\s*text\\/(?:plain|html|watch-html)\\b/i', $type) === 1;
+    }
+
+    /**
+     * Decodes a message body by its `Content-Transfer-Encoding` and converts it to UTF-8 from its charset.
+     *
+     * The headers of the result describe the decoded value: the decoded transfer encoding is dropped
+     * and a converted charset becomes UTF-8, so a consumer of the stored message doesn't decode it twice.
+     */
+    private static function decodeText(Field $part): Field
+    {
+        $value = self::decodeTransfer($part->getValue(), $part->getHeaderLine('Content-Transfer-Encoding'));
+        $value === null or $part = $part->withValue($value)->withoutHeader('Content-Transfer-Encoding');
+
+        $contentType = $part->getHeaderLine('Content-Type');
+        $found = \preg_match(
+            '/;\\s*charset=(?:"([^"]*+)"|([^\\s;"]++))/i',
+            $contentType,
+            $matches,
+            \PREG_OFFSET_CAPTURE | \PREG_UNMATCHED_AS_NULL,
+        );
+        if ($found !== 1) {
+            return $part;
+        }
+
+        $converted = self::toUtf8($part->getValue(), (string) ($matches[1][0] ?? $matches[2][0]));
+        if ($converted === null) {
+            return $part;
+        }
+
+        return $part->withValue($converted)->withHeader(
+            'Content-Type',
+            \substr_replace($contentType, '; charset=utf-8', $matches[0][1], \strlen((string) $matches[0][0])),
+        );
+    }
+
+    /**
+     * @return string|null The decoded value, or null if the encoding leaves the value as is:
+     *         `7bit`, `8bit`, `binary` or unknown.
+     */
+    private static function decodeTransfer(string $value, string $encoding): ?string
+    {
+        return match (\strtolower(\trim($encoding))) {
+            'base64' => \base64_decode($value),
+            'quoted-printable' => \quoted_printable_decode($value),
+            default => null,
+        };
+    }
+
+    /**
+     * Without ext-mbstring the Symfony polyfill converts through ext-iconv;
+     * without either, a text in another charset keeps its bytes.
+     *
+     * @return string|null The converted value, or null if it is UTF-8 already or the charset is unknown.
+     */
+    private static function toUtf8(string $value, string $charset): ?string
+    {
+        $charset = \strtolower(\trim($charset));
+        if (\in_array($charset, ['', 'utf-8', 'utf8', 'us-ascii', 'ascii'], true)) {
+            return null;
+        }
+
+        try {
+            $converted = @\mb_convert_encoding($value, 'UTF-8', $charset);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return \is_string($converted) ? $converted : null;
+    }
+
     /**
      * Writes the mail data into the file stream up to the end-of-data line, a single dot, undoing dot-stuffing.
      *
@@ -178,11 +252,14 @@ final class Parser
 
         /** @psalm-suppress InvalidArgument */
         $body = new Field(
-            headers: \array_intersect_key($message->getHeaders(), ['Content-Type' => true]),
+            headers: \array_intersect_key(
+                $message->getHeaders(),
+                ['Content-Type' => true, 'Content-Transfer-Encoding' => true],
+            ),
             value: $content,
         );
 
-        return $message->withMessages([$body]);
+        return $message->withMessages([self::isBodyText($body) ? self::decodeText($body) : $body]);
     }
 
     private function processMultipartForm(Message $message, StreamInterface $stream): Message
@@ -216,10 +293,8 @@ final class Parser
     ): void {
         foreach (Http::parseMultipartBody($stream, $boundary) as $part) {
             if ($part instanceof Field) {
-                // A part without a Content-Type is text/plain
-                $type = $part->getHeaderLine('Content-Type');
-                $type === '' || \preg_match('/^\\s*text\\/(?:plain|html|watch-html)\\b/i', $type) === 1
-                    ? $texts[] = $part
+                self::isBodyText($part)
+                    ? $texts[] = self::decodeText($part)
                     : $attachments[] = $this->textToFile($part);
                 continue;
             }
@@ -256,12 +331,8 @@ final class Parser
                 default => 'attachment.txt',
             };
 
-        $value = $part->getValue();
-        $value = match (\strtolower(\trim($part->getHeaderLine('Content-Transfer-Encoding')))) {
-            'base64' => \base64_decode($value),
-            'quoted-printable' => \quoted_printable_decode($value),
-            default => $value,
-        };
+        $value = self::decodeTransfer($part->getValue(), $part->getHeaderLine('Content-Transfer-Encoding'))
+            ?? $part->getValue();
 
         $stream = StreamHelper::createFileStream();
         $stream->write($value);

@@ -94,6 +94,114 @@ final class ParserTest
         ];
     }
 
+    /**
+     * Part headers and encoded body, then the expected value and Content-Type of the text.
+     */
+    public static function provideEncodedBodies(): iterable
+    {
+        yield 'quoted-printable with a soft line break' => [
+            "Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable",
+            "Gr=C3=BC=C3=9Fe, a long line that is soft broken by the encoder at this =\r\npoint.",
+            'Grüße, a long line that is soft broken by the encoder at this point.',
+            'text/plain; charset=utf-8',
+        ];
+        yield 'encoding name in upper case' => [
+            "Content-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: Quoted-Printable",
+            '<p>Gr=C3=BC=C3=9Fe</p>',
+            '<p>Grüße</p>',
+            'text/html; charset=utf-8',
+        ];
+        yield 'base64 split into lines' => [
+            "Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: BASE64",
+            \chunk_split(\base64_encode('Привет, мир!'), 8, "\r\n"),
+            'Привет, мир!',
+            'text/plain; charset=utf-8',
+        ];
+        yield '8bit stays as is' => [
+            "Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 8bit",
+            'Grüße =C3=BC',
+            'Grüße =C3=BC',
+            'text/plain; charset=utf-8',
+        ];
+        yield 'iso-8859-1 in quoted-printable' => [
+            "Content-Type: text/plain; charset=\"ISO-8859-1\"; format=flowed\r\nContent-Transfer-Encoding: quoted-printable",
+            'Gr=FC=DFe',
+            'Grüße',
+            'text/plain; charset=utf-8; format=flowed',
+        ];
+        yield 'windows-1251 in 8bit' => [
+            "Content-Type: text/plain; charset=windows-1251\r\nContent-Transfer-Encoding: 8bit",
+            "\xCF\xF0\xE8\xE2\xE5\xF2",
+            'Привет',
+            'text/plain; charset=utf-8',
+        ];
+        yield 'unknown charset keeps the bytes' => [
+            "Content-Type: text/plain; charset=x-unknown\r\nContent-Transfer-Encoding: quoted-printable",
+            'a=3Db',
+            'a=b',
+            'text/plain; charset=x-unknown',
+        ];
+    }
+
+    #[DataProvider('provideEncodedBodies')]
+    #[Test]
+    public function decodesSinglePartBody(string $headers, string $body, string $text, string $contentType): void
+    {
+        $message = $this->parse("Subject: Test\r\n{$headers}\r\n\r\n{$body}\r\n.\r\n");
+
+        Assert::count($message->getMessages(), 1);
+        Assert::same($message->getMessages()[0]->getValue(), $text);
+        Assert::same($message->getMessages()[0]->getHeaderLine('Content-Type'), $contentType);
+    }
+
+    #[DataProvider('provideEncodedBodies')]
+    #[Test]
+    public function decodesTextPartNestedInMultipart(
+        string $headers,
+        string $body,
+        string $text,
+        string $contentType,
+    ): void {
+        $message = $this->parse(
+            "Content-Type: multipart/mixed; boundary=outer\r\n\r\n"
+            . "--outer\r\nContent-Type: multipart/alternative; boundary=inner\r\n\r\n"
+            . "--inner\r\n{$headers}\r\n\r\n{$body}\r\n--inner--\r\n"
+            . "--outer\r\nContent-Type: application/pdf\r\nContent-Disposition: attachment; filename=a.pdf\r\n\r\n%PDF\r\n"
+            . "--outer--\r\n.\r\n",
+        );
+
+        Assert::count($message->getMessages(), 1);
+        Assert::same($message->getMessages()[0]->getValue(), $text);
+        Assert::same($message->getMessages()[0]->getHeaderLine('Content-Type'), $contentType);
+        Assert::count($message->getAttachments(), 1);
+    }
+
+    #[Test]
+    public function decodedPartHasNoTransferEncoding(): void
+    {
+        $message = $this->parse(
+            "Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n"
+            . "a=3D3Db\r\n.\r\n",
+        );
+
+        $text = $message->getMessages()[0];
+        Assert::same($text->getValue(), 'a=3Db');
+        Assert::false($text->hasHeader('Content-Transfer-Encoding'));
+        // The stored message keeps the decoded value: a reader decodes nothing twice
+        $restored = Message::fromArray(\json_decode(\json_encode($message), true));
+        Assert::same($restored->getMessages()[0]->getValue(), 'a=3Db');
+    }
+
+    #[Test]
+    public function keepsSinglePartNonTextBodyEncoded(): void
+    {
+        $message = $this->parse(
+            "Content-Type: application/octet-stream\r\nContent-Transfer-Encoding: base64\r\n\r\nAAEC\r\n.\r\n",
+        );
+
+        Assert::same($message->getMessages()[0]->getValue(), 'AAEC');
+    }
+
     #[DataProvider('provideHeaders')]
     #[Test]
     public function testParseHeader(string $headerString, array $expected): void
@@ -248,7 +356,6 @@ final class ParserTest
         Assert::same($message->getMessages()[0]->getValue(), "Plain text email goes here!\r\nThis is the fallback if email client does not support HTML\r\n");
         Assert::equals($message->getMessages()[0]->getHeaders(), [
             'Content-Type' => ['text/plain; charset="utf-8"'],
-            'Content-Transfer-Encoding' => ['quoted-printable'],
             'Content-Disposition' => ['inline'],
         ]);
 
@@ -256,7 +363,6 @@ final class ParserTest
         Assert::same($message->getMessages()[1]->getValue(), "<h1>This is the HTML Section!</h1>\r\n<p>This is what displays in most modern email clients</p>\r\n");
         Assert::equals($message->getMessages()[1]->getHeaders(), [
             'Content-Type' => ['text/html; charset="utf-8"'],
-            'Content-Transfer-Encoding' => ['quoted-printable'],
             'Content-Disposition' => ['inline'],
         ]);
 
@@ -264,7 +370,6 @@ final class ParserTest
         Assert::same($message->getMessages()[2]->getValue(), "<b>Apple Watch formatted content</b>\r\n");
         Assert::equals($message->getMessages()[2]->getHeaders(), [
             'Content-Type' => ['text/watch-html; charset="utf-8"'],
-            'Content-Transfer-Encoding' => ['quoted-printable'],
             'Content-Disposition' => ['inline'],
         ]);
 

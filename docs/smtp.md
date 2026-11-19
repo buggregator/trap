@@ -24,6 +24,9 @@ MAIL_HOST=127.0.0.1
 MAIL_PORT=1025
 ```
 
+Trap shows the text and HTML parts decoded from `quoted-printable` and `base64`, and converted to UTF-8 from the
+charset they declare when `ext-mbstring` or `ext-iconv` can convert it.
+
 `vendor/bin/trap test` sends two test emails, a plain and a multipart one.
 
 ## Save emails to files
