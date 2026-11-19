@@ -27,7 +27,7 @@ final class Binary implements Dispatcher
     }
 
     #[\Override]
-    public function detect(string $data, \DateTimeImmutable $createdAt): ?bool
+    public function detect(string $data, float $silence): ?bool
     {
         // Detect bin data
         if (\preg_match_all('/[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]/', $data) === 1) {

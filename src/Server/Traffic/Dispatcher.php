@@ -21,9 +21,9 @@ interface Dispatcher
      * Detect if this dispatcher can handle this data.
      *
      * @param string $data Read data from stream.
-     * @param \DateTimeImmutable $createdAt Time when the client was created.
+     * @param float $silence Seconds the client has sent nothing for, see {@see StreamClient::silence()}.
      *
      * @return null|bool Return {@see null} if dispatcher can't detect this data and it needs more data.
      */
-    public function detect(string $data, \DateTimeImmutable $createdAt): ?bool;
+    public function detect(string $data, float $silence): ?bool;
 }

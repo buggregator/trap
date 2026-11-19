@@ -31,6 +31,6 @@ final class DispatcherTest
     {
         $dispatcher = new Dispatcher();
 
-        Assert::same($dispatcher->detect($data, new \DateTimeImmutable()), $expected);
+        Assert::same($dispatcher->detect($data, 0.0), $expected);
     }
 }

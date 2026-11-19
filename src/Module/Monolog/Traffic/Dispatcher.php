@@ -34,7 +34,7 @@ final class Dispatcher implements DispatcherInterface
     }
 
     #[\Override]
-    public function detect(string $data, \DateTimeImmutable $createdAt): ?bool
+    public function detect(string $data, float $silence): ?bool
     {
         $prefix = '{"message":';
         if (\strlen($data) < \strlen($prefix) && \substr($prefix, 0, \strlen($data)) === $data) {

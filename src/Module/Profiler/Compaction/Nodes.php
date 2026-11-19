@@ -252,7 +252,7 @@ final class Nodes
         }
 
         $pruned = [];
-        $map = Compactor::compact($this->tree, $target, $this->report, $pinned, $pruned);
+        $map = Compactor::compact($this->tree, $target, $this->report, $pinned, $pruned, $this->timeSlice);
         foreach ($pruned as [$parent, $frame]) {
             $this->routes[$parent * $this->frameCount + $frame] = true;
         }
@@ -284,6 +284,7 @@ final class Nodes
                 $frame >= 0 => $this->byPath[$parent * $this->frameCount + $frame] = $node,
                 default => null,
             };
+            $this->timeSlice?->tick();
         }
 
         foreach ($this->open as $i => $node) {

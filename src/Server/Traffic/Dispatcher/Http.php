@@ -97,7 +97,7 @@ final class Http implements Dispatcher
     }
 
     #[\Override]
-    public function detect(string $data, \DateTimeImmutable $createdAt): ?bool
+    public function detect(string $data, float $silence): ?bool
     {
         if (!\str_contains($data, "\r\n")) {
             return null;

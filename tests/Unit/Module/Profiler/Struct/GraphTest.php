@@ -378,6 +378,28 @@ final class GraphTest
         Assert::same([$main->cost->p_wt, $main->cost->d_wt], [100.0, 0]);
     }
 
+    public function testSetsPercentsAndDeltasLettingOtherFibersRun(): void
+    {
+        $graph = new Graph();
+        $graph->add($main = new Edge(null, 'main', new Cost(1, 100, 0, 0, 0)));
+        $graph->add($a = new Edge('main', 'a', new Cost(1, 25, 0, 0, 0)));
+        $fiber = new \Fiber(static fn() => $graph->setPercentsAndDeltas(
+            new Peaks(1, 100, 0, 0, 0),
+            new TimeSlice(0.0, 1),
+        ));
+
+        $suspensions = 0;
+        $fiber->start();
+        while (!$fiber->isTerminated()) {
+            ++$suspensions;
+            $fiber->resume();
+        }
+
+        Assert::same($suspensions, 2);
+        Assert::same([$a->cost->p_wt, $a->cost->d_wt], [25.0, -75]);
+        Assert::same([$main->cost->p_wt, $main->cost->d_wt], [100.0, 0]);
+    }
+
     public function testInclusiveCostSaturatesPastIntegerRange(): void
     {
         $graph = new Graph();

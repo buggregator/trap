@@ -10,6 +10,7 @@ use Buggregator\Trap\Test\Mock\StreamClientMock;
 use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Testo\Assert;
 use Testo\Codecov\Covers;
+use Testo\Data\DataSet;
 use Testo\Test;
 
 #[Covers(Dispatcher::class)]
@@ -85,6 +86,16 @@ final class DispatcherTest
 
             Assert::fail('No frame was yielded.');
         });
+    }
+
+    #[Test]
+    #[DataSet(['', 0.4, null], 'silent for a while')]
+    #[DataSet(['', 0.6, true], 'silent long enough')]
+    #[DataSet(['', 1.2, true], 'silent over a second')]
+    #[DataSet(["EHLO\r\n", 5.0, false], 'speaking first')]
+    public function testDetect(string $data, float $silence, ?bool $expected): void
+    {
+        Assert::same((new Dispatcher())->detect($data, $silence), $expected);
     }
 
     private function mailMe(string $subject = 'Test email', bool $quit = false): \Generator

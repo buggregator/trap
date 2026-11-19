@@ -19,6 +19,9 @@ final class Dispatcher implements DispatcherInterface
     public const CLOSING = 221;
     public const START_MAIL_INPUT = 354;
 
+    /** Seconds of silence after which a connection is taken for SMTP. */
+    public const SILENCE = 0.5;
+
     private Parser $parser;
 
     public function __construct(
@@ -63,14 +66,14 @@ final class Dispatcher implements DispatcherInterface
     }
 
     #[\Override]
-    public function detect(string $data, \DateTimeImmutable $createdAt): ?bool
+    public function detect(string $data, float $silence): ?bool
     {
         if ($data !== '') {
             return false;
         }
 
-        $interval = $createdAt->diff(new \DateTimeImmutable());
-        return $interval->f > 0.5 ? true : null;
+        // An SMTP client waits for the server greeting
+        return $silence > self::SILENCE ? true : null;
     }
 
     private function createResponse(int $statusCode, string|null $comment = null): string

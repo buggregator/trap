@@ -21,6 +21,7 @@ final class StreamClientMock implements StreamClient
 
     private function __construct(
         private readonly \Generator $generator,
+        private readonly float $silence,
         private readonly \DateTimeInterface $createdAt = new \DateTimeImmutable(),
     ) {
         $this->queue = new \SplQueue();
@@ -29,9 +30,13 @@ final class StreamClientMock implements StreamClient
         $value === '' or $this->queue->enqueue($value);
     }
 
-    public static function createFromGenerator(\Generator $generator): StreamClient
+    /**
+     * @param float $silence What {@see self::silence()} reports: a fixed value keeps tests independent of
+     *        how long they run.
+     */
+    public static function createFromGenerator(\Generator $generator, float $silence = 0.0): StreamClient
     {
-        return new self($generator);
+        return new self($generator, $silence);
     }
 
     public function hasData(): bool
@@ -138,6 +143,11 @@ final class StreamClientMock implements StreamClient
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    public function silence(): float
+    {
+        return $this->silence;
     }
 
     private function fetchFromGenerator(): void

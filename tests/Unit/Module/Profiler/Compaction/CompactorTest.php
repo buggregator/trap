@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Profiler\Compaction;
 use Buggregator\Trap\Module\Profiler\Compaction\Compactor;
 use Buggregator\Trap\Module\Profiler\Compaction\FlatTree;
 use Buggregator\Trap\Module\Profiler\Compaction\Report;
+use Buggregator\Trap\Support\TimeSlice;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Data\DataSet;
@@ -176,6 +177,39 @@ final class CompactorTest
         Assert::same($map, []);
         Assert::same($tree->size(), 0);
         Assert::true($report->isEmpty());
+    }
+
+    public function testLetsOtherFibersRunAndCompactsAlike(): void
+    {
+        // Sibling calls to merge, recursion to collapse and cold subtrees to prune: every stage runs
+        $build = static function (): FlatTree {
+            $tree = new FlatTree(inclusiveCounts: false);
+            $main = $tree->add(-1, 0, 1000.0, 1);
+            for ($i = 0; $i < 20; ++$i) {
+                $node = $tree->add($main, 1 + $i % 5, 40.0 - $i, 1);
+                for ($level = 0; $level < 12; ++$level) {
+                    $node = $tree->add($node, 9, 1.0, 1);
+                }
+            }
+            return $tree;
+        };
+        $expected = $build();
+        $expectedMap = Compactor::compact($expected, 10, $expectedReport = new Report());
+        $tree = $build();
+        $report = new Report();
+        $fiber = new \Fiber(static fn(): array => Compactor::compact($tree, 10, $report, timeSlice: new TimeSlice(0.0, 1)));
+
+        $suspensions = 0;
+        $fiber->start();
+        while (!$fiber->isTerminated()) {
+            ++$suspensions;
+            $fiber->resume();
+        }
+
+        Assert::int($suspensions)->greaterThan(0);
+        Assert::same($fiber->getReturn(), $expectedMap);
+        Assert::same(self::shape($tree), self::shape($expected));
+        Assert::same($report->toArray(), $expectedReport->toArray());
     }
 
     public function testLeavesTreeWithinTargetAsItIs(): void

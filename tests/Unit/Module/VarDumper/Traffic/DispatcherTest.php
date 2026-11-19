@@ -29,7 +29,7 @@ final class DispatcherTest
     public function testDetect(string $data, ?bool $expected): void
     {
         $dispatcher = new Dispatcher();
-        Assert::same($dispatcher->detect($data, new \DateTimeImmutable()), $expected);
+        Assert::same($dispatcher->detect($data, 0.0), $expected);
     }
 
     #[Test]

@@ -72,7 +72,7 @@ final class HttpTest
     public function testDetect(string $data, ?bool $expected): void
     {
         $dispatcher = new Http();
-        Assert::same($dispatcher->detect($data, new \DateTimeImmutable()), $expected);
+        Assert::same($dispatcher->detect($data, 0.0), $expected);
     }
 
     public function testRequestNoMiddlewareAnswersGets404AndNoFrame(): void
