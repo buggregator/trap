@@ -67,7 +67,7 @@ final class Parser
      */
     public function parseStream(array $protocol, StreamClient $stream): Message
     {
-        $headerBlock = Http::getBlock($stream);
+        [$headerBlock, $ended] = self::readHeaderBlock($stream);
         $headers = self::parseHeaders($headerBlock);
         $fileStream = StreamHelper::createFileStream();
         // Store read headers to the file stream.
@@ -76,26 +76,12 @@ final class Parser
         // Create message with headers only.
         $message = Message::create($protocol, headers: $headers);
 
-        // Defaults
-        $endOfStream = ["\r\n.\r\n"];
-        $isMultipart = false;
-
-        // Check the message is multipart.
-        $contentType = $message->getHeaderLine('Content-Type');
-        if (\str_contains($contentType, 'multipart/')
-            && \preg_match('/boundary="?([^"\\s;]++)"?/', $contentType, $matches) === 1
-        ) {
-            $isMultipart = true;
-            $endOfStream = ["\r\n--{$matches[1]}--\r\n\r\n"];
-            $endOfStream[] = $endOfStream[0] . ".\r\n";
-        }
-
-        $stored = $this->storeBody($fileStream, $stream, $endOfStream);
+        $stored = $ended ? 0 : $this->storeBody($fileStream, $stream);
         $message = $message->withBody($fileStream);
         // Message's body must be seeked to the beginning of the body.
         $fileStream->seek(-$stored, \SEEK_CUR);
 
-        $message = $isMultipart
+        $message = \str_contains($message->getHeaderLine('Content-Type'), 'multipart/')
             ? $this->processMultipartForm($message, $fileStream)
             : $this->processSingleBody($message, $fileStream);
 
@@ -103,20 +89,53 @@ final class Parser
     }
 
     /**
-     * Flush stream data into PSR stream.
-     * Note: there can be read more data than {@see $limit} bytes but write only {@see $limit} bytes.
+     * Reads the header block up to the empty line.
      *
-     * @param non-empty-array<non-empty-string> $endings
+     * @return array{string, bool} The block without the trailing line break, and whether the mail data has
+     *         ended with it: a message may have no body, and then no empty line before the end of data.
+     */
+    private static function readHeaderBlock(StreamClient $stream): array
+    {
+        $block = '';
+        while (!$stream->isFinished()) {
+            $line = $stream->fetchLine();
+            if ($line === "\r\n" || $line === ".\r\n") {
+                return [\rtrim($block, "\r\n"), $line === ".\r\n"];
+            }
+
+            $block .= $line;
+        }
+
+        return [\rtrim($block, "\r\n"), true];
+    }
+
+    /**
+     * @param int<0, 2> $prefix Leading bytes of the data that are not a part of the message.
      *
      * @return int<0, max> Number of bytes written to the stream.
      */
-    private function storeBody(
-        StreamInterface $fileStream,
-        StreamClient $stream,
-        array $endings = ["\r\n.\r\n"],
-    ): int {
+    private static function writeData(StreamInterface $stream, string $data, int $prefix): int
+    {
+        $data = \substr(\str_replace("\r\n.", "\r\n", $data), $prefix);
+        $data === '' or $stream->write($data);
+
+        return \strlen($data);
+    }
+
+    /**
+     * Writes the mail data into the file stream up to the end-of-data line, a single dot, undoing dot-stuffing.
+     *
+     * Data the client sends after that line in the same read is dropped: the server doesn't announce
+     * the PIPELINING extension, so a client waits for the reply before the next command.
+     *
+     * @return int<0, max> Number of bytes written to the stream.
+     */
+    private function storeBody(StreamInterface $fileStream, StreamClient $stream): int
+    {
         $written = 0;
-        $endLen = \min(\array_map('\strlen', $endings));
+        // The line break that ended the header block: the data may start with the end-of-data line.
+        $buffer = "\r\n";
+        $prefix = 2;
         $slice = new TimeSlice(checkEvery: 1);
         $waited = false;
 
@@ -125,35 +144,37 @@ final class Parser
             // The stream has suspended the fiber while it waited for the chunk
             $waited and $slice->reset();
 
-            // Write chunk to the file stream.
-            $fileStream->write($chunk);
-            $written += \strlen($chunk);
+            $buffer .= $chunk;
+            unset($chunk);
 
-            // Check the end of the message.
-            if (!$stream->hasData()) {
-                if (\strlen($chunk) < $endLen) {
-                    $fileStream->seek(-$endLen, \SEEK_CUR);
-                    $chunk = $fileStream->read($endLen);
-                }
-
-                foreach ($endings as $end) {
-                    if (\str_ends_with($chunk, $end)) {
-                        return $written;
-                    }
-                }
+            $end = \strpos($buffer, "\r\n.\r\n");
+            if ($end !== false) {
+                return $written + self::writeData($fileStream, \substr($buffer, 0, $end + 2), $prefix);
             }
 
-            unset($chunk);
+            // Kept for the next chunk: the tail may start the end-of-data line, and a line break a stuffed dot.
+            $cut = \max(0, \strlen($buffer) - 4);
+            $cut > 0 && $buffer[$cut - 1] === "\r" and --$cut;
+            $cut > 1 && \substr($buffer, $cut - 2, 2) === "\r\n" and $cut -= 2;
+            if ($cut > 0) {
+                $written += self::writeData($fileStream, \substr($buffer, 0, $cut), $prefix);
+                $buffer = \substr($buffer, $cut);
+                $prefix = 0;
+            }
+
             $waited = !$stream->hasData();
             $waited or $slice->tick();
         }
 
-        return $written;
+        // The client has disconnected before the end of data
+        return $written + self::writeData($fileStream, $buffer, $prefix);
     }
 
     private function processSingleBody(Message $message, StreamInterface $stream): Message
     {
-        $content = \preg_replace(["/^\.([^\r])/m", "/(\r\n\\.\r\n)$/D"], ['$1', ''], $stream->getContents());
+        $content = $stream->getContents();
+        // The line break before the end-of-data line is not a part of the text
+        \str_ends_with($content, "\r\n") and $content = \substr($content, 0, -2);
 
         /** @psalm-suppress InvalidArgument */
         $body = new Field(
