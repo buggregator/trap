@@ -102,6 +102,38 @@ final class StreamHelper
     }
 
     /**
+     * Copies the data from $from (current position) up to $boundary into a new file stream through write filters.
+     *
+     * A filter holds back data the next write may complete, as a split escape; a stream gets no more writes
+     * after the copy, so the filters are removed, which runs them with the closing flag and writes the rest out.
+     *
+     * @param non-empty-string $boundary
+     * @param list<non-empty-string> $writeFilters Filter names, applied in order.
+     */
+    public static function copyUntilThroughFilters(
+        StreamInterface $from,
+        string $boundary,
+        array $writeFilters,
+    ): StreamInterface {
+        $handle = \fopen('php://temp/maxmemory:' . self::MAX_FILE_MEMORY_SIZE, 'w+b')
+            ?: throw new \RuntimeException('Unable to create a temporary stream.');
+        $filters = [];
+        foreach ($writeFilters as $name) {
+            $filters[] = \stream_filter_append($handle, $name, \STREAM_FILTER_WRITE)
+                ?: throw new \RuntimeException("Unable to append the stream filter `$name`.");
+        }
+
+        $to = Stream::create($handle);
+        self::writeStreamUntil($from, $to, $boundary);
+        // In order: a removed filter writes its rest through the filters after it
+        foreach ($filters as $filter) {
+            \stream_filter_remove($filter);
+        }
+
+        return $to;
+    }
+
+    /**
      * Write $bytes from $from (current position) to $to (current position) by chunks
      *
      * @param positive-int $bytes
