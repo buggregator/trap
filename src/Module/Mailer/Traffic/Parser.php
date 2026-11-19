@@ -126,9 +126,10 @@ final class Parser
      * the console and the web UI show text as is, and the event JSON takes UTF-8 only.
      * The bytes stay as they are in an unknown charset.
      */
-    private static function decodeText(string $value, string $contentType, string $encoding): string
+    private static function decodeText(Field $part): string
     {
-        $value = self::decodeTransfer($value, $encoding);
+        $value = self::decodeTransfer($part->getValue(), $part->getHeaderLine('Content-Transfer-Encoding'));
+        $contentType = $part->getHeaderLine('Content-Type');
         if (\preg_match('/;\\s*charset=(?:"([^"]*+)"|([^\\s;"]++))/i', $contentType, $matches) !== 1) {
             return $value;
         }
@@ -138,6 +139,13 @@ final class Parser
             return $value;
         }
 
+        // Names mail clients write for charsets mbstring knows by another name
+        $charset = match (\strtolower($charset)) {
+            'ks_c_5601-1987' => 'UHC',
+            'iso-8859-8-i' => 'ISO-8859-8',
+            default => $charset,
+        };
+
         try {
             $converted = \mb_convert_encoding($value, 'UTF-8', $charset);
         } catch (\ValueError) {
@@ -145,6 +153,15 @@ final class Parser
         }
 
         return \is_string($converted) ? $converted : $value;
+    }
+
+    /**
+     * A part without a Content-Type is `text/plain`; other text types, like `text/calendar`, are attachments.
+     */
+    private static function isBodyText(Field $part): bool
+    {
+        $type = $part->getHeaderLine('Content-Type');
+        return $type === '' || \preg_match('/^\\s*text\\/(?:plain|html|watch-html)\\b/i', $type) === 1;
     }
 
     /**
@@ -215,15 +232,16 @@ final class Parser
 
         /** @psalm-suppress InvalidArgument */
         $body = new Field(
-            headers: \array_intersect_key($message->getHeaders(), ['Content-Type' => true]),
-            value: self::decodeText(
-                $content,
-                $message->getHeaderLine('Content-Type'),
-                $message->getHeaderLine('Content-Transfer-Encoding'),
+            headers: \array_intersect_key(
+                $message->getHeaders(),
+                ['Content-Type' => true, 'Content-Transfer-Encoding' => true, 'Content-Disposition' => true],
             ),
+            value: $content,
         );
 
-        return $message->withMessages([$body]);
+        return self::isBodyText($body)
+            ? $message->withMessages([$body->withValue(self::decodeText($body))])
+            : $message->withAttachments([$this->textToFile($body)]);
     }
 
     private function processMultipartForm(Message $message, StreamInterface $stream): Message
@@ -257,14 +275,8 @@ final class Parser
     ): void {
         foreach (Http::parseMultipartBody($stream, $boundary) as $part) {
             if ($part instanceof Field) {
-                // A part without a Content-Type is text/plain
-                $type = $part->getHeaderLine('Content-Type');
-                $type === '' || \preg_match('/^\\s*text\\/(?:plain|html|watch-html)\\b/i', $type) === 1
-                    ? $texts[] = $part->withValue(self::decodeText(
-                        $part->getValue(),
-                        $type,
-                        $part->getHeaderLine('Content-Transfer-Encoding'),
-                    ))
+                self::isBodyText($part)
+                    ? $texts[] = $part->withValue(self::decodeText($part))
                     : $attachments[] = $this->textToFile($part);
                 continue;
             }
@@ -288,17 +300,21 @@ final class Parser
     }
 
     /**
-     * A text part that is not a message body, like a `text/calendar` invitation.
+     * A part that is not a message body: a text part like a `text/calendar` invitation,
+     * or the body of a single-part message that is not text.
      */
     private function textToFile(Field $part): File
     {
         $contentType = $part->getHeaderLine('Content-Type');
-        $fileName = \preg_match('/;\\s*name=(?:"([^"]++)"|([^"\\s;]++))/i', $contentType, $matches) === 1
+        $mediaType = \strtolower(\trim(\explode(';', $contentType, 2)[0]));
+        $param = '(?:"([^"]++)"|([^"\\s;]++))';
+        $fileName = \preg_match("/;\\s*filename={$param}/i", $part->getHeaderLine('Content-Disposition'), $matches) === 1
+            || \preg_match("/;\\s*name={$param}/i", $contentType, $matches) === 1
             ? ($matches[1] ?: $matches[2])
-            : match (\strtolower(\trim(\explode(';', $contentType, 2)[0]))) {
+            : match ($mediaType) {
                 'text/calendar' => 'invite.ics',
                 'text/csv' => 'attachment.csv',
-                default => 'attachment.txt',
+                default => \str_starts_with($mediaType, 'text/') ? 'attachment.txt' : 'attachment',
             };
 
         $value = self::decodeTransfer($part->getValue(), $part->getHeaderLine('Content-Transfer-Encoding'));

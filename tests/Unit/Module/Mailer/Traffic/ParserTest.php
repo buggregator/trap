@@ -126,6 +126,13 @@ final class ParserTest
             'Привет',
         ];
         yield 'charset: KOI8-R, 8bit' => ['text/plain; charset=KOI8-R', '8bit', "\xF0\xD2\xC9\xD7\xC5\xD4", 'Привет'];
+        yield 'charset: Outlook name of Korean' => [
+            'text/plain; charset="ks_c_5601-1987"',
+            'base64',
+            \base64_encode("\xC7\xD1\xB1\xB9"),
+            '한국',
+        ];
+        yield 'charset: logical-order Hebrew' => ['text/plain; charset=iso-8859-8-i', 'quoted-printable', '=F9=EC=E5=ED', 'שלום'];
         yield 'charset: unknown keeps the bytes' => ['text/plain; charset=x-unknown', '8bit', "caf\xE9", "caf\xE9"];
         yield '7bit: untouched' => ['text/plain; charset=us-ascii', '7bit', 'a=3Db', 'a=3Db'];
         yield '8bit: untouched' => ['text/plain; charset=utf-8', '8bit', 'café =3D', 'café =3D'];
@@ -402,6 +409,32 @@ final class ParserTest
         Assert::count($message->getMessages(), 1);
         Assert::same($message->getMessages()[0]->getValue(), $decoded);
         Assert::same(\rtrim((string) $message->getBody(), ".\r\n"), \rtrim($email, "\r\n"));
+    }
+
+    #[DataSet(["Content-Disposition: attachment; filename=logo.png\r\n", 'logo.png'], 'file name in Content-Disposition')]
+    #[DataSet(['', 'logo.png', '; name="logo.png"'], 'file name in Content-Type')]
+    #[DataSet(['', 'attachment'], 'no file name')]
+    #[Test]
+    public function singlePartBodyThatIsNotTextIsAttachment(
+        string $disposition,
+        string $fileName,
+        string $typeParameters = '',
+    ): void {
+        $png = \base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+        );
+
+        $message = $this->parse(
+            "Content-Type: image/png{$typeParameters}\r\nContent-Transfer-Encoding: base64\r\n{$disposition}\r\n"
+            . \chunk_split(\base64_encode($png), 76, "\r\n") . ".\r\n",
+        );
+
+        Assert::count($message->getMessages(), 0);
+        Assert::count($message->getAttachments(), 1);
+        $file = $message->getAttachments()[0];
+        Assert::same($file->getClientFilename(), $fileName);
+        Assert::same($file->getClientMediaType(), 'image/png');
+        Assert::same((string) $file->getStream(), $png);
     }
 
     #[Test]
