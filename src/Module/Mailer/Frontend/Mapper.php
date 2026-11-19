@@ -44,10 +44,27 @@ final class Mapper implements EventMapper
                 'text' => $message->getMessage(MessageFormat::Plain)?->getValue() ?? '',
                 'html' => self::html($uuid, $message, $assets),
                 'raw' => (string) $message->getBody(),
+                'auth' => self::auth($message),
             ],
             timestamp: (float) $frame->time->format('U.u'),
             assets: $assets,
         );
+    }
+
+    /**
+     * @return array{mechanism: string, username: string, password: string, authzid: string|null}|null Null when
+     *         the client sent the mail without `AUTH`; `authzid` is the user a PLAIN client acts for, if another.
+     */
+    private static function auth(SmtpMessage $message): ?array
+    {
+        $protocol = $message->getProtocol();
+
+        return isset($protocol['AUTH'][0]) ? [
+            'mechanism' => $protocol['AUTH'][0],
+            'username' => $protocol['USERNAME'][0] ?? '',
+            'password' => $protocol['PASSWORD'][0] ?? '',
+            'authzid' => $protocol['AUTHZID'][0] ?? null,
+        ] : null;
     }
 
     /**

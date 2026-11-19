@@ -72,6 +72,31 @@ final class MapperTest
         Assert::same($event->payload['text'], '');
         Assert::same($event->payload['html'], '');
         Assert::same($event->payload['raw'], '');
+        Assert::null($event->payload['auth']);
+    }
+
+    public function testCredentialsOfSessionGoToAuth(): void
+    {
+        $message = SmtpMessage::create(
+            protocol: ['FROM' => ['a@example.org'], 'AUTH' => ['LOGIN'], 'USERNAME' => ['john'], 'PASSWORD' => ['s3cret']],
+            headers: [],
+        );
+
+        $event = (new Mapper())->map(new SmtpFrame($message));
+
+        Assert::same($event->payload['auth'], ['mechanism' => 'LOGIN', 'username' => 'john', 'password' => 's3cret', 'authzid' => null]);
+    }
+
+    public function testAuthorizationIdentityGoesToAuth(): void
+    {
+        $message = SmtpMessage::create(
+            protocol: ['AUTH' => ['PLAIN'], 'AUTHZID' => ['admin'], 'USERNAME' => ['john'], 'PASSWORD' => ['s3cret']],
+            headers: [],
+        );
+
+        $event = (new Mapper())->map(new SmtpFrame($message));
+
+        Assert::same($event->payload['auth'], ['mechanism' => 'PLAIN', 'username' => 'john', 'password' => 's3cret', 'authzid' => 'admin']);
     }
 
     public function testAttachmentsBecomeAssetsAndCidLinksPointToEmbeddedFiles(): void

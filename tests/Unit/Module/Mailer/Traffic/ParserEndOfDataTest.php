@@ -191,7 +191,8 @@ final class ParserEndOfDataTest
         Assert::count($fiber->getReturn(), 1);
         Assert::same(
             \array_map(static fn(string $line): string => \substr($line, 0, 3), \explode("\r\n", \trim($client->received))),
-            ['220', '250', '250', '250', '354', '250', '221'],
+            // EHLO gets two lines: the greeting and the AUTH extension
+            ['220', '250', '250', '250', '250', '354', '250', '221'],
         );
     }
 
