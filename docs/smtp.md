@@ -26,6 +26,9 @@ MAIL_PORT=1025
 
 `vendor/bin/trap test` sends two test emails, a plain and a multipart one.
 
+Encoded subjects and names, such as `=?utf-8?Q?...?=`, are shown decoded. The sender is listed once when the envelope
+sender and the `From` header have the same address.
+
 ## Save emails to files
 
 The [`mail-to-file` sender](senders.md#mail-to-file) saves each email as JSON in a folder per recipient:

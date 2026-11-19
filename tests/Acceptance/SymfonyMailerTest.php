@@ -204,6 +204,32 @@ final class SymfonyMailerTest
     }
 
     /**
+     * Symfony Mailer encodes a non-ASCII subject and display name as RFC 2047 words, quotes a display name
+     * holding a comma, and sends the address of `From` as the envelope sender too.
+     */
+    public function testEncodedHeaders(): void
+    {
+        SymfonyMailer::require();
+        $trap = $this->startTrap('symfony-mailer-encoded-headers');
+
+        $result = SymfonyMailer::send("smtp://127.0.0.1:$this->port", [
+            'from' => 'Отправитель <sender@acceptance.test>',
+            'to' => ['"Doe, John" <john@acceptance.test>', 'Иван Петров <ivan@acceptance.test>'],
+            'subject' => 'Привет, мир',
+            'text' => 'Hello.',
+        ]);
+
+        Assert::same($result['error'], null, "{$result['error']}\n{$result['debug']}");
+        $event = $trap->waitForUiEvent($this->uiPort, 'smtp');
+        Assert::same($event['payload']['subject'], 'Привет, мир');
+        Assert::same($event['payload']['from'], [['name' => 'Отправитель', 'email' => 'sender@acceptance.test']]);
+        Assert::same($event['payload']['to'], [
+            ['name' => 'Doe, John', 'email' => 'john@acceptance.test'],
+            ['name' => 'Иван Петров', 'email' => 'ivan@acceptance.test'],
+        ]);
+    }
+
+    /**
      * One connection, several messages: the server takes each one after the previous.
      */
     public function testSeveralMailsInOneSession(): void
