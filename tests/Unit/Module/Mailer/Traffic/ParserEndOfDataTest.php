@@ -127,6 +127,21 @@ final class ParserEndOfDataTest
         Assert::same((string) $fiber->getReturn()->getBody(), self::alternative('Plain text') . "\r\n");
     }
 
+    /**
+     * The `354` reply pulls in the next packet: the rest of a header line is queued before the parser runs.
+     */
+    #[Test]
+    public function readsHeaderLineSplitAcrossQueuedPackets(): void
+    {
+        $client = (new ClientScript())->send('Subject: Hea', "ders only\r\n\r\nBody\r\n.\r\n");
+        $stream = StreamClientMock::createFromGenerator($client->generator());
+        $stream->sendData("354 End data with <CR><LF>.<CR><LF>\r\n");
+        $fiber = new \Fiber(static fn(): Message => (new Parser())->parseStream([], $stream));
+
+        Assert::true($this->runFiberAtMost($fiber), self::HANG);
+        Assert::same((string) $fiber->getReturn()->getBody(), "Subject: Headers only\r\n\r\nBody\r\n");
+    }
+
     #[Test]
     public function leavesNextCommandToDispatcher(): void
     {
