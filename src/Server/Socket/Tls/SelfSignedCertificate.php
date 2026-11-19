@@ -23,6 +23,8 @@ final class SelfSignedCertificate
      */
     private const OPENSSL_CONFIG = <<<'CNF'
         [req]
+        # Checked for an EC key too: some builds of PHP reject the key when it is missing
+        default_bits = 2048
         distinguished_name = dn
         [dn]
         [v3]
