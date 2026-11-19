@@ -5,12 +5,45 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Mcp\Tool;
 
 /**
- * Checks of the tool arguments, which come not validated against the input schema.
+ * Checks of the tool arguments, which come not validated against the input schema: only their names are.
  *
  * @internal
  */
 final class Arguments
 {
+    /**
+     * Fails on an argument the schema doesn't declare when it allows no other: a misspelt condition left out
+     * would widen the call, as `clear_events` with `sinse` deleting every event.
+     *
+     * @param array<array-key, mixed> $arguments
+     * @param array<array-key, mixed> $schema The input schema of the tool.
+     *
+     * @throws \InvalidArgumentException
+     */
+    public static function declared(array $arguments, array $schema, string $tool): void
+    {
+        if (($schema['additionalProperties'] ?? true) !== false) {
+            return;
+        }
+
+        // Only `properties` names arguments: no input schema uses `patternProperties`
+        /** @var mixed $properties */
+        $properties = $schema['properties'] ?? [];
+        $accepted = \is_array($properties) || \is_object($properties) ? \array_keys((array) $properties) : [];
+        $accepted = \array_map(\strval(...), $accepted);
+        $unknown = \array_diff(\array_map(\strval(...), \array_keys($arguments)), $accepted);
+        if ($unknown === []) {
+            return;
+        }
+
+        throw new \InvalidArgumentException(\sprintf(
+            '%s `%s`; %s.',
+            \count($unknown) === 1 ? 'Unknown argument' : 'Unknown arguments',
+            \implode('`, `', $unknown),
+            $accepted === [] ? "`$tool` takes no arguments" : "`$tool` takes: `" . \implode('`, `', $accepted) . '`',
+        ));
+    }
+
     /**
      * @param array<array-key, mixed> $arguments
      * @param int<0, max> $min

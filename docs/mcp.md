@@ -48,6 +48,8 @@ the agent deletes is gone from the UI on its next load; a page already open keep
   of its IDs fails. A repeated call deletes nothing more, so the tool is marked idempotent.
 - `clear_events` without arguments deletes all the events. A malformed `since` is an error, so a typo doesn't
   turn "the newer ones" into all of them.
+- An argument a tool doesn't declare, such as a misspelt `sinse`, fails the call with the list of the arguments
+  the tool takes, and nothing runs. Ignored, it would widen the call: `clear_events` would delete every event.
 - A tool that returns JSON declares its `outputSchema` and sends the object as `structuredContent`,
   and as JSON text for clients that read only `content`.
 

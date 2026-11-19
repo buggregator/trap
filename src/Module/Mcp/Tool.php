@@ -54,7 +54,8 @@ interface Tool
     /**
      * An exception is reported to the client as a failed tool call with its message, so the model can react.
      *
-     * @param array<array-key, mixed> $arguments Not validated against {@see self::inputSchema()}.
+     * @param array<array-key, mixed> $arguments Not validated against {@see self::inputSchema()}, except that
+     *        with `additionalProperties: false` the call fails before this on an argument it doesn't declare.
      *
      * @return string|array<array-key, mixed> Text of the result, or a JSON object: sent as structured content
      *         and as its JSON text. An empty array is an empty object; a list fails the call.

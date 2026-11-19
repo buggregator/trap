@@ -123,6 +123,30 @@ final class JsonRpcTest
         Assert::false($single['result']['isError']);
     }
 
+    public function testUndeclaredArgumentInBatchFailsOnlyItsCall(): void
+    {
+        $rpc = (new Trap())->get(JsonRpc::class);
+
+        $batched = $rpc->process([
+            [
+                'jsonrpc' => '2.0',
+                'id' => 1,
+                'method' => 'tools/call',
+                'params' => ['name' => 'clear_events', 'arguments' => ['sinse' => 'x:1']],
+            ],
+            [
+                'jsonrpc' => '2.0',
+                'id' => 2,
+                'method' => 'tools/call',
+                'params' => ['name' => 'list_events', 'arguments' => ['limit' => 1]],
+            ],
+        ]);
+
+        Assert::true($batched[0]['result']['isError']);
+        Assert::string($batched[0]['result']['content'][0]['text'])->contains('Unknown argument `sinse`');
+        Assert::false($batched[1]['result']['isError']);
+    }
+
     public function testBatchOfNotificationsIsNotAnswered(): void
     {
         Assert::null(self::rpc()->process([['jsonrpc' => '2.0', 'method' => 'notifications/initialized']]));
