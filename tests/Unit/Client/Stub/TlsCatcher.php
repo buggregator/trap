@@ -18,7 +18,6 @@ final class TlsCatcher
     public const RECEIVED = 'ok:';
     public const FAILED_HANDSHAKE = 'F';
     public const NO_CONNECTION = 'T';
-
     private const ACCEPT_TIMEOUT = 5;
 
     /**
@@ -51,6 +50,7 @@ final class TlsCatcher
             }
         }
         PHP;
+
     private const OPENSSL_CONFIG = <<<'INI'
         [req]
         distinguished_name = dn
