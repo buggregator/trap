@@ -44,7 +44,7 @@ the agent reads back through Trap's MCP tools.
 | [profiling.md](references/profiling.md)           | Finding why code is slow or takes memory: `trap()::profile()`, the profilers, reading a profile                 |
 | [workers.md](references/workers.md)               | Debugging RoadRunner, Swoole, FrankenPHP, Octane or queue workers: reloads, volume, memory leaks                |
 | [integrations.md](references/integrations.md)     | Pointing Sentry, Monolog, Ray, a mailer, OpenTelemetry or VarDumper at Trap; checking what a scenario sends out |
-| [server.md](references/server.md)                 | Installing and starting Trap, its ports, an application in Docker or on another host, the token, `trap.xml`     |
+| [server.md](references/server.md)                 | Installing, starting Trap, its ports, TLS, an application in Docker or on another host, the token, `trap.xml`   |
 
 Edge cases beyond these are in the full documentation: <https://github.com/buggregator/trap/tree/master/docs>.
 

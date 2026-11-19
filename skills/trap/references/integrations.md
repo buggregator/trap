@@ -1,7 +1,8 @@
 # Integrations
 
 Point what the application already sends at Trap, then read it as events. Trap detects the protocol of each
-connection, so every channel works on any of its ports; the ones below are the conventional ones. Make each change
+connection, plain or TLS, so every channel works on any of its ports; the ones below are the conventional ones. A
+client set up for `https://`, `smtps://` or `tls://` keeps its scheme, see [server.md](server.md#tls). Make each change
 in a local `.env` or the environment of the run: it is a setting of the user's application. Check a channel by
 triggering it and waiting for its event type.
 
@@ -53,7 +54,8 @@ MAILER_DSN=smtp://127.0.0.1:1025                    # Symfony Mailer
 MAIL_MAILER=smtp MAIL_HOST=127.0.0.1 MAIL_PORT=1025 # Laravel
 ```
 
-No authentication, no TLS. Events: `smtp`, fields `subject`, `from`, `to`, `cc`, `bcc`; `get_event` gives the
+Leave the username and password out: Trap answers no `AUTH`, and a mailer that sends it hangs. Implicit TLS works
+(`smtps://127.0.0.1:1025?verify_peer=0`); `STARTTLS` is offered only with a certificate in `TRAP_TLS_CERT`. Events: `smtp`, fields `subject`, `from`, `to`, `cc`, `bcc`; `get_event` gives the
 headers, the text and HTML parts and the attachments. No mail leaves the machine.
 
 ## OpenTelemetry
