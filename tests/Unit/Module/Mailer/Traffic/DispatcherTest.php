@@ -131,7 +131,7 @@ final class DispatcherTest
 
         $frames = $this->dispatch($stream);
 
-        Assert::same($replies[3], "220 Ready to start TLS \r\n");
+        Assert::same($replies[3], "220 Ready to start TLS\r\n");
         Assert::true($stream->isTlsStarted());
         // Over TLS the stream can't switch again
         Assert::same($replies[4], "250 \r\n");
@@ -169,8 +169,92 @@ final class DispatcherTest
 
         $this->dispatch($stream);
 
-        Assert::same($replies[2], "454 TLS not available \r\n");
+        Assert::same($replies[2], "454 TLS not available\r\n");
         Assert::false($stream->isTlsStarted());
+    }
+
+    #[Test]
+    #[DataSet(["EXPN staff\r\n", "502 5.5.2 Command not implemented\r\n"], 'EXPN')]
+    #[DataSet(["XCLIENT ADDR=1.2.3.4\r\n", "502 5.5.2 Command not implemented\r\n"], 'an extension')]
+    #[DataSet(["what is this\r\n", "502 5.5.2 Command not implemented\r\n"], 'junk')]
+    #[DataSet(["\r\n", "500 5.5.2 Syntax error, command unrecognized\r\n"], 'an empty line')]
+    #[DataSet(["   \r\n", "500 5.5.2 Syntax error, command unrecognized\r\n"], 'a line of spaces')]
+    #[DataSet(["VRFY alice\r\n", "252 2.5.0 Cannot VRFY user, but will accept message\r\n"], 'VRFY')]
+    #[DataSet(["help\r\n", "214 2.0.0 Commands: HELO EHLO MAIL RCPT DATA RSET NOOP QUIT STARTTLS VRFY HELP\r\n"], 'HELP')]
+    #[DataSet(["MAIL FROM alice@example.com\r\n", "501 5.5.4 Syntax: MAIL FROM:<address>\r\n"], 'MAIL without brackets')]
+    #[DataSet(["RCPT bob@example.com\r\n", "501 5.5.4 Syntax: RCPT TO:<address>\r\n"], 'RCPT without TO')]
+    public function testEveryCommandGetsReply(string $command, string $expected): void
+    {
+        $replies = [];
+        $stream = StreamClientMock::createFromGenerator(self::session($replies, "EHLO a\r\n", $command, "NOOP\r\n"));
+
+        $this->dispatch($stream);
+
+        Assert::same($replies[2], $expected);
+        Assert::same($replies[3], "250 \r\n", 'The session goes on after the reply.');
+    }
+
+    #[Test]
+    #[DataSet(["MAIL FROM:<alice@example.com> SIZE=1024 BODY=8BITMIME\r\n", "RCPT TO:<bob@example.com>\r\n", 'alice@example.com', 'bob@example.com'], 'MAIL with SIZE and BODY')]
+    #[DataSet(["MAIL FROM:<alice@example.com> AUTH=<>\r\n", "RCPT TO:<bob@example.com>\r\n", 'alice@example.com', 'bob@example.com'], 'MAIL with an empty AUTH')]
+    #[DataSet(["MAIL FROM:<> AUTH=<>\r\n", "RCPT TO:<bob@example.com>\r\n", '', 'bob@example.com'], 'null sender with an empty AUTH')]
+    #[DataSet(["MAIL FROM:<alice@example.com> AUTH=<alice@example.com> SIZE=10\r\n", "RCPT TO:<bob@example.com> NOTIFY=NEVER\r\n", 'alice@example.com', 'bob@example.com'], 'MAIL with AUTH, RCPT with NOTIFY')]
+    #[DataSet(["MAIL FROM:<alice@example.com>\r\n", "RCPT TO:<bob@example.com> NOTIFY=SUCCESS,FAILURE ORCPT=rfc822;bob@example.com\r\n", 'alice@example.com', 'bob@example.com'], 'RCPT with NOTIFY and ORCPT')]
+    public function testEnvelopeParametersAreNoPartOfAddress(string $mail, string $rcpt, string $from, string $to): void
+    {
+        $replies = [];
+        $stream = StreamClientMock::createFromGenerator(
+            self::session($replies, "EHLO a\r\n", $mail, $rcpt, "DATA\r\n", "Subject: Params\r\n\r\nHello\r\n.\r\n"),
+        );
+
+        $frames = $this->dispatch($stream);
+
+        Assert::count($frames, 1);
+        Assert::same($frames[0]->message->getProtocol(), ['FROM' => [$from], 'BCC' => [$to]]);
+    }
+
+    /**
+     * A pipelining client sends the commands of a transaction in one chunk.
+     */
+    #[Test]
+    public function testCommandsInOneChunk(): void
+    {
+        $replies = [];
+        $stream = StreamClientMock::createFromGenerator(self::session(
+            $replies,
+            "EHLO a\r\n",
+            "MAIL FROM:<alice@example.com> SIZE=10\r\nRCPT TO:<bob@example.com>\r\nRCPT TO:<carol@example.com>\r\nDATA\r\n",
+            "Subject: Pipelined\r\n\r\nHello\r\n.\r\n",
+        ));
+
+        $frames = $this->dispatch($stream);
+
+        Assert::count($frames, 1);
+        Assert::same($frames[0]->message->getSubject(), 'Pipelined');
+        Assert::same(
+            $frames[0]->message->getProtocol(),
+            ['FROM' => ['alice@example.com'], 'BCC' => ['bob@example.com', 'carol@example.com']],
+        );
+    }
+
+    #[Test]
+    #[DataSet(["ehlo a\r\n", "mail from:<alice@example.com>\r\n", "rcpt to:<bob@example.com>\r\n", "data\r\n"], 'lower case')]
+    #[DataSet(["Ehlo a\r\n", "Mail From:<alice@example.com>\r\n", "Rcpt To:<bob@example.com>\r\n", "Data\r\n"], 'mixed case')]
+    #[DataSet(["  EHLO a  \r\n", "MAIL FROM: <alice@example.com>  \r\n", "RCPT TO: <bob@example.com> \r\n", "DATA \r\n"], 'padded with spaces')]
+    #[DataSet(["EHLO a\n", "MAIL FROM:<alice@example.com>\n", "RCPT TO:<bob@example.com>\n", "DATA\n"], 'bare LF')]
+    public function testCommandSpelling(string $ehlo, string $mail, string $rcpt, string $data): void
+    {
+        $replies = [];
+        $stream = StreamClientMock::createFromGenerator(
+            self::session($replies, $ehlo, $mail, $rcpt, $data, "Subject: Spelled\r\n\r\nHello\r\n.\r\n"),
+        );
+
+        $frames = $this->dispatch($stream);
+
+        Assert::count($frames, 1);
+        Assert::same($frames[0]->message->getSubject(), 'Spelled');
+        Assert::same($frames[0]->message->getProtocol(), ['FROM' => ['alice@example.com'], 'BCC' => ['bob@example.com']]);
+        Assert::same($replies[4], "354 \r\n");
     }
 
     /**
