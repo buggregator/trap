@@ -63,6 +63,7 @@ final class SymfonyMailerTest
         Assert::same($event['payload']['to'], [['name' => 'Alice', 'email' => 'alice@acceptance.test']]);
         Assert::string($event['payload']['text'])->contains('Hello from Symfony Mailer.');
         Assert::same($event['payload']['html'], '');
+        Assert::null($event['payload']['auth']);
     }
 
     /**
@@ -281,6 +282,49 @@ final class SymfonyMailerTest
         Assert::same($result['sent'], 2);
         Assert::same($this->waitForDumpedMail($trap, 'Symfony first subject')['protocol']['BCC'], ['alice@acceptance.test']);
         Assert::same($this->waitForDumpedMail($trap, 'Symfony second subject')['protocol']['BCC'], ['bob@acceptance.test']);
+    }
+
+    /**
+     * With a username in the DSN the client authenticates by the first mechanism `EHLO` advertises that it
+     * knows, `LOGIN`. Each mail of the session carries the credentials.
+     */
+    public function testAuthenticatedSession(): void
+    {
+        SymfonyMailer::require();
+        $trap = $this->startTrap('symfony-mailer-auth');
+
+        $result = SymfonyMailer::send(
+            "smtp://john%40acceptance.test:p%40ss%20word@127.0.0.1:$this->port",
+            [
+                'from' => 'sender@acceptance.test',
+                'to' => ['alice@acceptance.test'],
+                'subject' => 'Symfony first auth subject',
+                'text' => 'First.',
+            ],
+            [
+                'from' => 'sender@acceptance.test',
+                'to' => ['bob@acceptance.test'],
+                'subject' => 'Symfony second auth subject',
+                'text' => 'Second.',
+            ],
+        );
+
+        Assert::same($result['error'], null, "{$result['error']}\n{$result['debug']}");
+        Assert::same($result['sent'], 2);
+        Assert::string($result['debug'])->contains('> AUTH LOGIN')->contains('< 235');
+        foreach (['Symfony first auth subject', 'Symfony second auth subject'] as $subject) {
+            $protocol = $this->waitForDumpedMail($trap, $subject)['protocol'];
+            Assert::same($protocol['AUTH'], ['LOGIN']);
+            Assert::same($protocol['USERNAME'], ['john@acceptance.test']);
+            Assert::same($protocol['PASSWORD'], ['p@ss word']);
+        }
+        $event = $trap->waitForUiEvent($this->uiPort, 'smtp');
+        Assert::same($event['payload']['auth'], [
+            'mechanism' => 'LOGIN',
+            'username' => 'john@acceptance.test',
+            'password' => 'p@ss word',
+            'authzid' => null,
+        ]);
     }
 
     /**

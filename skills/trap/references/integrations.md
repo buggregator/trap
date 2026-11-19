@@ -54,11 +54,14 @@ MAILER_DSN=smtp://127.0.0.1:1025                    # Symfony Mailer
 MAIL_MAILER=smtp MAIL_HOST=127.0.0.1 MAIL_PORT=1025 # Laravel
 ```
 
-Leave the username and password out: Trap refuses `AUTH` with `502`. Implicit TLS works
-(`smtps://127.0.0.1:1025?verify_peer=0`); `STARTTLS` is offered only with a certificate in `TRAP_TLS_CERT`. Events: `smtp`, fields `subject`, `from`, `to`, `cc`, `bcc`; `get_event` gives the
-headers, the text and HTML parts and the attachments, all decoded from quoted-printable and base64. The text and HTML
-are UTF-8, converted from the declared charset by mbstring or iconv; a part in a charset neither knows keeps its raw
-bytes, and one with no charset is taken as UTF-8. No mail leaves the machine.
+A username and password are optional: Trap takes any over `AUTH PLAIN` or `LOGIN`; a mailer that knows only
+`CRAM-MD5` gets `504`. Implicit TLS works (`smtps://127.0.0.1:1025?verify_peer=0`); `STARTTLS` is offered only with a
+certificate in `TRAP_TLS_CERT`, and drops the credentials until the client authenticates again. Events: `smtp`, fields
+`subject`, `from`, `to`, `cc`, `bcc`; `get_event` gives the protocol (with `AUTH`, `USERNAME`, `PASSWORD` when the
+mailer authenticated, plus `AUTHZID` when a `PLAIN` client acts for another user), the headers, the text and HTML parts
+and the attachments, all decoded from quoted-printable and base64. The text and HTML are UTF-8, converted from the
+declared charset by mbstring or iconv; a part in a charset neither knows keeps its raw bytes, and one with no charset is
+taken as UTF-8. No mail leaves the machine.
 
 `subject` and the contact names come decoded from RFC 2047 words: `where` on `subject` and a `search` match the
 plain text, such as `Привет, мир`. `from`, `to`, `cc` and `bcc` hold the addresses, so match a name with `search`.

@@ -106,6 +106,40 @@ final class SymfonyMailerTlsTest
     }
 
     /**
+     * The client authenticates after `STARTTLS`, in the session started over.
+     */
+    public function testAuthOverStartTls(): void
+    {
+        self::requireTls();
+        $trap = $this->startTrap('symfony-mailer-starttls-auth', self::CERTIFICATE_ENV);
+
+        $result = SymfonyMailer::send(
+            "smtp://john:s3cret@127.0.0.1:$this->port?require_tls=1&" . self::pinnedPeer(),
+            ['subject' => 'Symfony STARTTLS auth subject'] + self::MAIL,
+        );
+
+        Assert::same($result['error'], null, "{$result['error']}\n{$result['debug']}");
+        Assert::string($result['debug'])->matchesRegex('/> STARTTLS.*> EHLO.*> AUTH LOGIN/s');
+        $mail = $this->waitForDumpedMail($trap, 'Symfony STARTTLS auth subject');
+        Assert::same([$mail['protocol']['USERNAME'], $mail['protocol']['PASSWORD']], [['john'], ['s3cret']]);
+    }
+
+    public function testAuthOverImplicitTls(): void
+    {
+        self::requireTls();
+        $trap = $this->startTrap('symfony-mailer-smtps-auth');
+
+        $result = SymfonyMailer::send(
+            "smtps://john:s3cret@127.0.0.1:$this->port?verify_peer=0",
+            ['subject' => 'Symfony SMTPS auth subject'] + self::MAIL,
+        );
+
+        Assert::same($result['error'], null, "{$result['error']}\n{$result['debug']}");
+        $mail = $this->waitForDumpedMail($trap, 'Symfony SMTPS auth subject');
+        Assert::same([$mail['protocol']['USERNAME'], $mail['protocol']['PASSWORD']], [['john'], ['s3cret']]);
+    }
+
+    /**
      * With the self-signed certificate `EHLO` offers no `STARTTLS`, and the default DSN, which would upgrade
      * and then fail to verify the certificate, sends in plain text.
      */

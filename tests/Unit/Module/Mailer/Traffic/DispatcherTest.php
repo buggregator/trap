@@ -106,7 +106,7 @@ final class DispatcherTest
 
         $this->dispatch($stream);
 
-        Assert::same($replies[1], "250-mailamie\r\n250 STARTTLS\r\n");
+        Assert::same($replies[1], "250-mailamie\r\n250-AUTH PLAIN LOGIN\r\n250 STARTTLS\r\n");
     }
 
     #[Test]
@@ -117,7 +117,7 @@ final class DispatcherTest
 
         $this->dispatch($stream);
 
-        Assert::same($replies[1], "250 \r\n");
+        Assert::same($replies[1], "250-mailamie\r\n250 AUTH PLAIN LOGIN\r\n");
     }
 
     #[Test]
@@ -134,7 +134,7 @@ final class DispatcherTest
         Assert::same($replies[3], "220 Ready to start TLS\r\n");
         Assert::true($stream->isTlsStarted());
         // Over TLS the stream can't switch again
-        Assert::same($replies[4], "250 \r\n");
+        Assert::same($replies[4], "250-mailamie\r\n250 AUTH PLAIN LOGIN\r\n");
         Assert::same($frames, []);
     }
 
@@ -180,7 +180,7 @@ final class DispatcherTest
     #[DataSet(["\r\n", "500 5.5.2 Syntax error, command unrecognized\r\n"], 'an empty line')]
     #[DataSet(["   \r\n", "500 5.5.2 Syntax error, command unrecognized\r\n"], 'a line of spaces')]
     #[DataSet(["VRFY alice\r\n", "252 2.5.0 Cannot VRFY user, but will accept message\r\n"], 'VRFY')]
-    #[DataSet(["help\r\n", "214 2.0.0 Commands: HELO EHLO MAIL RCPT DATA RSET NOOP QUIT STARTTLS VRFY HELP\r\n"], 'HELP')]
+    #[DataSet(["help\r\n", "214 2.0.0 Commands: HELO EHLO MAIL RCPT DATA RSET NOOP QUIT AUTH STARTTLS VRFY HELP\r\n"], 'HELP')]
     #[DataSet(["MAIL FROM alice@example.com\r\n", "501 5.5.4 Syntax: MAIL FROM:<address>\r\n"], 'MAIL without brackets')]
     #[DataSet(["RCPT bob@example.com\r\n", "501 5.5.4 Syntax: RCPT TO:<address>\r\n"], 'RCPT without TO')]
     public function testEveryCommandGetsReply(string $command, string $expected): void
@@ -192,6 +192,137 @@ final class DispatcherTest
 
         Assert::same($replies[2], $expected);
         Assert::same($replies[3], "250 \r\n", 'The session goes on after the reply.');
+    }
+
+    /**
+     * @param list<string> $exchange The AUTH command and the responses of the client.
+     * @param list<string> $expected The reply to each line of the exchange.
+     */
+    #[Test]
+    #[DataSet([["AUTH PLAIN AGpvaG4AczNjcmV0\r\n"], ["235 2.7.0 Authentication successful\r\n"], 'PLAIN', 'john', 's3cret'], 'PLAIN with an initial response')]
+    #[DataSet([["auth plain YWRtaW4Aam9obgBzM2NyZXQ=\r\n"], ["235 2.7.0 Authentication successful\r\n"], 'PLAIN', 'john', 's3cret', 'admin'], 'PLAIN with an authorization identity')]
+    #[DataSet([["AUTH PLAIN am9obgBqb2huAHMzY3JldA==\r\n"], ["235 2.7.0 Authentication successful\r\n"], 'PLAIN', 'john', 's3cret'], 'PLAIN with the username as the authorization identity')]
+    #[DataSet([["AUTH PLAIN\r\n", "AGpvaG4AczNjcmV0\r\n"], ["334 \r\n", "235 2.7.0 Authentication successful\r\n"], 'PLAIN', 'john', 's3cret'], 'PLAIN after a challenge')]
+    #[DataSet([["AUTH LOGIN\r\n", "am9obg==\r\n", "czNjcmV0\r\n"], ["334 VXNlcm5hbWU6\r\n", "334 UGFzc3dvcmQ6\r\n", "235 2.7.0 Authentication successful\r\n"], 'LOGIN', 'john', 's3cret'], 'LOGIN')]
+    #[DataSet([["AUTH LOGIN am9obg==\r\n", "czNjcmV0\r\n"], ["334 UGFzc3dvcmQ6\r\n", "235 2.7.0 Authentication successful\r\n"], 'LOGIN', 'john', 's3cret'], 'LOGIN with an initial username')]
+    #[DataSet([["AUTH LOGIN =\r\n", "=\r\n"], ["334 UGFzc3dvcmQ6\r\n", "235 2.7.0 Authentication successful\r\n"], 'LOGIN', '', ''], 'LOGIN with empty responses')]
+    public function testAuthCredentialsGoWithEveryMailOfSession(
+        array $exchange,
+        array $expected,
+        string $mechanism,
+        string $username,
+        string $password,
+        ?string $authzid = null,
+    ): void {
+        $replies = [];
+        $stream = StreamClientMock::createFromGenerator(self::session($replies, ...[
+            "EHLO a\r\n",
+            ...$exchange,
+            ...self::mail('First'),
+            "RSET\r\n",
+            "EHLO a\r\n",
+            ...self::mail('Second'),
+        ]));
+
+        $frames = $this->dispatch($stream);
+
+        Assert::same(\array_slice($replies, 2, \count($expected)), $expected);
+        Assert::count($frames, 2);
+        foreach ($frames as $frame) {
+            Assert::same($frame->message->getProtocol(), [
+                'FROM' => ['alice@example.com'],
+                'BCC' => ['bob@example.com'],
+                'AUTH' => [$mechanism],
+                ...($authzid === null ? [] : ['AUTHZID' => [$authzid]]),
+                'USERNAME' => [$username],
+                'PASSWORD' => [$password],
+            ]);
+        }
+    }
+
+    /**
+     * @param list<string> $exchange The AUTH command and the responses of the client.
+     */
+    #[Test]
+    #[DataSet([["AUTH PLAIN\r\n", "*\r\n"], "501 5.7.0 Authentication cancelled\r\n"], 'PLAIN cancelled')]
+    #[DataSet([["AUTH LOGIN\r\n", "*\r\n"], "501 5.7.0 Authentication cancelled\r\n"], 'LOGIN cancelled at the username')]
+    #[DataSet([["AUTH LOGIN am9obg==\r\n", "*\r\n"], "501 5.7.0 Authentication cancelled\r\n"], 'LOGIN cancelled at the password')]
+    #[DataSet([["AUTH PLAIN not*base64\r\n"], "501 5.5.2 Cannot decode response\r\n"], 'PLAIN not in base64')]
+    #[DataSet([["AUTH LOGIN\r\n", "%%%\r\n"], "501 5.5.2 Cannot decode response\r\n"], 'LOGIN not in base64')]
+    #[DataSet([["AUTH PLAIN bm9udWw=\r\n"], "501 5.5.2 Malformed PLAIN response\r\n"], 'PLAIN without NUL separators')]
+    #[DataSet([["AUTH CRAM-MD5\r\n"], "504 5.5.4 Unrecognized authentication type\r\n"], 'CRAM-MD5')]
+    #[DataSet([["AUTH\r\n"], "501 5.5.4 Syntax: AUTH mechanism\r\n"], 'no mechanism')]
+    public function testFailedAuthLeavesSessionUnauthenticated(array $exchange, string $expected): void
+    {
+        $replies = [];
+        $stream = StreamClientMock::createFromGenerator(
+            self::session($replies, "EHLO a\r\n", ...$exchange, ...self::mail('Unauthenticated')),
+        );
+
+        $frames = $this->dispatch($stream);
+
+        Assert::same($replies[\count($exchange) + 1], $expected);
+        Assert::count($frames, 1);
+        Assert::same($frames[0]->message->getProtocol(), ['FROM' => ['alice@example.com'], 'BCC' => ['bob@example.com']]);
+    }
+
+    #[Test]
+    public function testSecondAuthIsRefused(): void
+    {
+        $replies = [];
+        $stream = StreamClientMock::createFromGenerator(self::session(
+            $replies,
+            "EHLO a\r\n",
+            "AUTH PLAIN AGpvaG4AczNjcmV0\r\n",
+            "AUTH LOGIN\r\n",
+            ...self::mail('Twice'),
+        ));
+
+        $frames = $this->dispatch($stream);
+
+        Assert::same($replies[3], "503 5.5.1 Already authenticated\r\n");
+        Assert::same($frames[0]->message->getProtocol()['USERNAME'], ['john']);
+    }
+
+    #[Test]
+    public function testAuthIsRefusedDuringMailTransaction(): void
+    {
+        $replies = [];
+        $stream = StreamClientMock::createFromGenerator(self::session(
+            $replies,
+            "EHLO a\r\n",
+            "MAIL FROM:<alice@example.com>\r\n",
+            "AUTH PLAIN AGpvaG4AczNjcmV0\r\n",
+        ));
+
+        $this->dispatch($stream);
+
+        Assert::same($replies[3], "503 5.5.1 AUTH not allowed during a mail transaction\r\n");
+    }
+
+    /**
+     * STARTTLS starts the session over: the client authenticates again over TLS.
+     */
+    #[Test]
+    public function testStartTlsDropsCredentials(): void
+    {
+        $replies = [];
+        $stream = StreamClientMock::createFromGenerator(
+            self::session(
+                $replies,
+                "EHLO a\r\n",
+                "AUTH PLAIN AGpvaG4AczNjcmV0\r\n",
+                "STARTTLS\r\n",
+                "EHLO a\r\n",
+                ...self::mail('Over TLS'),
+            ),
+            tls: true,
+        );
+
+        $frames = $this->dispatch($stream);
+
+        Assert::count($frames, 1);
+        Assert::same($frames[0]->message->getProtocol(), ['FROM' => ['alice@example.com'], 'BCC' => ['bob@example.com']]);
     }
 
     #[Test]
@@ -269,6 +400,19 @@ final class DispatcherTest
             $reply = yield $command;
             $reply === '' or $replies[] = $reply;
         }
+    }
+
+    /**
+     * @return list<string> The commands of one mail transaction.
+     */
+    private static function mail(string $subject): array
+    {
+        return [
+            "MAIL FROM:<alice@example.com>\r\n",
+            "RCPT TO:<bob@example.com>\r\n",
+            "DATA\r\n",
+            "Subject: $subject\r\n\r\nHello\r\n.\r\n",
+        ];
     }
 
     /**
