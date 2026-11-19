@@ -225,7 +225,7 @@ final class TrapLogger extends AbstractLogger
         $deadline = \microtime(true) + $this->connectTimeout;
 
         // The handshake fails on a socket that is still connecting.
-        if (!$this->waitFor($stream, false, $deadline)) {
+        if (!$this->waitForConnect($stream, $deadline)) {
             return false;
         }
 
@@ -245,29 +245,44 @@ final class TrapLogger extends AbstractLogger
             }
 
             // A step mostly waits for the server's reply; the short wait also retries one that waits to write.
-            $this->waitFor($stream, true, \min($deadline, \microtime(true) + self::HANDSHAKE_STEP_WAIT_SECONDS));
-        }
-    }
-
-    /**
-     * Waits until the stream is readable or writable, or the deadline passes.
-     *
-     * @param resource $stream
-     * @param float $deadline A {@see \microtime()} timestamp.
-     */
-    private function waitFor(mixed $stream, bool $readable, float $deadline): bool
-    {
-        while (($left = (int) (($deadline - \microtime(true)) * 1_000_000.0)) > 0) {
-            $ready = Silently::run(static function () use ($stream, $readable, $left): int|false {
-                $read = $readable ? [$stream] : [];
-                $write = $readable ? [] : [$stream];
+            $left = (int) ((\min($deadline - \microtime(true), self::HANDSHAKE_STEP_WAIT_SECONDS)) * 1_000_000.0);
+            $left > 0 and Silently::run(static function () use ($stream, $left): int|false {
+                $read = [$stream];
+                $write = [];
                 $except = [];
 
                 return \stream_select($read, $write, $except, 0, $left);
             });
+        }
+    }
 
-            if ($ready !== 0) {
-                return $ready === 1;
+    /**
+     * Waits until an async connect completes, fails, or the deadline passes.
+     *
+     * @param resource $stream
+     * @param float $deadline A {@see \microtime()} timestamp.
+     */
+    private function waitForConnect(mixed $stream, float $deadline): bool
+    {
+        while (($left = (int) (($deadline - \microtime(true)) * 1_000_000.0)) > 0) {
+            // Windows reports a failed connect in the except set only, never as writable.
+            $ready = Silently::run(static function () use ($stream, $left): array|false {
+                $read = [];
+                $write = [$stream];
+                $except = [$stream];
+
+                return \stream_select($read, $write, $except, \intdiv($left, 1_000_000), $left % 1_000_000) === false
+                    ? false
+                    : [$write, $except];
+            });
+
+            if ($ready === false || $ready[1] !== []) {
+                return false;
+            }
+
+            if ($ready[0] !== []) {
+                // Elsewhere a failed connect is writable too; only a connected socket has a peer.
+                return Silently::run(static fn(): string|false => \stream_socket_get_name($stream, true)) !== false;
             }
         }
 

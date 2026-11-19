@@ -222,27 +222,21 @@ final class TrapLoggerTest extends Base
     #[Covers(TrapLogger::class)]
     public function testSendsOverTls(): void
     {
-        $catcher = $this->startTlsCatcher();
-
-        try {
+        $this->withTlsCatcher(function (TlsCatcher $catcher): void {
             $logger = new TrapLogger(host: 'tls://127.0.0.1', port: $catcher->port);
 
             $output = $this->captureStderr(static fn() => $logger->info('Hello {name}', ['name' => 'TLS']));
 
             Assert::same($output, '');
-            $payload = \json_decode((string) $catcher->line(), true, flags: \JSON_THROW_ON_ERROR);
+            $payload = \json_decode($catcher->line(), true, flags: \JSON_THROW_ON_ERROR);
             Assert::same($payload['message'], 'Hello TLS');
-        } finally {
-            $catcher->close();
-        }
+        });
     }
 
     #[Covers(TrapLogger::class)]
     public function testSendsOverTlsInsideFiber(): void
     {
-        $catcher = $this->startTlsCatcher();
-
-        try {
+        $this->withTlsCatcher(function (TlsCatcher $catcher): void {
             $logger = new TrapLogger(host: 'ssl://127.0.0.1', port: $catcher->port, connectTimeout: 2.0);
 
             $output = $this->captureStderr(
@@ -250,47 +244,52 @@ final class TrapLoggerTest extends Base
             );
 
             Assert::same($output, '');
-            $payload = \json_decode((string) $catcher->line(), true, flags: \JSON_THROW_ON_ERROR);
+            $payload = \json_decode($catcher->line(), true, flags: \JSON_THROW_ON_ERROR);
             Assert::same($payload['message'], 'Hello Fiber');
-        } finally {
-            $catcher->close();
-        }
+        });
     }
 
     #[Covers(TrapLogger::class)]
     public function testLoggerFromEnvSendsOverTls(): void
     {
-        $catcher = $this->startTlsCatcher();
-
-        try {
+        $this->withTlsCatcher(function (TlsCatcher $catcher): void {
             \putenv('TRAP_MONOLOG_HOST=tls://127.0.0.1');
             \putenv("TRAP_MONOLOG_PORT={$catcher->port}");
 
             $output = $this->captureStderr(static fn() => TrapHandle::logger()->warning('From env'));
 
             Assert::same($output, '');
-            $payload = \json_decode((string) $catcher->line(), true, flags: \JSON_THROW_ON_ERROR);
+            $payload = \json_decode($catcher->line(), true, flags: \JSON_THROW_ON_ERROR);
             Assert::same($payload['message'], 'From env');
-        } finally {
-            $catcher->close();
-        }
+        });
     }
 
     #[Covers(TrapLogger::class)]
     public function testVerifiedTlsRejectsSelfSignedCertificate(): void
     {
-        $catcher = $this->startTlsCatcher();
-
-        try {
+        $this->withTlsCatcher(function (TlsCatcher $catcher): void {
             $logger = new TrapLogger(host: 'tls://127.0.0.1', port: $catcher->port, connectTimeout: 2.0, verifyPeer: true);
 
             $output = $this->captureStderr(static fn() => $logger->error('Untrusted'));
 
             Assert::string($output)->contains('trap.ERROR: Untrusted []');
-            Assert::null($catcher->line());
-        } finally {
-            $catcher->close();
-        }
+            Assert::same($catcher->next(), TlsCatcher::FAILED_HANDSHAKE);
+        });
+    }
+
+    #[Covers(TrapLogger::class)]
+    public function testFallsBackQuicklyInsideFiberWhenTlsPortIsClosed(): void
+    {
+        $logger = new TrapLogger(host: 'tls://127.0.0.1', port: $this->freePort(), connectTimeout: 10.0);
+        $start = \microtime(true);
+
+        $output = $this->captureStderr(
+            static fn() => (new \Fiber(static fn() => $logger->error('Refused')))->start(),
+        );
+
+        Assert::string($output)->contains('trap.ERROR: Refused []');
+        // Windows retries a refused connect for about 2 s before it reports the failure.
+        Assert::numeric(\microtime(true) - $start)->lessThan(5.0);
     }
 
     #[Covers(TrapLogger::class)]
@@ -408,11 +407,19 @@ final class TrapLoggerTest extends Base
         }
     }
 
-    private function startTlsCatcher(): TlsCatcher
+    /**
+     * @param \Closure(TlsCatcher): void $test
+     */
+    private function withTlsCatcher(\Closure $test): void
     {
-        \extension_loaded('openssl') or throw new SkipTest('ext-openssl is required.');
+        $catcher = null;
 
-        return new TlsCatcher();
+        try {
+            $catcher = new TlsCatcher();
+            $test($catcher);
+        } finally {
+            $catcher?->close();
+        }
     }
 
     /**

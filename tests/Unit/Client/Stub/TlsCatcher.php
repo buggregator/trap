@@ -4,27 +4,51 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Client\Stub;
 
+use Testo\Core\Exception\SkipTest;
+
 /**
  * A TLS server in a child process with a self-signed certificate for `localhost` and `127.0.0.1`.
- * It reports the first line of every connection, and an empty line for a failed handshake.
+ * For every accept it reports one marker line: {@see self::RECEIVED} with the first line of the connection
+ * in base64, {@see self::FAILED_HANDSHAKE}, or {@see self::NO_CONNECTION} when none came within the accept timeout.
  *
  * It runs in another process because the client waits for the handshake to complete.
  */
 final class TlsCatcher
 {
+    public const RECEIVED = 'ok:';
+    public const FAILED_HANDSHAKE = 'F';
+    public const NO_CONNECTION = 'T';
+
+    private const ACCEPT_TIMEOUT = 5;
+
+    /**
+     * The child exits once writing to the parent fails, so it outlives a dead parent by one accept timeout
+     * at most; the lifetime cap covers a parent that is alive but forgot it.
+     */
     private const SERVER = <<<'PHP'
-        $context = stream_context_create(['ssl' => ['local_cert' => $argv[1], 'local_pk' => $argv[2]]]);
-        $server = stream_socket_server('tls://127.0.0.1:0', $errorCode, $errorMessage, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context) or exit(1);
+        [, $certificate, $key, $acceptTimeout] = $argv;
+        if (!extension_loaded('openssl')) {
+            echo "no-openssl\n";
+            exit(1);
+        }
+        $context = stream_context_create(['ssl' => ['local_cert' => $certificate, 'local_pk' => $key]]);
+        $server = stream_socket_server('tcp://127.0.0.1:0', $errorCode, $errorMessage, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context) or exit(1);
         echo substr(strrchr(stream_socket_get_name($server, false), ':'), 1), "\n";
-        while (true) {
-            $client = @stream_socket_accept($server, 60);
+        $stopAt = time() + 120;
+        while (time() < $stopAt) {
+            $client = @stream_socket_accept($server, (float) $acceptTimeout);
             if ($client === false) {
-                echo "\n";
-                continue;
+                $marker = 'T';
+            } else {
+                stream_set_timeout($client, (int) $acceptTimeout);
+                $marker = @stream_socket_enable_crypto($client, true, STREAM_CRYPTO_METHOD_TLS_SERVER) === true
+                    ? 'ok:' . base64_encode(rtrim((string) @fgets($client), "\n"))
+                    : 'F';
+                fclose($client);
             }
-            $line = rtrim((string) @fgets($client), "\n");
-            fclose($client);
-            echo base64_encode((string) $line), "\n";
+            if (!@fwrite(STDOUT, "{$marker}\n")) {
+                exit(0);
+            }
         }
         PHP;
 
@@ -38,63 +62,92 @@ final class TlsCatcher
 
     public readonly int $port;
 
-    /** @var resource */
-    private $process;
+    /** @var resource|null */
+    private $process = null;
 
-    /** @var resource */
-    private $output;
-
-    /** @var resource */
-    private $errors;
+    /** @var resource|null */
+    private $output = null;
 
     /** @var list<non-empty-string> */
     private array $files = [];
 
+    /**
+     * @throws SkipTest When ext-openssl is not loaded in this process or in the child.
+     */
     public function __construct()
     {
-        [$certificate, $key] = $this->createCertificate();
+        \extension_loaded('openssl') or throw new SkipTest('ext-openssl is required.');
 
-        $process = \proc_open(
-            [\PHP_BINARY, '-r', self::SERVER, '--', $certificate, $key],
-            [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
-            $pipes,
-        );
-        $process === false and throw new \RuntimeException('Unable to start the TLS catcher.');
-        $this->process = $process;
-        $this->output = $pipes[1];
-        $this->errors = $pipes[2];
-        $this->port = (int) \fgets($this->output);
-        $this->port > 0 or throw new \RuntimeException('The TLS catcher did not report its port.');
+        try {
+            [$certificate, $key] = $this->createCertificate();
+
+            $ini = \php_ini_loaded_file();
+            $process = \proc_open(
+                [\PHP_BINARY, ...($ini === false ? [] : ['-c', $ini]), '-r', self::SERVER, '--', $certificate, $key, (string) self::ACCEPT_TIMEOUT],
+                [
+                    0 => ['pipe', 'r'],
+                    1 => ['pipe', 'w'],
+                    2 => ['file', \DIRECTORY_SEPARATOR === '\\' ? 'NUL' : '/dev/null', 'w'],
+                ],
+                $pipes,
+            );
+            $process === false and throw new \RuntimeException('Unable to start the TLS catcher.');
+            $this->process = $process;
+            \fclose($pipes[0]);
+            $this->output = $pipes[1];
+
+            $line = \trim((string) \fgets($this->output));
+            $line === 'no-openssl' and throw new SkipTest('ext-openssl is not loaded in the TLS catcher process.');
+            $this->port = (int) $line;
+            $this->port > 0 or throw new \RuntimeException('The TLS catcher did not report its port.');
+        } catch (\Throwable $e) {
+            $this->close();
+            throw $e;
+        }
     }
 
     /**
-     * Returns the next received line, or null for a connection whose handshake failed.
-     *
-     * @throws \RuntimeException When no connection comes within a few seconds.
+     * Returns the next marker line. Blocks for one accept timeout at most.
      */
-    public function line(): ?string
+    public function next(): string
     {
-        $read = [$this->output];
-        $write = $except = [];
-        \stream_select($read, $write, $except, 5) === 1
-            or throw new \RuntimeException('The TLS catcher received no connection.');
-
+        \is_resource($this->output) or throw new \RuntimeException('The TLS catcher is closed.');
         $line = \fgets($this->output);
         $line === false and throw new \RuntimeException('The TLS catcher has stopped.');
-        $line = \trim($line);
 
-        return $line === '' ? null : \base64_decode($line);
+        return \rtrim($line, "\n");
+    }
+
+    /**
+     * Returns the first line of the next connection.
+     *
+     * @throws \RuntimeException When the next connection failed its handshake or none came.
+     */
+    public function line(): string
+    {
+        $marker = $this->next();
+        \str_starts_with($marker, self::RECEIVED)
+            or throw new \RuntimeException("The TLS catcher received no data, its marker: {$marker}.");
+
+        return \base64_decode(\substr($marker, \strlen(self::RECEIVED)));
     }
 
     public function close(): void
     {
-        \proc_terminate($this->process);
-        \fclose($this->output);
-        \fclose($this->errors);
-        \proc_close($this->process);
+        if (\is_resource($this->process)) {
+            \proc_terminate($this->process);
+        }
+        if (\is_resource($this->output)) {
+            \fclose($this->output);
+        }
+        if (\is_resource($this->process)) {
+            \proc_close($this->process);
+        }
+        $this->process = $this->output = null;
         foreach ($this->files as $file) {
             \is_file($file) and \unlink($file);
         }
+        $this->files = [];
     }
 
     /**

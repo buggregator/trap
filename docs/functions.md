@@ -128,7 +128,9 @@ trap()::logger('billing')->error('Payment failed', ['exception' => $e]);
 It connects to `TRAP_MONOLOG_HOST`:`TRAP_MONOLOG_PORT` (default `127.0.0.1:9913`) with a 0.5 s timeout, and
 writes the record to STDERR when Trap is not reachable. A host with `tls://` or `ssl://`, e.g. `tls://127.0.0.1`,
 connects over TLS 1.2 (needs ext-openssl) without checking the certificate, so Trap's self-signed one works.
-A `TrapLogger` created with `verifyPeer: true` checks it.
+A `TrapLogger` created with `verifyPeer: true` checks it. The logger waits for the server without yielding, even
+inside a fiber, so a server that accepts the connection but never completes the handshake holds every record for the
+whole timeout.
 
 ## `trap()::profile()`
 
