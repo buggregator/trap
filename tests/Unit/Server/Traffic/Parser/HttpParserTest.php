@@ -518,6 +518,30 @@ final class HttpParserTest
     }
 
     #[Test]
+    #[DataSet(['chunked, chunked'], 'chunked twice')]
+    #[DataSet(['chunked, gzip'], 'chunked not last')]
+    #[DataSet(['chunked, gzip, chunked'], 'chunked twice and last')]
+    public function testChunkedNotOnlyLastCodingIsRejected(string $transferEncoding): never
+    {
+        Expect::exception(Parser\InvalidRequest::class)->withMessage('Invalid transfer coding.');
+
+        $this->parseStream(
+            "POST /x HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-Encoding: {$transferEncoding}\r\n\r\n3\r\nabc\r\n0\r\n\r\n",
+        );
+    }
+
+    #[Test]
+    public function testChunkedSplitAcrossTransferEncodingHeadersIsRejected(): never
+    {
+        Expect::exception(Parser\InvalidRequest::class)->withMessage('Invalid transfer coding.');
+
+        $this->parseStream(
+            "POST /x HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-Encoding: chunked\r\nTransfer-Encoding: chunked\r\n\r\n"
+            . "3\r\nabc\r\n0\r\n\r\n",
+        );
+    }
+
+    #[Test]
     public function testBrokenChunkedFraming(): never
     {
         Expect::exception(Parser\InvalidRequest::class)->withMessage('Invalid chunked body.');

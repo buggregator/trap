@@ -240,9 +240,13 @@ final class Http
         }
 
         $codings = $this->getTransferCodings($request);
-        if ($codings !== [] && $codings[\array_key_last($codings)] === 'chunked') {
+        if (\in_array('chunked', $codings, true)) {
+            // HTTP/1.1 allows `chunked` only once and only as the last coding: elsewhere the framing is unknown
+            \array_pop($codings) === 'chunked' && !\in_array('chunked', $codings, true)
+                or throw new InvalidRequest('Invalid transfer coding.');
+
             // Before `Content-Length`: `Transfer-Encoding` overrides it
-            $request = $this->decodeTransferCodings($stream, $request, \array_slice($codings, 0, -1));
+            $request = $this->decodeTransferCodings($stream, $request, $codings);
         } else {
             // Guess length
             $length = $request->hasHeader('Content-Length') ? $request->getHeaderLine('Content-Length') : null;

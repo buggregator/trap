@@ -247,6 +247,22 @@ final class HttpTest
         Assert::string($this->sent)->startsWith('HTTP/1.1 400')->endsWith('Invalid chunked body.');
     }
 
+    public function testChunkedAppliedTwiceIsAnsweredWith400(): void
+    {
+        $stream = $this->createStream(
+            "POST /foo HTTP/1.1\r\n",
+            "Host: localhost\r\n",
+            "Transfer-Encoding: chunked, chunked\r\n",
+            "\r\n",
+            "3\r\nabc\r\n0\r\n\r\n",
+        );
+
+        $frames = $this->dispatch(new Http([new Dump()]), $stream);
+
+        Assert::same($frames, []);
+        Assert::string($this->sent)->startsWith('HTTP/1.1 400')->endsWith('Invalid transfer coding.');
+    }
+
     private function createChunkedPostStream(string ...$body): StreamClient
     {
         return $this->createStream(
