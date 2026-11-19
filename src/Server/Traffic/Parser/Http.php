@@ -9,6 +9,7 @@ use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\Part;
 use Buggregator\Trap\Server\Traffic\StreamClient;
 use Buggregator\Trap\Support\Stream\Base64DecodeFilter;
+use Buggregator\Trap\Support\Stream\QuotedPrintableDecodeFilter;
 use Buggregator\Trap\Support\Stream\SizeLimitExceeded;
 use Buggregator\Trap\Support\StreamHelper;
 use Buggregator\Trap\Support\TimeSlice;
@@ -122,11 +123,11 @@ final class Http
                 $findBoundary = "\r\n--{$boundary}";
 
                 if ($part instanceof File) {
-                    $writeFilters = [];
-                    if ($part->hasHeader('Content-Transfer-Encoding')) {
-                        $encoding = $part->getHeaderLine('Content-Transfer-Encoding');
-                        $encoding === 'base64' and $writeFilters[] = Base64DecodeFilter::FILTER_NAME;
-                    }
+                    $writeFilters = match (\strtolower(\trim($part->getHeaderLine('Content-Transfer-Encoding')))) {
+                        'base64' => [Base64DecodeFilter::FILTER_NAME],
+                        'quoted-printable' => [QuotedPrintableDecodeFilter::FILTER_NAME],
+                        default => [],
+                    };
 
                     $fileStream = StreamHelper::createFileStream(writeFilters: $writeFilters);
                     StreamHelper::writeStreamUntil($stream, $fileStream, $findBoundary);

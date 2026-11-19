@@ -13,6 +13,7 @@ use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Nyholm\Psr7\Stream;
 use Psr\Http\Message\StreamInterface;
 use Testo\Assert;
+use Testo\Data\DataSet;
 use Testo\Test;
 
 final class MultipartBodyParserTest
@@ -231,6 +232,26 @@ final class MultipartBodyParserTest
         Assert::instanceOf($result[1], File::class);
         Assert::same($result[1]->getClientFilename(), 'logo.png');
         Assert::same($result[1]->getStream()->__toString(), 'png');
+    }
+
+    #[DataSet(['BASE64', 'cGRm'], 'base64 in upper case')]
+    #[DataSet([' Base64 ', 'cGRm'], 'base64 in mixed case with spaces')]
+    #[DataSet(['quoted-printable', "p=64=\r\nf"], 'quoted-printable')]
+    #[DataSet(['Quoted-Printable', "p=64=\r\nf"], 'quoted-printable in mixed case')]
+    #[DataSet(['7bit', 'pdf'], '7bit')]
+    #[Test]
+    public function decodesFileTransferEncodingInAnyCase(string $encoding, string $encoded): void
+    {
+        $body = $this->makeStream(
+            "--b\r\nContent-Type: application/pdf\r\nContent-Transfer-Encoding: {$encoding}\r\n"
+            . "Content-Disposition: attachment; filename=a.pdf\r\n\r\n{$encoded}\r\n--b--\r\n",
+        );
+
+        $result = $this->parse($body, 'b');
+
+        Assert::count($result, 1);
+        Assert::instanceOf($result[0], File::class);
+        Assert::same($result[0]->getStream()->__toString(), 'pdf');
     }
 
     private function makeStream(string $body): StreamInterface

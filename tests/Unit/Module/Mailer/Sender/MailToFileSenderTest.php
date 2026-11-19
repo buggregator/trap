@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Mailer\Frame as SmtpFrame;
 use Buggregator\Trap\Module\Mailer\Message as SmtpMessage;
 use Buggregator\Trap\Module\Mailer\Sender\MailToFileSender;
 use Buggregator\Trap\Server\Info;
+use Buggregator\Trap\Server\Traffic\Message\Multipart\Field;
 use Testo\Assert;
 use Testo\Lifecycle\AfterTest;
 use Testo\Test;
@@ -54,6 +55,21 @@ final class MailToFileSenderTest
         $this->assertRecipient("$root/user3@inline.com");
         $this->assertRecipient("$root/user4@inline.com");
         $this->assertRecipient("$root/us_er_5@inline.com");
+    }
+
+    public function testWritesTextThatIsNotUtf8(): void
+    {
+        $this->cleanupFolders[] = $root = Info::TRAP_ROOT . '/runtime/tests/mail-to-file-sender-invalid-utf8';
+        // The parser keeps the bytes of a body in an unknown charset
+        $message = SmtpMessage::create(protocol: [], headers: ['To' => ['user@company.tld']])
+            ->withMessages([new Field(['Content-Type' => ['text/plain; charset=x-unknown']], value: "caf\xE9")]);
+
+        (new MailToFileSender($root))->send([new SmtpFrame($message)]);
+
+        $this->assertRecipient("$root/user@company.tld");
+        $files = \glob("$root/user@company.tld/*.json");
+        $arr = \json_decode(\file_get_contents($files[0]), true, 512, \JSON_THROW_ON_ERROR);
+        Assert::same($arr['messages'][0]['value'], "caf\u{FFFD}");
     }
 
     #[AfterTest]

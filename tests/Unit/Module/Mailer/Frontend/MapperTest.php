@@ -8,10 +8,13 @@ use Buggregator\Trap\Module\Mailer\Contact;
 use Buggregator\Trap\Module\Mailer\Frame as SmtpFrame;
 use Buggregator\Trap\Module\Mailer\Frontend\Mapper;
 use Buggregator\Trap\Module\Mailer\Message as SmtpMessage;
+use Buggregator\Trap\Module\Mailer\Traffic\Parser;
 use Buggregator\Trap\Server\Event\AttachedFile;
 use Buggregator\Trap\Server\Event\EmbeddedFile;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
+use Buggregator\Trap\Test\Mock\StreamClientMock;
+use Buggregator\Trap\Tests\Unit\FiberTrait;
 use Nyholm\Psr7\Stream;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -21,6 +24,8 @@ use Testo\Test;
 #[Test]
 final class MapperTest
 {
+    use FiberTrait;
+
     public function testMapsMessageToSmtpEvent(): void
     {
         $message = SmtpMessage::create(
@@ -96,6 +101,25 @@ final class MapperTest
             $event->payload['html'],
             "<img src=\"/api/smtp/{$event->uuid}/attachment/{$second->uuid}\"><img src=\"cid:other\">",
         );
+    }
+
+    public function testSymfonyMailerQuotedPrintableHtmlEmbedsTheImage(): void
+    {
+        $email = \file_get_contents(\dirname(__DIR__, 4) . '/Stub/mail/symfony-mixed-related-alternative.eml');
+        $stream = StreamClientMock::createFromGenerator((static fn() => yield $email . ".\r\n")());
+        $message = $this->runInFiber(static fn() => (new Parser())->parseStream([], $stream));
+
+        $event = (new Mapper())->map(new SmtpFrame($message));
+
+        $assets = \array_values(\iterator_to_array($event->assets));
+        Assert::count($assets, 2);
+        Assert::instanceOf($assets[0], EmbeddedFile::class);
+        Assert::same($assets[0]->file->getClientFilename(), 'logo');
+        Assert::instanceOf($assets[1], AttachedFile::class);
+        Assert::same($assets[1]->file->getClientFilename(), 'report.pdf');
+        Assert::string($event->payload['html'])
+            ->contains("<img src=\"/api/smtp/{$event->uuid}/attachment/{$assets[0]->uuid}\">");
+        Assert::same($event->payload['raw'], $email);
     }
 
     public function testEmbeddableFileTheHtmlDoesNotReferToIsAttached(): void

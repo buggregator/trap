@@ -152,7 +152,7 @@ final class File extends Part implements UploadedFileInterface
             ) === 1 => $matches[1],
 
             // Content-Disposition is inline and name is present
-            \str_starts_with($this->getHeaderLine('Content-Disposition'), 'inline') && \preg_match(
+            \preg_match('/^\\s*inline\\b/i', $this->getHeaderLine('Content-Disposition')) === 1 && \preg_match(
                 '/(?:\\s|^|;|,)name=(?:\"([^\"]++)\"|\'([^\']++)\'|([^;,\\s]++))/',
                 $this->getHeaderLine('Content-Disposition'),
                 $matches,
@@ -160,7 +160,7 @@ final class File extends Part implements UploadedFileInterface
             ) === 1 => $matches[1] ?? $matches[2] ?? $matches[3],
 
             // Content-Type is image/* and has name
-            \str_starts_with($this->getHeaderLine('Content-Type'), 'image/') && \preg_match(
+            \preg_match('/^\\s*image\\//i', $this->getHeaderLine('Content-Type')) === 1 && \preg_match(
                 '/(?:\\s|^|;|,)name=(?:\"([^\"]++)\"|\'([^\']++)\'|([^;,\\s]++))/',
                 $this->getHeaderLine('Content-Type'),
                 $matches,
