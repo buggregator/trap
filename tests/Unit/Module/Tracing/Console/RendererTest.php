@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Tracing\Console;
 
 use Buggregator\Trap\Module\Monolog\Frame as Monolog;
+use Buggregator\Trap\Module\Tracing\Config\Traces;
 use Buggregator\Trap\Module\Tracing\Console\Renderer;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces as OtlpTracesFrame;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\ResourceSpans;
@@ -160,6 +161,27 @@ final class RendererTest
             self::frame(self::span('4', '1', 'third', 10, 20), self::span('1', null, 'root', 0, 100)),
             renderer: $renderer,
         );
+
+        Assert::same($this->spanLines($output), [
+            'root INTERNAL 100 ns id:1111111111111111',
+            '├─ first INTERNAL 10 ns +10 ns id:2222222222222222',
+            '├─ second INTERNAL 10 ns +10 ns id:3333333333333333',
+            '└─ third INTERNAL 10 ns +10 ns id:4444444444444444',
+        ]);
+    }
+
+    public function testChildrenWithEqualStartKeepOrderOfArrivalInTrimmedTrace(): void
+    {
+        $config = new Traces();
+        $config->maxSpans = 3;
+
+        // The store drops the first span of the frame, so the tree is put together from the store and the frame.
+        $output = $this->render(self::frame(
+            self::span('4', '1', 'third', 10, 20),
+            self::span('1', null, 'root', 0, 100),
+            self::span('2', '1', 'first', 10, 20),
+            self::span('3', '1', 'second', 10, 20),
+        ), renderer: new Renderer($config));
 
         Assert::same($this->spanLines($output), [
             'root INTERNAL 100 ns id:1111111111111111',
