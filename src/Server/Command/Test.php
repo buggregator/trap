@@ -189,7 +189,7 @@ final class Test extends Command
                 $this->sendMailPackage($output, $socket, "<b>Apple Watch formatted content</b>\r\n", '');
                 $this->sendMailPackage($output, $socket, "\r\n", '');
                 $this->sendMailPackage($output, $socket, "--boundary-string--\r\n", '');
-                $this->sendMailPackage($output, $socket, "\r\n", '250 ');
+                $this->sendMailPackage($output, $socket, ".\r\n", '250 ');
             } else {
                 $this->sendMailPackage($output, $socket, "From: Some User <someusername@somecompany.ru>\r\n", '');
                 $this->sendMailPackage($output, $socket, "To: User1 <user1@company.tld>\r\n", '');

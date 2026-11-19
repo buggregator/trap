@@ -62,7 +62,7 @@ final class ParserTest
             SMTP, 10);
         $message = $this->parse($data);
 
-        Assert::same((string) $message->getBody(), \implode('', $data));
+        Assert::same((string) $message->getBody(), \substr(\implode('', $data), 0, -\strlen(".\r\n")));
         Assert::count($message->getMessages(), 2);
         // Check headers
         Assert::equals($message->getHeaders(), [
@@ -90,7 +90,7 @@ final class ParserTest
                                SMTP, 10);
         $message = $this->parse($data);
 
-        Assert::same((string) $message->getBody(), \implode('', $data));
+        Assert::same((string) $message->getBody(), \substr(\implode('', $data), 0, -\strlen(".\r\n")));
         Assert::count($message->getMessages(), 1);
         // Check headers
         Assert::equals($message->getHeaders(), [
@@ -142,7 +142,7 @@ final class ParserTest
                                \r
                                <b>Apple Watch formatted content</b>\r
                                \r
-                               --boundary-string--\r\n\r\n
+                               --boundary-string--\r\n\r\n.\r\n
                                SMTP, 10);
         $message = $this->parse($data, [
             'FROM' => ['<someusername@foo.bar>'],
@@ -164,7 +164,7 @@ final class ParserTest
         Assert::null($message->getBcc()[1]->name);
         Assert::same($message->getBcc()[1]->email, 'user2@company.tld');
 
-        Assert::same((string) $message->getBody(), \implode('', $data));
+        Assert::same((string) $message->getBody(), \substr(\implode('', $data), 0, -\strlen(".\r\n")));
         Assert::count($message->getMessages(), 3);
         // Check headers
         Assert::equals($message->getHeaders(), [
