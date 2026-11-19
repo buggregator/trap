@@ -51,7 +51,6 @@ final class TlsCatcher
             }
         }
         PHP;
-
     private const OPENSSL_CONFIG = <<<'INI'
         [req]
         distinguished_name = dn
