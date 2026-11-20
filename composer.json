@@ -136,7 +136,11 @@
         ],
         "infect:ci": [
             "@putenv XDEBUG_MODE=coverage",
-            "infection --ansi --threads=max --logger-github --show-mutations=0 --min-msi=70 --min-covered-msi=70"
+            "infection --ansi --threads=max --logger-github --show-mutations=0 --min-msi=70 --min-covered-msi=70 --skip-initial-tests --coverage=runtime/infection-coverage"
+        ],
+        "infect:ci:coverage": [
+            "@putenv XDEBUG_MODE=coverage",
+            "testo run --suite=Unit --coverage --coverage-xml=runtime/infection-coverage/coverage-xml --log-junit=runtime/infection-coverage/junit.xml"
         ],
         "psalm": "psalm -c tools/psalm/psalm.xml",
         "psalm:baseline": "psalm -c tools/psalm/psalm.xml --set-baseline=tools/psalm/psalm-baseline.xml",
