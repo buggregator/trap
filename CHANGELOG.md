@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.20.1](https://github.com/buggregator/trap/compare/1.20.0...1.20.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **mailer:** name an attachment by `name` of Content-Type when Content-Disposition has no file name ([#366](https://github.com/buggregator/trap/issues/366)) ([a93d620](https://github.com/buggregator/trap/commit/a93d62078bd4fd9624023466cf688cfc15bf07b8))
+* **server:** convert RFC 2231 file names by iconv when mbstring is missing or lacks the charset ([a93d620](https://github.com/buggregator/trap/commit/a93d62078bd4fd9624023466cf688cfc15bf07b8))
+
+
+### Code Refactoring
+
+* fix psalm 7.10 findings ([#367](https://github.com/buggregator/trap/issues/367)) ([7a43413](https://github.com/buggregator/trap/commit/7a4341365b6349568299b052179cd056cc350ac4)), closes [#364](https://github.com/buggregator/trap/issues/364)
+
 ## [1.20.0](https://github.com/buggregator/trap/compare/1.19.1...1.20.0) (2026-11-19)
 
 
