@@ -44,6 +44,11 @@ jobs:
       - name: 📥 Install Infection
         run: composer bin infection install --no-interaction --no-progress
 
+      # Infection's own initial run hides a failure behind an empty [ERROR]: Symfony Console
+      # drops the whole message when the test output holds invalid UTF-8.
+      - name: 🧪 Collect coverage for Infection
+        run: composer infect:ci:coverage
+
       - name: 🧬 Run Infection
         run: composer infect:ci
         env:
