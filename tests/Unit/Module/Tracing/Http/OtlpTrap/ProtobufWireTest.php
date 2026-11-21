@@ -87,6 +87,31 @@ final class ProtobufWireTest
         ProtobufWire::check(self::span(self::len(15, \str_repeat("\xf8\x07\x00", 101))), 'traces', 10, 'spans', maxElements: 100);
     }
 
+    public function testWeighsControlCharactersOfStringsAsJson(): never
+    {
+        // One attribute value (string) of 20 control characters: 120 bytes as JSON
+        $attribute = self::len(9, self::len(1, 'k') . self::len(2, self::len(1, \str_repeat("\x01", 20))));
+        Expect::exception(LimitExceededException::class)->withMessageContaining('Too much text');
+
+        ProtobufWire::check(self::span($attribute), 'traces', 10, 'spans', maxText: 110);
+    }
+
+    #[ExpectNoAssertions]
+    public function testWeighsPlainStringsByTheirLength(): void
+    {
+        $attribute = self::len(9, self::len(1, 'k') . self::len(2, self::len(1, \str_repeat('a', 100))));
+
+        ProtobufWire::check(self::span($attribute), 'traces', 10, 'spans', maxText: 110);
+    }
+
+    public function testWeighsBytesAsBase64(): never
+    {
+        // Span.trace_id (1) of 90 bytes: 120 as base64
+        Expect::exception(LimitExceededException::class)->withMessageContaining('Too much text');
+
+        ProtobufWire::check(self::span(self::len(1, \str_repeat("\xff", 90))), 'traces', 10, 'spans', maxText: 110);
+    }
+
     public function testRejectsNestingTooDeep(): never
     {
         $value = '';

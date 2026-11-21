@@ -108,7 +108,20 @@ final class SignalDecodersTest
 
     public function testJsonContainersInStringsDoNotCount(): void
     {
-        Assert::same(JsonReader::countContainers('{"a":"[{\"[","b":[{}]}'), 3);
+        Assert::same(JsonReader::countContainers('{"a":"[{\"[","b":[{}],"c":"\\\\","d":["{\\\\\""]}'), 4);
+        Assert::same(JsonReader::countContainers('{"a":"unclosed [{'), 1);
+    }
+
+    public function testDecodesStringsOfMillionsOfEscapes(): void
+    {
+        foreach (['a\\n', '\\u00e9'] as $escape) {
+            $payload = '{"resourceLogs":[{"scopeLogs":[{"logRecords":[{"body":{"stringValue":"'
+                . \str_repeat($escape, 1_000_000) . '"}}]}]}]}';
+
+            $frame = (new JsonLogsDecoder())->decode($payload, new \DateTimeImmutable());
+
+            Assert::same($frame->countRecords(), 1);
+        }
     }
 
     public function testRejectsInvalidTraceId(): never

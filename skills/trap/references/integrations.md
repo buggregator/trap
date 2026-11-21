@@ -84,6 +84,11 @@ data under the project of the path `/api/{project}/integration/otlp/v1/traces` (
 `X-Buggregator-Project` header (`OTEL_EXPORTER_OTLP_HEADERS=X-Buggregator-Project=shop`), else `default`. A numeric
 `{project}` is the project ID of a Sentry DSN and names no project.
 
+A request over the limits gets `413` with the reason: 10 MB of body; 10 000 spans, log records or data points;
+over protobuf 240 000 elements (attributes, events, links, repeated values), 2 000 000 fields and 40 MB of text;
+over JSON 520 000 objects and arrays. Without `ext-protobuf` the protobuf limits are 20 000 elements, 200 000 fields
+and 16 MB of text, an SDK batch of 512 spans: on `413`, install it, switch to `http/json` or export smaller batches.
+
 ## VarDumper
 
 `dump()` and `dd()` of Symfony reach Trap with `VAR_DUMPER_FORMAT=server` (and `VAR_DUMPER_SERVER`, default
