@@ -23,10 +23,12 @@
 - [OpenTelemetry](opentelemetry.md) - traces over OTLP/HTTP.
 - [Receiving profiles](profiles.md) - XHProf, Xdebug, Speedscope, pprof and SPX over HTTP or from a directory.
 - [SPX](spx.md) - SPX full reports: directory, HTTP and profiling from code.
+- [Xdebug traces](xdebug-traces.md) - Xdebug function traces over HTTP or from a directory: the call tree.
 
 ## Output
 
 - [Senders](senders.md) - console, files, a remote server, the web UI.
 - [Web UI](web-ui.md) - the `--ui` option.
 - [MCP server](mcp.md) - the `--mcp` option: Trap for AI agents.
+- [Xdebug debugger](xdebug.md) - the `--xdebug` option: step debugging from the web UI and AI agents, or relayed to the IDE.
 - [Agent skills](agent-skills.md) - the `trap` skill that teaches coding agents to debug and profile with Trap.

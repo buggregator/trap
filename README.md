@@ -202,6 +202,8 @@ The ports below are the defaults of the clients.
 | HTTP dumps                  | any HTTP request, e.g. `http://127.0.0.1:8000/webhook`           | [HTTP dumps](docs/http-dump.md)                                                   |
 | OpenTelemetry (OTLP)        | `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318`              | [OpenTelemetry](docs/opentelemetry.md)                                            |
 | Profiles                    | `trap()::profile()`, `POST /api/profiler/*`, a watched directory | [Profiling](docs/profiling.md), [receiving](docs/profiles.md), [SPX](docs/spx.md) |
+| Xdebug step debugging       | `--xdebug`, `xdebug.client_port=9003`, the IDE moved to `9004` | [Xdebug debugger](docs/xdebug.md)                                          |
+| Xdebug function traces      | `POST` with `X-Buggregator-Event: xdebug-trace`, a watched directory | [Xdebug traces](docs/xdebug-traces.md)                                     |
 | Binary data                 | any raw bytes                                                    |                                                                                   |
 
 ## Configuration

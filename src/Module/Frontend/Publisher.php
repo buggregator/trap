@@ -4,10 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend;
 
-use Buggregator\Trap\Module\Frontend\Message\Push;
-use Buggregator\Trap\Server\Traffic\Websocket\Frame;
-use Buggregator\Trap\Support\Json;
-
 /**
  * Publishes messages to the WebSocket clients of the UI: `{event, data}` in a channel.
  *
@@ -40,7 +36,7 @@ final class Publisher
      */
     public function publish(string $channel, string $event, mixed $data = null): void
     {
-        $this->connectionPool->send(Frame::text(Json::encode(new Push($event, $channel, $data))));
+        $this->connectionPool->publish($channel, ['event' => $event, 'data' => $data]);
     }
 
     /**
@@ -52,12 +48,14 @@ final class Publisher
     }
 
     /**
-     * Publishes to every client at once.
+     * Publishes to every project channel the clients are subscribed to.
      *
      * @param non-empty-string $event
      */
     public function toAllProjects(string $event, mixed $data = null): void
     {
-        $this->publish('events', $event, $data);
+        foreach ($this->connectionPool->channels() as $channel) {
+            \str_starts_with($channel, self::PROJECT_CHANNEL_PREFIX) and $this->publish($channel, $event, $data);
+        }
     }
 }

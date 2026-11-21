@@ -50,7 +50,7 @@ final class Pipeline implements Middleware
         /** @var ResponseInterface $response */
         $response = ($this->pipeline)($request);
 
-        return $response->getStatusCode() === 404
+        return $response->getStatusCode() === 404 && !$response->hasHeader(self::FRONTEND_HEADER)
             ? $next($request)
             : $response->withHeader(self::FRONTEND_HEADER, Info::version());
     }

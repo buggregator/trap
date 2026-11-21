@@ -32,6 +32,33 @@ final class PipelineTest
         Assert::false($response->hasHeader(Pipeline::FRONTEND_HEADER));
     }
 
+    public function testControllerStatusDoesNotGoFurther(): void
+    {
+        $request = new ServerRequest('GET', '/api/xdebug-traces/0190402f-7eb2-7287-82a8-897a0091f58e/summary');
+
+        $response = self::pipeline()->handle($request, self::notFound(...));
+
+        Assert::same($response->getStatusCode(), 404);
+        Assert::true($response->hasHeader(Pipeline::FRONTEND_HEADER));
+        Assert::same((string) $response->getBody(), '{"error":"trace not found"}');
+    }
+
+    public function testDebuggerIsSameOriginOnly(): void
+    {
+        $pipeline = self::pipeline();
+
+        $preflight = $pipeline->handle(new ServerRequest('OPTIONS', '/api/xdebug/sessions/1/eval'), self::notFound(...));
+        $status = $pipeline->handle(new ServerRequest('GET', '/api/xdebug'), self::notFound(...));
+        $other = $pipeline->handle(new ServerRequest('OPTIONS', '/api/events'), self::notFound(...));
+
+        Assert::same($preflight->getStatusCode(), 403);
+        Assert::false($preflight->hasHeader('Access-Control-Allow-Origin'));
+        Assert::same($status->getStatusCode(), 200);
+        Assert::false($status->hasHeader('Access-Control-Allow-Origin'));
+        Assert::same($other->getHeaderLine('Access-Control-Allow-Origin'), '*');
+        Assert::string($other->getHeaderLine('Access-Control-Allow-Methods'))->contains('PATCH');
+    }
+
     private static function pipeline(): Pipeline
     {
         return (new ObjectContainer())->get(Pipeline::class);

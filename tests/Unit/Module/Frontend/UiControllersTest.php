@@ -22,6 +22,8 @@ use Buggregator\Trap\Module\Ray\Frontend\LocksController as RayLocksController;
 use Buggregator\Trap\Module\Ray\Lock\Locks;
 use Buggregator\Trap\Module\Sentry\Frontend\ApiController as SentryApiController;
 use Buggregator\Trap\Module\Sentry\Frontend\ClearController as SentryClearController;
+use Buggregator\Trap\Module\XDebug\Frontend\ApiController as XDebugApiController;
+use Buggregator\Trap\Module\XDebugTrace\Frontend\ApiController as XDebugTraceApiController;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteSuccess;
@@ -58,6 +60,8 @@ final class UiControllersTest
                 SentryClearController::class,
                 SentryApiController::class,
                 ProfilerApiController::class,
+                XDebugTraceApiController::class,
+                XDebugApiController::class,
             ],
         );
         Assert::same(

@@ -167,6 +167,17 @@ final class McpServerTest
     #[DataSet(['profile_call_graph', ['id' => 'abc', 'functon' => 'main()']], 'profile_call_graph')]
     #[DataSet(['list_traces', ['error_only' => true]], 'list_traces')]
     #[DataSet(['get_trace', ['id' => 'abc', 'spans' => 10]], 'get_trace')]
+    #[DataSet(['xdebug_trace_summary', ['id' => 'abc']], 'xdebug_trace_summary')]
+    #[DataSet(['xdebug_trace_calls', ['uuid' => 'abc', 'q' => 'fib']], 'xdebug_trace_calls')]
+    #[DataSet(['xdebug_trace_call', ['uuid' => 'abc', 'ofset' => 1]], 'xdebug_trace_call')]
+    #[DataSet(['xdebug_sessions', ['all' => true]], 'xdebug_sessions')]
+    #[DataSet(['xdebug_location', ['session' => '1']], 'xdebug_location')]
+    #[DataSet(['xdebug_stack', ['depth' => 1]], 'xdebug_stack')]
+    #[DataSet(['xdebug_variables', ['session_id' => '1', 'var' => '$a']], 'xdebug_variables')]
+    #[DataSet(['xdebug_eval', ['expr' => '1']], 'xdebug_eval')]
+    #[DataSet(['xdebug_continue', ['cmd' => 'run']], 'xdebug_continue')]
+    #[DataSet(['xdebug_wait', ['seconds' => 1]], 'xdebug_wait')]
+    #[DataSet(['xdebug_breakpoints', ['action' => 'set', 'path' => '/a.php']], 'xdebug_breakpoints')]
     public function testUndeclaredArgumentIsToolError(string $tool, array $arguments): void
     {
         $trap = self::filledTrap();

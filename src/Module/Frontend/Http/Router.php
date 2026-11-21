@@ -9,6 +9,7 @@ use Buggregator\Trap\Module\Frontend\UiControllers;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Handler\Router\Method;
 use Buggregator\Trap\Server\Handler\Router\Router as CommonRouter;
+use Buggregator\Trap\Server\Info;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\Response;
@@ -21,6 +22,12 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 final class Router implements Middleware
 {
+    /**
+     * The argument a controller method takes the HTTP request by: `?ServerRequestInterface $__request = null`.
+     * Null over the WebSocket RPC, which has no request of its own.
+     */
+    public const REQUEST = '__request';
+
     private readonly CommonRouter $router;
 
     public function __construct(
@@ -54,8 +61,16 @@ final class Router implements Middleware
                 }
             }
 
+            // Last, so a body or query field of the name can't stand for it
+            $params[self::REQUEST] = $request;
+
             /** @var mixed $message */
             $message = $handler(...\array_filter($params, \is_string(...), \ARRAY_FILTER_USE_KEY));
+
+            // A controller answering with a status of its own: its 404 must not fall through the pipeline
+            if ($message instanceof ResponseInterface) {
+                return $message->withHeader(Pipeline::FRONTEND_HEADER, Info::version());
+            }
 
             return new Response(
                 $message instanceof HttpCode ? $message->httpCode() : 200,

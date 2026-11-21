@@ -31,11 +31,15 @@ vendor/bin/trap --ui=8080 -s
 
 ## What it shows
 
-Dumps, Monolog logs, Sentry events, emails, Ray payloads, HTTP dumps and profiles.
+Dumps, Monolog logs, Sentry events, emails, Ray payloads, HTTP dumps, profiles and
+[Xdebug traces](xdebug-traces.md) with their call tree.
 
 The UI keeps the last 200 events; `/trap/events/@maxEvents` in [`trap.xml`](configuration.md#trapxml) changes it.
 The events live in the memory of Trap and are gone when it stops. The [MCP server](mcp.md) works with the same
 events: an event deleted in the UI is gone for it too.
+
+The UI also controls `ray()->pause()`: see [Ray](ray.md#notes). With `--xdebug` its Xdebug page lists the debug
+sessions and steps through the ones Trap drives: see [Xdebug debugger](xdebug.md).
 
 ## Sentry pages
 
@@ -66,5 +70,3 @@ Memory is bounded by these limits; values below 1 fall back to the defaults:
 `maxSpans` counts transactions and spans together; a single trace above it keeps its most recent 90%.
 These limits are apart from the [OpenTelemetry limits](opentelemetry.md#memory-limits) of the console and the
 MCP server.
-
-The UI also controls `ray()->pause()`: see [Ray](ray.md#notes).

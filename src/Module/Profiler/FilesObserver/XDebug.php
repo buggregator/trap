@@ -12,6 +12,7 @@ use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Service\FilesObserver\FileInfo;
 use Buggregator\Trap\Server\Service\FilesObserver\ForgetsFiles;
 use Buggregator\Trap\Server\Service\FilesObserver\FrameConverter as FileFilterInterface;
+use Buggregator\Trap\Server\Service\FilesObserver\GzipFollower;
 
 /**
  * Converts Xdebug profiler files, gzipped or not.

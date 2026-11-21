@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Module\Profiler\FilesObserver;
+namespace Buggregator\Trap\Server\Service\FilesObserver;
 
 /**
  * Follows gzipped files being written, to tell when their stream ends.

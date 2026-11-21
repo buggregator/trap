@@ -80,7 +80,7 @@ final class ServiceTest
 
         Assert::same(
             self::json($service->settings())['client']['events'],
-            ['var-dump', 'smtp', 'monolog', 'ray', 'sentry', 'profiler', 'http-dump'],
+            ['var-dump', 'smtp', 'monolog', 'ray', 'sentry', 'profiler', 'xdebug-trace', 'http-dump'],
         );
     }
 
