@@ -8,6 +8,9 @@ use Buggregator\Trap\Module\HttpDump\Frame as HttpFrame;
 use Buggregator\Trap\Module\HttpDump\Http\Dump;
 use Buggregator\Trap\Module\Mcp\McpStatus;
 use Buggregator\Trap\Module\Mcp\Sender\McpSender;
+use Buggregator\Trap\Module\Tracing\Frame as TracingFrame;
+use Buggregator\Trap\Module\Tracing\Frame\OtlpLogs;
+use Buggregator\Trap\Module\Tracing\Frame\OtlpMetrics;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonTracesDecoder;
@@ -50,12 +53,36 @@ final class OtlpTrapTest
         yield 'no content type' => ['POST', '/v1/traces', ''];
     }
 
-    public static function provideDroppedSignals(): \Generator
+    public static function provideEmptySignals(): \Generator
     {
-        yield 'logs, JSON' => ['/v1/logs', 'application/json', '{}', 'logs'];
-        yield 'metrics, JSON' => ['/v1/metrics/', 'application/json', '{}', 'metrics'];
-        yield 'logs, protobuf' => ['/otlp/v1/logs', 'application/x-protobuf', '', 'logs'];
-        yield 'metrics, protobuf' => ['/v1/metrics', 'application/x-protobuf', '', 'metrics'];
+        yield 'logs, JSON' => ['/v1/logs', 'application/json', '{}'];
+        yield 'metrics, JSON' => ['/v1/metrics/', 'application/json', '{}'];
+        yield 'logs, protobuf' => ['/otlp/v1/logs', 'application/x-protobuf', ''];
+        yield 'metrics, protobuf' => ['/v1/metrics', 'application/x-protobuf', ''];
+    }
+
+    public static function provideOtherSignals(): \Generator
+    {
+        yield 'logs' => [
+            '/v1/logs',
+            'application/json',
+            '{"resourceLogs":[{"scopeLogs":[{"logRecords":[{"body":{"stringValue":"hi"}}]}]}]}',
+            OtlpLogs::class,
+        ];
+        yield 'metrics' => [
+            '/otlp/v1/metrics/',
+            'application/json',
+            '{"resourceMetrics":[{"scopeMetrics":[{"metrics":[{"name":"m","gauge":{"dataPoints":[{"asDouble":1}]}}]}]}]}',
+            OtlpMetrics::class,
+        ];
+    }
+
+    public static function provideProjects(): \Generator
+    {
+        yield 'none' => ['/v1/traces', [], null];
+        yield 'header' => ['/v1/traces', ['X-Buggregator-Project' => ' shop '], 'shop'];
+        yield 'Sentry OTLP path' => ['/api/shop/integration/otlp/v1/traces', ['X-Buggregator-Project' => 'other'], 'shop'];
+        yield 'numeric DSN project' => ['/api/1/integration/otlp/v1/traces', [], null];
     }
 
     public static function provideRejectedRequests(): \Generator
@@ -103,25 +130,50 @@ final class OtlpTrapTest
         Assert::same($frames, []);
     }
 
-    #[DataProvider('provideDroppedSignals')]
-    public function testDropsUnsupportedSignalsWithSuccess(
-        string $uri,
-        string $contentType,
-        string $body,
-        string $signal,
-    ): void {
-        $output = new BufferedOutput();
-        $middleware = new OtlpTrap(new Logger($output));
-        $request = $this->request(uri: $uri, body: 'payload', contentType: $contentType);
-
-        [$response, $frames] = $this->handleInFiber($request, $middleware);
-        $this->handleInFiber($request, $middleware);
+    #[DataProvider('provideOtherSignals')]
+    public function testAcceptsLogsAndMetrics(string $uri, string $contentType, string $body, string $frameClass): void
+    {
+        [$response, $frames] = $this->handleInFiber($this->request(uri: $uri, body: $body, contentType: $contentType));
 
         Assert::same($response->getStatusCode(), 200);
         Assert::same($response->getHeaderLine('Content-Type'), $contentType);
-        Assert::same((string) $response->getBody(), $body);
+        Assert::count($frames, 1);
+        Assert::instanceOf($frames[0], $frameClass);
+    }
+
+    #[DataProvider('provideEmptySignals')]
+    public function testEmptyLogsAndMetricsSucceedWithoutFrame(string $uri, string $contentType, string $response): void
+    {
+        $body = $contentType === 'application/json' ? '{}' : '';
+
+        [$result, $frames] = $this->handleInFiber($this->request(uri: $uri, body: $body, contentType: $contentType));
+
+        Assert::same($result->getStatusCode(), 200);
+        Assert::same((string) $result->getBody(), $response);
         Assert::same($frames, []);
-        Assert::same(\substr_count($output->fetch(), "OTLP: $signal are not supported yet"), 1);
+    }
+
+    public function testRejectsMalformedLogsWith400AndReportsTheSignal(): void
+    {
+        $output = new BufferedOutput();
+
+        [$response, $frames] = $this->handleInFiber(
+            $this->request(uri: '/v1/logs', body: 'payload'),
+            new OtlpTrap(new Logger($output)),
+        );
+
+        Assert::same($response->getStatusCode(), 400);
+        Assert::same($frames, []);
+        Assert::string($output->fetch())->contains('OTLP: logs request rejected with 400');
+    }
+
+    #[DataProvider('provideProjects')]
+    public function testFrameNamesTheProjectOfThePathOrHeader(string $uri, array $headers, ?string $project): void
+    {
+        [, $frames] = $this->handleInFiber($this->request(uri: $uri, body: self::PAYLOAD, headers: $headers));
+
+        Assert::count($frames, 1);
+        Assert::same($frames[0]->project, $project);
     }
 
     #[DataProvider('provideRejectedRequests')]
@@ -598,7 +650,7 @@ final class OtlpTrapTest
         $frames = [];
         $frame = $fiber->start();
         while (!$fiber->isTerminated()) {
-            $frame instanceof OtlpTraces and $frames[] = $frame;
+            $frame instanceof TracingFrame and $frames[] = $frame;
             $frame = $fiber->resume();
         }
 

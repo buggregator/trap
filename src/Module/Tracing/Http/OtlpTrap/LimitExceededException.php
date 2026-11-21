@@ -19,4 +19,13 @@ final class LimitExceededException extends \InvalidArgumentException
     {
         return new self(\sprintf('Too many spans in one request, the limit is %d.', $limit));
     }
+
+    /**
+     * @param int<1, max> $limit
+     * @param string $records `log records`, `data points`.
+     */
+    public static function records(int $limit, string $records): self
+    {
+        return new self(\sprintf('Too many %s in one request, the limit is %d.', $records, $limit));
+    }
 }

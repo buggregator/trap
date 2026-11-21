@@ -7,7 +7,11 @@ namespace Buggregator\Trap\Module\Tracing;
 use Buggregator\Trap\Module\Console\ProvidesRenderers;
 use Buggregator\Trap\Module\Mcp\ProvidesMcpTools;
 use Buggregator\Trap\Module\Tracing\Console\Renderer;
+use Buggregator\Trap\Module\Tracing\Console\SignalRenderer;
+use Buggregator\Trap\Module\Tracing\Frame\OtlpLogs;
+use Buggregator\Trap\Module\Tracing\Frame\OtlpMetrics;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
+use Buggregator\Trap\Module\Tracing\Frontend\TelemetryMapper;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap;
 use Buggregator\Trap\Module\Tracing\Mcp\GetTrace;
 use Buggregator\Trap\Module\Tracing\Mcp\ListTraces;
@@ -43,16 +47,20 @@ final class Module implements
     #[\Override]
     public function renderers(): array
     {
-        return [Renderer::class];
+        return [Renderer::class, SignalRenderer::class];
     }
 
     /**
-     * Traces make no events: the tools read the span store.
+     * OTLP makes no events: the mapper fills the telemetry store of the web UI, the MCP tools read the span store.
      */
     #[\Override]
     public function eventMappers(): array
     {
-        return [OtlpTraces::class => null];
+        return [
+            OtlpTraces::class => TelemetryMapper::class,
+            OtlpLogs::class => TelemetryMapper::class,
+            OtlpMetrics::class => TelemetryMapper::class,
+        ];
     }
 
     #[\Override]

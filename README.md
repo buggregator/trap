@@ -43,7 +43,7 @@
 [Buggregator Server](https://github.com/buggregator/server) written in PHP and made for local development: it runs
 on the PHP of your project, so it reads the profiles of XHProf, Xdebug and SPX right from their directories.
 Unlike the `symfony/var-dumper` server, it receives far more than dumps: Monolog logs, Sentry events, emails,
-Ray payloads, HTTP requests, OpenTelemetry traces and profiles, all on the same ports. The functions work with any
+Ray payloads, HTTP requests, OpenTelemetry traces, logs and metrics and profiles, all on the same ports. The functions work with any
 Buggregator server. Use PhpStorm? Try Trap with the [Buggregator Plugin](https://github.com/buggregator/phpstorm-plugin).
 
 **Debug long-running applications.** In a RoadRunner, Swoole or FrankenPHP worker, under Laravel Octane or in a queue
@@ -200,7 +200,7 @@ The ports below are the defaults of the clients.
 | SMTP                        | `MAILER_DSN=smtp://127.0.0.1:1025`                               | [SMTP](docs/smtp.md)                                                              |
 | Ray                         | host `127.0.0.1`, port `8000` in `ray.php`                       | [Ray](docs/ray.md)                                                                |
 | HTTP dumps                  | any HTTP request, e.g. `http://127.0.0.1:8000/webhook`           | [HTTP dumps](docs/http-dump.md)                                                   |
-| OpenTelemetry traces        | `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318`              | [OpenTelemetry](docs/opentelemetry.md)                                            |
+| OpenTelemetry (OTLP)        | `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318`              | [OpenTelemetry](docs/opentelemetry.md)                                            |
 | Profiles                    | `trap()::profile()`, `POST /api/profiler/*`, a watched directory | [Profiling](docs/profiling.md), [receiving](docs/profiles.md), [SPX](docs/spx.md) |
 | Binary data                 | any raw bytes                                                    |                                                                                   |
 

@@ -27,6 +27,33 @@ final class Json
     }
 
     /**
+     * Replaces non-finite floats, as `1e999` decodes, with their names `NaN`, `Infinity`, `-Infinity`:
+     * {@see encode()} fails on them.
+     */
+    public static function finite(mixed $value): mixed
+    {
+        if (\is_float($value)) {
+            return match (true) {
+                \is_finite($value) => $value,
+                \is_nan($value) => 'NaN',
+                default => $value > 0 ? 'Infinity' : '-Infinity',
+            };
+        }
+
+        if (\is_array($value)) {
+            /** @var mixed $item */
+            foreach ($value as $key => $item) {
+                if (\is_float($item) || \is_array($item)) {
+                    /** @psalm-suppress MixedAssignment */
+                    $value[$key] = self::finite($item);
+                }
+            }
+        }
+
+        return $value;
+    }
+
+    /**
      * @throws \JsonException
      */
     public static function decode(string $content): mixed

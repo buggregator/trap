@@ -15,6 +15,7 @@ use Buggregator\Trap\Module\Ray\Console\Renderer as RayRenderer;
 use Buggregator\Trap\Module\Sentry\Console\SentryEnvelope as SentryEnvelopeRenderer;
 use Buggregator\Trap\Module\Sentry\Console\SentryStore as SentryStoreRenderer;
 use Buggregator\Trap\Module\Tracing\Console\Renderer as TracingRenderer;
+use Buggregator\Trap\Module\Tracing\Console\SignalRenderer;
 use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Module\VarDumper\Console\Renderer as VarDumperRenderer;
 use Buggregator\Trap\Server\Application\Module\Modules;
@@ -41,6 +42,7 @@ final class ConsoleSenderTest
             SentryEnvelopeRenderer::class,
             ProfilerRenderer::class,
             TracingRenderer::class,
+            SignalRenderer::class,
             HttpDumpRenderer::class,
             Renderer\Binary::class,
             Renderer\Plain::class,

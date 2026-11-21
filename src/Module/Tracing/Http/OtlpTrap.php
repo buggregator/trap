@@ -5,8 +5,15 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Tracing\Http;
 
 use Buggregator\Trap\Module\Mcp\McpStatus;
+use Buggregator\Trap\Module\Tracing\Frame\OtlpLogs;
+use Buggregator\Trap\Module\Tracing\Frame\OtlpMetrics;
+use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
+use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\Decoder;
+use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonLogsDecoder;
+use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonMetricsDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonTracesDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\LimitExceededException;
+use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\ProtobufDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\ProtobufTracesDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\TracesDecoder;
 use Buggregator\Trap\Module\Tracing\SpanStore;
@@ -20,13 +27,15 @@ use Psr\Http\Message\StreamInterface;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 
 /**
- * Receives OpenTelemetry traces over OTLP/HTTP (`POST /v1/traces`).
+ * Receives OpenTelemetry traces, logs and metrics over OTLP/HTTP: `POST /v1/traces`, `/v1/logs`, `/v1/metrics`,
+ * also under a path prefix such as `/api/{project}/integration/otlp`.
  *
  * JSON is always decoded. Protobuf is decoded when the suggested protobuf packages are installed,
  * see {@see ProtobufTracesDecoder}; otherwise it gets 415.
  * While the MCP server runs, received spans go to the {@see SpanStore} for its tools here, once per request.
- * Logs and metrics (`/v1/logs`, `/v1/metrics`) are not supported: they are answered with success and dropped,
- * so an exporter that sends every signal to Trap does not report errors.
+ *
+ * The project of the data is the `{project}` of `/api/{project}/integration/otlp/...`, else the
+ * `X-Buggregator-Project` header; the default project without either.
  *
  * Only requests with an OTLP content type (JSON or protobuf) are handled. Other requests to these paths,
  * such as a form posted to `/api/v1/logs`, go down the pipeline and are dumped as HTTP requests.
@@ -37,9 +46,9 @@ use Symfony\Component\Console\Formatter\OutputFormatter;
 final class OtlpTrap implements Middleware
 {
     private const MAX_BODY_SIZE = 10 * 1024 * 1024;
-    private const TRACES_PATH = '/v1/traces';
     private const OTLP_MEDIA_TYPES = [JsonTracesDecoder::CONTENT_TYPE, ProtobufTracesDecoder::CONTENT_TYPE];
-    private const UNSUPPORTED_SIGNALS = [
+    private const SIGNALS = [
+        '/v1/traces' => 'traces',
         '/v1/logs' => 'logs',
         '/v1/metrics' => 'metrics',
     ];
@@ -49,24 +58,25 @@ final class OtlpTrap implements Middleware
     private const RPC_RESOURCE_EXHAUSTED = 8;
     private const RPC_UNIMPLEMENTED = 12;
 
-    /** @var array<non-empty-lowercase-string, TracesDecoder> Media type => decoder */
-    private readonly array $tracesDecoders;
+    /** @var array<'traces'|'logs'|'metrics', array<non-empty-lowercase-string, Decoder>> Signal => media type => decoder */
+    private readonly array $decoders;
 
     private bool $protobufReported = false;
 
-    /** @var array<string, true> Unsupported signals already reported in the log */
-    private array $reportedSignals = [];
-
     /**
      * @param array<non-empty-lowercase-string, TracesDecoder>|null $tracesDecoders Media type => decoder.
-     *        Null registers JSON, and protobuf when its packages are installed.
+     *        Null registers JSON, and protobuf when its packages are installed; so do the other decoder lists.
      * @param SpanStore|null $spans Filled for the MCP tools while the server runs; null keeps no spans.
+     * @param array<non-empty-lowercase-string, Decoder>|null $logsDecoders
+     * @param array<non-empty-lowercase-string, Decoder>|null $metricsDecoders
      */
     public function __construct(
         private readonly ?Logger $logger = null,
         ?array $tracesDecoders = null,
         private readonly ?SpanStore $spans = null,
         private readonly McpStatus $mcp = new McpStatus(),
+        ?array $logsDecoders = null,
+        ?array $metricsDecoders = null,
     ) {
         if ($tracesDecoders === null) {
             $json = new JsonTracesDecoder();
@@ -75,7 +85,19 @@ final class OtlpTrap implements Middleware
             and $tracesDecoders[ProtobufTracesDecoder::CONTENT_TYPE] = new ProtobufTracesDecoder($json);
         }
 
-        $this->tracesDecoders = $tracesDecoders;
+        if ($logsDecoders === null) {
+            $logsDecoders = [JsonLogsDecoder::CONTENT_TYPE => new JsonLogsDecoder()];
+            ProtobufDecoder::isAvailable()
+            and $logsDecoders[ProtobufDecoder::CONTENT_TYPE] = ProtobufDecoder::logs();
+        }
+
+        if ($metricsDecoders === null) {
+            $metricsDecoders = [JsonMetricsDecoder::CONTENT_TYPE => new JsonMetricsDecoder()];
+            ProtobufDecoder::isAvailable()
+            and $metricsDecoders[ProtobufDecoder::CONTENT_TYPE] = ProtobufDecoder::metrics();
+        }
+
+        $this->decoders = ['traces' => $tracesDecoders, 'logs' => $logsDecoders, 'metrics' => $metricsDecoders];
     }
 
     #[\Override]
@@ -86,17 +108,29 @@ final class OtlpTrap implements Middleware
         }
 
         $path = \rtrim($request->getUri()->getPath(), '/');
-        if (\str_ends_with($path, self::TRACES_PATH)) {
-            return $this->processTraces($request);
-        }
-
-        foreach (self::UNSUPPORTED_SIGNALS as $suffix => $signal) {
+        foreach (self::SIGNALS as $suffix => $signal) {
             if (\str_ends_with($path, $suffix)) {
-                return $this->dropSignal($request, $signal);
+                return $this->process($request, $signal);
             }
         }
 
         return $next($request);
+    }
+
+    /**
+     * The `{project}` of `/api/{project}/integration/otlp/...`, else the `X-Buggregator-Project` header.
+     * A numeric path segment is the project ID of a Sentry DSN, not a project name.
+     */
+    private static function project(ServerRequestInterface $request): ?string
+    {
+        if (\preg_match('#^/api/([^/]++)/integration/otlp/#', $request->getUri()->getPath(), $match) === 1
+            && !\ctype_digit($match[1])
+        ) {
+            return \rawurldecode($match[1]);
+        }
+
+        $project = \trim($request->getHeaderLine('X-Buggregator-Project'));
+        return $project === '' ? null : $project;
     }
 
     /**
@@ -191,30 +225,14 @@ final class OtlpTrap implements Middleware
     }
 
     /**
-     * Answers with an empty export response of the request encoding, as for a successful export.
+     * @param 'traces'|'logs'|'metrics' $signal
      */
-    private function dropSignal(ServerRequestInterface $request, string $signal): ResponseInterface
-    {
-        if (!isset($this->reportedSignals[$signal])) {
-            $this->reportedSignals[$signal] = true;
-            $this->logger?->print(\sprintf(
-                'OTLP: %1$s are not supported yet and are dropped; set OTEL_%2$s_EXPORTER=none to stop sending them.',
-                $signal,
-                \strtoupper($signal),
-            ));
-        }
-
-        return self::mediaType($request) === ProtobufTracesDecoder::CONTENT_TYPE
-            ? new Response(200, ['Content-Type' => ProtobufTracesDecoder::CONTENT_TYPE])
-            : new Response(200, ['Content-Type' => 'application/json'], '{}');
-    }
-
-    private function processTraces(ServerRequestInterface $request): ResponseInterface
+    private function process(ServerRequestInterface $request, string $signal): ResponseInterface
     {
         $mediaType = self::mediaType($request);
-        $decoder = $this->tracesDecoders[$mediaType] ?? null;
+        $decoder = $this->decoders[$signal][$mediaType] ?? null;
         if ($decoder === null) {
-            return $this->rejectContentType($mediaType);
+            return $this->rejectContentType($mediaType, $signal);
         }
 
         /** @var mixed $time */
@@ -225,12 +243,13 @@ final class OtlpTrap implements Middleware
             $body = $request->getBody();
             $size = $body->getSize();
             if ($size === null || $size > self::MAX_BODY_SIZE) {
-                return $this->reject($mediaType, 413, self::RPC_RESOURCE_EXHAUSTED, 'Request body is too large.');
+                return $this->reject($signal, $mediaType, 413, self::RPC_RESOURCE_EXHAUSTED, 'Request body is too large.');
             }
 
             $payload = self::readPayload($body);
             if ($payload === null) {
                 return $this->reject(
+                    $signal,
                     $mediaType,
                     413,
                     self::RPC_RESOURCE_EXHAUSTED,
@@ -240,22 +259,30 @@ final class OtlpTrap implements Middleware
 
             $frame = $decoder->decode($payload, $time);
         } catch (LimitExceededException $e) {
-            return $this->reject($mediaType, 413, self::RPC_RESOURCE_EXHAUSTED, $e->getMessage());
+            return $this->reject($signal, $mediaType, 413, self::RPC_RESOURCE_EXHAUSTED, $e->getMessage());
         } catch (\Throwable $e) {
-            return $this->reject($mediaType, 400, self::RPC_INVALID_ARGUMENT, $e->getMessage());
+            return $this->reject($signal, $mediaType, 400, self::RPC_INVALID_ARGUMENT, $e->getMessage());
         }
 
-        if ($frame->countSpans() === 0) {
+        $project = self::project($request);
+        $frame = match (true) {
+            $frame instanceof OtlpTraces => $frame->countSpans() === 0 ? null : $frame->withProject($project),
+            $frame instanceof OtlpLogs => $frame->countRecords() === 0 ? null : $frame->withProject($project),
+            $frame instanceof OtlpMetrics => $frame->countDataPoints() === 0 ? null : $frame->withProject($project),
+            default => $frame,
+        };
+
+        if ($frame === null) {
             return $decoder->createSuccessResponse();
         }
 
-        $this->mcp->isOn() and $this->spans?->receive($frame);
+        $frame instanceof OtlpTraces && $this->mcp->isOn() and $this->spans?->receive($frame);
         \Fiber::suspend($frame);
 
         return $decoder->createSuccessResponse();
     }
 
-    private function rejectContentType(string $mediaType): ResponseInterface
+    private function rejectContentType(string $mediaType, string $signal): ResponseInterface
     {
         if ($mediaType === ProtobufTracesDecoder::CONTENT_TYPE) {
             if (!$this->protobufReported) {
@@ -275,13 +302,14 @@ final class OtlpTrap implements Middleware
         }
 
         return $this->reject(
+            $signal,
             $mediaType,
             415,
             self::RPC_UNIMPLEMENTED,
             \sprintf(
                 'Unsupported content type `%s`, expected one of: %s.',
                 $mediaType,
-                \implode(', ', \array_keys($this->tracesDecoders)),
+                \implode(', ', \array_keys($this->decoders[$signal] ?? [])),
             ),
         );
     }
@@ -292,12 +320,12 @@ final class OtlpTrap implements Middleware
      *
      * @param int<0, max> $code `google.rpc.Code`
      */
-    private function reject(string $mediaType, int $status, int $code, string $message): ResponseInterface
+    private function reject(string $signal, string $mediaType, int $status, int $code, string $message): ResponseInterface
     {
         $this->logger?->print(OutputFormatter::escape((string) \preg_replace(
             '/[\x00-\x1F\x7F]/',
             '?',
-            \sprintf('OTLP: traces request rejected with %d: %s', $status, $message),
+            \sprintf('OTLP: %s request rejected with %d: %s', $signal, $status, $message),
         )));
 
         return self::error($mediaType, $status, $code, $message);
