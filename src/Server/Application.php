@@ -85,6 +85,7 @@ final class Application implements Processable, Cancellable, Destroyable
         ]);
         $this->processors[] = $inspector;
 
+        $map = $this->withSenderPorts($map);
         $sharedPorts = $this->configureHttpEndpoints($map, $modules, $middlewares, $maxInflated);
 
         $this->configureFileObserver($modules);
@@ -196,6 +197,28 @@ final class Application implements Processable, Cancellable, Destroyable
                 }
             } while (!$this->cancelled);
         });
+    }
+
+    /**
+     * Adds the ports of the senders that listen on one, see {@see Sender\ListensTcp}.
+     *
+     * @param SocketServer[] $map
+     *
+     * @return SocketServer[]
+     */
+    private function withSenderPorts(array $map): array
+    {
+        $host = $this->container->get(Config\TcpPorts::class)->host;
+        foreach ($this->senders as $sender) {
+            if (!$sender instanceof Sender\ListensTcp) {
+                continue;
+            }
+            $server = $sender->tcpServer($host);
+            $known = \array_filter($map, static fn(SocketServer $s): bool => $s->protocol === 'tcp' && $s->port === $server->port);
+            $known === [] and $map[] = $server;
+        }
+
+        return $map;
     }
 
     /**

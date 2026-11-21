@@ -18,6 +18,7 @@ use Buggregator\Trap\Module\Tracing\Console\Renderer as TracingRenderer;
 use Buggregator\Trap\Module\Tracing\Console\SignalRenderer;
 use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Module\VarDumper\Console\Renderer as VarDumperRenderer;
+use Buggregator\Trap\Module\XDebugTrace\Console\Renderer as XDebugTraceRenderer;
 use Buggregator\Trap\Server\Application\Module\Modules;
 use Internal\Container\ObjectContainer;
 use Symfony\Component\Console\Output\BufferedOutput;
@@ -41,6 +42,7 @@ final class ConsoleSenderTest
             SentryStoreRenderer::class,
             SentryEnvelopeRenderer::class,
             ProfilerRenderer::class,
+            XDebugTraceRenderer::class,
             TracingRenderer::class,
             SignalRenderer::class,
             HttpDumpRenderer::class,

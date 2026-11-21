@@ -43,6 +43,9 @@ use Symfony\Component\Console\Output\OutputInterface;
  *
  *  # Run with UI and the MCP server both on the default port 8000
  *  trap run --ui --mcp
+ *
+ *  # Run with UI and the Xdebug debugger on port 9003
+ *  trap run --ui --xdebug
  * ```
  *
  * @internal
@@ -75,6 +78,7 @@ final class Run extends Command implements SignalableCommandInterface
         );
         $this->addOption('ui', null, InputOption::VALUE_OPTIONAL, 'Enable WEB UI (experimental)', false);
         $this->addOption('mcp', null, InputOption::VALUE_OPTIONAL, 'Enable MCP server at /mcp (experimental)', false);
+        $this->addOption('xdebug', null, InputOption::VALUE_OPTIONAL, 'Enable the Xdebug debugger, port 9003 by default (experimental)', false);
     }
 
     /**
@@ -170,6 +174,7 @@ final class Run extends Command implements SignalableCommandInterface
             $senders = \array_filter((array) $input->getOption('sender'));
             $input->getOption('ui') === false or $senders[] = 'ui';
             $input->getOption('mcp') === false or $senders[] = 'mcp';
+            $input->getOption('xdebug') === false or $senders[] = 'xdebug';
 
             $container = Bootstrap::init()->withConfig(
                 xml: \dirname(__DIR__, 3) . '/trap.xml',
