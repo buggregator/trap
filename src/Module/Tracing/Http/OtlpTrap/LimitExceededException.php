@@ -35,6 +35,14 @@ final class LimitExceededException extends \InvalidArgumentException
     /**
      * @param int<1, max> $limit
      */
+    public static function containers(int $limit): self
+    {
+        return new self(\sprintf('Too many JSON objects and arrays in one request, the limit is %d.', $limit));
+    }
+
+    /**
+     * @param int<1, max> $limit
+     */
     public static function fields(int $limit): self
     {
         return new self(\sprintf('Too many protobuf fields in one request, the limit is %d.', $limit));
