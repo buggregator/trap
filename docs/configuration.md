@@ -91,7 +91,8 @@ The client reads these variables from `$_ENV` or the process environment.
 
 ## trap.xml
 
-`trap.xml` lies in the root of the package and holds settings that have no environment variable:
+`trap.xml` lies in the root of the package. It takes the paths below; of them, only `/trap/events/@maxEvents` has no
+environment variable:
 
 ```xml
 <?xml version="1.0"?>

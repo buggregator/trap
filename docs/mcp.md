@@ -47,7 +47,7 @@ the agent deletes is gone from the UI on its next load; a page already open keep
 - `delete_event` deletes the events of the given IDs. The store keeps no trace of a deleted event, so an ID deleted
   before, pushed out by newer events or mistyped is the same: it is listed in `not_found`, and a call that finds none
   of its IDs fails. A repeated call deletes nothing more, so the tool is marked idempotent.
-- `clear_events` without arguments deletes all the events. A malformed `since` is an error, so a typo doesn't
+- `clear_events` without arguments deletes all the events, the ones pinned in the web UI too. A malformed `since` is an error, so a typo doesn't
   turn "the newer ones" into all of them.
 - An argument a tool doesn't declare, such as a misspelt `sinse`, fails the call with the list of the arguments
   the tool takes, and nothing runs. Ignored, it would widen the call: `clear_events` would delete every event.
@@ -60,7 +60,7 @@ the agent deletes is gone from the UI on its next load; a page already open keep
 
 | Argument  | Matches                                                                                                                          |
 | --------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `type`    | One event type or a list: `var-dump`, `smtp`, `monolog`, `ray`, `sentry`, `profiler`, `http-dump`                                |
+| `type`    | One event type or a list: `var-dump`, `smtp`, `monolog`, `ray`, `sentry`, `profiler`, `http-dump`, `xdebug-trace`                |
 | `project` | One project or a list; events sent without a project belong to `default`                                                         |
 | `from`    | Events caught at this time or later: ISO 8601 (UTC without an offset) or a duration back from now: `30s`, `5m`, `2h`, `1d`, `1w` |
 | `to`      | Events caught at this time or earlier, in the same forms                                                                         |
@@ -117,6 +117,7 @@ seconds. Trap catches events and answers other requests meanwhile, and a call st
 | `ray`       | `payload_type`, `exception`, `label`, `color`                                                                                     |
 | `profiler`  | `name` (the application or the file), `format`                                                                                    |
 
+An `xdebug-trace` event has no fields: its summary starts with the URL or the name of the trace, so `search` finds it.
 The `list_events` description lists the fields too. Examples:
 
 - Errors in the last 5 minutes: `{"from": "5m", "where": {"level": "error"}}`: the log records and the Sentry

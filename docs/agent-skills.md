@@ -19,8 +19,9 @@ The agent loads the skill when it debugs or profiles code at runtime, reads what
   reach Trap, and deletes the events of its runs. Events caught before, as the ones you watch in the console or the
   [web UI](web-ui.md), stay.
 
-The references of the skill cover dumps and logs, profiling, long-running workers, pointing Sentry, Monolog, Ray,
-a mailer or OpenTelemetry at Trap, and the server setup.
+The references of the skill cover dumps and logs, profiling and Xdebug function traces, step debugging with the
+[Xdebug debugger](xdebug.md), long-running workers, pointing Sentry, Monolog, Ray, a mailer or OpenTelemetry at Trap,
+and the server setup.
 
 ## Install with Composer
 
