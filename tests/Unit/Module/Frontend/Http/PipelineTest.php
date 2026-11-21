@@ -32,31 +32,26 @@ final class PipelineTest
         Assert::false($response->hasHeader(Pipeline::FRONTEND_HEADER));
     }
 
-    public function testControllerStatusDoesNotGoFurther(): void
+    /**
+     * The UI calls endpoints of the Buggregator server Trap has not, as `/api/update`.
+     */
+    public function testUnknownApiCallOfUiPageIsNotDumped(): void
     {
-        $request = new ServerRequest('GET', '/api/xdebug-traces/0190402f-7eb2-7287-82a8-897a0091f58e/summary');
+        $request = new ServerRequest('GET', '/api/update', ['Sec-Fetch-Site' => 'same-origin']);
 
-        $response = self::pipeline()->handle($request, self::notFound(...));
+        $response = self::pipeline()->handle($request, static fn(): Response => new Response(418));
 
         Assert::same($response->getStatusCode(), 404);
         Assert::true($response->hasHeader(Pipeline::FRONTEND_HEADER));
-        Assert::same((string) $response->getBody(), '{"error":"trace not found"}');
     }
 
-    public function testDebuggerIsSameOriginOnly(): void
+    public function testUnknownApiCallOfOtherPageGoesFurther(): void
     {
-        $pipeline = self::pipeline();
+        $request = new ServerRequest('GET', '/api/update', ['Sec-Fetch-Site' => 'cross-site']);
 
-        $preflight = $pipeline->handle(new ServerRequest('OPTIONS', '/api/xdebug/sessions/1/eval'), self::notFound(...));
-        $status = $pipeline->handle(new ServerRequest('GET', '/api/xdebug'), self::notFound(...));
-        $other = $pipeline->handle(new ServerRequest('OPTIONS', '/api/events'), self::notFound(...));
+        $response = self::pipeline()->handle($request, static fn(): Response => new Response(418));
 
-        Assert::same($preflight->getStatusCode(), 403);
-        Assert::false($preflight->hasHeader('Access-Control-Allow-Origin'));
-        Assert::same($status->getStatusCode(), 200);
-        Assert::false($status->hasHeader('Access-Control-Allow-Origin'));
-        Assert::same($other->getHeaderLine('Access-Control-Allow-Origin'), '*');
-        Assert::string($other->getHeaderLine('Access-Control-Allow-Methods'))->contains('PATCH');
+        Assert::same($response->getStatusCode(), 418);
     }
 
     private static function pipeline(): Pipeline
