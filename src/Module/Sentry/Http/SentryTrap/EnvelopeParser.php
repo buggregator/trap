@@ -22,6 +22,7 @@ final class EnvelopeParser
     public static function parse(
         StreamInterface $stream,
         \DateTimeImmutable $time = new \DateTimeImmutable(),
+        ?string $project = null,
     ): SentryEnvelope {
         // Parse headers
         $headers = \json_decode(self::readLine($stream), true, 32, JSON_THROW_ON_ERROR);
@@ -37,7 +38,7 @@ final class EnvelopeParser
             }
         } while (true);
 
-        return new SentryEnvelope($headers, $items, $time);
+        return new SentryEnvelope($headers, $items, $time, $project);
     }
 
     /**

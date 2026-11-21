@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend\Http;
 
+use Buggregator\Trap\Module\Frontend\Message\HttpError;
 use Buggregator\Trap\Module\Frontend\UiControllers;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Handler\Router\Method;
 use Buggregator\Trap\Server\Handler\Router\Router as CommonRouter;
+use Buggregator\Trap\Server\Info;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\Response;
@@ -58,10 +60,12 @@ final class Router implements Middleware
             $message = $handler(...$params);
 
             return new Response(
-                200,
+                $message instanceof HttpError ? $message->status : 200,
                 [
                     'Content-Type' => 'application/json',
                     'Cache-Control' => 'no-cache',
+                    // Tells the pipeline that a 404 is the answer of an endpoint, not an unknown path.
+                    Pipeline::FRONTEND_HEADER => Info::version(),
                 ],
                 // A flame chart nests as deep as the recursion in the profiled code
                 Json::encode($message, depth: 10_000),

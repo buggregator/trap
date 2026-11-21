@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Tracing;
 
+use Buggregator\Trap\Module\Tracing\Frame\OtlpLogs;
+use Buggregator\Trap\Module\Tracing\Frame\OtlpMetrics;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\Attributes;
 use Buggregator\Trap\Server\Proto\Frame as ProtoFrame;
@@ -40,6 +42,8 @@ abstract class Frame extends ProtoFrame implements LocalOnlyFrame
         /** @psalm-suppress InvalidArgument */
         $result = match ($data['type']) {
             OtlpTraces::OTLP_FRAME_TYPE => OtlpTraces::fromArray($data, $time),
+            OtlpLogs::OTLP_FRAME_TYPE => OtlpLogs::fromArray($data, $time),
+            OtlpMetrics::OTLP_FRAME_TYPE => OtlpMetrics::fromArray($data, $time),
             default => throw new \InvalidArgumentException('Unknown OTLP frame type.'),
         };
 

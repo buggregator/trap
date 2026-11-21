@@ -32,6 +32,17 @@ final class PipelineTest
         Assert::false($response->hasHeader(Pipeline::FRONTEND_HEADER));
     }
 
+    public function testNotFoundOfAnEndpointStaysTheAnswer(): void
+    {
+        $response = self::pipeline()->handle(
+            new ServerRequest('GET', '/api/sentry/traces/ffffffffffffffffffffffffffffffff'),
+            static fn(): Response => new Response(500),
+        );
+
+        Assert::same($response->getStatusCode(), 404);
+        Assert::same((string) $response->getBody(), '{"message":"trace not found","code":404}');
+    }
+
     private static function pipeline(): Pipeline
     {
         return (new ObjectContainer())->get(Pipeline::class);

@@ -65,7 +65,7 @@ phive install buggregator/trap
 | `ext-simplexml`                                          | loading [`trap.xml`](configuration.md#trapxml)                                                   |
 | `ext-excimer`, `ext-xhprof`, `ext-tideways_xhprof`       | [profiling code](profiling.md) with `trap()::profile()`                                          |
 | `ext-spx`                                                | [profiling code with SPX](spx.md)                                                                |
-| `open-telemetry/gen-otlp-protobuf` and `google/protobuf` | [OpenTelemetry traces](opentelemetry.md) over `http/protobuf`; the Phar and the binary lack them |
+| `open-telemetry/gen-otlp-protobuf` and `google/protobuf` | [OpenTelemetry](opentelemetry.md) over `http/protobuf`; the Phar and the binary lack them         |
 
 ## Next steps
 

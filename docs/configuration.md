@@ -57,6 +57,9 @@ TRAP_TCP_PORTS=9912,8000 vendor/bin/trap
 | `TRAP_SPX_PATH`               | `spx.data_dir`             | Directory to pick up [SPX](spx.md) full reports from; `spx.data_dir` is used when ext-spx is loaded in Trap's PHP.                                                                                                                     |
 | `TRAP_TRACES_MAX_SPANS`       | `10000`                    | Maximum number of kept [OpenTelemetry](opentelemetry.md#memory-limits) spans.                                                                                                                                                          |
 | `TRAP_TRACES_TTL`             | `600`                      | Seconds an OpenTelemetry trace is kept after its last received span.                                                                                                                                                                   |
+| `TRAP_TELEMETRY_MAX_SPANS`    | `10000`                    | Maximum number of transactions and spans the [Sentry pages](web-ui.md#sentry-pages) of the web UI keep.                                                                                                                                |
+| `TRAP_TELEMETRY_MAX_LOGS`     | `5000`                     | Maximum number of log records the Sentry pages of the web UI keep.                                                                                                                                                                     |
+| `TRAP_TELEMETRY_MAX_METRICS`  | `5000`                     | Maximum number of metric values the Sentry pages of the web UI keep.                                                                                                                                                                   |
 
 The defaults in the column of the profiler directories are PHP INI settings of the PHP that runs Trap.
 
@@ -91,6 +94,7 @@ The client reads these variables from `$_ENV` or the process environment.
     <events maxEvents="200"/>
     <frontend port="8000"/>
     <traces maxSpans="10000" ttl="600"/>
+    <telemetry maxSpans="10000" maxLogs="5000" maxMetrics="5000"/>
 </trap>
 ```
 
@@ -106,6 +110,9 @@ The client reads these variables from `$_ENV` or the process environment.
 | `/trap/tls/@key`          | Key of the certificate, as `TRAP_TLS_KEY`                            |
 | `/trap/traces/@maxSpans`  | As `TRAP_TRACES_MAX_SPANS`                                           |
 | `/trap/traces/@ttl`       | As `TRAP_TRACES_TTL`                                                 |
+| `/trap/telemetry/@maxSpans`   | As `TRAP_TELEMETRY_MAX_SPANS`                                    |
+| `/trap/telemetry/@maxLogs`    | As `TRAP_TELEMETRY_MAX_LOGS`                                     |
+| `/trap/telemetry/@maxMetrics` | As `TRAP_TELEMETRY_MAX_METRICS`                                  |
 
 Trap reads only the `trap.xml` of its own package (e.g. `vendor/buggregator/trap/trap.xml`), and only with
 `ext-simplexml`. The Phar and the binary carry their own copy.

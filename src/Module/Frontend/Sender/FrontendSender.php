@@ -13,6 +13,7 @@ use Buggregator\Trap\Server\Sender;
 use Buggregator\Trap\Server\Sender\ConsumesEvents;
 use Buggregator\Trap\Server\Sender\HttpEndpoint;
 use Buggregator\Trap\Server\Sender\ObservesHttpHost;
+use Buggregator\Trap\Server\Telemetry\TelemetryStore;
 
 /**
  * @internal
@@ -31,9 +32,12 @@ final class FrontendSender implements Sender, ConsumesEvents, ObservesHttpHost, 
         EventStore $events,
         Frontend\EventPusher $pusher,
         private readonly Logger $logger,
+        TelemetryStore $telemetry = new TelemetryStore(),
+        ?Frontend\TelemetryPusher $telemetryPusher = null,
     ) {
         $uiChannel->enable();
         $events->listen($pusher);
+        $telemetry->listen($telemetryPusher ?? new Frontend\TelemetryPusher($connectionPool));
     }
 
     /**
