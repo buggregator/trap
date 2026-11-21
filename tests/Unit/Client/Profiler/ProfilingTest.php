@@ -510,7 +510,7 @@ final class ProfilingTest extends Base
     public function writesFileInDirectoryTakingNoNewFile(): void
     {
         \DIRECTORY_SEPARATOR === '\\' and throw new SkipTest('Windows keeps no directory from new files');
-        \function_exists('posix_geteuid') && posix_geteuid() === 0 and throw new SkipTest('root writes anywhere');
+        \function_exists('posix_geteuid') && \posix_geteuid() === 0 and throw new SkipTest('root writes anywhere');
         $dir = $this->dir . '/locked';
         $file = $dir . '/profile.txt';
         \mkdir($dir, 0777, true);
