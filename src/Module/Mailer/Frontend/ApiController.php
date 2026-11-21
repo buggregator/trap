@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mailer\Frontend;
 
-use Buggregator\Trap\Module\Frontend\Message\Success;
+use Buggregator\Trap\Module\Frontend\Message\Error;
 use Buggregator\Trap\Module\Mailer\Frontend\Message\Attachments;
 use Buggregator\Trap\Server\Event\AttachedFile;
 use Buggregator\Trap\Server\Event\EventStore;
@@ -23,17 +23,17 @@ final class ApiController
         private readonly EventStore $eventsStorage,
     ) {}
 
-    #[RegexpRoute(Method::Get, '#^api/smtp/(?<uuid>[a-f0-9-]++)/attachments$#i')]
-    #[AssertSuccess(Method::Get, 'api/smtp/018ff30e-a452-7316-b60f-a2d1c3fe16ab/attachments', [
+    #[RegexpRoute(Method::Get, '#^api/smtp/attachments/(?<uuid>[a-f0-9-]++)$#i')]
+    #[AssertSuccess(Method::Get, 'api/smtp/attachments/018ff30e-a452-7316-b60f-a2d1c3fe16ab', [
         'uuid' => '018ff30e-a452-7316-b60f-a2d1c3fe16ab',
     ]),]
-    public function smtpAttachments(string $uuid): Attachments|Success
+    public function smtpAttachments(string $uuid): Attachments|Error
     {
         $this->logger->debug('[UI Service] Show SMTP %s attachments', $uuid);
         $event = $this->eventsStorage->get($uuid);
 
         if ($event === null) {
-            return new Success(status: false);
+            return Error::notFound('Event not found');
         }
 
         $attaches = [];

@@ -114,21 +114,21 @@ final class UiControllersTest
             'data' => [[
                 'uuid' => $attachId,
                 'name' => 'doc.pdf',
-                'path' => "{$event->uuid}/attachment/{$attachId}",
+                'path' => "/api/smtp/attachments/{$event->uuid}/{$attachId}",
                 'size' => 3,
                 'mime' => 'application/pdf',
             ]],
             'meta' => ['grid' => []],
         ];
 
-        $response = self::get($container, "/api/smtp/{$event->uuid}/attachments");
-        $rpc = $container->get(RPC::class)->handleMessage(['method' => "get:api/smtp/{$event->uuid}/attachments"]);
+        $response = self::get($container, "/api/smtp/attachments/{$event->uuid}");
+        $rpc = $container->get(RPC::class)->handleMessage(['method' => "get:api/smtp/attachments/{$event->uuid}"]);
 
         Assert::same(\json_decode((string) $response->getBody(), true), $expected);
         Assert::same(self::json($rpc), ['data' => ['code' => 200, 'data' => $expected]]);
         Assert::same(
-            \json_decode((string) self::get($container, '/api/smtp/0000-1111/attachments')->getBody(), true),
-            ['code' => 200, 'status' => false],
+            \json_decode((string) self::get($container, '/api/smtp/attachments/0000-1111')->getBody(), true),
+            ['message' => 'Event not found', 'code' => 404],
         );
     }
 
@@ -138,7 +138,7 @@ final class UiControllersTest
         [$event, $attachId] = self::smtpEvent($container);
 
         $html = self::get($container, "/api/smtp/{$event->uuid}/html");
-        $file = self::get($container, "/api/smtp/{$event->uuid}/attachment/{$attachId}");
+        $file = self::get($container, "/api/smtp/attachments/{$event->uuid}/{$attachId}");
 
         Assert::same($html->getStatusCode(), 200);
         Assert::same($html->getHeaderLine('Content-Type'), 'text/html; charset=utf-8');

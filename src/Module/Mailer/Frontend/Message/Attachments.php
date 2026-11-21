@@ -27,7 +27,7 @@ final class Attachments implements \JsonSerializable
             $this->data[] = [
                 'uuid' => $file->uuid,
                 'name' => $file->file->getClientFilename(),
-                'path' => "$event->uuid/attachment/$file->uuid",
+                'path' => "/api/smtp/attachments/$event->uuid/$file->uuid",
                 'size' => $file->file->getSize(),
                 'mime' => $file->file->getClientMediaType(),
             ];

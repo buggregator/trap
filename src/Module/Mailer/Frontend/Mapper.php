@@ -72,7 +72,7 @@ final class Mapper implements EventMapper
      */
     private static function assetLink(string $uuid, Asset $asset): string
     {
-        return "/api/smtp/$uuid/attachment/$asset->uuid";
+        return "/api/smtp/attachments/$uuid/$asset->uuid";
     }
 
     /**
