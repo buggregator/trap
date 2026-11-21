@@ -216,6 +216,21 @@ final class UiControllersTest
         Assert::count($container->get(EventStore::class), 1);
     }
 
+    public function testParameterOfWrongTypeIsBadRequest(): void
+    {
+        $container = new ObjectContainer();
+        $pipeline = $container->get(Pipeline::class);
+        $next = static fn(): Response => new Response(418);
+
+        $preview = self::get($container, '/api/events/preview?project[]=x');
+        $clear = $pipeline->handle(new ServerRequest('DELETE', '/api/events', [], '{"uuids":"x"}'), $next);
+        $rpc = $container->get(RPC::class)->handleMessage(['method' => 'delete:api/events', 'data' => ['project' => []]]);
+
+        Assert::same($preview->getStatusCode(), 400);
+        Assert::same($clear->getStatusCode(), 400);
+        Assert::same(self::json($rpc)['data']['code'], 400);
+    }
+
     public function testMissingEventIsNotFoundOverHttp(): void
     {
         $response = self::get(new ObjectContainer(), '/api/event/0145a0e0-0b1a');

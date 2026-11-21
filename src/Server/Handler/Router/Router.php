@@ -8,6 +8,7 @@ use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRoute as AssertAttrib
 use Buggregator\Trap\Server\Handler\Router\Attribute\QueryParam as RouteQueryParam;
 use Buggregator\Trap\Server\Handler\Router\Attribute\Route as RouteAttribute;
 use Buggregator\Trap\Server\Handler\Router\Exception\AssertRouteFailed;
+use Buggregator\Trap\Server\Handler\Router\Exception\InvalidRouteArgument;
 
 /**
  * @internal
@@ -158,7 +159,7 @@ final class Router
 
         $queryName ??= $name;
         if (!isset($params[$queryName])) {
-            $param->isDefaultValueAvailable() or throw new \InvalidArgumentException(\sprintf(
+            $param->isDefaultValueAvailable() or throw new InvalidRouteArgument(\sprintf(
                 'Query parameter `%s` is required.',
                 $queryName,
             ));
@@ -181,7 +182,7 @@ final class Router
                     return (array) $value;
                 case $typeString === 'int':
                     return (int) (\is_array($value)
-                        ? throw new \InvalidArgumentException(
+                        ? throw new InvalidRouteArgument(
                             \sprintf(
                                 'Query parameter `%s` must be an integer, array given.',
                                 $queryName,
@@ -190,7 +191,7 @@ final class Router
                         : $value);
                 case $typeString === 'float':
                     return (float) (\is_array($value)
-                        ? throw new \InvalidArgumentException(
+                        ? throw new InvalidRouteArgument(
                             \sprintf(
                                 'Query parameter `%s` must be an integer, array given.',
                                 $queryName,
@@ -199,7 +200,7 @@ final class Router
                         : $value);
                 case $typeString === 'string':
                     return (string) (\is_array($value)
-                        ? throw new \InvalidArgumentException(
+                        ? throw new InvalidRouteArgument(
                             \sprintf(
                                 'Query parameter `%s` must be a string, array given.',
                                 $queryName,
@@ -211,7 +212,7 @@ final class Router
             }
         }
 
-        throw new \InvalidArgumentException(\sprintf(
+        throw new InvalidRouteArgument(\sprintf(
             'Query parameter `%s` must be of type `%s`, `%s` given.',
             $queryName,
             $type,
