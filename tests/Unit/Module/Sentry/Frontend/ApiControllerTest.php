@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Sentry\Frontend;
 
-use Buggregator\Trap\Module\Frontend\Message\HttpError;
+use Buggregator\Trap\Module\Frontend\Message\Error;
 use Buggregator\Trap\Module\Sentry\Frontend\Api\ErrorEvent;
 use Buggregator\Trap\Module\Sentry\Frontend\Api\Json;
 use Buggregator\Trap\Module\Sentry\Frontend\Api\Scope;
 use Buggregator\Trap\Module\Sentry\Frontend\Api\TraceView;
 use Buggregator\Trap\Module\Sentry\Frontend\ApiController;
+use Buggregator\Trap\Module\Sentry\Frontend\ClearController;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventStore;
+use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Telemetry\Batch;
 use Buggregator\Trap\Server\Telemetry\Log;
 use Buggregator\Trap\Server\Telemetry\Metric;
@@ -26,6 +28,7 @@ use Testo\Lifecycle\BeforeTest;
 use Testo\Test;
 
 #[Covers(ApiController::class)]
+#[Covers(ClearController::class)]
 #[Covers(TraceView::class)]
 #[Covers(ErrorEvent::class)]
 #[Covers(Scope::class)]
@@ -127,8 +130,8 @@ final class ApiControllerTest
         Assert::same(\array_column($this->api->traces(project: 'other')['data'], 'trace_id'), [self::T2]);
         Assert::same(\array_column($this->api->traces(window: '1h')['data'], 'trace_id'), [self::T1]);
         $error = $this->api->traces(source: 'zipkin');
-        Assert::instanceOf($error, HttpError::class);
-        Assert::same($error->status, 400);
+        Assert::instanceOf($error, Error::class);
+        Assert::same($error->httpCode(), 400);
     }
 
     public function testShowsTraceWithEntrySpansOfOtherServices(): void
@@ -156,8 +159,8 @@ final class ApiControllerTest
 
         $result = $this->api->trace('ffffffffffffffffffffffffffffffff');
 
-        Assert::instanceOf($result, HttpError::class);
-        Assert::same($result->status, 404);
+        Assert::instanceOf($result, Error::class);
+        Assert::same($result->httpCode(), 404);
         Assert::same($result->jsonSerialize(), ['message' => 'trace not found', 'code' => 404]);
     }
 
@@ -174,7 +177,7 @@ final class ApiControllerTest
         Assert::same(\array_column($related['data'], 'trace_exists'), [true, true]);
         Assert::same(\array_column($this->api->logs(source: 'otel')['data'], 'body'), ['trace log']);
         Assert::same($all['data'][1]['service_name'], 'billing');
-        Assert::instanceOf($this->api->logs(source: 'x'), HttpError::class);
+        Assert::instanceOf($this->api->logs(source: 'x'), Error::class);
     }
 
     public function testFiltersMetrics(): void
@@ -192,7 +195,7 @@ final class ApiControllerTest
     {
         $this->fill();
 
-        $this->api->clear(project: 'shop');
+        $this->clear()->clear(project: 'shop');
 
         Assert::same($this->api->counts(), ['exceptions' => 1, 'traces' => 1, 'logs' => 1, 'metrics' => 1]);
         Assert::notBlank($this->events->get('other'));
@@ -202,7 +205,7 @@ final class ApiControllerTest
     {
         $this->fill();
 
-        $this->api->clear();
+        $this->clear()->clear();
 
         Assert::same($this->api->counts(), ['exceptions' => 0, 'traces' => 0, 'logs' => 0, 'metrics' => 0]);
         Assert::notBlank($this->events->get('other'));
@@ -217,6 +220,11 @@ final class ApiControllerTest
         Assert::null(Scope::fromQuery(project: ' ')->project);
         Assert::false((new Scope(from: 1.0))->contains('default', null));
         Assert::true((new Scope())->contains('default', null));
+    }
+
+    private function clear(): ClearController
+    {
+        return new ClearController(new Logger(), $this->events, $this->telemetry);
     }
 
     /**

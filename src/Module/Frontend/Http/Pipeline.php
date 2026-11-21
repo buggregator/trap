@@ -50,8 +50,7 @@ final class Pipeline implements Middleware
         /** @var ResponseInterface $response */
         $response = ($this->pipeline)($request);
 
-        // A 404 of an endpoint, such as an unknown trace, carries the header already and stays the answer.
-        return $response->getStatusCode() === 404 && !$response->hasHeader(self::FRONTEND_HEADER)
+        return $response->getStatusCode() === 404
             ? $next($request)
             : $response->withHeader(self::FRONTEND_HEADER, Info::version());
     }

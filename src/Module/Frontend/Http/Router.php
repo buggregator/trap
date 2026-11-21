@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend\Http;
 
-use Buggregator\Trap\Module\Frontend\Message\HttpError;
+use Buggregator\Trap\Module\Frontend\Message\HttpCode;
 use Buggregator\Trap\Module\Frontend\UiControllers;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Handler\Router\Method;
 use Buggregator\Trap\Server\Handler\Router\Router as CommonRouter;
-use Buggregator\Trap\Server\Info;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\Response;
@@ -40,32 +39,29 @@ final class Router implements Middleware
             $handler = $this->router->match($method, (string) $request->getUri());
 
             if ($handler === null) {
-                return new Response(404);
+                return $next($request);
             }
 
-            try {
-                // Params
-                if ($method === Method::Get) {
-                    $params = $request->getQueryParams();
-                } else {
-                    /** @var mixed $params */
-                    $params = Json::decode((string) $request->getBody());
-                    \is_array($params) or $params = [];
+            // Params: the query, and the JSON body of a request other than GET
+            $params = $request->getQueryParams();
+            if ($method !== Method::Get) {
+                try {
+                    /** @var mixed $body */
+                    $body = Json::decode((string) $request->getBody());
+                    \is_array($body) and $params = [...$params, ...$body];
+                } catch (\Throwable) {
+                    // No JSON body
                 }
-            } catch (\Throwable) {
-                $params = [];
             }
 
             /** @var mixed $message */
-            $message = $handler(...$params);
+            $message = $handler(...\array_filter($params, \is_string(...), \ARRAY_FILTER_USE_KEY));
 
             return new Response(
-                $message instanceof HttpError ? $message->status : 200,
+                $message instanceof HttpCode ? $message->httpCode() : 200,
                 [
                     'Content-Type' => 'application/json',
                     'Cache-Control' => 'no-cache',
-                    // Tells the pipeline that a 404 is the answer of an endpoint, not an unknown path.
-                    Pipeline::FRONTEND_HEADER => Info::version(),
                 ],
                 // A flame chart nests as deep as the recursion in the profiled code
                 Json::encode($message, depth: 10_000),

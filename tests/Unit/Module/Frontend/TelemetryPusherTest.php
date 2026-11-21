@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend;
 
 use Buggregator\Trap\Module\Frontend\ConnectionPool;
+use Buggregator\Trap\Module\Frontend\Publisher;
 use Buggregator\Trap\Module\Frontend\TelemetryPusher;
 use Buggregator\Trap\Server\Traffic\StreamClient;
 use Internal\Container\ObjectContainer;
@@ -13,6 +14,7 @@ use Testo\Codecov\Covers;
 use Testo\Test;
 
 #[Covers(TelemetryPusher::class)]
+#[Covers(Publisher::class)]
 #[Test]
 final class TelemetryPusherTest
 {
@@ -27,7 +29,7 @@ final class TelemetryPusherTest
         $pool = (new ObjectContainer())->get(ConnectionPool::class);
         $pool->addStream($client);
 
-        (new TelemetryPusher($pool))->stored('shop', ['trace', 'log']);
+        (new TelemetryPusher(new Publisher($pool)))->stored('shop', ['trace', 'log']);
 
         Assert::string($sent)->endsWith(
             '{"push":{"channel":"events.project.shop","pub":{"data":{"event":"sentry.stored",'

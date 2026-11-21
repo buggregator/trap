@@ -21,6 +21,7 @@ use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
 use Buggregator\Trap\Module\Ray\Frontend\LocksController as RayLocksController;
 use Buggregator\Trap\Module\Ray\Lock\Locks;
 use Buggregator\Trap\Module\Sentry\Frontend\ApiController as SentryApiController;
+use Buggregator\Trap\Module\Sentry\Frontend\ClearController as SentryClearController;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteSuccess;
@@ -54,6 +55,7 @@ final class UiControllersTest
                 Service::class,
                 MailerApiController::class,
                 RayLocksController::class,
+                SentryClearController::class,
                 SentryApiController::class,
                 ProfilerApiController::class,
             ],

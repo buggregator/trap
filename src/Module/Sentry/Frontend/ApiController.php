@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Sentry\Frontend;
 
-use Buggregator\Trap\Module\Frontend\Message\HttpError;
-use Buggregator\Trap\Module\Frontend\Message\Success;
+use Buggregator\Trap\Module\Frontend\Message\Error;
 use Buggregator\Trap\Module\Sentry\Frontend\Api\ErrorEvent;
 use Buggregator\Trap\Module\Sentry\Frontend\Api\Json;
 use Buggregator\Trap\Module\Sentry\Frontend\Api\Scope;
@@ -183,9 +182,9 @@ final class ApiController
         #[QueryParam] ?string $service = null,
         #[QueryParam] int $page = 1,
         #[QueryParam] int $limit = 50,
-    ): array|HttpError {
+    ): array|Error {
         if (!\in_array($source ?? '', self::SOURCES, true)) {
-            return new HttpError(400, 'source must be sentry or otel');
+            return new Error('source must be sentry or otel', 400);
         }
 
         $scope = Scope::fromQuery($project, $window, $from, $to);
@@ -231,14 +230,14 @@ final class ApiController
         'project' => null,
     ]),
         AssertFail(Method::Get, 'api/sentry/traces/'),]
-    public function trace(string $traceId, #[QueryParam] ?string $project = null): array|HttpError
+    public function trace(string $traceId, #[QueryParam] ?string $project = null): array|Error
     {
         $project = \trim((string) $project);
         $project = $project === '' ? null : $project;
         $trace = $this->telemetry->trace($traceId);
         $root = $trace?->root($project);
         if ($trace === null || $root === null) {
-            return new HttpError(404, 'trace not found');
+            return Error::notFound('trace not found');
         }
 
         $result = (new TraceView($trace, $project))->detail($root);
@@ -279,9 +278,9 @@ final class ApiController
         #[QueryParam] ?string $source = null,
         #[QueryParam] int $page = 1,
         #[QueryParam] int $limit = 100,
-    ): array|HttpError {
+    ): array|Error {
         if (!\in_array($source ?? '', self::SOURCES, true)) {
-            return new HttpError(400, 'source must be sentry or otel');
+            return new Error('source must be sentry or otel', 400);
         }
 
         $levels = \array_filter(\array_map('trim', \explode(',', (string) $level)), static fn(string $l): bool => $l !== '');
@@ -354,27 +353,6 @@ final class ApiController
         ], $result['data']);
 
         return $result;
-    }
-
-    /**
-     * Deletes the Sentry data of the UI: the `sentry` events, traces, logs and metrics.
-     *
-     * @param string|null $project Only this project; every project when null.
-     */
-    #[StaticRoute(Method::Delete, 'api/sentry/all')]
-    #[AssertSuccess(Method::Delete, 'api/sentry/all')]
-    public function clear(#[QueryParam] ?string $project = null): Success
-    {
-        $project = \trim((string) $project);
-        $project = $project === '' ? null : $project;
-
-        $this->telemetry->clear($project);
-        foreach (\iterator_to_array($this->events) as $event) {
-            $event->type === 'sentry' && ($project === null || $event->projectKey() === $project)
-                and $this->events->delete($event->uuid);
-        }
-
-        return new Success();
     }
 
     /**

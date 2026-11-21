@@ -37,7 +37,7 @@ final class FrontendSender implements Sender, ConsumesEvents, ObservesHttpHost, 
     ) {
         $uiChannel->enable();
         $events->listen($pusher);
-        $telemetry->listen($telemetryPusher ?? new Frontend\TelemetryPusher($connectionPool));
+        $telemetry->listen($telemetryPusher ?? new Frontend\TelemetryPusher(new Frontend\Publisher($connectionPool)));
     }
 
     /**

@@ -81,7 +81,7 @@ final class SelfSignedCertificate
     public static function userId(): ?int
     {
         if (\function_exists('posix_geteuid')) {
-            return \posix_geteuid();
+            return posix_geteuid();
         }
 
         if (\PHP_OS_FAMILY === 'Windows') {
