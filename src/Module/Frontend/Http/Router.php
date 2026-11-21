@@ -67,11 +67,6 @@ final class Router implements Middleware
             /** @var mixed $message */
             $message = $handler(...\array_filter($params, \is_string(...), \ARRAY_FILTER_USE_KEY));
 
-            // A controller answering with a status of its own: its 404 must not fall through the pipeline
-            if ($message instanceof ResponseInterface) {
-                return $message->withHeader(Pipeline::FRONTEND_HEADER, Info::version());
-            }
-
             return new Response(
                 $message instanceof HttpCode ? $message->httpCode() : 200,
                 [

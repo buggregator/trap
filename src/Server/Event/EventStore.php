@@ -31,6 +31,12 @@ final class EventStore implements \IteratorAggregate, \Countable
      */
     private array $records = [];
 
+    /**
+     * UUIDs of the pinned events: the {@see Config::$maxEvents} limit pushes them out last.
+     * @var array<non-empty-string, true>
+     */
+    private array $pinned = [];
+
     private bool $sorted = false;
     private bool $keepFrames = false;
 
@@ -83,9 +89,9 @@ final class EventStore implements \IteratorAggregate, \Countable
         }
 
         if (\count($this->records) > $this->config->maxEvents) {
-            $oldest = $this->oldest();
+            $oldest = $this->oldest($event);
             if ($oldest === $event->uuid) {
-                // Older than all the kept ones: the listeners never see it
+                // Older than the one to push out: the listeners never see it
                 unset($this->records[$oldest]);
                 return $record;
             }
@@ -101,8 +107,32 @@ final class EventStore implements \IteratorAggregate, \Countable
     public function clear(): void
     {
         $this->records = [];
+        $this->pinned = [];
 
         $this->notify(static fn(StoreListener $listener) => $listener->cleared());
+    }
+
+    /**
+     * @return bool False when there is no such event.
+     */
+    public function pin(string $uuid, bool $pinned = true): bool
+    {
+        if ($uuid === '' || !isset($this->records[$uuid])) {
+            return false;
+        }
+
+        if ($pinned) {
+            $this->pinned[$uuid] = true;
+        } else {
+            unset($this->pinned[$uuid]);
+        }
+
+        return true;
+    }
+
+    public function isPinned(string $uuid): bool
+    {
+        return isset($this->pinned[$uuid]);
     }
 
     public function delete(string $uuid): void
@@ -112,7 +142,7 @@ final class EventStore implements \IteratorAggregate, \Countable
             return;
         }
 
-        unset($this->records[$uuid]);
+        unset($this->records[$uuid], $this->pinned[$uuid]);
 
         $this->notify(static fn(StoreListener $listener) => $listener->deleted($record));
     }
@@ -196,21 +226,30 @@ final class EventStore implements \IteratorAggregate, \Countable
     }
 
     /**
+     * The event to push out for the new one: the oldest of the others not pinned, the oldest of them
+     * when all are pinned; the new one when it is older.
+     *
      * @return non-empty-string
      */
-    private function oldest(): string
+    private function oldest(Event $new): string
     {
-        $uuid = \array_key_first($this->records);
-        \assert($uuid !== null);
-        $time = $this->records[$uuid]->event->timestamp;
+        $uuid = null;
+        $time = \INF;
+        $pinned = true;
         foreach ($this->records as $key => $record) {
-            if ($record->event->timestamp < $time) {
+            if ($key === $new->uuid) {
+                continue;
+            }
+
+            $isPinned = isset($this->pinned[$key]);
+            if ($pinned && !$isPinned || $isPinned === $pinned && $record->event->timestamp < $time) {
                 $uuid = $key;
                 $time = $record->event->timestamp;
+                $pinned = $isPinned;
             }
         }
 
-        return $uuid;
+        return $uuid === null || $new->timestamp < $time ? $new->uuid : $uuid;
     }
 
     /**

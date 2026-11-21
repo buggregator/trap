@@ -153,6 +153,39 @@ final class EventStoreTest
         Assert::same($listener->calls, ['added:new']);
     }
 
+    public function testLimitPushesOutTheOldestEventNotPinned(): void
+    {
+        $store = self::store(maxEvents: 2);
+        $store->add($this->createEvent('a', timestamp: 1.0));
+        $store->add($this->createEvent('b', timestamp: 2.0));
+        Assert::true($store->pin('a'));
+
+        $store->add($this->createEvent('c', timestamp: 3.0));
+
+        Assert::same(\array_keys(\iterator_to_array($store)), ['c', 'a']);
+        Assert::true($store->isPinned('a'));
+    }
+
+    public function testLimitPushesOutTheOldestPinnedEventWhenAllArePinned(): void
+    {
+        $store = self::store(maxEvents: 1);
+        $store->add($this->createEvent('a', timestamp: 1.0));
+        $store->pin('a');
+
+        $store->add($this->createEvent('b', timestamp: 2.0));
+
+        Assert::same(\array_keys(\iterator_to_array($store)), ['b']);
+        Assert::false($store->isPinned('a'));
+    }
+
+    public function testPinOfMissingEventFails(): void
+    {
+        $store = self::store();
+
+        Assert::false($store->pin('missing'));
+        Assert::false($store->isPinned('missing'));
+    }
+
     public function testFailingListenerIsLoggedAndTheOthersGetTheChange(): void
     {
         $output = new BufferedOutput(OutputInterface::VERBOSITY_VERY_VERBOSE);
