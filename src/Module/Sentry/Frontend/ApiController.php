@@ -8,6 +8,8 @@ use Buggregator\Trap\Module\Frontend\Message\Error;
 use Buggregator\Trap\Module\Sentry\Frontend\Api\ErrorEvent;
 use Buggregator\Trap\Module\Sentry\Frontend\Api\Json;
 use Buggregator\Trap\Module\Sentry\Frontend\Api\Scope;
+use Buggregator\Trap\Module\Sentry\Frontend\Api\Sequence;
+use Buggregator\Trap\Module\Sentry\Frontend\Api\ServiceMap;
 use Buggregator\Trap\Module\Sentry\Frontend\Api\TraceView;
 use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteFail as AssertFail;
@@ -356,6 +358,71 @@ final class ApiController
     }
 
     /**
+     * The calls of a trace in time order; 404 for an unknown trace.
+     */
+    #[RegexpRoute(Method::Get, '#^api/sentry/traces/(?<traceId>[\w-]++)/sequence$#')]
+    #[AssertSuccess(Method::Get, 'api/sentry/traces/5b8efff798038103d269b633813fc60c/sequence', [
+        'traceId' => '5b8efff798038103d269b633813fc60c',
+        'project' => null,
+    ])]
+    public function sequence(string $traceId, #[QueryParam] ?string $project = null): array|Error
+    {
+        $project = \trim((string) $project);
+        $trace = $this->telemetry->trace($traceId);
+        $result = $trace === null ? null : Sequence::json($trace, $project === '' ? null : $project);
+
+        return $result ?? Error::notFound('trace not found');
+    }
+
+    /**
+     * Services and the calls between them over a period: the last hour by default.
+     *
+     * @param string|null $window `15m`, `24h`, `all`, or a number of minutes.
+     */
+    #[StaticRoute(Method::Get, 'api/sentry/service-map')]
+    #[AssertSuccess(Method::Get, 'api/sentry/service-map?project=default&window=1h')]
+    public function serviceMap(
+        #[QueryParam] ?string $project = null,
+        #[QueryParam] ?string $window = null,
+        #[QueryParam] ?string $from = null,
+        #[QueryParam] ?string $to = null,
+    ): array {
+        $now = \microtime(true);
+        return ServiceMap::read($this->telemetry, self::project($project), $window, $from, $to, $now)->json($now);
+    }
+
+    /**
+     * The traces through one edge of the service map, errors first, then the newest.
+     *
+     */
+    #[StaticRoute(Method::Get, 'api/sentry/service-map/edge')]
+    #[AssertSuccess(Method::Get, 'api/sentry/service-map/edge?source=a&target=b&limit=10&offset=20')]
+    public function serviceMapEdge(
+        #[QueryParam] ?string $source = null,
+        #[QueryParam] ?string $target = null,
+        #[QueryParam('op_type')] ?string $opType = null,
+        #[QueryParam] ?string $project = null,
+        #[QueryParam] ?string $window = null,
+        #[QueryParam] ?string $from = null,
+        #[QueryParam] ?string $to = null,
+        #[QueryParam] int $limit = 50,
+        #[QueryParam] int $offset = 0,
+    ): array|Error {
+        if ($source === null || $source === '' || $target === null || $target === '') {
+            return new Error('source and target are required', 400);
+        }
+
+        $now = \microtime(true);
+        $traces = ServiceMap::read($this->telemetry, self::project($project), $window, $from, $to, $now)
+            ->edge($source, $target, $opType);
+
+        return [
+            'total' => \count($traces),
+            'traces' => \array_slice($traces, \max(0, $offset), Json::limit($limit, 50)),
+        ];
+    }
+
+    /**
      * @template T of Log|Metric
      * @param array<array-key, T> $items From the oldest received.
      * @return list<T> By their time, the newest first; the last received first among equal times.
@@ -367,6 +434,15 @@ final class ApiController
         \usort($items, static fn(Log|Metric $a, Log|Metric $b): int => ($b->time ?? 0) <=> ($a->time ?? 0));
 
         return $items;
+    }
+
+    /**
+     * @return non-empty-string|null Null for any project.
+     */
+    private static function project(?string $project): ?string
+    {
+        $project = \trim((string) $project);
+        return $project === '' ? null : $project;
     }
 
     /**
