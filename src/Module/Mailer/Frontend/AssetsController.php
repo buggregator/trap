@@ -20,6 +20,12 @@ use Nyholm\Psr7\Response;
  */
 final class AssetsController
 {
+    /**
+     * Content of a caught email opened by its URL runs in an origin of its own, not as a page of the UI:
+     * no script, no access to the UI API and the debugger.
+     */
+    private const SANDBOX = 'sandbox';
+
     public function __construct(
         private readonly Logger $logger,
         private readonly EventStore $eventsStorage,
@@ -49,6 +55,7 @@ final class AssetsController
             200,
             [
                 'Content-Type' => 'text/html; charset=utf-8',
+                'Content-Security-Policy' => self::SANDBOX,
                 'Cache-Control' => 'no-cache',
             ],
             $html,
@@ -99,6 +106,7 @@ final class AssetsController
                 [
                     'Content-Type' => $attachment->file->getClientMediaType(),
                     'Content-Length' => (string) $attachment->file->getSize(),
+                    'Content-Security-Policy' => self::SANDBOX,
                     'Cache-Control' => 'no-cache',
                 ],
                 $attachment->file->getStream(),

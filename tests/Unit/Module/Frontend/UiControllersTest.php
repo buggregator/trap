@@ -23,6 +23,7 @@ use Buggregator\Trap\Module\Ray\Frontend\LocksController as RayLocksController;
 use Buggregator\Trap\Module\Ray\Lock\Locks;
 use Buggregator\Trap\Module\Sentry\Frontend\ClearController as SentryClearController;
 use Buggregator\Trap\Server\Event\AttachedFile;
+use Buggregator\Trap\Server\Event\EmbeddedFile;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteSuccess;
@@ -330,6 +331,30 @@ final class UiControllersTest
             payload: Payload::new(Type::XHProf, static fn() => $profile),
             timestamp: 0.0,
         );
+    }
+
+    /**
+     * Opened by its URL, a caught email must not run as a page of the UI: it could call the debugger.
+     */
+    public function testSmtpContentOpenedByUrlIsSandboxed(): void
+    {
+        $container = new ObjectContainer();
+        $logo = new File(['Content-Disposition' => ['inline; name="logo"'], 'Content-Type' => ['image/svg+xml']], 'logo', 'logo.svg');
+        $logo->setStream(Stream::create('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'));
+        $message = SmtpMessage::create(protocol: [], headers: [])
+            ->withMessages([new Field(['Content-Type' => ['text/html']], value: '<script>alert(1)</script><img src="cid:logo">')])
+            ->withAttachments([$logo]);
+        $event = (new SmtpMapper())->map(new SmtpFrame($message));
+        $container->get(EventStore::class)->add($event);
+        $embedded = \array_filter(\iterator_to_array($event->assets), static fn(object $a): bool => $a instanceof EmbeddedFile);
+        Assert::count($embedded, 1);
+
+        $html = self::get($container, "/api/smtp/{$event->uuid}/html");
+        $file = self::get($container, "/api/smtp/attachments/{$event->uuid}/" . \array_key_first($embedded));
+
+        Assert::same($html->getHeaderLine('Content-Security-Policy'), 'sandbox');
+        Assert::same($file->getStatusCode(), 200);
+        Assert::same($file->getHeaderLine('Content-Security-Policy'), 'sandbox');
     }
 
     /**
