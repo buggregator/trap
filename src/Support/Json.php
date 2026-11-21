@@ -44,8 +44,13 @@ final class Json
             /** @var mixed $item */
             foreach ($value as $key => $item) {
                 if (\is_float($item) || \is_array($item)) {
-                    /** @psalm-suppress MixedAssignment */
-                    $value[$key] = self::finite($item);
+                    /** @var mixed $finite */
+                    $finite = self::finite($item);
+                    // Assigned only when changed: an assignment copies the shared array.
+                    if ($finite !== $item) {
+                        /** @psalm-suppress MixedAssignment */
+                        $value[$key] = $finite;
+                    }
                 }
             }
         }

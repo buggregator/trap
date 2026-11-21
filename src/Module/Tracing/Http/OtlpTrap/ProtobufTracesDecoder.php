@@ -26,9 +26,6 @@ final class ProtobufTracesDecoder implements TracesDecoder
 {
     public const CONTENT_TYPE = 'application/x-protobuf';
 
-    /** Field numbers of ExportTraceServiceRequest.resource_spans[].scope_spans[].spans[] */
-    private const SPANS_PATH = [[1], [2], [2]];
-
     public function __construct(
         private readonly JsonTracesDecoder $jsonDecoder = new JsonTracesDecoder(),
     ) {}
@@ -41,8 +38,7 @@ final class ProtobufTracesDecoder implements TracesDecoder
     #[\Override]
     public function decode(string $payload, \DateTimeImmutable $time): OtlpTraces
     {
-        $limit = $this->jsonDecoder->maxSpans;
-        ProtobufWire::count($payload, self::SPANS_PATH, $limit) > $limit and throw LimitExceededException::spans($limit);
+        ProtobufWire::check($payload, 'traces', $this->jsonDecoder->maxSpans, 'spans');
 
         $request = new ExportTraceServiceRequest();
         try {

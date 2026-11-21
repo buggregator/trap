@@ -72,8 +72,13 @@ With the [`file` sender](senders.md#file), each export request is saved as one J
 - Exporters running in a browser are not supported: Trap does not answer CORS preflight requests.
 - One export request may carry up to 10 MB (after decompression) and up to 10 000 spans, log records or metric
   data points; a bigger one gets `413`. SDK batch processors export 512 spans at a time by default.
-  A protobuf request is checked on the wire before it is parsed: one with groups or invalid tags gets `400`, and one
-  with more than 10 fields per such record above the record level (resources, scopes, metric descriptions) gets `413`.
+  A protobuf request is checked on the wire before it is parsed: one with groups, invalid tags or nesting deeper
+  than 64 messages gets `400`; one with more than 400 000 elements (records, attributes, events, links, exemplars,
+  nested values, every 8 bucket values) or 2 000 000 protobuf fields gets `413`. That is a Collector batch of
+  10 000 spans with 30 attributes each, and about 200 MB of memory at most.
+  Without `ext-protobuf` the pure-PHP `google/protobuf` builds messages some 50 times slower, so the limit is
+  20 000 elements and each bucket value counts: an SDK batch of 512 spans. Install `ext-protobuf`, use `http/json`
+  or export smaller batches to send more.
 - Port `4318` is also the default port of an OpenTelemetry Collector or Jaeger. On Linux and macOS, when it is
   taken, Trap keeps retrying to listen on it silently (run with `-vv` to see the errors) and works on the other ports.
   On Windows, Trap can listen on `127.0.0.1:4318` even while another process, such as a Collector or Jaeger in
