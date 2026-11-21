@@ -28,6 +28,9 @@ final class ConnectionPool implements \IteratorAggregate, Processable
     /** @var \Fiber[] */
     private array $fibers = [];
 
+    /** @var array<int, array<non-empty-string, true>> Channels each stream is subscribed to, by object ID */
+    private array $subs = [];
+
     public function __construct(
         private readonly Logger $logger,
         private RPC $rpc,
@@ -41,7 +44,7 @@ final class ConnectionPool implements \IteratorAggregate, Processable
             try {
                 $this->processSocket($stream);
             } finally {
-                unset($this->streams[$key]);
+                unset($this->streams[$key], $this->subs[\spl_object_id($stream)]);
             }
         });
     }
@@ -80,6 +83,42 @@ final class ConnectionPool implements \IteratorAggregate, Processable
         foreach ($this->streams as $stream) {
             $stream->sendData($data);
         }
+    }
+
+    /**
+     * Sends a publication to the connected clients, subscribing them to the channel first when needed:
+     * centrifuge-js drops publications of a channel the client is not subscribed to.
+     *
+     * @param non-empty-string $channel
+     */
+    public function publish(string $channel, mixed $data): void
+    {
+        $pub = $this->packPayload(Json::encode(['push' => ['channel' => $channel, 'pub' => ['data' => $data]]]));
+        $subscribe = $this->packPayload(Json::encode(['push' => ['channel' => $channel, 'subscribe' => (object) []]]));
+
+        foreach ($this->streams as $stream) {
+            $id = \spl_object_id($stream);
+            if (!isset($this->subs[$id][$channel])) {
+                $this->subs[$id][$channel] = true;
+                $stream->sendData($subscribe);
+            }
+            $stream->sendData($pub);
+        }
+    }
+
+    /**
+     * Channels any connected client is subscribed to by {@see publish()}.
+     *
+     * @return list<non-empty-string>
+     */
+    public function channels(): array
+    {
+        $channels = [];
+        foreach ($this->streams as $stream) {
+            $channels += $this->subs[\spl_object_id($stream)] ?? [];
+        }
+
+        return \array_keys($channels);
     }
 
     private function processSocket(StreamClient $stream): void

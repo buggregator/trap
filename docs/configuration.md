@@ -59,6 +59,7 @@ TRAP_TCP_PORTS=9912,8000 vendor/bin/trap
 | `TRAP_XDEBUG_TRACE_MAX_UPLOAD` | `100M`                     | Size of an Xdebug trace as sent; a larger one is rejected. See [the format](#size-format).                                                                                                                                             |
 | `TRAP_XDEBUG_TRACE_MAX_SIZE`  | `256M`                     | Uncompressed bytes read of an Xdebug trace; a longer one is cut there.                                                                                                                                                                 |
 | `TRAP_XDEBUG_TRACE_KEEP`      | `20`                       | Xdebug traces kept on disk; a new one deletes the oldest with its event.                                                                                                                                                               |
+| `TRAP_XDEBUG_*`              |                            | Settings of the [Xdebug debugger](xdebug.md#settings): port, IDE address, mode, eval, agent control, idle timeout.                                                                                                                     |
 | `TRAP_TRACES_MAX_SPANS`       | `10000`                    | Maximum number of kept [OpenTelemetry](opentelemetry.md#memory-limits) spans.                                                                                                                                                          |
 | `TRAP_TRACES_TTL`             | `600`                      | Seconds an OpenTelemetry trace is kept after its last received span.                                                                                                                                                                   |
 
@@ -113,6 +114,7 @@ The client reads these variables from `$_ENV` or the process environment.
 | `/trap/xdebugTraces/@maxUpload` | As `TRAP_XDEBUG_TRACE_MAX_UPLOAD`                              |
 | `/trap/xdebugTraces/@maxSize`   | As `TRAP_XDEBUG_TRACE_MAX_SIZE`                                |
 | `/trap/xdebugTraces/@keep`      | As `TRAP_XDEBUG_TRACE_KEEP`                                    |
+| `/trap/xdebug/@*`             | The [Xdebug debugger](xdebug.md#settings) settings: `port`, `host`, `ide`, `mode`, `allowEval`, `allowControl`, `pauseOnFirstLine`, `idleTimeout` |
 
 Trap reads only the `trap.xml` of its own package (e.g. `vendor/buggregator/trap/trap.xml`), and only with
 `ext-simplexml`. The Phar and the binary carry their own copy.

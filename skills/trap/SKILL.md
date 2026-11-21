@@ -1,6 +1,6 @@
 ---
 name: trap
-description: Debug or profile a running PHP application through Buggregator Trap and its MCP tools. Use when reading what the application sent at runtime (dumps, logs, exceptions, mails, requests, traces, profiles), pointing it at Trap, calling Trap MCP tools such as `list_events`, or when code calls trap(), tr() or td().
+description: Debug or profile a running PHP application through Buggregator Trap and its MCP tools. Use when reading what the application sent at runtime (dumps, logs, exceptions, mails, requests, traces, profiles), pointing it at Trap, stepping through PHP code with Xdebug, calling Trap MCP tools such as `list_events`, or when code calls trap(), tr() or td().
 ---
 
 # Trap
@@ -42,6 +42,7 @@ the agent reads back through Trap's MCP tools.
 | [mcp.md](references/mcp.md)                       | Reading events and traces: the tools, filters, the script for agents without MCP                                |
 | [dumps-and-logs.md](references/dumps-and-logs.md) | Seeing values or the code path at runtime: `trap()`, `tr()`, `td()`, `dump()`, `trap()::logger()`               |
 | [profiling.md](references/profiling.md)           | Finding why code is slow or takes memory: `trap()::profile()`, the profilers, reading a profile; Xdebug traces of every call |
+| [xdebug.md](references/xdebug.md)                 | Stopping at a line and stepping through PHP code: Xdebug breakpoints, variables, `xdebug_*` tools            |
 | [workers.md](references/workers.md)               | Debugging RoadRunner, Swoole, FrankenPHP, Octane or queue workers: reloads, volume, memory leaks                |
 | [integrations.md](references/integrations.md)     | Pointing Sentry, Monolog, Ray, a mailer, OpenTelemetry or VarDumper at Trap; checking what a scenario sends out |
 | [server.md](references/server.md)                 | Installing, starting Trap, its ports, TLS, an application in Docker or on another host, the token, `trap.xml`   |

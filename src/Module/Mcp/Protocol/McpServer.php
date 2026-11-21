@@ -118,6 +118,11 @@ final class McpServer
     {
         /** @var mixed $version */
         $version = $params['protocolVersion'] ?? null;
+        /** @var mixed $client */
+        $client = $params['clientInfo'] ?? null;
+        /** @var mixed $name */
+        $name = \is_array($client) ? $client['name'] ?? null : null;
+        \is_string($name) and $this->status->clientNamed($name);
 
         return [
             'protocolVersion' => \in_array($version, self::VERSIONS, true) ? $version : self::VERSIONS[0],

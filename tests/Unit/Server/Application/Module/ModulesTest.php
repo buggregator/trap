@@ -21,6 +21,7 @@ use Buggregator\Trap\Module\Ray\Http\RayTrap;
 use Buggregator\Trap\Module\Sentry\Http\SentryTrap;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap;
 use Buggregator\Trap\Module\VarDumper\Traffic\Dispatcher as VarDumperDispatcher;
+use Buggregator\Trap\Module\XDebug\Traffic\Dispatcher as XDebugDispatcher;
 use Buggregator\Trap\Module\XDebugTrace\Config\TraceDirectory;
 use Buggregator\Trap\Module\XDebugTrace\Http\TraceTrap;
 use Buggregator\Trap\Server\Application\Module\Module;
@@ -107,7 +108,7 @@ final class ModulesTest
             $configs = [...$configs, ...$module->fileObserverConfigs()];
         }
 
-        Assert::same($dispatchers, [VarDumperDispatcher::class, MailerDispatcher::class, MonologDispatcher::class]);
+        Assert::same($dispatchers, [VarDumperDispatcher::class, MailerDispatcher::class, MonologDispatcher::class, XDebugDispatcher::class]);
         Assert::same(
             $middlewares,
             [

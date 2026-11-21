@@ -30,4 +30,5 @@
 - [Senders](senders.md) - console, files, a remote server, the web UI.
 - [Web UI](web-ui.md) - the `--ui` option.
 - [MCP server](mcp.md) - the `--mcp` option: Trap for AI agents.
+- [Xdebug debugger](xdebug.md) - the `--xdebug` option: step debugging from the web UI and AI agents, or relayed to the IDE.
 - [Agent skills](agent-skills.md) - the `trap` skill that teaches coding agents to debug and profile with Trap.
