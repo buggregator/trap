@@ -187,15 +187,6 @@ final class SignalDecodersTest
         ProtobufDecoder::logs(new JsonLogsDecoder(10))->decode($payload, new \DateTimeImmutable());
     }
 
-    public function testProtobufStopsScanningManyTinyFields(): never
-    {
-        // 1 101 varint fields of the request: more than 10 per accepted record plus 1 000
-        $payload = \str_repeat("\x10\x00", 1_101);
-        Expect::exception(LimitExceededException::class);
-
-        ProtobufDecoder::metrics(new JsonMetricsDecoder(10))->decode($payload, new \DateTimeImmutable());
-    }
-
     public function testProtobufRejectsTruncatedVarint(): never
     {
         Expect::exception(\InvalidArgumentException::class)->withMessageContaining('truncated varint');

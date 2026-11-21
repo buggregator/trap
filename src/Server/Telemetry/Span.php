@@ -62,7 +62,7 @@ final class Span
             return self::MAX_DURATION_MS;
         }
 
-        return \max(0, (int) \round($ms));
+        return $ms > 0.0 ? \max(0, (int) \round($ms)) : 0;
     }
 
     /**
