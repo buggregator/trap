@@ -115,11 +115,11 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
 Everything Trap catches is rendered right in the terminal:
 
 | symfony/var-dumper (proto)                                                                             | Binary Data                                                                                             |
-|--------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
 | ![var-dumper](https://github.com/buggregator/trap/assets/4152481/f4c855f5-87c4-4534-b72d-5b19d1aae0b0) | ![Binary Data](https://github.com/buggregator/trap/assets/4152481/cd8788ed-b10c-4b9a-b2e2-baa8912ea38d) |
 
 | SMTP Mail Trap                                                                                   | HTTP Dump                                                                                             |
-|--------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|
+| ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
 | ![smtp](https://github.com/buggregator/trap/assets/4152481/b11c4a7f-072a-4e66-b11d-9bbd3177bfe2) | ![http-dump](https://github.com/buggregator/trap/assets/4152481/48201ce6-7756-4402-8954-76a27489b632) |
 
 Let an AI agent read it too: with `--mcp`, Trap serves what it caught over MCP, so an agent that adds `trap()` calls
@@ -192,24 +192,24 @@ The dump shows up in the terminal of the server. `tr(...)` equals `trap(...)->re
 Trap detects the protocol of each connection, so every port takes every kind of traffic.
 The ports below are the defaults of the clients.
 
-| What                        | Point the client at it                                           | Docs                                                                              |
-|-----------------------------|------------------------------------------------------------------|-----------------------------------------------------------------------------------|
-| Symfony VarDumper, `trap()` | `VAR_DUMPER_FORMAT=server`, `VAR_DUMPER_SERVER=127.0.0.1:9912`   | [var-dumper](docs/var-dumper.md)                                                  |
-| Monolog                     | `SocketHandler('127.0.0.1:9913')` with `JsonFormatter`           | [Monolog](docs/monolog.md)                                                        |
-| Sentry                      | `SENTRY_DSN=http://sentry@127.0.0.1:8000/1`                      | [Sentry](docs/sentry.md)                                                          |
-| SMTP                        | `MAILER_DSN=smtp://127.0.0.1:1025`                               | [SMTP](docs/smtp.md)                                                              |
-| Ray                         | host `127.0.0.1`, port `8000` in `ray.php`                       | [Ray](docs/ray.md)                                                                |
-| HTTP dumps                  | any HTTP request, e.g. `http://127.0.0.1:8000/webhook`           | [HTTP dumps](docs/http-dump.md)                                                   |
-| OpenTelemetry (OTLP)        | `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318`              | [OpenTelemetry](docs/opentelemetry.md)                                            |
-| Profiles                    | `trap()::profile()`, `POST /api/profiler/*`, a watched directory | [Profiling](docs/profiling.md), [receiving](docs/profiles.md), [SPX](docs/spx.md) |
-| Xdebug step debugging       | `--xdebug`, `xdebug.client_port=9003`, the IDE moved to `9004` | [Xdebug debugger](docs/xdebug.md)                                          |
-| Xdebug function traces      | `POST` with `X-Buggregator-Event: xdebug-trace`, a watched directory | [Xdebug traces](docs/xdebug-traces.md)                                     |
-| Binary data                 | any raw bytes                                                    |                                                                                   |
+| What                        | Point the client at it                                               | Docs                                                                              |
+| --------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Symfony VarDumper, `trap()` | `VAR_DUMPER_FORMAT=server`, `VAR_DUMPER_SERVER=127.0.0.1:9912`       | [var-dumper](docs/var-dumper.md)                                                  |
+| Monolog                     | `SocketHandler('127.0.0.1:9913')` with `JsonFormatter`               | [Monolog](docs/monolog.md)                                                        |
+| Sentry                      | `SENTRY_DSN=http://sentry@127.0.0.1:8000/1`                          | [Sentry](docs/sentry.md)                                                          |
+| SMTP                        | `MAILER_DSN=smtp://127.0.0.1:1025`                                   | [SMTP](docs/smtp.md)                                                              |
+| Ray                         | host `127.0.0.1`, port `8000` in `ray.php`                           | [Ray](docs/ray.md)                                                                |
+| HTTP dumps                  | any HTTP request, e.g. `http://127.0.0.1:8000/webhook`               | [HTTP dumps](docs/http-dump.md)                                                   |
+| OpenTelemetry (OTLP)        | `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318`                  | [OpenTelemetry](docs/opentelemetry.md)                                            |
+| Profiles                    | `trap()::profile()`, `POST /api/profiler/*`, a watched directory     | [Profiling](docs/profiling.md), [receiving](docs/profiles.md), [SPX](docs/spx.md) |
+| Xdebug step debugging       | `--xdebug`, `xdebug.client_port=9003`, the IDE moved to `9004`       | [Xdebug debugger](docs/xdebug.md)                                                 |
+| Xdebug function traces      | `POST` with `X-Buggregator-Event: xdebug-trace`, a watched directory | [Xdebug traces](docs/xdebug-traces.md)                                            |
+| Binary data                 | any raw bytes                                                        |                                                                                   |
 
 ## Configuration
 
 | Option or variable               | Default                    | Meaning                                     |
-|----------------------------------|----------------------------|---------------------------------------------|
+| -------------------------------- | -------------------------- | ------------------------------------------- |
 | `-p`, `--port`, `TRAP_TCP_PORTS` | `1025,4318,8000,9912,9913` | Ports to listen on                          |
 | `TRAP_TCP_HOST`                  | `127.0.0.1`                | Host to listen on                           |
 | `-s`, `--sender`                 | `console`                  | Where events go: [senders](docs/senders.md) |
