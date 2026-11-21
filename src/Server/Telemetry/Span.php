@@ -12,6 +12,9 @@ namespace Buggregator\Trap\Server\Telemetry;
  */
 final class Span
 {
+    /** A year */
+    public const MAX_DURATION_MS = 31_536_000_000;
+
     /**
      * @param non-empty-string $project
      * @param non-empty-string $traceId
@@ -45,11 +48,21 @@ final class Span
     }
 
     /**
-     * @return int<0, max>|null
+     * @return int<0, max>|null Milliseconds, at most a year: sums of durations stay ints, whatever times a
+     *         client sends.
      */
     public static function durationBetween(?float $start, ?float $end): ?int
     {
-        return $start === null || $end === null ? null : \max(0, (int) \round(($end - $start) * 1000.0));
+        if ($start === null || $end === null) {
+            return null;
+        }
+
+        $ms = ($end - $start) * 1000.0;
+        if ($ms >= (float) self::MAX_DURATION_MS) {
+            return self::MAX_DURATION_MS;
+        }
+
+        return \max(0, (int) \round($ms));
     }
 
     /**
