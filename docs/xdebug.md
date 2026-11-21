@@ -88,9 +88,12 @@ open in your browser instead:
 - `source` reads only the files a session ran (its entry file, pauses, stacks) or a breakpoint names.
 
 Anyone who reaches the port itself, such as from another machine, isn't stopped by these: keep the UI on a
-loopback host. Known limits: the UI's WebSocket checks no `Origin`, so a page of another site can receive the
-`xdebug` channel events (sessions, files and lines, breakpoints, the agents' calls); Trap checks no `Host` header against DNS
-rebinding; and the bundled UI before 1.39 shows the HTML of caught emails in its own origin.
+loopback host. Browsers send no `Sec-Fetch-Site` to an origin that is neither secure nor loopback, as plain HTTP
+on a LAN or Docker IP, and old Safari never sends it: there the check above doesn't apply.
+
+Known limits: the UI's WebSocket checks no `Origin`, so a page of any other origin can receive the `xdebug`
+channel events (sessions, files and lines, breakpoints, the agents' calls); Trap checks no `Host` header against
+DNS rebinding; and the bundled UI before 1.39 shows the HTML of caught emails in its own origin.
 
 ## Web UI endpoints
 
