@@ -49,7 +49,7 @@ final class Dispatcher implements DispatcherInterface
             };
         }
 
-        // Xdebug sends its init packet at once: a client that stops short of it is someone else's
+        // Xdebug sends its init packet at once: a client that stops short of it is left to the other dispatchers
         return ($data === '' || (\strlen($data) <= 10 && \ctype_digit($data))) && $silence <= self::SILENCE
             ? null
             : false;

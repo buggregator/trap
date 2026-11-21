@@ -370,8 +370,9 @@ final class ApiController
     {
         try {
             $request === null and throw DebuggerError::forbidden('http_only', 'The debugger answers HTTP requests only.');
-            $request->getHeaderLine('Sec-Fetch-Site') === 'cross-site'
-                and throw DebuggerError::forbidden('cross_site', 'Cross-site requests cannot use the debugger.');
+            // `same-site` is another port of the same host too, as a dev server on localhost:3000
+            \in_array($request->getHeaderLine('Sec-Fetch-Site'), ['', 'same-origin', 'none'], true)
+                or throw DebuggerError::forbidden('cross_site', 'Only the UI of the same origin can use the debugger.');
             \in_array($request->getMethod(), ['POST', 'PUT', 'PATCH'], true)
                 && \strtolower(\trim(\explode(';', $request->getHeaderLine('Content-Type'))[0])) !== 'application/json'
                 and throw DebuggerError::unsupportedMediaType();

@@ -106,13 +106,17 @@ final class ApiControllerTest
         $crossSite = self::call($h, $router, Method::Get, 'api/xdebug/sessions/1/stack', headers: ['Sec-Fetch-Site' => 'cross-site']);
         $textPlain = self::call($h, $router, Method::Post, 'api/xdebug/sessions/1/step-over', headers: ['Content-Type' => 'text/plain']);
         $rpc = self::call($h, $router, Method::Post, 'api/xdebug/breakpoints', ['file' => '/a.php', 'line' => 1], http: false);
-        $sameSite = self::call($h, $router, Method::Get, 'api/xdebug', headers: ['Sec-Fetch-Site' => 'same-origin']);
+        $sameSite = self::call($h, $router, Method::Get, 'api/xdebug/sessions/1/stack', headers: ['Sec-Fetch-Site' => 'same-site']);
+        $sameOrigin = self::call($h, $router, Method::Get, 'api/xdebug', headers: ['Sec-Fetch-Site' => 'same-origin']);
+        $typed = self::call($h, $router, Method::Get, 'api/xdebug', headers: ['Sec-Fetch-Site' => 'none']);
 
         Assert::same($crossSite[0], 403);
         Assert::same($crossSite[1]['code'], 'cross_site');
         Assert::same($textPlain[0], 415);
         Assert::same($rpc[1]['code'], 'http_only');
-        Assert::true($sameSite['enabled']);
+        Assert::same($sameSite[1]['code'], 'cross_site');
+        Assert::true($sameOrigin['enabled']);
+        Assert::true($typed['enabled']);
         Assert::same($h->session()->state(), 'break');
         Assert::same($h->debugger->breakpoints->all(), []);
     }

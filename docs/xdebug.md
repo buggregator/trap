@@ -80,14 +80,17 @@ code in it. Its API asks for no token, as the rest of the [web UI](web-ui.md), s
 open in your browser instead:
 
 - it answers only the UI of the same origin: no CORS headers, a refused preflight, and `403 cross_site` for a
-  request the browser marks `Sec-Fetch-Site: cross-site`; a UI served from another origin can't use it;
+  request the browser marks with a `Sec-Fetch-Site` other than `same-origin` or `none`, so also for another port of
+  the same host; a UI served from another origin can't use it;
 - changes (`POST`, `PUT`, `PATCH`) take `Content-Type: application/json` only (`415` otherwise), which a page of
   another origin can't send without the refused preflight;
 - the WebSocket RPC of the UI can't reach it (`403 http_only`);
 - `source` reads only the files a session ran (its entry file, pauses, stacks) or a breakpoint names.
 
 Anyone who reaches the port itself, such as from another machine, isn't stopped by these: keep the UI on a
-loopback host.
+loopback host. Known limits: the UI's WebSocket checks no `Origin`, so a page of another site can receive the
+`xdebug` channel events (sessions, files and lines, breakpoints, the agents' calls); Trap checks no `Host` header against DNS
+rebinding; and the bundled UI before 1.39 shows the HTML of caught emails in its own origin.
 
 ## Web UI endpoints
 
