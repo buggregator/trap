@@ -237,6 +237,8 @@ final class CallTree
                     $node->path = \array_slice($callers, 0, -1);
                     $page->nodes[] = $node;
                     $open[$record->nr] = \count($page->nodes) - 1;
+                    // A malformed trace may reuse the number of a match still open at another level
+                    unset($matchesAt[$levelOf[$record->nr] ?? -1][$record->nr]);
                     $levelOf[$record->nr] = $record->level;
                     $matchesAt[$record->level][$record->nr] = $record->nr;
                     break;
