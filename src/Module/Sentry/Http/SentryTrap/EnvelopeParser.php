@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Module\Sentry\Http\SentryTrap;
 use Buggregator\Trap\Module\Sentry\Frame\EnvelopeItem;
 use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope;
 use Buggregator\Trap\Support\Activity;
+use Buggregator\Trap\Support\Json;
 use Buggregator\Trap\Support\StreamHelper;
 use Psr\Http\Message\StreamInterface;
 
@@ -38,7 +39,7 @@ final class EnvelopeParser
             }
         } while (true);
 
-        return new SentryEnvelope($headers, $items, $time, $project);
+        return new SentryEnvelope((array) Json::finite($headers), $items, $time, $project);
     }
 
     /**
@@ -67,13 +68,13 @@ final class EnvelopeParser
                 ? self::readLine($stream)
                 : self::readPayload($stream, $length)),
 
-            // Text items
-            default => $length === null
+            // Text items; a non-finite number like `1e999` would fail the encoding of the frame
+            default => Json::finite($length === null
                 ? \json_decode(self::readLine($stream), true, 512, JSON_THROW_ON_ERROR)
-                : \json_decode(self::readPayload($stream, $length), true, 512, JSON_THROW_ON_ERROR),
+                : \json_decode(self::readPayload($stream, $length), true, 512, JSON_THROW_ON_ERROR)),
         };
 
-        return new EnvelopeItem($itemHeader, $itemPayload);
+        return new EnvelopeItem((array) Json::finite($itemHeader), $itemPayload);
     }
 
     private static function createAttachmentStream(string $content): StreamInterface

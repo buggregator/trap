@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Sentry\Frame;
 use Buggregator\Trap\Module\Sentry\Http\SentryTrap\EnvelopeParser;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Logger;
+use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -114,8 +115,9 @@ final class SentryTrap implements Middleware
             $this->logger?->warning('Sentry: event rejected with 413: the body is too large.');
             return new Response(413);
         }
+        // A non-finite number like `1e999` would fail the encoding of the frame
         /** @var SentryStoreMessage $payload */
-        $payload = \json_decode((string) $request->getBody(), true, 96, \JSON_THROW_ON_ERROR);
+        $payload = Json::finite(\json_decode((string) $request->getBody(), true, 96, \JSON_THROW_ON_ERROR));
 
         /** @psalm-suppress MixedAssignment */
         $time = $request->getAttribute('begin_at');

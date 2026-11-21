@@ -170,6 +170,39 @@ final class SignalDecodersTest
         ProtobufDecoder::metrics(new JsonMetricsDecoder(9))->decode($payload, new \DateTimeImmutable());
     }
 
+    public function testProtobufRejectsTagThatParsersReadAsAnotherField(): never
+    {
+        // Tag (1 << 32) | 0x0a: field 1 to a parser that keeps 32 bits of a tag
+        $payload = "\x8a\x80\x80\x80\x10" . "\x02" . self::len(2, self::len(2, ''));
+        Expect::exception(\InvalidArgumentException::class)->withMessageContaining('field number out of range');
+
+        ProtobufDecoder::logs(new JsonLogsDecoder(10))->decode($payload, new \DateTimeImmutable());
+    }
+
+    public function testProtobufRejectsGroups(): never
+    {
+        $payload = "\x7b\x7c" . self::len(1, self::len(2, self::len(2, '')));
+        Expect::exception(\InvalidArgumentException::class)->withMessageContaining('unsupported wire type');
+
+        ProtobufDecoder::logs(new JsonLogsDecoder(10))->decode($payload, new \DateTimeImmutable());
+    }
+
+    public function testProtobufStopsScanningManyTinyFields(): never
+    {
+        // 1 101 varint fields of the request: more than 10 per accepted record plus 1 000
+        $payload = \str_repeat("\x10\x00", 1_101);
+        Expect::exception(LimitExceededException::class);
+
+        ProtobufDecoder::metrics(new JsonMetricsDecoder(10))->decode($payload, new \DateTimeImmutable());
+    }
+
+    public function testProtobufRejectsTruncatedVarint(): never
+    {
+        Expect::exception(\InvalidArgumentException::class)->withMessageContaining('truncated varint');
+
+        ProtobufDecoder::logs()->decode("\x0a\xff", new \DateTimeImmutable());
+    }
+
     public function testProtobufRejectsMalformedMessage(): never
     {
         ProtobufDecoder::isAvailable() or throw new SkipTest('The protobuf packages are not installed.');

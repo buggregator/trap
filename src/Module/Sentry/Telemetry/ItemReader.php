@@ -11,6 +11,7 @@ use Buggregator\Trap\Server\Telemetry\Peer;
 use Buggregator\Trap\Server\Telemetry\Source;
 use Buggregator\Trap\Server\Telemetry\Span;
 use Buggregator\Trap\Server\Telemetry\Transaction;
+use Buggregator\Trap\Support\Json;
 use Buggregator\Trap\Support\Uuid;
 
 /**
@@ -337,21 +338,7 @@ final class ItemReader
     {
         /** @var mixed $value */
         $value = $data[$key] ?? null;
-        return \is_array($value) ? self::finite($value) : [];
-    }
-
-    private static function finite(array $data): array
-    {
-        /** @var mixed $value */
-        foreach ($data as $key => $value) {
-            if (\is_array($value)) {
-                $data[$key] = self::finite($value);
-            } elseif (\is_float($value) && !\is_finite($value)) {
-                $data[$key] = \is_nan($value) ? 'NaN' : ($value > 0 ? 'Infinity' : '-Infinity');
-            }
-        }
-
-        return $data;
+        return \is_array($value) ? (array) Json::finite($value) : [];
     }
 
     private static function list(array $data, string $key): array

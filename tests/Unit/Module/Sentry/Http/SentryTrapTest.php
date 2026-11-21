@@ -152,6 +152,40 @@ final class SentryTrapTest
         Assert::instanceOf($frames[0], SentryEnvelope::class);
     }
 
+    public function testEnvelopeWithNonFiniteNumbersKeepsAllItems(): void
+    {
+        $request = $this->request(
+            uri: '/api/1/envelope/',
+            headers: ['Content-Type' => 'application/x-sentry-envelope'],
+            body: "{\"event_id\":\"test123\"}\n{\"type\":\"event\"}\n{\"message\":\"x\",\"extra\":{\"v\":1e999}}\n"
+                . "{\"type\":\"trace_metric\"}\n{\"items\":[{\"name\":\"m\",\"value\":1,\"attributes\":{\"a\":-1e999}}]}",
+        );
+
+        [$response, $frames] = $this->handleInFiber($request);
+
+        Assert::same($response->getStatusCode(), 200);
+        Assert::instanceOf($frames[0], SentryEnvelope::class);
+        Assert::count($frames[0]->items, 2);
+        Assert::same($frames[0]->items[0]->payload['extra'], ['v' => 'Infinity']);
+        Assert::same($frames[0]->items[1]->payload['items'][0]['attributes'], ['a' => '-Infinity']);
+        Assert::string((string) $frames[0])->contains('"v":"Infinity"');
+    }
+
+    public function testStoreWithNonFiniteNumbersEncodes(): void
+    {
+        $request = $this->request(
+            uri: '/api/1/store/',
+            headers: ['X-Sentry-Auth' => 'Sentry sentry_key=x'],
+            body: '{"event_id":"x","extra":{"v":1e999,"w":[-1e999]}}',
+        );
+
+        [$response, $frames] = $this->handleInFiber($request);
+
+        Assert::same($response->getStatusCode(), 200);
+        Assert::instanceOf($frames[0], SentryStore::class);
+        Assert::same((string) $frames[0], '{"event_id":"x","extra":{"v":"Infinity","w":["-Infinity"]}}');
+    }
+
     #[DataProvider('provideSentryStoreRequests')]
     public function testHandleProcessesStoreRequests(array $headers, string $uri, bool $catch): void
     {

@@ -72,6 +72,8 @@ With the [`file` sender](senders.md#file), each export request is saved as one J
 - Exporters running in a browser are not supported: Trap does not answer CORS preflight requests.
 - One export request may carry up to 10 MB (after decompression) and up to 10 000 spans, log records or metric
   data points; a bigger one gets `413`. SDK batch processors export 512 spans at a time by default.
+  A protobuf request is checked on the wire before it is parsed: one with groups or invalid tags gets `400`, and one
+  with more than 10 fields per such record above the record level (resources, scopes, metric descriptions) gets `413`.
 - Port `4318` is also the default port of an OpenTelemetry Collector or Jaeger. On Linux and macOS, when it is
   taken, Trap keeps retrying to listen on it silently (run with `-vv` to see the errors) and works on the other ports.
   On Windows, Trap can listen on `127.0.0.1:4318` even while another process, such as a Collector or Jaeger in
