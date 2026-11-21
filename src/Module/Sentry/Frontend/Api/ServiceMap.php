@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Sentry\Frontend\Api;
 
-use Buggregator\Trap\Server\Telemetry\Span;
 use Buggregator\Trap\Server\Telemetry\TelemetryStore;
-use Buggregator\Trap\Server\Telemetry\Trace;
 use Buggregator\Trap\Server\Telemetry\Transaction;
 
 /**
@@ -62,6 +60,8 @@ final class ServiceMap
                     and $entries[] = $transaction;
             }
 
+            // Built for the first call of the trace, once.
+            $index = null;
             foreach ($trace->spans as $span) {
                 if ($span->peer->address === null
                     || ($project !== null && $span->project !== $project)
@@ -70,9 +70,11 @@ final class ServiceMap
                     continue;
                 }
 
+                $index ??= new TraceIndex($trace);
                 $calls[] = [
                     'source' => $span->service ?? 'unknown',
-                    'target' => self::callee($trace, $span) ?? $span->peer->address,
+                    'target' => $index->callee($span, $span->service ?? '', transactionSpans: true)?->service
+                        ?? $span->peer->address,
                     'opType' => $span->peer->type,
                     'isError' => $span->isError(),
                     'duration' => $span->durationMs(),
@@ -83,44 +85,6 @@ final class ServiceMap
         }
 
         return new self($calls, $entries, $fromTime, $toTime);
-    }
-
-    /**
-     * The other service that served a call: by its entry transaction, else by a span, else by a span
-     * of a transaction, whose parent is the calling span. Databases, caches and queues have none.
-     */
-    public static function callee(Trace $trace, Span $span): ?string
-    {
-        if (\in_array($span->peer->type, ['db', 'cache', 'queue'], true)) {
-            return null;
-        }
-
-        $other = static fn(?string $service): bool => $service !== null && $service !== ($span->service ?? '');
-        $entries = \array_filter(
-            $trace->transactions,
-            static fn(Transaction $t): bool => $t->parentSpanId === $span->spanId,
-        );
-        foreach ($entries as $transaction) {
-            if ($other($transaction->service)) {
-                return $transaction->service;
-            }
-        }
-
-        foreach ($trace->spans as $child) {
-            if ($child->parentSpanId === $span->spanId && $other($child->service)) {
-                return $child->service;
-            }
-        }
-
-        foreach ($entries as $transaction) {
-            foreach ($trace->spans as $child) {
-                if ($child->transactionId === $transaction->id && $other($child->service)) {
-                    return $child->service;
-                }
-            }
-        }
-
-        return null;
     }
 
     /**

@@ -49,12 +49,13 @@ final class Sequence
             $note($transaction->service ?? '', $transaction->start);
         }
 
+        $index = new TraceIndex($trace, $project);
         $calls = [];
         foreach ($spans as $span) {
             $service = $span->service ?? $serviceOf[(string) $span->transactionId] ?? '';
             $from = $service === '' ? 'unknown' : $service;
 
-            [$callee, $calleeStart, $calleeEnd] = self::callee($span, $service, $transactions, $spans);
+            [$callee, $calleeStart, $calleeEnd] = self::callee($index->callee($span, $service));
             if ($callee === null && $span->peer->address === null) {
                 continue;
             }
@@ -79,8 +80,10 @@ final class Sequence
                 'is_error' => $span->isError(),
                 'status' => $span->status,
                 'callee' => $callee,
+                // Truncated toward zero, as buggregator/server does: a callee that ended 0.4 ms late did not
+                // keep working. Microseconds first, so float noise of the times does not cut a whole ms.
                 'late_ms' => $callee !== null && $calleeEnd !== null && $span->end !== null
-                    ? (int) \round(($calleeEnd - $span->end) * 1000.0)
+                    ? \intdiv((int) \round(($calleeEnd - $span->end) * 1_000_000.0), 1000)
                     : null,
             ]];
         }
@@ -97,48 +100,25 @@ final class Sequence
     }
 
     /**
-     * The other service that served the call: an entry transaction whose parent is the span, else a span.
-     *
-     * @param string $service The service of the span; empty when unknown.
-     * @param list<Transaction> $transactions
-     * @param list<Span> $spans
-     * @return array{array|null, float|null, float|null} The callee, its start and its end.
+     * @return array{array|null, float|null, float|null} The callee as JSON, its start and its end.
      */
-    private static function callee(Span $span, string $service, array $transactions, array $spans): array
+    private static function callee(Transaction|Span|null $callee): array
     {
-        if (\in_array($span->peer->type, ['db', 'cache', 'queue'], true)) {
+        if ($callee === null) {
             return [null, null, null];
         }
 
-        foreach ($transactions as $t) {
-            if ($t->parentSpanId === $span->spanId && $t->service !== null && $t->service !== '' && $t->service !== $service) {
-                $json = self::calleeJson($t->service, $t->start, $t->end, $t->durationMs(), self::failed($t->status), $t->id);
-                return [$json, $t->start, $t->end];
-            }
-        }
-
-        foreach ($spans as $child) {
-            if ($child->parentSpanId === $span->spanId
-                && $child->service !== null && $child->service !== '' && $child->service !== $service
-            ) {
-                $json = self::calleeJson($child->service, $child->start, $child->end, $child->durationMs(), $child->isError(), null);
-                return [$json, $child->start, $child->end];
-            }
-        }
-
-        return [null, null, null];
-    }
-
-    private static function calleeJson(string $service, ?float $start, ?float $end, ?int $duration, bool $isError, ?string $transactionId): array
-    {
-        return [
-            'service' => $service,
-            'start_ts' => Json::time($start),
-            'end_ts' => Json::time($end),
-            'duration_ms' => $duration,
-            'is_error' => $isError,
-            'transaction_id' => $transactionId,
+        $transaction = $callee instanceof Transaction;
+        $json = [
+            'service' => (string) $callee->service,
+            'start_ts' => Json::time($callee->start),
+            'end_ts' => Json::time($callee->end),
+            'duration_ms' => $callee->durationMs(),
+            'is_error' => $transaction ? self::failed($callee->status) : $callee->isError(),
+            'transaction_id' => $transaction ? $callee->id : null,
         ];
+
+        return [$json, $callee->start, $callee->end];
     }
 
     private static function failed(string $status): bool
