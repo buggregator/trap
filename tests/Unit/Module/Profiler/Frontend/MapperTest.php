@@ -463,6 +463,38 @@ final class MapperTest
         Assert::same(\array_column($main['children'], 'color'), ['#FF8989', '#B3E5FC']);
     }
 
+    public function testFlameChartTakesWidthsOfMetric(): void
+    {
+        $chart = self::json((new Mapper())->flameChart(self::event(), 'mu'));
+
+        Assert::same($chart[0]['duration'], 5936 / 1024);
+        Assert::same(\array_column($chart[0]['children'], 'duration'), [4168 / 1024, 344 / 1024]);
+    }
+
+    public function testComparisonPutsFunctionsThatChangedMostFirst(): void
+    {
+        $compare = self::XHPROF_STUB + ['main()==>baz' => ['ct' => 1, 'wt' => 50, 'cpu' => 0, 'mu' => 100, 'pmu' => 0]];
+
+        $functions = self::json((new Mapper())->compare(self::event(), self::event($compare)))['functions'];
+
+        Assert::same($functions[0], [
+            'function' => 'baz',
+            'base_ct' => 0,
+            'compare_ct' => 1,
+            'diff_ct' => 1,
+            'base_excl_wt' => 0,
+            'compare_excl_wt' => 50,
+            'diff_excl_wt' => 50,
+            'base_excl_mu' => 0,
+            'compare_excl_mu' => 100,
+            'diff_excl_mu' => 100,
+        ]);
+        Assert::same($functions[1]['function'], 'main()');
+        // Its own time drops by the time of the new callee, not below zero
+        Assert::same($functions[1]['diff_excl_wt'], -34);
+        Assert::same(\array_column(\array_slice($functions, 2), 'diff_excl_wt'), [0, 0, 0, 0]);
+    }
+
     public function testCallGraphLinksThroughHiddenFunctionsByExactTree(): void
     {
         $graph = self::json((new Mapper())->callGraph(self::xdebugEvent(self::BYPASS_CACHEGRIND), threshold: 8, percentage: 100));
