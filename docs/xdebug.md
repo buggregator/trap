@@ -93,7 +93,8 @@ on a LAN or Docker IP, and old Safari never sends it: there the check above does
 
 Known limits: the UI's WebSocket checks no `Origin`, so a page of any other origin can receive the `xdebug`
 channel events (sessions, files and lines, breakpoints, the agents' calls); Trap checks no `Host` header against
-DNS rebinding; and the bundled UI before 1.39 shows the HTML of caught emails in its own origin.
+DNS rebinding. Caught emails can't reach the debugger: the UI shows their HTML in a sandboxed frame, and
+`/api/smtp/{uuid}/html` and their inline files come with `Content-Security-Policy: sandbox`.
 
 ## Web UI endpoints
 
