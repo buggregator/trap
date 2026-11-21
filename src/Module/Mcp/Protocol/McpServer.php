@@ -25,7 +25,8 @@ final class McpServer
     private const INSTRUCTIONS = "Buggregator Trap is a local debug server. It catches what the developer's "
         . 'application sends while running: dumps, logs, exceptions, mails, HTTP requests and profiles as events, '
         . 'and OpenTelemetry traces. Use its tools to read them: the `*_events` tools for events, '
-        . '`list_traces` and `get_trace` for traces.';
+        . '`list_traces` and `get_trace` for traces. With the `--xdebug` option on, the `xdebug_*` tools step through '
+        . 'PHP code with Xdebug: breakpoints, stack, variables, eval; start with `xdebug_sessions`.';
 
     public function __construct(
         private readonly Tools $tools,
@@ -118,6 +119,11 @@ final class McpServer
     {
         /** @var mixed $version */
         $version = $params['protocolVersion'] ?? null;
+        /** @var mixed $client */
+        $client = $params['clientInfo'] ?? null;
+        /** @var mixed $name */
+        $name = \is_array($client) ? $client['name'] ?? null : null;
+        \is_string($name) and $this->status->clientNamed($name);
 
         return [
             'protocolVersion' => \in_array($version, self::VERSIONS, true) ? $version : self::VERSIONS[0],

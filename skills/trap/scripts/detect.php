@@ -21,6 +21,22 @@ $json = static function (string $file): ?array {
     return \is_array($data) ? $data : null;
 };
 
+/** The name of the process that listens on a local TCP port, when the system tools tell it */
+$listener = static function (int $port): ?string {
+    if (!\function_exists('shell_exec')) {
+        return null;
+    }
+    if (\PHP_OS_FAMILY === 'Windows') {
+        // A listening socket has no remote address; the name of the state is translated
+        $pid = \preg_match("/TCP\\s+\\S+:$port\\s+(?:0\\.0\\.0\\.0|\\[::\\]):0\\s+\\S+\\s+(\\d+)/", (string) @\shell_exec('netstat -ano'), $m) === 1 ? $m[1] : null;
+        $task = $pid === null ? '' : (string) @\shell_exec("tasklist /FI \"PID eq $pid\" /FO CSV /NH");
+        return \preg_match('/^"([^"]+)"/', $task, $m) === 1 ? "{$m[1]} (PID $pid)" : null;
+    }
+    $out = (string) @\shell_exec("lsof -nP -iTCP:$port -sTCP:LISTEN -Fpc 2>/dev/null");
+
+    return \preg_match('/^p(\d+)\s+c(.+)$/m', $out, $m) === 1 ? "{$m[2]} (PID {$m[1]})" : null;
+};
+
 // Trap itself
 
 echo "Trap:\n";
@@ -157,6 +173,23 @@ foreach ($profilers as $extension => $line) {
 if (\extension_loaded('xdebug')) {
     $mode = (string) \ini_get('xdebug.mode');
     echo "  Xdebug: mode=$mode", \str_contains($mode, 'profile') ? '' : '; profiles whole runs with xdebug.mode=profile', "\n";
+    echo "    steps through code with trap --xdebug (xdebug.md); traces every call with xdebug.mode=trace (profiling.md)\n";
+    $port = (int) (\getenv('TRAP_XDEBUG_PORT') ?: \ini_get('xdebug.client_port') ?: 9003);
+    $held = static function (int $port): bool {
+        $socket = @\stream_socket_client("tcp://127.0.0.1:$port", $errno, $error, 0.3);
+        $socket === false or \fclose($socket);
+        return $socket !== false;
+    };
+    if (!$held($port)) {
+        echo "    port $port for the debugger: free\n";
+    } else {
+        for ($free = 9013; $free < 9100 && $held($free); $free += 10);
+        echo "    port $port for the debugger: held", ($owner = $listener($port)) === null ? '' : " by $owner",
+            " (an IDE, or a Trap with --xdebug, which shows this probe as an empty event): ",
+            $free < 9100
+                ? "give Trap a free one, as --xdebug=$free with xdebug.client_port=$free\n"
+                : "none of 9013, 9023 … 9093 is free; pick another one\n";
+    }
     $found = true;
 }
 echo $found ? '' : "  none; Excimer installs with `pecl install excimer`\n";

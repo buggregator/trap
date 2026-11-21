@@ -22,9 +22,8 @@ vendor/bin/trap --mcp -s         # no console output: the agent reads only throu
 
 Run it as a background process and keep it for the session: events live in its memory and a restart drops them.
 The buffer keeps the last 200 events (`maxEvents` of `trap.xml`), traces their own limits. Keep the process ID to
-stop it later: `$trap = Start-Process php 'vendor/bin/trap','--mcp' -PassThru` and `Stop-Process $trap.Id` in
-PowerShell, `vendor/bin/trap --mcp & echo $!` and `kill <pid>` in a POSIX shell. Other Traps may run on the machine:
-stop only yours. `-vv` prints the server's debug messages and errors, such as a port it can't listen on or a profile
+stop it later: `vendor/bin/trap --mcp & echo $!` and `kill <pid>` in a POSIX shell; in PowerShell see
+[the Windows recipe](#a-trap-of-your-own-in-powershell). Other Traps may run on the machine: stop only yours. `-vv` prints the server's debug messages and errors, such as a port it can't listen on or a profile
 it can't import.
 
 ## Ports
@@ -44,12 +43,32 @@ Every port takes every protocol; the defaults are the ports the clients send to 
 - A Trap of your own beside the user's: one port takes everything,
   `TRAP_TCP_PORTS=18000 TRAP_MCP_PORT=18000 vendor/bin/trap --mcp`. Point the clients at it:
   `VAR_DUMPER_SERVER=127.0.0.1:18000`, `TRAP_MONOLOG_PORT=18000`, `TRAP_PROFILER_PORT=18000`, and the URLs of the
-  integrations.
+  integrations. Add `--xdebug=19003` to step through code beside the user's IDE on `9003`.
 - A port another process holds: Trap keeps retrying it silently and works on the others. `4318` is often held by
   an OpenTelemetry Collector or Jaeger: leave it out with `TRAP_TCP_PORTS=1025,8000,9912,9913`. On Windows Trap may
   bind `127.0.0.1:4318` while that process holds `0.0.0.0:4318`, and then takes the local traffic meant for it.
 - The ports held but MCP not answering: a Trap or Buggregator Server of the user runs without `--mcp`. Ask the user
   to restart it with `--mcp`, or run yours on other ports and point the application there.
+
+### A Trap of your own in PowerShell
+
+```powershell
+Get-NetTCPConnection -State Listen -LocalPort 18000, 19003 -ErrorAction SilentlyContinue   # nothing: both free
+$php = php -r 'echo PHP_BINARY;'   # php may be a .bat wrapper: its PID would be cmd's, and stopping it leaves PHP
+$log = Join-Path ([IO.Path]::GetTempPath()) 'trap-18000'
+$env:TRAP_TCP_PORTS = '18000'; $env:TRAP_MCP_PORT = '18000'
+$trap = Start-Process $php 'vendor/bin/trap','--mcp','--xdebug=19003' -PassThru -WindowStyle Hidden `
+    -RedirectStandardOutput "$log.out" -RedirectStandardError "$log.err"
+Remove-Item Env:TRAP_TCP_PORTS, Env:TRAP_MCP_PORT   # $env: lasts for the rest of the shell
+# ... the runs ...
+Stop-Process -Id $trap.Id
+```
+
+- `Start-Process` takes the environment of the shell: set the variables before it, remove them after, or the next
+  commands of the shell, the application among them, get them too.
+- The console output goes to the temp directory, out of the project: `Get-Content "$log.out" -Tail 20`.
+- Code to step through blocks at its breakpoints: start it the same way, in the background, with
+  `'-d','xdebug.mode=debug','-d','xdebug.client_port=19003','-d','xdebug.start_with_request=yes'` before the script.
 
 ## TLS
 
@@ -85,5 +104,6 @@ Environment variables win over CLI options, which win over `trap.xml` of the pac
 (`vendor/buggregator/trap/trap.xml`). Server variables of note: `TRAP_TCP_PORTS`, `TRAP_TCP_HOST`, `TRAP_MCP_PORT`,
 `TRAP_MCP_HOST`, `TRAP_MCP_TOKEN`, `TRAP_UI_PORT`, `TRAP_TLS_CERT`, `TRAP_TLS_KEY`, `TRAP_MEMORY_LIMIT` (512M, for large profiles),
 `TRAP_XDEBUG_PATH`, `TRAP_XHPROF_PATH`, `TRAP_SPX_PATH` (the directories of profiles to pick up),
-`TRAP_XDEBUG_TRACE_PATH` and `TRAP_XDEBUG_TRACE_MAX_UPLOAD`, `_MAX_SIZE`, `_KEEP` (Xdebug traces, see
+`TRAP_XDEBUG_PORT`, `TRAP_XDEBUG_IDE`, `TRAP_XDEBUG_MODE`, `TRAP_XDEBUG_ALLOW_EVAL` (the debugger of `--xdebug`, see
+[xdebug.md](xdebug.md)), `TRAP_XDEBUG_TRACE_PATH` and `TRAP_XDEBUG_TRACE_MAX_UPLOAD`, `_MAX_SIZE`, `_KEEP` (Xdebug traces, see
 [profiling.md](profiling.md#trace-the-calls)).

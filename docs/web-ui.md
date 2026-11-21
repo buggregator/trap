@@ -39,4 +39,5 @@ The UI keeps the last 200 events; `/trap/events/@maxEvents` in [`trap.xml`](conf
 The events live in the memory of Trap and are gone when it stops. The [MCP server](mcp.md) works with the same
 events: an event deleted in the UI is gone for it too.
 
-The UI also controls `ray()->pause()`: see [Ray](ray.md#notes).
+The UI also controls `ray()->pause()`: see [Ray](ray.md#notes). With `--xdebug` its Xdebug page lists the debug
+sessions and steps through the ones Trap drives: see [Xdebug debugger](xdebug.md).

@@ -1,7 +1,7 @@
 # Reading events
 
 Trap's MCP server answers at `http://127.0.0.1:8000/mcp` while Trap runs with `--mcp`. Its tools read the events
-Trap has caught and the OpenTelemetry traces it has received. The full reference:
+Trap has caught, the OpenTelemetry traces it has received and the Xdebug sessions of `--xdebug`. The full reference:
 <https://github.com/buggregator/trap/blob/master/docs/mcp.md>.
 
 ## Two clients
@@ -47,6 +47,7 @@ The argument schema of each tool is in its `inputSchema` (`mcp.php tools <name>`
 | `list_traces`     | OpenTelemetry traces, with filters by service, name, duration, errors                     |
 | `get_trace`       | One trace as a tree of its spans                                                          |
 | `profile_*`       | Analyze a `profiler` event, see [profiling.md](profiling.md#read-the-profile)             |
+| `xdebug_*`        | Step debugging with Xdebug, see [xdebug.md](xdebug.md)                                    |
 | `xdebug_trace_*`  | Walk the call tree of an `xdebug-trace` event, see [profiling.md](profiling.md#trace-the-calls) |
 
 ## Reading

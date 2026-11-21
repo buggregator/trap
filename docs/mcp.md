@@ -416,6 +416,51 @@ xdebug-trace`. These tools read the call tree from the trace file. Times are sec
 - `limit` is 50 by default and 200 at most. Arguments and return values are cut to 512 bytes.
 - A trace pushed out by newer ones (`TRAP_XDEBUG_TRACE_KEEP`) has no file any more: the tools say so.
 
+### Xdebug debugger
+
+With [`--xdebug`](xdebug.md), these tools read and drive the step-debugging sessions; without it they fail and say
+how to turn it on. Each call on a session goes to its agent log, which the Xdebug page of the UI shows with the
+name the MCP client gave in `initialize`.
+
+| Tool                 | Arguments                                                | Result                                                                                                 |
+|----------------------|----------------------------------------------------------|--------------------------------------------------------------------------------------------------------|
+| `xdebug_sessions`    | `live_only`                                              | `sessions`: `id`, `state`, `driver`, the request or command, where it is paused, `exception`; settings |
+| `xdebug_wait`        | `timeout`                                                | The first paused session, with its `exception`, or `timed_out`                                         |
+| `xdebug_location`    | `session_id`, `context_lines`                            | `file`, `line`, the function, the source around the line, `exception`                                  |
+| `xdebug_stack`       | `session_id`, `limit`                                    | `frames`: `level`, `where`, `file`, `line`; `total`; `hint` when frames are left out                   |
+| `xdebug_variables`   | `session_id`, `name`, `frame`, `context`, `page`         | The variables of a frame, or the value of `name` with its children                                     |
+| `xdebug_eval`        | `session_id`, `expression`                               | The value; only with `TRAP_XDEBUG_ALLOW_EVAL`                                                          |
+| `xdebug_continue`    | `session_id`, `command`, `wait`                          | `step_into`, `step_over`, `step_out`, `run`, `stop` or `detach`, then the next pause                   |
+| `xdebug_breakpoints` | `action`, `file`, `line`, `condition`, `exception`, `id` | The saved breakpoints with their `sessions`; `action: set` or `remove` changes them                    |
+
+- Without `session_id`, the tools take the only paused session.
+- `exception` is there when the session is paused at an exception breakpoint: its `class` and `message`, and the
+  `code` when Xdebug sends one.
+- `xdebug_continue` returns `state` and `paused`, and of the pause `file`, `line`, the function as `where`, the code
+  of the line as `source_line`, `exception`, and after `step_out` the `return_value` of the function left, named
+  in `returned_from`. Xdebug keeps that function on top of the stack, at its own line, until the next step:
+  `where` is the function of the paused line, the caller, and `xdebug_location` says the same.
+- `xdebug_location` returns the file, line and function without `source`, and a `source_unavailable` note, when
+  neither Xdebug nor Trap can read the source.
+- `xdebug_stack` returns the first `limit` frames, 20 by default; `limit: 0` returns all.
+- `xdebug_eval` evaluates in the current frame (level 0): Xdebug's eval takes no stack depth, so the variables of
+  other frames are read with `xdebug_variables` and `frame`. Xdebug runs the code as `return <code>;`, so a
+  trailing `;` or `//` comment is fine and `1; 2` gives `1`. During the eval an error handler of Trap sits on top
+  of the script's one: an error of the eval code, as the warning of an undefined variable, fails the call with
+  its level (`PHP Warning`, `PHP Notice`, `PHP Error`), and neither the output of the script, its error handler
+  nor its `error_get_last()` sees it. Deprecations of the eval code are dropped. `@` has no effect in an eval:
+  write `$x ?? null` or `isset($x)` for a value that may be missing. An error raised in a file of the script, as
+  by a function the expression calls, goes on to the script's handler with all its arguments, whatever error
+  types that handler was set for: PHP doesn't tell them. When the eval times out, Trap still takes its handler
+  off: Xdebug runs that command after the expression.
+- `xdebug_breakpoints` lists each saved breakpoint with `sessions`: for each live session Trap drives and the last
+  closed one, `session_state`, the `state` of the breakpoint there, the `resolved_line` Xdebug stops at and the
+  `hit_count`. A `condition` that fails, as on an undefined constant, counts as false: the breakpoint never fires.
+- `xdebug_continue` and changing breakpoints work on the sessions Trap drives (`driver: here`); an IDE steps its own.
+  `TRAP_XDEBUG_ALLOW_CONTROL=0` turns them off for agents.
+- A usual run: `xdebug_breakpoints` with `{"action": "set", "file": "/app/src/Checkout.php", "line": 42}`, start
+  the request, `xdebug_wait`, then `xdebug_location`, `xdebug_variables` and `xdebug_continue`.
+
 ### Example
 
 The agent remembers where the buffer is, runs the code, and reads what the code sent:

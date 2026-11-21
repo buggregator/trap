@@ -20,6 +20,7 @@ use Buggregator\Trap\Module\Profiler\Frontend\Mapper as ProfilerMapper;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
 use Buggregator\Trap\Module\Ray\Frontend\LocksController as RayLocksController;
 use Buggregator\Trap\Module\Ray\Lock\Locks;
+use Buggregator\Trap\Module\XDebug\Frontend\ApiController as XDebugApiController;
 use Buggregator\Trap\Module\XDebugTrace\Frontend\ApiController as XDebugTraceApiController;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventStore;
@@ -50,7 +51,7 @@ final class UiControllersTest
 
         Assert::same(
             \array_map(static fn(object $c): string => $c::class, $controllers->api()),
-            [Service::class, MailerApiController::class, RayLocksController::class, ProfilerApiController::class, XDebugTraceApiController::class],
+            [Service::class, MailerApiController::class, RayLocksController::class, ProfilerApiController::class, XDebugTraceApiController::class, XDebugApiController::class],
         );
         Assert::same(
             \array_map(static fn(object $c): string => $c::class, $controllers->assets()),
