@@ -39,10 +39,14 @@ final class RPC
         }
 
         $data = isset($message['data']) && \is_array($message['data']) ? $message['data'] : [];
+        [$verb, $path] = \explode(':', $method, 2) + [1 => ''];
+        $httpMethod = Method::tryFrom(\strtoupper($verb));
 
         try {
             /** @var mixed $result */
-            $result = $this->callMethod($method, $data);
+            $result = $httpMethod === null
+                ? new Error(\sprintf('RPC method `%s` is not `{verb}:{path}`.', $method), 400)
+                : $this->call($httpMethod, $path, $data);
         } catch (\Throwable $e) {
             $this->logger->exception($e);
             $result = new Error($e->getMessage(), 500);
@@ -54,15 +58,13 @@ final class RPC
         ]);
     }
 
-    private function callMethod(string $initMethod, array $data): mixed
+    private function call(Method $method, string $path, array $data): mixed
     {
-        [$method, $path] = \explode(':', $initMethod, 2) + [1 => ''];
-
-        $route = $this->router->match(Method::fromString($method), $path);
+        $route = $this->router->match($method, $path);
 
         if ($route === null) {
-            $this->logger->error('RPC method `%s` not found.', $initMethod);
-            return Error::notFound(\sprintf('RPC method `%s` not found.', $initMethod));
+            $this->logger->error('RPC method `%s:%s` not found.', \strtolower($method->value), $path);
+            return Error::notFound(\sprintf('RPC method `%s:%s` not found.', \strtolower($method->value), $path));
         }
 
         return $route(...\array_filter($data, \is_string(...), \ARRAY_FILTER_USE_KEY));

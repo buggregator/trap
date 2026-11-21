@@ -4,24 +4,21 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend;
 
-use Buggregator\Trap\Module\Frontend\Message\Push;
+use Buggregator\Trap\Module\Frontend\Message\UiEvent;
+use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Event\Record;
 use Buggregator\Trap\Server\Event\StoreListener;
-use Buggregator\Trap\Server\Traffic\Websocket\Frame;
-use Buggregator\Trap\Support\Json;
 
 /**
- * Pushes the new and changed events of the store to the connected UI clients.
- *
- * Deletions are not pushed: the UI handles only the `event.received` push. It drops an event from its list
- * by itself when it asks to delete it, and shows the others it has until a reload.
+ * Pushes the changes of the store to the connected UI clients, in the channel of the event project.
  *
  * @internal
  */
 final class EventPusher implements StoreListener
 {
     public function __construct(
-        private readonly ConnectionPool $connectionPool,
+        private readonly Publisher $publisher,
+        private readonly EventStore $events,
     ) {}
 
     #[\Override]
@@ -39,20 +36,34 @@ final class EventPusher implements StoreListener
         $this->push($record);
     }
 
+    /**
+     * The UI drops the event from its list; the oldest event pushed out by a new one, too.
+     */
     #[\Override]
-    public function deleted(Record $record): void {}
+    public function deleted(Record $record): void
+    {
+        $project = $record->event->projectKey();
+        $this->publisher->toProject($project, 'event.deleted', [
+            'uuid' => $record->event->uuid,
+            'project' => $project,
+        ]);
+    }
 
+    /**
+     * The UI loads its list again.
+     */
     #[\Override]
-    public function cleared(): void {}
+    public function cleared(): void
+    {
+        $this->publisher->toAllProjects('events.cleared');
+    }
 
     private function push(Record $record): void
     {
-        $this->connectionPool->send(Frame::text(Json::encode(
-            new Push(
-                event: 'event.received',
-                channel: 'events',
-                data: $record->event,
-            ),
-        )));
+        $this->publisher->toProject(
+            $record->event->projectKey(),
+            'event.received',
+            UiEvent::of($record->event, $this->events),
+        );
     }
 }
