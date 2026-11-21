@@ -1,7 +1,7 @@
 # Reading events
 
 Trap's MCP server answers at `http://127.0.0.1:8000/mcp` while Trap runs with `--mcp`. Its tools read the events
-Trap has caught and the OpenTelemetry traces it has received. The full reference:
+Trap has caught, the OpenTelemetry traces it has received and the Xdebug sessions of `--xdebug`. The full reference:
 <https://github.com/buggregator/trap/blob/master/docs/mcp.md>.
 
 ## Two clients
@@ -43,7 +43,7 @@ The argument schema of each tool is in its `inputSchema` (`mcp.php tools <name>`
 | `wait_for_events` | Waits until `count` events (1 by default) match, up to `timeout` seconds (30, at most 50)       |
 | `get_event`       | One event as plain text: the full dump, log record, exception, mail, request                    |
 | `delete_event`    | Deletes events by `id` or `ids`                                                                 |
-| `clear_events`    | Deletes the events matching a filter; without arguments, all of them                            |
+| `clear_events`    | Deletes the events matching a filter, pinned ones too; without arguments, all of them           |
 | `list_traces`     | OpenTelemetry traces, with filters by service, name, duration, errors                           |
 | `get_trace`       | One trace as a tree of its spans                                                                |
 | `profile_*`       | Analyze a `profiler` event, see [profiling.md](profiling.md#read-the-profile)                   |
@@ -69,14 +69,14 @@ The argument schema of each tool is in its `inputSchema` (`mcp.php tools <name>`
 
 `list_events`, `wait_for_events` and `clear_events` take the same filter; an event matches all the arguments given.
 
-| Argument  | Matches                                                                                                |
-| --------- | ------------------------------------------------------------------------------------------------------ |
-| `type`    | One or a list of `var-dump`, `monolog`, `sentry`, `smtp`, `http-dump`, `ray`, `profiler`               |
-| `project` | One or a list; events sent without a project belong to `default`                                       |
-| `from`    | Caught at this time or later: ISO 8601 in UTC, or back from now in lower case: `30s`, `5m`, `2h`, `1d` |
-| `to`      | Caught at this time or earlier, in the same forms                                                      |
-| `search`  | Text in the summary or the text of the event, in any case; `regex: true` makes it a PCRE pattern       |
-| `where`   | Fields of the event, below                                                                             |
+| Argument  | Matches                                                                                                      |
+| --------- | ------------------------------------------------------------------------------------------------------------ |
+| `type`    | One or a list of `var-dump`, `monolog`, `sentry`, `smtp`, `http-dump`, `ray`, `profiler`, `xdebug-trace`     |
+| `project` | One or a list; events sent without a project belong to `default`                                             |
+| `from`    | Caught at this time or later: ISO 8601 in UTC, or back from now in lower case: `30s`, `5m`, `2h`, `1d`, `1w` |
+| `to`      | Caught at this time or earlier, in the same forms                                                            |
+| `search`  | Text in the summary or the text of the event, in any case; `regex: true` makes it a PCRE pattern             |
+| `where`   | Fields of the event, below                                                                                   |
 
 | Type        | Fields                                                                                                          |
 | ----------- | --------------------------------------------------------------------------------------------------------------- |
@@ -89,7 +89,7 @@ The argument schema of each tool is in its `inputSchema` (`mcp.php tools <name>`
 | `profiler`  | `name`, `format`                                                                                                |
 
 A `where` string matches the whole value in any case, with `*` for any characters; a list matches any of its
-values. A field no type has fails the call.
+values. A field no type has fails the call. An `xdebug-trace` has no fields: `search` finds it by its URL or name.
 
 - Errors of the last 5 minutes, logs and Sentry: `{"from": "5m", "where": {"level": "error"}}`
 - POST requests to the orders API: `{"type": "http-dump", "where": {"method": "POST", "path": "/api/orders*"}}`
@@ -100,3 +100,5 @@ values. A field no type has fails the call.
 Traces are not events: `list_traces` takes its own `since` cursor, and `from`, `to`, `service`, `name`, `errors_only`,
 `min_duration_ms`, `search`. A trace is listed again with every span that arrives for it. `get_trace` gives the
 span tree with durations and attributes. Slow traces of the last hour: `{"from": "1h", "min_duration_ms": 500}`.
+A trace is dropped 600 seconds after its last span (`TRAP_TRACES_TTL`), or sooner when the kept spans pass 10 000
+(`TRAP_TRACES_MAX_SPANS`) and it is the least recently updated: read it soon after the run. OpenTelemetry logs and metrics have no MCP tool.

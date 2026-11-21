@@ -22,9 +22,7 @@ vendor/bin/trap --mcp -s         # no console output: the agent reads only throu
 
 Run it as a background process and keep it for the session: events live in its memory and a restart drops them.
 The buffer keeps the last 200 events (`maxEvents` of `trap.xml`); an event pinned in the web UI is pushed out last.
-Traces have their own limits, and so have the traces, logs and metrics of the web UI's Sentry pages:
-`TRAP_TELEMETRY_MAX_SPANS` (10000), `TRAP_TELEMETRY_MAX_LOGS` (5000), `TRAP_TELEMETRY_MAX_METRICS` (5000), or
-`<telemetry maxSpans="10000" maxLogs="5000" maxMetrics="5000"/>` in `trap.xml`. Keep the process ID to
+OpenTelemetry traces have limits of their own, see [mcp.md](mcp.md#traces). Keep the process ID to
 stop it later: `$trap = Start-Process php 'vendor/bin/trap','--mcp' -PassThru` and `Stop-Process $trap.Id` in
 PowerShell, `vendor/bin/trap --mcp & echo $!` and `kill <pid>` in a POSIX shell. Other Traps may run on the machine:
 stop only yours. `-vv` prints the server's debug messages and errors, such as a port it can't listen on or a profile
@@ -41,12 +39,13 @@ Every port takes every protocol; the defaults are the ports the clients send to 
 | `1025` | SMTP                                                    |
 | `8000` | HTTP: Sentry, Ray, profiles, HTTP dumps, web UI and MCP |
 | `4318` | OTLP/HTTP                                               |
+| `9003` | Xdebug step debugging, only with `--xdebug`             |
 
 - Other ports: `-p9912 -p8000` or `TRAP_TCP_PORTS=9912,8000`; the MCP port: `--mcp=8001` or `TRAP_MCP_PORT`.
   `mcp.php` reads `TRAP_MCP_PORT` too.
-- With the web UI on a TCP port, a browser `GET` of a UI page (`/`, `/smtp`, `/sentry/...`, `/{type}/{uuid}`) and an
-  `/api/...` call from a UI page go to the UI, not to HTTP dumps; a dump sent by `curl` or an app stays a dump,
-  an `OPTIONS` request too. The UI sends no CORS headers: open it from Trap itself.
+- With the web UI on a TCP port, the UI answers `GET /`, its files, its own `/api/...` routes, a browser `GET` of a
+  UI page (`/smtp`, `/sentry/...`, `/{type}/{uuid}`) and any `/api/...` call from a UI page; every other request,
+  an `OPTIONS` too, stays an HTTP dump. The UI sends no CORS headers: open it from Trap itself.
   The UI on a port of its own (`--ui=8080`) takes no HTTP events, though its setup guide shows that port in the
   DSNs: send HTTP to a TCP port, `8000` by default. With `--xdebug` the setup guide shows the debugger port too.
 - A Trap of your own beside the user's: one port takes everything,
@@ -91,8 +90,11 @@ TRAP_TCP_HOST=0.0.0.0 vendor/bin/trap --mcp
 
 Environment variables win over CLI options, which win over `trap.xml` of the package
 (`vendor/buggregator/trap/trap.xml`). Server variables of note: `TRAP_TCP_PORTS`, `TRAP_TCP_HOST`, `TRAP_MCP_PORT`,
-`TRAP_MCP_HOST`, `TRAP_MCP_TOKEN`, `TRAP_UI_PORT`, `TRAP_TLS_CERT`, `TRAP_TLS_KEY`, `TRAP_MEMORY_LIMIT` (512M, for large profiles),
-`TRAP_XDEBUG_PATH`, `TRAP_XHPROF_PATH`, `TRAP_SPX_PATH` (the directories of profiles to pick up),
-`TRAP_XDEBUG_PORT`, `TRAP_XDEBUG_IDE`, `TRAP_XDEBUG_MODE`, `TRAP_XDEBUG_ALLOW_EVAL` (the debugger of `--xdebug`, see
-[xdebug.md](xdebug.md)), `TRAP_XDEBUG_TRACE_PATH` and `TRAP_XDEBUG_TRACE_MAX_UPLOAD`, `_MAX_SIZE`, `_KEEP` (Xdebug traces, see
-[profiling.md](profiling.md#trace-the-calls)).
+`TRAP_MCP_HOST`, `TRAP_MCP_TOKEN`, `TRAP_UI_PORT`, `TRAP_UI_HOST`, `TRAP_TLS_CERT`, `TRAP_TLS_KEY`,
+`TRAP_MEMORY_LIMIT` (512M, for large profiles), `TRAP_HTTP_MAX_INFLATED_SIZE` (64M, a gzipped or chunked body
+decoded past it gets `413`), `TRAP_XDEBUG_PATH`, `TRAP_XHPROF_PATH`, `TRAP_SPX_PATH` (the directories of profiles
+to pick up), `TRAP_XDEBUG_PORT`, `TRAP_XDEBUG_IDE`, `TRAP_XDEBUG_MODE`, `TRAP_XDEBUG_ALLOW_EVAL`,
+`TRAP_XDEBUG_ALLOW_CONTROL` (the debugger of `--xdebug`, see [xdebug.md](xdebug.md)), `TRAP_XDEBUG_TRACE_PATH`,
+`TRAP_XDEBUG_TRACE_MAX_UPLOAD`, `_MAX_SIZE`, `_KEEP` (Xdebug traces, see [profiling.md](profiling.md#trace-the-calls)),
+`TRAP_TRACES_MAX_SPANS`, `TRAP_TRACES_TTL` (OpenTelemetry traces of the console and MCP),
+`TRAP_TELEMETRY_MAX_SPANS`, `_MAX_LOGS`, `_MAX_METRICS` (the traces, logs and metrics of the web UI's Sentry pages).

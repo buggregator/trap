@@ -157,6 +157,7 @@ foreach ($profilers as $extension => $line) {
 if (\extension_loaded('xdebug')) {
     $mode = (string) \ini_get('xdebug.mode');
     echo "  Xdebug: mode=$mode", \str_contains($mode, 'profile') ? '' : '; profiles whole runs with xdebug.mode=profile', "\n";
+    echo "    steps through code with trap --xdebug (xdebug.md); traces every call with xdebug.mode=trace (profiling.md)\n";
     $found = true;
 }
 echo $found ? '' : "  none; Excimer installs with `pecl install excimer`\n";

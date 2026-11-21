@@ -99,7 +99,8 @@ curl -s 'http://localhost:6060/debug/pprof/profile?seconds=10' \
 - The `hot_path` keeps the first 5 and the last 25 calls of a longer path: `depth` jumps where it is cut. Its values,
   as those of `profile_top`, sum all the calls of a function, so a callee may show more than its caller on the path.
 - A sampled profile counts samples, not calls: a function absent from it took less than the period.
-- After the fix, profile the same input again and compare the `peaks` of the two summaries.
+- After the fix, profile the same input again and compare the `peaks` of the two summaries; the web UI compares two
+  profiles side by side for the user.
 
 ## Trace the calls
 
@@ -112,9 +113,10 @@ to see which calls a request made and with what values, where a profile only sum
    `php -d xdebug.mode=trace -d xdebug.start_with_request=yes -d xdebug.trace_format=1 -d xdebug.collect_return=1 -d xdebug.output_dir=<dir> script.php`.
 2. Send it to Trap: start Trap with `TRAP_XDEBUG_TRACE_PATH=<dir>` and it picks up `*.xt` and `*.xt.gz` files
    written after its start, or POST the file to a TCP port of Trap with the header `X-Buggregator-Event: xdebug-trace`
-   (`400` names the problem). A `.xt.gz` needs ext-zlib in Trap's PHP (`501` without it); a file without
-   `TRACE END` is taken over HTTP only. `X-Buggregator-Trace-Name` sets the `name` field.
-3. Find the event: `{"type": "xdebug-trace"}`.
+   (`400` names the problem, `413` a file over `TRAP_XDEBUG_TRACE_MAX_UPLOAD`, 100 MB). A `.xt.gz` needs ext-zlib in
+   Trap's PHP (`501` without it); a file without `TRACE END` is taken over HTTP only.
+3. Find the event: `{"type": "xdebug-trace"}`. It has no `where` fields: `X-Buggregator-Trace-Url` or
+   `X-Buggregator-Trace-Name` titles its summary, so `search` finds it.
 4. `xdebug_trace_summary` with `{"uuid": "<event id>"}`: totals, the 20 functions with the most self time, the 20
    slowest calls, each with its `offset`.
 5. `xdebug_trace_calls` with `{"uuid": ..., "parent": <offset>}` lists the direct callees of a call, without

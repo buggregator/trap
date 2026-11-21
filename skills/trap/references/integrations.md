@@ -15,7 +15,8 @@ SENTRY_DSN=http://sentry@127.0.0.1:8000/1          # Laravel: SENTRY_LARAVEL_DSN
 The key and the project ID can be anything. Events: `sentry`; `get_event` gives the exception chain with the code
 around the frames, the request and the breadcrumbs, the fastest way to an exception the application swallowed into
 its error reporting. A transaction is a `sentry` event as well; Sentry logs, trace metrics and spans make no event and
-show only on the Sentry pages of the web UI.
+show only on the Sentry pages of the web UI. A body over 2 MB gets `413`, and an event Trap can't parse is dropped
+with a warning in its console. The `X-Buggregator-Project` header sets the `project` of the event.
 
 ## Monolog
 
@@ -45,7 +46,8 @@ Events: `monolog`, fields `level` and `channel`. A project without Monolog: `tra
 ## Ray
 
 `spatie/ray`: `'port' => 8000` in `ray.php`; Laravel: `RAY_PORT=8000`. Or start Trap on the port the client already
-uses: `vendor/bin/trap --mcp -p23517` plus the default ports. Events: `ray`, fields `payload_type`, `label`, `color`,
+uses: `-p` replaces the default ports, so list them all,
+`vendor/bin/trap --mcp -p1025 -p4318 -p8000 -p9912 -p9913 -p23517`. Events: `ray`, fields `payload_type`, `label`, `color`,
 `exception`. An updated Ray message, as `ray()->...` chains send, is one event listed again at its latest change.
 
 ## Mail
@@ -84,10 +86,12 @@ data under the project of the path `/api/{project}/integration/otlp/v1/traces` (
 `X-Buggregator-Project` header (`OTEL_EXPORTER_OTLP_HEADERS=X-Buggregator-Project=shop`), else `default`. A numeric
 `{project}` is the project ID of a Sentry DSN and names no project.
 
-A request over the limits gets `413` with the reason: 10 MB of body; 10 000 spans, log records or data points;
+A request over the limits gets `413` with the reason: 10 MB of body after decompression; 10 000 spans, log records or data points;
 over protobuf 240 000 elements (attributes, events, links, repeated values), 2 000 000 fields and 40 MB of text;
 over JSON 520 000 objects and arrays. Without `ext-protobuf` the protobuf limits are 20 000 elements, 200 000 fields
 and 16 MB of text, an SDK batch of 512 spans: on `413`, install it, switch to `http/json` or export smaller batches.
+Protobuf with groups, invalid tags or nesting deeper than 64 messages gets `400`. An exporter running in a browser
+can't send: Trap answers no CORS preflight.
 
 ## VarDumper
 
@@ -99,7 +103,8 @@ and 16 MB of text, an SDK batch of 512 spans: on `413`, install it, switch to `h
 
 Any HTTP request no other channel takes is caught whole: method, URI, headers, cookies, query, body and uploaded
 files. Point a webhook, an HTTP client or a form at `http://127.0.0.1:8000/<any path>` to see what it really sends.
-Trap answers `404`. Events: `http-dump`, fields `method`, `path`, `host`.
+Trap answers `404`. Events: `http-dump`, fields `method`, `path`, `host`. With `--ui` on that port, `GET /` and the
+UI's own `/api/...` routes are the UI's, see [server.md](server.md#ports): send to another path.
 
 ## Verify side effects
 
