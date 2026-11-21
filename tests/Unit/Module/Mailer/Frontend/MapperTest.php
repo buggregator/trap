@@ -124,7 +124,7 @@ final class MapperTest
         }
         Assert::same(
             $event->payload['html'],
-            "<img src=\"/api/smtp/{$event->uuid}/attachment/{$second->uuid}\"><img src=\"cid:other\">",
+            "<img src=\"/api/smtp/attachments/{$event->uuid}/{$second->uuid}\"><img src=\"cid:other\">",
         );
     }
 
@@ -143,7 +143,7 @@ final class MapperTest
         Assert::instanceOf($assets[1], AttachedFile::class);
         Assert::same($assets[1]->file->getClientFilename(), 'report.pdf');
         Assert::string($event->payload['html'])
-            ->contains("<img src=\"/api/smtp/{$event->uuid}/attachment/{$assets[0]->uuid}\">");
+            ->contains("<img src=\"/api/smtp/attachments/{$event->uuid}/{$assets[0]->uuid}\">");
         Assert::same($event->payload['raw'], $email);
     }
 
