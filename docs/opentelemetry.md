@@ -74,14 +74,15 @@ With the [`file` sender](senders.md#file), each export request is saved as one J
   data points; a bigger one gets `413`. SDK batch processors export 512 spans at a time by default.
   A protobuf request is checked on the wire before it is parsed: one with groups, invalid tags or nesting deeper
   than 64 messages (about 20 levels of nested key-value lists in a log body) gets `400`; one with more than
-  400 000 elements (records, items of any repeated field, unknown fields, every 8 packed values) or 2 000 000
-  protobuf fields gets `413`. That is a Collector batch of 10 000 spans with 30 attributes each, and about 230 MB
-  of memory at most.
+  240 000 elements (records, items of any repeated field, unknown fields, every 8 packed values), 2 000 000
+  protobuf fields or 40 MB of text (strings as JSON, where a control character takes 6 bytes, and bytes as
+  base64) gets `413`. That is a Collector batch of 10 000 spans with 20 attributes each; a request within the
+  limits measured up to about 230 MB of PHP memory.
   Without `ext-protobuf` the pure-PHP `google/protobuf` builds messages some 50 times slower, so the limits are
-  20 000 elements, each packed value counting, and 200 000 fields: an SDK batch of 512 spans, about 1 s.
-  Install `ext-protobuf`, use `http/json` or export smaller batches to send more.
-- A JSON request may hold up to 650 000 objects and arrays, the same batch; a bigger one gets `413` before it is
-  decoded. It takes about 270 MB of memory at most.
+  20 000 elements, each packed value counting, 200 000 fields and 16 MB of text: an SDK batch of 512 spans,
+  about 1 s. Install `ext-protobuf`, use `http/json` or export smaller batches to send more.
+- A JSON request may hold up to 520 000 objects and arrays, the same batch; a bigger one gets `413` before it is
+  decoded. A request within the limit measured up to about 210 MB of PHP memory.
 - Port `4318` is also the default port of an OpenTelemetry Collector or Jaeger. On Linux and macOS, when it is
   taken, Trap keeps retrying to listen on it silently (run with `-vv` to see the errors) and works on the other ports.
   On Windows, Trap can listen on `127.0.0.1:4318` even while another process, such as a Collector or Jaeger in

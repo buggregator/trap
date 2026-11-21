@@ -28,10 +28,11 @@ final class JsonReader
     private const UINT32_MAX = 0xFFFF_FFFF;
 
     /**
-     * Objects and lists of one request body: a Collector batch of 10 000 spans with 30 attributes each,
-     * at most about 270 MB once decoded.
+     * Objects and lists of one request body: a Collector batch of 10 000 spans with 20 attributes each,
+     * at most about 210 MB of memory once decoded. A protobuf request within {@see ProtobufWire::MAX_ELEMENTS}
+     * stays within it once converted.
      */
-    public const MAX_CONTAINERS = 650_000;
+    public const MAX_CONTAINERS = 520_000;
 
     /**
      * Decodes a request body that must be a JSON object.
@@ -54,16 +55,34 @@ final class JsonReader
     }
 
     /**
-     * Objects and lists of a JSON text: `{` and `[` outside strings.
+     * Objects and lists of a JSON text: `{` and `[` outside strings. An unclosed string ends the count;
+     * the JSON decoder reports it.
      *
-     * @throws \InvalidArgumentException When a string is not closed.
+     * @return int<0, max>
      */
     public static function countContainers(string $json): int
     {
-        $stripped = \preg_replace('/"(?:[^"\\\\]++|\\\\.)*+"/s', '""', $json);
-        \is_string($stripped) or throw new \InvalidArgumentException('Invalid JSON string.');
+        // Without escaped backslashes, then escaped quotes, every quote opens or closes a string.
+        // A linear scan: a regular expression hits the PCRE limits on a string of a million escapes.
+        $json = \str_replace(['\\\\', '\\"'], '', $json);
+        $length = \strlen($json);
+        $count = 0;
+        $offset = 0;
+        while (($offset += \strcspn($json, '"{[', $offset)) < $length) {
+            if ($json[$offset] !== '"') {
+                ++$count;
+                ++$offset;
+                continue;
+            }
 
-        return \substr_count($stripped, '{') + \substr_count($stripped, '[');
+            $close = \strpos($json, '"', $offset + 1);
+            if ($close === false) {
+                break;
+            }
+            $offset = $close + 1;
+        }
+
+        return $count;
     }
 
     public static function arrayField(mixed $data, string $key): array

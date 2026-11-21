@@ -20,7 +20,9 @@ use Opentelemetry\Proto\Collector\Trace\V1\ExportTraceServiceRequest;
  * - records (spans, log records, metric data points) against the record limit of the signal;
  * - elements: every occurrence of a repeated field of any type, every unknown field, and the values of
  *   packed arrays (8 per element with `ext-protobuf`, 1 without), against {@see self::maxElements()};
- * - tags it reads against {@see self::maxTags()}, which bounds the walk and the parse of known fields.
+ * - tags it reads against {@see self::maxTags()}, which bounds the walk and the parse of known fields;
+ * - bytes of strings and bytes values once converted to JSON against {@see self::MAX_TEXT}: the decoders
+ *   convert the message to JSON, where a control character takes 6 bytes and bytes are base64.
  *
  * It fails closed: what it cannot read for sure a parser might still accept, so groups, unknown wire types,
  * tags over 5 bytes, field numbers out of range, truncated values and nesting deeper than
@@ -32,16 +34,18 @@ use Opentelemetry\Proto\Collector\Trace\V1\ExportTraceServiceRequest;
  * @internal
  * @psalm-internal Buggregator\Trap\Module\Tracing\Http
  *
- * @psalm-type Field = array{0: non-empty-string|null, 1: bool, 2: int<-1, 8>, 3: bool}
+ * @psalm-type Field = array{0: non-empty-string|null, 1: bool, 2: int<-1, 8>, 3: bool, 4: int<0, 2>}
  *         Message of the field or null; repeated; bytes of a packed value (0 for varints, -1 when not packable);
- *         whether an element is a record.
+ *         whether an element is a record; whether it is a string (1) or bytes (2).
  */
 final class ProtobufWire
 {
     /**
-     * Elements of one request with `ext-protobuf`: a Collector batch of 10 000 spans with 30 attributes each.
+     * Elements of one request with `ext-protobuf`: a Collector batch of 10 000 spans with 20 attributes each.
+     * An attribute is 2 JSON objects once converted, so the request stays within
+     * {@see JsonReader::MAX_CONTAINERS}.
      */
-    public const MAX_ELEMENTS = 400_000;
+    public const MAX_ELEMENTS = 240_000;
 
     /**
      * Elements of one request with the pure-PHP `google/protobuf`: an SDK batch of 512 spans with 30 attributes.
@@ -53,6 +57,17 @@ final class ProtobufWire
 
     /** Tags read in one request with the pure-PHP `google/protobuf`. */
     public const MAX_TAGS_PURE_PHP = 200_000;
+
+    /**
+     * Bytes of strings and bytes values in the JSON the request converts to, with `ext-protobuf`.
+     */
+    public const MAX_TEXT = 40 * 1024 * 1024;
+
+    /**
+     * Bytes of strings and bytes values in the JSON the request converts to, with the pure-PHP `google/protobuf`,
+     * which writes them byte by byte.
+     */
+    public const MAX_TEXT_PURE_PHP = 16 * 1024 * 1024;
 
     /**
      * Messages nested in each other. A log body of key-value lists nests 3 messages per level, so about
@@ -80,6 +95,9 @@ final class ProtobufWire
     private const TYPE_STRING = 9;
     private const TYPE_BYTES = 12;
     private const FIXED_SIZES = [1 => 8, 2 => 4, 6 => 8, 7 => 4, 15 => 4, 16 => 8];
+    private const TEXT_NONE = 0;
+    private const TEXT_STRING = 1;
+    private const TEXT_BYTES = 2;
     private const MAX_FIELD_NUMBER = (1 << 29) - 1;
     private const WIRE_VARINT = 0;
     private const WIRE_FIXED64 = 1;
@@ -98,10 +116,14 @@ final class ProtobufWire
     /** @var int<0, max> */
     private int $tags = 0;
 
+    /** @var int<0, max> */
+    private int $text = 0;
+
     /**
      * @param int<1, max> $maxRecords
      * @param int<1, max> $maxElements
      * @param int<1, max> $maxTags
+     * @param int<1, max> $maxText
      * @param int<1, 8> $packedPerElement Packed values counted as one element.
      */
     private function __construct(
@@ -109,6 +131,7 @@ final class ProtobufWire
         private readonly int $maxRecords,
         private readonly int $maxElements,
         private readonly int $maxTags,
+        private readonly int $maxText,
         private readonly int $packedPerElement,
     ) {}
 
@@ -134,8 +157,10 @@ final class ProtobufWire
      * @param string $records What the records are, for the error message.
      * @param int<1, max>|null $maxElements {@see self::maxElements()} when null.
      * @param int<1, max>|null $maxTags {@see self::maxTags()} when null.
+     * @param int<1, max>|null $maxText Bytes of text in JSON; {@see self::MAX_TEXT} or
+     *        {@see self::MAX_TEXT_PURE_PHP} when null.
      *
-     * @throws LimitExceededException When the message has more records, elements or tags than accepted.
+     * @throws LimitExceededException When the message has more records, elements, tags or text than accepted.
      * @throws \InvalidArgumentException When the message is malformed.
      */
     public static function check(
@@ -145,18 +170,21 @@ final class ProtobufWire
         string $records,
         ?int $maxElements = null,
         ?int $maxTags = null,
+        ?int $maxText = null,
     ): void {
         $extension = \extension_loaded('protobuf');
         $maxElements ??= self::maxElements();
         $maxTags ??= self::maxTags();
+        $maxText ??= $extension ? self::MAX_TEXT : self::MAX_TEXT_PURE_PHP;
         $root = self::schema(self::REQUESTS[$signal]);
 
-        $wire = new self($payload, $maxRecords, $maxElements, $maxTags, $extension ? 8 : 1);
+        $wire = new self($payload, $maxRecords, $maxElements, $maxTags, $maxText, $extension ? 8 : 1);
         $wire->walk($root, 0, \strlen($payload), 0);
 
         $wire->records > $maxRecords and throw LimitExceededException::records($maxRecords, $records);
         $wire->elements > $maxElements and throw LimitExceededException::elements($maxElements, $extension);
         $wire->tags > $maxTags and throw LimitExceededException::fields($maxTags);
+        $wire->text > $maxText and throw LimitExceededException::text($maxText, $extension);
     }
 
     /**
@@ -197,12 +225,13 @@ final class ProtobufWire
             $type = (int) $field->getType();
             $message = null;
             if ($type === self::TYPE_MESSAGE || $type === self::TYPE_GROUP) {
+                /** @var Descriptor|null $child */
                 $child = $field->getMessageType();
-                if ($child instanceof Descriptor) {
-                    self::describe($child);
-                    /** @var non-empty-string $message */
-                    $message = $child->getFullName();
-                }
+                // Read as scalars, its content would go uncounted.
+                $child === null and throw new \LogicException("No descriptor of the message of $name.{$field->getName()}.");
+                self::describe($child);
+                /** @var non-empty-string $message */
+                $message = $child->getFullName();
             }
 
             $packable = $message === null && $type !== self::TYPE_STRING && $type !== self::TYPE_BYTES;
@@ -211,6 +240,11 @@ final class ProtobufWire
                 (bool) $field->isRepeated(),
                 $packable ? self::FIXED_SIZES[$type] ?? 0 : -1,
                 $message !== null && \in_array($message, self::RECORDS, true),
+                match ($type) {
+                    self::TYPE_STRING => self::TEXT_STRING,
+                    self::TYPE_BYTES => self::TEXT_BYTES,
+                    default => self::TEXT_NONE,
+                },
             ];
         }
 
@@ -237,6 +271,7 @@ final class ProtobufWire
             if (++$this->tags > $this->maxTags
                 || $this->elements > $this->maxElements
                 || $this->records > $this->maxRecords
+                || $this->text > $this->maxText
             ) {
                 return;
             }
@@ -298,6 +333,11 @@ final class ProtobufWire
             return;
         }
 
+        if ($field[4] !== self::TEXT_NONE) {
+            $this->text += $this->jsonLength($field[4], $from, $to);
+            return;
+        }
+
         if (!$field[1] || $field[2] < 0) {
             return;
         }
@@ -312,6 +352,25 @@ final class ProtobufWire
             }
         }
         $this->elements += \max(0, \intdiv($values + $this->packedPerElement - 1, $this->packedPerElement));
+    }
+
+    /**
+     * Bytes of a string or bytes value in the JSON the message converts to: a control character becomes
+     * a 6-byte `\u0001`, bytes become base64.
+     *
+     * @param self::TEXT_STRING|self::TEXT_BYTES $kind
+     * @return int<0, max>
+     */
+    private function jsonLength(int $kind, int $from, int $to): int
+    {
+        $length = $to - $from;
+        if ($kind === self::TEXT_BYTES) {
+            return \max(0, \intdiv($length + 2, 3) * 4);
+        }
+
+        $controls = $length === 0 ? 0 : (int) \preg_match_all('/[\x00-\x1F]/', \substr($this->bytes, $from, $length));
+
+        return \max(0, $length + 5 * $controls);
     }
 
     /**
