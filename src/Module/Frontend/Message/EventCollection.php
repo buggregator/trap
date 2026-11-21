@@ -4,15 +4,13 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend\Message;
 
-use Buggregator\Trap\Server\Event\Event;
-
 /**
  * @internal
  */
 final class EventCollection implements \JsonSerializable
 {
     /**
-     * @param array<array-key, Event> $events
+     * @param list<UiEvent> $events
      * @param array<array-key, mixed> $meta
      */
     public function __construct(

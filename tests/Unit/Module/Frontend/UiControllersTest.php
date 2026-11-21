@@ -108,7 +108,7 @@ final class UiControllersTest
 
         Assert::same($response->getStatusCode(), 200);
         Assert::same(\json_decode((string) $response->getBody(), true), $expected);
-        Assert::same(self::json($rpc), ['data' => $expected]);
+        Assert::same(self::json($rpc), ['data' => ['code' => 200, 'data' => $expected]]);
     }
 
     public function testSmtpAttachmentsOverHttpAndRpc(): void
@@ -130,7 +130,7 @@ final class UiControllersTest
         $rpc = $container->get(RPC::class)->handleMessage(['method' => "get:api/smtp/{$event->uuid}/attachments"]);
 
         Assert::same(\json_decode((string) $response->getBody(), true), $expected);
-        Assert::same(self::json($rpc), ['data' => $expected]);
+        Assert::same(self::json($rpc), ['data' => ['code' => 200, 'data' => $expected]]);
         Assert::same(
             \json_decode((string) self::get($container, '/api/smtp/0000-1111/attachments')->getBody(), true),
             ['code' => 200, 'status' => false],
@@ -171,9 +171,9 @@ final class UiControllersTest
         ]);
         $unknown = $rpc->handleMessage(['method' => 'post:api/ray/locks/ccc', 'data' => []]);
 
-        Assert::same(self::json($continue), ['data' => ['code' => 200, 'status' => true]]);
-        Assert::same(self::json($stop), ['data' => ['code' => 200, 'status' => true]]);
-        Assert::same(self::json($unknown), ['data' => ['code' => 200, 'status' => false]]);
+        Assert::same(self::json($continue), ['data' => ['code' => 200, 'data' => ['code' => 200, 'status' => true]]]);
+        Assert::same(self::json($stop), ['data' => ['code' => 200, 'data' => ['code' => 200, 'status' => true]]]);
+        Assert::same(self::json($unknown), ['data' => ['code' => 200, 'data' => ['code' => 200, 'status' => false]]]);
         Assert::false($locks->poll('aaa')?->stop);
         Assert::true($locks->poll('bbb')?->stop);
     }
@@ -192,6 +192,36 @@ final class UiControllersTest
         Assert::same($response->getStatusCode(), 200);
         Assert::same(\json_decode((string) $response->getBody(), true), ['code' => 200, 'status' => true]);
         Assert::true($locks->poll('aaa')?->stop);
+    }
+
+    /**
+     * The UI takes an RPC call for done only on a 2xx `code`; a call with no reply fails it by a timeout.
+     */
+    public function testRpcRepliesWithCodeOfTheCall(): void
+    {
+        $container = new ObjectContainer();
+        $container->get(EventStore::class)->add(new Event('0145a0e0', 'smtp', [], 1.0));
+        $rpc = $container->get(RPC::class);
+
+        $pin = $rpc->handleMessage(['method' => 'post:api/event/0145a0e0/pin', 'data' => ['token' => null, 'project' => 'default']]);
+        $missing = $rpc->handleMessage(['method' => 'post:api/event/0145a0e1/pin', 'data' => []]);
+        $unknown = $rpc->handleMessage(['method' => 'post:api/nothing', 'data' => []]);
+        $clear = $rpc->handleMessage(['method' => 'delete:api/events', 'data' => ['project' => 'default', 'keep_pinned' => true]]);
+
+        Assert::same(self::json($pin)['data']['code'], 200);
+        Assert::true($container->get(EventStore::class)->isPinned('0145a0e0'));
+        Assert::same(self::json($missing)['data']['code'], 404);
+        Assert::same(self::json($unknown)['data']['code'], 404);
+        Assert::same(self::json($clear)['data']['code'], 200);
+        Assert::count($container->get(EventStore::class), 1);
+    }
+
+    public function testMissingEventIsNotFoundOverHttp(): void
+    {
+        $response = self::get(new ObjectContainer(), '/api/event/0145a0e0-0b1a');
+
+        Assert::same($response->getStatusCode(), 404);
+        Assert::true($response->hasHeader(Pipeline::FRONTEND_HEADER));
     }
 
     private static function get(ObjectContainer $container, string $uri): ResponseInterface

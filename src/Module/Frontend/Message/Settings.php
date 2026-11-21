@@ -15,9 +15,12 @@ final class Settings implements \JsonSerializable
 
     /**
      * @param list<non-empty-string> $events Event types trap produces. The UI hides the others from its menu.
+     * @param array<non-empty-string, int> $ports Ports of the listeners for the setup guide of the UI,
+     *        by `http`, `smtp`, `monolog`, `var_dumper`, `proxy`, `xdebug`: the UI shows a missing one as off.
      */
     public function __construct(
         private readonly array $events,
+        private readonly array $ports = [],
     ) {
         $this->number = Info::version();
     }
@@ -31,9 +34,12 @@ final class Settings implements \JsonSerializable
                 'login_url' => '/auth/sso/login',
             ],
             'version' => $this->number,
+            'events' => $this->events,
+            // The UI before 1.39 reads the types here
             'client' => [
                 'events' => $this->events,
             ],
+            'ports' => (object) $this->ports,
         ];
     }
 }

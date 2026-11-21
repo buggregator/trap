@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend;
 
+use Buggregator\Trap\Module\Frontend\Config\Frontend;
 use Buggregator\Trap\Module\Frontend\Service;
 use Buggregator\Trap\Module\Frontend\UiControllers;
 use Buggregator\Trap\Module\HttpDump\Frame as HttpDumpFrame;
 use Buggregator\Trap\Module\HttpDump\Module as HttpDumpModule;
 use Buggregator\Trap\Server\Application\Module\Modules;
+use Buggregator\Trap\Server\Config\TcpPorts;
 use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Event\FrameMapper;
 use Buggregator\Trap\Server\Logger;
@@ -82,7 +84,7 @@ final class UiContributionsTest
     {
         $settings = self::container(UiModule::class, HttpDumpModule::class)->get(Service::class)->settings()->jsonSerialize();
 
-        Assert::same($settings['client']['events'], ['binary', 'http-dump']);
+        Assert::same($settings['events'], ['binary', 'http-dump']);
     }
 
     public function testMapperOfTakenFrameClassIsRejected(): void
@@ -105,7 +107,7 @@ final class UiContributionsTest
 
         Expect::exception(\LogicException::class)->withMessageContaining('is already declared by');
 
-        new Service(new Logger(), new EventStore(), $modules);
+        new Service(new Logger(), new EventStore(), $modules, new Frontend(), new TcpPorts());
     }
 
     private static function emptyContainer(): ObjectContainer

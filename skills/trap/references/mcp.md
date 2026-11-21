@@ -43,7 +43,7 @@ The argument schema of each tool is in its `inputSchema` (`mcp.php tools <name>`
 | `wait_for_events` | Waits until `count` events (1 by default) match, up to `timeout` seconds (30, at most 50)       |
 | `get_event`       | One event as plain text: the full dump, log record, exception, mail, request                    |
 | `delete_event`    | Deletes events by `id` or `ids`                                                                 |
-| `clear_events`    | Deletes the events matching a filter; without arguments, all of them                            |
+| `clear_events`    | Deletes the events matching a filter, pinned ones too; without arguments, all of them           |
 | `list_traces`     | OpenTelemetry traces, with filters by service, name, duration, errors                           |
 | `get_trace`       | One trace as a tree of its spans                                                                |
 | `profile_*`       | Analyze a `profiler` event, see [profiling.md](profiling.md#read-the-profile)                   |
