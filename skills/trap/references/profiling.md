@@ -101,6 +101,35 @@ curl -s 'http://localhost:6060/debug/pprof/profile?seconds=10' \
 - A sampled profile counts samples, not calls: a function absent from it took less than the period.
 - After the fix, profile the same input again and compare the `peaks` of the two summaries.
 
+## Trace the calls
+
+An Xdebug function trace records every call in order with its arguments, return value, time and memory: take it
+to see which calls a request made and with what values, where a profile only sums the costs. Full reference:
+<https://github.com/buggregator/trap/blob/master/docs/xdebug-traces.md>.
+
+1. Record with `xdebug.mode=trace` and `xdebug.trace_format=1` (other formats are rejected);
+   `xdebug.collect_return=1` adds return values. A CLI run:
+   `php -d xdebug.mode=trace -d xdebug.start_with_request=yes -d xdebug.trace_format=1 -d xdebug.collect_return=1 -d xdebug.output_dir=<dir> script.php`.
+2. Send it to Trap: start Trap with `TRAP_XDEBUG_TRACE_PATH=<dir>` and it picks up `*.xt` and `*.xt.gz` files
+   written after its start, or POST the file to a TCP port of Trap with the header `X-Buggregator-Event: xdebug-trace`
+   (`400` names the problem, `413` a file over `TRAP_XDEBUG_TRACE_MAX_UPLOAD`, 100 MB). A `.xt.gz` needs ext-zlib in
+   Trap's PHP (`501` without it); a file without `TRACE END` is taken over HTTP only.
+3. Find the event: `{"type": "xdebug-trace"}`. It has no `where` fields: `X-Buggregator-Trace-Url` or
+   `X-Buggregator-Trace-Name` titles its summary, so `search` finds it.
+4. `xdebug_trace_summary` with `{"uuid": "<event id>"}`: totals, the 20 functions with the most self time, the 20
+   slowest calls, each with its `offset`.
+5. `xdebug_trace_calls` with `{"uuid": ..., "parent": <offset>}` lists the direct callees of a call, without
+   `parent` the top level; `{"uuid": ..., "query": "Repository"}` finds the calls by function or file, each with
+   its `path` of callers. A non-null `next` → call again with `from` set to it. `xdebug_trace_call` with
+   `{"uuid": ..., "offset": <offset>}` shows one call and its first callees.
+
+- Times are seconds, memory bytes; arguments and return values are cut to 512 bytes.
+- `truncated: true`: the trace hit the size limit (`TRAP_XDEBUG_TRACE_MAX_SIZE`, 256 MB uncompressed) or the
+  script died before `TRACE END`.
+- Trap keeps the last 20 traces (`TRAP_XDEBUG_TRACE_KEEP`); an older one has no file and the tools say so.
+- A trace records every call: narrow the run, or start it with `xdebug.start_with_request=trigger` and
+  `XDEBUG_TRIGGER=1` for one request.
+
 ## Code with Fibers
 
 Xdebug writes the calls of every fiber into one log in the order they end, so the calls of fibers that switch

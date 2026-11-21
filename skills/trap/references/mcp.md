@@ -47,6 +47,7 @@ The argument schema of each tool is in its `inputSchema` (`mcp.php tools <name>`
 | `list_traces`     | OpenTelemetry traces, with filters by service, name, duration, errors                     |
 | `get_trace`       | One trace as a tree of its spans                                                          |
 | `profile_*`       | Analyze a `profiler` event, see [profiling.md](profiling.md#read-the-profile)             |
+| `xdebug_trace_*`  | Walk the call tree of an `xdebug-trace` event, see [profiling.md](profiling.md#trace-the-calls) |
 
 ## Reading
 

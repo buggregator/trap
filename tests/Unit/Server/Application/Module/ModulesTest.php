@@ -21,6 +21,8 @@ use Buggregator\Trap\Module\Ray\Http\RayTrap;
 use Buggregator\Trap\Module\Sentry\Http\SentryTrap;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap;
 use Buggregator\Trap\Module\VarDumper\Traffic\Dispatcher as VarDumperDispatcher;
+use Buggregator\Trap\Module\XDebugTrace\Config\TraceDirectory;
+use Buggregator\Trap\Module\XDebugTrace\Http\TraceTrap;
 use Buggregator\Trap\Server\Application\Module\Module;
 use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Handler\Http\ProvidesHttpMiddlewares;
@@ -117,12 +119,13 @@ final class ModulesTest
                 SpeedscopeTrap::class,
                 PprofTrap::class,
                 SPXTrap::class,
+                TraceTrap::class,
                 OtlpTrap::class,
                 DebugPage::class,
                 Dump::class,
             ],
         );
-        Assert::same($configs, [XHProf::class, XDebug::class, SPX::class]);
+        Assert::same($configs, [XHProf::class, XDebug::class, SPX::class, TraceDirectory::class]);
     }
 
     /**

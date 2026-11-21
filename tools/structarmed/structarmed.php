@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Boundwize\StructArmed\Architecture;
 
 $root = \dirname(__DIR__, 2);
-$sources = ['HttpDump', 'Mailer', 'Monolog', 'Profiler', 'Ray', 'Sentry', 'Tracing', 'VarDumper'];
+$sources = ['HttpDump', 'Mailer', 'Monolog', 'Profiler', 'Ray', 'Sentry', 'Tracing', 'VarDumper', 'XDebugTrace'];
 $channels = ['Console', 'Files', 'Frontend', 'Mcp', 'Remote'];
 
 $architecture = Architecture::define()
@@ -51,4 +51,5 @@ return $architecture
         'Buggregator\Trap\Module\Sentry\Module',
         'Buggregator\Trap\Module\Tracing\Module',
         'Buggregator\Trap\Module\VarDumper\Module',
+        'Buggregator\Trap\Module\XDebugTrace\Module',
     ]);

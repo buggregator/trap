@@ -23,6 +23,7 @@
 - [OpenTelemetry](opentelemetry.md) - traces over OTLP/HTTP.
 - [Receiving profiles](profiles.md) - XHProf, Xdebug, Speedscope, pprof and SPX over HTTP or from a directory.
 - [SPX](spx.md) - SPX full reports: directory, HTTP and profiling from code.
+- [Xdebug traces](xdebug-traces.md) - Xdebug function traces over HTTP or from a directory: the call tree.
 
 ## Output
 

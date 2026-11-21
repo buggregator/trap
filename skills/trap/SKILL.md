@@ -41,7 +41,7 @@ the agent reads back through Trap's MCP tools.
 |---------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
 | [mcp.md](references/mcp.md)                       | Reading events and traces: the tools, filters, the script for agents without MCP                                |
 | [dumps-and-logs.md](references/dumps-and-logs.md) | Seeing values or the code path at runtime: `trap()`, `tr()`, `td()`, `dump()`, `trap()::logger()`               |
-| [profiling.md](references/profiling.md)           | Finding why code is slow or takes memory: `trap()::profile()`, the profilers, reading a profile                 |
+| [profiling.md](references/profiling.md)           | Finding why code is slow or takes memory: `trap()::profile()`, the profilers, reading a profile; Xdebug traces of every call |
 | [workers.md](references/workers.md)               | Debugging RoadRunner, Swoole, FrankenPHP, Octane or queue workers: reloads, volume, memory leaks                |
 | [integrations.md](references/integrations.md)     | Pointing Sentry, Monolog, Ray, a mailer, OpenTelemetry or VarDumper at Trap; checking what a scenario sends out |
 | [server.md](references/server.md)                 | Installing, starting Trap, its ports, TLS, an application in Docker or on another host, the token, `trap.xml`   |
