@@ -321,6 +321,19 @@ final class ApiControllerTest
         Assert::same(\array_column($traces['traces'], 'trace_id'), [\str_repeat('a', 32), \str_repeat('d', 32), \str_repeat('b', 32), \str_repeat('c', 32)]);
     }
 
+    public function testServiceMapSurvivesFarApartTimes(): void
+    {
+        $batch = new Batch('default');
+        for ($i = 0; $i < 2; ++$i) {
+            $batch->spans[] = new Span('default', self::T1, "c$i", null, null, 'db', 'SELECT', 'ok', -9e15, $this->now - 1, Source::Sentry, 'web', new Peer('db', 'pg'));
+        }
+        $this->telemetry->add($batch);
+
+        $edge = $this->api->serviceMap(window: 'all')['edges'][0];
+
+        Assert::same([$edge['avg_duration_ms'], $edge['p95_duration_ms']], [Span::MAX_DURATION_MS, Span::MAX_DURATION_MS]);
+    }
+
     public function testLargeTraceIsMappedFast(): void
     {
         $now = $this->now;

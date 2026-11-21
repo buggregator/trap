@@ -48,7 +48,12 @@ final class Stats
         if ($this->durations !== []) {
             $durations = $this->durations;
             \sort($durations);
-            $avg = \intdiv(\array_sum($durations), \count($durations));
+            // As floats: the sum of many long durations may not fit an int.
+            $sum = 0.0;
+            foreach ($durations as $duration) {
+                $sum += (float) $duration;
+            }
+            $avg = (int) \floor($sum / (float) \count($durations));
             // Nearest rank
             $p95 = $durations[\intdiv(95 * \count($durations) + 99, 100) - 1];
         }
