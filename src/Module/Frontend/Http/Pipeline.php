@@ -38,7 +38,6 @@ final class Pipeline implements Middleware
         /** @var MiddlewaresPipeline<Middleware, ResponseInterface> */
         $this->pipeline = MiddlewaresPipeline::build(
             [
-                new Cors(),
                 new StaticFiles(),
                 $assets,
                 $router,

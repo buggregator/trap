@@ -92,11 +92,10 @@ The debugger reads the variables and the source files of your application and, w
 code in it. Its API asks for no token, as the rest of the [web UI](web-ui.md), so it guards against the other pages
 open in your browser instead:
 
-- it answers only the UI of the same origin: no CORS headers, a refused preflight, and `403 cross_site` for a
-  request the browser marks with a `Sec-Fetch-Site` other than `same-origin` or `none`, so also for another port of
-  the same host; a UI served from another origin can't use it;
+- it answers only the UI of the same origin: `403 cross_site` for a request the browser marks with a
+  `Sec-Fetch-Site` other than `same-origin` or `none`, so also for another port of the same host;
 - changes (`POST`, `PUT`, `PATCH`) take `Content-Type: application/json` only (`415` otherwise), which a page of
-  another origin can't send without the refused preflight;
+  another origin can't send without a preflight, and the UI answers no preflight (it sends no CORS headers);
 - the WebSocket RPC of the UI can't reach it (`403 http_only`);
 - `source` reads only the files a session ran (its entry file, pauses, stacks) or a breakpoint names.
 

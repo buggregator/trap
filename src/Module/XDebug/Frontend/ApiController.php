@@ -356,7 +356,7 @@ final class ApiController
     /**
      * Answers only the UI of the same origin: other pages in the browser of the developer must not drive the
      * debugger, which reads files and runs code in the script. A cross-origin write can't pass as a simple
-     * request with a JSON body, and the preflight it needs is refused by the CORS middleware. The WebSocket RPC
+     * request with a JSON body, and the preflight it needs gets no CORS headers: the UI sends none. The WebSocket RPC
      * comes with no request: a page of any origin may open the socket.
      *
      * @template T of array|ResponseInterface

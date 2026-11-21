@@ -30,6 +30,9 @@ On a shared port the UI takes only its own requests, and the others stay [HTTP d
 - any `/api/...` call made from a page of the UI (`Sec-Fetch-Site: same-origin`), answered 404 when Trap has no
   such endpoint.
 
+Open the UI from Trap itself: it sends no CORS headers, so a frontend served from another origin, such as a dev
+server of buggregator/frontend, can't call its API. An `OPTIONS` request is an HTTP dump like any other.
+
 The UI asks for no password or token, the [MCP token](mcp.md#security) included: anyone who reaches its port sees
 the caught events. Trap warns at startup when the port listens on a host other than a loopback one.
 

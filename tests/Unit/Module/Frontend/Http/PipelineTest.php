@@ -54,6 +54,35 @@ final class PipelineTest
         Assert::same($response->getStatusCode(), 418);
     }
 
+    public function testControllerStatusDoesNotGoFurther(): void
+    {
+        $request = new ServerRequest('GET', '/api/xdebug-traces/0190402f-7eb2-7287-82a8-897a0091f58e/summary');
+
+        $response = self::pipeline()->handle($request, self::notFound(...));
+
+        Assert::same($response->getStatusCode(), 404);
+        Assert::true($response->hasHeader(Pipeline::FRONTEND_HEADER));
+        Assert::same((string) $response->getBody(), '{"error":"trace not found"}');
+    }
+
+    /**
+     * The UI is used from its own origin only: it sends no CORS headers, and a preflight is an HTTP dump.
+     */
+    public function testUiHasNoCors(): void
+    {
+        $pipeline = self::pipeline();
+
+        $preflight = $pipeline->handle(new ServerRequest('OPTIONS', '/api/events'), static fn(): Response => new Response(418));
+        $events = $pipeline->handle(new ServerRequest('GET', '/api/events'), self::notFound(...));
+        $debugger = $pipeline->handle(new ServerRequest('GET', '/api/xdebug'), self::notFound(...));
+
+        Assert::same($preflight->getStatusCode(), 418);
+        Assert::same($events->getStatusCode(), 200);
+        Assert::false($events->hasHeader('Access-Control-Allow-Origin'));
+        Assert::same($debugger->getStatusCode(), 200);
+        Assert::false($debugger->hasHeader('Access-Control-Allow-Origin'));
+    }
+
     private static function pipeline(): Pipeline
     {
         return (new ObjectContainer())->get(Pipeline::class);

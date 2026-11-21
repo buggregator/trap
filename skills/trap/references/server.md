@@ -42,7 +42,8 @@ Every port takes every protocol; the defaults are the ports the clients send to 
 - Other ports: `-p9912 -p8000` or `TRAP_TCP_PORTS=9912,8000`; the MCP port: `--mcp=8001` or `TRAP_MCP_PORT`.
   `mcp.php` reads `TRAP_MCP_PORT` too.
 - With the web UI on a TCP port, a browser `GET` of a UI page (`/`, `/smtp`, `/sentry/...`, `/{type}/{uuid}`) and an
-  `/api/...` call from a UI page go to the UI, not to HTTP dumps; a dump sent by `curl` or an app stays a dump.
+  `/api/...` call from a UI page go to the UI, not to HTTP dumps; a dump sent by `curl` or an app stays a dump,
+  an `OPTIONS` request too. The UI sends no CORS headers: open it from Trap itself.
   The UI on a port of its own (`--ui=8080`) takes no HTTP events, though its setup guide shows that port in the
   DSNs: send HTTP to a TCP port, `8000` by default.
 - A Trap of your own beside the user's: one port takes everything,
