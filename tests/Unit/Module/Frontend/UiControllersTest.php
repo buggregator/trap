@@ -20,10 +20,7 @@ use Buggregator\Trap\Module\Profiler\Frontend\Mapper as ProfilerMapper;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
 use Buggregator\Trap\Module\Ray\Frontend\LocksController as RayLocksController;
 use Buggregator\Trap\Module\Ray\Lock\Locks;
-use Buggregator\Trap\Module\Sentry\Frontend\ApiController as SentryApiController;
 use Buggregator\Trap\Module\Sentry\Frontend\ClearController as SentryClearController;
-use Buggregator\Trap\Module\XDebug\Frontend\ApiController as XDebugApiController;
-use Buggregator\Trap\Module\XDebugTrace\Frontend\ApiController as XDebugTraceApiController;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteSuccess;
@@ -44,6 +41,7 @@ use Testo\Test;
 #[Covers(MailerAssetsController::class)]
 #[Covers(ProfilerApiController::class)]
 #[Covers(RayLocksController::class)]
+#[Covers(SentryClearController::class)]
 #[Test]
 final class UiControllersTest
 {
@@ -58,10 +56,7 @@ final class UiControllersTest
                 MailerApiController::class,
                 RayLocksController::class,
                 SentryClearController::class,
-                SentryApiController::class,
                 ProfilerApiController::class,
-                XDebugTraceApiController::class,
-                XDebugApiController::class,
             ],
         );
         Assert::same(
@@ -216,6 +211,28 @@ final class UiControllersTest
         Assert::count($container->get(EventStore::class), 1);
     }
 
+    /**
+     * The UI sends it with every clear, and takes the clear for failed when it fails.
+     */
+    public function testSentryClearDeletesSentryEventsOfProject(): void
+    {
+        $container = new ObjectContainer();
+        $store = $container->get(EventStore::class);
+        $store->add(new Event('aa01', 'sentry', [], 1.0));
+        $store->add(new Event('aa02', 'sentry', [], 2.0));
+        $store->add(new Event('aa03', 'sentry', [], 3.0, project: 'shop'));
+        $store->add(new Event('aa04', 'smtp', [], 4.0));
+        $store->pin('aa02');
+
+        $response = $container->get(Pipeline::class)->handle(
+            new ServerRequest('DELETE', '/api/sentry/all?project=default&keep_pinned=1'),
+            static fn(): Response => new Response(404),
+        );
+
+        Assert::same($response->getStatusCode(), 200);
+        Assert::same(\array_keys(\iterator_to_array($store)), ['aa04', 'aa03', 'aa02']);
+    }
+
     public function testParameterOfWrongTypeIsBadRequest(): void
     {
         $container = new ObjectContainer();
@@ -223,10 +240,12 @@ final class UiControllersTest
         $next = static fn(): Response => new Response(418);
 
         $preview = self::get($container, '/api/events/preview?project[]=x');
+        $sentry = $pipeline->handle(new ServerRequest('DELETE', '/api/sentry/all?project[]=x'), $next);
         $clear = $pipeline->handle(new ServerRequest('DELETE', '/api/events', [], '{"uuids":"x"}'), $next);
         $rpc = $container->get(RPC::class)->handleMessage(['method' => 'delete:api/events', 'data' => ['project' => []]]);
 
         Assert::same($preview->getStatusCode(), 400);
+        Assert::same($sentry->getStatusCode(), 400);
         Assert::same($clear->getStatusCode(), 400);
         Assert::same(self::json($rpc)['data']['code'], 400);
     }
