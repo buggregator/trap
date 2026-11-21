@@ -83,7 +83,7 @@ final class ItemReader
     public static function time(mixed $value): ?float
     {
         if (\is_int($value) || \is_float($value)) {
-            return (float) $value;
+            return \is_finite((float) $value) ? (float) $value : null;
         }
 
         if (!\is_string($value) || $value === '') {
@@ -91,7 +91,7 @@ final class ItemReader
         }
 
         if (\is_numeric($value)) {
-            return (float) $value;
+            return \is_finite((float) $value) ? (float) $value : null;
         }
 
         $date = \date_create_immutable($value);
@@ -268,7 +268,7 @@ final class ItemReader
         foreach ($metrics as $metric) {
             $name = self::string($metric, 'name');
             $value = $metric['value'] ?? null;
-            if ($name === null || !\is_numeric($value)) {
+            if ($name === null || !\is_numeric($value) || !\is_finite((float) $value)) {
                 continue;
             }
 
@@ -329,11 +329,29 @@ final class ItemReader
         return \is_string($value) && $value !== '' ? $value : null;
     }
 
+    /**
+     * The map with non-finite numbers as their names, `NaN`, `Infinity`, `-Infinity`: JSON cannot carry them,
+     * and the answer of every page with the record would fail.
+     */
     private static function map(array $data, string $key): array
     {
         /** @var mixed $value */
         $value = $data[$key] ?? null;
-        return \is_array($value) ? $value : [];
+        return \is_array($value) ? self::finite($value) : [];
+    }
+
+    private static function finite(array $data): array
+    {
+        /** @var mixed $value */
+        foreach ($data as $key => $value) {
+            if (\is_array($value)) {
+                $data[$key] = self::finite($value);
+            } elseif (\is_float($value) && !\is_finite($value)) {
+                $data[$key] = \is_nan($value) ? 'NaN' : ($value > 0 ? 'Infinity' : '-Infinity');
+            }
+        }
+
+        return $data;
     }
 
     private static function list(array $data, string $key): array
