@@ -38,6 +38,7 @@ final class Modules
         \Buggregator\Trap\Module\Ray\Module::class,
         \Buggregator\Trap\Module\Sentry\Module::class,
         \Buggregator\Trap\Module\Profiler\Module::class,
+        \Buggregator\Trap\Module\XDebugTrace\Module::class,
         \Buggregator\Trap\Module\Tracing\Module::class,
         \Buggregator\Trap\Module\HttpDump\Module::class,
     ];

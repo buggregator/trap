@@ -31,7 +31,8 @@ vendor/bin/trap --ui=8080 -s
 
 ## What it shows
 
-Dumps, Monolog logs, Sentry events, emails, Ray payloads, HTTP dumps and profiles.
+Dumps, Monolog logs, Sentry events, emails, Ray payloads, HTTP dumps, profiles and
+[Xdebug traces](xdebug-traces.md) with their call tree.
 [OpenTelemetry traces](opentelemetry.md) are shown only in the console.
 
 The UI keeps the last 200 events; `/trap/events/@maxEvents` in [`trap.xml`](configuration.md#trapxml) changes it.

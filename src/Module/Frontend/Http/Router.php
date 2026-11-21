@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Frontend\UiControllers;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Handler\Router\Method;
 use Buggregator\Trap\Server\Handler\Router\Router as CommonRouter;
+use Buggregator\Trap\Server\Info;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\Response;
@@ -56,6 +57,11 @@ final class Router implements Middleware
 
             /** @var mixed $message */
             $message = $handler(...$params);
+
+            // A controller answering with a status of its own: its 404 must not fall through the pipeline
+            if ($message instanceof ResponseInterface) {
+                return $message->withHeader(Pipeline::FRONTEND_HEADER, Info::version());
+            }
 
             return new Response(
                 200,
