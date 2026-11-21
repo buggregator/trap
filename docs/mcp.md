@@ -28,7 +28,7 @@ the agent deletes is gone from the UI on its next load; a page already open keep
 | `wait_for_events` | `since` (cursor), [filters](#filters), `count`, `timeout`, `include`, `max_length` | As `list_events`, and `timed_out`; see [Waiting for events](#waiting-for-events)                               |
 | `get_event`       | `id`, `max_length`                                                                 | The event as plain text: a header line, then the text of its module, as for a Sentry event, or the console one |
 | `delete_event`    | `id`, or `ids` (200 at most)                                                       | `deleted`: the number of deleted events; `not_found`: the IDs of no stored event, when some are                |
-| `clear_events`    | `since` (cursor), [filters](#filters)                                              | `removed`: the number of deleted events; `incomplete`, `cursor` when the call [ran out of time](#time-limit)   |
+| `clear_events`    | `since` (cursor), [filters](#filters), `include_pinned`                            | `removed`: the number of deleted events; `kept_pinned`; `incomplete`, `cursor` when [out of time](#time-limit) |
 
 - `list_events` returns the events added or updated after `since`, oldest first, at most `limit` of them
   (50 by default, 200 at most). `since` is the opaque `cursor` of an earlier call; without it, or with a cursor
@@ -47,8 +47,11 @@ the agent deletes is gone from the UI on its next load; a page already open keep
 - `delete_event` deletes the events of the given IDs. The store keeps no trace of a deleted event, so an ID deleted
   before, pushed out by newer events or mistyped is the same: it is listed in `not_found`, and a call that finds none
   of its IDs fails. A repeated call deletes nothing more, so the tool is marked idempotent.
-- `clear_events` without arguments deletes all the events, the ones pinned in the web UI too. A malformed `since` is an error, so a typo doesn't
-  turn "the newer ones" into all of them.
+- `clear_events` without arguments deletes all the events but the ones pinned in the [web UI](web-ui.md). With a
+  filter too, it keeps the matching pinned events and returns their number as `kept_pinned`, present when it kept
+  some. `include_pinned: true` deletes them too: the tool tells the agent to pass it only when the user asks to
+  delete the pinned events. A malformed `since` is an error, so a typo doesn't turn "the newer ones" into all
+  of them.
 - An argument a tool doesn't declare, such as a misspelt `sinse`, fails the call with the list of the arguments
   the tool takes, and nothing runs. Ignored, it would widen the call: `clear_events` would delete every event.
 - A tool that returns JSON declares its `outputSchema` and sends the object as `structuredContent`,

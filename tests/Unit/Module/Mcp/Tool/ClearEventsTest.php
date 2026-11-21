@@ -66,6 +66,66 @@ final class ClearEventsTest
         Assert::string((string) $listener->calls[0])->startsWith('deleted');
     }
 
+    public function testKeepsPinnedEvents(): void
+    {
+        $trap = self::trap();
+        $pinned = self::pin($trap, 'monolog');
+        $listener = new RecordingListener();
+        $trap->store->listen($listener);
+
+        $result = $trap->get(ClearEvents::class)->call([]);
+
+        Assert::same($result, ['removed' => 2, 'kept_pinned' => 1]);
+        Assert::same(self::types($trap), ['monolog@default']);
+        Assert::true($trap->store->isPinned($pinned));
+        Assert::count($listener->calls, 2);
+        Assert::false(\in_array('cleared', $listener->calls, true));
+    }
+
+    #[DataSet([['type' => 'monolog'], ['removed' => 0, 'kept_pinned' => 1], 3], 'pinned matches')]
+    #[DataSet([['type' => 'var-dump'], ['removed' => 2], 1], 'pinned does not match')]
+    public function testKeepsMatchingPinnedEvents(array $arguments, array $expected, int $left): void
+    {
+        $trap = self::trap();
+        self::pin($trap, 'monolog');
+
+        $result = $trap->get(ClearEvents::class)->call($arguments);
+
+        Assert::same($result, $expected);
+        Assert::count($trap->store, $left);
+    }
+
+    #[DataSet([[], ['cleared']], 'all')]
+    #[DataSet([['type' => 'monolog'], ['deleted']], 'filtered')]
+    public function testIncludePinnedDeletesPinnedEvents(array $arguments, array $calls): void
+    {
+        $trap = self::trap();
+        $pinned = self::pin($trap, 'monolog');
+        $listener = new RecordingListener();
+        $trap->store->listen($listener);
+
+        $result = $trap->get(ClearEvents::class)->call([...$arguments, 'include_pinned' => true]);
+
+        Assert::same($result, ['removed' => $arguments === [] ? 3 : 1]);
+        Assert::null($trap->store->get($pinned));
+        Assert::same(\array_map(static fn(string $call): string => \explode(':', $call)[0], $listener->calls), $calls);
+    }
+
+    public function testNonBooleanIncludePinnedDeletesNothing(): void
+    {
+        $trap = self::trap();
+        self::pin($trap, 'monolog');
+
+        try {
+            $trap->get(ClearEvents::class)->call(['include_pinned' => 'yes']);
+            Assert::fail('The call must fail.');
+        } catch (\InvalidArgumentException $e) {
+            Assert::same($e->getMessage(), '`include_pinned` must be a boolean.');
+        }
+
+        Assert::count($trap->store, 3);
+    }
+
     public function testRepeatedCallRemovesNothing(): void
     {
         $trap = self::trap();
@@ -169,7 +229,7 @@ final class ClearEventsTest
         ]);
         Assert::same(
             \array_keys($tool->inputSchema()['properties']),
-            ['since', 'type', 'project', 'from', 'to', 'search', 'regex', 'where'],
+            ['since', 'type', 'project', 'from', 'to', 'search', 'regex', 'where', 'include_pinned'],
         );
     }
 
@@ -188,9 +248,12 @@ final class ClearEventsTest
 
     #[DataSet([[]], 'all')]
     #[DataSet([['type' => 'smtp']], 'none')]
+    #[DataSet([['type' => 'monolog']], 'pinned kept')]
     public function testResultConformsToOutputSchema(array $arguments): void
     {
-        $tool = self::trap()->get(ClearEvents::class);
+        $trap = self::trap();
+        self::pin($trap, 'monolog');
+        $tool = $trap->get(ClearEvents::class);
 
         $result = $tool->call($arguments);
 
@@ -205,6 +268,21 @@ final class ClearEventsTest
         $trap->add(Trap::dump('shop dump', ['project' => 'shop']));
 
         return $trap;
+    }
+
+    /**
+     * @return non-empty-string The UUID of the pinned event.
+     */
+    private static function pin(Trap $trap, string $type): string
+    {
+        foreach ($trap->store as $uuid => $event) {
+            if ($event->type === $type) {
+                $trap->store->pin($uuid);
+                return $uuid;
+            }
+        }
+
+        throw new \LogicException("No `$type` event.");
     }
 
     /**
