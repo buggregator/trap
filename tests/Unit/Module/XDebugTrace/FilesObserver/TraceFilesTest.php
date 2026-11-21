@@ -42,6 +42,10 @@ final class TraceFilesTest
         Assert::true($converter->validate(new FileInfo('/tmp/trace.123.xt', 1, 0, 0)));
         Assert::true($converter->validate(new FileInfo('/tmp/trace.123.xt.gz', 1, 0, 0)));
         Assert::false($converter->validate(new FileInfo('/tmp/cachegrind.out.1', 1, 0, 0)));
+        // The copies of the storage, as when the watched directory is the temp one
+        Assert::false($converter->validate(new FileInfo('/tmp/trap-xdebug-traces-12-ab/0190402f.xt.gz', 1, 0, 0)));
+        Assert::false($converter->validate(new FileInfo('C:\Temp\trap-xdebug-traces-12-ab\0190402f.xt', 1, 0, 0)));
+        Assert::true($converter->validate(new FileInfo('/tmp/trap-xdebug-traces.xt', 1, 0, 0)));
     }
 
     public function testWaitsForTraceEnd(): void

@@ -172,8 +172,12 @@ final class CallTree
         $page = new Page();
         /** @var list<array{nr: int, func: string, offset: int}> $callers Open calls, outermost first */
         $callers = [];
+        /** @var array<int, int> $callerAt Index of an open call in the callers, by number */
+        $callerAt = [];
         /** @var array<int, int> $open Index in the nodes of an open match, by number */
         $open = [];
+        /** @var array<int, array<int, int>> $matchesAt Numbers of the open matches, by level */
+        $matchesAt = [];
         /** @var array<int, int> $levelOf Level of an open match, by number */
         $levelOf = [];
         /** @var array<int, float> $starts Start of an open call one level below a match, by number */
@@ -209,14 +213,12 @@ final class CallTree
             switch ($record->kind) {
                 case Record::ENTRY:
                     $offset = $reader->offset();
-                    $path = $callers;
+                    $callerAt[$record->nr] = \count($callers);
                     $callers[] = ['nr' => $record->nr, 'func' => $record->func, 'offset' => $offset];
-                    foreach ($levelOf as $nr => $level) {
-                        if ($record->level === $level + 1) {
-                            ++$page->nodes[$open[$nr]]->children;
-                            $starts[$record->nr] = $record->time;
-                            $childOf[$record->nr] = $nr;
-                        }
+                    foreach ($matchesAt[$record->level - 1] ?? [] as $nr) {
+                        ++$page->nodes[$open[$nr]]->children;
+                        $starts[$record->nr] = $record->time;
+                        $childOf[$record->nr] = $nr;
                     }
                     if ($page->next !== null || $offset < $from) {
                         break;
@@ -232,17 +234,19 @@ final class CallTree
                         break;
                     }
                     $node = new Node($record, $offset);
-                    $node->path = $path;
+                    $node->path = \array_slice($callers, 0, -1);
                     $page->nodes[] = $node;
                     $open[$record->nr] = \count($page->nodes) - 1;
                     $levelOf[$record->nr] = $record->level;
+                    $matchesAt[$record->level][$record->nr] = $record->nr;
                     break;
                 case Record::EXIT:
-                    // Exits of callers above the traced part match nothing and leave the stack as it is
-                    for ($k = \count($callers) - 1; $k >= 0; --$k) {
-                        if ($callers[$k]['nr'] === $record->nr) {
-                            $callers = \array_slice($callers, 0, $k);
-                            break;
+                    // Exits of callers above the traced part match nothing and leave the stack as it is. Found by
+                    // number, not by a scan: exits of calls never entered would make a malformed trace quadratic
+                    $k = $callerAt[$record->nr] ?? null;
+                    if ($k !== null && ($callers[$k]['nr'] ?? null) === $record->nr) {
+                        foreach (\array_splice($callers, $k) as $gone) {
+                            unset($callerAt[$gone['nr']]);
                         }
                     }
                     if (isset($childOf[$record->nr])) {
@@ -254,7 +258,7 @@ final class CallTree
                     if (isset($open[$record->nr])) {
                         $i = $open[$record->nr];
                         $page->nodes[$i]->exit($record);
-                        unset($open[$record->nr], $levelOf[$record->nr]);
+                        unset($open[$record->nr], $matchesAt[$levelOf[$record->nr]][$record->nr], $levelOf[$record->nr]);
                         $closedNr = $record->nr;
                         $closedAt = $i;
                         $finish = $page->next !== null && $open === [];

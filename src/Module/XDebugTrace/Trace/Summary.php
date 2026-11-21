@@ -49,6 +49,8 @@ final class Summary
         $slowest = new SlowestCalls(self::TOP_N);
         /** @var list<array{call: Call, user: bool, mem: int, child: float}> $stack */
         $stack = [];
+        /** @var array<int, int> $open Index in the stack of an open call, by number */
+        $open = [];
 
         $close = static function (array $frame, float $end, int $memory) use (&$stack, &$funcs, $slowest): void {
             /** @var array{call: Call, user: bool, mem: int, child: float} $frame */
@@ -87,6 +89,7 @@ final class Summary
                     $record->user and ++$userCalls;
                     $record->level > $maxDepth and $maxDepth = $record->level;
                     $record->func === '{main}' && $main === '' and $main = $record->file;
+                    $open[$record->nr] = \count($stack);
                     $stack[] = [
                         'call' => [
                             'nr' => $record->nr,
@@ -108,13 +111,19 @@ final class Summary
                 case Record::EXIT:
                     $last = $record->time;
                     // Frames left open above the exited call, as an exception unwinds, close at the same time
-                    for ($i = \count($stack) - 1; $i >= 0; --$i) {
-                        if ($stack[$i]['call']['nr'] === $record->nr) {
-                            while (\count($stack) > $i) {
-                                $frame = \array_pop($stack);
-                                $frame === null or $close($frame, $record->time, $record->memory);
+                    // Found by number, not by a scan: exits of calls never entered would make a malformed trace
+                    // quadratic
+                    $i = $open[$record->nr] ?? null;
+                    if ($i === null || ($stack[$i]['call']['nr'] ?? null) !== $record->nr) {
+                        break;
+                    }
+                    while (\count($stack) > $i) {
+                        $frame = \array_pop($stack);
+                        if ($frame !== null) {
+                            if (($open[$frame['call']['nr']] ?? null) === \count($stack)) {
+                                unset($open[$frame['call']['nr']]);
                             }
-                            break;
+                            $close($frame, $record->time, $record->memory);
                         }
                     }
                     break;

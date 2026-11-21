@@ -17,7 +17,8 @@ xdebug.collect_assignments=1
 
 ## Send a trace
 
-`POST` the `.xt` or `.xt.gz` file to any port of Trap, to any path, with the header
+`POST` the `.xt` or `.xt.gz` file to any TCP port of Trap (not to a port of the web UI alone), to any path, with
+the header
 `X-Buggregator-Event: xdebug-trace`, as to Buggregator Server:
 
 ```bash
@@ -34,8 +35,11 @@ Optional headers:
 - `X-Buggregator-Trace-Url` - the request the trace was recorded for, shown as the title;
 - `X-Buggregator-Project` - the project of the event.
 
-Trap answers `200` once the trace is stored, `400` for a file that is not a trace of the format 1, and `413` for
-a file larger than `TRAP_XDEBUG_TRACE_MAX_UPLOAD`.
+Trap answers `200` once the trace is stored, `400` for a file that is not a trace of the format 1, `413` for
+a file larger than `TRAP_XDEBUG_TRACE_MAX_UPLOAD`, and `501` for a gzipped file when ext-zlib is not loaded in
+Trap. A request body sent chunked or with `Content-Encoding: gzip` is decoded first and cut at
+`TRAP_HTTP_MAX_INFLATED_SIZE` (`64M`, see [Configuration](configuration.md#server-environment-variables)): send a
+larger trace as a plain body, a `.xt.gz` file as it is.
 
 ## Directory watching
 
@@ -45,14 +49,16 @@ Trap also picks up the traces Xdebug writes, `*.xt` and `*.xt.gz` files:
 - else from `xdebug.output_dir` while `xdebug.mode` (or `XDEBUG_MODE`) includes `trace`.
 
 The defaults are the INI settings of the PHP that runs Trap. A trace is taken once Xdebug writes its `TRACE END`
-line; files written before Trap started are skipped. The file stays where it is: Trap copies it.
+line; files written before Trap started are skipped. The file stays where it is: Trap copies it. A trace that never
+gets its `TRACE END`, as when the script died, is not taken: send it over HTTP to see it cut. Gzipped traces need
+ext-zlib in Trap's PHP; without it they are skipped with a warning.
 
 ## Limits
 
 A trace of a framework request has 10^5–10^6 lines, so Trap never holds one in memory: it keeps the file as sent in
 a temporary directory of its process, `trap-xdebug-traces-*` in the system temp directory, and reads it again for each
-level of the tree or search. The directory is removed when Trap stops; one left by a killed Trap is removed by
-the next start.
+level of the tree or search. The directory is removed when Trap stops; one left by a killed Trap is removed when
+the next one starts. The watcher never takes the files of these directories, even when it watches the temp directory.
 
 | Variable                       | `trap.xml`                      | Default | Meaning                                                                       |
 |--------------------------------|---------------------------------|---------|-------------------------------------------------------------------------------|
@@ -62,7 +68,8 @@ the next start.
 
 Sizes take the [size format](configuration.md#size-format); an unreadable value falls back to the default.
 A deleted event takes its file with it, and so does an event pushed out of the
-[event limit](configuration.md#trapxml).
+[event limit](configuration.md#trapxml). A watched trace older than all the kept events makes no event; its file
+stays until newer traces push it out.
 
 A trace is marked cut (`truncated`) when it hit `TRAP_XDEBUG_TRACE_MAX_SIZE` or has calls left open without
 `TRACE END`, as when the script died. A trace stopped by `xdebug_stop_trace()` is whole: the calls around the

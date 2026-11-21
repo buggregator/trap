@@ -25,6 +25,7 @@ final class TraceFiles implements FrameConverter, ForgetsFiles
     private const TAIL_SIZE = 256;
 
     private readonly GzipFollower $gzip;
+    private bool $zlibWarned = false;
 
     public function __construct(
         private readonly Logger $logger,
@@ -40,7 +41,25 @@ final class TraceFiles implements FrameConverter, ForgetsFiles
     #[\Override]
     public function validate(FileInfo $file): bool
     {
-        return \str_ends_with($file->path, '.xt') || \str_ends_with($file->path, '.xt.gz');
+        if (!\str_ends_with($file->path, '.xt') && !\str_ends_with($file->path, '.xt.gz')) {
+            return false;
+        }
+
+        // The copies Trap keeps: a watched directory such as /tmp holds them, and they would come back forever
+        if (TraceStorage::owns($file->path)) {
+            return false;
+        }
+
+        if (\str_ends_with($file->path, '.gz') && !TraceStorage::canInflate()) {
+            $this->zlibWarned or $this->logger->warning(
+                'Xdebug traces: %s and other gzipped traces are skipped: ext-zlib is not loaded.',
+                \basename($file->path),
+            );
+            $this->zlibWarned = true;
+            return false;
+        }
+
+        return true;
     }
 
     /**

@@ -64,6 +64,7 @@ final class TraceToolsTest
         Assert::count($kids['nodes'], 3);
         Assert::int($kids['next'])->greaterThan(0);
         Assert::count($found['nodes'], 2);
+        Assert::count($tool->call(['uuid' => $this->uuid, 'parent' => 71, 'limit' => 0])['nodes'], 13);
         Assert::same($found['nodes'][0]['path'][0]['func'], '{main}');
     }
 

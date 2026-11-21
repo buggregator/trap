@@ -202,6 +202,9 @@ final class TraceReader
                 if (\str_ends_with($rest, "\n")) {
                     break;
                 }
+                // A crafted gzip inflates to a line of gigabytes
+                $this->limit > 0 && $this->pos > $this->limit and throw TraceError::tooLarge($this->limit);
+                $this->slice?->tick();
             }
         }
 

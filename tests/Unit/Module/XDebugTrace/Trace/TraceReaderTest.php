@@ -153,6 +153,16 @@ final class TraceReaderTest
         Assert::same($exit->time, 0.2);
     }
 
+    public function testStopsAtSizeLimitInsideLongLine(): never
+    {
+        $long = \str_repeat('x', 3 * TraceReader::MAX_LINE);
+        $reader = TraceReader::open($this->file("File format: 4\n1\t0\t0\t0.1\t100\t{main}\t1\t\t/a.php\t0\t1\t'$long'\n"), 2 * TraceReader::MAX_LINE);
+
+        Expect::exception(TraceError::class);
+
+        $reader->next();
+    }
+
     public function testSkipsStrayLineInsideTrace(): void
     {
         $path = $this->file("File format: 4\n1\t0\t0\t0.1\t100\t{main}\t1\t\t/a.php\t0\t0\ngarbage\n1\t0\t1\t0.2\t100\n");
