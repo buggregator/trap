@@ -44,7 +44,11 @@ The Sentry section has a page for each kind of data:
 - Exceptions: the [Sentry](sentry.md) error events, one by one or grouped by type and message.
 - Traces: the transactions and spans of [Sentry SDKs](sentry.md#what-an-envelope-gives) and
   [OpenTelemetry](opentelemetry.md#how-the-ui-shows-otlp-data) exporters, one trace even when it crosses both,
-  with the waterfall, the related errors and logs.
+  with the waterfall, the call sequence between services, the related errors and logs.
+- Service map: the services and what they call (other services, databases, caches, queues) over the period,
+  with requests, errors and durations per service and per call, and the traces through each call. A call is a span
+  with a peer: a database or cache address, an HTTP host, a queue; it leads to the service that served it when
+  that service sends its data to Trap too.
 - Logs and Metrics: Sentry `log` and `trace_metric` items, OTLP logs and metrics.
 
 Traces, logs and metrics make no events in the feed. Trap keeps them in memory while the UI or the

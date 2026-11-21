@@ -211,6 +211,148 @@ final class ApiControllerTest
         Assert::notBlank($this->events->get('other'));
     }
 
+    public function testServiceMapDrawsServicesCallsAndExternals(): void
+    {
+        $this->fill();
+
+        $map = $this->api->serviceMap();
+
+        Assert::same($map['window_minutes'], 60);
+        Assert::same($map['bucket_seconds'], 60);
+        Assert::same(
+            \array_map(static fn(array $node): array => [$node['id'], $node['label'], $node['kind'], $node['request_count']], $map['nodes']),
+            [['billing', 'billing', 'service', 1], ['shop-api', 'shop-api', 'service', 1], ['pg', 'DB: pg', 'external', 1]],
+        );
+        Assert::same(
+            \array_map(static fn(array $edge): array => [$edge['source'], $edge['target'], $edge['op_type'], $edge['error_count']], $map['edges']),
+            [['billing', 'pg', 'db', 0], ['shop-api', 'billing', 'http', 1]],
+        );
+        $edge = $map['edges'][1];
+        Assert::same([$edge['avg_duration_ms'], $edge['p95_duration_ms'], $edge['error_rate'], $edge['trace_count']], [700, 700, 1.0, 1]);
+        Assert::same($edge['traces'][0]['trace_id'], self::T1);
+        Assert::same(\array_sum(\array_column($edge['buckets'], 'count')), 1);
+    }
+
+    public function testServiceMapPeriodAndProject(): void
+    {
+        $this->fill();
+
+        Assert::count($this->api->serviceMap(window: 'all')['nodes'], 4);
+        Assert::same(\array_column($this->api->serviceMap(project: 'other', window: 'all')['nodes'], 'id'), ['worker']);
+        Assert::same($this->api->serviceMap(window: '30')['window_minutes'], 30);
+    }
+
+    public function testServiceMapEdgeListsTraces(): void
+    {
+        $this->fill();
+
+        $result = $this->api->serviceMapEdge(source: 'shop-api', target: 'billing', opType: 'http');
+
+        Assert::same($result['total'], 1);
+        Assert::same([$result['traces'][0]['trace_id'], $result['traces'][0]['duration_ms'], $result['traces'][0]['is_error']], [self::T1, 700, true]);
+        Assert::same($this->api->serviceMapEdge(source: 'shop-api', target: 'billing', opType: 'queue')['total'], 0);
+        Assert::same($this->api->serviceMapEdge(source: 'shop-api', target: 'billing', offset: 1)['traces'], []);
+        Assert::instanceOf($this->api->serviceMapEdge(source: 'shop-api'), Error::class);
+    }
+
+    public function testSequenceListsCallsInTimeOrder(): void
+    {
+        $this->fill();
+
+        $result = $this->api->sequence(self::T1);
+
+        Assert::same($result['services'], ['shop-api', 'billing']);
+        [$http, $db] = $result['calls'];
+        Assert::same([$http['from'], $http['to'], $http['op_type'], $http['is_error']], ['shop-api', 'billing', 'http', true]);
+        Assert::same($http['callee']['transaction_id'], 'pay-txn');
+        Assert::same($http['late_ms'], -100);
+        Assert::same([$db['from'], $db['to'], $db['callee'], $db['late_ms']], ['billing', 'pg', null, null]);
+        Assert::instanceOf($this->api->sequence('ffffffffffffffffffffffffffffffff'), Error::class);
+    }
+
+    public function testCalleeOfSpansOnlyAndOfTransactionSpans(): void
+    {
+        $now = $this->now;
+        $batch = new Batch('default');
+        $batch->transactions = [
+            new Transaction('root', 'default', self::T1, 'r', null, 'GET /', 'http.server', 'ok', $now - 10, $now - 9, Source::Sentry, 'web'),
+            // A transaction without a service name, whose span names the service
+            new Transaction('anon', 'default', self::T1, 'a', 'c2', 'job', 'task', 'ok', $now - 9.5, $now - 9.4, Source::Sentry, null),
+        ];
+        $batch->spans = [
+            new Span('default', self::T1, 'c1', 'r', 'root', 'http.client', 'GET http://api/', 'ok', $now - 9.9, $now - 9.8, Source::Sentry, 'web', new Peer('http', 'api')),
+            // A v2 / OTel span of another service, no transaction
+            new Span('default', self::T1, 'api1', 'c1', null, 'http.server', 'GET /', 'error', $now - 9.89, $now - 9.79, Source::Otel, 'api'),
+            new Span('default', self::T1, 'c2', 'r', 'root', 'http.client', 'POST http://jobs/', 'ok', $now - 9.6, $now - 9.3, Source::Sentry, 'web', new Peer('http', 'jobs')),
+            new Span('default', self::T1, 'j1', 'a', 'anon', 'task', 'run', 'ok', $now - 9.5, $now - 9.4, Source::Sentry, 'jobs-worker'),
+        ];
+        $this->telemetry->add($batch);
+
+        $sequence = $this->api->sequence(self::T1);
+        $map = $this->api->serviceMap();
+
+        Assert::same(\array_column($sequence['calls'], 'to'), ['api', 'jobs']);
+        Assert::same($sequence['calls'][0]['callee']['transaction_id'], null);
+        Assert::true($sequence['calls'][0]['callee']['is_error']);
+        Assert::same($sequence['calls'][0]['late_ms'], 10);
+        Assert::same(\array_column($map['edges'], 'target'), ['api', 'jobs-worker']);
+    }
+
+    public function testEdgeStatsAndTraceOrder(): void
+    {
+        $now = $this->now;
+        $batch = new Batch('default');
+        $traces = ['a' => [-30.0, true], 'b' => [-10.0, false], 'c' => [-20.0, false]];
+        foreach ($traces as $id => [$start, $error]) {
+            $traceId = \str_repeat($id, 32);
+            $batch->transactions[] = new Transaction("t$id", 'default', $traceId, "r$id", null, 'GET /', 'http.server', 'ok', $now + $start, $now + $start + 1, Source::Sentry, 'web');
+            $batch->spans[] = new Span('default', $traceId, "s$id", "r$id", "t$id", 'db', 'SELECT', $error ? 'internal_error' : 'ok', $now + $start, $now + $start + 0.005, Source::Sentry, 'web', new Peer('db', 'pg'));
+        }
+        // Durations 1..17 ms in one more trace: with the three 5 ms ones, the nearest-rank p95 of 20 is the 19th
+        for ($i = 1; $i <= 17; ++$i) {
+            $batch->spans[] = new Span('default', \str_repeat('d', 32), "d$i", null, null, 'db', 'SELECT', 'ok', $now - 5, $now - 5 + $i / 1000, Source::Sentry, 'web', new Peer('db', 'pg'));
+        }
+        $this->telemetry->add($batch);
+
+        $edge = $this->api->serviceMap()['edges'][0];
+        $traces = $this->api->serviceMapEdge(source: 'web', target: 'pg');
+
+        Assert::same([$edge['request_count'], $edge['error_count'], $edge['avg_duration_ms'], $edge['p95_duration_ms']], [20, 1, 8, 16]);
+        Assert::same(\array_column($traces['traces'], 'trace_id'), [\str_repeat('a', 32), \str_repeat('d', 32), \str_repeat('b', 32), \str_repeat('c', 32)]);
+    }
+
+    public function testServiceMapSurvivesFarApartTimes(): void
+    {
+        $batch = new Batch('default');
+        for ($i = 0; $i < 2; ++$i) {
+            $batch->spans[] = new Span('default', self::T1, "c$i", null, null, 'db', 'SELECT', 'ok', -9e15, $this->now - 1, Source::Sentry, 'web', new Peer('db', 'pg'));
+        }
+        $this->telemetry->add($batch);
+
+        $edge = $this->api->serviceMap(window: 'all')['edges'][0];
+
+        Assert::same([$edge['avg_duration_ms'], $edge['p95_duration_ms']], [Span::MAX_DURATION_MS, Span::MAX_DURATION_MS]);
+    }
+
+    public function testLargeTraceIsMappedFast(): void
+    {
+        $now = $this->now;
+        $batch = new Batch('default');
+        for ($i = 0; $i < 5_000; ++$i) {
+            $batch->spans[] = new Span('default', self::T1, "c$i", 'r', null, 'http.client', 'GET http://api/', 'ok', $now - 9, $now - 8, Source::Sentry, 'web', new Peer('http', 'api'));
+            $batch->spans[] = new Span('default', self::T1, "s$i", "c$i", null, 'http.server', 'GET /', 'ok', $now - 9, $now - 8, Source::Otel, 'api');
+        }
+        $this->telemetry->add($batch);
+        $started = \microtime(true);
+
+        $map = $this->api->serviceMap();
+        $sequence = $this->api->sequence(self::T1);
+
+        Assert::numeric(\microtime(true) - $started)->lessThan(2.0);
+        Assert::same($map['edges'][0]['request_count'], 5_000);
+        Assert::count($sequence['calls'], 5_000);
+    }
+
     public function testScopeReadsTheQuery(): void
     {
         Assert::same(Scope::fromQuery(window: '2h', now: 10000.0)->from, 2800.0);
