@@ -22,6 +22,23 @@ Trap takes two kinds of requests:
 
 With [`--mcp`](mcp.md#sentry-events), AI agents read the events with their exception chains and code lines.
 
+## What an envelope gives
+
+| Envelope item                         | Becomes                                                                     |
+|---------------------------------------|-----------------------------------------------------------------------------|
+| `event`, `feedback`                   | a `sentry` event: the console, the event feed of the web UI, the MCP server |
+| `transaction`                         | a `sentry` event, and a trace on the Traces page of the web UI              |
+| `span`, `spans` (Span v2)             | spans of a trace; a segment span is the transaction of its service          |
+| `log`                                 | log records on the Logs page of the web UI                                  |
+| `trace_metric`                        | metric values on the Metrics page of the web UI                             |
+| sessions, client reports, attachments | nothing                                                                     |
+
+An envelope of only logs, metrics, spans or SDK bookkeeping makes no event. The [web UI](web-ui.md#sentry-pages)
+shows the traces, logs and metrics only while it runs.
+
+The `X-Buggregator-Project` header puts the event and the data of the request into that project of the web UI;
+without it they land in `default`.
+
 ## Notes
 
 - A request body may be up to 2 MB; a bigger one gets `413`.

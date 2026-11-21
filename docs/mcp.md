@@ -23,7 +23,7 @@ The tools read the events Trap has caught, the [traces](#traces) it has received
 the agent deletes is gone from the UI on its next load; a page already open keeps showing it.
 
 | Tool              | Arguments                                                                          | Result                                                                                                         |
-|-------------------|------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
+| ----------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `list_events`     | `since` (cursor), [filters](#filters), `order`, `include`, `max_length`, `limit`   | `events`: `id`, `type`, `project`, `time`, `summary`, `fields`, `text` each; `cursor` to pass next; `has_more` |
 | `wait_for_events` | `since` (cursor), [filters](#filters), `count`, `timeout`, `include`, `max_length` | As `list_events`, and `timed_out`; see [Waiting for events](#waiting-for-events)                               |
 | `get_event`       | `id`, `max_length`                                                                 | The event as plain text: a header line, then the text of its module, as for a Sentry event, or the console one |
@@ -59,7 +59,7 @@ the agent deletes is gone from the UI on its next load; a page already open keep
 `list_events`, `wait_for_events` and `clear_events` take the same filter. An event must match all the arguments given.
 
 | Argument  | Matches                                                                                                                          |
-|-----------|----------------------------------------------------------------------------------------------------------------------------------|
+| --------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | `type`    | One event type or a list: `var-dump`, `smtp`, `monolog`, `ray`, `sentry`, `profiler`, `http-dump`                                |
 | `project` | One project or a list; events sent without a project belong to `default`                                                         |
 | `from`    | Events caught at this time or later: ISO 8601 (UTC without an offset) or a duration back from now: `30s`, `5m`, `2h`, `1d`, `1w` |
@@ -108,7 +108,7 @@ seconds. Trap catches events and answers other requests meanwhile, and a call st
   yet may return fewer than `limit` events with `has_more: true`.
 
 | Type        | Fields                                                                                                                            |
-|-------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `var-dump`  | `label`, `value_type`, `language`, `file`                                                                                         |
 | `monolog`   | `level`, `channel`                                                                                                                |
 | `sentry`    | `level`, `exception` (the types of the chain), `environment`, `release`, `transaction`, `server_name`, `status` (of the response) |
@@ -234,7 +234,7 @@ without exceptions.
 Bounds; what is left out is counted, as `… 5 more …`:
 
 | What                                            | At most                                  |
-|-------------------------------------------------|------------------------------------------|
+| ----------------------------------------------- | ---------------------------------------- |
 | Exceptions of a chain                           | 10 in 32 KB or less, see above           |
 | Frame lines of a stack trace                    | 30                                       |
 | Frames shown with their code                    | 3 per stack trace                        |
@@ -291,7 +291,7 @@ trace sent in separate requests, with `--mcp` alone too. The limits of that stor
 [`TRAP_TRACES_MAX_SPANS` and `TRAP_TRACES_TTL`](opentelemetry.md#memory-limits), apply.
 
 | Tool          | Arguments                                                                                                       | Result                                                                                                   |
-|---------------|-----------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
+| ------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `list_traces` | `since` (cursor), `limit`, `errors_only`, `from`, `to`, `service`, `name`, `min_duration_ms`, `search`, `regex` | `traces`: `id`, `name`, `service`, `spans`, `duration_ms`, `error`, `updated` each; `cursor`; `has_more` |
 | `get_trace`   | `id`, `max_length`                                                                                              | The trace as plain text: a header line, then the tree of all its spans as the console prints it          |
 
@@ -316,23 +316,23 @@ trace sent in separate requests, with `--mcp` alone too. The limits of that stor
 The [profiles](profiles.md) are `profiler` events. `get_event` gives one as the console prints it; these tools let
 an agent dig into it without reading the whole call graph.
 
-| Tool                 | Arguments                                                     | Result                                                                                                           |
-|----------------------|---------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------|
-| `profile_summary`    | `id`                                                          | `format`, `metrics`, `not_measured`, `peaks`, `functions`, `edges`, the `top` 10 functions and the `hot_path`    |
-| `profile_top`        | `id`, `metric`, `sort`, `filter`, `limit`                     | `functions`: `function`, `calls`, `inclusive`, `exclusive` and their percentages each; `matched`, `has_more`     |
-| `profile_calls`      | `id`, `function`, `metric`, `depth`, `limit`                  | The function's row, its `callers` and `callees` with the calls and costs between them                            |
-| `profile_call_graph` | `id`, `metric`, `threshold`, `max_depth`, `max_length`        | The call tree as plain text, only the calls of at least `threshold` percent                                      |
+| Tool                 | Arguments                                              | Result                                                                                                        |
+| -------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| `profile_summary`    | `id`                                                   | `format`, `metrics`, `not_measured`, `peaks`, `functions`, `edges`, the `top` 10 functions and the `hot_path` |
+| `profile_top`        | `id`, `metric`, `sort`, `filter`, `limit`              | `functions`: `function`, `calls`, `inclusive`, `exclusive` and their percentages each; `matched`, `has_more`  |
+| `profile_calls`      | `id`, `function`, `metric`, `depth`, `limit`           | The function's row, its `callers` and `callees` with the calls and costs between them                         |
+| `profile_call_graph` | `id`, `metric`, `threshold`, `max_depth`, `max_length` | The call tree as plain text, only the calls of at least `threshold` percent                                   |
 
 The metrics are the ones the console shows; a profiler that doesn't measure one leaves it out, and a tool asked
 for it fails with the metrics the profile has:
 
-| Metric | Measures                             | Formats                                                                               |
-|--------|--------------------------------------|---------------------------------------------------------------------------------------|
-| `wt`   | Wall time, µs                        | XHProf, Xdebug, SPX, pprof and Speedscope of a CPU or time profile                    |
-| `cpu`  | CPU time, µs                         | XHProf and SPX when enabled, pprof of a CPU profile, Speedscope with the CPU clock    |
-| `mu`   | Memory, bytes                        | XHProf and SPX when enabled, Xdebug, pprof and Speedscope of a memory profile         |
-| `pmu`  | Peak memory, bytes                   | XHProf when enabled                                                                   |
-| `ct`   | Calls, or samples of a sampled one   | All; `count_type` of `profile_summary` tells what it counts                           |
+| Metric | Measures                           | Formats                                                                            |
+| ------ | ---------------------------------- | ---------------------------------------------------------------------------------- |
+| `wt`   | Wall time, µs                      | XHProf, Xdebug, SPX, pprof and Speedscope of a CPU or time profile                 |
+| `cpu`  | CPU time, µs                       | XHProf and SPX when enabled, pprof of a CPU profile, Speedscope with the CPU clock |
+| `mu`   | Memory, bytes                      | XHProf and SPX when enabled, Xdebug, pprof and Speedscope of a memory profile      |
+| `pmu`  | Peak memory, bytes                 | XHProf when enabled                                                                |
+| `ct`   | Calls, or samples of a sampled one | All; `count_type` of `profile_summary` tells what it counts                        |
 
 - Without `metric` the tools take the first the profile has of `wt`, `cpu`, `mu`, `ct`, as the console ranks by.
 - A function's values are summed over all its calls. `inclusive` takes the callees in, `exclusive` is the function
@@ -403,11 +403,11 @@ The agent profiles a slow request and finds what makes it slow:
 The [Xdebug traces](xdebug-traces.md) are `xdebug-trace` events: list them with `list_events` and `type:
 xdebug-trace`. These tools read the call tree from the trace file. Times are seconds, memory bytes.
 
-| Tool                   | Arguments                                     | Result                                                                                         |
-|------------------------|-----------------------------------------------|------------------------------------------------------------------------------------------------|
-| `xdebug_trace_summary` | `uuid`                                        | `name`, `url`, `size` and the `summary`: totals, the `top` 20 functions by self time, the 20 `slowest` calls |
-| `xdebug_trace_calls`   | `uuid`, `parent`, `from`, `query`, `limit`    | `nodes`: one level of the call tree, or the calls matching `query` with their `path`; `next`; `truncated` |
-| `xdebug_trace_call`    | `uuid`, `offset`                              | `call`: one call with its arguments and return value; its first 50 `callees`; `from` for the rest |
+| Tool                   | Arguments                                  | Result                                                                                                       |
+| ---------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `xdebug_trace_summary` | `uuid`                                     | `name`, `url`, `size` and the `summary`: totals, the `top` 20 functions by self time, the 20 `slowest` calls |
+| `xdebug_trace_calls`   | `uuid`, `parent`, `from`, `query`, `limit` | `nodes`: one level of the call tree, or the calls matching `query` with their `path`; `next`; `truncated`    |
+| `xdebug_trace_call`    | `uuid`, `offset`                           | `call`: one call with its arguments and return value; its first 50 `callees`; `from` for the rest            |
 
 - A call is known by its `offset` in the trace. Without `parent`, `xdebug_trace_calls` lists the top-level calls;
   with it, the direct callees of that call. A non-null `next` means more: call again with `from` set to it.
@@ -421,16 +421,16 @@ With [`--xdebug`](xdebug.md), these tools read and drive the step-debugging sess
 how to turn it on. Each call on a session goes to its agent log, which the Xdebug page of the UI shows with the
 name the MCP client gave in `initialize`.
 
-| Tool                 | Arguments                                                  | Result                                                                                 |
-|----------------------|------------------------------------------------------------|----------------------------------------------------------------------------------------|
-| `xdebug_sessions`    | `live_only`                                                | `sessions`: `id`, `state`, `driver`, the request or command, where it is paused; the settings |
-| `xdebug_wait`        | `timeout`                                                  | The first paused session, or `timed_out`                                               |
-| `xdebug_location`    | `session_id`, `context_lines`                              | `file`, `line`, the function and the source around the line                            |
-| `xdebug_stack`       | `session_id`                                               | `frames`: `level`, `where`, `file`, `line`                                             |
-| `xdebug_variables`   | `session_id`, `name`, `frame`, `context`, `page`           | The variables of a frame, or the value of `name` with its children                     |
-| `xdebug_eval`        | `session_id`, `expression`                                 | The value; only with `TRAP_XDEBUG_ALLOW_EVAL`                                          |
-| `xdebug_continue`    | `session_id`, `command`, `wait`                            | `step_into`, `step_over`, `step_out`, `run`, `stop` or `detach`, then the next pause   |
-| `xdebug_breakpoints` | `action`, `file`, `line`, `condition`, `exception`, `id`   | The saved breakpoints; `action: set` or `remove` changes them                          |
+| Tool                 | Arguments                                                | Result                                                                                        |
+| -------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `xdebug_sessions`    | `live_only`                                              | `sessions`: `id`, `state`, `driver`, the request or command, where it is paused; the settings |
+| `xdebug_wait`        | `timeout`                                                | The first paused session, or `timed_out`                                                      |
+| `xdebug_location`    | `session_id`, `context_lines`                            | `file`, `line`, the function and the source around the line                                   |
+| `xdebug_stack`       | `session_id`                                             | `frames`: `level`, `where`, `file`, `line`                                                    |
+| `xdebug_variables`   | `session_id`, `name`, `frame`, `context`, `page`         | The variables of a frame, or the value of `name` with its children                            |
+| `xdebug_eval`        | `session_id`, `expression`                               | The value; only with `TRAP_XDEBUG_ALLOW_EVAL`                                                 |
+| `xdebug_continue`    | `session_id`, `command`, `wait`                          | `step_into`, `step_over`, `step_out`, `run`, `stop` or `detach`, then the next pause          |
+| `xdebug_breakpoints` | `action`, `file`, `line`, `condition`, `exception`, `id` | The saved breakpoints; `action: set` or `remove` changes them                                 |
 
 - Without `session_id`, the tools take the only paused session.
 - `xdebug_continue` and changing breakpoints work on the sessions Trap drives (`driver: here`); an IDE steps its own.
@@ -486,7 +486,7 @@ The MCP port is `8000` by default. Change it with `--mcp=<port>`, `TRAP_MCP_PORT
 [`trap.xml`](configuration.md#trapxml); the environment variable wins.
 
 | Setting | Variable        | `trap.xml`        | Default     |
-|---------|-----------------|-------------------|-------------|
+| ------- | --------------- | ----------------- | ----------- |
 | Port    | `TRAP_MCP_PORT` | `/trap/mcp/@port` | `8000`      |
 | Host    | `TRAP_MCP_HOST` | `/trap/mcp/@host` | `127.0.0.1` |
 
@@ -515,7 +515,7 @@ The tools read everything Trap has caught, mails and request bodies with their s
   `TRAP_UI_HOST`), or leave it off.
 
 | Setting | Variable         | `trap.xml`         | Default |
-|---------|------------------|--------------------|---------|
+| ------- | ---------------- | ------------------ | ------- |
 | Token   | `TRAP_MCP_TOKEN` | `/trap/mcp/@token` | none    |
 
 There is no CLI option for it, as the command line shows in the process list. With a token set, every request

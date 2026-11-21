@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend\Http;
 
+use Buggregator\Trap\Module\Frontend\Message\HttpCode;
 use Buggregator\Trap\Module\Frontend\UiControllers;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Handler\Router\Method;
@@ -45,27 +46,26 @@ final class Router implements Middleware
             $handler = $this->router->match($method, (string) $request->getUri());
 
             if ($handler === null) {
-                return new Response(404);
+                return $next($request);
             }
 
-            try {
-                // Params
-                if ($method === Method::Get) {
-                    $params = $request->getQueryParams();
-                } else {
-                    /** @var mixed $params */
-                    $params = Json::decode((string) $request->getBody());
-                    \is_array($params) or $params = [];
+            // Params: the query, and the JSON body of a request other than GET
+            $params = $request->getQueryParams();
+            if ($method !== Method::Get) {
+                try {
+                    /** @var mixed $body */
+                    $body = Json::decode((string) $request->getBody());
+                    \is_array($body) and $params = [...$params, ...$body];
+                } catch (\Throwable) {
+                    // No JSON body
                 }
-            } catch (\Throwable) {
-                $params = [];
             }
 
             // Last, so a body or query field of the name can't stand for it
             $params[self::REQUEST] = $request;
 
             /** @var mixed $message */
-            $message = $handler(...$params);
+            $message = $handler(...\array_filter($params, \is_string(...), \ARRAY_FILTER_USE_KEY));
 
             // A controller answering with a status of its own: its 404 must not fall through the pipeline
             if ($message instanceof ResponseInterface) {
@@ -73,7 +73,7 @@ final class Router implements Middleware
             }
 
             return new Response(
-                200,
+                $message instanceof HttpCode ? $message->httpCode() : 200,
                 [
                     'Content-Type' => 'application/json',
                     'Cache-Control' => 'no-cache',

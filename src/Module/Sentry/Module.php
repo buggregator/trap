@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Sentry;
 
 use Buggregator\Trap\Module\Console\ProvidesRenderers;
+use Buggregator\Trap\Module\Frontend\ProvidesUi;
 use Buggregator\Trap\Module\Mcp\ProvidesEventViews;
 use Buggregator\Trap\Module\Sentry\Console\SentryEnvelope as EnvelopeRenderer;
 use Buggregator\Trap\Module\Sentry\Console\SentryStore as StoreRenderer;
 use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope;
 use Buggregator\Trap\Module\Sentry\Frame\SentryStore;
+use Buggregator\Trap\Module\Sentry\Frontend\ApiController;
+use Buggregator\Trap\Module\Sentry\Frontend\ClearController;
 use Buggregator\Trap\Module\Sentry\Frontend\EnvelopeMapper;
 use Buggregator\Trap\Module\Sentry\Frontend\StoreMapper;
 use Buggregator\Trap\Module\Sentry\Http\SentryTrap;
@@ -26,7 +29,8 @@ final class Module implements
     ProvidesFrameTypes,
     ProvidesRenderers,
     ProvidesEvents,
-    ProvidesEventViews
+    ProvidesEventViews,
+    ProvidesUi
 {
     #[\Override]
     public function httpMiddlewares(): array
@@ -65,5 +69,17 @@ final class Module implements
     public function eventViews(): array
     {
         return [SentryView::class];
+    }
+
+    #[\Override]
+    public function uiApiControllers(): array
+    {
+        return [ClearController::class, ApiController::class];
+    }
+
+    #[\Override]
+    public function uiAssetsControllers(): array
+    {
+        return [];
     }
 }

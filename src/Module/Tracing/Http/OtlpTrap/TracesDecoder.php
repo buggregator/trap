@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Tracing\Http\OtlpTrap;
 
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
-use Psr\Http\Message\ResponseInterface;
 
 /**
  * Decodes an `ExportTraceServiceRequest` body of one OTLP encoding (JSON, protobuf).
@@ -13,7 +12,7 @@ use Psr\Http\Message\ResponseInterface;
  * @internal
  * @psalm-internal Buggregator\Trap\Module\Tracing\Http
  */
-interface TracesDecoder
+interface TracesDecoder extends Decoder
 {
     /**
      * Default limit of spans in one request. It bounds the memory one request takes while being decoded.
@@ -26,10 +25,6 @@ interface TracesDecoder
      * @throws LimitExceededException When the payload has more spans than the decoder accepts.
      * @throws \InvalidArgumentException|\JsonException When the payload is malformed.
      */
+    #[\Override]
     public function decode(string $payload, \DateTimeImmutable $time): OtlpTraces;
-
-    /**
-     * An empty `ExportTraceServiceResponse` in the encoding of the request, as OTLP/HTTP requires.
-     */
-    public function createSuccessResponse(): ResponseInterface;
 }

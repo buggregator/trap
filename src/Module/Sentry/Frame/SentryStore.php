@@ -46,10 +46,12 @@ final class SentryStore extends Frame
 
     /**
      * @param SentryStoreMessage $message
+     * @param string|null $project From the `X-Buggregator-Project` header; the default project when null.
      */
     public function __construct(
         public readonly array $message,
         \DateTimeImmutable $time = new \DateTimeImmutable(),
+        public readonly ?string $project = null,
     ) {
         parent::__construct($time);
     }

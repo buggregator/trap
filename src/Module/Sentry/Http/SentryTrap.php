@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Sentry\Frame;
 use Buggregator\Trap\Module\Sentry\Http\SentryTrap\EnvelopeParser;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Logger;
+use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -53,6 +54,15 @@ final class SentryTrap implements Middleware
         return $next($request);
     }
 
+    /**
+     * The project of the `X-Buggregator-Project` header; null for the default one.
+     */
+    private static function project(ServerRequestInterface $request): ?string
+    {
+        $project = \trim($request->getHeaderLine('X-Buggregator-Project'));
+        return $project === '' ? null : $project;
+    }
+
     private function isEnvelopeRequest(ServerRequestInterface $request): bool
     {
         if ($request->getMethod() !== 'POST'
@@ -89,7 +99,7 @@ final class SentryTrap implements Middleware
         $time = $time instanceof \DateTimeImmutable ? $time : new \DateTimeImmutable();
 
         try {
-            $frame = EnvelopeParser::parse($request->getBody(), $time);
+            $frame = EnvelopeParser::parse($request->getBody(), $time, self::project($request));
             \Fiber::suspend($frame);
         } catch (\Throwable $e) {
             $this->logger?->warning('Sentry: envelope dropped, parsing failed: %s', $e->getMessage());
@@ -105,8 +115,9 @@ final class SentryTrap implements Middleware
             $this->logger?->warning('Sentry: event rejected with 413: the body is too large.');
             return new Response(413);
         }
+        // A non-finite number like `1e999` would fail the encoding of the frame
         /** @var SentryStoreMessage $payload */
-        $payload = \json_decode((string) $request->getBody(), true, 96, \JSON_THROW_ON_ERROR);
+        $payload = Json::finite(\json_decode((string) $request->getBody(), true, 96, \JSON_THROW_ON_ERROR));
 
         /** @psalm-suppress MixedAssignment */
         $time = $request->getAttribute('begin_at');
@@ -116,6 +127,7 @@ final class SentryTrap implements Middleware
             new Frame\SentryStore(
                 message: $payload,
                 time: $time,
+                project: self::project($request),
             ),
         );
 
