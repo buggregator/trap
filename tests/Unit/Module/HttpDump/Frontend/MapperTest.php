@@ -77,14 +77,14 @@ final class MapperTest
             [
                 'uuid' => $first->uuid,
                 'name' => 'a.txt',
-                'uri' => $event->uuid . '/' . $first->uuid,
+                'uri' => "/api/http-dump/attachments/{$event->uuid}/{$first->uuid}",
                 'size' => 3,
                 'mime' => 'text/plain',
             ],
             [
                 'uuid' => $second->uuid,
                 'name' => 'b.png',
-                'uri' => $event->uuid . '/' . $second->uuid,
+                'uri' => "/api/http-dump/attachments/{$event->uuid}/{$second->uuid}",
                 'size' => 5,
                 'mime' => 'image/png',
             ],

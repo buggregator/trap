@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\HttpDump;
 
 use Buggregator\Trap\Module\Console\ProvidesRenderers;
+use Buggregator\Trap\Module\Frontend\ProvidesUi;
 use Buggregator\Trap\Module\HttpDump\Console\Renderer;
+use Buggregator\Trap\Module\HttpDump\Frontend\AssetsController;
 use Buggregator\Trap\Module\HttpDump\Frontend\Mapper;
 use Buggregator\Trap\Module\HttpDump\Http\DebugPage;
 use Buggregator\Trap\Module\HttpDump\Http\Dump;
@@ -20,7 +22,7 @@ use Buggregator\Trap\Server\Proto\ProvidesFrameTypes;
  *
  * @internal
  */
-final class Module implements ProvidesFrameTypes, ProvidesHttpMiddlewares, ProvidesRenderers, ProvidesEvents
+final class Module implements ProvidesFrameTypes, ProvidesHttpMiddlewares, ProvidesRenderers, ProvidesEvents, ProvidesUi
 {
     #[\Override]
     public function frameTypes(): array
@@ -50,5 +52,17 @@ final class Module implements ProvidesFrameTypes, ProvidesHttpMiddlewares, Provi
     public function eventTypes(): array
     {
         return [Mapper::TYPE];
+    }
+
+    #[\Override]
+    public function uiApiControllers(): array
+    {
+        return [];
+    }
+
+    #[\Override]
+    public function uiAssetsControllers(): array
+    {
+        return [AssetsController::class];
     }
 }
