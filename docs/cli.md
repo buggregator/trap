@@ -14,6 +14,7 @@ to the senders. `run` is the default command, so `vendor/bin/trap` equals `vendo
 | `--sender` | `-s`  | `console`                              | Where to send what Trap receives. Repeat the option for more [senders](senders.md).           |
 | `--ui`     |       | off                                    | Turns on the [web UI](web-ui.md) (experimental). Takes an optional port: `--ui=8080`.         |
 | `--mcp`    |       | off                                    | Turns on the [MCP server](mcp.md) (experimental). Takes an optional port: `--mcp=8080`.       |
+| `--xdebug` |       | off                                    | Turns on the [Xdebug debugger](xdebug.md) (experimental) on port `9003`, or `--xdebug=9013`. |
 
 The `-v` option prints more messages of the server, and `-vv` also prints its debug messages and errors, e.g. a port
 it can't listen on. The other options are the standard ones of Symfony Console: `--help`, `--quiet`, `--version`,
@@ -36,13 +37,18 @@ vendor/bin/trap --ui=8080 -s
 
 # Web UI and MCP server, both on port 8000
 vendor/bin/trap --ui --mcp
+
+# Web UI and the Xdebug debugger on port 9003
+vendor/bin/trap --ui --xdebug
 ```
 
-`-s` without a value removes the default `console` sender. `--ui` adds the `ui` sender to the list, `--mcp` the `mcp` one.
+`-s` without a value removes the default `console` sender. `--ui` adds the `ui` sender to the list, `--mcp` the `mcp` one,
+`--xdebug` the `xdebug` one.
 
 Environment variables and [`trap.xml`](configuration.md#trapxml) configure the same settings and more;
 see [Configuration](configuration.md). An environment variable takes precedence over the option:
-`TRAP_TCP_PORTS` over `--port`, `TRAP_UI_PORT` over the port of `--ui`, `TRAP_MCP_PORT` over the port of `--mcp`.
+`TRAP_TCP_PORTS` over `--port`, `TRAP_UI_PORT` over the port of `--ui`, `TRAP_MCP_PORT` over the port of `--mcp`,
+`TRAP_XDEBUG_PORT` over the port of `--xdebug`.
 
 Stop the server with `Ctrl+C`. A second `Ctrl+C` exits at once.
 

@@ -85,5 +85,6 @@ Environment variables win over CLI options, which win over `trap.xml` of the pac
 (`vendor/buggregator/trap/trap.xml`). Server variables of note: `TRAP_TCP_PORTS`, `TRAP_TCP_HOST`, `TRAP_MCP_PORT`,
 `TRAP_MCP_HOST`, `TRAP_MCP_TOKEN`, `TRAP_UI_PORT`, `TRAP_TLS_CERT`, `TRAP_TLS_KEY`, `TRAP_MEMORY_LIMIT` (512M, for large profiles),
 `TRAP_XDEBUG_PATH`, `TRAP_XHPROF_PATH`, `TRAP_SPX_PATH` (the directories of profiles to pick up),
-`TRAP_XDEBUG_TRACE_PATH` and `TRAP_XDEBUG_TRACE_MAX_UPLOAD`, `_MAX_SIZE`, `_KEEP` (Xdebug traces, see
+`TRAP_XDEBUG_PORT`, `TRAP_XDEBUG_IDE`, `TRAP_XDEBUG_MODE`, `TRAP_XDEBUG_ALLOW_EVAL` (the debugger of `--xdebug`, see
+[xdebug.md](xdebug.md)), `TRAP_XDEBUG_TRACE_PATH` and `TRAP_XDEBUG_TRACE_MAX_UPLOAD`, `_MAX_SIZE`, `_KEEP` (Xdebug traces, see
 [profiling.md](profiling.md#trace-the-calls)).

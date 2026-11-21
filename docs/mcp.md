@@ -415,6 +415,29 @@ xdebug-trace`. These tools read the call tree from the trace file. Times are sec
 - `limit` is 50 by default and 200 at most. Arguments and return values are cut to 512 bytes.
 - A trace pushed out by newer ones (`TRAP_XDEBUG_TRACE_KEEP`) has no file any more: the tools say so.
 
+### Xdebug debugger
+
+With [`--xdebug`](xdebug.md), these tools read and drive the step-debugging sessions; without it they fail and say
+how to turn it on. Each call on a session goes to its agent log, which the Xdebug page of the UI shows with the
+name the MCP client gave in `initialize`.
+
+| Tool                 | Arguments                                                  | Result                                                                                 |
+|----------------------|------------------------------------------------------------|----------------------------------------------------------------------------------------|
+| `xdebug_sessions`    | `live_only`                                                | `sessions`: `id`, `state`, `driver`, the request or command, where it is paused; the settings |
+| `xdebug_wait`        | `timeout`                                                  | The first paused session, or `timed_out`                                               |
+| `xdebug_location`    | `session_id`, `context_lines`                              | `file`, `line`, the function and the source around the line                            |
+| `xdebug_stack`       | `session_id`                                               | `frames`: `level`, `where`, `file`, `line`                                             |
+| `xdebug_variables`   | `session_id`, `name`, `frame`, `context`, `page`           | The variables of a frame, or the value of `name` with its children                     |
+| `xdebug_eval`        | `session_id`, `expression`                                 | The value; only with `TRAP_XDEBUG_ALLOW_EVAL`                                          |
+| `xdebug_continue`    | `session_id`, `command`, `wait`                            | `step_into`, `step_over`, `step_out`, `run`, `stop` or `detach`, then the next pause   |
+| `xdebug_breakpoints` | `action`, `file`, `line`, `condition`, `exception`, `id`   | The saved breakpoints; `action: set` or `remove` changes them                          |
+
+- Without `session_id`, the tools take the only paused session.
+- `xdebug_continue` and changing breakpoints work on the sessions Trap drives (`driver: here`); an IDE steps its own.
+  `TRAP_XDEBUG_ALLOW_CONTROL=0` turns them off for agents.
+- A usual run: `xdebug_breakpoints` with `{"action": "set", "file": "/app/src/Checkout.php", "line": 42}`, start
+  the request, `xdebug_wait`, then `xdebug_location`, `xdebug_variables` and `xdebug_continue`.
+
 ### Example
 
 The agent remembers where the buffer is, runs the code, and reads what the code sent:
