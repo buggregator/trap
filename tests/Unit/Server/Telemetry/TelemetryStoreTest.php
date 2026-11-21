@@ -134,6 +134,14 @@ final class TelemetryStoreTest
         Assert::same($listener->calls, [['shop', ['trace', 'metric']], ['default', ['log']]]);
     }
 
+    public function testDurationsAreBoundedToAYear(): void
+    {
+        Assert::same(Span::durationBetween(-9e15, 9e15), Span::MAX_DURATION_MS);
+        Assert::same(Span::durationBetween(2.0, 1.0), 0);
+        Assert::same(Span::durationBetween(1.0, 1.25), 250);
+        Assert::null(Span::durationBetween(null, 1.0));
+    }
+
     private static function config(int $maxSpans = 10_000, int $maxLogs = 5_000, int $maxMetrics = 5_000): Config
     {
         $config = new Config();
