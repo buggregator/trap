@@ -21,8 +21,10 @@ vendor/bin/trap --mcp -s         # no console output: the agent reads only throu
 ```
 
 Run it as a background process and keep it for the session: events live in its memory and a restart drops them.
-The buffer keeps the last 200 events (`maxEvents` of `trap.xml`), traces their own limits; an event pinned in the
-web UI is pushed out last. Keep the process ID to
+The buffer keeps the last 200 events (`maxEvents` of `trap.xml`); an event pinned in the web UI is pushed out last.
+Traces have their own limits, and so have the traces, logs and metrics of the web UI's Sentry pages:
+`TRAP_TELEMETRY_MAX_SPANS` (10000), `TRAP_TELEMETRY_MAX_LOGS` (5000), `TRAP_TELEMETRY_MAX_METRICS` (5000), or
+`<telemetry maxSpans="10000" maxLogs="5000" maxMetrics="5000"/>` in `trap.xml`. Keep the process ID to
 stop it later: `vendor/bin/trap --mcp & echo $!` and `kill <pid>` in a POSIX shell; in PowerShell see
 [the Windows recipe](#a-trap-of-your-own-in-powershell). Other Traps may run on the machine: stop only yours. `-vv` prints the server's debug messages and errors, such as a port it can't listen on or a profile
 it can't import.
@@ -45,7 +47,7 @@ Every port takes every protocol; the defaults are the ports the clients send to 
   `/api/...` call from a UI page go to the UI, not to HTTP dumps; a dump sent by `curl` or an app stays a dump,
   an `OPTIONS` request too. The UI sends no CORS headers: open it from Trap itself.
   The UI on a port of its own (`--ui=8080`) takes no HTTP events, though its setup guide shows that port in the
-  DSNs: send HTTP to a TCP port, `8000` by default.
+  DSNs: send HTTP to a TCP port, `8000` by default. With `--xdebug` the setup guide shows the debugger port too.
 - A Trap of your own beside the user's: one port takes everything,
   `TRAP_TCP_PORTS=18000 TRAP_MCP_PORT=18000 vendor/bin/trap --mcp`. Point the clients at it:
   `VAR_DUMPER_SERVER=127.0.0.1:18000`, `TRAP_MONOLOG_PORT=18000`, `TRAP_PROFILER_PORT=18000`, and the URLs of the

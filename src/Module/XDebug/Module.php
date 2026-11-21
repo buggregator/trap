@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\XDebug;
 
 use Buggregator\Trap\Module\Frontend\ProvidesUi;
+use Buggregator\Trap\Module\Frontend\ProvidesUiPorts;
 use Buggregator\Trap\Module\Mcp\ProvidesMcpTools;
 use Buggregator\Trap\Module\XDebug\Frontend\ApiController;
+use Buggregator\Trap\Module\XDebug\Frontend\Ports;
 use Buggregator\Trap\Module\XDebug\Mcp\BreakpointsTool;
 use Buggregator\Trap\Module\XDebug\Mcp\Control;
 use Buggregator\Trap\Module\XDebug\Mcp\Evaluate;
@@ -26,7 +28,7 @@ use Buggregator\Trap\Server\Traffic\ProvidesDispatchers;
  *
  * @internal
  */
-final class Module implements ProvidesSenders, ProvidesDispatchers, ProvidesUi, ProvidesMcpTools
+final class Module implements ProvidesSenders, ProvidesDispatchers, ProvidesUi, ProvidesUiPorts, ProvidesMcpTools
 {
     /**
      * The `--xdebug` option of the `run` command chooses the `xdebug` sender.
@@ -53,6 +55,12 @@ final class Module implements ProvidesSenders, ProvidesDispatchers, ProvidesUi, 
     public function uiAssetsControllers(): array
     {
         return [];
+    }
+
+    #[\Override]
+    public function uiPorts(): string
+    {
+        return Ports::class;
     }
 
     #[\Override]

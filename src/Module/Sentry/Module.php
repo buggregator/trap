@@ -11,6 +11,7 @@ use Buggregator\Trap\Module\Sentry\Console\SentryEnvelope as EnvelopeRenderer;
 use Buggregator\Trap\Module\Sentry\Console\SentryStore as StoreRenderer;
 use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope;
 use Buggregator\Trap\Module\Sentry\Frame\SentryStore;
+use Buggregator\Trap\Module\Sentry\Frontend\ApiController;
 use Buggregator\Trap\Module\Sentry\Frontend\ClearController;
 use Buggregator\Trap\Module\Sentry\Frontend\EnvelopeMapper;
 use Buggregator\Trap\Module\Sentry\Frontend\StoreMapper;
@@ -73,7 +74,7 @@ final class Module implements
     #[\Override]
     public function uiApiControllers(): array
     {
-        return [ClearController::class];
+        return [ClearController::class, ApiController::class];
     }
 
     #[\Override]

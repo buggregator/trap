@@ -75,7 +75,7 @@ final class ItemReader
         /** @var mixed $values */
         $values = \is_array($exception) && \array_key_exists('values', $exception) ? $exception['values'] : $exception;
 
-        return \is_array($values) ? \array_values(\array_filter($values, \is_array(...))) : [];
+        return \is_array($values) ? self::arrays($values) : [];
     }
 
     /**
@@ -106,7 +106,7 @@ final class ItemReader
     {
         $context = self::map($payload, 'contexts');
         $trace = self::map($context, 'trace');
-        $spans = \array_values(\array_filter(self::list($payload, 'spans'), \is_array(...)));
+        $spans = self::arrays(self::list($payload, 'spans'));
 
         $traceId = self::string($trace, 'trace_id');
         foreach ($spans as $span) {
@@ -302,7 +302,21 @@ final class ItemReader
             default => self::list($payload, 'items'),
         };
 
-        return \array_values(\array_filter($items, \is_array(...)));
+        return self::arrays($items);
+    }
+
+    /**
+     * @return list<array> The arrays among the values.
+     */
+    private static function arrays(array $values): array
+    {
+        $arrays = [];
+        /** @var mixed $value */
+        foreach ($values as $value) {
+            \is_array($value) and $arrays[] = $value;
+        }
+
+        return $arrays;
     }
 
     /**

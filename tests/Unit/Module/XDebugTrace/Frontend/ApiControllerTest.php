@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\XDebugTrace\Frontend;
 
+use Buggregator\Trap\Module\Frontend\Message\Error;
 use Buggregator\Trap\Module\XDebugTrace\Config\Traces;
 use Buggregator\Trap\Module\XDebugTrace\Frame;
 use Buggregator\Trap\Module\XDebugTrace\Frontend\ApiController;
@@ -13,7 +14,6 @@ use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Handler\Router\Method;
 use Buggregator\Trap\Server\Handler\Router\Router;
 use Buggregator\Trap\Tests\Unit\Module\XDebugTrace\Trace\TraceReaderTest;
-use Psr\Http\Message\ResponseInterface;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Lifecycle\BeforeTest;
@@ -93,7 +93,7 @@ final class ApiControllerTest
     private function get(string $part): array
     {
         $result = $this->call($part, $this->uuid);
-        Assert::false($result instanceof ResponseInterface);
+        Assert::false($result instanceof Error);
 
         return \json_decode(\json_encode($result), true);
     }
@@ -104,9 +104,9 @@ final class ApiControllerTest
     private function error(string $part, ?string $uuid = null): array
     {
         $result = $this->call($part, $uuid ?? $this->uuid);
-        \assert($result instanceof ResponseInterface);
+        \assert($result instanceof Error);
 
-        return [$result->getStatusCode(), \json_decode((string) $result->getBody(), true)['error']];
+        return [$result->httpCode(), \json_decode(\json_encode($result), true)['error']];
     }
 
     private function call(string $part, string $uuid): mixed

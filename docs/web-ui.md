@@ -52,8 +52,39 @@ the UI asks so. Another browser tab shows a pin made in this one when it loads t
 The events live in the memory of Trap and are gone when it stops. The [MCP server](mcp.md) works with the same
 events: an event deleted in the UI is gone for it too.
 
-The UI also controls `ray()->pause()`: see [Ray](ray.md#notes).
+The UI also controls `ray()->pause()`: see [Ray](ray.md#notes). With `--xdebug` its Xdebug page lists the debug
+sessions and steps through the ones Trap drives, and its setup guide shows the debugger port: see
+[Xdebug debugger](xdebug.md).
 
-The UI has pages for features of the Buggregator Server that Trap has not: Sentry traces, logs and metrics,
-metrics, the mock server, Xdebug, updates. They show no data, and the menu of the mock server stays while HTTP
-dumps are on: hide it in Settings › Menu.
+The UI has pages for features of the Buggregator Server that Trap has not: metrics, the mock server, updates.
+They show no data, and the menu of the mock server stays while HTTP dumps are on: hide it in Settings › Menu.
+
+## Sentry pages
+
+The Sentry section has a page for each kind of data:
+
+- Exceptions: the [Sentry](sentry.md) error events, one by one or grouped by type and message.
+- Traces: the transactions and spans of [Sentry SDKs](sentry.md#what-an-envelope-gives) and
+  [OpenTelemetry](opentelemetry.md#how-the-ui-shows-otlp-data) exporters, one trace even when it crosses both,
+  with the waterfall, the call sequence between services, the related errors and logs.
+- Service map: the services and what they call (other services, databases, caches, queues) over the period,
+  with requests, errors and durations per service and per call, and the traces through each call. A call is a span
+  with a peer: a database or cache address, an HTTP host, a queue; it leads to the service that served it when
+  that service sends its data to Trap too.
+- Logs and Metrics: Sentry `log` and `trace_metric` items, OTLP logs and metrics.
+
+Traces, logs and metrics make no events in the feed. Trap keeps them in memory while the UI or the
+[MCP server](mcp.md) runs, and the UI asks for them by project and period. "Clear all" in the Sentry section
+deletes them with the Sentry events.
+
+Memory is bounded by these limits; values below 1 fall back to the defaults:
+
+| Environment variable         | `trap.xml`                   | Default | Above it                                                       |
+|------------------------------|------------------------------|---------|----------------------------------------------------------------|
+| `TRAP_TELEMETRY_MAX_SPANS`   | `/trap/telemetry/@maxSpans`  | `10000` | the least recently updated traces are dropped                  |
+| `TRAP_TELEMETRY_MAX_LOGS`    | `/trap/telemetry/@maxLogs`   | `5000`  | the oldest log records are dropped                             |
+| `TRAP_TELEMETRY_MAX_METRICS` | `/trap/telemetry/@maxMetrics`| `5000`  | the oldest metric values are dropped                           |
+
+`maxSpans` counts transactions and spans together; a single trace above it keeps its most recent 90%.
+These limits are apart from the [OpenTelemetry limits](opentelemetry.md#memory-limits) of the console and the
+MCP server.

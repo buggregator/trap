@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\XDebug\Frontend;
 
 use Buggregator\Trap\Module\Frontend\Http\Router;
+use Buggregator\Trap\Module\Frontend\Message\Error;
+use Buggregator\Trap\Module\Frontend\Message\Status;
 use Buggregator\Trap\Module\XDebug\Dbgp\Protocol;
 use Buggregator\Trap\Module\XDebug\Debugger;
 use Buggregator\Trap\Module\XDebug\DebuggerError;
@@ -14,9 +16,6 @@ use Buggregator\Trap\Server\Handler\Router\Attribute\QueryParam;
 use Buggregator\Trap\Server\Handler\Router\Attribute\RegexpRoute;
 use Buggregator\Trap\Server\Handler\Router\Attribute\StaticRoute;
 use Buggregator\Trap\Server\Handler\Router\Method;
-use Buggregator\Trap\Support\Json;
-use Nyholm\Psr7\Response;
-use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
@@ -52,7 +51,7 @@ final class ApiController
      * Asked first by the page: with the debugger off, the menu has no Xdebug item.
      */
     #[StaticRoute(Method::Get, 'api/xdebug')]
-    public function status(?ServerRequestInterface $__request = null): ResponseInterface|array
+    public function status(?ServerRequestInterface $__request = null): Error|array
     {
         $config = $this->debugger->config;
 
@@ -70,7 +69,7 @@ final class ApiController
         mixed $mode = null,
         mixed $pause_on_first_line = null,
         ?ServerRequestInterface $__request = null,
-    ): ResponseInterface|array {
+    ): Error|array {
         return $this->guard($__request, function () use ($mode, $pause_on_first_line): array {
             ($mode === null || \is_string($mode)) && ($pause_on_first_line === null || \is_bool($pause_on_first_line))
                 && ($mode !== null || $pause_on_first_line !== null)
@@ -82,7 +81,7 @@ final class ApiController
     }
 
     #[StaticRoute(Method::Get, 'api/xdebug/sessions')]
-    public function sessions(?ServerRequestInterface $__request = null): ResponseInterface|array
+    public function sessions(?ServerRequestInterface $__request = null): Error|array
     {
         return $this->guard($__request, fn(): array => \array_map(
             static fn(Session $s): array => $s->info(),
@@ -91,16 +90,16 @@ final class ApiController
     }
 
     #[RegexpRoute(Method::Delete, '#^api/xdebug/sessions/(?<id>[^/]++)$#')]
-    public function dismiss(string $id, ?ServerRequestInterface $__request = null): ResponseInterface
+    public function dismiss(string $id, ?ServerRequestInterface $__request = null): Error|Status
     {
-        return $this->guard($__request, function () use ($id): ResponseInterface {
+        return $this->guard($__request, function () use ($id): Status {
             $this->debugger->dismiss($id);
-            return new Response(204);
+            return Status::noContent();
         });
     }
 
     #[RegexpRoute(Method::Get, '#^api/xdebug/sessions/(?<id>[^/]++)/stack$#')]
-    public function stack(string $id, ?ServerRequestInterface $__request = null): ResponseInterface|array
+    public function stack(string $id, ?ServerRequestInterface $__request = null): Error|array
     {
         return $this->guard($__request, function () use ($id): array {
             $frames = [];
@@ -115,7 +114,7 @@ final class ApiController
     }
 
     #[RegexpRoute(Method::Get, '#^api/xdebug/sessions/(?<id>[^/]++)/contexts$#')]
-    public function contexts(string $id, #[QueryParam] string $frame = '0', ?ServerRequestInterface $__request = null): ResponseInterface|array
+    public function contexts(string $id, #[QueryParam] string $frame = '0', ?ServerRequestInterface $__request = null): Error|array
     {
         return $this->guard($__request, fn(): array => $this->session($id)
             ->read('context_names', '-d ' . self::number('frame', $frame))
@@ -128,7 +127,7 @@ final class ApiController
         #[QueryParam] string $frame = '0',
         #[QueryParam] string $context = '0',
         ?ServerRequestInterface $__request = null,
-    ): ResponseInterface|array {
+    ): Error|array {
         return $this->guard($__request, fn(): array => $this->session($id)
             ->read('context_get', \sprintf('-d %d -c %d', self::number('frame', $frame), self::number('context', $context)))
             ->properties());
@@ -142,7 +141,7 @@ final class ApiController
         #[QueryParam] string $context = '0',
         #[QueryParam] string $page = '0',
         ?ServerRequestInterface $__request = null,
-    ): ResponseInterface|array {
+    ): Error|array {
         return $this->guard($__request, function () use ($id, $name, $frame, $context, $page): array {
             \trim($name) !== '' && !\str_contains($name, "\0")
                 or throw DebuggerError::badRequest('name is required.');
@@ -167,7 +166,7 @@ final class ApiController
         #[QueryParam] string $begin = '1',
         #[QueryParam] string $end = '0',
         ?ServerRequestInterface $__request = null,
-    ): ResponseInterface|array {
+    ): Error|array {
         return $this->guard($__request, function () use ($id, $file, $begin, $end): array {
             $file !== '' && !\str_contains($file, "\0") or throw DebuggerError::badRequest('file is required.');
             // Not any file of the host: only the ones the debugged script ran or a breakpoint names
@@ -189,7 +188,7 @@ final class ApiController
     }
 
     #[RegexpRoute(Method::Get, '#^api/xdebug/sessions/(?<id>[^/]++)/breakpoints$#')]
-    public function sessionBreakpoints(string $id, ?ServerRequestInterface $__request = null): ResponseInterface|array
+    public function sessionBreakpoints(string $id, ?ServerRequestInterface $__request = null): Error|array
     {
         return $this->guard($__request, function () use ($id): array {
             $session = $this->session($id);
@@ -208,13 +207,13 @@ final class ApiController
     }
 
     #[RegexpRoute(Method::Get, '#^api/xdebug/sessions/(?<id>[^/]++)/agent-log$#')]
-    public function agentLog(string $id, ?ServerRequestInterface $__request = null): ResponseInterface|array
+    public function agentLog(string $id, ?ServerRequestInterface $__request = null): Error|array
     {
         return $this->guard($__request, fn(): array => $this->session($id)->agentLog());
     }
 
     #[RegexpRoute(Method::Post, '#^api/xdebug/sessions/(?<id>[^/]++)/eval$#')]
-    public function evaluate(string $id, mixed $expression = null, ?ServerRequestInterface $__request = null): ResponseInterface|array
+    public function evaluate(string $id, mixed $expression = null, ?ServerRequestInterface $__request = null): Error|array
     {
         return $this->guard($__request, function () use ($id, $expression): array {
             $this->debugger->allowEval() or throw DebuggerError::evalDisabled();
@@ -227,7 +226,7 @@ final class ApiController
     }
 
     #[RegexpRoute(Method::Post, '#^api/xdebug/sessions/(?<id>[^/]++)/(?<command>run|step-into|step-over|step-out|stop|detach)$#')]
-    public function control(string $id, string $command, ?ServerRequestInterface $__request = null): ResponseInterface|array
+    public function control(string $id, string $command, ?ServerRequestInterface $__request = null): Error|array
     {
         return $this->guard($__request, function () use ($id, $command): array {
             $session = $this->session($id);
@@ -238,27 +237,27 @@ final class ApiController
     }
 
     #[StaticRoute(Method::Get, 'api/xdebug/breakpoints')]
-    public function breakpoints(?ServerRequestInterface $__request = null): ResponseInterface|array
+    public function breakpoints(?ServerRequestInterface $__request = null): Error|array
     {
         return $this->guard($__request, fn(): array => $this->debugger->breakpoints->all());
     }
 
     #[StaticRoute(Method::Post, 'api/xdebug/breakpoints')]
-    public function addBreakpoint(mixed ...$body): ResponseInterface
+    public function addBreakpoint(mixed ...$body): Error|Status
     {
         [$__request, $body] = self::request($body);
 
-        return $this->guard($__request, function () use ($body): ResponseInterface {
+        return $this->guard($__request, function () use ($body): Status {
             $this->assertCondition($body);
             $bp = $this->debugger->breakpoints->add($body, 'ui');
             $this->debugger->breakpointsChanged();
 
-            return self::json(201, $bp);
+            return Status::created($bp);
         });
     }
 
     #[RegexpRoute(Method::Patch, '#^api/xdebug/breakpoints/(?<bp>\d++)$#')]
-    public function updateBreakpoint(mixed ...$body): ResponseInterface|array
+    public function updateBreakpoint(mixed ...$body): Error|array
     {
         [$__request, $body] = self::request($body);
 
@@ -274,18 +273,18 @@ final class ApiController
     }
 
     #[RegexpRoute(Method::Delete, '#^api/xdebug/breakpoints/(?<bp>\d++)$#')]
-    public function removeBreakpoint(string $bp, ?ServerRequestInterface $__request = null): ResponseInterface
+    public function removeBreakpoint(string $bp, ?ServerRequestInterface $__request = null): Error|Status
     {
-        return $this->guard($__request, function () use ($bp): ResponseInterface {
+        return $this->guard($__request, function () use ($bp): Status {
             $this->debugger->breakpoints->delete((int) $bp);
             $this->debugger->breakpointsChanged();
 
-            return new Response(204);
+            return Status::noContent();
         });
     }
 
     #[StaticRoute(Method::Get, 'api/xdebug/files')]
-    public function files(#[QueryParam] string $q = '', #[QueryParam] string $limit = '20', ?ServerRequestInterface $__request = null): ResponseInterface|array
+    public function files(#[QueryParam] string $q = '', #[QueryParam] string $limit = '20', ?ServerRequestInterface $__request = null): Error|array
     {
         return $this->guard($__request, function () use ($q, $limit): array {
             $max = \ctype_digit($limit) && (int) $limit > 0 && (int) $limit <= 200 ? (int) $limit : 20;
@@ -305,11 +304,6 @@ final class ApiController
         return (int) $value;
     }
 
-    private static function json(int $status, mixed $data): ResponseInterface
-    {
-        return new Response($status, ['Content-Type' => 'application/json'], Json::encode($data));
-    }
-
     /**
      * Splits the request off the fields of a variadic method.
      *
@@ -327,9 +321,9 @@ final class ApiController
     /**
      * Every error answer of the debugger.
      */
-    private static function error(DebuggerError $e): ResponseInterface
+    private static function error(DebuggerError $e): Error
     {
-        return self::json($e->status, $e->toArray());
+        return Error::withBody($e->status, $e->toArray());
     }
 
     /**
@@ -359,14 +353,14 @@ final class ApiController
      * request with a JSON body, and the preflight it needs gets no CORS headers: the UI sends none. The WebSocket RPC
      * comes with no request: a page of any origin may open the socket.
      *
-     * @template T of array|ResponseInterface
+     * @template T of array|Status
      *
      * @param \Closure(): T $action
      * @param bool $whenOff Run with the debugger off too.
      *
-     * @return T|ResponseInterface
+     * @return T|Error
      */
-    private function guard(?ServerRequestInterface $request, \Closure $action, bool $whenOff = false): array|ResponseInterface
+    private function guard(?ServerRequestInterface $request, \Closure $action, bool $whenOff = false): array|Status|Error
     {
         try {
             $request === null and throw DebuggerError::forbidden('http_only', 'The debugger answers HTTP requests only.');

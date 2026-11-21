@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\XDebugTrace\Frontend;
 
+use Buggregator\Trap\Module\Frontend\Message\Error;
 use Buggregator\Trap\Module\XDebugTrace\Config\Traces;
 use Buggregator\Trap\Module\XDebugTrace\Frame;
 use Buggregator\Trap\Module\XDebugTrace\Trace\CallTree;
@@ -14,10 +15,7 @@ use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Handler\Router\Attribute\QueryParam;
 use Buggregator\Trap\Server\Handler\Router\Attribute\RegexpRoute;
 use Buggregator\Trap\Server\Handler\Router\Method;
-use Buggregator\Trap\Support\Json;
 use Buggregator\Trap\Support\TimeSlice;
-use Nyholm\Psr7\Response;
-use Psr\Http\Message\ResponseInterface;
 
 /**
  * The trace page of the UI:
@@ -43,7 +41,7 @@ final class ApiController
     ) {}
 
     #[RegexpRoute(Method::Get, '#^api/xdebug-traces/(?<uuid>[a-f0-9-]++)/summary$#i')]
-    public function summary(string $uuid): array|ResponseInterface
+    public function summary(string $uuid): array|Error
     {
         $event = $this->events->get($uuid);
         if ($event === null || $event->type !== Frame::TYPE || !\is_array($event->payload)) {
@@ -62,7 +60,7 @@ final class ApiController
         #[QueryParam] string $parent = '',
         #[QueryParam] string $from = '',
         #[QueryParam] string $limit = '',
-    ): Page|ResponseInterface {
+    ): Page|Error {
         $parentOffset = self::offset($parent);
         $fromOffset = self::offset($from);
         $max = self::limit($limit);
@@ -79,7 +77,7 @@ final class ApiController
         #[QueryParam] string $q = '',
         #[QueryParam] string $from = '',
         #[QueryParam] string $limit = '',
-    ): Page|ResponseInterface {
+    ): Page|Error {
         $q = \trim($q);
         if ($q === '' || \strlen($q) > 256) {
             return self::error(400, 'q is required (at most 256 bytes)');
@@ -114,15 +112,15 @@ final class ApiController
         };
     }
 
-    private static function error(int $status, string $message): ResponseInterface
+    private static function error(int $status, string $message): Error
     {
-        return new Response($status, ['Content-Type' => 'application/json'], Json::encode(['error' => $message]));
+        return Error::withBody($status, ['error' => $message]);
     }
 
     /**
      * @param \Closure(CallTree): Page $run
      */
-    private function scan(string $uuid, \Closure $run): Page|ResponseInterface
+    private function scan(string $uuid, \Closure $run): Page|Error
     {
         $event = $this->events->get($uuid);
         if ($event === null || $event->type !== Frame::TYPE) {

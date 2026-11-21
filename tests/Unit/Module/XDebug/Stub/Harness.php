@@ -11,6 +11,7 @@ use Buggregator\Trap\Module\XDebug\Debugger;
 use Buggregator\Trap\Module\XDebug\Session;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Traffic\StreamClient;
+use Buggregator\Trap\Server\Traffic\Websocket\Frame;
 use Internal\Container\ObjectContainer;
 use Symfony\Component\Console\Output\BufferedOutput;
 
@@ -41,7 +42,16 @@ final class Harness
             isset($data['push']['pub']) and $this->events[] = $data['push']['pub']['data'];
             return true;
         });
-        $container->get(ConnectionPool::class)->addStream($ui);
+        // A client gets publications once connected
+        $ui->allows('getIterator')->andReturnUsing(static function (): \Generator {
+            yield (string) Frame::text('{"id":1,"connect":{}}');
+            while (true) {
+                \Fiber::suspend();
+            }
+        });
+        $pool = $container->get(ConnectionPool::class);
+        $pool->addStream($ui);
+        $pool->process();
         $this->debugger = new Debugger($config, $container, $logger);
         $this->debugger->enable();
     }
