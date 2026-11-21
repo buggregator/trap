@@ -37,17 +37,17 @@ text.
 
 The argument schema of each tool is in its `inputSchema` (`mcp.php tools <name>`).
 
-| Tool              | Does                                                                                      |
-|-------------------|-------------------------------------------------------------------------------------------|
-| `list_events`     | The events changed after `since`, oldest first; with `order: newest` the latest ones      |
-| `wait_for_events` | Waits until `count` events (1 by default) match, up to `timeout` seconds (30, at most 50) |
-| `get_event`       | One event as plain text: the full dump, log record, exception, mail, request              |
-| `delete_event`    | Deletes events by `id` or `ids`                                                           |
-| `clear_events`    | Deletes the events matching a filter; without arguments, all of them                      |
-| `list_traces`     | OpenTelemetry traces, with filters by service, name, duration, errors                     |
-| `get_trace`       | One trace as a tree of its spans                                                          |
-| `profile_*`       | Analyze a `profiler` event, see [profiling.md](profiling.md#read-the-profile)             |
-| `xdebug_*`        | Step debugging with Xdebug, see [xdebug.md](xdebug.md)                                    |
+| Tool              | Does                                                                                            |
+| ----------------- | ----------------------------------------------------------------------------------------------- |
+| `list_events`     | The events changed after `since`, oldest first; with `order: newest` the latest ones            |
+| `wait_for_events` | Waits until `count` events (1 by default) match, up to `timeout` seconds (30, at most 50)       |
+| `get_event`       | One event as plain text: the full dump, log record, exception, mail, request                    |
+| `delete_event`    | Deletes events by `id` or `ids`                                                                 |
+| `clear_events`    | Deletes the events matching a filter; without arguments, all of them                            |
+| `list_traces`     | OpenTelemetry traces, with filters by service, name, duration, errors                           |
+| `get_trace`       | One trace as a tree of its spans                                                                |
+| `profile_*`       | Analyze a `profiler` event, see [profiling.md](profiling.md#read-the-profile)                   |
+| `xdebug_*`        | Step debugging with Xdebug, see [xdebug.md](xdebug.md)                                          |
 | `xdebug_trace_*`  | Walk the call tree of an `xdebug-trace` event, see [profiling.md](profiling.md#trace-the-calls) |
 
 ## Reading
@@ -70,7 +70,7 @@ The argument schema of each tool is in its `inputSchema` (`mcp.php tools <name>`
 `list_events`, `wait_for_events` and `clear_events` take the same filter; an event matches all the arguments given.
 
 | Argument  | Matches                                                                                                |
-|-----------|--------------------------------------------------------------------------------------------------------|
+| --------- | ------------------------------------------------------------------------------------------------------ |
 | `type`    | One or a list of `var-dump`, `monolog`, `sentry`, `smtp`, `http-dump`, `ray`, `profiler`               |
 | `project` | One or a list; events sent without a project belong to `default`                                       |
 | `from`    | Caught at this time or later: ISO 8601 in UTC, or back from now in lower case: `30s`, `5m`, `2h`, `1d` |
@@ -79,7 +79,7 @@ The argument schema of each tool is in its `inputSchema` (`mcp.php tools <name>`
 | `where`   | Fields of the event, below                                                                             |
 
 | Type        | Fields                                                                                                          |
-|-------------|-----------------------------------------------------------------------------------------------------------------|
+| ----------- | --------------------------------------------------------------------------------------------------------------- |
 | `var-dump`  | `label` (the name of a named argument), `value_type`, `language`, `file`                                        |
 | `monolog`   | `level`, `channel`                                                                                              |
 | `sentry`    | `level`, `exception` (the types of the chain), `environment`, `release`, `transaction`, `server_name`, `status` |

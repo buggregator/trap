@@ -59,13 +59,13 @@ phive install buggregator/trap
 
 ## Optional extensions and packages
 
-| Package or extension                                     | Needed for                                                                                       |
-|----------------------------------------------------------|--------------------------------------------------------------------------------------------------|
-| `ext-zlib`                                               | gzip-compressed HTTP request bodies and profiles, [SPX](spx.md) traces                           |
-| `ext-simplexml`                                          | loading [`trap.xml`](configuration.md#trapxml)                                                   |
-| `ext-excimer`, `ext-xhprof`, `ext-tideways_xhprof`       | [profiling code](profiling.md) with `trap()::profile()`                                          |
-| `ext-spx`                                                | [profiling code with SPX](spx.md)                                                                |
-| `open-telemetry/gen-otlp-protobuf` and `google/protobuf` | [OpenTelemetry traces](opentelemetry.md) over `http/protobuf`; the Phar and the binary lack them |
+| Package or extension                                     | Needed for                                                                                |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `ext-zlib`                                               | gzip-compressed HTTP request bodies and profiles, [SPX](spx.md) traces                    |
+| `ext-simplexml`                                          | loading [`trap.xml`](configuration.md#trapxml)                                            |
+| `ext-excimer`, `ext-xhprof`, `ext-tideways_xhprof`       | [profiling code](profiling.md) with `trap()::profile()`                                   |
+| `ext-spx`                                                | [profiling code with SPX](spx.md)                                                         |
+| `open-telemetry/gen-otlp-protobuf` and `google/protobuf` | [OpenTelemetry](opentelemetry.md) over `http/protobuf`; the Phar and the binary lack them |
 
 ## Next steps
 

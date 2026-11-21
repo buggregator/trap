@@ -14,7 +14,8 @@ SENTRY_DSN=http://sentry@127.0.0.1:8000/1          # Laravel: SENTRY_LARAVEL_DSN
 
 The key and the project ID can be anything. Events: `sentry`; `get_event` gives the exception chain with the code
 around the frames, the request and the breadcrumbs, the fastest way to an exception the application swallowed into
-its error reporting.
+its error reporting. A transaction is a `sentry` event as well; Sentry logs, trace metrics and spans make no event and
+show only on the Sentry pages of the web UI.
 
 ## Monolog
 
@@ -74,12 +75,19 @@ plain text, such as `Привет, мир`. `from`, `to`, `cc` and `bcc` hold th
 ```bash
 OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
 OTEL_EXPORTER_OTLP_PROTOCOL=http/json
-OTEL_LOGS_EXPORTER=none
-OTEL_METRICS_EXPORTER=none
 ```
 
-Read with `list_traces` and `get_trace`, not the event tools. `http/protobuf` needs
-`open-telemetry/gen-otlp-protobuf` and `google/protobuf` in the project that runs Trap.
+Read traces with `list_traces` and `get_trace`, not the event tools. Trap takes logs and metrics too
+(`/v1/logs`, `/v1/metrics`), but shows them only in the console and the web UI: no MCP tool reads them. `http/protobuf`
+needs `open-telemetry/gen-otlp-protobuf` and `google/protobuf` in the project that runs Trap. The web UI files the
+data under the project of the path `/api/{project}/integration/otlp/v1/traces` (also `/logs`, `/metrics`), else of the
+`X-Buggregator-Project` header (`OTEL_EXPORTER_OTLP_HEADERS=X-Buggregator-Project=shop`), else `default`. A numeric
+`{project}` is the project ID of a Sentry DSN and names no project.
+
+A request over the limits gets `413` with the reason: 10 MB of body; 10 000 spans, log records or data points;
+over protobuf 240 000 elements (attributes, events, links, repeated values), 2 000 000 fields and 40 MB of text;
+over JSON 520 000 objects and arrays. Without `ext-protobuf` the protobuf limits are 20 000 elements, 200 000 fields
+and 16 MB of text, an SDK batch of 512 spans: on `413`, install it, switch to `http/json` or export smaller batches.
 
 ## VarDumper
 

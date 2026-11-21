@@ -14,7 +14,8 @@ use Buggregator\Trap\Support\Json;
  * @psalm-type SentryEnvelopeMessage = array{
  *     type: SentryEnvelope::SENTRY_FRAME_TYPE,
  *     items: array<array-key, array{array<array-key, mixed>, mixed}>,
- *     headers: array<array-key, mixed>
+ *     headers: array<array-key, mixed>,
+ *     project?: string|null
  * }
  */
 final class SentryEnvelope extends Frame
@@ -24,11 +25,13 @@ final class SentryEnvelope extends Frame
     /**
      * @param array<array-key, mixed> $headers
      * @param list<EnvelopeItem> $items
+     * @param string|null $project From the `X-Buggregator-Project` header; the default project when null.
      */
     public function __construct(
         public readonly array $headers,
         public readonly array $items,
         \DateTimeImmutable $time = new \DateTimeImmutable(),
+        public readonly ?string $project = null,
     ) {
         parent::__construct($time);
     }
@@ -49,6 +52,7 @@ final class SentryEnvelope extends Frame
             $data['headers'],
             $items,
             $time,
+            $data['project'] ?? null,
         );
     }
 
@@ -58,7 +62,8 @@ final class SentryEnvelope extends Frame
     public function __toString(): string
     {
         return Json::encode(
-            ['headers' => $this->headers, 'items' => $this->items],
+            ['headers' => $this->headers, 'items' => $this->items]
+            + ($this->project === null ? [] : ['project' => $this->project]),
         );
     }
 }

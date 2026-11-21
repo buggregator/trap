@@ -3,4 +3,5 @@
     <events maxEvents="200"/>
     <frontend port="8000"/>
     <traces maxSpans="10000" ttl="600"/>
+    <telemetry maxSpans="10000" maxLogs="5000" maxMetrics="5000"/>
 </trap>

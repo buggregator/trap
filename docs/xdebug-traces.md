@@ -60,11 +60,11 @@ a temporary directory of its process, `trap-xdebug-traces-*` in the system temp 
 level of the tree or search. The directory is removed when Trap stops; one left by a killed Trap is removed when
 the next one starts. The watcher never takes the files of these directories, even when it watches the temp directory.
 
-| Variable                       | `trap.xml`                      | Default | Meaning                                                                       |
-|--------------------------------|---------------------------------|---------|-------------------------------------------------------------------------------|
-| `TRAP_XDEBUG_TRACE_MAX_UPLOAD` | `/trap/xdebugTraces/@maxUpload` | `100M`  | Size of a trace as sent, gzipped or not; a larger one is rejected             |
-| `TRAP_XDEBUG_TRACE_MAX_SIZE`   | `/trap/xdebugTraces/@maxSize`   | `256M`  | Uncompressed bytes read of a trace; a longer one is cut there                 |
-| `TRAP_XDEBUG_TRACE_KEEP`       | `/trap/xdebugTraces/@keep`      | `20`    | Traces kept; a new one deletes the oldest, its event too                      |
+| Variable                       | `trap.xml`                      | Default | Meaning                                                           |
+| ------------------------------ | ------------------------------- | ------- | ----------------------------------------------------------------- |
+| `TRAP_XDEBUG_TRACE_MAX_UPLOAD` | `/trap/xdebugTraces/@maxUpload` | `100M`  | Size of a trace as sent, gzipped or not; a larger one is rejected |
+| `TRAP_XDEBUG_TRACE_MAX_SIZE`   | `/trap/xdebugTraces/@maxSize`   | `256M`  | Uncompressed bytes read of a trace; a longer one is cut there     |
+| `TRAP_XDEBUG_TRACE_KEEP`       | `/trap/xdebugTraces/@keep`      | `20`    | Traces kept; a new one deletes the oldest, its event too          |
 
 Sizes take the [size format](configuration.md#size-format); an unreadable value falls back to the default.
 A deleted event takes its file with it, and so does an event pushed out of the
@@ -79,11 +79,11 @@ traced part are not in it.
 
 The trace page of the UI reads these endpoints; errors are `{"error": "..."}` with an HTTP status.
 
-| Endpoint                                              | Answer                                                                    |
-|-------------------------------------------------------|---------------------------------------------------------------------------|
-| `GET /api/xdebug-traces/{uuid}/summary`               | `name`, `url`, `size`, `compressed` and the `summary`                     |
-| `GET /api/xdebug-traces/{uuid}/tree?parent=&from=&limit=` | One level of calls: `parent`, `nodes`, `next`, `truncated`            |
-| `GET /api/xdebug-traces/{uuid}/search?q=&from=&limit=`    | The calls whose function or file contains `q`, each with its `path`  |
+| Endpoint                                                  | Answer                                                              |
+| --------------------------------------------------------- | ------------------------------------------------------------------- |
+| `GET /api/xdebug-traces/{uuid}/summary`                   | `name`, `url`, `size`, `compressed` and the `summary`               |
+| `GET /api/xdebug-traces/{uuid}/tree?parent=&from=&limit=` | One level of calls: `parent`, `nodes`, `next`, `truncated`          |
+| `GET /api/xdebug-traces/{uuid}/search?q=&from=&limit=`    | The calls whose function or file contains `q`, each with its `path` |
 
 `parent` and `from` are the `offset` of a call; without `parent`, the tree lists the top-level calls, and `from`
 continues a page at its `next`. `limit` is 200 by default and 1 000 at most.

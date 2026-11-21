@@ -23,7 +23,8 @@ use Buggregator\Trap\Support\Json;
  * @psalm-import-type ResourceSpansData from ResourceSpans
  * @psalm-type OtlpTracesData = array{
  *     type: OtlpTraces::OTLP_FRAME_TYPE,
- *     resourceSpans: list<ResourceSpansData>
+ *     resourceSpans: list<ResourceSpansData>,
+ *     project?: string|null
  * }
  */
 final class OtlpTraces extends Frame
@@ -32,10 +33,12 @@ final class OtlpTraces extends Frame
 
     /**
      * @param list<ResourceSpans> $resourceSpans
+     * @param string|null $project The project the request names; the default project when null.
      */
     public function __construct(
         public readonly array $resourceSpans,
         \DateTimeImmutable $time = new \DateTimeImmutable(),
+        public readonly ?string $project = null,
     ) {
         parent::__construct($time);
     }
@@ -45,7 +48,16 @@ final class OtlpTraces extends Frame
      */
     public static function fromArray(array $data, \DateTimeImmutable $time): self
     {
-        return new self(\array_map(ResourceSpans::fromArray(...), $data['resourceSpans']), $time);
+        return new self(
+            \array_map(ResourceSpans::fromArray(...), $data['resourceSpans']),
+            $time,
+            $data['project'] ?? null,
+        );
+    }
+
+    public function withProject(?string $project): self
+    {
+        return new self($this->resourceSpans, $this->time, $project);
     }
 
     /**
@@ -86,6 +98,6 @@ final class OtlpTraces extends Frame
         return Json::encode([
             'type' => self::OTLP_FRAME_TYPE,
             'resourceSpans' => $this->resourceSpans,
-        ], \JSON_PRESERVE_ZERO_FRACTION);
+        ] + ($this->project === null ? [] : ['project' => $this->project]), \JSON_PRESERVE_ZERO_FRACTION);
     }
 }

@@ -8,12 +8,12 @@ Depending on how you [installed](installation.md) Trap, call it as `vendor/bin/t
 Starts the server. It listens on the TCP ports, detects the protocol of each connection and passes what it receives
 to the senders. `run` is the default command, so `vendor/bin/trap` equals `vendor/bin/trap run`.
 
-| Option     | Short | Default                                | Meaning                                                                                       |
-|------------|-------|----------------------------------------|-----------------------------------------------------------------------------------------------|
-| `--port`   | `-p`  | `1025`, `4318`, `8000`, `9912`, `9913` | A port to listen on. Repeat the option for more ports: `-p9912 -p8000`.                       |
-| `--sender` | `-s`  | `console`                              | Where to send what Trap receives. Repeat the option for more [senders](senders.md).           |
-| `--ui`     |       | off                                    | Turns on the [web UI](web-ui.md) (experimental). Takes an optional port: `--ui=8080`.         |
-| `--mcp`    |       | off                                    | Turns on the [MCP server](mcp.md) (experimental). Takes an optional port: `--mcp=8080`.       |
+| Option     | Short | Default                                | Meaning                                                                                      |
+| ---------- | ----- | -------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `--port`   | `-p`  | `1025`, `4318`, `8000`, `9912`, `9913` | A port to listen on. Repeat the option for more ports: `-p9912 -p8000`.                      |
+| `--sender` | `-s`  | `console`                              | Where to send what Trap receives. Repeat the option for more [senders](senders.md).          |
+| `--ui`     |       | off                                    | Turns on the [web UI](web-ui.md) (experimental). Takes an optional port: `--ui=8080`.        |
+| `--mcp`    |       | off                                    | Turns on the [MCP server](mcp.md) (experimental). Takes an optional port: `--mcp=8080`.      |
 | `--xdebug` |       | off                                    | Turns on the [Xdebug debugger](xdebug.md) (experimental) on port `9003`, or `--xdebug=9013`. |
 
 The `-v` option prints more messages of the server, and `-vv` also prints its debug messages and errors, e.g. a port
@@ -59,7 +59,7 @@ two emails over SMTP (plain and multipart), three Sentry events (store and envel
 Use it to check that Trap is up and renders everything.
 
 | Option   | Short | Default     | Meaning                 |
-|----------|-------|-------------|-------------------------|
+| -------- | ----- | ----------- | ----------------------- |
 | `--port` | `-p`  | `9912`      | Port of the Trap server |
 | `--host` |       | `127.0.0.1` | Host of the Trap server |
 
