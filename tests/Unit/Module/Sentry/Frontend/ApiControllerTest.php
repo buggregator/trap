@@ -211,6 +211,65 @@ final class ApiControllerTest
         Assert::notBlank($this->events->get('other'));
     }
 
+    public function testServiceMapDrawsServicesCallsAndExternals(): void
+    {
+        $this->fill();
+
+        $map = $this->api->serviceMap();
+
+        Assert::same($map['window_minutes'], 60);
+        Assert::same($map['bucket_seconds'], 60);
+        Assert::same(
+            \array_map(static fn(array $node): array => [$node['id'], $node['label'], $node['kind'], $node['request_count']], $map['nodes']),
+            [['billing', 'billing', 'service', 1], ['shop-api', 'shop-api', 'service', 1], ['pg', 'DB: pg', 'external', 1]],
+        );
+        Assert::same(
+            \array_map(static fn(array $edge): array => [$edge['source'], $edge['target'], $edge['op_type'], $edge['error_count']], $map['edges']),
+            [['billing', 'pg', 'db', 0], ['shop-api', 'billing', 'http', 1]],
+        );
+        $edge = $map['edges'][1];
+        Assert::same([$edge['avg_duration_ms'], $edge['p95_duration_ms'], $edge['error_rate'], $edge['trace_count']], [700, 700, 1.0, 1]);
+        Assert::same($edge['traces'][0]['trace_id'], self::T1);
+        Assert::same(\array_sum(\array_column($edge['buckets'], 'count')), 1);
+    }
+
+    public function testServiceMapPeriodAndProject(): void
+    {
+        $this->fill();
+
+        Assert::count($this->api->serviceMap(window: 'all')['nodes'], 4);
+        Assert::same(\array_column($this->api->serviceMap(project: 'other', window: 'all')['nodes'], 'id'), ['worker']);
+        Assert::same($this->api->serviceMap(window: '30')['window_minutes'], 30);
+    }
+
+    public function testServiceMapEdgeListsTraces(): void
+    {
+        $this->fill();
+
+        $result = $this->api->serviceMapEdge(source: 'shop-api', target: 'billing', opType: 'http');
+
+        Assert::same($result['total'], 1);
+        Assert::same([$result['traces'][0]['trace_id'], $result['traces'][0]['duration_ms'], $result['traces'][0]['is_error']], [self::T1, 700, true]);
+        Assert::same($this->api->serviceMapEdge(source: 'shop-api', target: 'billing', opType: 'queue')['total'], 0);
+        Assert::same($this->api->serviceMapEdge(source: 'shop-api', target: 'billing', offset: 1)['traces'], []);
+        Assert::instanceOf($this->api->serviceMapEdge(source: 'shop-api'), Error::class);
+    }
+
+    public function testSequenceListsCallsInTimeOrder(): void
+    {
+        $this->fill();
+
+        $result = $this->api->sequence(self::T1);
+
+        Assert::same($result['services'], ['shop-api', 'billing']);
+        [$http, $db] = $result['calls'];
+        Assert::same([$http['from'], $http['to'], $http['op_type'], $http['is_error']], ['shop-api', 'billing', 'http', true]);
+        Assert::same($http['callee']['transaction_id'], 'pay-txn');
+        Assert::same($http['late_ms'], -100);
+        Assert::same([$db['from'], $db['to'], $db['callee'], $db['late_ms']], ['billing', 'pg', null, null]);
+        Assert::instanceOf($this->api->sequence('ffffffffffffffffffffffffffffffff'), Error::class);
+    }
+
     public function testScopeReadsTheQuery(): void
     {
         Assert::same(Scope::fromQuery(window: '2h', now: 10000.0)->from, 2800.0);
