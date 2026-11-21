@@ -70,6 +70,16 @@ final class DebuggerError extends \RuntimeException
         return new self('bad_request', 400, $message);
     }
 
+    public static function forbidden(string $code, string $message): self
+    {
+        return new self($code, 403, $message);
+    }
+
+    public static function unsupportedMediaType(): self
+    {
+        return new self('unsupported_media_type', 415, 'Content-Type must be application/json.');
+    }
+
     public static function off(): self
     {
         return new self('not_found', 404, 'The Xdebug debugger is off: start Trap with the --xdebug option.');

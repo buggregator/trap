@@ -30,7 +30,14 @@ final class Debugger
     private const MAX_TOMBSTONES = 50;
     private const MAX_FILES = 2000;
 
+    /** Sessions open at once at most: a script beyond them runs on without a debugger */
+    public const MAX_LIVE_SESSIONS = 20;
+
+    /** Seconds an IDE that didn't answer is not asked again */
+    private const IDE_RETRY = 10.0;
+
     public readonly Breakpoints $breakpoints;
+    private float $ideDownUntil = 0.0;
     private bool $enabled = false;
     private string $mode;
     private bool $pauseOnFirstLine;
@@ -120,13 +127,27 @@ final class Debugger
             idleTimeout: (float) \max(0, $this->config->idleTimeout),
         );
 
+        $live = \count(\array_filter($this->sessions, static fn(Session $s): bool => !$s->isClosed()));
+        if ($live >= self::MAX_LIVE_SESSIONS) {
+            $this->logger->warning(
+                'Xdebug: %d sessions are open already; the new script runs on without a debugger.',
+                $live,
+            );
+            $session->detach();
+            return null;
+        }
+
         $ide = null;
-        if ($this->mode !== Config::MODE_STANDALONE) {
+        // An IDE that didn't answer a moment ago is not asked again: each try delays the script
+        if ($this->mode !== Config::MODE_STANDALONE && \microtime(true) >= $this->ideDownUntil) {
             $ide = ($connectIde ?? SocketLink::connect(...))($this->config->ideAddr);
             if ($ide !== null && !$ide->send(Dbgp\Protocol::encodePacket($initBody))) {
                 $ide->close();
                 $ide = null;
             }
+            $this->ideDownUntil = $ide === null ? \microtime(true) + self::IDE_RETRY : 0.0;
+        }
+        if ($this->mode !== Config::MODE_STANDALONE) {
             if ($ide === null && $this->mode === Config::MODE_PROXY) {
                 $this->logger->info(
                     'Xdebug: the IDE at %s is not reachable; the script runs on without a debugger.',
@@ -233,6 +254,24 @@ final class Debugger
     }
 
     /**
+     * Whether the file is one a session ran (an entry file, a pause, a stack) or a breakpoint names:
+     * the only files the UI may read the source of.
+     */
+    public function knowsFile(string $uri): bool
+    {
+        if (isset($this->files[$uri])) {
+            return true;
+        }
+        foreach ($this->breakpoints->all() as $bp) {
+            if (($bp['file'] ?? null) === $uri) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Files seen in earlier pauses and stacks whose path contains the query, the latest seen first.
      *
      * @return list<string>
@@ -277,6 +316,7 @@ final class Debugger
     private function register(Session $session): void
     {
         $this->sessions[$session->id] = $session;
+        $this->seeFile($session->fileUri);
         $this->emit('session.created', $session->info());
     }
 }

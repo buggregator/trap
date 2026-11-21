@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\XDebug\Mcp;
 
+use Buggregator\Trap\Module\Mcp\Caller;
 use Buggregator\Trap\Module\Mcp\McpStatus;
 use Buggregator\Trap\Module\Mcp\Tool;
 use Buggregator\Trap\Module\XDebug\Debugger;
@@ -26,6 +27,7 @@ abstract class DebugTool implements Tool
     public function __construct(
         protected readonly Debugger $debugger,
         private readonly McpStatus $mcp,
+        protected readonly Caller $caller = new Caller(),
     ) {}
 
     #[\Override]

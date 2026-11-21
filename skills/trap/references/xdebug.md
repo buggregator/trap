@@ -30,4 +30,7 @@ two calls. Full reference: <https://github.com/buggregator/trap/blob/master/docs
 - `xdebug_eval` runs PHP in the script; it works only with `TRAP_XDEBUG_ALLOW_EVAL=1`.
 - A session left paused for 10 minutes is released (`TRAP_XDEBUG_IDLE_TIMEOUT`).
 - The user sees every call of the agent on the Xdebug page of the web UI.
+- Drive sessions with the MCP tools. The UI's `/api/xdebug` refuses browser pages of other origins and takes
+  writes as `Content-Type: application/json` only; its `source` reads only files a session ran or a breakpoint names.
+- At most 20 sessions are open at once; a script beyond them runs on without a debugger.
 - Clean up: `xdebug_breakpoints` with `action: remove` for each breakpoint you set.

@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\XDebug\Mcp;
 
+use Buggregator\Trap\Module\Mcp\WaitingTool;
 use Buggregator\Trap\Module\XDebug\Session;
 
 /**
  * @internal
  */
-final class Stack extends DebugTool
+final class Stack extends DebugTool implements WaitingTool
 {
     #[\Override]
     public function name(): string

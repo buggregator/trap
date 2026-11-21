@@ -28,11 +28,14 @@ final class SocketLink implements Link
      * Connects in the current fiber, letting the others run while the connection is made.
      *
      * @param non-empty-string $address `host:port`
+     * @param float|null $timeout Seconds; null for 0.5 on the loopback and 2 elsewhere.
      *
      * @return self|null Null when nothing accepts the connection in time.
      */
-    public static function connect(string $address, float $timeout = 2.0): ?self
+    public static function connect(string $address, ?float $timeout = null): ?self
     {
+        // A refused connection on Windows takes the whole timeout: a local IDE answers far sooner
+        $timeout ??= \preg_match('/^(127\.|localhost:|\[::1\]:)/i', $address) === 1 ? 0.5 : 2.0;
         $socket = @\stream_socket_client(
             'tcp://' . $address,
             $code,

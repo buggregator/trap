@@ -18,6 +18,9 @@ use Buggregator\Trap\Server\Traffic\StreamClient;
  */
 final class Dispatcher implements DispatcherInterface
 {
+    /** Seconds a client may stop in the middle of what looks like an init packet before it is given up */
+    public const SILENCE = 1.0;
+
     public function __construct(
         private readonly Connection $connection,
     ) {}
@@ -38,9 +41,17 @@ final class Dispatcher implements DispatcherInterface
     {
         if (\preg_match('/^(\d{1,10})\0/', $data, $m) === 1) {
             $rest = \substr($data, \strlen($m[0]), 5);
-            return $rest === \substr('<?xml', 0, \strlen($rest)) ? ($rest === '<?xml' ?: null) : false;
+            $prefix = $rest === \substr('<?xml', 0, \strlen($rest));
+            return match (true) {
+                $prefix && $rest === '<?xml' => true,
+                $prefix && $silence <= self::SILENCE => null,
+                default => false,
+            };
         }
 
-        return $data === '' || (\strlen($data) <= 10 && \ctype_digit($data)) ? null : false;
+        // Xdebug sends its init packet at once: a client that stops short of it is someone else's
+        return ($data === '' || (\strlen($data) <= 10 && \ctype_digit($data))) && $silence <= self::SILENCE
+            ? null
+            : false;
     }
 }

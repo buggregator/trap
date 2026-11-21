@@ -21,6 +21,12 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 final class Router implements Middleware
 {
+    /**
+     * The argument a controller method takes the HTTP request by: `?ServerRequestInterface $__request = null`.
+     * Null over the WebSocket RPC, which has no request of its own.
+     */
+    public const REQUEST = '__request';
+
     private readonly CommonRouter $router;
 
     public function __construct(
@@ -54,6 +60,9 @@ final class Router implements Middleware
             } catch (\Throwable) {
                 $params = [];
             }
+
+            // Last, so a body or query field of the name can't stand for it
+            $params[self::REQUEST] = $request;
 
             /** @var mixed $message */
             $message = $handler(...$params);

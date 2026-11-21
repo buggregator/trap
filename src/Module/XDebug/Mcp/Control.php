@@ -66,12 +66,13 @@ final class Control extends DebugTool implements WaitingTool
             or throw new \InvalidArgumentException('`command` must be one of: ' . \implode(', ', self::COMMANDS) . '.');
         $wait = \min(50, self::int($arguments, 'wait', 10));
         $agent = $this->agent();
+        $gone = $this->caller->isDisconnected(...);
 
-        return $this->onSession($arguments, static function (Session $session) use ($command, $wait, $agent): array {
+        return $this->onSession($arguments, static function (Session $session) use ($command, $wait, $agent, $gone): array {
             $seq = $session->pauseSeq();
             /** @var 'run'|'step_into'|'step_over'|'step_out'|'stop'|'detach' $command */
             $session->continue($command, Session::BY_AGENT, $agent);
-            $paused = \in_array($command, ['stop', 'detach'], true) ? false : $session->waitPause($seq, (float) $wait);
+            $paused = \in_array($command, ['stop', 'detach'], true) ? false : $session->waitPause($seq, (float) $wait, $gone);
             [$file, $line] = $session->location();
             $result = ['state' => $session->state(), 'paused' => $paused]
                 + ($paused ? ['file' => $file, 'line' => $line] : []);

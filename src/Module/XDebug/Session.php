@@ -289,6 +289,8 @@ final class Session
             $pending['kind'] === 'reply' and $this->replies[$tid] = false;
         }
         $this->pending = [];
+        // Nobody resumes them any more; the tombstone would keep them for its lifetime
+        $this->tasks = [];
         $this->ide?->close();
         $this->debugger->emit('session.closed', ['id' => $this->id, 'reason' => $reason, 'state' => $this->state()]);
     }
@@ -393,6 +395,11 @@ final class Session
 
         $seq = $this->pauseSeq;
         $body = $this->command($name, $args);
+        if ($name === 'stack_get') {
+            foreach (self::ok($body)->stack() as $frame) {
+                $this->debugger->seeFile($frame['file']);
+            }
+        }
         $cache && $seq === $this->pauseSeq && \count($this->cache) < self::MAX_CACHED_READS
             and $this->cache[$key] = $body;
 
@@ -433,13 +440,15 @@ final class Session
     /**
      * Waits until the session pauses after the given pause, or closes.
      *
+     * @param \Closure(): bool|null $cancelled Stops the wait when it says so, as when the agent has gone.
+     *
      * @return bool Whether it paused.
      */
-    public function waitPause(int $afterSeq, float $seconds): bool
+    public function waitPause(int $afterSeq, float $seconds, ?\Closure $cancelled = null): bool
     {
         $timer = new Timer($seconds);
         while (!$this->closed && ($this->pauseSeq <= $afterSeq || $this->status !== 'break')) {
-            if ($timer->isReady() || \Fiber::getCurrent() === null) {
+            if ($timer->isReady() || \Fiber::getCurrent() === null || ($cancelled !== null && $cancelled())) {
                 return false;
             }
             \Fiber::suspend();

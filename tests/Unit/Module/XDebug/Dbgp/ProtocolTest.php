@@ -119,5 +119,9 @@ final class ProtocolTest
         Assert::null($dispatcher->detect("51\0<?x", 0.0));
         Assert::false($dispatcher->detect('GET / HTTP/1.1', 0.0));
         Assert::false($dispatcher->detect("12\0{}", 0.0));
+        // A client that stops short is left to the others, down to the binary fallback
+        Assert::false($dispatcher->detect('12345', Dispatcher::SILENCE + 0.1));
+        Assert::false($dispatcher->detect("51\0<?x", Dispatcher::SILENCE + 0.1));
+        Assert::false($dispatcher->detect('', Dispatcher::SILENCE + 0.1));
     }
 }

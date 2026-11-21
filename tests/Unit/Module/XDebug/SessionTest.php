@@ -243,6 +243,52 @@ final class SessionTest
         Assert::same($h->debugger->sessions(), []);
     }
 
+    public function testStopsWaitingWhenCancelled(): void
+    {
+        $h = self::harness(pauseOnFirstLine: true);
+        $h->engine->responders['step_over'] = static fn(): string => '';
+        $h->connect();
+        $h->pump(30);
+        $h->call(static fn() => $h->session()->continue('step_over', Session::BY_UI));
+        $start = \microtime(true);
+
+        $paused = $h->call(static fn(): bool => $h->session()->waitPause($h->session()->pauseSeq(), 5.0, static fn(): bool => true));
+
+        Assert::false($paused);
+        Assert::true(\microtime(true) - $start < 1.0);
+    }
+
+    public function testCapsLiveSessions(): void
+    {
+        $h = self::harness(mode: Config::MODE_STANDALONE);
+        for ($i = 0; $i < Debugger::MAX_LIVE_SESSIONS; ++$i) {
+            $h->debugger->start(new FakeEngine(), FakeEngine::INIT);
+        }
+        $engine = new FakeEngine();
+
+        $session = $h->debugger->start($engine, FakeEngine::INIT);
+
+        Assert::null($session);
+        Assert::string($engine->commands[0])->startsWith('detach -i');
+        Assert::count($h->debugger->sessions(), Debugger::MAX_LIVE_SESSIONS);
+    }
+
+    public function testAsksUnreachableIdeOnceInAWhile(): void
+    {
+        $h = self::harness();
+        $tries = 0;
+        $connect = static function () use (&$tries): null {
+            ++$tries;
+            return null;
+        };
+
+        $h->debugger->start(new FakeEngine(), FakeEngine::INIT, $connect);
+        $h->debugger->start(new FakeEngine(), FakeEngine::INIT, $connect);
+
+        Assert::same($tries, 1);
+        Assert::same($h->debugger->session('2')->driver, Session::DRIVER_HERE);
+    }
+
     private static function harness(bool $pauseOnFirstLine = false, string $mode = Config::MODE_AUTO): Harness
     {
         $config = new Config();

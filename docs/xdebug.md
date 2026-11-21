@@ -70,8 +70,24 @@ Xdebug may move a line breakpoint to the next line with code: the page shows the
 | `TRAP_XDEBUG_PAUSE_ON_FIRST_LINE` | `/trap/xdebug/@pauseOnFirstLine`  | `false`          | A session driven by Trap stops at the first line                       |
 | `TRAP_XDEBUG_IDLE_TIMEOUT`        | `/trap/xdebug/@idleTimeout`       | `600`            | Seconds a paused session waits for a command; `0` waits for ever       |
 
-The Xdebug page and its API ask for no token, as the rest of the [web UI](web-ui.md): keep the UI on a loopback host
-when the debugger is on, as eval runs code in your application.
+At most 20 sessions are open at once; a script beyond them runs on without a debugger, with a warning in the console.
+An IDE that didn't answer is not asked again for 10 seconds, so each new script doesn't wait for it.
+
+## Security
+
+The debugger reads the variables and the source files of your application and, with `TRAP_XDEBUG_ALLOW_EVAL`, runs
+code in it. Its API asks for no token, as the rest of the [web UI](web-ui.md), so it guards against the other pages
+open in your browser instead:
+
+- it answers only the UI of the same origin: no CORS headers, a refused preflight, and `403 cross_site` for a
+  request the browser marks `Sec-Fetch-Site: cross-site`; a UI served from another origin can't use it;
+- changes (`POST`, `PUT`, `PATCH`) take `Content-Type: application/json` only (`415` otherwise), which a page of
+  another origin can't send without the refused preflight;
+- the WebSocket RPC of the UI can't reach it (`403 http_only`);
+- `source` reads only the files a session ran (its entry file, pauses, stacks) or a breakpoint names.
+
+Anyone who reaches the port itself, such as from another machine, isn't stopped by these: keep the UI on a
+loopback host.
 
 ## Web UI endpoints
 
@@ -80,5 +96,6 @@ the endpoints of a session below it: `stack`, `contexts`, `variables`, `property
 `agent-log`, `eval`, and `run`, `step-into`, `step-over`, `step-out`, `stop`, `detach`; the saved breakpoints at
 `/api/xdebug/breakpoints`, the settings at `PUT /api/xdebug/settings`, the files seen at `/api/xdebug/files`.
 Errors are `{"error", "code", "state"}` with an HTTP status; the codes: `not_paused`, `ide_attached`,
-`eval_disabled`, `not_found`, `xdebug_error`, `timeout`, `session_live`, `bad_request`. Changes come over the
+`eval_disabled`, `not_found`, `xdebug_error`, `timeout`, `session_live`, `bad_request`, and those of the
+[guards](#security): `cross_site`, `http_only`, `unsupported_media_type`. Changes come over the
 `xdebug` WebSocket channel.

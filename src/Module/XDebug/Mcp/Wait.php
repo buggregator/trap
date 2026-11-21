@@ -55,7 +55,7 @@ final class Wait extends DebugTool implements WaitingTool
                     return ['timed_out' => false, 'session' => $session->info()];
                 }
             }
-            if ($timer->isReady() || \Fiber::getCurrent() === null) {
+            if ($timer->isReady() || \Fiber::getCurrent() === null || $this->caller->isDisconnected()) {
                 return ['timed_out' => true];
             }
             \Fiber::suspend();
