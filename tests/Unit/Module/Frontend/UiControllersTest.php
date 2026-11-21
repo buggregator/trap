@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Frontend\Http\Pipeline;
 use Buggregator\Trap\Module\Frontend\RPC;
 use Buggregator\Trap\Module\Frontend\Service;
 use Buggregator\Trap\Module\Frontend\UiControllers;
+use Buggregator\Trap\Module\HttpDump\Frontend\AssetsController as HttpDumpAssetsController;
 use Buggregator\Trap\Module\Mailer\Frame as SmtpFrame;
 use Buggregator\Trap\Module\Mailer\Frontend\ApiController as MailerApiController;
 use Buggregator\Trap\Module\Mailer\Frontend\AssetsController as MailerAssetsController;
@@ -21,6 +22,7 @@ use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
 use Buggregator\Trap\Module\Ray\Frontend\LocksController as RayLocksController;
 use Buggregator\Trap\Module\Ray\Lock\Locks;
 use Buggregator\Trap\Module\Sentry\Frontend\ClearController as SentryClearController;
+use Buggregator\Trap\Server\Event\AttachedFile;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteSuccess;
@@ -31,6 +33,7 @@ use Internal\Container\ObjectContainer;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;
 use Nyholm\Psr7\Stream;
+use Nyholm\Psr7\UploadedFile;
 use Psr\Http\Message\ResponseInterface;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -39,6 +42,7 @@ use Testo\Test;
 #[Covers(UiControllers::class)]
 #[Covers(MailerApiController::class)]
 #[Covers(MailerAssetsController::class)]
+#[Covers(HttpDumpAssetsController::class)]
 #[Covers(ProfilerApiController::class)]
 #[Covers(RayLocksController::class)]
 #[Covers(SentryClearController::class)]
@@ -61,7 +65,7 @@ final class UiControllersTest
         );
         Assert::same(
             \array_map(static fn(object $c): string => $c::class, $controllers->assets()),
-            [MailerAssetsController::class],
+            [MailerAssetsController::class, HttpDumpAssetsController::class],
         );
     }
 
@@ -144,7 +148,7 @@ final class UiControllersTest
         Assert::same($html->getHeaderLine('Content-Type'), 'text/html; charset=utf-8');
         Assert::same((string) $html->getBody(), '<p>hi</p>');
         Assert::same($file->getStatusCode(), 200);
-        Assert::same($file->getHeaderLine('Content-Disposition'), 'attachment; filename="doc.pdf"');
+        Assert::same($file->getHeaderLine('Content-Disposition'), 'attachment; filename="doc.pdf"; filename*=UTF-8\'\'doc.pdf');
         Assert::same((string) $file->getBody(), 'pdf');
     }
 
@@ -231,6 +235,36 @@ final class UiControllersTest
 
         Assert::same($response->getStatusCode(), 200);
         Assert::same(\array_keys(\iterator_to_array($store)), ['aa04', 'aa03', 'aa02']);
+    }
+
+    public function testHttpDumpFileDownload(): void
+    {
+        $container = new ObjectContainer();
+        $file = new AttachedFile('0b1b', new UploadedFile(Stream::create('abc'), 3, \UPLOAD_ERR_OK, 'a.txt', 'text/plain'));
+        $container->get(EventStore::class)->add(
+            new Event('0a1a', 'http-dump', [], 1.0, assets: new \ArrayObject(['0b1b' => $file])),
+        );
+
+        $found = self::get($container, '/api/http-dump/attachments/0a1a/0b1b');
+        $missing = self::get($container, '/api/http-dump/attachments/0a1a/0b1c');
+
+        Assert::same($found->getStatusCode(), 200);
+        Assert::same($found->getHeaderLine('Content-Disposition'), 'attachment; filename="a.txt"; filename*=UTF-8\'\'a.txt');
+        Assert::same((string) $found->getBody(), 'abc');
+        Assert::same($missing->getStatusCode(), 404);
+    }
+
+    public function testFileWithoutNameIsDownloadedAsUnnamed(): void
+    {
+        $container = new ObjectContainer();
+        $file = new AttachedFile('0b1b', new UploadedFile(Stream::create('abc'), 3, \UPLOAD_ERR_OK, '', 'text/plain'));
+        $container->get(EventStore::class)->add(
+            new Event('0a1a', 'http-dump', [], 1.0, assets: new \ArrayObject(['0b1b' => $file])),
+        );
+
+        $response = self::get($container, '/api/http-dump/attachments/0a1a/0b1b');
+
+        Assert::string($response->getHeaderLine('Content-Disposition'))->contains('filename="unnamed"');
     }
 
     public function testParameterOfWrongTypeIsBadRequest(): void

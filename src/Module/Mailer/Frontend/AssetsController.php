@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mailer\Frontend;
 
+use Buggregator\Trap\Module\Frontend\Http\ContentDisposition;
 use Buggregator\Trap\Server\Event\AttachedFile;
 use Buggregator\Trap\Server\Event\EmbeddedFile;
 use Buggregator\Trap\Server\Event\EventStore;
@@ -84,10 +85,7 @@ final class AssetsController
                 200,
                 [
                     'Content-Type' => $attachment->file->getClientMediaType(),
-                    'Content-Disposition' => \sprintf(
-                        "attachment; filename=\"%s\"",
-                        \rawurlencode($attachment->file->getClientFilename() ?? 'unnamed'),
-                    ),
+                    'Content-Disposition' => ContentDisposition::attachment($attachment->file->getClientFilename()),
                     'Content-Length' => (string) $attachment->file->getSize(),
                     'Cache-Control' => 'no-cache',
                 ],

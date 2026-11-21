@@ -23,6 +23,7 @@ which posts to `/_debug/bar`. That request is dumped and answered with `200`.
 - The requests of Sentry, Ray, the profilers and OpenTelemetry go to their modules and are not dumped.
 - When the [web UI](web-ui.md) runs on the same port, it answers `/`, the paths of its files, e.g. `/favicon.ico`,
   and a browser opening a page of the UI, e.g. `/smtp`: see [Port](web-ui.md#port).
+- The web UI lists the files uploaded with a request and downloads them.
 - A gzip-compressed body may inflate, and a chunked body may decode, up to `TRAP_HTTP_MAX_INFLATED_SIZE`
   (default `64M`); a bigger one gets `413`. See [Configuration](configuration.md#server-environment-variables).
 - A body sent with `Transfer-Encoding: chunked` is dumped decoded, with `Content-Length` in place of `Transfer-Encoding`.

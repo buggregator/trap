@@ -53,7 +53,7 @@ final class Mapper implements EventMapper
                                 id: Uuid::generate(),
                                 file: $attachment,
                             );
-                            $uri = $uuid . '/' . $asset->uuid;
+                            $uri = "/api/http-dump/attachments/{$uuid}/{$asset->uuid}";
                             $assets->offsetSet($asset->uuid, $asset);
 
                             return [
