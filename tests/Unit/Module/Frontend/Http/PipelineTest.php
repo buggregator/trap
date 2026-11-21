@@ -32,6 +32,17 @@ final class PipelineTest
         Assert::false($response->hasHeader(Pipeline::FRONTEND_HEADER));
     }
 
+    public function testControllerStatusDoesNotGoFurther(): void
+    {
+        $request = new ServerRequest('GET', '/api/xdebug-traces/0190402f-7eb2-7287-82a8-897a0091f58e/summary');
+
+        $response = self::pipeline()->handle($request, self::notFound(...));
+
+        Assert::same($response->getStatusCode(), 404);
+        Assert::true($response->hasHeader(Pipeline::FRONTEND_HEADER));
+        Assert::same((string) $response->getBody(), '{"error":"trace not found"}');
+    }
+
     private static function pipeline(): Pipeline
     {
         return (new ObjectContainer())->get(Pipeline::class);

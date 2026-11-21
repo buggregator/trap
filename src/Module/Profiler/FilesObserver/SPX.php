@@ -12,6 +12,7 @@ use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Service\FilesObserver\FileInfo;
 use Buggregator\Trap\Server\Service\FilesObserver\ForgetsFiles;
 use Buggregator\Trap\Server\Service\FilesObserver\FrameConverter;
+use Buggregator\Trap\Server\Service\FilesObserver\GzipFollower;
 use Buggregator\Trap\Support\Spx\Metadata;
 use Buggregator\Trap\Support\Spx\TraceReader;
 

@@ -17,7 +17,8 @@ Other clients take the same URL with the `http` (Streamable HTTP) transport type
 
 ## Tools
 
-The tools read the events Trap has caught and the [traces](#traces) it has received. The events are the ones the
+The tools read the events Trap has caught, the [traces](#traces) it has received and the call trees of
+[Xdebug traces](#xdebug-traces). The events are the ones the
 [web UI](web-ui.md) shows, kept with `--mcp` alone too. An event deleted in the UI is gone for the agent. An event
 the agent deletes is gone from the UI on its next load; a page already open keeps showing it.
 
@@ -396,6 +397,23 @@ The agent profiles a slow request and finds what makes it slow:
 
 5. `profile_calls` with `{"id": "9d0e...", "function": "App\\Repository\\OrderRepository::hydrate"}` → it is
    called 1 200 times from `OrderRepository::findAll`, once per row: the agent batches the hydration.
+
+### Xdebug traces
+
+The [Xdebug traces](xdebug-traces.md) are `xdebug-trace` events: list them with `list_events` and `type:
+xdebug-trace`. These tools read the call tree from the trace file. Times are seconds, memory bytes.
+
+| Tool                   | Arguments                                     | Result                                                                                         |
+|------------------------|-----------------------------------------------|------------------------------------------------------------------------------------------------|
+| `xdebug_trace_summary` | `uuid`                                        | `name`, `url`, `size` and the `summary`: totals, the `top` 20 functions by self time, the 20 `slowest` calls |
+| `xdebug_trace_calls`   | `uuid`, `parent`, `from`, `query`, `limit`    | `nodes`: one level of the call tree, or the calls matching `query` with their `path`; `next`; `truncated` |
+| `xdebug_trace_call`    | `uuid`, `offset`                              | `call`: one call with its arguments and return value; its first 50 `callees`; `from` for the rest |
+
+- A call is known by its `offset` in the trace. Without `parent`, `xdebug_trace_calls` lists the top-level calls;
+  with it, the direct callees of that call. A non-null `next` means more: call again with `from` set to it.
+- `query` matches the function name or the file, case-insensitively; each match has `path`, its callers from the top.
+- `limit` is 50 by default and 200 at most. Arguments and return values are cut to 512 bytes.
+- A trace pushed out by newer ones (`TRAP_XDEBUG_TRACE_KEEP`) has no file any more: the tools say so.
 
 ### Example
 

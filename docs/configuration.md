@@ -55,6 +55,10 @@ TRAP_TCP_PORTS=9912,8000 vendor/bin/trap
 | `TRAP_XHPROF_PATH`            | `xhprof.output_dir`        | Directory to pick up XHProf files from. See [Receiving profiles](profiles.md#directory-watching).                                                                                                                                      |
 | `TRAP_XDEBUG_PATH`            | `xdebug.output_dir`        | Directory to pick up Xdebug cachegrind files from. Without it, `xdebug.output_dir` is watched while `xdebug.mode` (or `XDEBUG_MODE`) includes `profile`.                                                                               |
 | `TRAP_SPX_PATH`               | `spx.data_dir`             | Directory to pick up [SPX](spx.md) full reports from; `spx.data_dir` is used when ext-spx is loaded in Trap's PHP.                                                                                                                     |
+| `TRAP_XDEBUG_TRACE_PATH`      | `xdebug.output_dir`        | Directory to pick up [Xdebug traces](xdebug-traces.md) from. Without it, `xdebug.output_dir` is watched while `xdebug.mode` (or `XDEBUG_MODE`) includes `trace`.                                                                                |
+| `TRAP_XDEBUG_TRACE_MAX_UPLOAD` | `100M`                     | Size of an Xdebug trace as sent; a larger one is rejected. See [the format](#size-format).                                                                                                                                             |
+| `TRAP_XDEBUG_TRACE_MAX_SIZE`  | `256M`                     | Uncompressed bytes read of an Xdebug trace; a longer one is cut there.                                                                                                                                                                 |
+| `TRAP_XDEBUG_TRACE_KEEP`      | `20`                       | Xdebug traces kept on disk; a new one deletes the oldest with its event.                                                                                                                                                               |
 | `TRAP_TRACES_MAX_SPANS`       | `10000`                    | Maximum number of kept [OpenTelemetry](opentelemetry.md#memory-limits) spans.                                                                                                                                                          |
 | `TRAP_TRACES_TTL`             | `600`                      | Seconds an OpenTelemetry trace is kept after its last received span.                                                                                                                                                                   |
 
@@ -62,7 +66,7 @@ The defaults in the column of the profiler directories are PHP INI settings of t
 
 ### Size format
 
-`TRAP_HTTP_MAX_INFLATED_SIZE` takes bytes, e.g. `67108864`, or a number with a `K`, `M` or `G` suffix,
+`TRAP_HTTP_MAX_INFLATED_SIZE` and the Xdebug trace sizes take bytes, e.g. `67108864`, or a number with a `K`, `M` or `G` suffix,
 e.g. `512K` or `1G` (binary multiples, any case). Any other value, e.g. `67_108_864`, `64MB` or `0`, falls back to
 the default with a warning.
 
@@ -106,6 +110,9 @@ The client reads these variables from `$_ENV` or the process environment.
 | `/trap/tls/@key`          | Key of the certificate, as `TRAP_TLS_KEY`                            |
 | `/trap/traces/@maxSpans`  | As `TRAP_TRACES_MAX_SPANS`                                           |
 | `/trap/traces/@ttl`       | As `TRAP_TRACES_TTL`                                                 |
+| `/trap/xdebugTraces/@maxUpload` | As `TRAP_XDEBUG_TRACE_MAX_UPLOAD`                              |
+| `/trap/xdebugTraces/@maxSize`   | As `TRAP_XDEBUG_TRACE_MAX_SIZE`                                |
+| `/trap/xdebugTraces/@keep`      | As `TRAP_XDEBUG_TRACE_KEEP`                                    |
 
 Trap reads only the `trap.xml` of its own package (e.g. `vendor/buggregator/trap/trap.xml`), and only with
 `ext-simplexml`. The Phar and the binary carry their own copy.

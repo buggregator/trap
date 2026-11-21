@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Buggregator\Trap\Tests\Unit\Module\Profiler\FilesObserver;
+namespace Buggregator\Trap\Tests\Unit\Server\Service\FilesObserver;
 
-use Buggregator\Trap\Module\Profiler\FilesObserver\GzipFollower;
+use Buggregator\Trap\Server\Service\FilesObserver\GzipFollower;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Lifecycle\AfterTest;
