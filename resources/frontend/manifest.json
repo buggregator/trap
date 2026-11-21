@@ -1,0 +1,26 @@
+{
+  "id": "/",
+  "name": "Buggregator",
+  "short_name": "Buggregator",
+  "description": "Free debugging server: Sentry, Ray, VarDumper, Monolog, SMTP, Inspector, profiler and HTTP dumps in one place.",
+  "lang": "en",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#1F2937",
+  "theme_color": "#1F2937",
+  "icons": [
+    {
+      "src": "/favicon/android-chrome-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon/android-chrome-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    }
+  ]
+}

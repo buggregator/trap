@@ -11,22 +11,60 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
+ * Files of the bundled UI build, and its `index.html` for the pages of the UI.
+ *
+ * The UI routes in the browser history: a reload or a link opens a page like `/smtp/{uuid}`,
+ * which only `index.html` can serve. Such a path is taken for the UI when a browser asks for HTML
+ * of a page the UI has: the UI shares its port with HTTP dumps, and any other request is left to them.
+ *
  * @internal
  * @psalm-internal Buggregator\Trap
  */
 final class StaticFiles implements Middleware
 {
+    /**
+     * Event types of the UI build: its `/{type}` and `/{type}/{id}` pages.
+     */
+    private const UI_EVENT_TYPES = 'var-dump|smtp|sentry|profiler|monolog|inspector|http-dump|ray|sms'
+        . '|sentry-trace|sentry-log|xdebug-trace';
+
+    /**
+     * Pages of the UI router besides the event ones.
+     */
+    private const UI_PAGES = 'settings|login|favorites|metrics|xdebug|mock-server|404|profiler/compare|sentry(?:/.*)?';
+
     private array $earlyResponse = [];
+
+    /**
+     * Whether the request opens a page of the UI in a browser.
+     */
+    public static function isUiPage(ServerRequestInterface $request): bool
+    {
+        if (!\in_array($request->getMethod(), ['GET', 'HEAD'], true)) {
+            return false;
+        }
+
+        $path = $request->getUri()->getPath();
+        if ($path === '/') {
+            return true;
+        }
+
+        return \str_contains($request->getHeaderLine('Accept'), 'text/html') && \preg_match(
+            \sprintf('#^/(?:%s|(?:%s)(?:/[^/]++)?)/?$#', self::UI_PAGES, self::UI_EVENT_TYPES),
+            $path,
+        ) === 1;
+    }
 
     #[\Override]
     public function handle(ServerRequestInterface $request, callable $next): ResponseInterface
     {
-        $path = $request->getUri()->getPath();
-        if ($path === '/') {
-            $path = '/index.html';
+        if (!\in_array($request->getMethod(), ['GET', 'HEAD'], true)) {
+            return $next($request);
         }
 
-        if (\preg_match('#^/((?:[a-zA-Z0-9\\-_]+/)*[a-zA-Z0-9.\\-\\[\\]() _]+?\\.([a-zA-Z0-4]++))$#', $path, $matches)) {
+        $path = self::isUiPage($request) ? '/index.html' : $request->getUri()->getPath();
+
+        if (\preg_match('#^/((?:[a-zA-Z0-9@\\-_]+/)*[a-zA-Z0-9@.\\-\\[\\]() _]+?\\.([a-zA-Z0-9]++))$#', $path, $matches)) {
             $file = \sprintf('%s/resources/frontend/%s', Info::TRAP_ROOT, $matches[1]);
 
             /** @var array<non-empty-string, string> $cacheContent */
@@ -36,25 +74,35 @@ final class StaticFiles implements Middleware
             /** @var array<non-empty-string, int<0, max>> $cacheSize */
             static $cacheSize = [];
 
+            // Not a file of the UI: an HTTP dump, maybe
             if (!\array_key_exists($file, $cacheContent) && !\is_file($file)) {
-                return new Response(404);
+                return $next($request);
             }
 
             $headers = [];
 
-            $type = match ($matches[2]) {
+            $type = match (\strtolower($matches[2])) {
                 'css' => 'text/css',
-                'html' => 'text/html',
+                'html' => 'text/html; charset=utf-8',
                 'txt' => 'text/plain',
                 'js' => 'application/javascript',
                 'ico' => 'image/x-icon',
                 'png' => 'image/png',
-                'json' => 'application/json',
+                'jpg', 'jpeg' => 'image/jpeg',
+                'gif' => 'image/gif',
+                'webp' => 'image/webp',
                 'svg' => 'image/svg+xml',
+                'woff2' => 'font/woff2',
+                'woff' => 'font/woff',
+                'json' => $path === '/manifest.json' ? 'application/manifest+json' : 'application/json',
                 'xml' => 'application/xml',
                 'webmanifest' => 'application/manifest+json',
-                default => 'octet/stream',
+                'map' => 'application/json',
+                default => 'application/octet-stream',
             };
+
+            // The build names its assets by their hashes, and index.html refers to the ones of the build
+            $cache = $path === '/index.html' ? 'no-cache' : 'max-age=604801';
 
             if ($path === '/index.html') {
                 if (empty($this->earlyResponse)) {
@@ -75,7 +123,6 @@ final class StaticFiles implements Middleware
                     ),
                 ];
                 empty($this->earlyResponse) or \Fiber::suspend(new Response(103, $headers));
-                // (new \Buggregator\Trap\Support\Timer(2))->wait(); // to test early hints
             }
 
             $cacheContent[$file] ??= self::readFile($file);
@@ -85,11 +132,11 @@ final class StaticFiles implements Middleware
                     'Content-Type' => [$type],
                     'Content-Length' => [$cacheSize[$file] ??= \filesize($file)],
                     'Date' => [\gmdate('D, d M Y H:i:s T')],
-                    'Cache-Control' => ['max-age=604801'],
+                    'Cache-Control' => [$cache],
                     'Accept-Ranges' => ['none'],
                     'ETag' => [$cacheHash[$file] ??= \hash('xxh128', $cacheContent[$file])],
                 ] + $headers,
-                $cacheContent[$file],
+                $request->getMethod() === 'HEAD' ? '' : $cacheContent[$file],
             );
         }
 
