@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Profiler\Frame as ProfilerFrame;
 use Buggregator\Trap\Module\Profiler\Frame\Payload as ProfilerPayload;
 use Buggregator\Trap\Module\Profiler\Frame\Type as ProfilerPayloadType;
 use Buggregator\Trap\Module\Profiler\Frontend\Message\CallGraph;
+use Buggregator\Trap\Module\Profiler\Frontend\Message\Comparison;
 use Buggregator\Trap\Module\Profiler\Frontend\Message\FlameChart;
 use Buggregator\Trap\Module\Profiler\Frontend\Message\TopFunctions;
 use Buggregator\Trap\Module\Profiler\Struct\Branch;
@@ -219,29 +220,47 @@ final class Mapper implements EventMapper
 
     /**
      * @param Event<ProfilerPayload> $event
+     * @param string $metric The widths of the spans: `wt` and `cpu` in ms, `mu` and `pmu` in KiB;
+     *        a negative memory change is drawn empty.
      */
-    public function flameChart(Event $event): FlameChart
+    public function flameChart(Event $event, string $metric = 'wt'): FlameChart
     {
+        \in_array($metric, ['wt', 'cpu', 'mu', 'pmu'], true) or $metric = 'wt';
         $roots = [];
 
         // Iterative: the depth follows the recursion in the profiled code, deeper than Xdebug's nesting limit
         /** @var list<array{Branch<Edge>, float, FlameChart\Span|null}> $stack Node, its start and parent span */
-        $stack = self::layOut(\array_values($event->payload->getProfile()->tree()->root), 0.0, null);
+        $stack = self::layOut(\array_values($event->payload->getProfile()->tree()->root), 0.0, null, $metric);
         while ($stack !== []) {
             [$branch, $start, $parent] = \array_pop($stack);
             $cost = $branch->item->cost;
             $span = new FlameChart\Span(
                 name: $branch->item->callee,
                 start: $start,
-                duration: self::duration($cost),
+                duration: self::duration($cost, $metric),
                 cost: $cost,
-                color: Palette::flameChartSpan($cost->p_wt),
+                color: Palette::flameChartSpan(self::percentOf($cost, $metric)),
             );
             $parent === null ? $roots[] = $span : $parent->children[] = $span;
-            \array_push($stack, ...self::layOut($branch->children, $start, $span));
+            \array_push($stack, ...self::layOut($branch->children, $start, $span, $metric));
         }
 
         return new FlameChart($roots);
+    }
+
+    /**
+     * @param Event<ProfilerPayload> $base
+     * @param Event<ProfilerPayload> $compare
+     */
+    public function compare(Event $base, Event $compare): Comparison
+    {
+        $a = $base->payload->getProfile();
+        $b = $compare->payload->getProfile();
+
+        return new Comparison(
+            TopFunctions\Func::aggregate($a->calls, $a->peaks),
+            TopFunctions\Func::aggregate($b->calls, $b->peaks),
+        );
     }
 
     /**
@@ -367,23 +386,23 @@ final class Mapper implements EventMapper
      *
      * @return list<array{Branch<Edge>, float, FlameChart\Span|null}> In reverse order, to pop the first one first.
      */
-    private static function layOut(array $branches, float $start, ?FlameChart\Span $parent): array
+    private static function layOut(array $branches, float $start, ?FlameChart\Span $parent, string $metric): array
     {
         $result = [];
         foreach ($branches as $branch) {
             $result[] = [$branch, $start, $parent];
-            $start += self::duration($branch->item->cost);
+            $start += self::duration($branch->item->cost, $metric);
         }
 
         return \array_reverse($result);
     }
 
     /**
-     * @return float Milliseconds.
+     * @return float Milliseconds of a time metric, KiB of a memory one.
      */
-    private static function duration(Cost $cost): float
+    private static function duration(Cost $cost, string $metric): float
     {
-        return (float) $cost->wt / 1000.0;
+        return (float) \max(0, self::costOf($cost, $metric)) / (\in_array($metric, ['mu', 'pmu'], true) ? 1024.0 : 1000.0);
     }
 
     /**

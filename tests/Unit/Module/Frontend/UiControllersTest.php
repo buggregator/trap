@@ -267,6 +267,18 @@ final class UiControllersTest
         Assert::string($response->getHeaderLine('Content-Disposition'))->contains('filename="unnamed"');
     }
 
+    public function testProfilerAnswersNotFoundForNoProfile(): void
+    {
+        $container = new ObjectContainer();
+        $container->get(EventStore::class)->add(new Event('0a1a', 'smtp', [], 1.0));
+
+        foreach (['top', 'call-graph', 'flame-chart'] as $part) {
+            Assert::same(self::get($container, "/api/profiler/0a1a/{$part}")->getStatusCode(), 404, $part);
+            Assert::same(self::get($container, "/api/profiler/0b1b/{$part}")->getStatusCode(), 404, $part);
+        }
+        Assert::same(self::get($container, '/api/profiler/compare?base=0a1a&compare=0b1b')->getStatusCode(), 404);
+    }
+
     public function testParameterOfWrongTypeIsBadRequest(): void
     {
         $container = new ObjectContainer();
@@ -282,6 +294,11 @@ final class UiControllersTest
         Assert::same($sentry->getStatusCode(), 400);
         Assert::same($clear->getStatusCode(), 400);
         Assert::same(self::json($rpc)['data']['code'], 400);
+        Assert::same(self::get($container, '/api/profiler/0a1a/top?metric[]=x')->getStatusCode(), 400);
+        Assert::same(
+            self::json($container->get(RPC::class)->handleMessage(['method' => 'get:api/profiler/0a1a/top?metric[]=x']))['data']['code'],
+            400,
+        );
     }
 
     public function testMissingEventIsNotFoundOverHttp(): void

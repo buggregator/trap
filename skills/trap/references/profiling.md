@@ -99,7 +99,8 @@ curl -s 'http://localhost:6060/debug/pprof/profile?seconds=10' \
 - The `hot_path` keeps the first 5 and the last 25 calls of a longer path: `depth` jumps where it is cut. Its values,
   as those of `profile_top`, sum all the calls of a function, so a callee may show more than its caller on the path.
 - A sampled profile counts samples, not calls: a function absent from it took less than the period.
-- After the fix, profile the same input again and compare the `peaks` of the two summaries.
+- After the fix, profile the same input again and compare the `peaks` of the two summaries; the web UI compares two
+  profiles side by side for the user.
 
 ## Trace the calls
 
