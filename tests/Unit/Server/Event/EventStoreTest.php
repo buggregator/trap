@@ -186,6 +186,19 @@ final class EventStoreTest
         Assert::false($store->isPinned('missing'));
     }
 
+    public function testHasPinnedTillTheLastPinnedEventGoes(): void
+    {
+        $store = self::store();
+        $store->add($this->createEvent('a'));
+        Assert::false($store->hasPinned());
+
+        $store->pin('a');
+        Assert::true($store->hasPinned());
+
+        $store->delete('a');
+        Assert::false($store->hasPinned());
+    }
+
     public function testFailingListenerIsLoggedAndTheOthersGetTheChange(): void
     {
         $output = new BufferedOutput(OutputInterface::VERBOSITY_VERY_VERBOSE);

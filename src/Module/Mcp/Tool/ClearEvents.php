@@ -37,8 +37,10 @@ final class ClearEvents implements Tool
     {
         return 'Deletes the caught events, all of them or those that match the filter: the same filter as '
             . '`list_events` takes, by type, project, time, text and fields. The Trap web UI drops them on its '
-            . 'next load: a page already open keeps showing them. Returns the number of deleted events. Not '
-            . 'needed to see only new events: pass a cursor to `list_events` instead. ' . \sprintf(
+            . 'next load: a page already open keeps showing them. Returns the number of deleted events. The '
+            . 'matching events the user pinned in the web UI stay, counted in `kept_pinned`, unless `include_pinned` '
+            . 'is true. Not needed to see only new events: pass a cursor to `list_events` instead. '
+            . \sprintf(
                 'A call stops checking events after %s seconds, as a text search over many large events may take '
                 . 'longer: then it deletes the matching events found so far and returns `incomplete: true` with '
                 . 'a `cursor`; call again with the same filter and `since` set to that cursor to delete the rest.',
@@ -59,6 +61,13 @@ final class ClearEvents implements Tool
                         . 'process; a malformed cursor is an error.',
                 ],
                 ...$this->filters->schema(),
+                'include_pinned' => [
+                    'type' => 'boolean',
+                    'default' => false,
+                    'description' => 'Delete the matching events the user pinned in the web UI too. A pin marks an '
+                        . 'event the user keeps on purpose: set it only when the user asks to delete the pinned events '
+                        . 'or all the events with them.',
+                ],
             ],
             'additionalProperties' => false,
         ];
@@ -71,6 +80,12 @@ final class ClearEvents implements Tool
             'type' => 'object',
             'properties' => [
                 'removed' => ['type' => 'integer', 'minimum' => 0, 'description' => 'The number of deleted events.'],
+                'kept_pinned' => [
+                    'type' => 'integer',
+                    'minimum' => 1,
+                    'description' => 'Present when matching events pinned in the web UI were kept: their number. '
+                        . '`include_pinned: true` deletes them too.',
+                ],
                 'incomplete' => [
                     'type' => 'boolean',
                     'const' => true,
@@ -100,7 +115,7 @@ final class ClearEvents implements Tool
     }
 
     /**
-     * @return array{removed: int<0, max>, incomplete?: true, cursor?: non-empty-string}
+     * @return array{removed: int<0, max>, kept_pinned?: positive-int, incomplete?: true, cursor?: non-empty-string}
      */
     #[\Override]
     public function call(array $arguments): array
@@ -111,7 +126,8 @@ final class ClearEvents implements Tool
             or throw new \InvalidArgumentException('`since` must be a `cursor` returned by `list_events` or `clear_events`.');
         $since = Cursor::since($arguments, $this->store->id, $this->store->cursor());
         $filter = $this->filters->parse($arguments);
-        if ($filter->isEmpty() && $since === 0) {
+        $includePinned = Arguments::boolean($arguments, 'include_pinned');
+        if ($filter->isEmpty() && $since === 0 && ($includePinned || !$this->store->hasPinned())) {
             $removed = \count($this->store);
             $this->store->clear();
 
@@ -126,18 +142,28 @@ final class ClearEvents implements Tool
         }
 
         $removed = 0;
+        $kept = 0;
         foreach ($matched as $record) {
+            $uuid = $record->event->uuid;
             // Changed while the scan let the server run: the new event was not matched
-            if ($this->store->record($record->event->uuid)?->seq === $record->seq) {
-                $this->store->delete($record->event->uuid);
-                ++$removed;
+            if ($this->store->record($uuid)?->seq !== $record->seq) {
+                continue;
             }
+
+            if (!$includePinned && $this->store->isPinned($uuid)) {
+                ++$kept;
+                continue;
+            }
+
+            $this->store->delete($uuid);
+            ++$removed;
         }
 
+        $result = $kept === 0 ? ['removed' => $removed] : ['removed' => $removed, 'kept_pinned' => $kept];
         $unchecked = $walk->getReturn();
 
-        return $unchecked === null ? ['removed' => $removed] : [
-            'removed' => $removed,
+        return $unchecked === null ? $result : [
+            ...$result,
             'incomplete' => true,
             // The records of the snapshot before the unchecked one are all checked
             'cursor' => Cursor::encode($this->store->id, $unchecked->seq - 1),

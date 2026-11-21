@@ -48,7 +48,8 @@ Dumps, Monolog logs, Sentry events, emails, Ray payloads, HTTP dumps, profiles a
 
 The UI keeps the last 200 events; `/trap/events/@maxEvents` in [`trap.xml`](configuration.md#trapxml) changes it.
 A pinned event is pushed out last: only when all the kept events are pinned. A clear keeps the pinned events when
-the UI asks so. Another browser tab shows a pin made in this one when it loads the event list again, e.g. on a reload.
+the UI asks so; [`clear_events`](mcp.md#tools) of the MCP server keeps them unless told otherwise. Another browser
+tab shows a pin made in this one when it loads the event list again, e.g. on a reload.
 The events live in the memory of Trap and are gone when it stops. The [MCP server](mcp.md) works with the same
 events: an event deleted in the UI is gone for it too.
 

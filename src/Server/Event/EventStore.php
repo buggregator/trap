@@ -135,6 +135,11 @@ final class EventStore implements \IteratorAggregate, \Countable
         return isset($this->pinned[$uuid]);
     }
 
+    public function hasPinned(): bool
+    {
+        return $this->pinned !== [];
+    }
+
     public function delete(string $uuid): void
     {
         $record = $this->records[$uuid] ?? null;
