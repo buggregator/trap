@@ -75,6 +75,23 @@ final class TelemetryMapperTest
         Assert::same($span->attributes['otel.status_code'], 'unset');
     }
 
+    public function testUnsetSpanTimesAreUnknown(): void
+    {
+        $store = new TelemetryStore();
+        $frame = (new JsonTracesDecoder())->decode(
+            '{"resourceSpans":[{"scopeSpans":[{"spans":[{"traceId":"5b8efff798038103d269b633813fc60c",'
+            . '"spanId":"1111111111111111","name":"x"}]}]}]}',
+            new \DateTimeImmutable(),
+        );
+
+        (new TelemetryMapper($store))->map($frame);
+
+        $transaction = $store->trace(self::TRACE)?->transactions[self::TRACE . '-1111111111111111'];
+        Assert::null($transaction?->start);
+        Assert::null($transaction?->end);
+        Assert::null($transaction?->durationMs());
+    }
+
     #[DataSet([9, '', 'info'])]
     #[DataSet([0, 'WARNING', 'warn'])]
     #[DataSet([0, 'Critical', 'fatal'])]

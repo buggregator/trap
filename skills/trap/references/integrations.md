@@ -80,8 +80,8 @@ OTEL_EXPORTER_OTLP_PROTOCOL=http/json
 Read traces with `list_traces` and `get_trace`, not the event tools. Trap takes logs and metrics too
 (`/v1/logs`, `/v1/metrics`), but shows them only in the console and the web UI: no MCP tool reads them. `http/protobuf`
 needs `open-telemetry/gen-otlp-protobuf` and `google/protobuf` in the project that runs Trap. The web UI files the
-data under the project of the `X-Buggregator-Project` header (`OTEL_EXPORTER_OTLP_HEADERS=X-Buggregator-Project=shop`),
-else `default`.
+data under the project of the path `/api/{project}/integration/otlp/v1/traces` (also `/logs`, `/metrics`), else of the
+`X-Buggregator-Project` header (`OTEL_EXPORTER_OTLP_HEADERS=X-Buggregator-Project=shop`), else `default`.
 
 ## VarDumper
 

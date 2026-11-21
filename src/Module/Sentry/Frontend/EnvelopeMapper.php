@@ -17,15 +17,15 @@ use Buggregator\Trap\Support\Uuid;
  * Makes the feed event of an envelope from its event item, and puts its transactions, spans, logs and
  * trace metrics into the {@see TelemetryStore}.
  *
- * The feed event is the first `event`, `transaction` or `feedback` item, else the first item that is
- * neither telemetry nor SDK bookkeeping (sessions, client reports, attachments, ...). An envelope of
- * only such items makes no event.
+ * The feed event is the first `event` item, else the first `transaction` or `feedback` one, else the first
+ * item that is neither telemetry nor SDK bookkeeping (sessions, client reports, attachments, ...).
+ * An envelope of only such items makes no event.
  *
  * @internal
  */
 final class EnvelopeMapper implements EventMapper
 {
-    private const EVENT_ITEMS = ['event', 'transaction', 'feedback'];
+    private const EVENT_ITEMS = ['transaction', 'feedback'];
     private const NON_FEED_ITEMS = [
         'span', 'spans', 'log', 'trace_metric',
         'session', 'sessions', 'client_report', 'check_in', 'metric_buckets', 'statsd',
@@ -48,6 +48,7 @@ final class EnvelopeMapper implements EventMapper
         $project === '' and $project = Event::DEFAULT_PROJECT;
 
         $batch = new Batch($project);
+        $event = null;
         $feed = null;
         $fallback = null;
         foreach ($frame->items as $item) {
@@ -60,7 +61,9 @@ final class EnvelopeMapper implements EventMapper
                 continue;
             }
 
-            if (\in_array($type, self::EVENT_ITEMS, true)) {
+            if ($type === 'event') {
+                $event ??= $item->payload;
+            } elseif (\in_array($type, self::EVENT_ITEMS, true)) {
                 $feed ??= $item->payload;
             } elseif (!\in_array($type, self::NON_FEED_ITEMS, true)) {
                 $fallback ??= $item->payload;
@@ -69,7 +72,7 @@ final class EnvelopeMapper implements EventMapper
 
         $this->telemetry->add($batch);
 
-        $payload = $feed ?? $fallback;
+        $payload = $event ?? $feed ?? $fallback;
         if ($payload === null) {
             return null;
         }

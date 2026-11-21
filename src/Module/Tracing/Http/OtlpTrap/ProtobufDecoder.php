@@ -25,12 +25,27 @@ final class ProtobufDecoder implements Decoder
 {
     public const CONTENT_TYPE = 'application/x-protobuf';
 
+    /** Field numbers of ExportLogsServiceRequest.resource_logs[].scope_logs[].log_records[] */
+    private const LOG_RECORDS_PATH = [[1], [2], [2]];
+
+    /**
+     * Field numbers of ExportMetricsServiceRequest.resource_metrics[].scope_metrics[].metrics[], then of
+     * the gauge, sum, histogram, exponential_histogram or summary of a metric, then of its data_points[].
+     */
+    private const DATA_POINTS_PATH = [[1], [2], [2], [5, 7, 9, 10, 11], [1]];
+
     /**
      * @param \Closure(): Message $newRequest
+     * @param non-empty-list<non-empty-list<int>> $recordsPath Where the records lie on the wire.
+     * @param int<1, max> $maxRecords
+     * @param string $records What the records are, for the error message.
      */
     private function __construct(
         private readonly \Closure $newRequest,
         private readonly Decoder $jsonDecoder,
+        private readonly array $recordsPath,
+        private readonly int $maxRecords,
+        private readonly string $records,
     ) {}
 
     public static function isAvailable(): bool
@@ -40,17 +55,36 @@ final class ProtobufDecoder implements Decoder
 
     public static function logs(JsonLogsDecoder $json = new JsonLogsDecoder()): self
     {
-        return new self(static fn(): Message => new ExportLogsServiceRequest(), $json);
+        return new self(
+            static fn(): Message => new ExportLogsServiceRequest(),
+            $json,
+            self::LOG_RECORDS_PATH,
+            $json->maxRecords,
+            'log records',
+        );
     }
 
     public static function metrics(JsonMetricsDecoder $json = new JsonMetricsDecoder()): self
     {
-        return new self(static fn(): Message => new ExportMetricsServiceRequest(), $json);
+        return new self(
+            static fn(): Message => new ExportMetricsServiceRequest(),
+            $json,
+            self::DATA_POINTS_PATH,
+            $json->maxRecords,
+            'data points',
+        );
     }
 
+    /**
+     * The records are counted on the wire before the message is built: building it is what takes the time
+     * and the memory.
+     */
     #[\Override]
     public function decode(string $payload, \DateTimeImmutable $time): Frame
     {
+        ProtobufWire::count($payload, $this->recordsPath, $this->maxRecords) > $this->maxRecords
+            and throw LimitExceededException::records($this->maxRecords, $this->records);
+
         $request = ($this->newRequest)();
         try {
             $request->mergeFromString($payload);

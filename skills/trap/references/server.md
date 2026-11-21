@@ -21,8 +21,10 @@ vendor/bin/trap --mcp -s         # no console output: the agent reads only throu
 ```
 
 Run it as a background process and keep it for the session: events live in its memory and a restart drops them.
-The buffer keeps the last 200 events (`maxEvents` of `trap.xml`); traces, and the traces, logs and metrics of the
-web UI's Sentry pages (`TRAP_TELEMETRY_MAX_SPANS`, `_LOGS`, `_METRICS`), have their own limits. Keep the process ID to
+The buffer keeps the last 200 events (`maxEvents` of `trap.xml`); traces have their own limits, and so have the
+traces, logs and metrics of the web UI's Sentry pages: `TRAP_TELEMETRY_MAX_SPANS` (10000), `TRAP_TELEMETRY_MAX_LOGS`
+(5000), `TRAP_TELEMETRY_MAX_METRICS` (5000), or `<telemetry maxSpans="10000" maxLogs="5000" maxMetrics="5000"/>` in
+`trap.xml`. Keep the process ID to
 stop it later: `$trap = Start-Process php 'vendor/bin/trap','--mcp' -PassThru` and `Stop-Process $trap.Id` in
 PowerShell, `vendor/bin/trap --mcp & echo $!` and `kill <pid>` in a POSIX shell. Other Traps may run on the machine:
 stop only yours. `-vv` prints the server's debug messages and errors, such as a port it can't listen on or a profile

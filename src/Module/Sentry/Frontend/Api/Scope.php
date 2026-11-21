@@ -55,7 +55,8 @@ final class Scope
             return null;
         }
 
-        $seconds = (int) $match[1] * match (\strtolower($match[2])) {
+        // A million weeks is far beyond any data, and keeps the seconds an int.
+        $seconds = \min((int) $match[1], 1_000_000) * match (\strtolower($match[2])) {
             's' => 1,
             'm' => 60,
             'h' => 3600,

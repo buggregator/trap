@@ -178,6 +178,23 @@ final class ItemReaderTest
         Assert::same($batch->metrics[0]->spanId, 'aaaaaaaaaaaaaaaa');
     }
 
+    public function testNonFiniteNumbersAreNotStored(): void
+    {
+        $batch = new Batch('default');
+        $payload = \json_decode(
+            '{"items":[{"name":"inf","value":1e999},{"name":"ok","value":1,"timestamp":1e999,'
+            . '"attributes":{"x":1e999,"y":{"type":"double","value":-1e999},"z":[1.5]}}]}',
+            true,
+        );
+
+        ItemReader::read($batch, 'trace_metric', $payload);
+
+        Assert::count($batch->metrics, 1);
+        Assert::null($batch->metrics[0]->time);
+        Assert::same($batch->metrics[0]->attributes, ['x' => 'Infinity', 'y' => ['type' => 'double', 'value' => '-Infinity'], 'z' => [1.5]]);
+        Assert::notBlank(\json_encode($batch->metrics[0]->attributes, \JSON_THROW_ON_ERROR));
+    }
+
     public function testOtherItemsAreNotTelemetry(): void
     {
         $batch = new Batch('default');

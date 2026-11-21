@@ -147,12 +147,43 @@ final class SignalDecodersTest
         Assert::same(ProtobufDecoder::logs()->createSuccessResponse()->getHeaderLine('Content-Type'), 'application/x-protobuf');
     }
 
+    public function testProtobufCountsLogRecordsOnTheWireBeforeBuildingTheMessage(): never
+    {
+        // resource_logs(1) { scope_logs(2) { log_records(2) {} x 11 } }
+        $scope = self::len(2, \str_repeat(self::len(2, ''), 11));
+        $payload = self::len(1, $scope);
+        Expect::exception(LimitExceededException::class)->withMessage('Too many log records in one request, the limit is 10.');
+
+        ProtobufDecoder::logs(new JsonLogsDecoder(10))->decode($payload, new \DateTimeImmutable());
+    }
+
+    public function testProtobufCountsDataPointsOfEveryMetricType(): never
+    {
+        // resource_metrics(1) { scope_metrics(2) { metrics(2) { gauge(5) | sum(7) | ... { data_points(1) {} } } } }
+        $metrics = '';
+        foreach ([5, 7, 9, 10, 11] as $type) {
+            $metrics .= self::len(2, self::len(1, 'name') . self::len($type, self::len(1, '') . self::len(1, '')));
+        }
+        $payload = self::len(1, self::len(2, $metrics));
+        Expect::exception(LimitExceededException::class)->withMessageContaining('data points');
+
+        ProtobufDecoder::metrics(new JsonMetricsDecoder(9))->decode($payload, new \DateTimeImmutable());
+    }
+
     public function testProtobufRejectsMalformedMessage(): never
     {
         ProtobufDecoder::isAvailable() or throw new SkipTest('The protobuf packages are not installed.');
         Expect::exception(\InvalidArgumentException::class)->withMessageContaining('Invalid protobuf message');
 
         ProtobufDecoder::logs()->decode("\x0a\xff", new \DateTimeImmutable());
+    }
+
+    /**
+     * A length-delimited protobuf field; lengths below 128 only.
+     */
+    private static function len(int $number, string $value): string
+    {
+        return \chr($number << 3 | 2) . \chr(\strlen($value)) . $value;
     }
 
     /**

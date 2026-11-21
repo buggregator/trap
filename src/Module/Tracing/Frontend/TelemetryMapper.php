@@ -237,7 +237,7 @@ final class TelemetryMapper implements EventMapper
                     project: $batch->project,
                     level: self::level($record['severityNumber'], $record['severityText']),
                     body: \is_string($body) ? $body : self::json($body),
-                    time: $time === 0 ? null : self::seconds($time),
+                    time: self::seconds($time),
                     source: Source::Otel,
                     traceId: $record['traceId'],
                     spanId: $record['spanId'],
@@ -302,7 +302,7 @@ final class TelemetryMapper implements EventMapper
                         name: $metric['name'],
                         type: $type,
                         value: $point['value'],
-                        time: $point['timeUnixNano'] === 0 ? null : self::seconds($point['timeUnixNano']),
+                        time: self::seconds($point['timeUnixNano']),
                         source: Source::Otel,
                         unit: $metric['unit'],
                         traceId: $point['traceId'],
@@ -327,9 +327,12 @@ final class TelemetryMapper implements EventMapper
         return ['name' => $name] + ($version === '' ? [] : ['version' => $version]);
     }
 
-    private static function seconds(int $nanoseconds): float
+    /**
+     * @return float|null Null for 0, an unset time in OTLP.
+     */
+    private static function seconds(int $nanoseconds): ?float
     {
-        return (float) \intdiv($nanoseconds, 1_000_000_000) + (float) ($nanoseconds % 1_000_000_000) / 1e9;
+        return $nanoseconds === 0 ? null : (float) \intdiv($nanoseconds, 1_000_000_000) + (float) ($nanoseconds % 1_000_000_000) / 1e9;
     }
 
     private static function iso(int $nanoseconds): string

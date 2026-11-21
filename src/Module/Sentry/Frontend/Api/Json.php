@@ -66,7 +66,8 @@ final class Json
      */
     public static function pageNumber(int $page): int
     {
-        return \max(1, $page);
+        // Bounded so that the offset of the page stays an int.
+        return \max(1, \min($page, 1_000_000));
     }
 
     /**

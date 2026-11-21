@@ -218,6 +218,8 @@ final class ApiControllerTest
         Assert::same(Scope::fromQuery(to: '1970-01-01T00:01:00Z')->to, 60.0);
         Assert::null(Scope::fromQuery(window: 'all')->from);
         Assert::null(Scope::fromQuery(project: ' ')->project);
+        Assert::same(Scope::parseWindow('99999999999999999999h'), 3_600_000_000);
+        Assert::same(Json::pageNumber(\PHP_INT_MAX), 1_000_000);
         Assert::false((new Scope(from: 1.0))->contains('default', null));
         Assert::true((new Scope())->contains('default', null));
     }
@@ -241,6 +243,7 @@ final class ApiControllerTest
         $this->events->add(new Event('e1', 'sentry', $exception(true), $now - 7200, 'other'));
         $this->events->add(new Event('e2', 'sentry', $exception(false) + ['level' => 'fatal'], $now - 60, 'shop'));
         $this->events->add(new Event('e3', 'sentry', ['message' => ['formatted' => 'Hello'], 'level' => 'info'], $now - 30, 'shop'));
+        $this->events->add(new Event('f', 'sentry', ['type' => 'feedback', 'contexts' => ['feedback' => ['message' => 'Hi']]], $now - 30, 'shop'));
         $this->events->add(new Event('t', 'sentry', ['type' => 'transaction', 'spans' => []], $now - 30, 'shop'));
         $this->events->add(new Event('other', 'var-dump', ['x' => 1], $now - 30, 'shop'));
 

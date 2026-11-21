@@ -34,12 +34,16 @@ final class ErrorEvent
     ) {}
 
     /**
-     * @return self|null Null for an event that is not a Sentry error: another type, or a transaction.
+     * @return self|null Null for an event that is not a Sentry error: another type, a transaction or a feedback.
      */
     public static function fromEvent(Event $event): ?self
     {
         $payload = $event->payload;
-        if ($event->type !== 'sentry' || !\is_array($payload) || ItemReader::isTransaction($payload)) {
+        if ($event->type !== 'sentry'
+            || !\is_array($payload)
+            || ItemReader::isTransaction($payload)
+            || ($payload['type'] ?? null) === 'feedback'
+        ) {
             return null;
         }
 
