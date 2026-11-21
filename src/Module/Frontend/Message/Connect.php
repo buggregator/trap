@@ -11,8 +11,12 @@ use Buggregator\Trap\Server\Info;
  */
 final class Connect implements \JsonSerializable
 {
+    /**
+     * @param list<non-empty-string> $channels Channels the server subscribes the client to.
+     */
     public function __construct(
         public readonly string $client,
+        public readonly array $channels = [],
         public readonly int $ping = 25,
         public readonly bool $pong = true,
     ) {}
@@ -23,9 +27,7 @@ final class Connect implements \JsonSerializable
         return [
             'client' => $this->client,
             'version' => Info::version(),
-            'subs' => [
-                'events' => (object) [],
-            ],
+            'subs' => (object) \array_fill_keys($this->channels, (object) []),
             'ping' => $this->ping,
             'pong' => $this->pong,
         ];

@@ -6,6 +6,8 @@ namespace Buggregator\Trap\Module\Frontend;
 
 use Buggregator\Trap\Module\Frontend\Message\Connect;
 use Buggregator\Trap\Module\Frontend\Message\Response;
+use Buggregator\Trap\Server\Event\Event;
+use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Processable;
 use Buggregator\Trap\Server\Traffic\StreamClient;
@@ -17,6 +19,12 @@ use Buggregator\Trap\Support\Timer;
 use Buggregator\Trap\Support\Uuid;
 
 /**
+ * WebSocket clients of the UI, speaking the Centrifugo protocol of centrifuge-js.
+ *
+ * A client is subscribed to channels by the server: to the project channels of {@see Publisher} at connect,
+ * and to a new channel before its first publication. centrifuge-js drops a publication of a channel
+ * it is not subscribed to.
+ *
  * @internal
  * @implements \IteratorAggregate<StreamClient>
  */
@@ -24,6 +32,12 @@ final class ConnectionPool implements \IteratorAggregate, Processable
 {
     /** @var StreamClient[] */
     private array $streams = [];
+
+    /**
+     * Channels of each connected client; a client is here after its `connect` command.
+     * @var array<int, array<non-empty-string, true>>
+     */
+    private array $subs = [];
 
     /** @var \Fiber[] */
     private array $fibers = [];
@@ -34,6 +48,7 @@ final class ConnectionPool implements \IteratorAggregate, Processable
     public function __construct(
         private readonly Logger $logger,
         private RPC $rpc,
+        private readonly EventStore $events,
     ) {}
 
     public function addStream(StreamClient $stream): void
@@ -42,9 +57,9 @@ final class ConnectionPool implements \IteratorAggregate, Processable
         $this->streams[$key] = $stream;
         $this->fibers[] = new \Fiber(function () use ($key, $stream): void {
             try {
-                $this->processSocket($stream);
+                $this->processSocket($key, $stream);
             } finally {
-                unset($this->streams[$key], $this->subs[\spl_object_id($stream)]);
+                unset($this->streams[$key], $this->subs[$key]);
             }
         });
     }
@@ -77,17 +92,8 @@ final class ConnectionPool implements \IteratorAggregate, Processable
         }
     }
 
-    public function send(Frame $frame): void
-    {
-        $data = (string) $frame;
-        foreach ($this->streams as $stream) {
-            $stream->sendData($data);
-        }
-    }
-
     /**
-     * Sends a publication to the connected clients, subscribing them to the channel first when needed:
-     * centrifuge-js drops publications of a channel the client is not subscribed to.
+     * Sends a publication to the connected clients, subscribing them to the channel first when needed.
      *
      * @param non-empty-string $channel
      */
@@ -96,35 +102,52 @@ final class ConnectionPool implements \IteratorAggregate, Processable
         $pub = $this->packPayload(Json::encode(['push' => ['channel' => $channel, 'pub' => ['data' => $data]]]));
         $subscribe = $this->packPayload(Json::encode(['push' => ['channel' => $channel, 'subscribe' => (object) []]]));
 
-        foreach ($this->streams as $stream) {
-            $id = \spl_object_id($stream);
-            if (!isset($this->subs[$id][$channel])) {
-                $this->subs[$id][$channel] = true;
+        foreach ($this->subs as $key => $channels) {
+            $stream = $this->streams[$key] ?? null;
+            if ($stream === null) {
+                continue;
+            }
+
+            if (!isset($channels[$channel])) {
+                $this->subs[$key][$channel] = true;
                 $stream->sendData($subscribe);
             }
+
             $stream->sendData($pub);
         }
     }
 
     /**
-     * Channels any connected client is subscribed to by {@see publish()}.
+     * Channels any connected client is subscribed to.
      *
      * @return list<non-empty-string>
      */
     public function channels(): array
     {
         $channels = [];
-        foreach ($this->streams as $stream) {
-            $channels += $this->subs[\spl_object_id($stream)] ?? [];
+        foreach ($this->subs as $subs) {
+            $channels += $subs;
         }
 
         return \array_keys($channels);
     }
 
-    private function processSocket(StreamClient $stream): void
+    /**
+     * @return array<non-empty-string, true> The channels of the default project and of the stored events.
+     */
+    private function initialChannels(): array
+    {
+        $channels = [Publisher::projectChannel(Event::DEFAULT_PROJECT) => true];
+        foreach ($this->events as $event) {
+            $channels[Publisher::projectChannel($event->projectKey())] = true;
+        }
+
+        return $channels;
+    }
+
+    private function processSocket(int $key, StreamClient $stream): void
     {
         $pingTimer = null;
-        $lastPong = new \DateTimeImmutable();
 
         foreach (StreamReader::readFrames($stream->getIterator()) as $frame) {
             // Connection close
@@ -137,7 +160,6 @@ final class ConnectionPool implements \IteratorAggregate, Processable
 
             // Pong using `{}` message
             if ($frame->content === '{}') {
-                $lastPong = new \DateTimeImmutable();
                 continue;
             }
 
@@ -149,19 +171,23 @@ final class ConnectionPool implements \IteratorAggregate, Processable
 
             $response = new Response(\is_numeric($payload['id'] ?? null) ? (int) $payload['id'] : 0);
 
-            // On connected start periodic ping using `{}` message
+            // On connected start periodic ping using `{}` message.
+            // A token of the connect is ignored: the UI asks for none.
             if (isset($payload['connect'])) {
-                $response->connect = new Connect(Uuid::uuid4());
+                $this->subs[$key] = $this->initialChannels();
+                $response->connect = new Connect(Uuid::uuid4(), \array_keys($this->subs[$key]));
 
-                $pingTimer = new Timer($response->connect->ping);
-                $this->fibers[] = new \Fiber(
-                    function () use ($stream, $pingTimer): void {
-                        while ($pingTimer->wait() && !$stream->isDisconnected()) {
-                            $stream->sendData($this->packPayload('{}'));
-                            $pingTimer->reset();
-                        }
-                    },
-                );
+                if ($pingTimer === null) {
+                    $pingTimer = new Timer($response->connect->ping);
+                    $this->fibers[] = new \Fiber(
+                        function () use ($stream, $pingTimer): void {
+                            while ($pingTimer->wait() && !$stream->isDisconnected()) {
+                                $stream->sendData($this->packPayload('{}'));
+                                $pingTimer->reset();
+                            }
+                        },
+                    );
+                }
             }
 
             // RPC
