@@ -14,6 +14,7 @@ final class TraceError extends \RuntimeException
     public const NOT_FORMAT_1 = 'not_format_1';
     public const TOO_LARGE = 'too_large';
     public const BAD_OFFSET = 'bad_offset';
+    public const NO_ZLIB = 'no_zlib';
 
     /**
      * @param self::* $reason
@@ -40,6 +41,11 @@ final class TraceError extends \RuntimeException
     public static function tooLarge(int $limit): self
     {
         return new self(self::TOO_LARGE, "The trace is larger than the limit of $limit bytes.");
+    }
+
+    public static function noZlib(): self
+    {
+        return new self(self::NO_ZLIB, 'The trace is gzipped and ext-zlib is not loaded in Trap: send it uncompressed.');
     }
 
     public static function badOffset(): self

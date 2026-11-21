@@ -47,6 +47,24 @@ final class TraceStorage implements StoreListener
         private readonly ?string $baseDir = null,
     ) {
         $events->listen($this);
+        // At start, not with the first trace: a stopped Trap on Windows leaves its directory behind
+        self::sweep($this->base());
+    }
+
+    /**
+     * Whether the path is in a directory of a storage, of this process or another: such a file is a copy.
+     */
+    public static function owns(string $path): bool
+    {
+        return \preg_match('#[/\\\\]' . self::PREFIX . '[^/\\\\]++[/\\\\][^/\\\\]++$#', $path) === 1;
+    }
+
+    /**
+     * Whether gzipped traces can be read: ext-zlib is optional.
+     */
+    public static function canInflate(): bool
+    {
+        return \function_exists('inflate_init');
     }
 
     /**
@@ -79,6 +97,8 @@ final class TraceStorage implements StoreListener
             }
             \fclose($target);
             $target = null;
+
+            TraceReader::isGzip($part) && !self::canInflate() and throw TraceError::noZlib();
 
             $summary = Summary::summarize($part, $this->config->maxSizeBytes(), $slice);
             $compressed = TraceReader::isGzip($part);
@@ -138,7 +158,8 @@ final class TraceStorage implements StoreListener
     {
         $dirs = \glob($base . \DIRECTORY_SEPARATOR . self::PREFIX . '*', \GLOB_ONLYDIR);
         foreach ($dirs === false ? [] : $dirs as $dir) {
-            $lock = @\fopen($dir . \DIRECTORY_SEPARATOR . self::LOCK, 'cb');
+            // Not created here: a directory still without its lock is being set up by another Trap
+            $lock = @\fopen($dir . \DIRECTORY_SEPARATOR . self::LOCK, 'rb');
             if ($lock === false) {
                 continue;
             }
@@ -185,16 +206,24 @@ final class TraceStorage implements StoreListener
             return $this->dir;
         }
 
-        $base = \rtrim($this->baseDir ?? \sys_get_temp_dir(), '/\\');
+        // The directory vanished, as with a cleaned temp dir: its traces are gone, and the lock goes too
+        $this->removeDir();
+        $base = $this->base();
         self::sweep($base);
         $dir = $base . \DIRECTORY_SEPARATOR . self::PREFIX . (int) \getmypid() . '-' . \bin2hex(\random_bytes(4));
         @\mkdir($dir, 0o700, true) or throw new \RuntimeException("Can't create the trace directory `$dir`.");
-        $lock = \fopen($dir . \DIRECTORY_SEPARATOR . self::LOCK, 'cb');
-        $lock === false or \flock($lock, \LOCK_EX | \LOCK_NB) or throw new \RuntimeException("Can't lock `$dir`.");
-        $this->lock = $lock === false ? null : $lock;
+        // Unlocked, another Trap would take the directory for one left behind and remove it
+        $lock = @\fopen($dir . \DIRECTORY_SEPARATOR . self::LOCK, 'cb');
+        $lock !== false && \flock($lock, \LOCK_EX | \LOCK_NB) or throw new \RuntimeException("Can't lock `$dir`.");
+        $this->lock = $lock;
         $this->files = [];
 
         return $this->dir = $dir;
+    }
+
+    private function base(): string
+    {
+        return \rtrim($this->baseDir ?? \sys_get_temp_dir(), '/\\');
     }
 
     private function removeDir(): void

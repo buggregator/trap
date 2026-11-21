@@ -141,7 +141,7 @@ final class TraceStorageTest
         \touch($stale . '/.lock');
         \touch($stale . '/old.xt');
 
-        $this->storage()->store(self::open(TraceReaderTest::MID));
+        $this->storage();
 
         Assert::false(\is_dir($stale));
     }

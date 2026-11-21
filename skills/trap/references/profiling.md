@@ -111,8 +111,9 @@ to see which calls a request made and with what values, where a profile only sum
    `xdebug.collect_return=1` adds return values. A CLI run:
    `php -d xdebug.mode=trace -d xdebug.start_with_request=yes -d xdebug.trace_format=1 -d xdebug.collect_return=1 -d xdebug.output_dir=<dir> script.php`.
 2. Send it to Trap: start Trap with `TRAP_XDEBUG_TRACE_PATH=<dir>` and it picks up `*.xt` and `*.xt.gz` files
-   written after its start, or POST the file to any Trap port with the header `X-Buggregator-Event: xdebug-trace`
-   (`400` names the problem). `X-Buggregator-Trace-Name` sets the `name` field.
+   written after its start, or POST the file to a TCP port of Trap with the header `X-Buggregator-Event: xdebug-trace`
+   (`400` names the problem). A `.xt.gz` needs ext-zlib in Trap's PHP (`501` without it); a file without
+   `TRACE END` is taken over HTTP only. `X-Buggregator-Trace-Name` sets the `name` field.
 3. Find the event: `{"type": "xdebug-trace"}`.
 4. `xdebug_trace_summary` with `{"uuid": "<event id>"}`: totals, the 20 functions with the most self time, the 20
    slowest calls, each with its `offset`.

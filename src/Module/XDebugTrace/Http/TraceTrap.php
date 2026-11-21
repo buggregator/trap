@@ -59,7 +59,11 @@ final class TraceTrap implements Middleware
             $trace = $this->storage->store($source, new TimeSlice());
         } catch (TraceError $e) {
             $this->logger->warning('Xdebug trace rejected: %s', $e->getMessage());
-            return new Response($e->reason === TraceError::TOO_LARGE ? 413 : 400, body: $e->getMessage());
+            return new Response(match ($e->reason) {
+                TraceError::TOO_LARGE => 413,
+                TraceError::NO_ZLIB => 501,
+                default => 400,
+            }, body: $e->getMessage());
         } catch (\Throwable $e) {
             $this->logger->exception($e, important: true);
             return new Response(500, body: $e->getMessage());

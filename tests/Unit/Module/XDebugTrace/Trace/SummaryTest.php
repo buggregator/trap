@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\XDebugTrace\Trace;
 
+use Buggregator\Trap\Module\XDebugTrace\Trace\CallTree;
 use Buggregator\Trap\Module\XDebugTrace\Trace\SlowestCalls;
 use Buggregator\Trap\Module\XDebugTrace\Trace\Summary;
 use Buggregator\Trap\Module\XDebugTrace\Trace\TraceError;
@@ -102,6 +103,28 @@ final class SummaryTest
         Expect::exception(TraceError::class);
 
         Summary::summarize($this->file);
+    }
+
+    public function testReadsMalformedTraceInLinearTime(): void
+    {
+        // Deep calls, then exits of calls never entered: a scan of the open calls per exit is quadratic
+        $lines = ["File format: 4"];
+        for ($i = 1; $i <= 20_000; ++$i) {
+            $lines[] = "$i\t$i\t0\t0.1\t100\tf\t1\t\t/a.php\t1\t0";
+        }
+        for ($i = 0; $i < 20_000; ++$i) {
+            $lines[] = "1\t9$i\t1\t0.2\t100";
+        }
+        $this->file = (string) \tempnam(\sys_get_temp_dir(), 'trap-xt-test-');
+        \file_put_contents($this->file, \implode("\n", $lines) . "\n");
+        $start = \microtime(true);
+
+        $summary = Summary::summarize($this->file);
+        (new CallTree($this->file))->search('f', 0, 10);
+
+        Assert::same($summary['calls'], 20_000);
+        Assert::true($summary['truncated']);
+        Assert::float(\microtime(true) - $start)->lessThan(5.0);
     }
 
     public function testKeepsSlowestCallsOnTie(): void

@@ -89,7 +89,8 @@ final class TraceCalls implements Tool
         $tree = $this->traces->tree($arguments);
         $parent = Traces::int($arguments, 'parent', -1);
         $from = Traces::int($arguments, 'from', -1);
-        $limit = \min((int) Traces::int($arguments, 'limit', Traces::DEFAULT_LIMIT), Traces::MAX_LIMIT);
+        $limit = (int) Traces::int($arguments, 'limit', Traces::DEFAULT_LIMIT);
+        $limit = $limit < 1 ? Traces::DEFAULT_LIMIT : \min($limit, Traces::MAX_LIMIT);
         /** @var mixed $query */
         $query = $arguments['query'] ?? '';
         \is_string($query) or throw new \InvalidArgumentException('`query` must be a string.');
