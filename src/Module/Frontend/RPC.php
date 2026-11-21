@@ -48,8 +48,13 @@ final class RPC
                 ? new Error(\sprintf('RPC method `%s` is not `{verb}:{path}`.', $method), 400)
                 : $this->call($httpMethod, $path, $data);
         } catch (\Throwable $e) {
-            $this->logger->exception($e);
-            $result = new Error($e->getMessage(), 500);
+            \assert($httpMethod !== null);
+            if (BadRouteArgument::isOf($e, $this->router->resolve($httpMethod, $path))) {
+                $result = new Error($e->getMessage(), 400);
+            } else {
+                $this->logger->exception($e);
+                $result = new Error($e->getMessage(), 500);
+            }
         }
 
         return new Message\Rpc(data: [

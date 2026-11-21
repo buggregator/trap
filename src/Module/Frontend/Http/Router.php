@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Frontend\Http;
 
+use Buggregator\Trap\Module\Frontend\BadRouteArgument;
+use Buggregator\Trap\Module\Frontend\Message\Error;
 use Buggregator\Trap\Module\Frontend\Message\HttpCode;
 use Buggregator\Trap\Module\Frontend\UiControllers;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
@@ -77,6 +79,14 @@ final class Router implements Middleware
                 Json::encode($message, depth: 10_000),
             );
         } catch (\Throwable $e) {
+            if (isset($method) && BadRouteArgument::isOf($e, $this->router->resolve($method, (string) $request->getUri()))) {
+                return new Response(
+                    400,
+                    ['Content-Type' => 'application/json', 'Cache-Control' => 'no-cache'],
+                    Json::encode(new Error($e->getMessage(), 400)),
+                );
+            }
+
             $this->logger->exception($e);
 
             return new Response(
