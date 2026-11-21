@@ -28,12 +28,22 @@ final class JsonReader
     private const UINT32_MAX = 0xFFFF_FFFF;
 
     /**
+     * Objects and lists of one request body: a Collector batch of 10 000 spans with 30 attributes each,
+     * at most about 270 MB once decoded.
+     */
+    public const MAX_CONTAINERS = 650_000;
+
+    /**
      * Decodes a request body that must be a JSON object.
      *
      * @throws \JsonException
      */
     public static function decode(string $payload): array
     {
+        // Each decoded object or list takes a few hundred bytes: a 10 MB body of `[0],` would take gigabytes.
+        $containers = self::countContainers($payload);
+        $containers > self::MAX_CONTAINERS and throw LimitExceededException::containers(self::MAX_CONTAINERS);
+
         // Big integers as strings: as floats they would lose precision before the range checks.
         $data = \json_decode($payload, true, 512, \JSON_THROW_ON_ERROR | \JSON_BIGINT_AS_STRING);
         // A list like `[1,2]` decodes to an array as well, and `[]` is indistinguishable from `{}`.
@@ -41,6 +51,19 @@ final class JsonReader
             or throw new \InvalidArgumentException('The request body must be a JSON object.');
 
         return $data;
+    }
+
+    /**
+     * Objects and lists of a JSON text: `{` and `[` outside strings.
+     *
+     * @throws \InvalidArgumentException When a string is not closed.
+     */
+    public static function countContainers(string $json): int
+    {
+        $stripped = \preg_replace('/"(?:[^"\\\\]++|\\\\.)*+"/s', '""', $json);
+        \is_string($stripped) or throw new \InvalidArgumentException('Invalid JSON string.');
+
+        return \substr_count($stripped, '{') + \substr_count($stripped, '[');
     }
 
     public static function arrayField(mixed $data, string $key): array

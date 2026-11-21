@@ -9,6 +9,7 @@ use Buggregator\Trap\Module\Tracing\Frame\OtlpLogs;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpMetrics;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonLogsDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonMetricsDecoder;
+use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonReader;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\LimitExceededException;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\ProtobufDecoder;
 use Google\Protobuf\Internal\Message;
@@ -21,6 +22,7 @@ use Testo\Test;
 #[Covers(JsonLogsDecoder::class)]
 #[Covers(JsonMetricsDecoder::class)]
 #[Covers(ProtobufDecoder::class)]
+#[Covers(JsonReader::class)]
 #[Covers(OtlpLogs::class)]
 #[Covers(OtlpMetrics::class)]
 #[Test]
@@ -94,6 +96,19 @@ final class SignalDecodersTest
         Expect::exception(LimitExceededException::class)->withMessageContaining('data points');
 
         (new JsonMetricsDecoder(2))->decode(self::METRICS, new \DateTimeImmutable());
+    }
+
+    public function testRejectsTooManyJsonContainersBeforeDecoding(): never
+    {
+        $payload = '{"x":[' . \rtrim(\str_repeat('[0],', JsonReader::MAX_CONTAINERS), ',') . ']}';
+        Expect::exception(LimitExceededException::class)->withMessageContaining('Too many JSON objects and arrays');
+
+        (new JsonLogsDecoder())->decode($payload, new \DateTimeImmutable());
+    }
+
+    public function testJsonContainersInStringsDoNotCount(): void
+    {
+        Assert::same(JsonReader::countContainers('{"a":"[{\"[","b":[{}]}'), 3);
     }
 
     public function testRejectsInvalidTraceId(): never

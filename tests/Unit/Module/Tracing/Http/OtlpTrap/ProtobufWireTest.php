@@ -60,6 +60,33 @@ final class ProtobufWireTest
         ProtobufWire::check(self::span(\str_repeat("\xf8\x07\x00", 200)), 'traces', 10, 'spans', maxTags: 100);
     }
 
+    public function testCountsResourceEntityRefsAndTheirKeys(): never
+    {
+        // resource (1) { entity_refs (3) { id_keys (3) x 60 } x 50 }
+        $refs = \str_repeat(self::len(3, \str_repeat(self::len(3, 'k'), 1)), 50) . self::len(3, \str_repeat(self::len(3, ''), 60));
+        Expect::exception(LimitExceededException::class)->withMessageContaining('Too many elements');
+
+        ProtobufWire::check(self::len(1, self::len(1, $refs)), 'traces', 10, 'spans', maxElements: 100);
+    }
+
+    public function testCountsUnpackedRepeatedScalars(): never
+    {
+        // A histogram (9) data point (1) with 101 unpacked explicit_bounds (7, fixed64)
+        $point = \str_repeat("\x39" . \pack('e', 1.5), 101);
+        $metric = self::len(1, 'm') . self::len(9, self::len(1, $point));
+        Expect::exception(LimitExceededException::class)->withMessageContaining('Too many elements');
+
+        ProtobufWire::check(self::len(1, self::len(2, self::len(2, $metric))), 'metrics', 10, 'data points', maxElements: 100);
+    }
+
+    public function testCountsUnknownFieldsInsideKnownMessages(): never
+    {
+        // Unknown varint fields inside Span.status (15)
+        Expect::exception(LimitExceededException::class)->withMessageContaining('Too many elements');
+
+        ProtobufWire::check(self::span(self::len(15, \str_repeat("\xf8\x07\x00", 101))), 'traces', 10, 'spans', maxElements: 100);
+    }
+
     public function testRejectsNestingTooDeep(): never
     {
         $value = '';

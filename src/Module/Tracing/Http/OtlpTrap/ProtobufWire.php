@@ -4,116 +4,90 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Tracing\Http\OtlpTrap;
 
+use Google\Protobuf\Descriptor;
+use Google\Protobuf\DescriptorPool;
+use Google\Protobuf\Internal\Message;
+use Opentelemetry\Proto\Collector\Logs\V1\ExportLogsServiceRequest;
+use Opentelemetry\Proto\Collector\Metrics\V1\ExportMetricsServiceRequest;
+use Opentelemetry\Proto\Collector\Trace\V1\ExportTraceServiceRequest;
+
 /**
  * Checks an OTLP protobuf message on the wire before it is built: building it takes time and memory
  * in proportion to its elements, and a 10 MB body of 2-byte attributes holds millions of them.
  *
- * The walk follows the OTLP schema into every repeated message field and counts:
+ * The walk follows the schema of the bundled generated classes, read from their descriptors, into every
+ * message-typed field, and counts:
  * - records (spans, log records, metric data points) against the record limit of the signal;
- * - elements: records, attributes and the values of nested arrays and key-value lists, events, links,
- *   exemplars, quantiles, and values of packed bucket arrays, against {@see self::maxElements()};
- * - tags it reads, unknown fields included, against {@see self::MAX_TAGS}, which bounds the walk itself.
- *
- * The pure-PHP `google/protobuf` builds a message some 50 times slower than `ext-protobuf`, at tens of
- * microseconds per element: without the extension the element limit is {@see self::MAX_ELEMENTS_PURE_PHP}
- * and each packed value is an element; with it, every 8 packed values are one.
+ * - elements: every occurrence of a repeated field of any type, every unknown field, and the values of
+ *   packed arrays (8 per element with `ext-protobuf`, 1 without), against {@see self::maxElements()};
+ * - tags it reads against {@see self::maxTags()}, which bounds the walk and the parse of known fields.
  *
  * It fails closed: what it cannot read for sure a parser might still accept, so groups, unknown wire types,
  * tags over 5 bytes, field numbers out of range, truncated values and nesting deeper than
- * {@see self::MAX_DEPTH} make the message malformed.
+ * {@see self::MAX_DEPTH} messages make the message malformed.
+ *
+ * The pure-PHP `google/protobuf` builds a message some 50 times slower than `ext-protobuf`: without the
+ * extension the limits are lower.
  *
  * @internal
  * @psalm-internal Buggregator\Trap\Module\Tracing\Http
  *
- * @psalm-type Field = array{0: non-empty-string|null, 1: int<0, 2>, 2?: int<0, 8>}
+ * @psalm-type Field = array{0: non-empty-string|null, 1: bool, 2: int<-1, 8>, 3: bool}
+ *         Message of the field or null; repeated; bytes of a packed value (0 for varints, -1 when not packable);
+ *         whether an element is a record.
  */
 final class ProtobufWire
 {
     /**
      * Elements of one request with `ext-protobuf`: a Collector batch of 10 000 spans with 30 attributes each.
-     * An element takes about 500 bytes of memory and 5 microseconds on its way to the store.
      */
     public const MAX_ELEMENTS = 400_000;
 
     /**
-     * Elements of one request with the pure-PHP `google/protobuf`: an SDK batch of 512 spans with 30 attributes,
-     * a few seconds to build at most.
+     * Elements of one request with the pure-PHP `google/protobuf`: an SDK batch of 512 spans with 30 attributes.
      */
     public const MAX_ELEMENTS_PURE_PHP = 20_000;
 
-    /** Tags read in one request, a second or two of the walk. */
+    /** Tags read in one request with `ext-protobuf`. */
     public const MAX_TAGS = 2_000_000;
 
-    public const MAX_DEPTH = 64;
-    private const SINGLE = 0;
-    private const ELEMENT = 1;
-    private const RECORD = 2;
+    /** Tags read in one request with the pure-PHP `google/protobuf`. */
+    public const MAX_TAGS_PURE_PHP = 200_000;
 
     /**
-     * Message name => field number => [message of the field or null for a packed scalar array, what an element
-     * of the field is, bytes per packed value (0 for varints)]. Fields not listed are skipped as a whole.
-     *
-     * @var array<non-empty-string, array<int, Field>>
+     * Messages nested in each other. A log body of key-value lists nests 3 messages per level, so about
+     * 20 levels fit.
      */
-    private const SCHEMA = [
-        'traces' => [1 => ['ResourceSpans', self::ELEMENT]],
-        'ResourceSpans' => [1 => ['Resource', self::SINGLE], 2 => ['ScopeSpans', self::ELEMENT]],
-        'ScopeSpans' => [1 => ['Scope', self::SINGLE], 2 => ['Span', self::RECORD]],
-        'Span' => [9 => ['KeyValue', self::ELEMENT], 11 => ['Event', self::ELEMENT], 13 => ['Link', self::ELEMENT]],
-        'Event' => [3 => ['KeyValue', self::ELEMENT]],
-        'Link' => [5 => ['KeyValue', self::ELEMENT]],
+    public const MAX_DEPTH = 64;
 
-        'logs' => [1 => ['ResourceLogs', self::ELEMENT]],
-        'ResourceLogs' => [1 => ['Resource', self::SINGLE], 2 => ['ScopeLogs', self::ELEMENT]],
-        'ScopeLogs' => [1 => ['Scope', self::SINGLE], 2 => ['LogRecord', self::RECORD]],
-        'LogRecord' => [5 => ['AnyValue', self::SINGLE], 6 => ['KeyValue', self::ELEMENT]],
-
-        'metrics' => [1 => ['ResourceMetrics', self::ELEMENT]],
-        'ResourceMetrics' => [1 => ['Resource', self::SINGLE], 2 => ['ScopeMetrics', self::ELEMENT]],
-        'ScopeMetrics' => [1 => ['Scope', self::SINGLE], 2 => ['Metric', self::ELEMENT]],
-        'Metric' => [
-            5 => ['Gauge', self::SINGLE],
-            7 => ['Gauge', self::SINGLE],
-            9 => ['Histogram', self::SINGLE],
-            10 => ['ExponentialHistogram', self::SINGLE],
-            11 => ['Summary', self::SINGLE],
-            12 => ['KeyValue', self::ELEMENT],
-        ],
-        'Gauge' => [1 => ['NumberDataPoint', self::RECORD]],
-        'Histogram' => [1 => ['HistogramDataPoint', self::RECORD]],
-        'ExponentialHistogram' => [1 => ['ExponentialHistogramDataPoint', self::RECORD]],
-        'Summary' => [1 => ['SummaryDataPoint', self::RECORD]],
-        'NumberDataPoint' => [7 => ['KeyValue', self::ELEMENT], 5 => ['Exemplar', self::ELEMENT]],
-        'HistogramDataPoint' => [
-            9 => ['KeyValue', self::ELEMENT],
-            8 => ['Exemplar', self::ELEMENT],
-            6 => [null, self::ELEMENT, 8],
-            7 => [null, self::ELEMENT, 8],
-        ],
-        'ExponentialHistogramDataPoint' => [
-            1 => ['KeyValue', self::ELEMENT],
-            11 => ['Exemplar', self::ELEMENT],
-            8 => ['Buckets', self::SINGLE],
-            9 => ['Buckets', self::SINGLE],
-        ],
-        'Buckets' => [2 => [null, self::ELEMENT, 0]],
-        'SummaryDataPoint' => [7 => ['KeyValue', self::ELEMENT], 6 => ['ValueAtQuantile', self::ELEMENT]],
-        'ValueAtQuantile' => [],
-        'Exemplar' => [7 => ['KeyValue', self::ELEMENT]],
-
-        'Resource' => [1 => ['KeyValue', self::ELEMENT]],
-        'Scope' => [3 => ['KeyValue', self::ELEMENT]],
-        'KeyValue' => [2 => ['AnyValue', self::SINGLE]],
-        'AnyValue' => [5 => ['ArrayValue', self::SINGLE], 6 => ['KeyValueList', self::SINGLE]],
-        'ArrayValue' => [1 => ['AnyValue', self::ELEMENT]],
-        'KeyValueList' => [1 => ['KeyValue', self::ELEMENT]],
+    private const REQUESTS = [
+        'traces' => ExportTraceServiceRequest::class,
+        'logs' => ExportLogsServiceRequest::class,
+        'metrics' => ExportMetricsServiceRequest::class,
+    ];
+    private const RECORDS = [
+        'opentelemetry.proto.trace.v1.Span',
+        'opentelemetry.proto.logs.v1.LogRecord',
+        'opentelemetry.proto.metrics.v1.NumberDataPoint',
+        'opentelemetry.proto.metrics.v1.HistogramDataPoint',
+        'opentelemetry.proto.metrics.v1.ExponentialHistogramDataPoint',
+        'opentelemetry.proto.metrics.v1.SummaryDataPoint',
     ];
 
+    // GPBType values
+    private const TYPE_MESSAGE = 11;
+    private const TYPE_GROUP = 10;
+    private const TYPE_STRING = 9;
+    private const TYPE_BYTES = 12;
+    private const FIXED_SIZES = [1 => 8, 2 => 4, 6 => 8, 7 => 4, 15 => 4, 16 => 8];
     private const MAX_FIELD_NUMBER = (1 << 29) - 1;
     private const WIRE_VARINT = 0;
     private const WIRE_FIXED64 = 1;
     private const WIRE_LEN = 2;
     private const WIRE_FIXED32 = 5;
+
+    /** @var array<non-empty-string, array<int, Field>> Message full name => field number => field */
+    private static array $schema = [];
 
     /** @var int<0, max> */
     private int $records = 0;
@@ -147,11 +121,19 @@ final class ProtobufWire
     }
 
     /**
+     * @return int<1, max>
+     */
+    public static function maxTags(): int
+    {
+        return \extension_loaded('protobuf') ? self::MAX_TAGS : self::MAX_TAGS_PURE_PHP;
+    }
+
+    /**
      * @param 'traces'|'logs'|'metrics' $signal
      * @param int<1, max> $maxRecords
      * @param string $records What the records are, for the error message.
      * @param int<1, max>|null $maxElements {@see self::maxElements()} when null.
-     * @param int<1, max> $maxTags
+     * @param int<1, max>|null $maxTags {@see self::maxTags()} when null.
      *
      * @throws LimitExceededException When the message has more records, elements or tags than accepted.
      * @throws \InvalidArgumentException When the message is malformed.
@@ -162,16 +144,77 @@ final class ProtobufWire
         int $maxRecords,
         string $records,
         ?int $maxElements = null,
-        int $maxTags = self::MAX_TAGS,
+        ?int $maxTags = null,
     ): void {
         $extension = \extension_loaded('protobuf');
         $maxElements ??= self::maxElements();
+        $maxTags ??= self::maxTags();
+        $root = self::schema(self::REQUESTS[$signal]);
+
         $wire = new self($payload, $maxRecords, $maxElements, $maxTags, $extension ? 8 : 1);
-        $wire->walk($signal, 0, \strlen($payload), 0);
+        $wire->walk($root, 0, \strlen($payload), 0);
 
         $wire->records > $maxRecords and throw LimitExceededException::records($maxRecords, $records);
         $wire->elements > $maxElements and throw LimitExceededException::elements($maxElements, $extension);
         $wire->tags > $maxTags and throw LimitExceededException::fields($maxTags);
+    }
+
+    /**
+     * Reads the schema of a request class and of every message under it, once per process.
+     *
+     * @param class-string<Message> $class
+     * @return non-empty-string Full name of the message of the class.
+     */
+    private static function schema(string $class): string
+    {
+        // Building a message registers the descriptors of its file.
+        match ($class) {
+            ExportLogsServiceRequest::class => new ExportLogsServiceRequest(),
+            ExportMetricsServiceRequest::class => new ExportMetricsServiceRequest(),
+            default => new ExportTraceServiceRequest(),
+        };
+        /** @var Descriptor|null $descriptor */
+        $descriptor = DescriptorPool::getGeneratedPool()->getDescriptorByClassName($class);
+        $descriptor === null and throw new \LogicException("No descriptor of $class.");
+        self::describe($descriptor);
+
+        /** @var non-empty-string */
+        return $descriptor->getFullName();
+    }
+
+    private static function describe(Descriptor $descriptor): void
+    {
+        /** @var non-empty-string $name */
+        $name = $descriptor->getFullName();
+        if (isset(self::$schema[$name])) {
+            return;
+        }
+
+        self::$schema[$name] = [];
+        $fields = [];
+        for ($i = 0, $count = $descriptor->getFieldCount(); $i < $count; ++$i) {
+            $field = $descriptor->getField($i);
+            $type = (int) $field->getType();
+            $message = null;
+            if ($type === self::TYPE_MESSAGE || $type === self::TYPE_GROUP) {
+                $child = $field->getMessageType();
+                if ($child instanceof Descriptor) {
+                    self::describe($child);
+                    /** @var non-empty-string $message */
+                    $message = $child->getFullName();
+                }
+            }
+
+            $packable = $message === null && $type !== self::TYPE_STRING && $type !== self::TYPE_BYTES;
+            $fields[(int) $field->getNumber()] = [
+                $message,
+                (bool) $field->isRepeated(),
+                $packable ? self::FIXED_SIZES[$type] ?? 0 : -1,
+                $message !== null && \in_array($message, self::RECORDS, true),
+            ];
+        }
+
+        self::$schema[$name] = $fields;
     }
 
     private static function malformed(string $reason): \InvalidArgumentException
@@ -185,12 +228,16 @@ final class ProtobufWire
     private function walk(string $message, int $offset, int $end, int $depth): void
     {
         $depth <= self::MAX_DEPTH or throw self::malformed('nesting too deep');
-        $schema = self::SCHEMA[$message];
+        $schema = self::$schema[$message] ?? [];
         $bytes = $this->bytes;
 
-        // Hot loop: one-byte tags, lengths and varints are read inline, the limits are checked once per tag.
+        // Hot loop: one- and two-byte tags, one-byte lengths and varints are read inline;
+        // the limits are checked once per tag.
         while ($offset < $end) {
-            if (++$this->tags > $this->maxTags || $this->elements > $this->maxElements || $this->records > $this->maxRecords) {
+            if (++$this->tags > $this->maxTags
+                || $this->elements > $this->maxElements
+                || $this->records > $this->maxRecords
+            ) {
                 return;
             }
 
@@ -206,6 +253,11 @@ final class ProtobufWire
             $number = $tag >> 3;
             ($number >= 1 && $number <= self::MAX_FIELD_NUMBER) or throw self::malformed('field number out of range');
 
+            $field = $schema[$number] ?? null;
+            // An unknown field, or an occurrence of a repeated one; packed arrays are counted below.
+            ($field === null || ($field[1] && ($tag & 7) !== self::WIRE_LEN) || ($field[1] && $field[2] < 0))
+                and ++$this->elements;
+
             switch ($tag & 7) {
                 case self::WIRE_VARINT:
                     $offset < $end && \ord($bytes[$offset]) < 0x80 ? ++$offset : $this->varint($offset, $end, 10);
@@ -220,7 +272,6 @@ final class ProtobufWire
                     $length = $offset < $end ? \ord($bytes[$offset]) : 0x80;
                     $length < 0x80 ? ++$offset : $length = $this->varint($offset, $end, 10);
                     $length <= $end - $offset or throw self::malformed('truncated field');
-                    $field = $schema[$number] ?? null;
                     $field === null or $this->field($field, $offset, $offset + $length, $depth);
                     $offset += $length;
                     break;
@@ -234,23 +285,27 @@ final class ProtobufWire
     }
 
     /**
+     * A length-delimited field: a message to walk into, a packed array, or a string.
+     *
      * @param Field $field
      */
     private function field(array $field, int $from, int $to, int $depth): void
     {
         if ($field[0] !== null) {
-            $field[1] === self::SINGLE or ++$this->elements;
-            $field[1] === self::RECORD and ++$this->records;
+            $field[3] and ++$this->records;
             // An empty message has nothing to walk into.
             $from < $to and $this->walk($field[0], $from, $to, $depth + 1);
             return;
         }
 
+        if (!$field[1] || $field[2] < 0) {
+            return;
+        }
+
         // A packed array: fixed-size values, or varints, which end on a byte below 0x80
-        $size = $field[2] ?? 0;
         $values = 0;
-        if ($size > 0) {
-            $values = \intdiv($to - $from, $size);
+        if ($field[2] > 0) {
+            $values = \intdiv($to - $from, $field[2]);
         } else {
             for ($i = $from; $i < $to; ++$i) {
                 \ord($this->bytes[$i]) < 0x80 and ++$values;
