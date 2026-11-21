@@ -21,13 +21,21 @@ use Buggregator\Trap\Module\Profiler\Frontend\Mapper as ProfilerMapper;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
 use Buggregator\Trap\Module\Ray\Frontend\LocksController as RayLocksController;
 use Buggregator\Trap\Module\Ray\Lock\Locks;
+use Buggregator\Trap\Module\Sentry\Frontend\ApiController as SentryApiController;
 use Buggregator\Trap\Module\Sentry\Frontend\ClearController as SentryClearController;
+use Buggregator\Trap\Module\XDebug\Debugger;
+use Buggregator\Trap\Module\XDebug\Frontend\ApiController as XDebugApiController;
+use Buggregator\Trap\Module\XDebugTrace\Frontend\ApiController as XDebugTraceApiController;
 use Buggregator\Trap\Server\Event\AttachedFile;
 use Buggregator\Trap\Server\Event\EmbeddedFile;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteSuccess;
 use Buggregator\Trap\Server\Handler\Router\Router;
+use Buggregator\Trap\Server\Telemetry\Batch;
+use Buggregator\Trap\Server\Telemetry\Log;
+use Buggregator\Trap\Server\Telemetry\Source;
+use Buggregator\Trap\Server\Telemetry\TelemetryStore;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
 use Internal\Container\ObjectContainer;
@@ -61,7 +69,10 @@ final class UiControllersTest
                 MailerApiController::class,
                 RayLocksController::class,
                 SentryClearController::class,
+                SentryApiController::class,
                 ProfilerApiController::class,
+                XDebugTraceApiController::class,
+                XDebugApiController::class,
             ],
         );
         Assert::same(
@@ -135,6 +146,46 @@ final class UiControllersTest
             \json_decode((string) self::get($container, '/api/smtp/attachments/0000-1111')->getBody(), true),
             ['message' => 'Event not found', 'code' => 404],
         );
+    }
+
+    /**
+     * The debugger answers the HTTP request of the UI only: a field named as the request stands for none.
+     */
+    public function testDebuggerTakesRequestOfHttpOnly(): void
+    {
+        $container = new ObjectContainer();
+
+        $http = self::get($container, '/api/xdebug?__request=1');
+        $rpc = $container->get(RPC::class)->handleMessage(['method' => 'get:api/xdebug', 'data' => ['__request' => []]]);
+
+        Assert::same($http->getStatusCode(), 200);
+        Assert::same($http->getHeaderLine('Cache-Control'), 'no-cache');
+        Assert::false(\json_decode((string) $http->getBody(), true)['enabled']);
+        Assert::same(self::json($rpc)['data']['code'], 403);
+        Assert::same(self::json($rpc)['data']['data']['code'], 'http_only');
+    }
+
+    public function testDebuggerBreakpointStatusesOverHttp(): void
+    {
+        $container = new ObjectContainer();
+        $container->get(Debugger::class)->enable();
+        $pipeline = $container->get(Pipeline::class);
+        $headers = ['Content-Type' => 'application/json', 'Sec-Fetch-Site' => 'same-origin'];
+
+        $added = $pipeline->handle(
+            new ServerRequest('POST', '/api/xdebug/breakpoints', $headers, '{"file":"/app/a.php","line":3}'),
+            static fn(): Response => new Response(418),
+        );
+        $id = \json_decode((string) $added->getBody(), true)['id'];
+        $deleted = $pipeline->handle(
+            new ServerRequest('DELETE', "/api/xdebug/breakpoints/$id", $headers),
+            static fn(): Response => new Response(418),
+        );
+
+        Assert::same($added->getStatusCode(), 201);
+        Assert::same($deleted->getStatusCode(), 204);
+        Assert::same((string) $deleted->getBody(), '');
+        Assert::same($container->get(Debugger::class)->breakpoints->all(), []);
     }
 
     public function testSmtpHtmlAndAttachmentAssets(): void
@@ -228,6 +279,12 @@ final class UiControllersTest
         $store->add(new Event('aa03', 'sentry', [], 3.0, project: 'shop'));
         $store->add(new Event('aa04', 'smtp', [], 4.0));
         $store->pin('aa02');
+        $telemetry = $container->get(TelemetryStore::class);
+        foreach (['default', 'shop'] as $project) {
+            $batch = new Batch($project);
+            $batch->logs[] = new Log("l-$project", $project, 'info', 'hi', 1.0, Source::Sentry);
+            $telemetry->add($batch);
+        }
 
         $response = $container->get(Pipeline::class)->handle(
             new ServerRequest('DELETE', '/api/sentry/all?project=default&keep_pinned=1'),
@@ -236,6 +293,7 @@ final class UiControllersTest
 
         Assert::same($response->getStatusCode(), 200);
         Assert::same(\array_keys(\iterator_to_array($store)), ['aa04', 'aa03', 'aa02']);
+        Assert::same(\array_map(static fn(Log $log): string => $log->project, $telemetry->logs()), ['shop']);
     }
 
     public function testHttpDumpFileDownload(): void
@@ -310,29 +368,6 @@ final class UiControllersTest
         Assert::true($response->hasHeader(Pipeline::FRONTEND_HEADER));
     }
 
-    private static function get(ObjectContainer $container, string $uri): ResponseInterface
-    {
-        return $container->get(Pipeline::class)->handle(
-            new ServerRequest('GET', $uri),
-            static fn(): Response => new Response(404),
-        );
-    }
-
-    private static function profilerEvent(): Event
-    {
-        $profile = (new ProfileBuilder())->createProfile(calls: [
-            'main()==>foo' => ['ct' => 1, 'wt' => 104, 'cpu' => 0, 'mu' => 4168, 'pmu' => 0],
-            'main()' => ['ct' => 1, 'wt' => 139, 'cpu' => 0, 'mu' => 5936, 'pmu' => 0],
-        ]);
-
-        return new Event(
-            uuid: $profile->uuid,
-            type: 'profiler',
-            payload: Payload::new(Type::XHProf, static fn() => $profile),
-            timestamp: 0.0,
-        );
-    }
-
     /**
      * Opened by its URL, a caught email must not run as a page of the UI: it could call the debugger.
      */
@@ -355,6 +390,29 @@ final class UiControllersTest
         Assert::same($html->getHeaderLine('Content-Security-Policy'), 'sandbox');
         Assert::same($file->getStatusCode(), 200);
         Assert::same($file->getHeaderLine('Content-Security-Policy'), 'sandbox');
+    }
+
+    private static function get(ObjectContainer $container, string $uri): ResponseInterface
+    {
+        return $container->get(Pipeline::class)->handle(
+            new ServerRequest('GET', $uri),
+            static fn(): Response => new Response(404),
+        );
+    }
+
+    private static function profilerEvent(): Event
+    {
+        $profile = (new ProfileBuilder())->createProfile(calls: [
+            'main()==>foo' => ['ct' => 1, 'wt' => 104, 'cpu' => 0, 'mu' => 4168, 'pmu' => 0],
+            'main()' => ['ct' => 1, 'wt' => 139, 'cpu' => 0, 'mu' => 5936, 'pmu' => 0],
+        ]);
+
+        return new Event(
+            uuid: $profile->uuid,
+            type: 'profiler',
+            payload: Payload::new(Type::XHProf, static fn() => $profile),
+            timestamp: 0.0,
+        );
     }
 
     /**

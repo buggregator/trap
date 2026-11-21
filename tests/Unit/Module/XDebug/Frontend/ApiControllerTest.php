@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\XDebug\Frontend;
 
 use Buggregator\Trap\Module\Frontend\Http\Router as HttpRouter;
+use Buggregator\Trap\Module\Frontend\Message\HttpCode;
 use Buggregator\Trap\Module\XDebug\Config\Debugger as Config;
 use Buggregator\Trap\Module\XDebug\Frontend\ApiController;
 use Buggregator\Trap\Server\Config\TcpPorts;
@@ -13,7 +14,6 @@ use Buggregator\Trap\Server\Handler\Router\Router;
 use Buggregator\Trap\Tests\Unit\Module\XDebug\Stub\FakeEngine;
 use Buggregator\Trap\Tests\Unit\Module\XDebug\Stub\Harness;
 use Nyholm\Psr7\ServerRequest;
-use Psr\Http\Message\ResponseInterface;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
@@ -160,7 +160,7 @@ final class ApiControllerTest
     }
 
     /**
-     * @return mixed The answer, or `[status, body]` of a response.
+     * @return mixed The answer, or `[status, body]` of a message of a status.
      */
     private static function call(
         Harness $h,
@@ -176,8 +176,8 @@ final class ApiControllerTest
         $http and $body[HttpRouter::REQUEST] = new ServerRequest($method->value, "/$uri", $headers);
         $result = $h->call(static fn(): mixed => $handler(...$body));
 
-        return $result instanceof ResponseInterface
-            ? [$result->getStatusCode(), \json_decode((string) $result->getBody(), true)]
+        return $result instanceof HttpCode
+            ? [$result->httpCode(), \json_decode(\json_encode($result), true)]
             : $result;
     }
 }

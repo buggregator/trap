@@ -7,11 +7,11 @@ namespace Buggregator\Trap\Module\Frontend\Http;
 use Buggregator\Trap\Module\Frontend\BadRouteArgument;
 use Buggregator\Trap\Module\Frontend\Message\Error;
 use Buggregator\Trap\Module\Frontend\Message\HttpCode;
+use Buggregator\Trap\Module\Frontend\Message\Status;
 use Buggregator\Trap\Module\Frontend\UiControllers;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Handler\Router\Method;
 use Buggregator\Trap\Server\Handler\Router\Router as CommonRouter;
-use Buggregator\Trap\Server\Info;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\Response;
@@ -69,14 +69,16 @@ final class Router implements Middleware
             /** @var mixed $message */
             $message = $handler(...\array_filter($params, \is_string(...), \ARRAY_FILTER_USE_KEY));
 
+            $status = $message instanceof HttpCode ? $message->httpCode() : 200;
+
             return new Response(
-                $message instanceof HttpCode ? $message->httpCode() : 200,
+                $status,
                 [
                     'Content-Type' => 'application/json',
                     'Cache-Control' => 'no-cache',
                 ],
                 // A flame chart nests as deep as the recursion in the profiled code
-                Json::encode($message, depth: 10_000),
+                $status === Status::NO_CONTENT ? '' : Json::encode($message, depth: 10_000),
             );
         } catch (\Throwable $e) {
             if (isset($method) && BadRouteArgument::isOf($e, $this->router->resolve($method, (string) $request->getUri()))) {

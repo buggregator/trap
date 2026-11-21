@@ -22,6 +22,7 @@ use Buggregator\Trap\Server\Handler\Router\Attribute\RegexpRoute;
 use Buggregator\Trap\Server\Handler\Router\Attribute\StaticRoute;
 use Buggregator\Trap\Server\Handler\Router\Method;
 use Buggregator\Trap\Server\Logger;
+use Internal\Container\Container;
 
 /**
  * @internal
@@ -44,12 +45,16 @@ final class Service
     /** @var list<non-empty-string> UI event types the modules produce */
     private readonly array $eventTypes;
 
+    /** @var list<class-string<UiPorts>> */
+    private readonly array $uiPorts;
+
     public function __construct(
         private readonly Logger $logger,
         private readonly EventStore $eventsStorage,
         Modules $modules,
         private readonly FrontendConfig $config,
         private readonly TcpPorts $tcpPorts,
+        private readonly Container $container,
     ) {
         /** @var array<non-empty-string, class-string> $owners Who declared each event type */
         $owners = [];
@@ -63,6 +68,10 @@ final class Service
         }
 
         $this->eventTypes = \array_keys($owners);
+        $this->uiPorts = \array_map(
+            static fn(ProvidesUiPorts $module): string => $module->uiPorts(),
+            $modules->implementing(ProvidesUiPorts::class),
+        );
     }
 
     #[StaticRoute(Method::Get, 'api/version')]
@@ -230,7 +239,8 @@ final class Service
 
     /**
      * Ports for the setup guide of the UI. Every TCP port of Trap takes any protocol: a usual port is shown
-     * when Trap listens on it, the first TCP port otherwise. Trap has no HTTP proxy and no Xdebug listener.
+     * when Trap listens on it, the first TCP port otherwise. Trap has no HTTP proxy. The ports of the modules follow,
+     * as the Xdebug debugger one while it is on.
      *
      * @return array<non-empty-string, int>
      */
@@ -243,12 +253,17 @@ final class Service
 
         $pick = static fn(int $port): int => \in_array($port, $tcp, true) ? $port : $tcp[0];
 
-        return [
+        $ports = [
             'http' => $pick(\in_array($this->config->port, $tcp, true) ? $this->config->port : 8000),
             'smtp' => $pick(1025),
             'monolog' => $pick(9913),
             'var_dumper' => $pick(9912),
         ];
+        foreach ($this->uiPorts as $class) {
+            $ports += $this->container->get($class)->uiPorts();
+        }
+
+        return $ports;
     }
 
     private function debug(string $pattern, string ...$args): void

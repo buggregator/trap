@@ -72,6 +72,9 @@ final class RPC
             return Error::notFound(\sprintf('RPC method `%s:%s` not found.', \strtolower($method->value), $path));
         }
 
+        // A call over the socket has no HTTP request: a field of the name must not stand for one
+        unset($data[Http\Router::REQUEST]);
+
         return $route(...\array_filter($data, \is_string(...), \ARRAY_FILTER_USE_KEY));
     }
 }

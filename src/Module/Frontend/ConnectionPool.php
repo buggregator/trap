@@ -42,9 +42,6 @@ final class ConnectionPool implements \IteratorAggregate, Processable
     /** @var \Fiber[] */
     private array $fibers = [];
 
-    /** @var array<int, array<non-empty-string, true>> Channels each stream is subscribed to, by object ID */
-    private array $subs = [];
-
     public function __construct(
         private readonly Logger $logger,
         private RPC $rpc,

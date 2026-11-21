@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Frontend\ConnectionPool;
 use Buggregator\Trap\Module\Frontend\Publisher;
 use Buggregator\Trap\Module\Frontend\TelemetryPusher;
 use Buggregator\Trap\Server\Traffic\StreamClient;
+use Buggregator\Trap\Server\Traffic\Websocket\Frame;
 use Internal\Container\ObjectContainer;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -26,8 +27,16 @@ final class TelemetryPusherTest
             $sent .= $data;
             return true;
         });
+        // A client gets publications once connected
+        $client->allows('getIterator')->andReturnUsing(static function (): \Generator {
+            yield (string) Frame::text('{"id":1,"connect":{}}');
+            while (true) {
+                \Fiber::suspend();
+            }
+        });
         $pool = (new ObjectContainer())->get(ConnectionPool::class);
         $pool->addStream($client);
+        $pool->process();
 
         (new TelemetryPusher(new Publisher($pool)))->stored('shop', ['trace', 'log']);
 

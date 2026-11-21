@@ -107,7 +107,7 @@ final class UiContributionsTest
 
         Expect::exception(\LogicException::class)->withMessageContaining('is already declared by');
 
-        new Service(new Logger(), new EventStore(), $modules, new Frontend(), new TcpPorts());
+        new Service(new Logger(), new EventStore(), $modules, new Frontend(), new TcpPorts(), new ObjectContainer());
     }
 
     private static function emptyContainer(): ObjectContainer

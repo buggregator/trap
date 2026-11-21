@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Frontend;
 use Buggregator\Trap\Module\Frontend\Config\Frontend;
 use Buggregator\Trap\Module\Frontend\Message\Error;
 use Buggregator\Trap\Module\Frontend\Service;
+use Buggregator\Trap\Module\XDebug\Debugger;
 use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Config\TcpPorts;
 use Buggregator\Trap\Server\Event\Event;
@@ -143,7 +144,7 @@ final class ServiceTest
 
         Assert::same(
             self::json($service->settings())['events'],
-            ['var-dump', 'smtp', 'monolog', 'ray', 'sentry', 'profiler', 'http-dump'],
+            ['var-dump', 'smtp', 'monolog', 'ray', 'sentry', 'profiler', 'xdebug-trace', 'http-dump'],
         );
     }
 
@@ -163,12 +164,28 @@ final class ServiceTest
         $ports->ports = [9912, 8000];
         $ui = new Frontend();
         $ui->port = 8080;
-        $service = new Service(new Logger(), new EventStore(), self::modules(), $ui, $ports);
+        $service = new Service(new Logger(), new EventStore(), self::modules(), $ui, $ports, new ObjectContainer());
 
         Assert::same(
             self::json($service->settings())['ports'],
             ['http' => 8000, 'smtp' => 9912, 'monolog' => 9912, 'var_dumper' => 9912],
         );
+    }
+
+    public function testSettingsListNoPortOfDebuggerWhileOff(): void
+    {
+        [$service] = self::service();
+
+        Assert::false(\array_key_exists('xdebug', self::json($service->settings())['ports']));
+    }
+
+    public function testSettingsListPortOfDebuggerWhileOn(): void
+    {
+        $container = new ObjectContainer();
+        $container->get(Debugger::class)->enable();
+        $service = new Service(new Logger(), new EventStore(), self::modules(), new Frontend(), new TcpPorts(), $container);
+
+        Assert::same(self::json($service->settings())['ports']['xdebug'] ?? null, 9003);
     }
 
     /**
@@ -187,7 +204,7 @@ final class ServiceTest
 
     private static function create(EventStore $storage): Service
     {
-        return new Service(new Logger(), $storage, self::modules(), new Frontend(), new TcpPorts());
+        return new Service(new Logger(), $storage, self::modules(), new Frontend(), new TcpPorts(), new ObjectContainer());
     }
 
     private static function modules(): Modules

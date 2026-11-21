@@ -36,6 +36,7 @@ final class TraceStorage implements StoreListener
     /** @var array<non-empty-string, non-empty-string> File paths by UUID, the oldest first */
     private array $files = [];
 
+    /** @var non-empty-string|null */
     private ?string $dir = null;
 
     /** @var resource|null */

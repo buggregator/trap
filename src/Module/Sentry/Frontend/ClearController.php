@@ -11,6 +11,7 @@ use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteSuccess as Asser
 use Buggregator\Trap\Server\Handler\Router\Attribute\StaticRoute;
 use Buggregator\Trap\Server\Handler\Router\Method;
 use Buggregator\Trap\Server\Logger;
+use Buggregator\Trap\Server\Telemetry\TelemetryStore;
 
 /**
  * The UI clears Sentry data along with every clear of the events, and takes the clear for failed
@@ -23,10 +24,11 @@ final class ClearController
     public function __construct(
         private readonly Logger $logger,
         private readonly EventStore $events,
+        private readonly TelemetryStore $telemetry,
     ) {}
 
     /**
-     * Deletes the Sentry events of the project.
+     * Deletes the Sentry events of the project, and its traces, logs and metrics.
      *
      * @param string|null $project Project key; any when null.
      * @param mixed $keep_pinned Whether the pinned events stay; the UI sends `1` in the query.
@@ -40,6 +42,7 @@ final class ClearController
         $project === '' and $project = null;
         $this->logger->debug('[UI Service] Delete Sentry events of project %s', $project ?? 'any');
 
+        $this->telemetry->clear($project);
         foreach (\iterator_to_array($this->events) as $event) {
             $event->type === 'sentry'
             && ($project === null || $event->projectKey() === $project)

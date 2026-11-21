@@ -70,9 +70,16 @@ final class SignalRenderer implements RendererInterface
             }
         }
 
+        // A resource may carry any value as its service name: only strings name a service
+        $names = [];
+        /** @var mixed $service */
+        foreach ($services as $service) {
+            \is_string($service) && $service !== '' and $names[$service] = $service;
+        }
+
         Common::renderMetadata($output, \array_filter([
             'Time' => $frame->time,
-            'Service' => \implode(', ', \array_unique(\array_filter($services, \is_string(...)))),
+            'Service' => \implode(', ', $names),
         ], static fn(mixed $value): bool => $value !== ''));
 
         foreach (\array_slice($lines, 0, self::MAX_LINES) as $line) {
