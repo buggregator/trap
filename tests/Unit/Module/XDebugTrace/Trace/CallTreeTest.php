@@ -147,6 +147,23 @@ final class CallTreeTest
         }
     }
 
+    public function testSearchesTraceReusingNumberOfOpenMatch(): void
+    {
+        $this->file = (string) \tempnam(\sys_get_temp_dir(), 'trap-xt-test-');
+        \file_put_contents($this->file, \implode("\n", [
+            'File format: 4',
+            "1\t5\t0\t0.1\t100\tf\t1\t\t/a.php\t1\t0",
+            "3\t5\t0\t0.2\t100\tf\t1\t\t/a.php\t2\t0",
+            "3\t5\t1\t0.3\t100",
+            "2\t6\t0\t0.4\t100\tg\t1\t\t/a.php\t3\t0",
+            "2\t6\t1\t0.5\t100",
+        ]) . "\n");
+
+        $page = (new CallTree($this->file))->search('f');
+
+        Assert::count($page->nodes, 2);
+    }
+
     public function testSearchesFiles(): void
     {
         $page = (new CallTree(TraceReaderTest::MAIN))->search('LIB.php');
