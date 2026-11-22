@@ -443,9 +443,11 @@ name the MCP client gave in `initialize`.
   of the line as `source_line`, and `exception`.
 - `xdebug_stack` returns the first `limit` frames, 20 by default; `limit: 0` returns all.
 - `xdebug_eval` evaluates in the current frame (level 0): Xdebug's eval takes no stack depth, so the variables of
-  other frames are read with `xdebug_variables` and `frame`. A warning or notice of the expression, as an undefined
-  variable, fails the call; the expression runs under `@`, so PHP doesn't print it into the output of the script.
-  Deprecations pass. It takes one expression, not statements.
+  other frames are read with `xdebug_variables` and `frame`. Xdebug runs the code as `return <code>;`, so a
+  trailing `;` is fine and `1; 2` gives `1`. During the eval an error handler of Trap sits on top of the script's
+  one: a warning or notice of the eval code, as an undefined variable, fails the call, and neither the output of
+  the script, its error handler nor its `error_get_last()` sees it. Deprecations of the eval code are dropped; an
+  error raised in a file of the script, as by a function the expression calls, goes on to the script's handler.
 - `xdebug_breakpoints` lists each saved breakpoint with `sessions`: for each live session Trap drives, the `state`
   there, the `resolved_line` Xdebug stops at and the `hit_count`.
 - `xdebug_continue` and changing breakpoints work on the sessions Trap drives (`driver: here`); an IDE steps its own.

@@ -57,6 +57,46 @@ final class Session
         'notify_ok -v 1',
     ];
 
+    /**
+     * Puts an error handler on top for an eval: it keeps the first warning or notice of the eval code and
+     * silences its deprecations, and passes the other errors to the script's handler. In a closure of its own:
+     * the eval runs in the scope of the paused frame. PHP 7 syntax: the debugged script may run an old PHP.
+     */
+    private const EVAL_CATCH = <<<'PHP'
+        (static function () {
+            $previous = \set_error_handler(static function () { return false; });
+            \restore_error_handler();
+            \set_error_handler(new class ($previous) {
+                public $trapEval = true;
+                public $error;
+                private $previous;
+                public function __construct($previous) { $this->previous = $previous; }
+                public function __invoke($type, $message, $file = '', $line = 0) {
+                    if ($file !== 'xdebug://debug-eval') {
+                        return $this->previous !== null && \call_user_func($this->previous, $type, $message, $file, $line) !== false;
+                    }
+                    if ((\error_reporting() & $type) !== 0 && ($type & (\E_DEPRECATED | \E_USER_DEPRECATED)) === 0) {
+                        $this->error = $this->error ?: $type . ' ' . $message;
+                    }
+                    return true;
+                }
+            });
+        })()
+        PHP;
+
+    /** Takes the handler of {@see EVAL_CATCH} off and returns what it kept: `<type> <message>`, or null */
+    private const EVAL_RELEASE = <<<'PHP'
+        (static function () {
+            $handler = \set_error_handler(static function () { return false; });
+            \restore_error_handler();
+            if (!\is_object($handler) || !isset($handler->trapEval)) {
+                return null;
+            }
+            \restore_error_handler();
+            return $handler->error;
+        })()
+        PHP;
+
     private const AGENT_LOG_SIZE = 200;
     private const MAX_RAN_FILES = 2000;
 
@@ -462,20 +502,14 @@ final class Session
         $this->assertPaused();
 
         return $this->exclusive(function () use ($expression): Response {
-            self::ok($this->exchange('eval', '', '\error_clear_last()'));
-            // A line break before the parenthesis: a trailing `//` comment would swallow it
-            $value = self::ok($this->exchange('eval', '', "@($expression\n)"));
-            $error = [];
-            /** @var list<array{name: string, value?: string}> $fields */
-            $fields = self::ok($this->exchange('eval', '', '\error_get_last()'))->properties()[0]['children'] ?? [];
-            foreach ($fields as $field) {
-                $error[$field['name']] = $field['value'] ?? '';
-            }
-            if (($error['file'] ?? '') === 'xdebug://debug-eval'
-                && !\in_array((int) ($error['type'] ?? 0), [\E_DEPRECATED, \E_USER_DEPRECATED], true)
-            ) {
-                $level = \in_array((int) $error['type'], [\E_NOTICE, \E_USER_NOTICE], true) ? 'Notice' : 'Warning';
-                throw DebuggerError::evalError("PHP $level in the expression: " . ($error['message'] ?? ''));
+            self::ok($this->exchange('eval', '', self::EVAL_CATCH));
+            $value = $this->exchange('eval', '', $expression);
+            $caught = (string) (self::ok($this->exchange('eval', '', self::EVAL_RELEASE))->properties()[0]['value'] ?? '');
+            $value = self::ok($value);
+            if ($caught !== '') {
+                [$type, $message] = \explode(' ', $caught, 2) + [1 => ''];
+                $level = \in_array((int) $type, [\E_NOTICE, \E_USER_NOTICE], true) ? 'Notice' : 'Warning';
+                throw DebuggerError::evalError("PHP $level in the expression: $message");
             }
 
             return $value;
@@ -503,7 +537,13 @@ final class Session
     {
         $this->closed and throw DebuggerError::notPaused($this->state());
         $this->driver === self::DRIVER_HERE or throw DebuggerError::ideAttached($this->state());
-        $this->status === 'break' && $this->conts === 0 or throw DebuggerError::notPaused($this->state());
+        // A read in flight, as the three exchanges of an eval, ends in the pause it began in
+        $timer = new Timer($this->timeout);
+        while ($this->busy) {
+            $timer->isReady() and throw DebuggerError::timeout();
+            self::suspend();
+        }
+        $this->isPaused() && $this->conts === 0 or throw DebuggerError::notPaused($this->state());
 
         $this->lastContBy = $by;
         $this->lastContAgent = $by === self::BY_AGENT ? $agent : '';

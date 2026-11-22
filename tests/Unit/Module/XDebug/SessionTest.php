@@ -273,17 +273,15 @@ final class SessionTest
         Assert::null($h->session()->exception());
     }
 
-    public function testFailsEvalOnWarningOfExpression(): void
+    public function testEvaluatesUnderHandlerOfTrapAndFailsOnItsWarning(): void
     {
         $h = self::harness(pauseOnFirstLine: true);
         $evals = [];
         $h->engine->responders['eval'] = static function (array $c) use (&$evals): string {
             $code = \base64_decode(\explode('-- ', $c['args'])[1]);
             $evals[] = $code;
-            $field = static fn(string $name, string $value): string => "<property name=\"$name\" type=\"string\" encoding=\"base64\"><![CDATA[" . \base64_encode($value) . ']]></property>';
-            $inner = $code === '\error_get_last()'
-                ? '<property type="array" numchildren="4"><property name="type" type="int"><![CDATA[2]]></property>'
-                    . $field('message', 'Undefined variable $x') . $field('file', 'xdebug://debug-eval') . '</property>'
+            $inner = \str_contains($code, '$handler->error')
+                ? '<property type="string" encoding="base64"><![CDATA[' . \base64_encode('2 Undefined variable $x') . ']]></property>'
                 : '<property type="null"></property>';
             return FakeEngine::response('eval', $c['tid'], '', $inner);
         };
@@ -292,16 +290,43 @@ final class SessionTest
 
         $error = $h->call(static function () use ($h): ?DebuggerError {
             try {
-                $h->session()->evaluate('$x // a comment');
+                $h->session()->evaluate('$x + 1;');
             } catch (DebuggerError $e) {
                 return $e;
             }
             return null;
         });
 
-        Assert::same($evals, ['\error_clear_last()', "@(\$x // a comment\n)", '\error_get_last()']);
+        Assert::count($evals, 3);
+        Assert::string($evals[0])->contains('set_error_handler');
+        Assert::same($evals[1], '$x + 1;');
         Assert::same($error?->errorCode, 'eval_error');
         Assert::string($error->getMessage())->contains('Warning in the expression: Undefined variable $x');
+    }
+
+    public function testEvalHandlerPassesErrorsOfScriptToItsHandler(): void
+    {
+        $catch = (string) (new \ReflectionClassConstant(Session::class, 'EVAL_CATCH'))->getValue();
+        $release = (string) (new \ReflectionClassConstant(Session::class, 'EVAL_RELEASE'))->getValue();
+        $seen = [];
+        $script = static function (int $type, string $message) use (&$seen): bool {
+            $seen[] = $message;
+            return true;
+        };
+        \set_error_handler($script);
+        try {
+            eval("return $catch;");
+            \trigger_error('of the script', \E_USER_WARNING);
+            $kept = eval("return $release;");
+            $current = \set_error_handler(static fn(): bool => false);
+            \restore_error_handler();
+        } finally {
+            \restore_error_handler();
+        }
+
+        Assert::same($seen, ['of the script']);
+        Assert::null($kept);
+        Assert::same($current, $script);
     }
 
     public function testSkipsConditionWithoutEval(): void
