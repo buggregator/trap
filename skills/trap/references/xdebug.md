@@ -70,7 +70,8 @@ two calls. Full reference: <https://github.com/buggregator/trap/blob/master/docs
 
 - `step_into` often enters Composer's autoloader first: `step_out` gets back. `step_over` at the last statement of
   a function lands in the caller, at its next call; the value the function returned shows only after `step_out`
-  (`return_value`), else read it in the caller.
+  (`return_value`, from the function in `returned_from`), else read it in the caller. Right after `step_out`,
+  frame 0 of `xdebug_stack` is still the function that returned; `where` and the line are the caller's.
 - `xdebug_eval` evaluates PHP in the current frame (level 0), only with `TRAP_XDEBUG_ALLOW_EVAL=1`; other frames
   are read with `xdebug_variables` and `frame`. An error of the expression, as the warning of an undefined
   variable, fails the call; the script's output, its error handler and its `error_get_last()` don't see it. `@`
@@ -79,21 +80,24 @@ two calls. Full reference: <https://github.com/buggregator/trap/blob/master/docs
 ## Calls from PowerShell
 
 Arguments with spaces or quotes, as a condition or an expression, break as `key=value` pairs: pass the JSON
-object on stdin. A whole run, a Testo test stopped where it calls `total()`:
+object on stdin. A whole run on the Trap of [the recipe of server.md](server.md#a-trap-of-your-own-in-powershell)
+(MCP on `18000`, Xdebug on `19003`, `$php` the PHP binary), a Testo test stopped where it calls `total()`:
 
 ```powershell
 $mcp = '<skill-dir>/scripts/mcp.php'
+$env:TRAP_MCP_PORT = '18000'                   # where mcp.php calls; 8000 without it
 '{"action": "set", "file": "D:/app/tests/CartTest.php", "line": 21, "condition": "count($items) > 3"}' |
     php $mcp xdebug_breakpoints -
-$test = Start-Process $php '-d','xdebug.mode=debug','-d','xdebug.client_port=9003','-d',
+$test = Start-Process $php '-d','xdebug.mode=debug','-d','xdebug.client_port=19003','-d',
     'xdebug.start_with_request=yes','vendor/bin/testo','--path=tests/CartTest.php' -PassThru -WindowStyle Hidden
 php $mcp xdebug_wait timeout=30                # the paused session
 php $mcp xdebug_continue command=step_into     # into total(); step_out first if it lands in the autoloader
-php $mcp xdebug_continue command=step_out      # back at the call, with return_value
+php $mcp xdebug_continue command=step_out      # back at the call: return_value, returned_from
 php $mcp xdebug_continue command=run           # state: stopped once the test has ended
+$test | Wait-Process -Timeout 30 -ErrorAction SilentlyContinue
+if (-not $test.HasExited) { Stop-Process -Id $test.Id }
+Remove-Item Env:TRAP_MCP_PORT
 ```
-
-`$php` is PHP itself, as in [the recipe of server.md](server.md#a-trap-of-your-own-in-powershell).
 
 ## Limits
 

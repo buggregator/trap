@@ -188,7 +188,7 @@ if (\extension_loaded('xdebug')) {
             " (an IDE, or a Trap with --xdebug, which shows this probe as an empty event): ",
             $free < 9100
                 ? "give Trap a free one, as --xdebug=$free with xdebug.client_port=$free\n"
-                : "no free port found among 9013-9093; pick another one\n";
+                : "none of 9013, 9023 … 9093 is free; pick another one\n";
     }
     $found = true;
 }

@@ -62,10 +62,12 @@ to the next line with code, at worst the closing brace of the function: the page
 line it took, and how often it stopped there.
 
 At an exception break PHP has the exception in flight and opens no files, so Xdebug can't read the source. Trap
-then reads the file itself, only when Xdebug connected from a loopback address (its paths are then this host's),
-and only a file the session reported running (its entry file, a pause, a stack frame), by a plain local path (a
-`file:///` URI without a host, no network share, no other stream wrapper), with a PHP source extension (`.php`,
-`.phtml`, `.phpt`, `.inc`, `.module`), not empty and up to 4 MB, a line cut at 64 KB. A file on a mapped network
+then reads the file itself, only when Xdebug connected from a loopback address. That usually means a script of
+this host, though Docker Desktop may present a container's connection as `127.0.0.1` too, so the other rules
+still apply: only a file the session reported running (its entry file, a pause, a stack frame), by a plain local
+path (a `file:///` URI without a host, no network share, no other stream wrapper), with a PHP source extension
+(`.php`, `.php5` and the like, `.phtml`, `.phpt`, `.inc`, `.module`), not empty and up to 4 MB, a line cut at
+64 KB. A file on a mapped network
 drive holds Trap up while it is read. In Docker, or for another file, step over once to see the source.
 
 ## Settings
