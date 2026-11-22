@@ -1,5 +1,43 @@
 # Changelog
 
+## [1.21.0](https://github.com/buggregator/trap/compare/1.20.1...1.21.0) (2026-11-22)
+
+
+### Features
+
+* **command:** make `trap test` send a sample of every kind of event ([474bcd4](https://github.com/buggregator/trap/commit/474bcd4dd838058864014fa667a43923f7ebc6b5))
+* **http-dump:** download the files uploaded with a dumped request ([dbae2eb](https://github.com/buggregator/trap/commit/dbae2eb4b80957fa8503fd6f8edf46d3335c76f0))
+* **mailer:** serve mail attachments at the paths of the UI 1.39 ([4d4f82b](https://github.com/buggregator/trap/commit/4d4f82bebbf2d54f0c89576f76bac01d8976dae7))
+* **mcp:** keep pinned events in `clear_events` unless `include_pinned` is set ([a0cbb29](https://github.com/buggregator/trap/commit/a0cbb298d1ad793a00ebf2ef6bbe3993f8bbe939))
+* **mcp:** read Sentry and OpenTelemetry traces from the store of the web UI ([77af46e](https://github.com/buggregator/trap/commit/77af46e729f879fae0730b53ce01a9dcbde3ab1e))
+* **profiler:** draw the flame chart by any metric and compare two profiles ([a7dfe9e](https://github.com/buggregator/trap/commit/a7dfe9e936a060eeb08688698b4cc4d3bc5aae7e))
+* **sentry:** clear Sentry events with `DELETE /api/sentry/all` ([888af44](https://github.com/buggregator/trap/commit/888af44753d89bcc46764d42e4034eecf80aff1d))
+* **sentry:** keep transactions out of the event feed, as traces only ([60f5e8c](https://github.com/buggregator/trap/commit/60f5e8c0a5d37b6f66a88acdf30a887b2e1016fb))
+* **ui:** pin events and keep pinned ones on clear ([918d988](https://github.com/buggregator/trap/commit/918d988b94bb92dd1ea0cccc8e9c50a7aa0ff6b6))
+* **ui:** push events, their deletes and clears to project channels ([aef903f](https://github.com/buggregator/trap/commit/aef903f2d6dcaeb74d5bf5b208d41386ee2173c8))
+* **ui:** Sentry v2 and OpenTelemetry data for the web UI: ingestion, store, lists ([#373](https://github.com/buggregator/trap/issues/373)) ([95ce1a7](https://github.com/buggregator/trap/commit/95ce1a75bf75882ecf63d58e1163ca2851318bb4))
+* **ui:** service map and call sequence of the Sentry traces ([#374](https://github.com/buggregator/trap/issues/374)) ([123cc0b](https://github.com/buggregator/trap/commit/123cc0bfe2e81103cee22179d27af7812747b4f2))
+* **ui:** update the web UI to buggregator/frontend 1.39.0 ([d308043](https://github.com/buggregator/trap/commit/d3080436a172a614a35f5ba25888b173c0427ec2))
+* **xdebug:** receive Xdebug function traces and serve their call tree ([#372](https://github.com/buggregator/trap/issues/372)) ([9f45d49](https://github.com/buggregator/trap/commit/9f45d49604b9a47b43e44db9a8d328d178c00be1))
+* **xdebug:** step-debug PHP from the web UI and AI agents, or relay to the IDE ([#375](https://github.com/buggregator/trap/issues/375)) ([472f063](https://github.com/buggregator/trap/commit/472f0632528e1108b411d3e2eef4309e7e858ad7))
+
+
+### Bug Fixes
+
+* **support:** format a zero memory size without a float-to-int warning ([547e19b](https://github.com/buggregator/trap/commit/547e19be6a26bd1f1938e724abd6d5bc4aa00e48))
+* **ui:** answer 400 to a request parameter of a wrong type or a missing one ([78b4e52](https://github.com/buggregator/trap/commit/78b4e52f06b9cb2469eced069731c0f9d85f3c27))
+* **ui:** drop CORS from the web UI ([1375a56](https://github.com/buggregator/trap/commit/1375a5669220fea52abae28aea10ae4391fb9f59))
+
+
+### Documentation
+
+* **skill:** align the trap skill with the web UI routing, limits and 4xx answers ([f064c98](https://github.com/buggregator/trap/commit/f064c9818a3439cc8506e5eba98b910bfbae5828))
+
+
+### Code Refactoring
+
+* **ui:** serve the Xdebug and Sentry pages through the responses of the UI ([3b6f021](https://github.com/buggregator/trap/commit/3b6f021426befee16a81196a63538a5d377c43c9))
+
 ## [1.20.1](https://github.com/buggregator/trap/compare/1.20.0...1.20.1) (2026-11-20)
 
 
