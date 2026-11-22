@@ -1,7 +1,7 @@
 # Reading events
 
 Trap's MCP server answers at `http://127.0.0.1:8000/mcp` while Trap runs with `--mcp`. Its tools read the events
-Trap has caught, the OpenTelemetry traces it has received and the Xdebug sessions of `--xdebug`. The full reference:
+Trap has caught, the Sentry and OpenTelemetry traces it has received and the Xdebug sessions of `--xdebug`. The full reference:
 <https://github.com/buggregator/trap/blob/master/docs/mcp.md>.
 
 ## Two clients

@@ -182,12 +182,14 @@ final class TraceFilter
     }
 
     /**
+     * A trace without services matches as one of an empty name, so `*` takes every trace.
+     *
      * @param list<non-empty-string> $services
      */
     private function matchesService(array $services): bool
     {
         foreach ($this->services as $pattern) {
-            foreach ($services as $service) {
+            foreach ($services === [] ? [''] : $services as $service) {
                 if ($pattern->matches($service)) {
                     return true;
                 }

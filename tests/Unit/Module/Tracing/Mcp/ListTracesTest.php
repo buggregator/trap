@@ -288,6 +288,17 @@ final class ListTracesTest
         Assert::same(self::ids($result), \array_map(self::traceId(...), $expected));
     }
 
+    public function testAnyServiceTakesTraceWithoutService(): void
+    {
+        $trap = new Trap();
+        self::receive($trap, self::frame(null, self::span('a', 1)));
+
+        $result = $trap->get(ListTraces::class)->call(['service' => '*']);
+
+        Assert::same(self::ids($result), [self::traceId('a')]);
+        Assert::null($result['traces'][0]['service']);
+    }
+
     public function testProjectScopesTheSummary(): void
     {
         $trap = new Trap();

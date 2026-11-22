@@ -315,7 +315,7 @@ dropped. Clearing the Sentry pages of the web UI drops their traces for the tool
 - `errors_only` lists only the traces with a failed span or transaction.
 - `from` and `to` take the times of [the event filter](#filters) and match the time of the last update.
 - `service` is one service or a list, and `name` a name; both match in any case, with `*` for any characters.
-  `service` matches any service of the trace.
+  `service` matches any service of the trace; `*` takes a trace without services too.
 - `min_duration_ms` lists only the traces that last that long or longer.
 - `search` and `regex` match as in [the event filter](#filters), over the spans: their names (a Sentry span is named
   `op: description`), status messages, attributes, and events, such as an exception with its message, and over the

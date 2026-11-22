@@ -93,7 +93,7 @@ final class TraceSummary
                 $root instanceof Span => $root->description,
                 default => null,
             },
-            service: $root?->service ?? ($services[0] ?? null),
+            service: $root?->service === null || $root->service === '' ? $services[0] ?? null : $root->service,
             services: $services,
             sources: $sources,
             projects: $projectList,
