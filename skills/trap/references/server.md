@@ -60,10 +60,12 @@ Every port takes every protocol; the defaults are the ports the clients send to 
 ### A Trap of your own in PowerShell
 
 ```powershell
+Get-NetTCPConnection -State Listen -LocalPort 18000, 19003 -ErrorAction SilentlyContinue   # nothing: both free
 $php = php -r 'echo PHP_BINARY;'   # php may be a .bat wrapper: its PID would be cmd's, and stopping it leaves PHP
+$log = Join-Path ([IO.Path]::GetTempPath()) 'trap-18000'
 $env:TRAP_TCP_PORTS = '18000'; $env:TRAP_MCP_PORT = '18000'
 $trap = Start-Process $php 'vendor/bin/trap','--mcp','--xdebug=19003' -PassThru -WindowStyle Hidden `
-    -RedirectStandardOutput trap.out -RedirectStandardError trap.err
+    -RedirectStandardOutput "$log.out" -RedirectStandardError "$log.err"
 Remove-Item Env:TRAP_TCP_PORTS, Env:TRAP_MCP_PORT   # $env: lasts for the rest of the shell
 # ... the runs ...
 Stop-Process -Id $trap.Id
@@ -71,7 +73,7 @@ Stop-Process -Id $trap.Id
 
 - `Start-Process` takes the environment of the shell: set the variables before it, remove them after, or the next
   commands of the shell, the application among them, get them too.
-- `trap.out` holds the console output; read it with `Get-Content trap.out -Tail 20`.
+- The console output goes to the temp directory, out of the project: `Get-Content "$log.out" -Tail 20`.
 - Code to step through blocks at its breakpoints: start it the same way, in the background, with
   `'-d','xdebug.mode=debug','-d','xdebug.client_port=19003','-d','xdebug.start_with_request=yes'` before the script.
 

@@ -12,7 +12,8 @@ the agent reads back through Trap's MCP tools.
 
 1. **Detect.** From the project root run `php <skill-dir>/scripts/detect.php`. Done when you know whether Trap is
    installed with MCP support, whether its MCP endpoint answers, which channels the project can send through, and
-   which profilers PHP has. The report names the references its findings need.
+   which profilers PHP has. The report names the references its findings need. Its port probes may leave an
+   empty event in a Trap that listens there.
 2. **Start the server** when MCP doesn't answer: run `vendor/bin/trap --mcp` (or the `trap` that detect found) as a
    background process of your shell tool (`run_in_background`, `nohup … &`, `Start-Process`): it runs until
    stopped. Then run detect once more. MCP still silent, Trap missing, or its

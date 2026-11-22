@@ -27,7 +27,8 @@ $listener = static function (int $port): ?string {
         return null;
     }
     if (\PHP_OS_FAMILY === 'Windows') {
-        $pid = \preg_match("/TCP\\s+\\S+:$port\\s+\\S+\\s+LISTENING\\s+(\\d+)/", (string) @\shell_exec('netstat -ano -p TCP'), $m) === 1 ? $m[1] : null;
+        // A listening socket has no remote address; the name of the state is translated
+        $pid = \preg_match("/TCP\\s+\\S+:$port\\s+(?:0\\.0\\.0\\.0|\\[::\\]):0\\s+\\S+\\s+(\\d+)/", (string) @\shell_exec('netstat -ano'), $m) === 1 ? $m[1] : null;
         $task = $pid === null ? '' : (string) @\shell_exec("tasklist /FI \"PID eq $pid\" /FO CSV /NH");
         return \preg_match('/^"([^"]+)"/', $task, $m) === 1 ? "{$m[1]} (PID $pid)" : null;
     }
@@ -173,15 +174,19 @@ if (\extension_loaded('xdebug')) {
     $mode = (string) \ini_get('xdebug.mode');
     echo "  Xdebug: mode=$mode", \str_contains($mode, 'profile') ? '' : '; profiles whole runs with xdebug.mode=profile', "\n";
     echo "    steps through code with trap --xdebug (xdebug.md); traces every call with xdebug.mode=trace (profiling.md)\n";
-    $port = (int) (\getenv('TRAP_XDEBUG_PORT') ?: 9003);
-    $socket = @\stream_socket_client("tcp://127.0.0.1:$port", $errno, $error, 0.3);
-    if ($socket === false) {
+    $port = (int) (\getenv('TRAP_XDEBUG_PORT') ?: \ini_get('xdebug.client_port') ?: 9003);
+    $held = static function (int $port): bool {
+        $socket = @\stream_socket_client("tcp://127.0.0.1:$port", $errno, $error, 0.3);
+        $socket === false or \fclose($socket);
+        return $socket !== false;
+    };
+    if (!$held($port)) {
         echo "    port $port for the debugger: free\n";
     } else {
-        \fclose($socket);
+        for ($free = 9013; $free < 9100 && $held($free); $free += 10);
         echo "    port $port for the debugger: held", ($owner = $listener($port)) === null ? '' : " by $owner",
             " (an IDE, or a Trap with --xdebug, which shows this probe as an empty event):",
-            " give Trap another one, as --xdebug=9013\n";
+            " give Trap a free one, as --xdebug=$free with xdebug.client_port=$free\n";
     }
     $found = true;
 }
