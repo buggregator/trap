@@ -761,13 +761,21 @@ final class SentryViewTest
             new EnvelopeItem(['type' => 'event'], ['message' => 'Boom']),
             new EnvelopeItem(['type' => 'transaction'], [
                 'transaction' => 'GET /',
-                'spans' => [['span_id' => 's1', 'trace_id' => 'abc']],
+                'spans' => [['span_id' => 's1', 'trace_id' => 'abc'], ['op' => 'without an ID']],
+            ]),
+            // Spans in a map, not a list, are not read: no trace ID, so an event.
+            new EnvelopeItem(['type' => 'transaction'], [
+                'transaction' => 'POST /',
+                'spans' => ['a' => ['span_id' => 's1', 'trace_id' => 'def']],
             ]),
         ];
 
         $text = (string) (new SentryView())->text(new Record(self::event([]), 1, [new SentryEnvelope([], $items)]));
 
-        Assert::string($text)->contains("--- Item 2 of 2: transaction ---\nTransaction: GET /, 2 spans\nRead it as trace abc with `get_trace`.\n");
+        Assert::string($text)
+            ->contains("--- Item 2 of 3: transaction ---\nTransaction: GET /, 2 spans\nRead it as trace abc with `get_trace`.\n")
+            ->contains("--- Item 3 of 3: transaction ---\nType: transaction\nTransaction: POST /\n")
+            ->notContains('def');
     }
 
     public function testEmptyBreadcrumbsAndMechanismAreLeftOut(): void

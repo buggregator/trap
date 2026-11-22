@@ -20,7 +20,11 @@ use Buggregator\Trap\Module\Tracing\Frontend\TelemetryMapper;
 use Buggregator\Trap\Module\Tracing\Mcp\ListTraces;
 use Buggregator\Trap\Module\Tracing\Mcp\TraceFilter;
 use Buggregator\Trap\Module\Tracing\Mcp\TraceSummary;
+use Buggregator\Trap\Server\Telemetry\Batch;
+use Buggregator\Trap\Server\Telemetry\Source;
+use Buggregator\Trap\Server\Telemetry\Span as TelemetrySpan;
 use Buggregator\Trap\Server\Telemetry\TelemetryStore;
+use Buggregator\Trap\Server\Telemetry\Transaction;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\JsonSchema;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
 use Testo\Assert;
@@ -297,6 +301,19 @@ final class ListTracesTest
 
         Assert::same(self::ids($result), [self::traceId('a')]);
         Assert::null($result['traces'][0]['service']);
+    }
+
+    public function testRootWithEmptyServiceTakesTheServiceOfAnotherPart(): void
+    {
+        $trap = new Trap();
+        $batch = new Batch('default');
+        $batch->transactions[] = new Transaction('t1', 'default', self::traceId('a'), 's0', null, 'GET /', 'http.server', 'ok', 1.0, 2.0, Source::Sentry, '');
+        $batch->spans[] = new TelemetrySpan('default', self::traceId('a'), 's1', 's0', 't1', 'db', 'SELECT 1', 'ok', 1.0, 1.5, Source::Sentry, 'db-api');
+        $trap->get(TelemetryStore::class)->add($batch);
+
+        $trace = $trap->get(ListTraces::class)->call([])['traces'][0];
+
+        Assert::same([$trace['name'], $trace['service'], $trace['services']], ['GET /', 'db-api', ['db-api']]);
     }
 
     public function testProjectScopesTheSummary(): void

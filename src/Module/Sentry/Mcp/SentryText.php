@@ -7,7 +7,10 @@ namespace Buggregator\Trap\Module\Sentry\Mcp;
 use Buggregator\Trap\Module\Sentry\Frame\EnvelopeItem;
 use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope;
 use Buggregator\Trap\Module\Sentry\Frame\SentryStore;
+use Buggregator\Trap\Module\Sentry\Telemetry\ItemReader;
+use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\Record;
+use Buggregator\Trap\Server\Telemetry\Batch;
 use Buggregator\Trap\Support\Json;
 
 /**
@@ -790,11 +793,12 @@ final class SentryText
      */
     private static function transactionLine(array $payload): string
     {
+        $batch = self::readTransaction($payload);
         $parts = \array_filter([
             self::inline($payload['transaction'] ?? ''),
             self::duration($payload),
             // With the transaction itself, as `list_traces` counts.
-            (\count(self::arrays($payload['spans'] ?? null)) + 1) . ' spans',
+            (\count($batch->spans) + 1) . ' spans',
         ], static fn(string $part): bool => $part !== '');
 
         return 'Transaction: ' . \implode(', ', $parts) . "\n"
@@ -802,24 +806,22 @@ final class SentryText
     }
 
     /**
-     * The trace ID of a transaction, from its trace context or else from a span, as the telemetry store reads it;
-     * empty when it has none.
+     * The trace ID the telemetry store keeps the transaction under; empty when it keeps none.
      */
     private static function traceId(array $payload): string
     {
-        /** @var mixed $contexts */
-        $contexts = $payload['contexts'] ?? null;
-        /** @var mixed $traceId */
-        $traceId = \is_array($contexts) && \is_array($contexts['trace'] ?? null) ? $contexts['trace']['trace_id'] ?? null : null;
-        foreach (self::arrays($payload['spans'] ?? null) as $span) {
-            if (\is_string($traceId) && $traceId !== '') {
-                break;
-            }
-            /** @var mixed $traceId */
-            $traceId = $span['trace_id'] ?? null;
-        }
+        return self::inline(self::readTransaction($payload)->transactions[0]->traceId ?? '');
+    }
 
-        return \is_string($traceId) ? self::inline($traceId) : '';
+    /**
+     * The transaction and its spans as the telemetry store reads them.
+     */
+    private static function readTransaction(array $payload): Batch
+    {
+        $batch = new Batch(Event::DEFAULT_PROJECT);
+        ItemReader::transaction($batch, $payload);
+
+        return $batch;
     }
 
     /**

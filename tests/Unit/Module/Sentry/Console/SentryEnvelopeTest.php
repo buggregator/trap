@@ -129,13 +129,21 @@ final class SentryEnvelopeTest
         Assert::string($output)->contains("Trace aaaabbbbccccdddd: query (db), 100 ms, 2 spans\n");
     }
 
-    public function testRendersTransactionWithoutTraceIdAsItem(): void
+    public function testRendersTransactionWithoutTraceIdAsItsLine(): void
     {
         $output = $this->render(new SentryEnvelopeFrame([], [
-            new EnvelopeItem(['type' => 'transaction'], ['transaction' => 'POST /checkout', 'spans' => []]),
+            new EnvelopeItem(['type' => 'transaction'], [
+                'transaction' => 'POST /checkout',
+                'op' => 'http.server',
+                'start_timestamp' => 100.0,
+                'timestamp' => 100.25,
+                'spans' => [['span_id' => 's1'], ['op' => 'no ID']],
+            ]),
         ]));
 
-        Assert::string($output)->contains('POST /checkout')->contains('There is no renderer for this item type.')->notContains('Trace ');
+        Assert::string($output)
+            ->contains("Transaction without a trace ID: POST /checkout (http.server), 250 ms, 2 spans\n")
+            ->notContains('There is no renderer for this item type.');
     }
 
     public function testRendersAttachmentItemHeader(): void

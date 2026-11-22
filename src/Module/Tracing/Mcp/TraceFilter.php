@@ -69,7 +69,7 @@ final class TraceFilter
             'to' => Time::schema('Only the traces last updated at this time or earlier.'),
             'service' => [
                 'description' => 'Only the traces with a part of this service or of any of these services; in any '
-                    . 'case, with `*` for any characters.',
+                    . 'case, with `*` for any characters. `*` also takes a trace without services.',
                 'anyOf' => [
                     ['type' => 'string'],
                     ['type' => 'array', 'items' => ['type' => 'string'], 'minItems' => 1],

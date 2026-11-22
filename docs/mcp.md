@@ -225,9 +225,10 @@ prints it:
   the extra data.
 - An envelope of several items shows each of them under `--- Item 2 of 3: attachment ---`: an attachment by its
   name, type and size; a transaction, sent with the error, by its name, duration, number of spans (itself included)
-  and trace ID, to read with [`get_trace`](#traces), or as an event when it has no trace ID; an item that is not an event, such as `session`, `client_report` or `check_in`,
-  by its fields in one line. The web UI shows the first item only. A search looks through the first 64 KB of the whole
-  envelope, so the details of later items may not be found.
+  and trace ID, to read with [`get_trace`](#traces), or as an event when it has no trace ID; an item that is not an
+  event, such as `session`, `client_report` or `check_in`, by its fields in one line. The web UI shows the first
+  item only. A search looks through the first 64 KB of the whole envelope, so the details of later items may not be
+  found.
 
 The sections come in this order: the metadata, the exception chain, the request, the contexts, the breadcrumbs, the
 extra data. A [search](#filters) looks through the first 64 KB of the text, so the causes that would

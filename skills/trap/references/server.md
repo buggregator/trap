@@ -22,8 +22,9 @@ vendor/bin/trap --mcp -s         # no console output: the agent reads only throu
 
 Run it as a background process and keep it for the session: events live in its memory and a restart drops them.
 The buffer keeps the last 200 events (`maxEvents` of `trap.xml`); an event pinned in the web UI is pushed out last.
-Sentry and OpenTelemetry traces are kept apart from the events, up to 10 000 spans (`TRAP_TELEMETRY_MAX_SPANS`), see [mcp.md](mcp.md#traces). Keep the process ID to
-stop it later: `vendor/bin/trap --mcp & echo $!` and `kill <pid>` in a POSIX shell; in PowerShell see
+Sentry and OpenTelemetry traces are kept apart from the events, up to 10 000 spans and transactions
+(`TRAP_TELEMETRY_MAX_SPANS`), see [mcp.md](mcp.md#traces). Keep the process ID to stop it later:
+`vendor/bin/trap --mcp & echo $!` and `kill <pid>` in a POSIX shell; in PowerShell see
 [the Windows recipe](#a-trap-of-your-own-in-powershell). Other Traps may run on the machine: stop only yours. `-vv` prints the server's debug messages and errors, such as a port it can't listen on or a profile
 it can't import.
 

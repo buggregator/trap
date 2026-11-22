@@ -13,6 +13,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Transactions and v2 spans as a line per trace: their spans are shown by the web UI and the MCP trace tools.
+ * A transaction without a trace ID, a feed event, gets a line of its own.
  *
  * @internal
  */
@@ -20,7 +21,7 @@ final class TraceLine
 {
     /**
      * @param string $type An envelope item type, `transaction` for a transaction sent to the `store` endpoint.
-     * @return bool False when the item is not a trace.
+     * @return bool False when the item is neither a transaction nor spans.
      */
     public static function render(OutputInterface $output, string $type, array $payload): bool
     {
@@ -43,9 +44,9 @@ final class TraceLine
             $spans[$span->traceId][] = $span;
         }
 
-        // A transaction without a trace ID stays an event.
         if ($spans === [] && $type === 'transaction') {
-            return false;
+            $output->writeln(['', self::untraced($payload)]);
+            return true;
         }
 
         $output->writeln('');
@@ -84,6 +85,39 @@ final class TraceLine
         ], static fn(string $part): bool => $part !== '');
 
         return \sprintf('<fg=gray>Trace %s:</> %s', self::text($traceId), \implode(', ', $line));
+    }
+
+    /**
+     * A transaction without a trace ID, a feed event: its spans are counted as the telemetry store would read them.
+     */
+    private static function untraced(array $payload): string
+    {
+        /** @var mixed $spans */
+        $spans = $payload['spans'] ?? null;
+        $count = 1;
+        /** @var mixed $span */
+        foreach (\is_array($spans) && \array_is_list($spans) ? $spans : [] as $span) {
+            \is_array($span) && \is_string($span['span_id'] ?? null) && $span['span_id'] !== '' and ++$count;
+        }
+
+        /** @var mixed $name */
+        $name = $payload['transaction'] ?? '';
+        /** @var mixed $context */
+        $context = $payload['contexts']['trace'] ?? null;
+        /** @var mixed $op */
+        $op = $payload['op'] ?? (\is_array($context) ? $context['op'] ?? '' : '');
+        $name = \trim((\is_string($name) ? $name : '') . (\is_string($op) && $op !== '' ? " ($op)" : ''));
+        $duration = Span::durationBetween(
+            ItemReader::time($payload['start_timestamp'] ?? null),
+            ItemReader::time($payload['timestamp'] ?? null),
+        );
+        $line = \array_filter([
+            $name === '' ? '' : '<options=bold>' . self::text($name) . '</>',
+            $duration === null ? '' : "<fg=yellow>$duration ms</>",
+            $count === 1 ? '1 span' : "$count spans",
+        ], static fn(string $part): bool => $part !== '');
+
+        return '<fg=gray>Transaction without a trace ID:</> ' . \implode(', ', $line);
     }
 
     /**

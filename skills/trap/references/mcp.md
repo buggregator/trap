@@ -1,8 +1,8 @@
 # Reading events
 
 Trap's MCP server answers at `http://127.0.0.1:8000/mcp` while Trap runs with `--mcp`. Its tools read the events
-Trap has caught, the Sentry and OpenTelemetry traces it has received and the Xdebug sessions of `--xdebug`. The full reference:
-<https://github.com/buggregator/trap/blob/master/docs/mcp.md>.
+Trap has caught, the Sentry and OpenTelemetry traces it has received and the Xdebug sessions of `--xdebug`. The full
+reference: <https://github.com/buggregator/trap/blob/master/docs/mcp.md>.
 
 ## Two clients
 
@@ -99,9 +99,10 @@ values. A field no type has fails the call. An `xdebug-trace` has no fields: `se
 
 Traces are not events: a Sentry transaction and OpenTelemetry spans are both traces, and `list_traces` lists them
 together, each with its `services`, `sources` (`sentry`, `otel`) and `projects`. It takes its own `since` cursor, and
-`project`, `source`, `from`, `to`, `service`, `name`, `errors_only`, `min_duration_ms`, `search`. A trace is listed
-again with every span that arrives for it. `get_trace` gives the span tree with durations and attributes; a Sentry
-span is named `op: description`. The trace ID of a Sentry error, in its `trace` context, opens the trace of the
-failed request. Slow traces of the last hour: `{"from": "1h", "min_duration_ms": 500}`. The least recently updated
-traces are dropped once the kept spans and transactions pass 10 000 (`TRAP_TELEMETRY_MAX_SPANS`), and clearing the
-Sentry pages of the web UI drops them too. OpenTelemetry logs and metrics have no MCP tool.
+`project`, `source`, `from`, `to`, `service`, `name`, `errors_only`, `min_duration_ms`, `search`; `service: "*"`
+takes a trace without services too. A trace is listed again with every span that arrives for it. `get_trace` gives
+the span tree with durations and attributes; a Sentry span is named `op: description`. The trace ID of a Sentry
+error, in its `trace` context, opens the trace of the failed request. Slow traces of the last hour:
+`{"from": "1h", "min_duration_ms": 500}`. The least recently updated traces are dropped once the kept spans and
+transactions pass 10 000 (`TRAP_TELEMETRY_MAX_SPANS`), and clearing the Sentry pages of the web UI drops them too.
+OpenTelemetry logs and metrics have no MCP tool.

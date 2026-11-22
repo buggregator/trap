@@ -69,6 +69,20 @@ final class EnvelopeMapperTest
         Assert::same($store->traces(), []);
     }
 
+    public function testEventWinsTheFeedOverATransactionWithoutTraceId(): void
+    {
+        $store = new TelemetryStore();
+        $frame = new SentryEnvelope([], [
+            new EnvelopeItem(['type' => 'transaction'], ['transaction' => 'GET /', 'spans' => []]),
+            new EnvelopeItem(['type' => 'event'], ['message' => 'Boom']),
+        ]);
+
+        $event = (new EnvelopeMapper($store))->map($frame);
+
+        Assert::same($event?->payload, ['message' => 'Boom']);
+        Assert::same($store->traces(), []);
+    }
+
     public function testSpanOnlyEnvelopeMakesNoEvent(): void
     {
         $store = new TelemetryStore();
