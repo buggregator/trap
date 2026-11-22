@@ -302,7 +302,7 @@ final class SessionTest
 
         Assert::count($evals, 3);
         Assert::string($evals[0])->contains('set_error_handler');
-        Assert::same($evals[1], '$x + 1;');
+        Assert::same($evals[1], "\$x + 1;\n");
         Assert::same($error?->errorCode, 'eval_error');
         Assert::string($error->getMessage())->contains('Warning in the expression: Undefined variable $x');
     }
@@ -318,6 +318,8 @@ final class SessionTest
         };
         \set_error_handler($script);
         try {
+            // The first handler stands for one whose release never ran
+            eval("return $catch;");
             eval("return $catch;");
             \trigger_error('of the script', \E_USER_WARNING);
             $kept = eval("return $release;");

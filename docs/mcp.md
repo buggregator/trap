@@ -444,10 +444,14 @@ name the MCP client gave in `initialize`.
 - `xdebug_stack` returns the first `limit` frames, 20 by default; `limit: 0` returns all.
 - `xdebug_eval` evaluates in the current frame (level 0): Xdebug's eval takes no stack depth, so the variables of
   other frames are read with `xdebug_variables` and `frame`. Xdebug runs the code as `return <code>;`, so a
-  trailing `;` is fine and `1; 2` gives `1`. During the eval an error handler of Trap sits on top of the script's
-  one: a warning or notice of the eval code, as an undefined variable, fails the call, and neither the output of
-  the script, its error handler nor its `error_get_last()` sees it. Deprecations of the eval code are dropped; an
-  error raised in a file of the script, as by a function the expression calls, goes on to the script's handler.
+  trailing `;` or `//` comment is fine and `1; 2` gives `1`. During the eval an error handler of Trap sits on top
+  of the script's one: an error of the eval code, as the warning of an undefined variable, fails the call with
+  its level (`PHP Warning`, `PHP Notice`, `PHP Error`), and neither the output of the script, its error handler
+  nor its `error_get_last()` sees it. Deprecations of the eval code are dropped. `@` has no effect in an eval:
+  write `$x ?? null` or `isset($x)` for a value that may be missing. An error raised in a file of the script, as
+  by a function the expression calls, goes on to the script's handler with all its arguments, whatever error
+  types that handler was set for: PHP doesn't tell them. When the eval times out, Trap still takes its handler
+  off: Xdebug runs that command after the expression.
 - `xdebug_breakpoints` lists each saved breakpoint with `sessions`: for each live session Trap drives and the last
   closed one, `session_state`, the `state` of the breakpoint there, the `resolved_line` Xdebug stops at and the
   `hit_count`. A `condition` that fails, as on an undefined constant, counts as false: the breakpoint never fires.

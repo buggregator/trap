@@ -59,29 +59,40 @@ final class Session
     ];
 
     /**
-     * Puts an error handler on top for an eval: it keeps the first warning or notice of the eval code and
-     * silences its deprecations, and passes the other errors to the script's handler. In a closure of its own:
-     * the eval runs in the scope of the paused frame. PHP 7 syntax: the debugged script may run an old PHP.
+     * Puts an error handler on top for an eval: it keeps the first error of the eval code but deprecations, and
+     * passes the other errors to the script's handler, with all their arguments, whatever types that handler
+     * asked for: PHP doesn't tell. A handler of an eval whose release never ran, left on top, goes first.
+     *
+     * In a closure of its own: the eval runs in the scope of the paused frame. The class is declared once per
+     * script. PHP 7 syntax: the debugged script may run an old PHP.
      */
     private const EVAL_CATCH = <<<'PHP'
         (static function () {
-            $previous = \set_error_handler(static function () { return false; });
-            \restore_error_handler();
-            \set_error_handler(new class ($previous) {
-                public $trapEval = true;
-                public $error;
-                private $previous;
-                public function __construct($previous) { $this->previous = $previous; }
-                public function __invoke($type, $message, $file = '', $line = 0) {
-                    if ($file !== 'xdebug://debug-eval') {
-                        return $this->previous !== null && \call_user_func($this->previous, $type, $message, $file, $line) !== false;
+            if (!\class_exists('TrapXdebugEvalHandler', false)) {
+                eval('final class TrapXdebugEvalHandler {
+                    public $error;
+                    private $previous;
+                    public function __construct($previous) { $this->previous = $previous; }
+                    public function __invoke($type, $message, $file = "", $line = 0) {
+                        if ($file !== "xdebug://debug-eval") {
+                            return $this->previous !== null && \call_user_func_array($this->previous, \func_get_args()) !== false;
+                        }
+                        if ($this->error === null && ($type & (\E_DEPRECATED | \E_USER_DEPRECATED)) === 0) {
+                            $this->error = $type . " " . $message;
+                        }
+                        return true;
                     }
-                    if ((\error_reporting() & $type) !== 0 && ($type & (\E_DEPRECATED | \E_USER_DEPRECATED)) === 0) {
-                        $this->error = $this->error ?: $type . ' ' . $message;
-                    }
-                    return true;
-                }
-            });
+                }');
+            }
+            $top = static function () {
+                $handler = \set_error_handler(static function () { return false; });
+                \restore_error_handler();
+                return $handler;
+            };
+            while ($top() instanceof \TrapXdebugEvalHandler) {
+                \restore_error_handler();
+            }
+            \set_error_handler(new \TrapXdebugEvalHandler($top()));
         })()
         PHP;
 
@@ -90,7 +101,7 @@ final class Session
         (static function () {
             $handler = \set_error_handler(static function () { return false; });
             \restore_error_handler();
-            if (!\is_object($handler) || !isset($handler->trapEval)) {
+            if (!$handler instanceof \TrapXdebugEvalHandler) {
                 return null;
             }
             \restore_error_handler();
@@ -497,8 +508,8 @@ final class Session
      * Evaluates a PHP expression in the paused script. Never cached: it may change the state.
      *
      * PHP would print a warning of the expression into the output of the script, or pass it to the script's
-     * own error handler. An error handler of Trap takes the errors of the eval code around it instead, and a
-     * warning or a notice fails the call; the other errors go on to the script's handler.
+     * own error handler. An error handler of Trap takes the errors of the eval code around it instead, and one
+     * but a deprecation fails the call; the errors of the script's files go on to the script's handler.
      *
      * @throws DebuggerError
      */
@@ -507,13 +518,25 @@ final class Session
         $this->assertPaused();
 
         return $this->exclusive(function () use ($expression): Response {
-            self::ok($this->exchange('eval', '', self::EVAL_CATCH));
-            $value = $this->exchange('eval', '', $expression);
-            $caught = (string) (self::ok($this->exchange('eval', '', self::EVAL_RELEASE))->properties()[0]['value'] ?? '');
+            try {
+                self::ok($this->exchange('eval', '', self::EVAL_CATCH));
+                // Xdebug runs `return <code>;`: a trailing `//` comment would swallow the `;`
+                $value = $this->exchange('eval', '', "$expression\n");
+                $caught = self::ok($this->exchange('eval', '', self::EVAL_RELEASE));
+            } catch (DebuggerError $e) {
+                // Timed out: Xdebug runs the commands in turn, so the release still runs after the expression
+                $e->errorCode === 'timeout' and $this->sendOwnEval(self::EVAL_RELEASE);
+                throw $e;
+            }
             $value = self::ok($value);
+            $caught = (string) ($caught->properties()[0]['value'] ?? '');
             if ($caught !== '') {
                 [$type, $message] = \explode(' ', $caught, 2) + [1 => ''];
-                $level = \in_array((int) $type, [\E_NOTICE, \E_USER_NOTICE], true) ? 'Notice' : 'Warning';
+                $level = match ((int) $type) {
+                    \E_NOTICE, \E_USER_NOTICE => 'Notice',
+                    \E_WARNING, \E_USER_WARNING, \E_CORE_WARNING, \E_COMPILE_WARNING => 'Warning',
+                    default => 'Error',
+                };
                 throw DebuggerError::evalError("PHP $level in the expression: $message");
             }
 
@@ -552,10 +575,9 @@ final class Session
     {
         $this->closed and throw DebuggerError::notPaused($this->state());
         $this->driver === self::DRIVER_HERE or throw DebuggerError::ideAttached($this->state());
-        // A read in flight, as the three exchanges of an eval, ends in the pause it began in
-        $timer = new Timer($this->timeout);
+        // A read in flight, as the three exchanges of an eval, ends in the pause it began in. No timer of its
+        // own: each exchange of the read has one
         while ($this->busy) {
-            $timer->isReady() and throw DebuggerError::timeout();
             self::suspend();
         }
         $this->isPaused() && $this->conts === 0 or throw DebuggerError::notPaused($this->state());
@@ -1069,6 +1091,19 @@ final class Session
         $this->pending[$tid] = ['kind' => 'own', 'cont' => $cont];
         $cont and $this->running();
         $this->engine->send(Protocol::command($name, $tid, $args) . "\0") or $this->detaching = $this->idleRelease = false;
+    }
+
+    /**
+     * Sends an eval of the session without waiting for the reply.
+     */
+    private function sendOwnEval(string $code): void
+    {
+        if ($this->closed) {
+            return;
+        }
+        $tid = ++$this->nextTid;
+        $this->pending[$tid] = ['kind' => 'own', 'cont' => false];
+        $this->engine->send(Protocol::command('eval', $tid, '', $code) . "\0");
     }
 
     private function canSend(): bool
