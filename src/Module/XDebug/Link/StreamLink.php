@@ -21,9 +21,12 @@ final class StreamLink implements Link
 
     public static function of(StreamClient $stream): self
     {
-        $address = $stream instanceof SocketStream ? $stream->peerAddress : null;
+        return new self($stream, self::isLoopbackAddress($stream instanceof SocketStream ? $stream->peerAddress : null));
+    }
 
-        return new self($stream, $address !== null && \preg_match('/^(?:127\.|::1$|::ffff:127\.)/', $address) === 1);
+    public static function isLoopbackAddress(?string $address): bool
+    {
+        return $address !== null && \preg_match('/^(?:127\.|::1$|::ffff:127\.)/', $address) === 1;
     }
 
     #[\Override]

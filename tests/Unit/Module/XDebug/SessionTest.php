@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\XDebug;
 use Buggregator\Trap\Module\XDebug\Breakpoints;
 use Buggregator\Trap\Module\XDebug\Config\Debugger as Config;
 use Buggregator\Trap\Module\XDebug\Connection;
+use Buggregator\Trap\Module\XDebug\Dbgp\Response;
 use Buggregator\Trap\Module\XDebug\Debugger;
 use Buggregator\Trap\Module\XDebug\DebuggerError;
 use Buggregator\Trap\Module\XDebug\Session;
@@ -305,6 +306,38 @@ final class SessionTest
         Assert::same($evals[1], "\$x + 1;\n");
         Assert::same($error?->errorCode, 'eval_error');
         Assert::string($error->getMessage())->contains('Warning in the expression: Undefined variable $x');
+    }
+
+    public function testSendsEvalReleaseWhenExpressionTimesOut(): void
+    {
+        $h = self::harness();
+        $engine = new FakeEngine();
+        $session = new Session('t', $engine, Response::parse(FakeEngine::INIT), $h->debugger, timeout: 0.05);
+        $session->onEnginePacket(FakeEngine::breakAt('run', '99', self::FILE, 3));
+        $fiber = new \Fiber(static function () use ($session): ?DebuggerError {
+            try {
+                $session->evaluate('sleep(1)');
+            } catch (DebuggerError $e) {
+                return $e;
+            }
+            return null;
+        });
+
+        $fiber->start();
+        // The engine answers the handler's install, never the expression
+        $session->onEnginePacket(FakeEngine::response('eval', '1', '', '<property type="null"></property>'));
+        while (!$fiber->isTerminated()) {
+            $fiber->resume();
+        }
+
+        $evals = \array_map(
+            static fn(string $line): string => \base64_decode(\explode(' -- ', $line)[1] ?? ''),
+            $engine->commands,
+        );
+        Assert::same($fiber->getReturn()?->errorCode, 'timeout');
+        Assert::count($evals, 3);
+        Assert::same($evals[1], "sleep(1)\n");
+        Assert::string($evals[2])->contains('restore_error_handler');
     }
 
     public function testEvalHandlerPassesErrorsOfScriptToItsHandler(): void
