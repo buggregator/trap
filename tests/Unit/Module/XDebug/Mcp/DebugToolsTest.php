@@ -53,6 +53,43 @@ final class DebugToolsTest
         Assert::contains($h->eventNames(), 'agent.call.started');
     }
 
+    public function testStepReturnsFunctionAndSourceLine(): void
+    {
+        [$h, $mcp] = self::paused();
+
+        $step = $h->call(static fn() => (new Control($h->debugger, $mcp))->call(['command' => 'step_over', 'wait' => 1]));
+
+        Assert::same($step['where'], 'run');
+        Assert::same($step['source_line'], '$d = 4;');
+        Assert::false(isset($step['exception']));
+    }
+
+    public function testLimitsStack(): void
+    {
+        [$h, $mcp] = self::paused();
+
+        $limited = $h->call(static fn() => (new Stack($h->debugger, $mcp))->call(['limit' => 1]));
+        $all = $h->call(static fn() => (new Stack($h->debugger, $mcp))->call(['limit' => 0]));
+
+        Assert::count($limited['frames'], 1);
+        Assert::same($limited['total'], 2);
+        Assert::string($limited['hint'])->contains('1 outer frames');
+        Assert::count($all['frames'], 2);
+        Assert::false(isset($all['hint']));
+    }
+
+    public function testListsBreakpointsWithTheirStateInSessions(): void
+    {
+        [$h, $mcp] = self::paused();
+        $tool = new BreakpointsTool($h->debugger, $mcp);
+        $h->call(static fn() => $tool->call(['action' => 'set', 'file' => '/app/a.php', 'line' => 3]));
+        $h->pump(30);
+
+        $list = $h->call(static fn() => $tool->call([]));
+
+        Assert::same($list['breakpoints'][0]['sessions'], [['session_id' => '1', 'state' => 'resolved', 'resolved_line' => 4, 'hit_count' => 1]]);
+    }
+
     public function testGatesEvalAndControl(): void
     {
         $config = new Config();
@@ -90,8 +127,25 @@ final class DebugToolsTest
         $h = new Harness(new FakeEngine([
             'step_into' => static fn(array $c): string => FakeEngine::breakAt('step_into', $c['tid'], 'file:///app/a.php', 3),
             'step_over' => static fn(array $c): string => FakeEngine::breakAt('step_over', $c['tid'], 'file:///app/a.php', 4),
-            'stack_get' => static fn(array $c): string => FakeEngine::response('stack_get', $c['tid'], '', '<stack where="{main}" level="0" type="file" filename="file:///app/a.php" lineno="3"></stack>'),
-            'source' => static fn(array $c): string => FakeEngine::response('source', $c['tid'], ' encoding="base64"', \base64_encode("\$a = 1;\n\$b = 2;\n\$c = 3;\n")),
+            'stack_get' => static fn(array $c): string => FakeEngine::response(
+                'stack_get',
+                $c['tid'],
+                '',
+                '<stack where="run" level="0" type="file" filename="file:///app/a.php" lineno="3"></stack>'
+                . '<stack where="{main}" level="1" type="file" filename="file:///app/index.php" lineno="9"></stack>',
+            ),
+            'source' => static function (array $c): string {
+                \preg_match('/-b (\d+) -e (\d+)/', $c['args'], $m);
+                $lines = \array_slice(["\$a = 1;\n", "\$b = 2;\n", "\$c = 3;\n", "  \$d = 4;\n"], (int) $m[1] - 1, (int) $m[2] - (int) $m[1] + 1);
+                return FakeEngine::response('source', $c['tid'], ' encoding="base64"', \base64_encode(\implode('', $lines)));
+            },
+            'breakpoint_set' => static fn(array $c): string => FakeEngine::response('breakpoint_set', $c['tid'], ' id="9001" resolved="resolved"'),
+            'breakpoint_list' => static fn(array $c): string => FakeEngine::response(
+                'breakpoint_list',
+                $c['tid'],
+                '',
+                '<breakpoint type="line" resolved="resolved" filename="file:///app/a.php" lineno="4" hit_count="1" id="9001"></breakpoint>',
+            ),
             'context_get' => static fn(array $c): string => FakeEngine::response('context_get', $c['tid'], '', '<property name="$a" type="int"><![CDATA[1]]></property>'),
         ]), $config);
         $h->connect();

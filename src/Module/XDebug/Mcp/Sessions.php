@@ -29,8 +29,9 @@ final class Sessions extends DebugTool
     {
         return 'Lists the Xdebug debug sessions: `state` (`break` = paused at a line, `running`, `stopped`, '
             . '`detached`), `driver` (`here`: Trap drives it and the agent may step; `ide`: an IDE drives it, reads '
-            . 'only), the request or command line, and where it is paused. Start here; the settings of the debugger '
-            . '(`allow_eval`, `allow_control`, `mode`) come with the list.';
+            . 'only), the request or command line, where it is paused and the `exception` it stopped at. Start here; '
+            . 'the settings of the debugger come with the list: `allow_eval`, `allow_control`, `mode`, and '
+            . '`pause_on_first_line` (new sessions stop at their first line, with no breakpoint).';
     }
 
     #[\Override]
@@ -56,7 +57,7 @@ final class Sessions extends DebugTool
             and $sessions = \array_values(\array_filter($sessions, static fn(Session $s): bool => !$s->isClosed()));
 
         return [
-            'sessions' => \array_map(static fn(Session $s): array => $s->info(), $sessions),
+            'sessions' => \array_map(self::info(...), $sessions),
             'allow_eval' => $config->allowEval,
             'allow_control' => $config->allowControl,
         ] + $this->debugger->settings();

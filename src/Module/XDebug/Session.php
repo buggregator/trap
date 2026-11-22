@@ -114,7 +114,7 @@ final class Session
     /** One read of the UI or an agent at a time */
     private bool $busy = false;
 
-    /** @var array<int, array{engine_id: string, sig: string, state: string, resolved_line: int}> By saved ID */
+    /** @var array<int, array{engine_id: string, sig: string, state: string, resolved_line: int, hit_count?: int}> By saved ID */
     private array $bps = [];
 
     /** Breakpoints changed while the script ran: synced at the next pause */
@@ -432,7 +432,10 @@ final class Session
     }
 
     /**
-     * Evaluates PHP code in the paused script. Never cached: it may change the state.
+     * Evaluates a PHP expression in the paused script. Never cached: it may change the state.
+     *
+     * PHP prints a warning of the expression into the output of the script: the expression runs under `@`,
+     * and the error PHP recorded fails the call instead. Deprecations don't.
      *
      * @throws DebuggerError
      */
@@ -440,7 +443,25 @@ final class Session
     {
         $this->assertPaused();
 
-        return self::ok($this->command('eval', '', $expression));
+        return $this->exclusive(function () use ($expression): Response {
+            self::ok($this->exchange('eval', '', '\error_clear_last()'));
+            // A line break before the parenthesis: a trailing `//` comment would swallow it
+            $value = self::ok($this->exchange('eval', '', "@($expression\n)"));
+            $error = [];
+            /** @var list<array{name: string, value?: string}> $fields */
+            $fields = self::ok($this->exchange('eval', '', '\error_get_last()'))->properties()[0]['children'] ?? [];
+            foreach ($fields as $field) {
+                $error[$field['name']] = $field['value'] ?? '';
+            }
+            if (($error['file'] ?? '') === 'xdebug://debug-eval'
+                && !\in_array((int) ($error['type'] ?? 0), [\E_DEPRECATED, \E_USER_DEPRECATED], true)
+            ) {
+                $level = \in_array((int) $error['type'], [\E_NOTICE, \E_USER_NOTICE], true) ? 'Notice' : 'Warning';
+                throw DebuggerError::evalError("PHP $level in the expression: " . ($error['message'] ?? ''));
+            }
+
+            return $value;
+        });
     }
 
     /**
@@ -501,13 +522,14 @@ final class Session
      */
     public function breakpointStates(array $saved): array
     {
+        $this->readHits();
         $out = [];
         foreach ($saved as $bp) {
             $state = $this->bps[$bp['id']] ?? null;
             $out[] = $bp + \array_filter([
                 'state' => $state['state'] ?? 'pending',
                 'resolved_line' => $state['resolved_line'] ?? 0,
-            ]) + ['hit_count' => 0];
+            ]) + ['hit_count' => $state['hit_count'] ?? 0];
         }
 
         return $out;
@@ -771,6 +793,32 @@ final class Session
         $this->driver === self::DRIVER_HERE and $this->bpEarly[$engineId] = $line;
     }
 
+    /**
+     * Takes the hit counts and the resolved lines from Xdebug while paused; otherwise the last ones read stay.
+     */
+    private function readHits(): void
+    {
+        if ($this->driver !== self::DRIVER_HERE || !$this->isPaused() || $this->bps === [] || \Fiber::getCurrent() === null) {
+            return;
+        }
+        try {
+            $engine = [];
+            foreach ($this->read('breakpoint_list')->breakpoints() as $bp) {
+                $engine[$bp['id']] = $bp;
+            }
+        } catch (DebuggerError) {
+            return;
+        }
+        foreach ($this->bps as $id => $state) {
+            $bp = $engine[$state['engine_id']] ?? null;
+            if ($state['engine_id'] === '' || $bp === null) {
+                continue;
+            }
+            $this->bps[$id]['hit_count'] = $bp['hit_count'];
+            $bp['resolved'] === 'resolved' && $bp['line'] > 0
+                and [$this->bps[$id]['state'], $this->bps[$id]['resolved_line']] = ['resolved', $bp['line']];
+        }
+    }
 
     /**
      * Reads the request or the command line of the script for the session title, at the first pause.
@@ -815,6 +863,22 @@ final class Session
         \in_array($name, self::READS, true) or throw DebuggerError::badRequest("Command `$name` is not allowed.");
         \str_contains($args, "\0") and throw DebuggerError::badRequest('Arguments must not contain NUL.');
 
+        return $this->exclusive(fn(): string => $this->exchange($name, $args, $data));
+    }
+
+    /**
+     * Runs exchanges of the UI or an agent with no other read in between.
+     *
+     * @template T
+     *
+     * @param \Closure(): T $exchanges
+     *
+     * @return T
+     *
+     * @throws DebuggerError
+     */
+    private function exclusive(\Closure $exchanges): mixed
+    {
         $timer = new Timer($this->timeout);
         while ($this->busy) {
             $timer->isReady() and throw DebuggerError::timeout();
@@ -825,7 +889,7 @@ final class Session
             $this->touch();
             $this->assertPaused();
 
-            return $this->exchange($name, $args, $data);
+            return $exchanges();
         } finally {
             $this->busy = false;
         }

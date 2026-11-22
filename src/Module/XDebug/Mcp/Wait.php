@@ -29,7 +29,8 @@ final class Wait extends DebugTool implements WaitingTool
     public function description(): string
     {
         return 'Waits up to `timeout` seconds until a session is paused, as after a request hits a breakpoint: set '
-            . 'the breakpoint, start the request, then wait. Returns the paused session, or `timed_out`.';
+            . 'the breakpoint, start the request, then wait. Returns the paused session, with the `exception` (`class`, '
+            . '`message`) at an exception break, or `timed_out`.';
     }
 
     #[\Override]
@@ -52,7 +53,7 @@ final class Wait extends DebugTool implements WaitingTool
         while (true) {
             foreach ($this->debugger->sessions() as $session) {
                 if ($session->isPaused()) {
-                    return ['timed_out' => false, 'session' => $session->info()];
+                    return ['timed_out' => false, 'session' => self::info($session)];
                 }
             }
             if ($timer->isReady() || \Fiber::getCurrent() === null || $this->caller->isDisconnected()) {

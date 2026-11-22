@@ -28,7 +28,7 @@ final class Location extends DebugTool implements WaitingTool
     public function description(): string
     {
         return 'Where a paused session stopped: file and line, the function, and the source lines around it, the '
-            . 'current one marked with `>`.';
+            . 'current one marked with `>`; at an exception break, the `exception`: `class` and `message`.';
     }
 
     #[\Override]
@@ -61,7 +61,8 @@ final class Location extends DebugTool implements WaitingTool
             }
 
             return [
-                ['file' => $file, 'line' => $line, 'where' => $top['where'] ?? '', 'source' => \implode("\n", $source)],
+                ['file' => $file, 'line' => $line, 'where' => $top['where'] ?? '', 'source' => \implode("\n", $source)]
+                + self::exception($session),
                 \basename($file) . ":$line",
             ];
         });

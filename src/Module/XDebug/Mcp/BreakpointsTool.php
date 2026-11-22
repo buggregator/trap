@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\XDebug\Mcp;
 
 use Buggregator\Trap\Module\XDebug\DebuggerError;
+use Buggregator\Trap\Module\XDebug\Session;
 
 /**
  * Saved breakpoints: listed, set or removed by `action`.
+ *
+ * @psalm-import-type Breakpoint from \Buggregator\Trap\Module\XDebug\Breakpoints
  *
  * @internal
  */
@@ -28,7 +31,9 @@ final class BreakpointsTool extends DebugTool
     #[\Override]
     public function description(): string
     {
-        return 'Saved breakpoints, sent to every session Trap drives. `action: list` (default); `action: set` with '
+        return 'Saved breakpoints, sent to every session Trap drives. `action: list` (default), each with `sessions`: '
+            . 'its `state` in each live session, the `resolved_line` Xdebug stops at (it moves a breakpoint off a line '
+            . 'with no code) and the `hit_count`; `action: set` with '
             . '`file` (absolute path as PHP sees it) and `line`, optional `condition` (PHP, needs eval allowed), or '
             . 'with `exception` (a class name, parents match, `*` for any); `action: remove` with `id`. '
             . 'An IDE keeps breakpoints of its own for the sessions it drives.';
@@ -68,7 +73,7 @@ final class BreakpointsTool extends DebugTool
         try {
             switch ($action) {
                 case 'list':
-                    return ['breakpoints' => $breakpoints->all()];
+                    return ['breakpoints' => $this->inSessions($breakpoints->all())];
                 case 'set':
                     $this->assertControl();
                     isset($arguments['condition']) && !$this->debugger->allowEval()
@@ -88,5 +93,30 @@ final class BreakpointsTool extends DebugTool
         } catch (DebuggerError $e) {
             throw new \RuntimeException($e->getMessage(), 0, $e);
         }
+    }
+
+    /**
+     * Adds to each breakpoint its state in the live sessions driven here: the line Xdebug stops at and the hits.
+     *
+     * @param list<Breakpoint> $saved
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function inSessions(array $saved): array
+    {
+        $list = $saved;
+        foreach ($this->debugger->sessions() as $session) {
+            if ($session->isClosed() || $session->driver !== Session::DRIVER_HERE) {
+                continue;
+            }
+            foreach ($session->breakpointStates($saved) as $i => $state) {
+                $list[$i]['sessions'][] = ['session_id' => $session->id] + \array_intersect_key(
+                    $state,
+                    ['state' => 1, 'resolved_line' => 1, 'hit_count' => 1],
+                );
+            }
+        }
+
+        return $list;
     }
 }

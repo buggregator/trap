@@ -66,6 +66,11 @@ final class DebuggerError extends \RuntimeException
         return new self('xdebug_error', 422, $e->getMessage(), previous: $e);
     }
 
+    public static function evalError(string $message): self
+    {
+        return new self('eval_error', 422, $message);
+    }
+
     public static function sourceAtException(): self
     {
         return new self(

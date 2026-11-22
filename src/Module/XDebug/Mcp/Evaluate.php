@@ -28,8 +28,10 @@ final class Evaluate extends DebugTool implements WaitingTool
     #[\Override]
     public function description(): string
     {
-        return 'Evaluates a PHP expression in the current frame of a paused session and returns its value. It runs '
-            . 'in the debugged script and may change its state. Off unless Trap runs with TRAP_XDEBUG_ALLOW_EVAL=1.';
+        return 'Evaluates a PHP expression in the current frame (level 0) of a paused session and returns its value; '
+            . 'Xdebug evaluates in no other frame: read those with `xdebug_variables` and `frame`. A PHP warning or '
+            . 'notice of the expression, as an undefined variable, fails the call. It runs in the debugged script and '
+            . 'may change its state. Off unless Trap runs with TRAP_XDEBUG_ALLOW_EVAL=1.';
     }
 
     #[\Override]

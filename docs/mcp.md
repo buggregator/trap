@@ -425,18 +425,29 @@ With [`--xdebug`](xdebug.md), these tools read and drive the step-debugging sess
 how to turn it on. Each call on a session goes to its agent log, which the Xdebug page of the UI shows with the
 name the MCP client gave in `initialize`.
 
-| Tool                 | Arguments                                                | Result                                                                                        |
-| -------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `xdebug_sessions`    | `live_only`                                              | `sessions`: `id`, `state`, `driver`, the request or command, where it is paused; the settings |
-| `xdebug_wait`        | `timeout`                                                | The first paused session, or `timed_out`                                                      |
-| `xdebug_location`    | `session_id`, `context_lines`                            | `file`, `line`, the function and the source around the line                                   |
-| `xdebug_stack`       | `session_id`                                             | `frames`: `level`, `where`, `file`, `line`                                                    |
-| `xdebug_variables`   | `session_id`, `name`, `frame`, `context`, `page`         | The variables of a frame, or the value of `name` with its children                            |
-| `xdebug_eval`        | `session_id`, `expression`                               | The value; only with `TRAP_XDEBUG_ALLOW_EVAL`                                                 |
-| `xdebug_continue`    | `session_id`, `command`, `wait`                          | `step_into`, `step_over`, `step_out`, `run`, `stop` or `detach`, then the next pause          |
-| `xdebug_breakpoints` | `action`, `file`, `line`, `condition`, `exception`, `id` | The saved breakpoints; `action: set` or `remove` changes them                                 |
+| Tool                 | Arguments                                                | Result                                                                                                 |
+| -------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `xdebug_sessions`    | `live_only`                                              | `sessions`: `id`, `state`, `driver`, the request or command, where it is paused, `exception`; settings |
+| `xdebug_wait`        | `timeout`                                                | The first paused session, with its `exception`, or `timed_out`                                         |
+| `xdebug_location`    | `session_id`, `context_lines`                            | `file`, `line`, the function, the source around the line, `exception`                                  |
+| `xdebug_stack`       | `session_id`, `limit`                                    | `frames`: `level`, `where`, `file`, `line`; `total`; `hint` when frames are left out                   |
+| `xdebug_variables`   | `session_id`, `name`, `frame`, `context`, `page`         | The variables of a frame, or the value of `name` with its children                                     |
+| `xdebug_eval`        | `session_id`, `expression`                               | The value; only with `TRAP_XDEBUG_ALLOW_EVAL`                                                          |
+| `xdebug_continue`    | `session_id`, `command`, `wait`                          | `step_into`, `step_over`, `step_out`, `run`, `stop` or `detach`, then the next pause                   |
+| `xdebug_breakpoints` | `action`, `file`, `line`, `condition`, `exception`, `id` | The saved breakpoints with their `sessions`; `action: set` or `remove` changes them                    |
 
 - Without `session_id`, the tools take the only paused session.
+- `exception` is there when the session is paused at an exception breakpoint: its `class` and `message`, and the
+  `code` when Xdebug sends one.
+- `xdebug_continue` returns `state` and `paused`, and of the pause `file`, `line`, the function as `where`, the code
+  of the line as `source_line`, and `exception`.
+- `xdebug_stack` returns the first `limit` frames, 20 by default; `limit: 0` returns all.
+- `xdebug_eval` evaluates in the current frame (level 0): Xdebug's eval takes no stack depth, so the variables of
+  other frames are read with `xdebug_variables` and `frame`. A warning or notice of the expression, as an undefined
+  variable, fails the call; the expression runs under `@`, so PHP doesn't print it into the output of the script.
+  Deprecations pass. It takes one expression, not statements.
+- `xdebug_breakpoints` lists each saved breakpoint with `sessions`: for each live session Trap drives, the `state`
+  there, the `resolved_line` Xdebug stops at and the `hit_count`.
 - `xdebug_continue` and changing breakpoints work on the sessions Trap drives (`driver: here`); an IDE steps its own.
   `TRAP_XDEBUG_ALLOW_CONTROL=0` turns them off for agents.
 - A usual run: `xdebug_breakpoints` with `{"action": "set", "file": "/app/src/Checkout.php", "line": 42}`, start

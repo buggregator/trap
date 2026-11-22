@@ -42,6 +42,45 @@ abstract class DebugTool implements Tool
         return ['readOnlyHint' => true, 'openWorldHint' => false];
     }
 
+    /**
+     * The session as the list shows it, with the exception it is paused at.
+     *
+     * @return array<array-key, mixed>
+     */
+    protected static function info(Session $session): array
+    {
+        return $session->info() + self::exception($session);
+    }
+
+    /**
+     * @return array{exception?: array{class: string, message: string, code?: string}}
+     */
+    protected static function exception(Session $session): array
+    {
+        $exception = $session->exception();
+
+        return $exception === null ? [] : ['exception' => $exception];
+    }
+
+    /**
+     * Where a paused session is: file, line, function, the source line and the exception. A read that fails
+     * leaves its field out: the location is the answer.
+     *
+     * @return array<array-key, mixed>
+     */
+    protected static function pause(Session $session): array
+    {
+        [$file, $line] = $session->location();
+        $pause = ['file' => $file, 'line' => $line];
+        try {
+            $pause['where'] = $session->read('stack_get')->stack()[0]['where'] ?? '';
+            $pause['source_line'] = \trim($session->source($file, $line, $line));
+        } catch (DebuggerError) {
+        }
+
+        return $pause + self::exception($session);
+    }
+
     protected static function int(array $arguments, string $name, int $default): int
     {
         /** @var mixed $value */

@@ -53,9 +53,16 @@ Breakpoints set on the Xdebug page or by an agent are saved in Trap's memory and
 
 - a line, by the absolute path as PHP sees it, `/var/www/src/Checkout.php` or `C:\app\src\Checkout.php`, and a line;
   an optional condition is PHP code, so it needs `TRAP_XDEBUG_ALLOW_EVAL`;
-- an exception, by a class name: `RuntimeException` stops on it and its subclasses, `*` on any.
+- an exception, by a class name: `RuntimeException` stops on it and its subclasses, `*` on any. `*` stops on every
+  exception the framework and the libraries throw and catch inside, too: a class of your project stops where you
+  look. The agents get the class and the message of the exception with the pause.
 
-Xdebug may move a line breakpoint to the next line with code: the page shows the line it took.
+Xdebug may move a line breakpoint off a line with no code, as a blank line or the middle of a multi-line statement,
+to the next line with code, at worst the closing brace of the function: the page and `xdebug_breakpoints` show the
+line it took, and how often it stopped there.
+
+At an exception break PHP has the exception in flight and opens no files, so Xdebug can't read the source: Trap
+reads the file itself when it runs on the same host, at the same path. In Docker step over once to see the source.
 
 ## Settings
 
@@ -102,6 +109,8 @@ the endpoints of a session below it: `stack`, `contexts`, `variables`, `property
 `agent-log`, `eval`, and `run`, `step-into`, `step-over`, `step-out`, `stop`, `detach`; the saved breakpoints at
 `/api/xdebug/breakpoints`, the settings at `PUT /api/xdebug/settings`, the files seen at `/api/xdebug/files`.
 Errors are `{"error", "code", "state"}` with an HTTP status; the codes: `not_paused`, `ide_attached`,
-`eval_disabled`, `not_found`, `xdebug_error`, `timeout`, `session_live`, `bad_request`, and those of the
+`eval_disabled`, `eval_error` (a warning or notice of the expression), `not_found`, `xdebug_error`,
+`source_unavailable` (the source at an exception break, with no such file on Trap's host), `timeout`, `session_live`,
+`bad_request`, and those of the
 [guards](#security): `cross_site`, `http_only`, `unsupported_media_type`. Changes come over the
 `xdebug` WebSocket channel.

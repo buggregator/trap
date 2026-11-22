@@ -31,7 +31,8 @@ final class Control extends DebugTool implements WaitingTool
     {
         return 'Resumes a paused session that Trap drives (`driver: here`): `step_into`, `step_over`, `step_out`, '
             . '`run` to the next breakpoint, `stop` the script, or `detach` to let it run on without the debugger. '
-            . 'Then waits up to `wait` seconds for the next pause and returns the state and location. '
+            . 'Then waits up to `wait` seconds for the next pause and returns the state, the file and line, the '
+            . 'function (`where`), the code of that line (`source_line`) and, at an exception break, the `exception`. '
             . 'Off with TRAP_XDEBUG_ALLOW_CONTROL=0.';
     }
 
@@ -74,8 +75,7 @@ final class Control extends DebugTool implements WaitingTool
             $session->continue($command, Session::BY_AGENT, $agent);
             $paused = \in_array($command, ['stop', 'detach'], true) ? false : $session->waitPause($seq, (float) $wait, $gone);
             [$file, $line] = $session->location();
-            $result = ['state' => $session->state(), 'paused' => $paused]
-                + ($paused ? ['file' => $file, 'line' => $line] : []);
+            $result = ['state' => $session->state(), 'paused' => $paused] + ($paused ? self::pause($session) : []);
 
             return [$result, $paused ? \basename($file) . ":$line" : $session->state()];
         });

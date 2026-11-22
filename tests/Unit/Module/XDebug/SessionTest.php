@@ -203,6 +203,26 @@ final class SessionTest
         Assert::contains($h->eventNames(), 'breakpoint.resolved');
     }
 
+    public function testReadsHitCountsAndResolvedLinesWhilePaused(): void
+    {
+        $h = self::harness(pauseOnFirstLine: true);
+        $h->debugger->breakpoints->add(['file' => '/app/a.php', 'line' => 7], 'ui');
+        $h->engine->responders['breakpoint_set'] = static fn(array $c): string => FakeEngine::response('breakpoint_set', $c['tid'], ' id="9001" resolved="unresolved"');
+        $h->engine->responders['breakpoint_list'] = static fn(array $c): string => FakeEngine::response(
+            'breakpoint_list',
+            $c['tid'],
+            '',
+            '<breakpoint type="line" resolved="resolved" filename="file:///app/a.php" lineno="8" state="enabled" hit_count="2" id="9001"></breakpoint>',
+        );
+        $h->connect();
+        $h->pump(40);
+
+        $states = $h->call(static fn(): array => $h->session()->breakpointStates($h->debugger->breakpoints->all()));
+
+        Assert::same($states[0]['hit_count'], 2);
+        Assert::same($states[0]['resolved_line'], 8);
+        Assert::same($states[0]['state'], 'resolved');
+    }
 
     public function testKeepsExceptionOfPauseAndReadsSourceFromHost(): void
     {
@@ -234,6 +254,36 @@ final class SessionTest
         Assert::null($h->session()->exception());
     }
 
+    public function testFailsEvalOnWarningOfExpression(): void
+    {
+        $h = self::harness(pauseOnFirstLine: true);
+        $evals = [];
+        $h->engine->responders['eval'] = static function (array $c) use (&$evals): string {
+            $code = \base64_decode(\explode('-- ', $c['args'])[1]);
+            $evals[] = $code;
+            $field = static fn(string $name, string $value): string => "<property name=\"$name\" type=\"string\" encoding=\"base64\"><![CDATA[" . \base64_encode($value) . ']]></property>';
+            $inner = $code === '\error_get_last()'
+                ? '<property type="array" numchildren="4"><property name="type" type="int"><![CDATA[2]]></property>'
+                    . $field('message', 'Undefined variable $x') . $field('file', 'xdebug://debug-eval') . '</property>'
+                : '<property type="null"></property>';
+            return FakeEngine::response('eval', $c['tid'], '', $inner);
+        };
+        $h->connect();
+        $h->pump(30);
+
+        $error = $h->call(static function () use ($h): ?DebuggerError {
+            try {
+                $h->session()->evaluate('$x // a comment');
+            } catch (DebuggerError $e) {
+                return $e;
+            }
+            return null;
+        });
+
+        Assert::same($evals, ['\error_clear_last()', "@(\$x // a comment\n)", '\error_get_last()']);
+        Assert::same($error?->errorCode, 'eval_error');
+        Assert::string($error->getMessage())->contains('Warning in the expression: Undefined variable $x');
+    }
 
     public function testSkipsConditionWithoutEval(): void
     {
