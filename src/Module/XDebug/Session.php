@@ -58,6 +58,12 @@ final class Session
     ];
 
     private const AGENT_LOG_SIZE = 200;
+    private const MAX_RAN_FILES = 2000;
+
+    /** Bytes of a file Trap reads itself at most, and of a line of it */
+    private const MAX_LOCAL_SOURCE = 4 << 20;
+
+    private const MAX_LOCAL_LINE = 64 << 10;
     private const MAX_CACHED_READS = 256;
 
     public readonly string $ideKey;
@@ -85,6 +91,9 @@ final class Session
 
     /** @var array{class: string, message: string, code?: string}|null The exception of the current pause */
     private ?array $exception = null;
+
+    /** @var array<string, true> Files the engine reported running: the entry file, pauses, stacks */
+    private array $ran = [];
 
     private bool $closed = false;
     private string $closeReason = '';
@@ -144,6 +153,7 @@ final class Session
         $engine = $init->xml->engine;
         $this->engineName = \trim((string) $engine . ' ' . (string) ($engine['version'] ?? ''));
         $this->startedAt = new \DateTimeImmutable();
+        $this->ran($this->fileUri);
     }
 
     /**
@@ -199,7 +209,11 @@ final class Session
                 // Xdebug puts `status="break"` on plain replies too: only a reply with a location moves the line
                 $reply = Response::parse($body);
                 $location = $reply->breakLocation();
-                $location === null or [$this->file, $this->line, $this->exception] = [...$location, $reply->breakException()];
+                if ($location !== null) {
+                    [$this->file, $this->line] = $location;
+                    $this->exception = $reply->breakException();
+                    $this->ran($this->file);
+                }
                 $previous === 'break' or $this->paused();
             }
             if ($previous !== $this->status || $file !== $this->file || $line !== $this->line) {
@@ -403,6 +417,7 @@ final class Session
         if ($name === 'stack_get') {
             foreach (self::ok($body)->stack() as $frame) {
                 $this->debugger->seeFile($frame['file']);
+                $this->ran($frame['file']);
             }
         }
         $cache && $seq === $this->pauseSeq && \count($this->cache) < self::MAX_CACHED_READS
@@ -426,16 +441,19 @@ final class Session
                 throw $e;
             }
             // While PHP has an exception in flight its streams open nothing, so Xdebug can't read the file:
-            // Trap reads it when it runs on the same host
-            return self::localSource($file, $from, $to) ?? throw DebuggerError::sourceAtException();
+            // Trap reads it when it runs on the same host. Only a file the script ran: the UI names any file
+            // with a breakpoint.
+            return (isset($this->ran[$file]) ? self::localSource($file, $from, $to) : null)
+                ?? throw DebuggerError::sourceAtException();
         }
     }
 
     /**
      * Evaluates a PHP expression in the paused script. Never cached: it may change the state.
      *
-     * PHP prints a warning of the expression into the output of the script: the expression runs under `@`,
-     * and the error PHP recorded fails the call instead. Deprecations don't.
+     * PHP would print a warning of the expression into the output of the script, or pass it to the script's
+     * own error handler. An error handler of Trap takes the errors of the eval code around it instead, and a
+     * warning or a notice fails the call; the other errors go on to the script's handler.
      *
      * @throws DebuggerError
      */
@@ -690,21 +708,47 @@ final class Session
     }
 
     /**
-     * Lines of a `file://` URI read from this host; null when it has no such file.
+     * Lines of a `file:///` URI read from this host, a line cut at {@see MAX_LOCAL_LINE} bytes; null when it
+     * has no such file, the file is larger than {@see MAX_LOCAL_SOURCE}, or the URI is not a plain local path.
      */
     private static function localSource(string $uri, int $from, int $to): ?string
     {
-        if (!\str_starts_with($uri, 'file://')) {
+        // No host part: `file://name` would be relative to Trap's directory, `file:////host/share` a network share
+        if (!\str_starts_with($uri, 'file:///')) {
             return null;
         }
         $path = \rawurldecode(\substr($uri, 7));
         \preg_match('#^/[a-z]:/#i', $path) === 1 and $path = \substr($path, 1);
-        $lines = \is_file($path) && \is_readable($path) ? \file($path) : false;
-        if ($lines === false) {
+        if (\preg_match('#^[/\\\\]{2}|\\\\\\\\|://|\0#', $path) === 1) {
+            return null;
+        }
+        $real = \realpath($path);
+        if ($real === false || !\is_file($real) || \filesize($real) > self::MAX_LOCAL_SOURCE) {
+            return null;
+        }
+        $handle = @\fopen($real, 'rb');
+        if ($handle === false) {
             return null;
         }
 
-        return \implode('', \array_slice($lines, \max(0, $from - 1), \max(0, $to - \max(1, $from) + 1)));
+        $text = '';
+        try {
+            for ($n = 1; $n <= $to; ++$n) {
+                $chunk = \fgets($handle, self::MAX_LOCAL_LINE);
+                if ($chunk === false) {
+                    break;
+                }
+                $whole = \str_ends_with($chunk, "\n") || \feof($handle);
+                $n >= $from and $text .= $whole ? $chunk : "$chunk\n";
+                while (!$whole && ($rest = \fgets($handle, self::MAX_LOCAL_LINE)) !== false) {
+                    $whole = \str_ends_with($rest, "\n") || \feof($handle);
+                }
+            }
+        } finally {
+            \fclose($handle);
+        }
+
+        return $text;
     }
 
     private static function suspend(): void
@@ -998,6 +1042,15 @@ final class Session
     {
         $this->driver === self::DRIVER_HERE && $this->idleTimeout > 0 && !$this->closed
             and $this->idleDeadline = \microtime(true) + $this->idleTimeout;
+    }
+
+    private function ran(string $uri): void
+    {
+        if ($uri === '' || isset($this->ran[$uri])) {
+            return;
+        }
+        $this->ran[$uri] = true;
+        \count($this->ran) > self::MAX_RAN_FILES and \array_shift($this->ran);
     }
 
     private function toIde(string $body): void

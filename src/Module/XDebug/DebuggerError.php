@@ -76,8 +76,8 @@ final class DebuggerError extends \RuntimeException
         return new self(
             'source_unavailable',
             422,
-            "At an exception break Xdebug can't read source files, and this host has no file at that path: "
-            . 'step_over, then read the source again.',
+            "Xdebug can't read source files at an exception break, and Trap can't read this one itself. "
+            . 'Step over to see the source.',
         );
     }
 

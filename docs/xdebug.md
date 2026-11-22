@@ -61,8 +61,11 @@ Xdebug may move a line breakpoint off a line with no code, as a blank line or th
 to the next line with code, at worst the closing brace of the function: the page and `xdebug_breakpoints` show the
 line it took, and how often it stopped there.
 
-At an exception break PHP has the exception in flight and opens no files, so Xdebug can't read the source: Trap
-reads the file itself when it runs on the same host, at the same path. In Docker step over once to see the source.
+At an exception break PHP has the exception in flight and opens no files, so Xdebug can't read the source. Trap
+then reads the file itself: only a file the session reported running (its entry file, a pause, a stack frame),
+only a plain local path (a `file:///` URI without a host, no network share, no other stream wrapper), up to
+4 MB, a line cut at 64 KB. So it works when Trap runs on the same host as the script, at the same path; in Docker,
+or for another file, step over once to see the source.
 
 ## Settings
 

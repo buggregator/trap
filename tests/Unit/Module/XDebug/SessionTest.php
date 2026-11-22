@@ -224,33 +224,52 @@ final class SessionTest
         Assert::same($states[0]['state'], 'resolved');
     }
 
-    public function testKeepsExceptionOfPauseAndReadsSourceFromHost(): void
+    public function testKeepsExceptionOfPauseAndReadsSourceOfRanFileFromHost(): void
     {
-        $path = \tempnam(\sys_get_temp_dir(), 'xdbg');
-        \file_put_contents($path, "<?php\n\$a = 1;\nthrow new \\DomainException('bad');\n");
-        $uri = Breakpoints::fileUri(\str_replace('\\', '/', $path));
+        $dir = \sys_get_temp_dir() . '/trap-xdebug-' . \bin2hex(\random_bytes(4));
+        \mkdir($dir);
+        $uri = static fn(string $name): string => Breakpoints::fileUri(\str_replace('\\', '/', "$dir/$name"));
+        \file_put_contents("$dir/ran.php", "<?php\n" . \str_repeat('x', 70_000) . "\nthrow new \\DomainException('bad');\n");
+        \file_put_contents("$dir/other.php", "<?php\n");
+        \file_put_contents("$dir/big.php", \str_repeat("\$a = 1;\n", 600_000));
         $h = self::harness(pauseOnFirstLine: true);
         $h->engine->responders['step_into'] = static fn(array $c): string => FakeEngine::response(
             'step_into',
             $c['tid'],
             ' status="break" reason="ok"',
-            "<xdebug:message filename=\"$uri\" lineno=\"3\" exception=\"DomainException\" code=\"7\"><![CDATA[bad]]></xdebug:message>",
+            '<xdebug:message filename="' . $uri('ran.php') . '" lineno="3" exception="DomainException" code="7"><![CDATA[bad]]></xdebug:message>',
         );
         $h->engine->responders['source'] = static fn(array $c): string => FakeEngine::response('source', $c['tid'], '', '<error code="100"><message><![CDATA[can not open file]]></message></error>');
+        $h->engine->responders['stack_get'] = static fn(array $c): string => FakeEngine::response('stack_get', $c['tid'], '', '<stack level="0" filename="' . $uri('big.php') . '" lineno="1"></stack>');
         $h->engine->responders['step_over'] = static fn(): string => '';
         $h->connect();
         $h->pump(30);
+        $source = static fn(string $file, int $from, int $to): string => $h->call(static function () use ($h, $file, $from, $to): string {
+            try {
+                return $h->session()->source($file, $from, $to);
+            } catch (DebuggerError $e) {
+                return $e->errorCode;
+            }
+        });
 
         try {
             $exception = $h->session()->exception();
-            $source = $h->call(static fn(): string => $h->session()->source($uri, 2, 3));
+            $ran = $source($uri('ran.php'), 2, 3);
+            $other = $source($uri('other.php'), 1, 1);
+            $h->call(static fn() => $h->session()->read('stack_get'));
+            $big = $source($uri('big.php'), 1, 1);
+            $withHost = $source('file://' . \ltrim(\substr($uri('ran.php'), 7), '/'), 1, 1);
             $h->call(static fn() => $h->session()->continue('step_over', Session::BY_UI));
         } finally {
-            \unlink($path);
+            \array_map(\unlink(...), \glob("$dir/*"));
+            \rmdir($dir);
         }
 
         Assert::same($exception, ['class' => 'DomainException', 'message' => 'bad', 'code' => '7']);
-        Assert::same($source, "\$a = 1;\nthrow new \\DomainException('bad');\n");
+        Assert::same($ran, \str_repeat('x', 65_535) . "\nthrow new \\DomainException('bad');\n");
+        Assert::same($other, 'source_unavailable');
+        Assert::same($big, 'source_unavailable');
+        Assert::same($withHost, 'source_unavailable');
         Assert::null($h->session()->exception());
     }
 
