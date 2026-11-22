@@ -1,0 +1,59 @@
+[
+    [
+        {
+            "event_id": "{{hex32 error}}",
+            "sent_at": "{{iso -1.000}}",
+            "dsn": "http://sentry@127.0.0.1:9912/2",
+            "sdk": {"name": "sentry.php", "version": "4.18.1"},
+            "trace": {"trace_id": "{{hex32 trace}}", "public_key": "sentry", "sample_rate": "1", "sampled": "true", "transaction": "invoices:send", "environment": "local", "release": "billing@2.0.3"}
+        },
+        {"type": "event", "content_type": "application/json"},
+        {
+            "event_id": "{{hex32 error}}",
+            "timestamp": "{{ts -1.010}}",
+            "platform": "php",
+            "sdk": {"name": "sentry.php", "version": "4.18.1"},
+            "level": "error",
+            "logger": "php",
+            "server_name": "billing-worker",
+            "release": "billing@2.0.3",
+            "environment": "local",
+            "transaction": "invoices:send",
+            "contexts": {
+                "runtime": {"name": "php", "sapi": "cli", "version": "8.4.1"},
+                "trace": {"trace_id": "{{hex32 trace}}", "span_id": "6f2a8c4e1b9d3057", "op": "console.command", "origin": "auto.console"}
+            },
+            "extra": {"invoice": "INV-2026-0042"},
+            "exception": {
+                "values": [
+                    {
+                        "type": "App\\Billing\\InvoiceNumberTaken",
+                        "value": "Invoice number INV-2026-0042 is already taken",
+                        "stacktrace": {
+                            "frames": [
+                                {"filename": "/bin/console", "lineno": 21, "in_app": true, "abs_path": "/app/bin/console", "function": "{main}", "context_line": "return new Application($kernel);"},
+                                {"filename": "/src/Command/SendInvoices.php", "lineno": 44, "in_app": true, "abs_path": "/app/src/Command/SendInvoices.php", "function": "App\\Command\\SendInvoices::execute", "raw_function": "App\\Command\\SendInvoices::execute", "pre_context": ["        foreach ($this->invoices->pending() as $invoice) {"], "context_line": "            $this->numbering->assign($invoice);", "post_context": ["            $this->mailer->send($invoice);"]},
+                                {"filename": "/src/Billing/Numbering.php", "lineno": 19, "in_app": true, "abs_path": "/app/src/Billing/Numbering.php", "function": "App\\Billing\\Numbering::assign", "raw_function": "App\\Billing\\Numbering::assign", "pre_context": ["        $number = $this->next($invoice->issuedAt);", "        if ($this->invoices->hasNumber($number)) {"], "context_line": "            throw new InvoiceNumberTaken($number);", "post_context": ["        }"]}
+                            ]
+                        },
+                        "mechanism": {"type": "generic", "handled": true}
+                    }
+                ]
+            }
+        }
+    ],
+    [
+        {
+            "sent_at": "{{iso -0.990}}",
+            "dsn": "http://sentry@127.0.0.1:9912/2",
+            "sdk": {"name": "sentry.php", "version": "4.18.1"}
+        },
+        {"type": "log", "item_count": 2, "content_type": "application/vnd.sentry.items.log+json"},
+        {
+            "items": [
+                {"timestamp": "{{ts -1.200}}", "trace_id": "{{hex32 trace}}", "span_id": "6f2a8c4e1b9d3057", "level": "info", "body": "Sending 12 pending invoices", "attributes": {"sentry.release": {"type": "string", "value": "billing@2.0.3"}, "sentry.environment": {"type": "string", "value": "local"}, "server.address": {"type": "string", "value": "billing-worker"}}},
+                {"timestamp": "{{ts -1.015}}", "trace_id": "{{hex32 trace}}", "span_id": "6f2a8c4e1b9d3057", "level": "error", "body": "Invoice INV-2026-0042 skipped: number already taken", "attributes": {"sentry.release": {"type": "string", "value": "billing@2.0.3"}, "sentry.environment": {"type": "string", "value": "local"}, "server.address": {"type": "string", "value": "billing-worker"}}}
+            ]
+        }
+    ]
+]

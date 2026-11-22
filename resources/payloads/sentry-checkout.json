@@ -1,0 +1,130 @@
+[
+    [
+        {
+            "event_id": "{{hex32 error}}",
+            "sent_at": "{{iso -2.390}}",
+            "dsn": "http://sentry@127.0.0.1:9912/1",
+            "sdk": {"name": "sentry.php", "version": "4.18.1"},
+            "trace": {"trace_id": "{{hex32 trace}}", "public_key": "sentry", "sample_rate": "1", "sampled": "true", "transaction": "POST /checkout", "environment": "local", "release": "shop@1.4.0"}
+        },
+        {"type": "event", "content_type": "application/json"},
+        {
+            "event_id": "{{hex32 error}}",
+            "timestamp": "{{ts -2.400}}",
+            "platform": "php",
+            "sdk": {"name": "sentry.php", "version": "4.18.1", "packages": [{"name": "composer:sentry/sentry", "version": "4.18.1"}]},
+            "level": "error",
+            "logger": "php",
+            "server_name": "checkout",
+            "release": "shop@1.4.0",
+            "environment": "local",
+            "transaction": "POST /checkout",
+            "contexts": {
+                "os": {"name": "Linux", "version": "6.8.0", "build": "#1 SMP", "kernel_version": "Linux 6.8.0 x86_64"},
+                "runtime": {"name": "php", "sapi": "fpm-fcgi", "version": "8.4.1"},
+                "trace": {"trace_id": "{{hex32 trace}}", "span_id": "4c8a2d1f6b3e9075", "parent_span_id": "9a1f3c5e7b2d4086", "op": "http.client", "origin": "auto.http.client"}
+            },
+            "tags": {"payment_provider": "acme-pay"},
+            "user": {"id": "1007", "email": "alice@example.com", "ip_address": "192.168.1.15"},
+            "request": {
+                "url": "http://shop.local/checkout",
+                "method": "POST",
+                "headers": {"Host": ["shop.local"], "Content-Type": ["application/json"], "User-Agent": ["Mozilla/5.0 (X11; Linux x86_64) Firefox/131.0"]}
+            },
+            "breadcrumbs": {
+                "values": [
+                    {"type": "default", "category": "db.sql.query", "level": "info", "timestamp": "{{ts -2.950}}", "message": "SELECT * FROM carts WHERE user_id = ?"},
+                    {"type": "http", "category": "http", "level": "error", "timestamp": "{{ts -2.410}}", "data": {"url": "https://payments.example.com/v1/charges", "method": "POST", "status_code": 502}}
+                ]
+            },
+            "exception": {
+                "values": [
+                    {
+                        "type": "App\\Payment\\PaymentFailedException",
+                        "value": "Payment gateway responded with 502 Bad Gateway",
+                        "stacktrace": {
+                            "frames": [
+                                {"filename": "/public/index.php", "lineno": 25, "in_app": true, "abs_path": "/app/public/index.php", "function": "{main}", "pre_context": ["$kernel = new Kernel($_SERVER['APP_ENV'], (bool) $_SERVER['APP_DEBUG']);", "$request = Request::createFromGlobals();"], "context_line": "$response = $kernel->handle($request);", "post_context": ["$response->send();"]},
+                                {"filename": "/src/Controller/CheckoutController.php", "lineno": 28, "in_app": true, "abs_path": "/app/src/Controller/CheckoutController.php", "function": "App\\Controller\\CheckoutController::place", "raw_function": "App\\Controller\\CheckoutController::place", "pre_context": ["    public function place(Request $request): JsonResponse", "    {"], "context_line": "        $order = $this->placeOrder->handle($this->getUser(), $request->toArray());", "post_context": ["", "        return $this->json($order, 201);"]},
+                                {"filename": "/src/Payment/Gateway.php", "lineno": 87, "in_app": true, "abs_path": "/app/src/Payment/Gateway.php", "function": "App\\Payment\\Gateway::charge", "raw_function": "App\\Payment\\Gateway::charge", "pre_context": ["        $response = $this->http->request('POST', '/v1/charges', ['json' => $charge]);", "        if ($response->getStatusCode() >= 500) {"], "context_line": "            throw new PaymentFailedException(sprintf('Payment gateway responded with %d %s', $response->getStatusCode(), 'Bad Gateway'));", "post_context": ["        }", ""]}
+                            ]
+                        },
+                        "mechanism": {"type": "generic", "handled": false}
+                    }
+                ]
+            }
+        }
+    ],
+    [
+        {
+            "event_id": "{{hex32 transaction}}",
+            "sent_at": "{{iso -2.350}}",
+            "dsn": "http://sentry@127.0.0.1:9912/1",
+            "sdk": {"name": "sentry.php", "version": "4.18.1"},
+            "trace": {"trace_id": "{{hex32 trace}}", "public_key": "sentry", "sample_rate": "1", "sampled": "true", "transaction": "POST /checkout", "environment": "local", "release": "shop@1.4.0"}
+        },
+        {"type": "transaction", "content_type": "application/json"},
+        {
+            "event_id": "{{hex32 transaction}}",
+            "type": "transaction",
+            "transaction": "POST /checkout",
+            "transaction_info": {"source": "route"},
+            "start_timestamp": "{{ts -3.000}}",
+            "timestamp": "{{ts -2.360}}",
+            "platform": "php",
+            "sdk": {"name": "sentry.php", "version": "4.18.1"},
+            "server_name": "checkout",
+            "release": "shop@1.4.0",
+            "environment": "local",
+            "contexts": {
+                "runtime": {"name": "php", "sapi": "fpm-fcgi", "version": "8.4.1"},
+                "trace": {
+                    "trace_id": "{{hex32 trace}}",
+                    "span_id": "9a1f3c5e7b2d4086",
+                    "op": "http.server",
+                    "status": "internal_error",
+                    "origin": "auto.http.server",
+                    "data": {"http.request.method": "POST", "http.response.status_code": 500, "url": "http://shop.local/checkout"}
+                }
+            },
+            "request": {"url": "http://shop.local/checkout", "method": "POST"},
+            "spans": [
+                {"trace_id": "{{hex32 trace}}", "span_id": "2e7b9d4a1c6f3058", "parent_span_id": "9a1f3c5e7b2d4086", "op": "db.sql.query", "description": "SELECT * FROM carts WHERE user_id = ?", "status": "ok", "origin": "auto.db.doctrine", "start_timestamp": "{{ts -2.960}}", "timestamp": "{{ts -2.945}}", "data": {"db.system": "mysql", "db.name": "shop", "server.address": "mysql", "server.port": 3306}},
+                {"trace_id": "{{hex32 trace}}", "span_id": "7d3f1a9c5e2b8064", "parent_span_id": "9a1f3c5e7b2d4086", "op": "db.sql.query", "description": "INSERT INTO orders (user_id, total, status) VALUES (?, ?, ?)", "status": "ok", "origin": "auto.db.doctrine", "start_timestamp": "{{ts -2.930}}", "timestamp": "{{ts -2.900}}", "data": {"db.system": "mysql", "db.name": "shop", "server.address": "mysql", "server.port": 3306}},
+                {"trace_id": "{{hex32 trace}}", "span_id": "5b8e2c7f4a1d9036", "parent_span_id": "9a1f3c5e7b2d4086", "op": "cache.get", "description": "cart:1007", "status": "ok", "origin": "auto.cache", "start_timestamp": "{{ts -2.895}}", "timestamp": "{{ts -2.893}}", "data": {"cache.hit": true, "server.address": "redis"}},
+                {"trace_id": "{{hex32 trace}}", "span_id": "4c8a2d1f6b3e9075", "parent_span_id": "9a1f3c5e7b2d4086", "op": "http.client", "description": "POST https://payments.example.com/v1/charges", "status": "internal_error", "origin": "auto.http.client", "start_timestamp": "{{ts -2.880}}", "timestamp": "{{ts -2.410}}", "data": {"http.request.method": "POST", "url": "https://payments.example.com/v1/charges", "http.response.status_code": 502}}
+            ]
+        }
+    ],
+    [
+        {
+            "sent_at": "{{iso -2.340}}",
+            "dsn": "http://sentry@127.0.0.1:9912/1",
+            "sdk": {"name": "sentry.php", "version": "4.18.1"}
+        },
+        {"type": "log", "item_count": 3, "content_type": "application/vnd.sentry.items.log+json"},
+        {
+            "items": [
+                {"timestamp": "{{ts -2.955}}", "trace_id": "{{hex32 trace}}", "span_id": "9a1f3c5e7b2d4086", "level": "info", "body": "Cart 1007 loaded with 3 items", "attributes": {"sentry.release": {"type": "string", "value": "shop@1.4.0"}, "sentry.environment": {"type": "string", "value": "local"}, "sentry.sdk.name": {"type": "string", "value": "sentry.php"}, "sentry.sdk.version": {"type": "string", "value": "4.18.1"}, "server.address": {"type": "string", "value": "checkout"}, "sentry.message.template": {"type": "string", "value": "Cart %s loaded with %d items"}, "sentry.message.parameter.0": {"type": "string", "value": "1007"}, "sentry.message.parameter.1": {"type": "integer", "value": 3}}},
+                {"timestamp": "{{ts -2.420}}", "trace_id": "{{hex32 trace}}", "span_id": "4c8a2d1f6b3e9075", "level": "warn", "body": "Payment gateway is slow: 470 ms", "attributes": {"sentry.release": {"type": "string", "value": "shop@1.4.0"}, "sentry.environment": {"type": "string", "value": "local"}, "sentry.sdk.name": {"type": "string", "value": "sentry.php"}, "sentry.sdk.version": {"type": "string", "value": "4.18.1"}, "server.address": {"type": "string", "value": "checkout"}, "payment.provider": {"type": "string", "value": "acme-pay"}}},
+                {"timestamp": "{{ts -2.405}}", "trace_id": "{{hex32 trace}}", "span_id": "4c8a2d1f6b3e9075", "level": "error", "body": "Payment failed for order 42: 502 Bad Gateway", "attributes": {"sentry.release": {"type": "string", "value": "shop@1.4.0"}, "sentry.environment": {"type": "string", "value": "local"}, "sentry.sdk.name": {"type": "string", "value": "sentry.php"}, "sentry.sdk.version": {"type": "string", "value": "4.18.1"}, "server.address": {"type": "string", "value": "checkout"}, "order.id": {"type": "integer", "value": 42}}}
+            ]
+        }
+    ],
+    [
+        {
+            "sent_at": "{{iso -2.330}}",
+            "dsn": "http://sentry@127.0.0.1:9912/1",
+            "sdk": {"name": "sentry.php", "version": "4.18.1"}
+        },
+        {"type": "trace_metric", "item_count": 4, "content_type": "application/vnd.sentry.items.trace-metric+json"},
+        {
+            "items": [
+                {"timestamp": "{{ts -2.990}}", "trace_id": "{{hex32 trace}}", "span_id": "9a1f3c5e7b2d4086", "name": "checkout.attempts", "type": "counter", "value": 1, "attributes": {"sentry.release": {"type": "string", "value": "shop@1.4.0"}, "sentry.environment": {"type": "string", "value": "local"}, "payment.provider": {"type": "string", "value": "acme-pay"}}},
+                {"timestamp": "{{ts -2.950}}", "trace_id": "{{hex32 trace}}", "span_id": "9a1f3c5e7b2d4086", "name": "checkout.cart.items", "type": "distribution", "value": 3, "attributes": {"sentry.release": {"type": "string", "value": "shop@1.4.0"}, "sentry.environment": {"type": "string", "value": "local"}}},
+                {"timestamp": "{{ts -2.410}}", "trace_id": "{{hex32 trace}}", "span_id": "4c8a2d1f6b3e9075", "name": "payment.request.duration", "type": "distribution", "value": 470.2, "unit": "millisecond", "attributes": {"sentry.release": {"type": "string", "value": "shop@1.4.0"}, "sentry.environment": {"type": "string", "value": "local"}, "http.response.status_code": {"type": "integer", "value": 502}}},
+                {"timestamp": "{{ts -2.360}}", "trace_id": "{{hex32 trace}}", "span_id": "9a1f3c5e7b2d4086", "name": "php.memory.peak", "type": "gauge", "value": 18874368, "unit": "byte", "attributes": {"sentry.release": {"type": "string", "value": "shop@1.4.0"}, "sentry.environment": {"type": "string", "value": "local"}}}
+            ]
+        }
+    ]
+]

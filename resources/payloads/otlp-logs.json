@@ -1,0 +1,69 @@
+[
+    {
+        "resourceLogs": [
+            {
+                "resource": {
+                    "attributes": [
+                        {"key": "service.name", "value": {"stringValue": "orders"}},
+                        {"key": "service.version", "value": {"stringValue": "3.1.0"}},
+                        {"key": "deployment.environment.name", "value": {"stringValue": "local"}}
+                    ]
+                },
+                "scopeLogs": [
+                    {
+                        "scope": {"name": "monolog", "version": "3.8.0"},
+                        "logRecords": [
+                            {
+                                "timeUnixNano": "{{ns -1.462}}", "observedTimeUnixNano": "{{ns -1.462}}",
+                                "severityNumber": 9, "severityText": "INFO",
+                                "body": {"stringValue": "Loading order 42"},
+                                "attributes": [{"key": "order.id", "value": {"intValue": "42"}}],
+                                "traceId": "{{hex32 trace}}", "spanId": "1b7e5c2a9f0d3e64", "flags": 1
+                            },
+                            {
+                                "timeUnixNano": "{{ns -1.309}}", "observedTimeUnixNano": "{{ns -1.309}}",
+                                "severityNumber": 17, "severityText": "ERROR",
+                                "body": {"stringValue": "Order lookup failed: canceling statement due to lock timeout"},
+                                "attributes": [
+                                    {"key": "exception.type", "value": {"stringValue": "PDOException"}},
+                                    {"key": "db.namespace", "value": {"stringValue": "shop"}}
+                                ],
+                                "traceId": "{{hex32 trace}}", "spanId": "a94f2e6c1d8b7035", "flags": 1
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "resourceLogs": [
+            {
+                "resource": {
+                    "attributes": [
+                        {"key": "service.name", "value": {"stringValue": "gateway"}},
+                        {"key": "service.version", "value": {"stringValue": "2.3.0"}},
+                        {"key": "deployment.environment.name", "value": {"stringValue": "local"}}
+                    ]
+                },
+                "scopeLogs": [
+                    {
+                        "scope": {"name": "monolog", "version": "3.8.0"},
+                        "logRecords": [
+                            {
+                                "timeUnixNano": "{{ns -1.115}}", "observedTimeUnixNano": "{{ns -1.115}}",
+                                "severityNumber": 13, "severityText": "WARN",
+                                "body": {"stringValue": "Upstream orders answered 500, responding 502"},
+                                "attributes": [
+                                    {"key": "upstream", "value": {"stringValue": "http://orders:8080"}},
+                                    {"key": "http.response.status_code", "value": {"intValue": "500"}}
+                                ],
+                                "traceId": "{{hex32 trace}}", "spanId": "8e41d07a6b93f215", "flags": 1
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+]

@@ -122,5 +122,6 @@ Nothing leaves the machine meanwhile: the mails, the reports and the requests st
 
 ## Check the wiring
 
-`vendor/bin/trap test` sends dumps, mails, Sentry events and profiles to port 9912. When its events arrive and
-the application's don't, look at the settings of the application, not at Trap.
+`vendor/bin/trap test` sends a sample of every kind of data Trap takes to port 9912 (`-p` for another) and exits
+with an error when Trap refuses a part. When its events arrive and the application's don't,
+look at the settings of the application, not at Trap.

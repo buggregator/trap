@@ -1,0 +1,129 @@
+[
+    {
+        "uuid": "{{uuid log}}",
+        "payloads": [
+            {
+                "type": "log",
+                "content": {"values": ["Order #42 is paid"], "meta": [{"clipboard_data": "Order #42 is paid"}]},
+                "origin": {"function_name": "handle", "file": "/app/src/Order/MarkPaid.php", "line_number": 31, "hostname": "app"}
+            }
+        ],
+        "meta": {"php_version": "8.4.1", "php_version_id": 80401, "project_name": "", "ray_package_version": "1.41.2"}
+    },
+    {
+        "uuid": "{{uuid log}}",
+        "payloads": [
+            {
+                "type": "color",
+                "content": {"color": "green"},
+                "origin": {"function_name": "handle", "file": "/app/src/Order/MarkPaid.php", "line_number": 31, "hostname": "app"}
+            }
+        ],
+        "meta": {"php_version": "8.4.1", "php_version_id": 80401, "project_name": "", "ray_package_version": "1.41.2"}
+    },
+    {
+        "uuid": "{{uuid log}}",
+        "payloads": [
+            {
+                "type": "label",
+                "content": {"label": "payments"},
+                "origin": {"function_name": "handle", "file": "/app/src/Order/MarkPaid.php", "line_number": 31, "hostname": "app"}
+            }
+        ],
+        "meta": {"php_version": "8.4.1", "php_version_id": 80401, "project_name": "", "ray_package_version": "1.41.2"}
+    },
+    {
+        "uuid": "{{uuid table}}",
+        "payloads": [
+            {
+                "type": "table",
+                "content": {
+                    "values": {"id": 42, "status": "paid", "total": "129.90 EUR", "customer": "alice@example.com"},
+                    "label": "Table"
+                },
+                "origin": {"function_name": "handle", "file": "/app/src/Order/MarkPaid.php", "line_number": 34, "hostname": "app"}
+            }
+        ],
+        "meta": {"php_version": "8.4.1", "php_version_id": 80401, "project_name": "", "ray_package_version": "1.41.2"}
+    },
+    {
+        "uuid": "{{uuid caller}}",
+        "payloads": [
+            {
+                "type": "caller",
+                "content": {
+                    "frame": {
+                        "file_name": "/app/src/Controller/OrderController.php",
+                        "line_number": 52,
+                        "class": "App\\Controller\\OrderController",
+                        "method": "pay",
+                        "vendor_frame": false
+                    }
+                },
+                "origin": {"function_name": "handle", "file": "/app/src/Order/MarkPaid.php", "line_number": 36, "hostname": "app"}
+            }
+        ],
+        "meta": {"php_version": "8.4.1", "php_version_id": 80401, "project_name": "", "ray_package_version": "1.41.2"}
+    },
+    {
+        "uuid": "{{uuid html}}",
+        "payloads": [
+            {
+                "type": "custom",
+                "content": {"content": "<b>Invoice</b> <i>INV-2026-0042</i> was sent to <u>alice@example.com</u>", "label": "HTML"},
+                "origin": {"function_name": "handle", "file": "/app/src/Order/MarkPaid.php", "line_number": 40, "hostname": "app"}
+            }
+        ],
+        "meta": {"php_version": "8.4.1", "php_version_id": 80401, "project_name": "", "ray_package_version": "1.41.2"}
+    },
+    {
+        "uuid": "{{uuid exception}}",
+        "payloads": [
+            {
+                "type": "exception",
+                "content": {
+                    "class": "App\\Payment\\PaymentDeclined",
+                    "message": "Card was declined: insufficient funds",
+                    "frames": [
+                        {
+                            "file_name": "/app/src/Payment/Gateway.php",
+                            "line_number": 87,
+                            "class": "App\\Payment\\Gateway",
+                            "method": "charge",
+                            "vendor_frame": false,
+                            "snippet": [
+                                {"line_number": 85, "text": "        if ($response->status === 'declined') {"},
+                                {"line_number": 86, "text": "            $this->logger->warning('Declined', ['order' => $order->id]);"},
+                                {"line_number": 87, "text": "            throw new PaymentDeclined($response->reason);"},
+                                {"line_number": 88, "text": "        }"}
+                            ]
+                        },
+                        {
+                            "file_name": "/app/src/Order/MarkPaid.php",
+                            "line_number": 29,
+                            "class": "App\\Order\\MarkPaid",
+                            "method": "handle",
+                            "vendor_frame": false,
+                            "snippet": [
+                                {"line_number": 28, "text": "        $order = $this->orders->get($id);"},
+                                {"line_number": 29, "text": "        $this->gateway->charge($order);"},
+                                {"line_number": 30, "text": ""}
+                            ]
+                        },
+                        {
+                            "file_name": "/app/vendor/symfony/http-kernel/HttpKernel.php",
+                            "line_number": 183,
+                            "class": "Symfony\\Component\\HttpKernel\\HttpKernel",
+                            "method": "handleRaw",
+                            "vendor_frame": true,
+                            "snippet": []
+                        }
+                    ],
+                    "meta": []
+                },
+                "origin": {"function_name": "handle", "file": "/app/src/Order/MarkPaid.php", "line_number": 44, "hostname": "app"}
+            }
+        ],
+        "meta": {"php_version": "8.4.1", "php_version_id": 80401, "project_name": "", "ray_package_version": "1.41.2"}
+    }
+]

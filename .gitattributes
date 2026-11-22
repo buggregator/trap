@@ -19,6 +19,7 @@
 /tests/Stub/spx/*.txt text eol=lf
 /tests/Stub/spx/**/*.gz binary
 /tests/Stub/xdebug/**/*.gz binary
+/resources/payloads/*.gz binary
 /tests/Stub/spx/real/*.json text eol=lf
 # Raw SMTP data: lines end with CRLF on the wire
 /tests/Stub/mail/*.eml text eol=crlf

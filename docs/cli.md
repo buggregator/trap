@@ -54,9 +54,25 @@ Stop the server with `Ctrl+C`. A second `Ctrl+C` exits at once.
 
 ## `test`
 
-Sends test data to a running Trap: an XHProf profile, an Xdebug profile, a few `trap()` dumps, a protobuf message,
-two emails over SMTP (plain and multipart), three Sentry events (store and envelope) and an image as binary data.
-Use it to check that Trap is up and renders everything.
+Sends a sample of every kind of data Trap receives to a running Trap, so that one run fills the console and every
+page of the [web UI](web-ui.md), Sentry pages included:
+
+- profiles: XHProf, Xdebug, SPX and Speedscope (Excimer);
+- an [Xdebug function trace](xdebug-traces.md);
+- `trap()` dumps and a protobuf message;
+- two emails over SMTP, a plain and a multipart one;
+- [Monolog](monolog.md) records of several levels and channels;
+- [Ray](ray.md) payloads: a log with a color and a label, a table, a caller, HTML and an exception;
+- two [HTTP dumps](http-dump.md): a `GET` with a query and cookies, and a form that uploads a file;
+- [Sentry](sentry.md) events of older SDKs, and the envelopes of a failed request: the error, the transaction of its
+  trace with database, cache and HTTP spans, logs and trace metrics;
+- an [OpenTelemetry](opentelemetry.md) trace across two services, with logs and metrics of each type;
+- a Sentry error with logs of a second project, `billing`;
+- an image as binary data.
+
+The times of the logs, traces and metrics are those of the run, so the period filters of the UI show them.
+Use the command to check that Trap is up and renders everything. It reports each part Trap refuses and then exits
+with an error; a Trap without ext-zlib refuses the gzipped SPX profile and Xdebug trace.
 
 | Option   | Short | Default     | Meaning                 |
 | -------- | ----- | ----------- | ----------------------- |

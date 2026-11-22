@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Server\Command;
 
 use Buggregator\Trap\Server\Info;
 use Buggregator\Trap\Server\Logger;
+use Buggregator\Trap\Support\Uuid;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -23,6 +24,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 )]
 final class Test extends Command
 {
+    private const PAYLOADS = Info::TRAP_ROOT . '/resources/payloads/';
+
     private string $addr = '127.0.0.1';
     private int $port = 9912;
     private bool $failed = false;
@@ -56,24 +59,262 @@ final class Test extends Command
         $this->port = $port;
         $this->addr = (string) $input->getOption('host');
 
-        // XHProf
-        $this->sendContent('yii-xhprof.http');
-        // XDebug
-        $this->sendContent('testo-xdebug.http');
-
+        $this->profiles();
+        $this->xdebugTrace();
         $this->dump();
         \usleep(100_000);
         $this->mail($output, true);
         \usleep(100_000);
         $this->mail($output, false);
         \usleep(100_000);
-        $this->sendContent('sentry-store.http'); // Sentry Store very short
-        $this->sendContent('sentry-store-2.http'); // Sentry Store full
-        $this->sendContent('sentry-envelope.http'); // Sentry envelope
+        $this->monolog();
+        $this->ray();
+        $this->httpDump();
+        $this->sentry();
+        $this->openTelemetry();
         \usleep(100_000);
         $this->sendContent('logo.png');
 
         return $this->failed ? Command::FAILURE : Command::SUCCESS;
+    }
+
+    /**
+     * @param resource $socket
+     */
+    private static function write(mixed $socket, string $data): void
+    {
+        while ($data !== '') {
+            $written = @\fwrite($socket, $data);
+            $written === false || $written === 0 and throw new \RuntimeException('Cannot write to the socket.');
+            $data = \substr($data, $written);
+        }
+    }
+
+    /**
+     * @param non-empty-string $file File from the {@link resources/payloads} directory
+     */
+    private static function read(string $file): string
+    {
+        $content = @\file_get_contents(self::PAYLOADS . $file);
+        return $content === false ? throw new \RuntimeException("Cannot read the payload `$file`.") : $content;
+    }
+
+    /**
+     * A JSON payload of the {@link resources/payloads} directory with placeholders that give each run its own
+     * times and IDs. Times are seconds relative to the moment the payload is read:
+     * - `"{{ts -1.5}}"`, quotes included, becomes Unix time as a number;
+     * - `{{ns -1.5}}` Unix time in nanoseconds, `{{iso -1.5}}` an RFC 3339 time;
+     * - `{{hex32 name}}` and `{{uuid name}}` an ID, the same for the same name while `$ids` is shared.
+     *
+     * Objects stay objects, so `{}` is sent as `{}`.
+     *
+     * @param non-empty-string $file
+     * @param array<string, string> $ids
+     * @return array<array-key, mixed> The decoded list.
+     */
+    private static function template(string $file, array &$ids = []): array
+    {
+        $now = \microtime(true);
+        $json = \preg_replace_callback(
+            '/"\{\{ts ([-+]?[\d.]+)}}"|\{\{(ns|iso) ([-+]?[\d.]+)}}|\{\{(hex32|uuid) (\w+)}}/',
+            static function (array $match) use ($now, &$ids): string {
+                if ($match[1] !== '') {
+                    return \sprintf('%.6F', $now + (float) $match[1]);
+                }
+
+                if ($match[2] !== '') {
+                    $time = \sprintf('%.6F', $now + (float) $match[3]);
+                    return $match[2] === 'ns'
+                        ? \str_replace('.', '', $time) . '000'
+                        : \gmdate('Y-m-d\TH:i:s.', (int) $time) . \substr($time, -6) . '+00:00';
+                }
+
+                return $ids["$match[4] $match[5]"] ??= $match[4] === 'uuid'
+                    ? Uuid::uuid4()
+                    : \bin2hex(\random_bytes(16));
+            },
+            self::read($file),
+        );
+
+        /** @var mixed $data */
+        $data = \json_decode((string) $json, false, 512, \JSON_THROW_ON_ERROR);
+        return \is_array($data) ? $data : throw new \RuntimeException("The payload `$file` is not a JSON list.");
+    }
+
+    private static function json(mixed $value): string
+    {
+        return \json_encode(
+            $value,
+            \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_PRESERVE_ZERO_FRACTION,
+        );
+    }
+
+    /**
+     * @param list<array{name: string, body: string, filename?: string, type?: string}> $parts
+     */
+    private static function formData(string $boundary, array $parts): string
+    {
+        $data = '';
+        foreach ($parts as $part) {
+            $data .= "--$boundary\r\nContent-Disposition: form-data; name=\"{$part['name']}\"";
+            isset($part['filename']) and $data .= "; filename=\"{$part['filename']}\"";
+            $data .= "\r\n";
+            isset($part['type']) and $data .= "Content-Type: {$part['type']}\r\n";
+            $data .= "\r\n{$part['body']}\r\n";
+        }
+
+        return "$data--$boundary--\r\n";
+    }
+
+    private function profiles(): void
+    {
+        $this->sendContent('yii-xhprof.http');
+        $this->sendContent('testo-xdebug.http');
+
+        $this->attempt('SPX profile', function (): void {
+            $boundary = 'trap-test-' . \bin2hex(\random_bytes(8));
+            $this->http('POST', '/api/profiler/spx?app_name=trap-test&name=calls.php', [
+                'Content-Type' => "multipart/form-data; boundary=$boundary",
+            ], self::formData($boundary, [
+                ['name' => 'metadata', 'filename' => 'spx-full.json', 'type' => 'application/json', 'body' => self::read('spx-full.json')],
+                ['name' => 'trace', 'filename' => 'spx-full.txt.gz', 'type' => 'application/gzip', 'body' => self::read('spx-full.txt.gz')],
+            ]));
+        });
+
+        $this->attempt('Speedscope profile', fn() => $this->http(
+            'POST',
+            '/api/profiler/speedscope?app_name=trap-test&hostname=trap-test&name=excimer&tags%5Bprofiler%5D=excimer',
+            ['Content-Type' => 'application/json'],
+            self::read('speedscope-excimer.json'),
+        ));
+    }
+
+    private function xdebugTrace(): void
+    {
+        $this->attempt('Xdebug trace', fn() => $this->http('POST', '/', [
+            'X-Buggregator-Event' => 'xdebug-trace',
+            'X-Buggregator-Trace-Url' => 'GET /users',
+            'Content-Type' => 'application/octet-stream',
+        ], self::read('xdebug-trace.xt.gz')));
+    }
+
+    /**
+     * Records as `SocketHandler` with `JsonFormatter` writes them: one connection, a record per line.
+     */
+    private function monolog(): void
+    {
+        $this->attempt('Monolog', function (): void {
+            $data = '';
+            /** @var mixed $record */
+            foreach (self::template('monolog.json') as $record) {
+                $data .= self::json($record) . "\n";
+            }
+
+            $socket = $this->connect();
+            try {
+                self::write($socket, $data);
+            } finally {
+                \fclose($socket);
+            }
+        });
+    }
+
+    /**
+     * spatie/ray sends a request per call; chained calls like `->green()` reuse the UUID of the first one.
+     */
+    private function ray(): void
+    {
+        $this->attempt('Ray', function (): void {
+            /** @var mixed $request */
+            foreach (self::template('ray.json') as $request) {
+                $this->http('POST', '/', [
+                    'User-Agent' => 'Ray 1.0',
+                    'Content-Type' => 'application/json',
+                ], self::json($request));
+            }
+        });
+    }
+
+    private function httpDump(): void
+    {
+        $this->attempt('HTTP dump', fn() => $this->http('GET', '/orders/42?expand=items&page=2', [
+            'Accept' => 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
+            'Accept-Language' => 'en-US,en;q=0.5',
+            'User-Agent' => 'Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0',
+            'Cookie' => 'PHPSESSID=9b1d5c2e7f; theme=dark; cart=3',
+            'X-Request-Id' => 'f3c1a2b4-trap-test',
+        ], '', status: 404));
+
+        $this->attempt('HTTP dump with a file', function (): void {
+            $boundary = '----TrapTestBoundary' . \bin2hex(\random_bytes(8));
+            $this->http('POST', '/webhooks/upload?source=trap-test', [
+                'Content-Type' => "multipart/form-data; boundary=$boundary",
+                'User-Agent' => 'Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0',
+                'Cookie' => 'PHPSESSID=9b1d5c2e7f',
+            ], self::formData($boundary, [
+                ['name' => 'title', 'body' => 'Buggregator logo'],
+                ['name' => 'description', 'body' => 'The logo of Buggregator'],
+                ['name' => 'attachment', 'filename' => 'logo.png', 'type' => 'image/png', 'body' => self::read('logo.png')],
+            ]), status: 404);
+        });
+    }
+
+    /**
+     * Legacy SDK requests, then the envelopes the PHP SDK 4.x sends for one failed request: the error,
+     * the transaction of its trace, logs and trace metrics; and an error with logs of another project.
+     */
+    private function sentry(): void
+    {
+        $this->sendContent('sentry-store.http');
+        $this->sendContent('sentry-store-2.http');
+        $this->sendContent('sentry-envelope.http');
+        \usleep(100_000);
+
+        $this->attempt('Sentry trace', function (): void {
+            /** @var mixed $envelope */
+            foreach (self::template('sentry-checkout.json') as $envelope) {
+                $this->sentryEnvelope(1, $envelope);
+            }
+        });
+
+        $this->attempt('Sentry project', function (): void {
+            /** @var mixed $envelope */
+            foreach (self::template('sentry-billing.json') as $envelope) {
+                $this->sentryEnvelope(2, $envelope, ['X-Buggregator-Project' => 'billing']);
+            }
+        });
+    }
+
+    /**
+     * @param mixed $envelope The envelope header, then the header and the payload of each item.
+     * @param array<non-empty-string, string> $headers
+     */
+    private function sentryEnvelope(int $projectId, mixed $envelope, array $headers = []): void
+    {
+        \is_array($envelope) or throw new \RuntimeException('An envelope must be a list of lines.');
+
+        $this->http('POST', "/api/$projectId/envelope/", $headers + [
+            'Content-Type' => 'application/x-sentry-envelope',
+            'User-Agent' => 'sentry.php/4.18.1',
+            'X-Sentry-Auth' => 'Sentry sentry_version=7, sentry_client=sentry.php/4.18.1, sentry_key=sentry',
+        ], \implode("\n", \array_map(self::json(...), $envelope)));
+    }
+
+    /**
+     * A trace across two services, `gateway` calling `orders`, with logs and metrics of the same trace;
+     * each service exports on its own, `orders` first as it finishes first.
+     */
+    private function openTelemetry(): void
+    {
+        $this->attempt('OpenTelemetry', function (): void {
+            $ids = [];
+            foreach (['traces', 'logs', 'metrics'] as $signal) {
+                /** @var mixed $request */
+                foreach (self::template("otlp-$signal.json", $ids) as $request) {
+                    $this->http('POST', "/v1/$signal", ['Content-Type' => 'application/json'], self::json($request));
+                }
+            }
+        });
     }
 
     private function dump(): void
@@ -256,6 +497,69 @@ final class Test extends Command
     }
 
     /**
+     * Runs a sender; its failure is reported and the other senders go on.
+     *
+     * @param \Closure(): void $send
+     */
+    private function attempt(string $what, \Closure $send): void
+    {
+        try {
+            $send();
+        } catch (\Throwable $e) {
+            $this->failed = true;
+            $this->logger->exception($e, "$what sending error", important: true);
+        }
+    }
+
+    /**
+     * Sends a request and waits for the status line, so the next request of the same event comes after it.
+     *
+     * @param array<non-empty-string, string> $headers
+     * @param int|null $status The expected status; any 2xx when null.
+     */
+    private function http(string $method, string $uri, array $headers, string $body, ?int $status = null): void
+    {
+        $head = "$method $uri HTTP/1.1\r\nHost: $this->addr:$this->port\r\n";
+        foreach ($headers as $name => $value) {
+            $head .= "$name: $value\r\n";
+        }
+        $head .= 'Content-Length: ' . \strlen($body) . "\r\nConnection: close\r\n\r\n";
+
+        $socket = $this->connect();
+        try {
+            self::write($socket, $head . $body);
+            $line = \fgets($socket);
+        } finally {
+            \fclose($socket);
+        }
+
+        $line === false and throw new \RuntimeException("No response to `$method $uri`.");
+        $code = (int) (\explode(' ', $line, 3)[1] ?? 0);
+        if ($status === null ? $code < 200 || $code > 299 : $code !== $status) {
+            throw new \RuntimeException(\sprintf(
+                '`%s %s` answered `%s`, %s expected.',
+                $method,
+                $uri,
+                \trim($line),
+                $status ?? '2xx',
+            ));
+        }
+    }
+
+    /**
+     * @return resource
+     */
+    private function connect(): mixed
+    {
+        $socket = @\stream_socket_client("tcp://$this->addr:$this->port", $errno, $error, 5.0);
+        $socket === false and throw new \RuntimeException("Cannot connect to $this->addr:$this->port: $error");
+        // A server that never answers must not hang the command
+        \stream_set_timeout($socket, 5);
+
+        return $socket;
+    }
+
+    /**
      * @param non-empty-string $file File from the {@link resources/payloads} directory
      */
     private function sendContent(string $file): void
@@ -265,7 +569,7 @@ final class Test extends Command
             $socket = @\socket_create(AF_INET, SOCK_STREAM, SOL_TCP) ?: throw new \RuntimeException('Cannot create socket.');
             @\socket_connect($socket, $this->addr, $this->port);
 
-            $fp = @\fopen(Info::TRAP_ROOT . '/resources/payloads/' . $file, 'rb');
+            $fp = @\fopen(self::PAYLOADS . $file, 'rb');
             if ($fp === false) {
                 throw new \RuntimeException('Cannot open file.');
             }

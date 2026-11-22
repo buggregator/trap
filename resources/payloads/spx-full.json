@@ -1,0 +1,27 @@
+{
+  "key": "spx-full-20261113_215732-54ba4546b382-13-1804289383",
+  "exec_ts": 1794607052,
+  "host_name": "54ba4546b382",
+  "process_pid": 13,
+  "process_tid": 13,
+  "process_pwd": "\/work",
+  "cli": 1,
+  "cli_command_line": "calls.php",
+  "http_request_uri": "n\/a",
+  "http_method": "n\/a",
+  "http_host": "n\/a",
+  "custom_metadata_str": null,
+  "wall_time_ms": 5368,
+  "peak_memory_usage": 390344,
+  "called_function_count": 10,
+  "call_count": 25,
+  "recorded_call_count": 25,
+  "enabled_metrics": [
+    "wt"
+    ,"ct"
+    ,"zm"
+    ,"zgr"
+    ,"zif"
+    ,"io"
+  ]
+}
