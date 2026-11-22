@@ -110,8 +110,11 @@ final class BreakpointsTool extends DebugTool
             $this->debugger->sessions(),
             static fn(Session $s): bool => $s->driver === Session::DRIVER_HERE,
         );
-        $closed = \array_filter($here, static fn(Session $s): bool => $s->isClosed());
-        $last = $closed === [] ? null : \end($closed);
+        $last = null;
+        foreach ($here as $session) {
+            $closedAt = $session->closedAt();
+            $closedAt === null || ($last !== null && $last->closedAt() > $closedAt) or $last = $session;
+        }
         $shown = \array_filter($here, static fn(Session $s): bool => !$s->isClosed() || $s === $last);
 
         $list = $saved;
