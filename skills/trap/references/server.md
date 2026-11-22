@@ -115,5 +115,6 @@ decoded past it gets `413`), `TRAP_XDEBUG_PATH`, `TRAP_XHPROF_PATH`, `TRAP_SPX_P
 to pick up), `TRAP_XDEBUG_PORT`, `TRAP_XDEBUG_IDE`, `TRAP_XDEBUG_MODE`, `TRAP_XDEBUG_ALLOW_EVAL`,
 `TRAP_XDEBUG_ALLOW_CONTROL` (the debugger of `--xdebug`, see [xdebug.md](xdebug.md)), `TRAP_XDEBUG_TRACE_PATH`,
 `TRAP_XDEBUG_TRACE_MAX_UPLOAD`, `_MAX_SIZE`, `_KEEP` (Xdebug traces, see [profiling.md](profiling.md#trace-the-calls)),
-`TRAP_TRACES_MAX_SPANS`, `TRAP_TRACES_TTL` (OpenTelemetry traces of the console and MCP),
-`TRAP_TELEMETRY_MAX_SPANS`, `_MAX_LOGS`, `_MAX_METRICS` (the traces, logs and metrics of the web UI's Sentry pages).
+`TRAP_TRACES_MAX_SPANS`, `TRAP_TRACES_TTL` (the OpenTelemetry spans the console keeps to print a trace as a tree),
+`TRAP_TELEMETRY_MAX_SPANS`, `_MAX_LOGS`, `_MAX_METRICS` (the traces, logs and metrics of the web UI's Sentry pages
+and of `list_traces`).

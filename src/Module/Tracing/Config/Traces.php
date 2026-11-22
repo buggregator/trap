@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Tracing\Config;
 
+use Buggregator\Trap\Module\Tracing\Console\SpanBuffer;
 use Buggregator\Trap\Server\Application\Config\Internal\Attribute\Env;
 use Buggregator\Trap\Server\Application\Config\Internal\Attribute\InflectableConfig;
 use Buggregator\Trap\Server\Application\Config\Internal\Attribute\XPath;
 
 /**
- * Limits of the in-memory store of received OpenTelemetry spans,
+ * Limits of the {@see SpanBuffer} of the OpenTelemetry spans the console prints,
  * which joins spans of one trace exported in separate requests.
  *
  * @internal

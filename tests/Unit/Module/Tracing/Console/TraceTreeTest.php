@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Tracing\Console;
 
 use Buggregator\Trap\Module\Tracing\Console\Renderer;
+use Buggregator\Trap\Module\Tracing\Console\SpanBuffer;
 use Buggregator\Trap\Module\Tracing\Console\TraceTree;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\SpanKind;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\JsonTracesDecoder;
-use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Server\Info;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -29,8 +29,10 @@ final class TraceTreeTest
             (string) \file_get_contents(Info::TRAP_ROOT . '/tests/Stub/otlp-traces.json'),
             new \DateTimeImmutable('2024-01-01 12:00:00'),
         );
-        $store = new SpanStore();
-        $store->receive($frame);
+        $store = new SpanBuffer();
+        foreach ($frame->iterateSpans() as [, , $span]) {
+            $store->add($span);
+        }
         $console = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, true);
         (new Renderer())->render($console, $frame);
         $console = $console->fetch();
@@ -46,7 +48,7 @@ final class TraceTreeTest
 
     public function testStoredTraceShowsEverySpanInFull(): void
     {
-        $store = new SpanStore();
+        $store = new SpanBuffer();
         $leaves = \array_map(static fn(int $i): Span => self::span(100 + $i, 2), \range(0, 29));
         $store->add(...$leaves);
         $store->add(self::span(2, 1), self::span(1, null));
@@ -62,13 +64,13 @@ final class TraceTreeTest
     {
         $output = new BufferedOutput();
 
-        $found = (new TraceTree(new SpanStore()))->renderStored($output, self::TRACE);
+        $found = (new TraceTree(new SpanBuffer()))->renderStored($output, self::TRACE);
 
         Assert::false($found);
         Assert::same($output->fetch(), '');
     }
 
-    private static function plain(SpanStore $store, string $traceId): string
+    private static function plain(SpanBuffer $store, string $traceId): string
     {
         $output = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, false);
         Assert::true((new TraceTree($store))->renderStored($output, $traceId));

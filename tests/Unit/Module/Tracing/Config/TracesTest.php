@@ -6,9 +6,9 @@ namespace Buggregator\Trap\Tests\Unit\Module\Tracing\Config;
 
 use Buggregator\Trap\Module\Tracing\Config\Traces;
 use Buggregator\Trap\Module\Tracing\Console\Renderer;
+use Buggregator\Trap\Module\Tracing\Console\SpanBuffer;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\SpanKind;
-use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Server\Bootstrap;
 use Buggregator\Trap\Server\Info;
 use Internal\Container\Container;
@@ -18,7 +18,7 @@ use Testo\Data\DataProvider;
 use Testo\Test;
 
 #[Covers(Traces::class)]
-#[Covers(SpanStore::class)]
+#[Covers(SpanBuffer::class)]
 #[Test]
 final class TracesTest
 {
@@ -68,9 +68,9 @@ final class TracesTest
         Assert::same($config->ttl, 30.0);
     }
 
-    public function testSpanStoreFromContainerUsesEnvLimits(): void
+    public function testSpanBufferFromContainerUsesEnvLimits(): void
     {
-        $store = $this->container(['TRAP_TRACES_MAX_SPANS' => '2'])->get(SpanStore::class);
+        $store = $this->container(['TRAP_TRACES_MAX_SPANS' => '2'])->get(SpanBuffer::class);
 
         $store->add(self::span('a'));
         $store->add(self::span('b'));
@@ -84,7 +84,7 @@ final class TracesTest
     {
         $renderer = $this->container(['TRAP_TRACES_MAX_SPANS' => '2'])->make(Renderer::class);
         $store = (new \ReflectionProperty(Renderer::class, 'store'))->getValue($renderer);
-        \assert($store instanceof SpanStore);
+        \assert($store instanceof SpanBuffer);
 
         $store->add(self::span('a'), self::span('b'), self::span('c'));
 
@@ -92,10 +92,10 @@ final class TracesTest
     }
 
     #[DataProvider('provideInvalidEnvValues')]
-    public function testSpanStoreIgnoresInvalidEnvLimits(string $maxSpans, string $ttl): void
+    public function testSpanBufferIgnoresInvalidEnvLimits(string $maxSpans, string $ttl): void
     {
         $store = $this->container(['TRAP_TRACES_MAX_SPANS' => $maxSpans, 'TRAP_TRACES_TTL' => $ttl])
-            ->get(SpanStore::class);
+            ->get(SpanBuffer::class);
 
         foreach (['a', 'b', 'c', 'd'] as $trace) {
             $store->add(self::span($trace));

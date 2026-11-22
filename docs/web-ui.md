@@ -74,9 +74,10 @@ The Sentry section has a page for each kind of data:
   that service sends its data to Trap too.
 - Logs and Metrics: Sentry `log` and `trace_metric` items, OTLP logs and metrics.
 
-Traces, logs and metrics make no events in the feed. Trap keeps them in memory while the UI or the
-[MCP server](mcp.md) runs, and the UI asks for them by project and period. "Clear all" in the Sentry section
-deletes them with the Sentry events.
+Traces, logs and metrics make no events in the feed: a Sentry transaction is a trace, and the feed holds the errors.
+Trap keeps them in memory while the UI or the [MCP server](mcp.md) runs, and the UI asks for them by project and
+period. The MCP tools [`list_traces` and `get_trace`](mcp.md#traces) read the same traces. "Clear all" in the
+Sentry section deletes them with the Sentry events.
 
 Memory is bounded by these limits; values below 1 fall back to the defaults:
 
@@ -87,5 +88,4 @@ Memory is bounded by these limits; values below 1 fall back to the defaults:
 | `TRAP_TELEMETRY_MAX_METRICS` | `/trap/telemetry/@maxMetrics`| `5000`  | the oldest metric values are dropped                           |
 
 `maxSpans` counts transactions and spans together; a single trace above it keeps its most recent 90%.
-These limits are apart from the [OpenTelemetry limits](opentelemetry.md#memory-limits) of the console and the
-MCP server.
+These limits are apart from the [OpenTelemetry limits](opentelemetry.md#memory-limits) of the console.

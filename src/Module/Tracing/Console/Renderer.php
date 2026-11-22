@@ -10,7 +10,6 @@ use Buggregator\Trap\Module\Tracing\Config\Traces;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\ResourceSpans;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
-use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Server\Proto\Frame;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -18,11 +17,9 @@ use Symfony\Component\Console\Output\OutputInterface;
  * Renders received spans grouped by trace, each trace as a {@see TraceTree} of the spans of the frame
  * among the spans received so far.
  *
- * Every rendered span is added to a {@see SpanStore} of the renderer, so a tree can join spans of separate
- * export requests. Not the store of the container: the OTLP middleware fills that one when a request
- * arrives, and the console renders frames later, in batches, so it would show spans of later frames.
- * With a simple span processor children end before their parents, so each span is printed when it arrives,
- * and the root span brings the complete tree.
+ * Every rendered span is added to a {@see SpanBuffer} of the renderer, so a tree can join spans of separate
+ * export requests. With a simple span processor children end before their parents, so each span is printed
+ * when it arrives, and the root span brings the complete tree.
  *
  * A frame prints at most {@see self::MAX_SPANS} spans.
  *
@@ -34,12 +31,12 @@ final class Renderer implements RendererInterface
 {
     private const MAX_SPANS = 500;
 
-    private readonly SpanStore $store;
+    private readonly SpanBuffer $store;
     private readonly TraceTree $tree;
 
     public function __construct(Traces $config = new Traces())
     {
-        $this->store = new SpanStore($config);
+        $this->store = new SpanBuffer($config);
         $this->tree = new TraceTree($this->store);
     }
 

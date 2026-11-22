@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Tracing\Mcp;
 
 use Buggregator\Trap\Module\Mcp\Tools;
+use Buggregator\Trap\Module\Sentry\Frame\EnvelopeItem;
+use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope;
+use Buggregator\Trap\Module\Sentry\Frontend\EnvelopeMapper;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\ResourceSpans;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\ScopeSpans;
@@ -13,9 +16,11 @@ use Buggregator\Trap\Module\Tracing\Frame\Trace\SpanEvent;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\SpanKind;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\SpanStatus;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\StatusCode;
+use Buggregator\Trap\Module\Tracing\Frontend\TelemetryMapper;
 use Buggregator\Trap\Module\Tracing\Mcp\ListTraces;
 use Buggregator\Trap\Module\Tracing\Mcp\TraceFilter;
-use Buggregator\Trap\Module\Tracing\SpanStore;
+use Buggregator\Trap\Module\Tracing\Mcp\TraceSummary;
+use Buggregator\Trap\Server\Telemetry\TelemetryStore;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\JsonSchema;
 use Buggregator\Trap\Tests\Unit\Module\Mcp\Stub\Trap;
 use Testo\Assert;
@@ -27,15 +32,19 @@ use Testo\Test;
 #[Test]
 #[Covers(ListTraces::class)]
 #[Covers(TraceFilter::class)]
+#[Covers(TraceSummary::class)]
 final class ListTracesTest
 {
+    /** Unix nanoseconds of the start of the traces: 0 is an unset time in OTLP */
+    private const BASE = 1_700_000_000_000_000_000;
+
     public function testListsLeastRecentlyUpdatedFirst(): void
     {
         $trap = new Trap();
-        $store = $trap->get(SpanStore::class);
-        $store->receive(self::frame('shop', self::span('a', 1, null, 'GET /cart', 0, 2_500_000)));
-        $store->receive(self::frame('shop', self::span('b', 2, null, 'GET /orders', 0, 1)));
-        $store->receive(self::frame('db', self::span('a', 3, 1, 'query', 1_000_000, 4_000_000, StatusCode::Error)));
+        $store = $trap->get(TelemetryStore::class);
+        self::receive($trap, self::frame('shop', self::span('a', 1, null, 'GET /cart', 0, 2_500_000)));
+        self::receive($trap, self::frame('shop', self::span('b', 2, null, 'GET /orders', 0, 1)));
+        self::receive($trap, self::frame('db', self::span('a', 3, 1, 'query', 1_000_000, 4_000_000, StatusCode::Error)));
 
         $result = $trap->get(ListTraces::class)->call([]);
 
@@ -44,6 +53,9 @@ final class ListTracesTest
             'id' => self::traceId('a'),
             'name' => 'GET /cart',
             'service' => 'shop',
+            'services' => ['shop', 'db'],
+            'sources' => ['otel'],
+            'projects' => ['default'],
             'spans' => 2,
             'duration_ms' => 4.0,
             'error' => true,
@@ -57,13 +69,13 @@ final class ListTracesTest
     public function testCursorGivesOnlyUpdatedTraces(): void
     {
         $trap = new Trap();
-        $store = $trap->get(SpanStore::class);
+        $store = $trap->get(TelemetryStore::class);
         $tool = $trap->get(ListTraces::class);
-        $store->receive(self::frame('app', self::span('a', 1)));
-        $store->receive(self::frame('app', self::span('b', 2)));
+        self::receive($trap, self::frame('app', self::span('a', 1)));
+        self::receive($trap, self::frame('app', self::span('b', 2)));
         $cursor = $tool->call([])['cursor'];
-        $store->receive(self::frame('app', self::span('c', 3)));
-        $store->receive(self::frame('app', self::span('a', 4, 1)));
+        self::receive($trap, self::frame('app', self::span('c', 3)));
+        self::receive($trap, self::frame('app', self::span('a', 4, 1)));
 
         $result = $tool->call(['since' => $cursor]);
 
@@ -77,7 +89,7 @@ final class ListTracesTest
     public function testForeignCursorListsEverything(string $since): void
     {
         $trap = new Trap();
-        $trap->get(SpanStore::class)->receive(self::frame('app', self::span('a', 1)));
+        self::receive($trap, self::frame('app', self::span('a', 1)));
 
         $result = $trap->get(ListTraces::class)->call(['since' => $since]);
 
@@ -87,14 +99,14 @@ final class ListTracesTest
     public function testLimitPagesThroughTraces(): void
     {
         $trap = new Trap();
-        $store = $trap->get(SpanStore::class);
+        $store = $trap->get(TelemetryStore::class);
         $tool = $trap->get(ListTraces::class);
         foreach (['a', 'b', 'c'] as $i => $char) {
-            $store->receive(self::frame('app', self::span($char, $i + 1)));
+            self::receive($trap, self::frame('app', self::span($char, $i + 1)));
         }
 
         $first = $tool->call(['limit' => 2]);
-        $store->receive(self::frame('app', self::span('a', 4, 1)));
+        self::receive($trap, self::frame('app', self::span('a', 4, 1)));
         $second = $tool->call(['limit' => 2, 'since' => $first['cursor']]);
 
         Assert::same(self::ids($first), [self::traceId('a'), self::traceId('b')]);
@@ -108,10 +120,10 @@ final class ListTracesTest
     public function testErrorsOnly(): void
     {
         $trap = new Trap();
-        $store = $trap->get(SpanStore::class);
-        $store->receive(self::frame('app', self::span('a', 1, status: StatusCode::Error)));
-        $store->receive(self::frame('app', self::span('b', 2, status: StatusCode::Ok)));
-        $store->receive(self::frame('app', self::span('c', 3, status: StatusCode::Error)));
+        $store = $trap->get(TelemetryStore::class);
+        self::receive($trap, self::frame('app', self::span('a', 1, status: StatusCode::Error)));
+        self::receive($trap, self::frame('app', self::span('b', 2, status: StatusCode::Ok)));
+        self::receive($trap, self::frame('app', self::span('c', 3, status: StatusCode::Error)));
 
         $result = $trap->get(ListTraces::class)->call(['errors_only' => true, 'limit' => 1]);
 
@@ -136,20 +148,20 @@ final class ListTracesTest
     public function testFilters(array $arguments, array $expected): void
     {
         $trap = new Trap();
-        $store = $trap->get(SpanStore::class);
-        $store->receive(self::frame('shop', self::span('a', 1, null, 'GET /api/orders', 0, 2_000_000)));
-        $store->receive(self::frame('db', new Span(
+        $store = $trap->get(TelemetryStore::class);
+        self::receive($trap, self::frame('shop', self::span('a', 1, null, 'GET /api/orders', 0, 2_000_000)));
+        self::receive($trap, self::frame('db', new Span(
             traceId: self::traceId('b'),
             spanId: \sprintf('%016x', 2),
             parentSpanId: null,
             name: 'GET /api/users',
             kind: SpanKind::Client,
-            startTimeUnixNano: 0,
-            endTimeUnixNano: 1_000_000,
+            startTimeUnixNano: self::BASE,
+            endTimeUnixNano: self::BASE + 1_000_000,
             attributes: ['db.statement' => 'SELECT * FROM users', 'db.rows' => 3],
         )));
-        $store->receive(self::frame('shop', self::span('c', 3, null, 'POST /checkout', 0, 1_000_000)));
-        $store->receive(self::frame('shop', self::span('c', 4, 3, 'charge card', 0, 3_000_000)));
+        self::receive($trap, self::frame('shop', self::span('c', 3, null, 'POST /checkout', 0, 1_000_000)));
+        self::receive($trap, self::frame('shop', self::span('c', 4, 3, 'charge card', 0, 3_000_000)));
 
         $result = $trap->get(ListTraces::class)->call($arguments);
 
@@ -164,18 +176,18 @@ final class ListTracesTest
     public function testSearchCoversEventsStatusAndResources(string $search, array $expected): void
     {
         $trap = new Trap();
-        $store = $trap->get(SpanStore::class);
-        $store->receive(self::frame('shop', new Span(
+        $store = $trap->get(TelemetryStore::class);
+        self::receive($trap, self::frame('shop', new Span(
             traceId: self::traceId('a'),
             spanId: \sprintf('%016x', 1),
             parentSpanId: null,
             name: 'GET /orders',
             kind: SpanKind::Server,
-            startTimeUnixNano: 0,
-            endTimeUnixNano: 1,
+            startTimeUnixNano: self::BASE,
+            endTimeUnixNano: self::BASE + 1,
             events: [new SpanEvent(0, 'exception', ['exception.message' => 'SQLSTATE[HY000] gone away'])],
         )));
-        $store->receive(new OtlpTraces([new ResourceSpans(
+        self::receive($trap, new OtlpTraces([new ResourceSpans(
             [new ScopeSpans([self::span('b', 2, status: StatusCode::Error, message: 'card declined')])],
             ['service.name' => 'billing', 'cloud.region' => 'eu-west-1'],
         )]));
@@ -190,14 +202,14 @@ final class ListTracesTest
     public function testSearchCoversStructuredAttributes(array $arguments): void
     {
         $trap = new Trap();
-        $trap->get(SpanStore::class)->receive(self::frame('app', new Span(
+        self::receive($trap, self::frame('app', new Span(
             traceId: self::traceId('a'),
             spanId: \sprintf('%016x', 1),
             parentSpanId: null,
             name: 'GET /',
             kind: SpanKind::Server,
-            startTimeUnixNano: 0,
-            endTimeUnixNano: 1,
+            startTimeUnixNano: self::BASE,
+            endTimeUnixNano: self::BASE + 1,
             attributes: ['tags' => ['web', 'eu'], 'ratio' => [\NAN]],
         )));
 
@@ -209,7 +221,7 @@ final class ListTracesTest
     public function testListedUpdateTimeTakesItsTraceBack(): void
     {
         $trap = new Trap();
-        $trap->get(SpanStore::class)->receive(self::frame('app', self::span('a', 1)));
+        self::receive($trap, self::frame('app', self::span('a', 1)));
         $tool = $trap->get(ListTraces::class);
         $updated = $tool->call([])['traces'][0]['updated'];
 
@@ -224,14 +236,75 @@ final class ListTracesTest
     public function testResultConformsToOutputSchema(array $arguments): void
     {
         $trap = new Trap();
-        $store = $trap->get(SpanStore::class);
+        $store = $trap->get(TelemetryStore::class);
         $tool = $trap->get(ListTraces::class);
-        $store->receive(self::frame(null, self::span('a', 1, 9)));
-        $store->receive(self::frame('app', self::span('b', 2)));
+        self::receive($trap, self::frame(null, self::span('a', 1, 9)));
+        self::receive($trap, self::frame('app', self::span('b', 2)));
 
         $result = $tool->call($arguments);
 
         Assert::same(JsonSchema::errors($result, $tool->outputSchema()), []);
+    }
+
+    public function testListsSentryTracesWithOpenTelemetryOnes(): void
+    {
+        $trap = new Trap();
+        self::receive($trap, self::frame('gateway', self::span('a', 1, null, 'GET /orders', 0, 2_000_000)));
+        self::sentry($trap, 'b', 'shop');
+
+        $result = $trap->get(ListTraces::class)->call([]);
+
+        Assert::same(self::ids($result), [self::traceId('a'), self::traceId('b')]);
+        Assert::same(\array_diff_key($result['traces'][1], ['updated' => true]), [
+            'id' => self::traceId('b'),
+            'name' => 'POST /checkout',
+            'service' => 'checkout-api',
+            'services' => ['checkout-api'],
+            'sources' => ['sentry'],
+            'projects' => ['shop'],
+            'spans' => 3,
+            'duration_ms' => 250.0,
+            'error' => true,
+        ]);
+    }
+
+    #[DataSet([['source' => 'sentry'], ['b', 'c']], 'Sentry')]
+    #[DataSet([['source' => 'otel'], ['a']], 'OpenTelemetry')]
+    #[DataSet([['project' => 'shop'], ['b']], 'project')]
+    #[DataSet([['project' => ['', 'billing']], ['a', 'c']], 'projects, the default one by an empty name')]
+    #[DataSet([['project' => 'none'], []], 'unknown project')]
+    #[DataSet([['service' => 'checkout-*'], ['b', 'c']], 'service of Sentry')]
+    #[DataSet([['search' => 'db.query: SELECT'], ['b', 'c']], 'op and description of a Sentry span')]
+    #[DataSet([['errors_only' => true, 'project' => 'shop'], ['b']], 'Sentry failure')]
+    public function testFiltersSentryAndOpenTelemetryTraces(array $arguments, array $expected): void
+    {
+        $trap = new Trap();
+        self::receive($trap, self::frame('gateway', self::span('a', 1, null, 'GET /orders', 0, 2_000_000)));
+        self::sentry($trap, 'b', 'shop');
+        self::sentry($trap, 'c', 'billing');
+
+        $result = $trap->get(ListTraces::class)->call($arguments);
+
+        Assert::same(self::ids($result), \array_map(self::traceId(...), $expected));
+    }
+
+    public function testProjectScopesTheSummary(): void
+    {
+        $trap = new Trap();
+        self::receive($trap, self::frame('gateway', self::span('a', 1, null, 'GET /orders', 0, 2_000_000)));
+        $trap->get(TelemetryMapper::class)->map((new OtlpTraces([new ResourceSpans(
+            [new ScopeSpans([self::span('a', 2, 1, 'charge', 0, 5_000_000)])],
+            ['service.name' => 'billing'],
+        )]))->withProject('billing'));
+
+        $all = $trap->get(ListTraces::class)->call([])['traces'][0];
+        $billing = $trap->get(ListTraces::class)->call(['project' => 'billing'])['traces'][0];
+
+        Assert::same([$all['spans'], $all['projects'], $all['services']], [2, ['default', 'billing'], ['gateway', 'billing']]);
+        Assert::same(
+            [$billing['name'], $billing['spans'], $billing['projects'], $billing['duration_ms']],
+            ['charge', 1, ['billing'], 5.0],
+        );
     }
 
     #[DataSet([['since' => 1], '`since` must be a string.'], 'cursor not a string')]
@@ -244,6 +317,8 @@ final class ListTracesTest
     #[DataSet([['min_duration_ms' => -1], '`min_duration_ms` must be a number of at least 0.'], 'negative duration')]
     #[DataSet([['min_duration_ms' => '5'], '`min_duration_ms` must be a number of at least 0.'], 'duration string')]
     #[DataSet([['from' => '5m', 'to' => '1h'], '`from` is later than `to`.'], 'time range')]
+    #[DataSet([['source' => 'zipkin'], '`source` must be one of: sentry, otel.'], 'unknown source')]
+    #[DataSet([['project' => 1], '`project` must be a string or a non-empty list of strings.'], 'project not a string')]
     #[DataSet([['search' => '[', 'regex' => true], '`search` is not a valid regular expression: Compilation failed: missing terminating ] for character class at offset 1.'], 'regex')]
     public function testRejectsInvalidArguments(array $arguments, string $message): never
     {
@@ -263,7 +338,10 @@ final class ListTracesTest
         Assert::string($tool->description())->contains('get_trace');
         Assert::same(
             \array_keys($tool->inputSchema()['properties']),
-            ['since', 'limit', 'errors_only', 'from', 'to', 'service', 'name', 'min_duration_ms', 'search', 'regex'],
+            [
+                'since', 'limit', 'project', 'source', 'errors_only', 'from', 'to', 'service', 'name',
+                'min_duration_ms', 'search', 'regex',
+            ],
         );
     }
 
@@ -273,6 +351,31 @@ final class ListTracesTest
     private static function ids(array $result): array
     {
         return \array_column($result['traces'], 'id');
+    }
+
+    private static function receive(Trap $trap, OtlpTraces $frame): void
+    {
+        $trap->get(TelemetryMapper::class)->map($frame);
+    }
+
+    /**
+     * A Sentry transaction of 250 ms with a query and a failed HTTP call.
+     */
+    private static function sentry(Trap $trap, string $trace, string $project): void
+    {
+        $start = (float) (self::BASE / 1_000_000_000);
+        $trap->get(EnvelopeMapper::class)->map(new SentryEnvelope([], [new EnvelopeItem(['type' => 'transaction'], [
+            'event_id' => "{$trace}1",
+            'transaction' => 'POST /checkout',
+            'server_name' => 'checkout-api',
+            'contexts' => ['trace' => ['trace_id' => self::traceId($trace), 'span_id' => 's0', 'op' => 'http.server']],
+            'start_timestamp' => $start,
+            'timestamp' => $start + 0.25,
+            'spans' => [
+                ['span_id' => 's1', 'parent_span_id' => 's0', 'op' => 'db.query', 'description' => 'SELECT 1', 'start_timestamp' => $start, 'timestamp' => $start + 0.1],
+                ['span_id' => 's2', 'parent_span_id' => 's0', 'op' => 'http.client', 'status' => 'internal_error', 'start_timestamp' => $start + 0.1, 'timestamp' => $start + 0.2],
+            ],
+        ])], project: $project));
     }
 
     private static function frame(?string $service, Span ...$spans): OtlpTraces
@@ -299,8 +402,8 @@ final class ListTracesTest
             parentSpanId: $parent === null ? null : \sprintf('%016x', $parent),
             name: $name ?? "span-$id",
             kind: SpanKind::Internal,
-            startTimeUnixNano: $start,
-            endTimeUnixNano: $end,
+            startTimeUnixNano: self::BASE + $start,
+            endTimeUnixNano: self::BASE + $end,
             status: new SpanStatus($status, $message),
         );
     }

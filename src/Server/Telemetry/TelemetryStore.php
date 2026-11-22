@@ -7,11 +7,14 @@ namespace Buggregator\Trap\Server\Telemetry;
 use Buggregator\Trap\Server\Config\Telemetry as Config;
 
 /**
- * Traces, logs and metrics of Sentry SDKs and OTLP exporters, the data of the Sentry pages of the web UI.
- * Unlike events, they make no feed cards.
+ * Traces, logs and metrics of Sentry SDKs and OTLP exporters: the data of the Sentry pages of the web UI
+ * and of the trace tools of the MCP server. Unlike events, they make no feed cards.
  *
  * A container singleton, filled by the event mappers of the Sentry and Tracing modules, so only while
- * an event consumer runs: the web UI or the MCP server.
+ * an event consumer runs: the web UI or the MCP server, its only readers.
+ *
+ * Every change of a trace gets the next sequence number: a trace keeps the one of its last change,
+ * and {@see traces()} lists the traces in the order of these numbers.
  *
  * Memory is bounded by {@see Config}. Above `maxSpans` the least recently updated traces are dropped, and
  * a single trace above it keeps its most recent 90%. Above `maxLogs` or `maxMetrics` the oldest 10% go.
@@ -21,6 +24,12 @@ use Buggregator\Trap\Server\Config\Telemetry as Config;
 final class TelemetryStore
 {
     /**
+     * A random ID of the store, and so of the Trap process: sequence numbers of another process mean nothing here.
+     * @var non-empty-string
+     */
+    public readonly string $id;
+
+    /**
      * From the least to the most recently updated trace.
      *
      * @var array<array-key, Trace>
@@ -29,6 +38,9 @@ final class TelemetryStore
 
     /** @var int<0, max> Transactions and spans of all the traces */
     private int $size = 0;
+
+    /** @var int<0, max> */
+    private int $seq = 0;
 
     /** @var list<Log> From the oldest */
     private array $logs = [];
@@ -48,12 +60,20 @@ final class TelemetryStore
     /** @var int<1, max> */
     private readonly int $maxMetrics;
 
-    public function __construct(Config $config = new Config())
+    /** @var \Closure(): float */
+    private readonly \Closure $clock;
+
+    /**
+     * @param \Closure(): float|null $clock Current Unix time in seconds.
+     */
+    public function __construct(Config $config = new Config(), ?\Closure $clock = null)
     {
         $defaults = new Config();
         $this->maxSpans = \max(1, $config->maxSpans >= 1 ? $config->maxSpans : $defaults->maxSpans);
         $this->maxLogs = \max(1, $config->maxLogs >= 1 ? $config->maxLogs : $defaults->maxLogs);
         $this->maxMetrics = \max(1, $config->maxMetrics >= 1 ? $config->maxMetrics : $defaults->maxMetrics);
+        $this->clock = $clock ?? static fn(): float => \microtime(true);
+        $this->id = \bin2hex(\random_bytes(4));
     }
 
     public function listen(TelemetryListener $listener): void
@@ -67,14 +87,15 @@ final class TelemetryStore
      */
     public function add(Batch $batch): void
     {
+        $now = ($this->clock)();
         foreach ($batch->transactions as $transaction) {
-            $trace = $this->touch($transaction->traceId);
+            $trace = $this->touch($transaction->traceId, $now);
             isset($trace->transactions[$transaction->id]) or ++$this->size;
             $trace->transactions[$transaction->id] = $transaction;
         }
 
         foreach ($batch->spans as $span) {
-            $trace = $this->touch($span->traceId);
+            $trace = $this->touch($span->traceId, $now);
             isset($trace->spans[$span->spanId]) or ++$this->size;
             unset($trace->spans[$span->spanId]);
             $trace->spans[$span->spanId] = $span;
@@ -99,7 +120,18 @@ final class TelemetryStore
     }
 
     /**
-     * @return array<array-key, Trace> From the least to the most recently updated one.
+     * The sequence number of the last change of a trace; 0 before the first one.
+     *
+     * @return int<0, max>
+     */
+    public function cursor(): int
+    {
+        return $this->seq;
+    }
+
+    /**
+     * @return array<array-key, Trace> From the least to the most recently updated one, so in the order
+     *         of {@see Trace::$seq}.
      */
     public function traces(): array
     {
@@ -170,10 +202,12 @@ final class TelemetryStore
      *
      * @param non-empty-string $traceId
      */
-    private function touch(string $traceId): Trace
+    private function touch(string $traceId, float $now): Trace
     {
         $trace = $this->traces[$traceId] ?? new Trace($traceId);
         unset($this->traces[$traceId]);
+        $trace->seq = ++$this->seq;
+        $trace->updatedAt = $now;
 
         return $this->traces[$traceId] = $trace;
     }

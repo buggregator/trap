@@ -16,7 +16,6 @@ use Buggregator\Trap\Module\Sentry\Console\SentryEnvelope as SentryEnvelopeRende
 use Buggregator\Trap\Module\Sentry\Console\SentryStore as SentryStoreRenderer;
 use Buggregator\Trap\Module\Tracing\Console\Renderer as TracingRenderer;
 use Buggregator\Trap\Module\Tracing\Console\SignalRenderer;
-use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Module\VarDumper\Console\Renderer as VarDumperRenderer;
 use Buggregator\Trap\Module\XDebugTrace\Console\Renderer as XDebugTraceRenderer;
 use Buggregator\Trap\Server\Application\Module\Modules;
@@ -49,22 +48,6 @@ final class ConsoleSenderTest
             Renderer\Binary::class,
             Renderer\Plain::class,
         ]);
-    }
-
-    /**
-     * The OTLP middleware fills the store of the container before the console renders the frame.
-     */
-    public function testTracingRendererKeepsSpanStoreOfItsOwn(): void
-    {
-        $container = new ObjectContainer();
-
-        $renderers = self::renderers(self::sender($container));
-        $tracing = \array_values(\array_filter(
-            $renderers,
-            static fn(Renderer $renderer): bool => $renderer instanceof TracingRenderer,
-        ))[0];
-
-        Assert::notSame((new \ReflectionProperty(TracingRenderer::class, 'store'))->getValue($tracing), $container->get(SpanStore::class));
     }
 
     private static function sender(ObjectContainer $container): ConsoleSender

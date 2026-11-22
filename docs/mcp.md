@@ -17,9 +17,9 @@ Other clients take the same URL with the `http` (Streamable HTTP) transport type
 
 ## Tools
 
-The tools read the events Trap has caught, the [traces](#traces) it has received and the call trees of
-[Xdebug traces](#xdebug-traces). The events are the ones the
-[web UI](web-ui.md) shows, kept with `--mcp` alone too. An event deleted in the UI is gone for the agent. An event
+The tools read the events Trap has caught, the Sentry and OpenTelemetry [traces](#traces) it has received, and the
+call trees of [Xdebug traces](#xdebug-traces). The events are the ones the [web UI](web-ui.md) shows, kept with
+`--mcp` alone too. An event deleted in the UI is gone for the agent. An event
 the agent deletes is gone from the UI on its next load; a page already open keeps showing it.
 
 | Tool              | Arguments                                                                          | Result                                                                                                         |
@@ -290,29 +290,42 @@ Contexts:
 
 ### Traces
 
-[OpenTelemetry traces](opentelemetry.md) are not events: the tools read the spans Trap keeps to join the spans of one
-trace sent in separate requests, with `--mcp` alone too. The limits of that store,
-[`TRAP_TRACES_MAX_SPANS` and `TRAP_TRACES_TTL`](opentelemetry.md#memory-limits), apply.
+Traces are not events: [Sentry transactions and spans](sentry.md#what-an-envelope-gives) and
+[OpenTelemetry spans](opentelemetry.md) go to the trace store the [Sentry pages](web-ui.md#sentry-pages) of the web
+UI show, and the tools read it, with `--mcp` alone too. Its limit,
+[`TRAP_TELEMETRY_MAX_SPANS`](web-ui.md#sentry-pages), applies: above it the least recently updated traces are
+dropped. Clearing the Sentry pages of the web UI drops their traces for the tools too.
 
-| Tool          | Arguments                                                                                                       | Result                                                                                                   |
-| ------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `list_traces` | `since` (cursor), `limit`, `errors_only`, `from`, `to`, `service`, `name`, `min_duration_ms`, `search`, `regex` | `traces`: `id`, `name`, `service`, `spans`, `duration_ms`, `error`, `updated` each; `cursor`; `has_more` |
-| `get_trace`   | `id`, `max_length`                                                                                              | The trace as plain text: a header line, then the tree of all its spans as the console prints it          |
+| Tool          | Arguments                                                                                                                            | Result                                                                                                                                      |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_traces` | `since` (cursor), `limit`, `project`, `source`, `errors_only`, `from`, `to`, `service`, `name`, `min_duration_ms`, `search`, `regex` | `traces`: `id`, `name`, `service`, `services`, `sources`, `projects`, `spans`, `duration_ms`, `error`, `updated` each; `cursor`; `has_more` |
+| `get_trace`   | `id`, `max_length`                                                                                                                   | The trace as plain text: a header line, then the tree of all its spans as the console prints OpenTelemetry traces                           |
 
 - `list_traces` returns the traces updated after `since`, least recently updated first, at most `limit` of them
-  (20 by default, 100 at most). A trace is updated by every span that arrives for it, and an updated trace is listed
-  again. When `has_more` is true, call again with the returned `cursor` to get the rest.
-- `name` is of the root span; while it has not arrived, of the earliest span whose parent is missing.
-  `service` is the `service.name` of the resource of that span; when that resource has none, of another span.
-- `errors_only` lists only the traces with a span of the error status.
+  (20 by default, 100 at most). A trace is updated by every span or transaction that arrives for it, and an updated
+  trace is listed again. When `has_more` is true, call again with the returned `cursor` to get the rest.
+- `name` is of the root transaction: a Sentry transaction or the entry span of a service, the one without a parent
+  first. While no transaction has arrived, it is of the earliest span whose parent is missing. `service` is the
+  service of that root; when it has none, of another span. `services`, `sources` (`sentry`, `otel`) and `projects`
+  list those of every part of the trace: a distributed trace may cross several.
+- `spans` counts the spans and the transactions. `error` is true when one of them failed: an OpenTelemetry span of
+  the error status, a Sentry one of `internal_error`, `unknown_error` or `error`.
+- `project` is one project or a list, as in [the event filter](#filters): only the part of each trace sent to those
+  projects is listed and summed up. `source` is `sentry` or `otel`: only the traces with a part from it.
+- `errors_only` lists only the traces with a failed span or transaction.
 - `from` and `to` take the times of [the event filter](#filters) and match the time of the last update.
 - `service` is one service or a list, and `name` a name; both match in any case, with `*` for any characters.
+  `service` matches any service of the trace.
 - `min_duration_ms` lists only the traces that last that long or longer.
-- `search` and `regex` match as in [the event filter](#filters), over the spans: their names, status messages,
-  attributes, and events, such as an exception with its message, and over the attributes of their resources,
-  one `key=value` line per attribute.
+- `search` and `regex` match as in [the event filter](#filters), over the spans: their names (a Sentry span is named
+  `op: description`), status messages, attributes, and events, such as an exception with its message, and over the
+  attributes of OpenTelemetry resources, one `key=value` line per attribute.
 - Slow traces of the last hour: `{"from": "1h", "min_duration_ms": 500}`; failed checkouts:
   `{"errors_only": true, "name": "POST /checkout*"}`.
+- `get_trace` takes the ID of `list_traces`, or the trace ID of a Sentry error from its `trace` context. The header
+  line holds the number of spans, the services, sources and projects, whether a span failed, and the time of the
+  last update. A Sentry span shows its op and description as its name, a kind read from its op (`http.server` is
+  `SERVER`, `http.client` `CLIENT`, `queue.publish` `PRODUCER`, `queue.process` `CONSUMER`, others `INTERNAL`), its `data` as attributes and a failure status as `ERROR`.
 - `get_trace` cuts a text longer than `max_length` characters, 50 000 by default, and says so.
 
 ### Profiles

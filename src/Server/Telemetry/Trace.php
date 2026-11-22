@@ -19,6 +19,12 @@ final class Trace
     /** @var array<array-key, Span> By span ID, an int key for an all-digit one; in the order of arrival */
     public array $spans = [];
 
+    /** @var int<0, max> The {@see TelemetryStore::cursor()} of its last change */
+    public int $seq = 0;
+
+    /** Unix seconds of its last change */
+    public float $updatedAt = 0.0;
+
     /**
      * @param non-empty-string $id
      */

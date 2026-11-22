@@ -6,12 +6,12 @@ namespace Buggregator\Trap\Tests\Unit\Module\Tracing\Console;
 
 use Buggregator\Trap\Module\Tracing\Config\Traces;
 use Buggregator\Trap\Module\Tracing\Console\Renderer;
+use Buggregator\Trap\Module\Tracing\Console\SpanBuffer;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces as OtlpTracesFrame;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\ResourceSpans;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\ScopeSpans;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\SpanKind;
-use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Server\Info;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Testo\Assert;
@@ -26,7 +26,7 @@ use Testo\Test;
  * Set `TRAP_UPDATE_SNAPSHOTS=1` to write the snapshots from the current renderer.
  */
 #[Covers(Renderer::class)]
-#[Covers(SpanStore::class)]
+#[Covers(SpanBuffer::class)]
 #[Test]
 final class RendererSnapshotTest
 {

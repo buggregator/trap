@@ -9,7 +9,8 @@ use Buggregator\Trap\Server\Application\Config\Internal\Attribute\InflectableCon
 use Buggregator\Trap\Server\Application\Config\Internal\Attribute\XPath;
 
 /**
- * Limits of the telemetry buffer: the traces, logs and metrics of the Sentry pages of the web UI.
+ * Limits of the telemetry buffer: the traces, logs and metrics of the Sentry pages of the web UI
+ * and of the MCP trace tools.
  * Values below 1 fall back to the defaults.
  *
  * @internal

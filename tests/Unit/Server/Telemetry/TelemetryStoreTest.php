@@ -134,6 +134,31 @@ final class TelemetryStoreTest
         Assert::same($listener->calls, [['shop', ['trace', 'metric']], ['default', ['log']]]);
     }
 
+    public function testEveryChangeOfATraceTakesTheNextSequenceNumber(): void
+    {
+        $now = 100.0;
+        $store = new TelemetryStore(clock: static function () use (&$now): float {
+            return $now;
+        });
+
+        $store->add(self::batch('default', transactions: [self::transaction('t1', 'a')], spans: [self::span('t2', 's1')]));
+        $now = 105.0;
+        $store->add(self::batch('default', spans: [self::span('t1', 's2')], logs: [self::log(1)]));
+        $store->add(self::batch('default', logs: [self::log(2)]));
+
+        Assert::same($store->cursor(), 3);
+        Assert::same(\array_keys($store->traces()), ['t2', 't1']);
+        Assert::same($store->trace('t2')?->seq, 2);
+        Assert::same($store->trace('t2')?->updatedAt, 100.0);
+        Assert::same($store->trace('t1')?->seq, 3);
+        Assert::same($store->trace('t1')?->updatedAt, 105.0);
+    }
+
+    public function testStoresHaveDifferentIds(): void
+    {
+        Assert::notSame((new TelemetryStore())->id, (new TelemetryStore())->id);
+    }
+
     public function testDurationsAreBoundedToAYear(): void
     {
         Assert::same(Span::durationBetween(-9e15, 9e15), Span::MAX_DURATION_MS);
