@@ -98,7 +98,7 @@ final class SentryViewTest
 
         Assert::same(
             $text,
-            "Transaction: CallAction, 4065.4 ms, 2 spans\n"
+            "Transaction: CallAction, 4065.4 ms, 3 spans\n"
             . "Read it as trace 93c66872a715428ba1934889bf60dc07 with `get_trace`.\n",
         );
     }
@@ -751,8 +751,23 @@ final class SentryViewTest
         $text = (string) (new SentryView())->text(new Record(self::event([]), 1, [new SentryEnvelope([], $items)]));
 
         Assert::string($text)
-            ->contains("--- Item 1 of 2: transaction ---\nTransaction: GET /, 0 spans\n\n")
+            ->contains("--- Item 1 of 2: transaction ---\nType: transaction\nTransaction: GET /\n")
             ->contains("--- Item 2 of 2: feedback ---\nType: feedback\n");
+    }
+
+    public function testTransactionOfAnErrorEnvelopeIsALineOfItsTrace(): void
+    {
+        $items = [
+            new EnvelopeItem(['type' => 'event'], ['message' => 'Boom']),
+            new EnvelopeItem(['type' => 'transaction'], [
+                'transaction' => 'GET /',
+                'spans' => [['span_id' => 's1', 'trace_id' => 'abc']],
+            ]),
+        ];
+
+        $text = (string) (new SentryView())->text(new Record(self::event([]), 1, [new SentryEnvelope([], $items)]));
+
+        Assert::string($text)->contains("--- Item 2 of 2: transaction ---\nTransaction: GET /, 2 spans\nRead it as trace abc with `get_trace`.\n");
     }
 
     public function testEmptyBreadcrumbsAndMechanismAreLeftOut(): void

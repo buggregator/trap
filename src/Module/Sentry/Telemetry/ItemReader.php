@@ -31,7 +31,7 @@ final class ItemReader
      * Reads an item of a telemetry type into the batch; other items are ignored.
      *
      * @param non-empty-string|null $eventId The envelope `event_id`, for SDKs that send it there only.
-     * @return bool Whether the item had a telemetry type.
+     * @return bool Whether the item had a telemetry type; false for a transaction without a trace ID too.
      */
     public static function read(Batch $batch, string $type, mixed $payload, ?string $eventId = null): bool
     {
@@ -40,29 +40,30 @@ final class ItemReader
         }
 
         match ($type) {
-            'transaction' => self::transaction($batch, $payload, $eventId),
             'span', 'spans' => self::spans($batch, self::records($payload)),
             'log' => self::logs($batch, self::records($payload)),
             'trace_metric' => self::metrics($batch, self::records($payload)),
             default => null,
         };
 
-        return \in_array($type, self::TELEMETRY_ITEMS, true);
+        return $type === 'transaction'
+            ? self::transaction($batch, $payload, $eventId)
+            : \in_array($type, self::TELEMETRY_ITEMS, true);
     }
 
     /**
-     * Whether a payload of the `store` endpoint is a transaction, not an error: it has spans and a start
-     * and no exception.
+     * Whether a payload of the `store` endpoint is a transaction, not an error: it has no exception, and
+     * either the `transaction` type or spans and a start. An exception makes an error of any type, as in
+     * buggregator/server.
      */
     public static function isTransaction(array $payload): bool
     {
-        if (($payload['type'] ?? null) === 'transaction') {
-            return true;
+        if (self::exceptions($payload) !== []) {
+            return false;
         }
 
-        return \array_key_exists('spans', $payload)
-            && \array_key_exists('start_timestamp', $payload)
-            && self::exceptions($payload) === [];
+        return ($payload['type'] ?? null) === 'transaction'
+            || \array_key_exists('spans', $payload) && \array_key_exists('start_timestamp', $payload);
     }
 
     /**
@@ -101,8 +102,9 @@ final class ItemReader
 
     /**
      * @param non-empty-string|null $eventId The ID when the payload has none.
+     * @return bool False for a transaction without a trace ID, which is not read.
      */
-    public static function transaction(Batch $batch, array $payload, ?string $eventId = null): void
+    public static function transaction(Batch $batch, array $payload, ?string $eventId = null): bool
     {
         $context = self::map($payload, 'contexts');
         $trace = self::map($context, 'trace');
@@ -113,7 +115,7 @@ final class ItemReader
             $traceId ??= self::string($span, 'trace_id');
         }
         if ($traceId === null) {
-            return;
+            return false;
         }
 
         $data = self::map($trace, 'data');
@@ -166,6 +168,8 @@ final class ItemReader
                 attributes: $attributes,
             );
         }
+
+        return true;
     }
 
     /**

@@ -17,9 +17,9 @@ use Buggregator\Trap\Support\Uuid;
  * Makes the feed event of an envelope from its event item, and puts its transactions, spans, logs and
  * trace metrics into the {@see TelemetryStore}: as in buggregator/server, they make no feed event.
  *
- * The feed event is the first `event` item, else the first `feedback` one, else the first item that is
- * neither telemetry nor SDK bookkeeping (sessions, client reports, attachments, ...).
- * An envelope of only such items makes no event.
+ * The feed event is the first `event` item, else the first `feedback` one, else the first transaction without
+ * a trace ID, which no trace can hold, else the first item that is neither telemetry nor SDK bookkeeping
+ * (sessions, client reports, attachments, ...). An envelope of only such items makes no event.
  *
  * @internal
  */
@@ -48,6 +48,7 @@ final class EnvelopeMapper implements EventMapper
         $batch = new Batch($project);
         $event = null;
         $feedback = null;
+        $untraced = null;
         $fallback = null;
         foreach ($frame->items as $item) {
             /** @var mixed $type */
@@ -63,6 +64,8 @@ final class EnvelopeMapper implements EventMapper
                 $event ??= $item->payload;
             } elseif ($type === 'feedback') {
                 $feedback ??= $item->payload;
+            } elseif ($type === 'transaction') {
+                $untraced ??= $item->payload;
             } elseif (!\in_array($type, self::BOOKKEEPING_ITEMS, true)) {
                 $fallback ??= $item->payload;
             }
@@ -70,7 +73,7 @@ final class EnvelopeMapper implements EventMapper
 
         $this->telemetry->add($batch);
 
-        $payload = $event ?? $feedback ?? $fallback;
+        $payload = $event ?? $feedback ?? $untraced ?? $fallback;
         if ($payload === null) {
             return null;
         }

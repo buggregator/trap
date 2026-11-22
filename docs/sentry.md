@@ -34,10 +34,12 @@ With [`--mcp`](mcp.md#sentry-events), AI agents read the events with their excep
 | sessions, client reports, attachments | nothing                                                                     |
 
 The event feed holds the errors. A transaction is a trace, not an event, also when an older SDK sends it to
-`…/store/`: the console prints one line for it, with its name, duration, number of spans and trace ID, and AI agents
-read it with [`list_traces` and `get_trace`](mcp.md#traces). An envelope of an error and the transaction of its
-request gives the error event and the trace. An envelope of only transactions, logs, metrics, spans or SDK
-bookkeeping makes no event. Trap keeps the traces, logs and metrics while the [web UI](web-ui.md#sentry-pages) or
+`…/store/`: the console prints one line for it, with its name, duration, number of spans (the transaction included),
+the failed ones and the trace ID, and AI agents read it with [`list_traces` and `get_trace`](mcp.md#traces). Spans
+sent without a transaction get the same line, named after their root span. An envelope of an error and the
+transaction of its request gives the error event and the trace. A `/store` payload with an exception is an error,
+whatever its type. A transaction without a trace ID fits no trace and stays a `sentry` event. An envelope of only
+transactions, logs, metrics, spans or SDK bookkeeping makes no event. Trap keeps the traces, logs and metrics while the [web UI](web-ui.md#sentry-pages) or
 the [MCP server](mcp.md) runs.
 
 The `X-Buggregator-Project` header puts the event and the data of the request into that project of the web UI;

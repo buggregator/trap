@@ -76,7 +76,7 @@ final class ItemReaderTest
     {
         $batch = new Batch('default');
 
-        Assert::true(ItemReader::read($batch, 'transaction', ['transaction' => 'x', 'spans' => []]));
+        Assert::false(ItemReader::read($batch, 'transaction', ['transaction' => 'x', 'spans' => []]), 'Not taken as telemetry: the feed keeps it.');
 
         Assert::same($batch->transactions, []);
     }
@@ -214,6 +214,10 @@ final class ItemReaderTest
             'exception' => [['type' => 'E']],
         ]));
         Assert::false(ItemReader::isTransaction(['message' => 'x']));
+        Assert::false(
+            ItemReader::isTransaction(['type' => 'transaction', 'exception' => ['values' => [['type' => 'E']]]]),
+            'An exception makes an error of any type.',
+        );
     }
 
     public function testReadsTimes(): void

@@ -224,8 +224,8 @@ prints it:
 - The contexts, such as `runtime`, `os` and `trace` with its IDs, one line each; the latest breadcrumbs, oldest first;
   the extra data.
 - An envelope of several items shows each of them under `--- Item 2 of 3: attachment ---`: an attachment by its
-  name, type and size; a transaction, sent with the error, by its name, duration, number of spans and trace ID, to
-  read with [`get_trace`](#traces); an item that is not an event, such as `session`, `client_report` or `check_in`,
+  name, type and size; a transaction, sent with the error, by its name, duration, number of spans (itself included)
+  and trace ID, to read with [`get_trace`](#traces), or as an event when it has no trace ID; an item that is not an event, such as `session`, `client_report` or `check_in`,
   by its fields in one line. The web UI shows the first item only. A search looks through the first 64 KB of the whole
   envelope, so the details of later items may not be found.
 

@@ -54,6 +54,21 @@ final class EnvelopeMapperTest
         Assert::same($store->trace(self::TRACE)?->transactions['t1']->project, 'default');
     }
 
+    public function testTransactionWithoutTraceIdStaysInTheFeed(): void
+    {
+        $store = new TelemetryStore();
+        $transaction = ['event_id' => 't1', 'transaction' => 'GET /', 'spans' => []];
+        $frame = new SentryEnvelope([], [
+            new EnvelopeItem(['type' => 'client_report'], ['discarded_events' => []]),
+            new EnvelopeItem(['type' => 'transaction'], $transaction),
+        ]);
+
+        $event = (new EnvelopeMapper($store))->map($frame);
+
+        Assert::same($event?->payload, $transaction);
+        Assert::same($store->traces(), []);
+    }
+
     public function testSpanOnlyEnvelopeMakesNoEvent(): void
     {
         $store = new TelemetryStore();
@@ -135,6 +150,31 @@ final class EnvelopeMapperTest
 
         Assert::null($event);
         Assert::same($store->trace(self::TRACE)?->transactions['x1']->project, 'shop');
+    }
+
+    public function testStoreEndpointTransactionWithoutTraceIdStaysInTheFeed(): void
+    {
+        $store = new TelemetryStore();
+
+        $event = (new StoreMapper($store))->map(new SentryStore(['type' => 'transaction', 'transaction' => 'GET /']));
+
+        Assert::same($event?->payload, ['type' => 'transaction', 'transaction' => 'GET /']);
+        Assert::same($store->traces(), []);
+    }
+
+    public function testStoreEndpointTransactionWithExceptionIsAnError(): void
+    {
+        $store = new TelemetryStore();
+        $payload = [
+            'type' => 'transaction',
+            'exception' => ['values' => [['type' => 'RuntimeException', 'value' => 'Boom']]],
+            'contexts' => ['trace' => ['trace_id' => self::TRACE]],
+        ];
+
+        $event = (new StoreMapper($store))->map(new SentryStore($payload));
+
+        Assert::same($event?->payload, $payload);
+        Assert::same($store->traces(), []);
     }
 
     public function testStoreEndpointErrorMakesAnEventAndStaysOutOfTheStore(): void

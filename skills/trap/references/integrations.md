@@ -15,7 +15,8 @@ SENTRY_DSN=http://sentry@127.0.0.1:8000/1          # Laravel: SENTRY_LARAVEL_DSN
 The key and the project ID can be anything. Events: `sentry`; `get_event` gives the exception chain with the code
 around the frames, the request and the breadcrumbs, the fastest way to an exception the application swallowed into
 its error reporting. The `sentry` events are the errors: a transaction is a trace, read it with `list_traces` and
-`get_trace` (in an envelope with an error, the error is still the event). Sentry logs and trace metrics make no event
+`get_trace` (in an envelope with an error, the error is still the event; a transaction without a trace ID stays a
+`sentry` event). Sentry logs and trace metrics make no event
 and show only on the Sentry pages of the web UI. A body over 2 MB gets `413`, and an event Trap can't parse is dropped
 with a warning in its console. The `X-Buggregator-Project` header sets the `project` of the event.
 

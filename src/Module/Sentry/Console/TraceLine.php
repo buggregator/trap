@@ -43,32 +43,70 @@ final class TraceLine
             $spans[$span->traceId][] = $span;
         }
 
+        // A transaction without a trace ID stays an event.
+        if ($spans === [] && $type === 'transaction') {
+            return false;
+        }
+
         $output->writeln('');
-        $spans === [] and $output->writeln('<fg=gray>A trace without a trace ID</>');
+        $spans === [] and $output->writeln('<fg=gray>Spans without a trace ID</>');
         foreach ($spans as $traceId => $list) {
-            $output->writeln(self::line((string) $traceId, $roots[$traceId] ?? null, $list));
+            $output->writeln(self::line((string) $traceId, $roots[$traceId] ?? self::rootSpan($list), $list));
         }
 
         return true;
     }
 
     /**
+     * @param Transaction|Span|null $root The transaction, else the root span of the spans.
      * @param list<Span> $spans
      */
-    private static function line(string $traceId, ?Transaction $transaction, array $spans): string
+    private static function line(string $traceId, Transaction|Span|null $root, array $spans): string
     {
-        $failed = \count(\array_filter($spans, static fn(Span $span): bool => $span->isError()))
-            + ($transaction?->isError() ? 1 : 0);
-        $name = $transaction === null ? '' : \trim($transaction->name . ($transaction->op === '' ? '' : " ($transaction->op)"));
-        $duration = $transaction?->durationMs();
-        $parts = \array_filter([
+        $parts = [...$spans];
+        $root instanceof Transaction and $parts[] = $root;
+        $failed = \count(\array_filter($parts, static fn(Transaction|Span $part): bool => $part->isError()));
+        $name = match (true) {
+            $root instanceof Transaction => $root->name,
+            $root instanceof Span => $root->description,
+            default => '',
+        };
+        $op = $root?->op ?? '';
+        $name = \trim($name . ($op === '' ? '' : " ($op)"));
+        $duration = $root?->durationMs();
+        $count = \count($parts);
+        $line = \array_filter([
             $name === '' ? '' : '<options=bold>' . self::text($name) . '</>',
             $duration === null ? '' : "<fg=yellow>$duration ms</>",
-            \count($spans) === 1 ? '1 span' : \count($spans) . ' spans',
+            // The transaction counts as a span, as in `list_traces`.
+            $count === 1 ? '1 span' : "$count spans",
             $failed === 0 ? '' : "<fg=red;options=bold>$failed failed</>",
         ], static fn(string $part): bool => $part !== '');
 
-        return \sprintf('<fg=gray>Trace %s:</> %s', self::text($traceId), \implode(', ', $parts));
+        return \sprintf('<fg=gray>Trace %s:</> %s', self::text($traceId), \implode(', ', $line));
+    }
+
+    /**
+     * The span without a parent, else the earliest one whose parent is not among them.
+     *
+     * @param list<Span> $spans
+     */
+    private static function rootSpan(array $spans): ?Span
+    {
+        $ids = \array_fill_keys(\array_map(static fn(Span $span): string => $span->spanId, $spans), true);
+        $root = null;
+        foreach ($spans as $span) {
+            if ($span->parentSpanId !== null && isset($ids[$span->parentSpanId])) {
+                continue;
+            }
+
+            $rank = [$span->parentSpanId === null ? 0 : 1, $span->start ?? \INF];
+            if ($root === null || $rank < $root[0]) {
+                $root = [$rank, $span];
+            }
+        }
+
+        return $root[1] ?? null;
     }
 
     /**

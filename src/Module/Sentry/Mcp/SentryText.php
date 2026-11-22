@@ -129,7 +129,7 @@ final class SentryText
             $payload = $items[0]->payload ?? $record->event->payload;
             /** @var mixed $type */
             $type = $items[0]->headers['type'] ?? null;
-            if (\is_array($payload) && $type === 'transaction') {
+            if (\is_array($payload) && $type === 'transaction' && self::traceId($payload) !== '') {
                 return self::transactionLine($payload);
             }
 
@@ -147,8 +147,9 @@ final class SentryText
             $type = $item->headers['type'] ?? null;
             $parts[] = \sprintf("--- Item %d of %d: %s ---\n", $i + 1, $count, self::inline($type ?? 'item')) . match (true) {
                 !\is_array($item->payload) => self::attachment($item->headers),
-                $type === 'transaction' => self::transactionLine($item->payload),
-                $type === null || \in_array($type, self::EVENT_ITEMS, true) => self::event($item->payload, $type),
+                $type === 'transaction' && self::traceId($item->payload) !== '' => self::transactionLine($item->payload),
+                $type === null || $type === 'transaction' || \in_array($type, self::EVENT_ITEMS, true)
+                    => self::event($item->payload, $type),
                 default => self::itemLine($item->payload),
             };
         }
@@ -784,23 +785,41 @@ final class SentryText
     }
 
     /**
-     * A transaction is a trace, read by the trace tools: its name, duration and trace ID in one line.
+     * A transaction with a trace ID is a trace, read by the trace tools: its name, duration and trace ID.
+     * One without is shown as an event: no trace holds it.
      */
     private static function transactionLine(array $payload): string
+    {
+        $parts = \array_filter([
+            self::inline($payload['transaction'] ?? ''),
+            self::duration($payload),
+            // With the transaction itself, as `list_traces` counts.
+            (\count(self::arrays($payload['spans'] ?? null)) + 1) . ' spans',
+        ], static fn(string $part): bool => $part !== '');
+
+        return 'Transaction: ' . \implode(', ', $parts) . "\n"
+            . 'Read it as trace ' . self::traceId($payload) . " with `get_trace`.\n";
+    }
+
+    /**
+     * The trace ID of a transaction, from its trace context or else from a span, as the telemetry store reads it;
+     * empty when it has none.
+     */
+    private static function traceId(array $payload): string
     {
         /** @var mixed $contexts */
         $contexts = $payload['contexts'] ?? null;
         /** @var mixed $traceId */
         $traceId = \is_array($contexts) && \is_array($contexts['trace'] ?? null) ? $contexts['trace']['trace_id'] ?? null : null;
-        $parts = \array_filter([
-            self::inline($payload['transaction'] ?? ''),
-            self::duration($payload),
-            \count(self::arrays($payload['spans'] ?? null)) . ' spans',
-        ], static fn(string $part): bool => $part !== '');
-        $traceId = self::inline($traceId ?? '');
+        foreach (self::arrays($payload['spans'] ?? null) as $span) {
+            if (\is_string($traceId) && $traceId !== '') {
+                break;
+            }
+            /** @var mixed $traceId */
+            $traceId = $span['trace_id'] ?? null;
+        }
 
-        return 'Transaction: ' . \implode(', ', $parts)
-            . ($traceId === '' ? "\n" : "\nRead it as trace $traceId with `get_trace`.\n");
+        return \is_string($traceId) ? self::inline($traceId) : '';
     }
 
     /**
