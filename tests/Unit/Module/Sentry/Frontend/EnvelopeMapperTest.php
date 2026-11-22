@@ -41,7 +41,7 @@ final class EnvelopeMapperTest
         Assert::count($store->metrics(), 1);
     }
 
-    public function testTransactionStaysAFeedEventAndBecomesATrace(): void
+    public function testTransactionBecomesATraceWithoutAFeedEvent(): void
     {
         $store = new TelemetryStore();
         $transaction = ['event_id' => 't1', 'contexts' => ['trace' => ['trace_id' => self::TRACE]], 'spans' => []];
@@ -49,21 +49,66 @@ final class EnvelopeMapperTest
 
         $event = (new EnvelopeMapper($store))->map($frame);
 
-        Assert::same($event?->payload, $transaction);
-        Assert::same($event?->projectKey(), 'default');
+        Assert::null($event);
         Assert::same(\array_keys($store->trace(self::TRACE)?->transactions ?? []), ['t1']);
+        Assert::same($store->trace(self::TRACE)?->transactions['t1']->project, 'default');
     }
 
-    public function testEventItemWinsTheFeedOverAnEarlierTransaction(): void
+    public function testTransactionWithoutTraceIdStaysInTheFeed(): void
     {
+        $store = new TelemetryStore();
+        $transaction = ['event_id' => 't1', 'transaction' => 'GET /', 'spans' => []];
+        $frame = new SentryEnvelope([], [
+            new EnvelopeItem(['type' => 'client_report'], ['discarded_events' => []]),
+            new EnvelopeItem(['type' => 'transaction'], $transaction),
+        ]);
+
+        $event = (new EnvelopeMapper($store))->map($frame);
+
+        Assert::same($event?->payload, $transaction);
+        Assert::same($store->traces(), []);
+    }
+
+    public function testSpanOnlyEnvelopeMakesNoEvent(): void
+    {
+        $store = new TelemetryStore();
+        $frame = new SentryEnvelope([], [new EnvelopeItem(['type' => 'span'], [
+            'trace_id' => self::TRACE,
+            'span_id' => 'aaaaaaaaaaaaaaaa',
+            'name' => 'GET /',
+            'is_segment' => true,
+            'start_timestamp' => 1,
+            'end_timestamp' => 2,
+        ])]);
+
+        Assert::null((new EnvelopeMapper($store))->map($frame));
+        Assert::notBlank($store->trace(self::TRACE));
+    }
+
+    public function testErrorWithTransactionMakesTheErrorEventAndATrace(): void
+    {
+        $store = new TelemetryStore();
         $frame = new SentryEnvelope([], [
             new EnvelopeItem(['type' => 'transaction'], ['contexts' => ['trace' => ['trace_id' => self::TRACE]], 'spans' => []]),
             new EnvelopeItem(['type' => 'event'], ['message' => 'Boom']),
         ]);
 
-        $event = (new EnvelopeMapper(new TelemetryStore()))->map($frame);
+        $event = (new EnvelopeMapper($store))->map($frame);
 
         Assert::same($event?->payload, ['message' => 'Boom']);
+        Assert::count($store->trace(self::TRACE)?->transactions ?? [], 1);
+    }
+
+    public function testFeedbackMakesTheFeedEvent(): void
+    {
+        $frame = new SentryEnvelope([], [
+            new EnvelopeItem(['type' => 'session'], ['sid' => 'x']),
+            new EnvelopeItem(['type' => 'feedback'], ['contexts' => ['feedback' => ['message' => 'Nice']]]),
+        ]);
+
+        $event = (new EnvelopeMapper(new TelemetryStore()))->map($frame);
+
+        Assert::same($event?->payload, ['contexts' => ['feedback' => ['message' => 'Nice']]]);
     }
 
     public function testTelemetryOnlyEnvelopeMakesNoEvent(): void
@@ -91,7 +136,7 @@ final class EnvelopeMapperTest
         Assert::same($event?->payload, ['a' => 1]);
     }
 
-    public function testStoreEndpointTransactionGoesToTheStoreToo(): void
+    public function testStoreEndpointTransactionGoesToTheStoreOnly(): void
     {
         $store = new TelemetryStore();
         $payload = [
@@ -103,16 +148,42 @@ final class EnvelopeMapperTest
 
         $event = (new StoreMapper($store))->map(new SentryStore($payload, project: 'shop'));
 
-        Assert::same($event->projectKey(), 'shop');
+        Assert::null($event);
         Assert::same($store->trace(self::TRACE)?->transactions['x1']->project, 'shop');
     }
 
-    public function testStoreEndpointErrorStaysOutOfTheStore(): void
+    public function testStoreEndpointTransactionWithoutTraceIdStaysInTheFeed(): void
     {
         $store = new TelemetryStore();
 
-        (new StoreMapper($store))->map(new SentryStore(['event_id' => 'x1', 'message' => 'Boom']));
+        $event = (new StoreMapper($store))->map(new SentryStore(['type' => 'transaction', 'transaction' => 'GET /']));
 
+        Assert::same($event?->payload, ['type' => 'transaction', 'transaction' => 'GET /']);
+        Assert::same($store->traces(), []);
+    }
+
+    public function testStoreEndpointTransactionWithExceptionIsAnError(): void
+    {
+        $store = new TelemetryStore();
+        $payload = [
+            'type' => 'transaction',
+            'exception' => ['values' => [['type' => 'RuntimeException', 'value' => 'Boom']]],
+            'contexts' => ['trace' => ['trace_id' => self::TRACE]],
+        ];
+
+        $event = (new StoreMapper($store))->map(new SentryStore($payload));
+
+        Assert::same($event?->payload, $payload);
+        Assert::same($store->traces(), []);
+    }
+
+    public function testStoreEndpointErrorMakesAnEventAndStaysOutOfTheStore(): void
+    {
+        $store = new TelemetryStore();
+
+        $event = (new StoreMapper($store))->map(new SentryStore(['event_id' => 'x1', 'message' => 'Boom'], project: 'shop'));
+
+        Assert::same($event?->projectKey(), 'shop');
         Assert::same($store->traces(), []);
     }
 }

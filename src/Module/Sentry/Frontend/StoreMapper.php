@@ -14,7 +14,8 @@ use Buggregator\Trap\Server\Telemetry\TelemetryStore;
 use Buggregator\Trap\Support\Uuid;
 
 /**
- * A transaction sent to the `store` endpoint goes to the {@see TelemetryStore} as well.
+ * An error sent to the `store` endpoint makes a feed event; a transaction goes to the {@see TelemetryStore}
+ * only, as one of an envelope, unless it has no trace ID: then no trace can hold it, and it stays in the feed.
  *
  * @internal
  */
@@ -25,15 +26,17 @@ final class StoreMapper implements EventMapper
     ) {}
 
     #[\Override]
-    public function map(Frame $frame): Event
+    public function map(Frame $frame): ?Event
     {
         \assert($frame instanceof SentryFrame);
 
         $project = $frame->project === null || $frame->project === '' ? Event::DEFAULT_PROJECT : $frame->project;
         if (ItemReader::isTransaction($frame->message)) {
             $batch = new Batch($project);
-            ItemReader::transaction($batch, $frame->message);
-            $this->telemetry->add($batch);
+            if (ItemReader::transaction($batch, $frame->message)) {
+                $this->telemetry->add($batch);
+                return null;
+            }
         }
 
         return new Event(

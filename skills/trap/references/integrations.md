@@ -14,8 +14,10 @@ SENTRY_DSN=http://sentry@127.0.0.1:8000/1          # Laravel: SENTRY_LARAVEL_DSN
 
 The key and the project ID can be anything. Events: `sentry`; `get_event` gives the exception chain with the code
 around the frames, the request and the breadcrumbs, the fastest way to an exception the application swallowed into
-its error reporting. A transaction is a `sentry` event as well; Sentry logs, trace metrics and spans make no event and
-show only on the Sentry pages of the web UI. A body over 2 MB gets `413`, and an event Trap can't parse is dropped
+its error reporting. The `sentry` events are the errors: a transaction is a trace, read it with `list_traces` and
+`get_trace` (in an envelope with an error, the error is still the event; a transaction without a trace ID stays a
+`sentry` event). Sentry logs and trace metrics make no event
+and show only on the Sentry pages of the web UI. A body over 2 MB gets `413`, and an event Trap can't parse is dropped
 with a warning in its console. The `X-Buggregator-Project` header sets the `project` of the event.
 
 ## Monolog
@@ -79,7 +81,7 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
 OTEL_EXPORTER_OTLP_PROTOCOL=http/json
 ```
 
-Read traces with `list_traces` and `get_trace`, not the event tools. Trap takes logs and metrics too
+Read traces with `list_traces` and `get_trace`, not the event tools; they list Sentry traces too. Trap takes logs and metrics too
 (`/v1/logs`, `/v1/metrics`), but shows them only in the console and the web UI: no MCP tool reads them. `http/protobuf`
 needs `open-telemetry/gen-otlp-protobuf` and `google/protobuf` in the project that runs Trap. The web UI files the
 data under the project of the path `/api/{project}/integration/otlp/v1/traces` (also `/logs`, `/metrics`), else of the

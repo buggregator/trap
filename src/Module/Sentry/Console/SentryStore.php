@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Module\Sentry\Console;
 use Buggregator\Trap\Module\Console\Renderer;
 use Buggregator\Trap\Module\Console\Support\Common;
 use Buggregator\Trap\Module\Sentry\Frame\SentryStore as SentryStoreFrame;
+use Buggregator\Trap\Module\Sentry\Telemetry\ItemReader;
 use Buggregator\Trap\Server\Proto\Frame;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -32,7 +33,8 @@ final class SentryStore implements Renderer
 
         try {
             Header::renderMessageHeader($output, $frame->message + ['timestamp' => $frame->time->format('U.u')]);
-            Exceptions::render($output, $frame->message['exception']['values'] ?? []);
+            ItemReader::isTransaction($frame->message) && TraceLine::render($output, 'transaction', $frame->message)
+                or Exceptions::render($output, $frame->message['exception']['values'] ?? []);
         } catch (\Throwable $e) {
             $output->writeln(['<fg=red>Render error</>', $e->getMessage()]);
         }

@@ -15,19 +15,17 @@ use Buggregator\Trap\Support\Uuid;
 
 /**
  * Makes the feed event of an envelope from its event item, and puts its transactions, spans, logs and
- * trace metrics into the {@see TelemetryStore}.
+ * trace metrics into the {@see TelemetryStore}: as in buggregator/server, they make no feed event.
  *
- * The feed event is the first `event` item, else the first `transaction` or `feedback` one, else the first
- * item that is neither telemetry nor SDK bookkeeping (sessions, client reports, attachments, ...).
- * An envelope of only such items makes no event.
+ * The feed event is the first `event` item, else the first `feedback` one, else the first transaction without
+ * a trace ID, which no trace can hold, else the first item that is neither telemetry nor SDK bookkeeping
+ * (sessions, client reports, attachments, ...). An envelope of only such items makes no event.
  *
  * @internal
  */
 final class EnvelopeMapper implements EventMapper
 {
-    private const EVENT_ITEMS = ['transaction', 'feedback'];
-    private const NON_FEED_ITEMS = [
-        'span', 'spans', 'log', 'trace_metric',
+    private const BOOKKEEPING_ITEMS = [
         'session', 'sessions', 'client_report', 'check_in', 'metric_buckets', 'statsd',
         'profile', 'profile_chunk', 'user_report', 'attachment', 'replay_event', 'replay_recording',
     ];
@@ -49,30 +47,33 @@ final class EnvelopeMapper implements EventMapper
 
         $batch = new Batch($project);
         $event = null;
-        $feed = null;
+        $feedback = null;
+        $untraced = null;
         $fallback = null;
         foreach ($frame->items as $item) {
             /** @var mixed $type */
             $type = $item->headers['type'] ?? null;
             $type = \is_string($type) ? $type : '';
-            ItemReader::read($batch, $type, $item->payload, $eventId);
+            $telemetry = ItemReader::read($batch, $type, $item->payload, $eventId);
 
-            if (!\is_array($item->payload)) {
+            if ($telemetry || !\is_array($item->payload)) {
                 continue;
             }
 
             if ($type === 'event') {
                 $event ??= $item->payload;
-            } elseif (\in_array($type, self::EVENT_ITEMS, true)) {
-                $feed ??= $item->payload;
-            } elseif (!\in_array($type, self::NON_FEED_ITEMS, true)) {
+            } elseif ($type === 'feedback') {
+                $feedback ??= $item->payload;
+            } elseif ($type === 'transaction') {
+                $untraced ??= $item->payload;
+            } elseif (!\in_array($type, self::BOOKKEEPING_ITEMS, true)) {
                 $fallback ??= $item->payload;
             }
         }
 
         $this->telemetry->add($batch);
 
-        $payload = $event ?? $feed ?? $fallback;
+        $payload = $event ?? $feedback ?? $untraced ?? $fallback;
         if ($payload === null) {
             return null;
         }
