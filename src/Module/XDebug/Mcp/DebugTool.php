@@ -72,15 +72,38 @@ abstract class DebugTool implements Tool
     {
         [$file, $line] = $session->location();
         $pause = ['file' => $file, 'line' => $line];
+        $where = [];
         try {
-            $pause['where'] = $session->read('stack_get')->stack()[0]['where'] ?? '';
+            $where = self::where($session, $file, $line);
+            $pause['where'] = $where['where'] ?? '';
             $pause['source_line'] = \trim($session->source($file, $line, $line));
         } catch (DebuggerError) {
         }
 
         $returned = $session->returnValue();
 
-        return $pause + self::exception($session) + ($returned === null ? [] : ['return_value' => $returned]);
+        return $pause + self::exception($session) + ($returned === null ? [] : ['return_value' => $returned])
+            + \array_intersect_key($where, ['returned_from' => true]);
+    }
+
+    /**
+     * The function of the paused line. After a step out Xdebug keeps the function that returned on top of the
+     * stack, at its own line, until the next step: the paused line is in a frame below, the caller's.
+     *
+     * @return array{where?: string, returned_from?: string}
+     *
+     * @throws DebuggerError
+     */
+    protected static function where(Session $session, string $file, int $line): array
+    {
+        $stack = $session->read('stack_get')->stack();
+        foreach ($stack as $i => $frame) {
+            if ($frame['file'] === $file && $frame['line'] === $line) {
+                return ['where' => $frame['where']] + ($i > 0 ? ['returned_from' => $stack[0]['where']] : []);
+            }
+        }
+
+        return $stack === [] ? [] : ['where' => $stack[0]['where']];
     }
 
     protected static function int(array $arguments, string $name, int $default): int

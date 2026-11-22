@@ -14,6 +14,7 @@ use Buggregator\Trap\Module\XDebug\Mcp\Location;
 use Buggregator\Trap\Module\XDebug\Mcp\Sessions;
 use Buggregator\Trap\Module\XDebug\Mcp\Stack;
 use Buggregator\Trap\Module\XDebug\Mcp\Variables;
+use Buggregator\Trap\Module\XDebug\Session;
 use Buggregator\Trap\Tests\Unit\Module\XDebug\Stub\FakeEngine;
 use Buggregator\Trap\Tests\Unit\Module\XDebug\Stub\Harness;
 use Testo\Assert;
@@ -115,13 +116,47 @@ final class DebugToolsTest
             'step_out',
             $c['tid'],
             ' status="break" reason="ok"',
-            '<xdebug:message filename="file:///app/a.php" lineno="4"></xdebug:message>'
+            '<xdebug:message filename="file:///app/index.php" lineno="9"></xdebug:message>'
             . '<xdebug:return_value><property type="int"><![CDATA[42]]></property></xdebug:return_value>',
         );
 
         $step = $h->call(static fn() => (new Control($h->debugger, $mcp))->call(['command' => 'step_out', 'wait' => 1]));
 
+        // Xdebug keeps `run`, which returned, on top of the stack: the paused line is in the frame of the caller
+        Assert::same($step['line'], 9);
+        Assert::same($step['where'], '{main}');
         Assert::same($step['return_value'], ['name' => '', 'type' => 'int', 'value' => '42']);
+        Assert::same($step['returned_from'], 'run');
+    }
+
+    public function testLocationKeepsPlaceWhenSourceIsUnreadable(): void
+    {
+        [$h, $mcp] = self::paused();
+        $h->engine->responders['source'] = static fn(array $c): string => FakeEngine::response('source', $c['tid'], '', '<error code="100"><message><![CDATA[can not open file]]></message></error>');
+
+        $location = $h->call(static fn() => (new Location($h->debugger, $mcp))->call([]));
+
+        Assert::same($location['line'], 3);
+        Assert::same($location['where'], 'run');
+        Assert::string($location['source_unavailable'])->contains('can not open file');
+    }
+
+    public function testListsLastClosedSessionByCloseTime(): void
+    {
+        $config = new Config();
+        $config->mode = Config::MODE_STANDALONE;
+        $h = new Harness(new FakeEngine(), $config);
+        $mcp = new McpStatus();
+        $h->debugger->breakpoints->add(['file' => '/app/a.php', 'line' => 3], 'mcp');
+        $first = $h->debugger->start(new FakeEngine(), FakeEngine::INIT);
+        $second = $h->debugger->start(new FakeEngine(), FakeEngine::INIT);
+        $second?->close(Session::CLOSED_ENGINE);
+        \usleep(2000);
+        $first?->close(Session::CLOSED_ENGINE);
+
+        $list = (new BreakpointsTool($h->debugger, $mcp))->call([]);
+
+        Assert::same(\array_column($list['breakpoints'][0]['sessions'], 'session_id'), [$first?->id]);
     }
 
     public function testGatesEvalAndControl(): void

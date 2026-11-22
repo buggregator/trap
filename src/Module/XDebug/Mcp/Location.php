@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\XDebug\Mcp;
 
 use Buggregator\Trap\Module\Mcp\WaitingTool;
+use Buggregator\Trap\Module\XDebug\DebuggerError;
 use Buggregator\Trap\Module\XDebug\Session;
 
 /**
@@ -28,7 +29,9 @@ final class Location extends DebugTool implements WaitingTool
     public function description(): string
     {
         return 'Where a paused session stopped: file and line, the function, and the source lines around it, the '
-            . 'current one marked with `>`; at an exception break, the `exception`: `class` and `message`.';
+            . 'current one marked with `>` (`source_unavailable` says why when they can\'t be read); at an exception '
+            . 'break, the `exception`: `class` and `message`; after `step_out`, `returned_from`: the function that '
+            . 'returned, still frame 0 of the stack until the next step.';
     }
 
     #[\Override]
@@ -50,19 +53,26 @@ final class Location extends DebugTool implements WaitingTool
         $around = \min(50, self::int($arguments, 'context_lines', 5));
 
         return $this->onSession($arguments, static function (Session $session) use ($around): array {
-            $top = $session->read('stack_get')->stack()[0] ?? null;
-            [$file, $line] = $top === null ? $session->location() : [$top['file'], $top['line']];
+            [$file, $line] = $session->location();
+            $where = self::where($session, $file, $line);
             $from = \max(1, $line - $around);
-            $text = $session->source($file, $from, $line + $around);
-            $source = [];
-            foreach (\explode("\n", \rtrim($text, "\n")) as $i => $code) {
-                $n = $from + $i;
-                $source[] = \sprintf('%s%d: %s', $n === $line ? '>' : ' ', $n, \rtrim($code, "\r"));
+            try {
+                $text = $session->source($file, $from, $line + $around);
+                $source = [];
+                foreach (\explode("\n", \rtrim($text, "\n")) as $i => $code) {
+                    $n = $from + $i;
+                    $source[] = \sprintf('%s%d: %s', $n === $line ? '>' : ' ', $n, \rtrim($code, "\r"));
+                }
+                $source = ['source' => \implode("\n", $source)];
+            } catch (DebuggerError $e) {
+                // The location answers the call: a source Xdebug and Trap can't read only leaves a note
+                \in_array($e->errorCode, ['source_unavailable', 'xdebug_error'], true) or throw $e;
+                $source = ['source_unavailable' => $e->getMessage()];
             }
 
             return [
-                ['file' => $file, 'line' => $line, 'where' => $top['where'] ?? '', 'source' => \implode("\n", $source)]
-                + self::exception($session),
+                ['file' => $file, 'line' => $line, 'where' => $where['where'] ?? ''] + $source
+                + self::exception($session) + \array_intersect_key($where, ['returned_from' => true]),
                 \basename($file) . ":$line",
             ];
         });

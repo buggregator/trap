@@ -33,7 +33,8 @@ final class Control extends DebugTool implements WaitingTool
             . '`run` to the next breakpoint, `stop` the script, or `detach` to let it run on without the debugger. '
             . 'Then waits up to `wait` seconds for the next pause and returns the state, the file and line, the '
             . 'function (`where`), the code of that line (`source_line`), at an exception break the `exception`, and '
-            . 'after `step_out` the `return_value` of the function left. '
+            . 'after `step_out` the `return_value` of the function left, named in `returned_from`; `where` is then '
+            . 'the caller. '
             . 'Off with TRAP_XDEBUG_ALLOW_CONTROL=0.';
     }
 

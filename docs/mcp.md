@@ -440,7 +440,11 @@ name the MCP client gave in `initialize`.
 - `exception` is there when the session is paused at an exception breakpoint: its `class` and `message`, and the
   `code` when Xdebug sends one.
 - `xdebug_continue` returns `state` and `paused`, and of the pause `file`, `line`, the function as `where`, the code
-  of the line as `source_line`, `exception`, and after `step_out` the `return_value` of the function left.
+  of the line as `source_line`, `exception`, and after `step_out` the `return_value` of the function left, named
+  in `returned_from`. Xdebug keeps that function on top of the stack, at its own line, until the next step:
+  `where` is the function of the paused line, the caller, and `xdebug_location` says the same.
+- `xdebug_location` returns the file, line and function without `source`, and a `source_unavailable` note, when
+  neither Xdebug nor Trap can read the source.
 - `xdebug_stack` returns the first `limit` frames, 20 by default; `limit: 0` returns all.
 - `xdebug_eval` evaluates in the current frame (level 0): Xdebug's eval takes no stack depth, so the variables of
   other frames are read with `xdebug_variables` and `frame`. Xdebug runs the code as `return <code>;`, so a
