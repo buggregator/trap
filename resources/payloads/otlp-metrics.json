@@ -1,0 +1,68 @@
+[
+    {
+        "resourceMetrics": [
+            {
+                "resource": {
+                    "attributes": [
+                        {"key": "service.name", "value": {"stringValue": "orders"}},
+                        {"key": "service.version", "value": {"stringValue": "3.1.0"}},
+                        {"key": "deployment.environment.name", "value": {"stringValue": "local"}}
+                    ]
+                },
+                "scopeMetrics": [
+                    {
+                        "scope": {"name": "io.opentelemetry.contrib.php.symfony", "version": "1.1.0"},
+                        "metrics": [
+                            {
+                                "name": "orders.processed",
+                                "description": "Orders processed by status",
+                                "unit": "{order}",
+                                "sum": {
+                                    "aggregationTemporality": 2,
+                                    "isMonotonic": true,
+                                    "dataPoints": [
+                                        {"startTimeUnixNano": "{{ns -60}}", "timeUnixNano": "{{ns -1.000}}", "asInt": "41", "attributes": [{"key": "status", "value": {"stringValue": "ok"}}]},
+                                        {"startTimeUnixNano": "{{ns -60}}", "timeUnixNano": "{{ns -1.000}}", "asInt": "3", "attributes": [{"key": "status", "value": {"stringValue": "failed"}}]}
+                                    ]
+                                }
+                            },
+                            {
+                                "name": "db.client.connection.count",
+                                "description": "Open database connections",
+                                "unit": "{connection}",
+                                "gauge": {
+                                    "dataPoints": [
+                                        {"timeUnixNano": "{{ns -1.000}}", "asInt": "7", "attributes": [{"key": "db.client.connection.pool.name", "value": {"stringValue": "shop"}}]}
+                                    ]
+                                }
+                            },
+                            {
+                                "name": "http.server.request.duration",
+                                "description": "Duration of HTTP server requests",
+                                "unit": "s",
+                                "histogram": {
+                                    "aggregationTemporality": 2,
+                                    "dataPoints": [
+                                        {
+                                            "startTimeUnixNano": "{{ns -60}}", "timeUnixNano": "{{ns -1.000}}",
+                                            "count": "44", "sum": 5.94, "min": 0.012, "max": 0.34,
+                                            "bucketCounts": ["9", "21", "11", "3", "0"],
+                                            "explicitBounds": [0.025, 0.1, 0.25, 0.5],
+                                            "attributes": [
+                                                {"key": "http.request.method", "value": {"stringValue": "GET"}},
+                                                {"key": "http.route", "value": {"stringValue": "/orders/{id}"}}
+                                            ],
+                                            "exemplars": [
+                                                {"timeUnixNano": "{{ns -1.130}}", "asDouble": 0.34, "traceId": "{{hex32 trace}}", "spanId": "c3d9a6f1e27b4850"}
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+]

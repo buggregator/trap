@@ -815,6 +815,38 @@ final class ServerTest
         );
     }
 
+    /**
+     * One run of `trap test` gives every page of the web UI data: each event type of the feed, the Sentry
+     * traces, logs and metrics, and a second project.
+     */
+    public function testTestCommandFillsEveryPageOfTheUi(): void
+    {
+        $this->startTrap('test-command');
+
+        [$exitCode, $clientOutput] = TrapProcess::run('test-command-client', ['test', "--port=$this->port"], timeout: 30.0);
+
+        Assert::same($exitCode, 0, $clientOutput);
+        Assert::string($clientOutput)->notContains('sending error');
+        $types = TrapProcess::waitFor(function (): ?array {
+            [, , $body] = TrapProcess::http($this->uiPort, 'GET', '/api/events');
+            $types = \array_unique(\array_column(self::json($body)['data'], 'type'));
+            return \count($types) >= 8 ? $types : null;
+        }, 'events of every type in the web UI');
+        Assert::array($types)->sameElementsAs([
+            'profiler', 'xdebug-trace', 'var-dump', 'smtp', 'monolog', 'ray', 'http-dump', 'sentry',
+        ]);
+
+        [, , $projects] = TrapProcess::http($this->uiPort, 'GET', '/api/projects');
+        Assert::same(\array_column(self::json($projects)['data'], 'key'), ['default', 'billing']);
+        foreach (['traces', 'logs', 'metrics'] as $page) {
+            [$status, , $body] = TrapProcess::http($this->uiPort, 'GET', "/api/sentry/$page?project=default");
+            Assert::same($status, 200);
+            Assert::notBlank(self::json($body)['data'], "No Sentry $page");
+        }
+        [, , $map] = TrapProcess::http($this->uiPort, 'GET', '/api/sentry/service-map?project=default');
+        Assert::string($map)->contains('"gateway"')->contains('"orders"');
+    }
+
     public function testSentryEnvelopeIsCaptured(): void
     {
         $trap = $this->startTrap('sentry');

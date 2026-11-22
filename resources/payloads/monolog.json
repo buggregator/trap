@@ -1,0 +1,51 @@
+[
+    {
+        "message": "Matched route \"order_show\".",
+        "context": {"route": "order_show", "route_parameters": {"_route": "order_show", "id": "42"}, "request_uri": "http://127.0.0.1:8080/orders/42", "method": "GET"},
+        "level": 200,
+        "level_name": "INFO",
+        "channel": "request",
+        "datetime": "{{iso -0.900}}",
+        "extra": {}
+    },
+    {
+        "message": "SELECT o.id, o.total, o.status FROM orders o WHERE o.id = ?",
+        "context": {"params": {"1": 42}, "types": {"1": 1}},
+        "level": 100,
+        "level_name": "DEBUG",
+        "channel": "doctrine",
+        "datetime": "{{iso -0.880}}",
+        "extra": {}
+    },
+    {
+        "message": "Authentication failed for user \"alice@example.com\": invalid credentials.",
+        "context": {"username": "alice@example.com", "firewall": "main", "attempts": 3},
+        "level": 300,
+        "level_name": "WARNING",
+        "channel": "security",
+        "datetime": "{{iso -0.700}}",
+        "extra": {"ip": "192.168.1.15", "user_agent": "Mozilla/5.0 (X11; Linux x86_64) Firefox/131.0"}
+    },
+    {
+        "message": "Uncaught PHP Exception RuntimeException: \"Payment provider timed out\" at /app/src/Payment/Gateway.php line 87",
+        "context": {
+            "exception": {
+                "class": "RuntimeException",
+                "message": "Payment provider timed out",
+                "code": 504,
+                "file": "/app/src/Payment/Gateway.php:87",
+                "trace": [
+                    "/app/src/Checkout/PlaceOrder.php:41",
+                    "/app/src/Controller/CheckoutController.php:28",
+                    "/app/vendor/symfony/http-kernel/HttpKernel.php:183",
+                    "/app/public/index.php:25"
+                ]
+            }
+        },
+        "level": 500,
+        "level_name": "CRITICAL",
+        "channel": "request",
+        "datetime": "{{iso -0.500}}",
+        "extra": {"url": "/checkout", "http_method": "POST", "server": "127.0.0.1", "referrer": null}
+    }
+]
