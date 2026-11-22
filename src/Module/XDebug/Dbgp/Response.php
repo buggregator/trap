@@ -80,6 +80,27 @@ final class Response
     }
 
     /**
+     * The exception a `break` reply stopped at, from `<xdebug:message exception code>message</xdebug:message>`.
+     *
+     * @return array{class: string, message: string, code?: string}|null
+     */
+    public function breakException(): ?array
+    {
+        $message = $this->xml->children(self::XDEBUG_NS)?->message;
+        if ($message === null || $message->count() === 0) {
+            return null;
+        }
+        $attributes = $message->attributes();
+        $class = (string) ($attributes?->exception ?? '');
+        if ($class === '') {
+            return null;
+        }
+        $code = (string) ($attributes?->code ?? '');
+
+        return ['class' => $class, 'message' => (string) $message] + ($code === '' ? [] : ['code' => $code]);
+    }
+
+    /**
      * @return list<array{level: int, where: string, file: string, line: int, type: string}>
      */
     public function stack(): array

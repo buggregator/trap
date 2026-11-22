@@ -82,6 +82,10 @@ final class Session
 
     private string $file = '';
     private int $line = 0;
+
+    /** @var array{class: string, message: string, code?: string}|null The exception of the current pause */
+    private ?array $exception = null;
+
     private bool $closed = false;
     private string $closeReason = '';
     private ?\DateTimeImmutable $closedAt = null;
@@ -193,8 +197,9 @@ final class Session
             $this->status = $root['status'];
             if ($root['status'] === 'break') {
                 // Xdebug puts `status="break"` on plain replies too: only a reply with a location moves the line
-                $location = Response::parse($body)->breakLocation();
-                $location === null or [$this->file, $this->line] = $location;
+                $reply = Response::parse($body);
+                $location = $reply->breakLocation();
+                $location === null or [$this->file, $this->line, $this->exception] = [...$location, $reply->breakException()];
                 $previous === 'break' or $this->paused();
             }
             if ($previous !== $this->status || $file !== $this->file || $line !== $this->line) {
@@ -407,6 +412,26 @@ final class Session
     }
 
     /**
+     * Lines `$from` to `$to` of a file of the script, with the line breaks.
+     *
+     * @throws DebuggerError
+     */
+    public function source(string $file, int $from, int $to): string
+    {
+        try {
+            return $this->read('source', \sprintf('-f %s -b %d -e %d', Protocol::quote($file), $from, $to))->text();
+        } catch (DebuggerError $e) {
+            $engine = $e->getPrevious();
+            if ($this->exception === null || !$engine instanceof EngineError || $engine->engineCode !== '100') {
+                throw $e;
+            }
+            // While PHP has an exception in flight its streams open nothing, so Xdebug can't read the file:
+            // Trap reads it when it runs on the same host
+            return self::localSource($file, $from, $to) ?? throw DebuggerError::sourceAtException();
+        }
+    }
+
+    /**
      * Evaluates PHP code in the paused script. Never cached: it may change the state.
      *
      * @throws DebuggerError
@@ -416,6 +441,16 @@ final class Session
         $this->assertPaused();
 
         return self::ok($this->command('eval', '', $expression));
+    }
+
+    /**
+     * The exception the session is paused at, from an exception breakpoint.
+     *
+     * @return array{class: string, message: string, code?: string}|null
+     */
+    public function exception(): ?array
+    {
+        return $this->isPaused() ? $this->exception : null;
     }
 
     /**
@@ -632,6 +667,24 @@ final class Session
         }
     }
 
+    /**
+     * Lines of a `file://` URI read from this host; null when it has no such file.
+     */
+    private static function localSource(string $uri, int $from, int $to): ?string
+    {
+        if (!\str_starts_with($uri, 'file://')) {
+            return null;
+        }
+        $path = \rawurldecode(\substr($uri, 7));
+        \preg_match('#^/[a-z]:/#i', $path) === 1 and $path = \substr($path, 1);
+        $lines = \is_file($path) && \is_readable($path) ? \file($path) : false;
+        if ($lines === false) {
+            return null;
+        }
+
+        return \implode('', \array_slice($lines, \max(0, $from - 1), \max(0, $to - \max(1, $from) + 1)));
+    }
+
     private static function suspend(): void
     {
         \Fiber::getCurrent() === null and throw new \LogicException('A debugger command waits in a fiber.');
@@ -690,6 +743,7 @@ final class Session
     {
         ++$this->conts;
         $this->idleDeadline = $this->idleSent = null;
+        $this->exception = null;
         if ($this->status !== 'running') {
             $this->status = 'running';
             $this->debugger->emit('session.status', $this->statusEvent());
@@ -716,6 +770,7 @@ final class Session
         // Xdebug resolves a breakpoint before it answers the set
         $this->driver === self::DRIVER_HERE and $this->bpEarly[$engineId] = $line;
     }
+
 
     /**
      * Reads the request or the command line of the script for the session title, at the first pause.

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\XDebug;
 
+use Buggregator\Trap\Module\XDebug\Breakpoints;
 use Buggregator\Trap\Module\XDebug\Config\Debugger as Config;
 use Buggregator\Trap\Module\XDebug\Connection;
 use Buggregator\Trap\Module\XDebug\Debugger;
@@ -201,6 +202,38 @@ final class SessionTest
         Assert::same($states[1]['state'], 'resolved');
         Assert::contains($h->eventNames(), 'breakpoint.resolved');
     }
+
+
+    public function testKeepsExceptionOfPauseAndReadsSourceFromHost(): void
+    {
+        $path = \tempnam(\sys_get_temp_dir(), 'xdbg');
+        \file_put_contents($path, "<?php\n\$a = 1;\nthrow new \\DomainException('bad');\n");
+        $uri = Breakpoints::fileUri(\str_replace('\\', '/', $path));
+        $h = self::harness(pauseOnFirstLine: true);
+        $h->engine->responders['step_into'] = static fn(array $c): string => FakeEngine::response(
+            'step_into',
+            $c['tid'],
+            ' status="break" reason="ok"',
+            "<xdebug:message filename=\"$uri\" lineno=\"3\" exception=\"DomainException\" code=\"7\"><![CDATA[bad]]></xdebug:message>",
+        );
+        $h->engine->responders['source'] = static fn(array $c): string => FakeEngine::response('source', $c['tid'], '', '<error code="100"><message><![CDATA[can not open file]]></message></error>');
+        $h->engine->responders['step_over'] = static fn(): string => '';
+        $h->connect();
+        $h->pump(30);
+
+        try {
+            $exception = $h->session()->exception();
+            $source = $h->call(static fn(): string => $h->session()->source($uri, 2, 3));
+            $h->call(static fn() => $h->session()->continue('step_over', Session::BY_UI));
+        } finally {
+            \unlink($path);
+        }
+
+        Assert::same($exception, ['class' => 'DomainException', 'message' => 'bad', 'code' => '7']);
+        Assert::same($source, "\$a = 1;\nthrow new \\DomainException('bad');\n");
+        Assert::null($h->session()->exception());
+    }
+
 
     public function testSkipsConditionWithoutEval(): void
     {

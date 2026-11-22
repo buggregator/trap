@@ -176,7 +176,7 @@ final class ApiController
             $from = \max(1, self::number('begin', $begin));
             $to = self::number('end', $end);
             $to < $from || $to - $from > self::MAX_SOURCE_LINES and $to = $from + self::MAX_SOURCE_LINES;
-            $text = \rtrim($this->session($id)->read('source', \sprintf('-f %s -b %d -e %d', Protocol::quote($file), $from, $to))->text(), "\n");
+            $text = \rtrim($this->session($id)->source($file, $from, $to), "\n");
 
             $lines = [];
             foreach ($text === '' ? [] : \explode("\n", $text) as $i => $line) {

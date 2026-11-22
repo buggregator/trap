@@ -16,8 +16,9 @@ final class DebuggerError extends \RuntimeException
         public readonly int $status,
         string $message,
         public readonly ?string $state = null,
+        ?\Throwable $previous = null,
     ) {
-        parent::__construct($message);
+        parent::__construct($message, 0, $previous);
     }
 
     public static function notPaused(?string $state = null): self
@@ -62,7 +63,17 @@ final class DebuggerError extends \RuntimeException
 
     public static function engine(Dbgp\EngineError $e): self
     {
-        return new self('xdebug_error', 422, $e->getMessage());
+        return new self('xdebug_error', 422, $e->getMessage(), previous: $e);
+    }
+
+    public static function sourceAtException(): self
+    {
+        return new self(
+            'source_unavailable',
+            422,
+            "At an exception break Xdebug can't read source files, and this host has no file at that path: "
+            . 'step_over, then read the source again.',
+        );
     }
 
     public static function badRequest(string $message): self

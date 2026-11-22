@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\XDebug\Mcp;
 
 use Buggregator\Trap\Module\Mcp\WaitingTool;
-use Buggregator\Trap\Module\XDebug\Dbgp\Protocol;
 use Buggregator\Trap\Module\XDebug\Session;
 
 /**
@@ -54,7 +53,7 @@ final class Location extends DebugTool implements WaitingTool
             $top = $session->read('stack_get')->stack()[0] ?? null;
             [$file, $line] = $top === null ? $session->location() : [$top['file'], $top['line']];
             $from = \max(1, $line - $around);
-            $text = $session->read('source', \sprintf('-f %s -b %d -e %d', Protocol::quote($file), $from, $line + $around))->text();
+            $text = $session->source($file, $from, $line + $around);
             $source = [];
             foreach (\explode("\n", \rtrim($text, "\n")) as $i => $code) {
                 $n = $from + $i;
