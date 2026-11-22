@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Tracing\Http;
 
-use Buggregator\Trap\Module\Mcp\McpStatus;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpLogs;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpMetrics;
 use Buggregator\Trap\Module\Tracing\Frame\OtlpTraces;
@@ -16,7 +15,6 @@ use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\LimitExceededException;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\ProtobufDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\ProtobufTracesDecoder;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap\TracesDecoder;
-use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Server\Handler\Http\Middleware;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Support\Json;
@@ -32,7 +30,6 @@ use Symfony\Component\Console\Formatter\OutputFormatter;
  *
  * JSON is always decoded. Protobuf is decoded when the suggested protobuf packages are installed,
  * see {@see ProtobufTracesDecoder}; otherwise it gets 415.
- * While the MCP server runs, received spans go to the {@see SpanStore} for its tools here, once per request.
  *
  * The project of the data is the `{project}` of `/api/{project}/integration/otlp/...`, else the
  * `X-Buggregator-Project` header; the default project without either.
@@ -66,15 +63,12 @@ final class OtlpTrap implements Middleware
     /**
      * @param array<non-empty-lowercase-string, TracesDecoder>|null $tracesDecoders Media type => decoder.
      *        Null registers JSON, and protobuf when its packages are installed; so do the other decoder lists.
-     * @param SpanStore|null $spans Filled for the MCP tools while the server runs; null keeps no spans.
      * @param array<non-empty-lowercase-string, Decoder>|null $logsDecoders
      * @param array<non-empty-lowercase-string, Decoder>|null $metricsDecoders
      */
     public function __construct(
         private readonly ?Logger $logger = null,
         ?array $tracesDecoders = null,
-        private readonly ?SpanStore $spans = null,
-        private readonly McpStatus $mcp = new McpStatus(),
         ?array $logsDecoders = null,
         ?array $metricsDecoders = null,
     ) {
@@ -276,7 +270,6 @@ final class OtlpTrap implements Middleware
             return $decoder->createSuccessResponse();
         }
 
-        $frame instanceof OtlpTraces && $this->mcp->isOn() and $this->spans?->receive($frame);
         \Fiber::suspend($frame);
 
         return $decoder->createSuccessResponse();

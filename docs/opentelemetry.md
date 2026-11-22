@@ -49,8 +49,7 @@ The Phar, the standalone binary and the Docker image do not include them, so the
 ## Memory limits
 
 Spans of one trace often arrive in separate requests (a simple span processor exports each span on its own),
-so Trap keeps received spans in memory to print them together. With [`--mcp`](mcp.md#traces) the MCP server
-keeps a copy of its own for the agents. Each copy is limited by:
+so the console keeps the spans it has printed in memory to print a trace as a tree. That buffer is limited by:
 
 - `TRAP_TRACES_MAX_SPANS` - the maximum number of kept spans; the least recently updated traces are dropped
   above it, and a single trace above it keeps only its most recent spans (default: `10000`)
@@ -59,7 +58,9 @@ keeps a copy of its own for the agents. Each copy is limited by:
 The same limits can be set in [`trap.xml`](configuration.md#trapxml): `<traces maxSpans="10000" ttl="600"/>`.
 Non-positive or non-numeric values fall back to the defaults.
 
-The web UI keeps its own traces, logs and metrics, see [web UI limits](web-ui.md#sentry-pages).
+The web UI and the [MCP server](mcp.md#traces) read one store of traces, logs and metrics, the one of the Sentry
+pages, with the [`TRAP_TELEMETRY_*` limits](web-ui.md#sentry-pages). It keeps a trace until the limit pushes it out,
+however long ago its last span came.
 
 ## Saving to a file
 
@@ -68,7 +69,8 @@ With the [`file` sender](senders.md#file), each export request is saved as one J
 
 ## Notes
 
-- Traces are given to AI agents by the [MCP server](mcp.md#traces); logs and metrics are not.
+- Traces are given to AI agents by the [MCP server](mcp.md#traces), along with Sentry traces; logs and metrics
+  are not.
 - Exporters running in a browser are not supported: Trap does not answer CORS preflight requests.
 - One export request may carry up to 10 MB (after decompression) and up to 10 000 spans, log records or metric
   data points; a bigger one gets `413`. SDK batch processors export 512 spans at a time by default.

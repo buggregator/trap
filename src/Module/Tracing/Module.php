@@ -20,8 +20,8 @@ use Buggregator\Trap\Server\Handler\Http\ProvidesHttpMiddlewares;
 use Buggregator\Trap\Server\Proto\ProvidesFrameTypes;
 
 /**
- * The middleware and the tools share the {@see SpanStore} of the container, one for the Trap process:
- * the middleware fills it while the MCP server runs, the tools read it. The renderer keeps a store of its own.
+ * The mapper fills the {@see \Buggregator\Trap\Server\Telemetry\TelemetryStore} the web UI and the MCP tools
+ * read; the console renderer keeps a {@see Console\SpanBuffer} of its own.
  *
  * @internal
  */
@@ -51,7 +51,7 @@ final class Module implements
     }
 
     /**
-     * OTLP makes no events: the mapper fills the telemetry store of the web UI, the MCP tools read the span store.
+     * OTLP makes no events: the mapper fills the telemetry store.
      */
     #[\Override]
     public function eventMappers(): array

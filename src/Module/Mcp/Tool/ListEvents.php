@@ -72,7 +72,8 @@ final class ListEvents implements Tool
             . '`project`, time (`from`, `to`, such as `5m` for the last five minutes), text (`search`, `regex`) '
             . 'and fields (`where`). The fields by type: ' . $this->filters->fieldsHelp() . '. `order: newest` '
             . 'gives the latest events first. Read an event in full with `get_event`, or get the texts of all the '
-            . 'listed ones with `include: text`. ' . self::budgetHelp($this->scan->budget);
+            . 'listed ones with `include: text`. Traces, Sentry transactions among them, are not events: read '
+            . 'them with `list_traces`. ' . self::budgetHelp($this->scan->budget);
     }
 
     #[\Override]

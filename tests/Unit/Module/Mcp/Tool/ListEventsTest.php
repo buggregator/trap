@@ -438,7 +438,7 @@ final class ListEventsTest
         Assert::same($tool->name(), 'list_events');
         Assert::same($tool->title(), 'List events');
         Assert::same($tool->annotations(), ['readOnlyHint' => true, 'openWorldHint' => false]);
-        Assert::string($tool->description())->contains('get_event')->contains('monolog: level, channel');
+        Assert::string($tool->description())->contains('get_event')->contains('monolog: level, channel')->contains('list_traces');
     }
 
     public function testCollectWithAMemoDescribesAnUnchangedEventOnce(): void

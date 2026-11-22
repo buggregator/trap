@@ -7,7 +7,6 @@ namespace Buggregator\Trap\Module\Tracing\Console;
 use Buggregator\Trap\Module\Console\Support\Common;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\Span;
 use Buggregator\Trap\Module\Tracing\Frame\Trace\StatusCode;
-use Buggregator\Trap\Module\Tracing\SpanStore;
 use Buggregator\Trap\Support\Json;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -41,7 +40,7 @@ final class TraceTree
     private int $budget = 0;
 
     public function __construct(
-        private readonly SpanStore $store,
+        private readonly SpanBuffer $store,
     ) {}
 
     /**

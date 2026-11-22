@@ -7,21 +7,23 @@ namespace Buggregator\Trap\Module\Tracing\Mcp;
 use Buggregator\Trap\Module\Mcp\Tool;
 use Buggregator\Trap\Module\Mcp\Tool\MaxLength;
 use Buggregator\Trap\Module\Mcp\Tool\Time;
+use Buggregator\Trap\Module\Tracing\Config\Traces;
+use Buggregator\Trap\Module\Tracing\Console\SpanBuffer;
 use Buggregator\Trap\Module\Tracing\Console\TraceTree;
-use Buggregator\Trap\Module\Tracing\SpanStore;
+use Buggregator\Trap\Server\Telemetry\TelemetryStore;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * A stored trace as plain text: a header line, then the tree of all its spans as the console prints it.
+ * A stored trace of a Sentry SDK or an OTLP exporter as plain text: a header line, then the tree of all its spans
+ * as the console prints OTLP spans, see {@see TraceSpans}.
  *
  * @internal
  */
 final class GetTrace implements Tool
 {
     public function __construct(
-        private readonly SpanStore $store,
-        private readonly TraceTree $tree,
+        private readonly TelemetryStore $store,
     ) {}
 
     #[\Override]
@@ -39,9 +41,10 @@ final class GetTrace implements Tool
     #[\Override]
     public function description(): string
     {
-        return 'Shows one OpenTelemetry trace as plain text, as the Trap console prints it: the tree of its '
-            . 'spans with kind, duration, offset from the trace start, status, attributes, events and links. '
-            . 'Take the ID from `list_traces`.';
+        return 'Shows one trace, of Sentry or OpenTelemetry, as plain text, as the Trap console prints '
+            . 'OpenTelemetry traces: a header line with its services, sources and projects, then the tree of its '
+            . 'spans and transactions with kind, duration, offset from the trace start, status, attributes, events '
+            . 'and links. Take the ID from `list_traces`, or from the trace ID of a Sentry error.';
     }
 
     #[\Override]
@@ -80,26 +83,45 @@ final class GetTrace implements Tool
         $id = $arguments['id'] ?? null;
         \is_string($id) && $id !== '' or throw new \InvalidArgumentException('`id` must be a non-empty string.');
         $maxLength = MaxLength::fromArguments($arguments);
-        $id = \strtolower($id);
-        $summary = $this->store->summary($id) ?? throw new \InvalidArgumentException(
-            "No trace with ID `$id`: it may have expired. Call `list_traces` for the current IDs.",
+        $trace = $this->store->trace($id) ?? $this->store->trace(\strtolower($id));
+        $summary = $trace === null ? null : TraceSummary::of($trace);
+        $summary === null and throw new \InvalidArgumentException(
+            "No trace with ID `$id`: it may have been dropped. Call `list_traces` for the current IDs.",
         );
 
+        $config = new Traces();
+        $config->maxSpans = $summary->count();
+        $buffer = new SpanBuffer($config);
+        $buffer->add(...TraceSpans::of($summary));
         $output = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, false);
-        $this->tree->renderStored($output, $id);
+        (new TraceTree($buffer))->renderStored($output, $summary->trace->id);
 
         $text = \sprintf(
-            "trace %s, %d %s%s%s, updated at %s\n%s",
-            $summary->traceId,
-            $summary->spans,
-            $summary->spans === 1 ? 'span' : 'spans',
-            $summary->service === null ? '' : ", service $summary->service",
+            "trace %s, %d %s%s%s%s%s, updated at %s\n%s",
+            $summary->trace->id,
+            $summary->count(),
+            $summary->count() === 1 ? 'span' : 'spans',
+            self::names('service', $summary->services),
+            self::names('source', $summary->sources),
+            self::names('project', $summary->projects),
             $summary->error ? ', has errors' : '',
-            Time::format($summary->updatedAt),
+            Time::format($summary->trace->updatedAt),
             self::clean($output->fetch()),
         );
 
         return MaxLength::cut($text, $maxLength);
+    }
+
+    /**
+     * @param list<string> $names
+     */
+    private static function names(string $what, array $names): string
+    {
+        return match (\count($names)) {
+            0 => '',
+            1 => ", $what $names[0]",
+            default => ", {$what}s " . \implode('/', $names),
+        };
     }
 
     /**
