@@ -50,9 +50,6 @@ final class SentryText
     /** Tags, user fields, contexts, extra entries. */
     public const MAX_ENTRIES = 20;
 
-    /** Spans of a transaction. */
-    public const MAX_SPANS = 20;
-
     /** Characters of a value in a line: a variable, a header, a tag, a context. */
     public const MAX_VALUE = 300;
 
@@ -111,7 +108,7 @@ final class SentryText
     private const MAX_FILTERED_BYTES = 4096;
 
     /** Item types whose payload is an event; the payloads of others, as `session` or `client_report`, take a line. */
-    private const EVENT_ITEMS = ['event', 'transaction', 'feedback'];
+    private const EVENT_ITEMS = ['event', 'feedback'];
 
     /**
      * Of a Sentry record: of every item of an envelope, else of the payload.
@@ -132,6 +129,10 @@ final class SentryText
             $payload = $items[0]->payload ?? $record->event->payload;
             /** @var mixed $type */
             $type = $items[0]->headers['type'] ?? null;
+            if (\is_array($payload) && $type === 'transaction') {
+                return self::transactionLine($payload);
+            }
+
             if (\is_array($payload) && ($type === null || \in_array($type, self::EVENT_ITEMS, true))) {
                 return self::event($payload, $type);
             }
@@ -146,6 +147,7 @@ final class SentryText
             $type = $item->headers['type'] ?? null;
             $parts[] = \sprintf("--- Item %d of %d: %s ---\n", $i + 1, $count, self::inline($type ?? 'item')) . match (true) {
                 !\is_array($item->payload) => self::attachment($item->headers),
+                $type === 'transaction' => self::transactionLine($item->payload),
                 $type === null || \in_array($type, self::EVENT_ITEMS, true) => self::event($item->payload, $type),
                 default => self::itemLine($item->payload),
             };
@@ -220,7 +222,6 @@ final class SentryText
             self::entries('Contexts', $event['contexts'] ?? null),
             self::breadcrumbs($event),
             self::entries('Extra', $event['extra'] ?? null),
-            self::spans($event),
         ];
 
         return \implode("\n", \array_filter($sections, static fn(string $section): bool => $section !== ''));
@@ -768,32 +769,6 @@ final class SentryText
         return \implode(' ', \array_filter($parts, static fn(string $part): bool => $part !== ''));
     }
 
-    private static function spans(array $event): string
-    {
-        $spans = self::arrays($event['spans'] ?? null);
-        $count = \count($spans);
-        if ($count === 0) {
-            return '';
-        }
-
-        $result = "Spans ($count):\n";
-        foreach (\array_slice($spans, 0, self::MAX_SPANS) as $span) {
-            $line = self::inline($span['op'] ?? 'span');
-            $description = self::inline($span['description'] ?? '');
-            $description === '' or $line .= ": $description";
-            $duration = self::duration($span);
-            $duration === '' or $line .= " ($duration)";
-            /** @var mixed $status */
-            $status = $span['status'] ?? null;
-            \is_string($status) && $status !== 'ok' and $line .= ", $status";
-            $result .= '  ' . self::cut($line, self::MAX_VALUE) . "\n";
-        }
-
-        $count > self::MAX_SPANS and $result .= \sprintf("  … %d more …\n", $count - self::MAX_SPANS);
-
-        return $result;
-    }
-
     private static function attachment(array $headers): string
     {
         $parts = [];
@@ -806,6 +781,26 @@ final class SentryText
         \is_int($length) and $parts[] = "$length bytes";
 
         return ($parts === [] ? 'Not an event' : \implode(', ', $parts)) . "\n";
+    }
+
+    /**
+     * A transaction is a trace, read by the trace tools: its name, duration and trace ID in one line.
+     */
+    private static function transactionLine(array $payload): string
+    {
+        /** @var mixed $contexts */
+        $contexts = $payload['contexts'] ?? null;
+        /** @var mixed $traceId */
+        $traceId = \is_array($contexts) && \is_array($contexts['trace'] ?? null) ? $contexts['trace']['trace_id'] ?? null : null;
+        $parts = \array_filter([
+            self::inline($payload['transaction'] ?? ''),
+            self::duration($payload),
+            \count(self::arrays($payload['spans'] ?? null)) . ' spans',
+        ], static fn(string $part): bool => $part !== '');
+        $traceId = self::inline($traceId ?? '');
+
+        return 'Transaction: ' . \implode(', ', $parts)
+            . ($traceId === '' ? "\n" : "\nRead it as trace $traceId with `get_trace`.\n");
     }
 
     /**

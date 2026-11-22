@@ -865,8 +865,14 @@ final class ServerTest
         );
         Assert::same($envelope['headers']['event_id'], '1c375fcd2f15438f82d8762f083cd8c0');
         Assert::notBlank($envelope['items']);
-        $event = $trap->waitForUiEvent($this->uiPort, 'sentry');
-        Assert::string(\json_encode($event['payload']))->contains('1c375fcd2f15438f82d8762f083cd8c0');
+        // The envelope holds a transaction: a trace of the Sentry pages, not a card of the feed.
+        $trace = TrapProcess::waitFor(function (): ?array {
+            [$status, , $body] = TrapProcess::http($this->uiPort, 'GET', '/api/sentry/traces/93c66872a715428ba1934889bf60dc07');
+            return $status === 200 ? self::json($body) : null;
+        }, 'the trace of the transaction in the web UI');
+        Assert::same($trace['transaction']['transaction_name'], 'CallAction');
+        [, , $events] = TrapProcess::http($this->uiPort, 'GET', '/api/events');
+        Assert::same(self::json($events)['data'], []);
     }
 
     /**

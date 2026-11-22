@@ -70,23 +70,37 @@ final class SentryViewTest
     }
 
     #[RunInFiber]
-    public function testEnvelopeOfTheStub(): void
+    public function testPayloadOfTheStub(): void
     {
         $envelope = EnvelopeParser::parse(Stream::create((string) \file_get_contents(Info::TRAP_ROOT . '/tests/Stub/sentry-body.bin')));
-        $trap = new Trap();
-        $record = $trap->add($envelope);
+        $payload = $envelope->items[0]->payload;
+        \assert(\is_array($payload));
 
-        $text = (string) $trap->get(SentryView::class)->text($record);
+        $text = (string) (new SentryView())->text(new Record(self::event($payload), 1, []));
 
         Assert::string($text)
-            ->startsWith("Event ID: 1c375fcd2f15438f82d8762f083cd8c0\nType: transaction\nTransaction: CallAction\nDuration: 4065.4 ms\n")
+            ->startsWith("Event ID: 1c375fcd2f15438f82d8762f083cd8c0\nTransaction: CallAction\nDuration: 4065.4 ms\n")
             ->contains("Request: POST http://127.0.0.1:8000/\n  Headers:\n    host: 127.0.0.1:8000\n")
             ->contains("  Data: {\"action\":\"sentry:report\"}\n")
             ->contains("Breadcrumbs:\n  14:02:47.525 info navigation route: CallAction\n  14:02:51.580 error default log.error: Something went wrong\n")
-            ->contains("Spans (2):\n  app.bootstrap (7.9 ms)\n")
+            ->notContains('Spans')
             ->notContains('cookie')
             ->notContains('sec-fetch')
             ->notContains('Item 1');
+    }
+
+    #[RunInFiber]
+    public function testTransactionItemPointsToTheTraceTools(): void
+    {
+        $envelope = EnvelopeParser::parse(Stream::create((string) \file_get_contents(Info::TRAP_ROOT . '/tests/Stub/sentry-body.bin')));
+
+        $text = (string) (new SentryView())->text(new Record(self::event([]), 1, [$envelope]));
+
+        Assert::same(
+            $text,
+            "Transaction: CallAction, 4065.4 ms, 2 spans\n"
+            . "Read it as trace 93c66872a715428ba1934889bf60dc07 with `get_trace`.\n",
+        );
     }
 
     public function testChainFromTheThrownExceptionToTheRootCause(): void
@@ -386,13 +400,11 @@ final class SentryViewTest
             'type' => 'transaction',
             'start_timestamp' => $start,
             'timestamp' => $end,
-            'spans' => [['op' => 'db', 'start_timestamp' => $start, 'timestamp' => $end]],
             'breadcrumbs' => [['timestamp' => $start, 'message' => 'begin']],
         ]);
 
         Assert::string($text)
             ->contains("Duration: 500.0 ms\n")
-            ->contains("  db (500.0 ms)\n")
             ->contains("  10:00:00.123 begin\n");
     }
 
@@ -700,13 +712,11 @@ final class SentryViewTest
             'type' => 'transaction',
             'start_timestamp' => 1_704_103_200.0,
             'timestamp' => $time,
-            'spans' => [['op' => 'db', 'start_timestamp' => $time, 'timestamp' => 1_704_103_200.0]],
             'breadcrumbs' => [['timestamp' => $time, 'message' => 'begin']],
         ]);
 
         Assert::string($text)
             ->notContains('Duration:')
-            ->contains("  db\n")
             ->contains("Breadcrumbs:\n  begin\n");
     }
 
@@ -741,7 +751,7 @@ final class SentryViewTest
         $text = (string) (new SentryView())->text(new Record(self::event([]), 1, [new SentryEnvelope([], $items)]));
 
         Assert::string($text)
-            ->contains("--- Item 1 of 2: transaction ---\nType: transaction\nTransaction: GET /\n")
+            ->contains("--- Item 1 of 2: transaction ---\nTransaction: GET /, 0 spans\n\n")
             ->contains("--- Item 2 of 2: feedback ---\nType: feedback\n");
     }
 
@@ -923,12 +933,12 @@ final class SentryViewTest
             'type' => 'transaction',
             'start_timestamp' => -1e308,
             'timestamp' => 1e308,
-            'spans' => [['op' => 'db', 'start_timestamp' => -1e308, 'timestamp' => 1e308]],
+            'message' => 'done',
         ]);
 
         Assert::string($text)
             ->notContains('Duration:')
-            ->contains("  db\n");
+            ->contains("Message: done\n");
     }
 
     #[DataSet(['=?'], 'queries')]

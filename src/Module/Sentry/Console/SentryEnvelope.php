@@ -45,7 +45,7 @@ final class SentryEnvelope implements Renderer
                 }
 
                 Header::renderMessageHeader($output, $item->payload);
-                $this->renderItem($output, $item);
+                TraceLine::render($output, $type, $item->payload) or $this->renderItem($output, $item);
             } catch (\Throwable $e) {
                 $output->writeln(['<fg=red>Render error</>', $e->getMessage()]);
                 trap($e);
