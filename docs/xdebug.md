@@ -62,10 +62,11 @@ to the next line with code, at worst the closing brace of the function: the page
 line it took, and how often it stopped there.
 
 At an exception break PHP has the exception in flight and opens no files, so Xdebug can't read the source. Trap
-then reads the file itself: only a file the session reported running (its entry file, a pause, a stack frame),
-only a plain local path (a `file:///` URI without a host, no network share, no other stream wrapper), up to
-4 MB, a line cut at 64 KB. So it works when Trap runs on the same host as the script, at the same path; in Docker,
-or for another file, step over once to see the source.
+then reads the file itself, only when Xdebug connected from a loopback address (its paths are then this host's),
+and only a file the session reported running (its entry file, a pause, a stack frame), by a plain local path (a
+`file:///` URI without a host, no network share, no other stream wrapper), with a PHP source extension (`.php`,
+`.phtml`, `.phpt`, `.inc`, `.module`), not empty and up to 4 MB, a line cut at 64 KB. A file on a mapped network
+drive holds Trap up while it is read. In Docker, or for another file, step over once to see the source.
 
 ## Settings
 
@@ -112,7 +113,7 @@ the endpoints of a session below it: `stack`, `contexts`, `variables`, `property
 `agent-log`, `eval`, and `run`, `step-into`, `step-over`, `step-out`, `stop`, `detach`; the saved breakpoints at
 `/api/xdebug/breakpoints`, the settings at `PUT /api/xdebug/settings`, the files seen at `/api/xdebug/files`.
 Errors are `{"error", "code", "state"}` with an HTTP status; the codes: `not_paused`, `ide_attached`,
-`eval_disabled`, `eval_error` (a warning or notice of the expression), `not_found`, `xdebug_error`,
+`eval_disabled`, `eval_error` (an error of the expression, as a warning), `not_found`, `xdebug_error`,
 `source_unavailable` (the source at an exception break, with no such file on Trap's host), `timeout`, `session_live`,
 `bad_request`, and those of the
 [guards](#security): `cross_site`, `http_only`, `unsupported_media_type`. Changes come over the

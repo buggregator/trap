@@ -31,7 +31,7 @@ final class Dispatcher implements DispatcherInterface
     #[\Override]
     public function dispatch(StreamClient $stream): iterable
     {
-        $this->connection->run(new StreamLink($stream));
+        $this->connection->run(StreamLink::of($stream));
 
         return [];
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\XDebug\Link;
 
+use Buggregator\Trap\Server\Socket\SocketStream;
 use Buggregator\Trap\Server\Traffic\StreamClient;
 
 /**
@@ -15,7 +16,15 @@ final class StreamLink implements Link
 {
     public function __construct(
         private readonly StreamClient $stream,
+        private readonly bool $loopback = false,
     ) {}
+
+    public static function of(StreamClient $stream): self
+    {
+        $address = $stream instanceof SocketStream ? $stream->peerAddress : null;
+
+        return new self($stream, $address !== null && \preg_match('/^(?:127\.|::1$|::ffff:127\.)/', $address) === 1);
+    }
 
     #[\Override]
     public function send(string $bytes): bool
@@ -38,5 +47,11 @@ final class StreamLink implements Link
     public function close(): void
     {
         $this->stream->disconnect();
+    }
+
+    #[\Override]
+    public function isLoopback(): bool
+    {
+        return $this->loopback;
     }
 }

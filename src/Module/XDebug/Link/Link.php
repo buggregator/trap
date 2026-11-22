@@ -21,4 +21,9 @@ interface Link
     public function receive(): ?string;
 
     public function close(): void;
+
+    /**
+     * Whether the peer connected from this host, so the file paths it names are this host's.
+     */
+    public function isLoopback(): bool;
 }

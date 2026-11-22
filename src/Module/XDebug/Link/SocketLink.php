@@ -108,4 +108,13 @@ final class SocketLink implements Link
         $this->socket = null;
         $socket === null or \fclose($socket);
     }
+
+    /**
+     * Trap connects to the IDE: no file of it is read.
+     */
+    #[\Override]
+    public function isLoopback(): bool
+    {
+        return false;
+    }
 }

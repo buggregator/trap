@@ -486,9 +486,9 @@ final class Session
                 throw $e;
             }
             // While PHP has an exception in flight its streams open nothing, so Xdebug can't read the file:
-            // Trap reads it when it runs on the same host. Only a file the script ran: the UI names any file
-            // with a breakpoint.
-            return (isset($this->ran[$file]) ? self::localSource($file, $from, $to) : null)
+            // Trap reads it when the engine runs on this host. Only a file the script ran: the UI names any
+            // file with a breakpoint.
+            return ($this->engine->isLoopback() && isset($this->ran[$file]) ? self::localSource($file, $from, $to) : null)
                 ?? throw DebuggerError::sourceAtException();
         }
     }
@@ -764,7 +764,8 @@ final class Session
 
     /**
      * Lines of a `file:///` URI read from this host, a line cut at {@see MAX_LOCAL_LINE} bytes; null when it
-     * has no such file, the file is larger than {@see MAX_LOCAL_SOURCE}, or the URI is not a plain local path.
+     * has no such PHP source file, the file is empty or larger than {@see MAX_LOCAL_SOURCE}, or the URI is not a
+     * plain local path. A file on a network drive blocks the loop of Trap while it is read.
      */
     private static function localSource(string $uri, int $from, int $to): ?string
     {
@@ -778,7 +779,12 @@ final class Session
             return null;
         }
         $real = \realpath($path);
-        if ($real === false || !\is_file($real) || \filesize($real) > self::MAX_LOCAL_SOURCE) {
+        if ($real === false || \preg_match('/\.(?:php\d?|phtml|phpt|inc|module)$/i', $real) !== 1 || !\is_file($real)) {
+            return null;
+        }
+        // An empty size is a pseudo-file, as /proc/self/environ
+        $size = \filesize($real);
+        if ($size === false || $size === 0 || $size > self::MAX_LOCAL_SOURCE) {
             return null;
         }
         $handle = @\fopen($real, 'rb');

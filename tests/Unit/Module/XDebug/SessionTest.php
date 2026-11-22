@@ -259,6 +259,8 @@ final class SessionTest
             $h->call(static fn() => $h->session()->read('stack_get'));
             $big = $source($uri('big.php'), 1, 1);
             $withHost = $source('file://' . \ltrim(\substr($uri('ran.php'), 7), '/'), 1, 1);
+            $h->engine->loopback = false;
+            $remote = $source($uri('ran.php'), 1, 1);
             $h->call(static fn() => $h->session()->continue('step_over', Session::BY_UI));
         } finally {
             \array_map(\unlink(...), \glob("$dir/*"));
@@ -270,6 +272,7 @@ final class SessionTest
         Assert::same($other, 'source_unavailable');
         Assert::same($big, 'source_unavailable');
         Assert::same($withHost, 'source_unavailable');
+        Assert::same($remote, 'source_unavailable');
         Assert::null($h->session()->exception());
     }
 

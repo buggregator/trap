@@ -53,4 +53,10 @@ final class FakeIde implements Link
     {
         $this->closed = true;
     }
+
+    #[\Override]
+    public function isLoopback(): bool
+    {
+        return false;
+    }
 }

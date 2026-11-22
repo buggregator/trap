@@ -19,6 +19,9 @@ final class SocketStream implements \IteratorAggregate, StreamClient
 {
     use FetchLineTrait;
 
+    /** The IP address of the peer, as `127.0.0.1` or `::1`; null when the socket doesn't tell */
+    public readonly ?string $peerAddress;
+
     /** @var \SplQueue<string> */
     private \SplQueue $queue;
 
@@ -31,6 +34,7 @@ final class SocketStream implements \IteratorAggregate, StreamClient
     ) {
         $this->queue = new \SplQueue();
         $this->createdAt = new \DateTimeImmutable();
+        $this->peerAddress = @\socket_getpeername($client->getSocket(), $address) ? $address : null;
     }
 
     public static function create(Client $client, int $id): self

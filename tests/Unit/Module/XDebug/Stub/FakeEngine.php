@@ -20,6 +20,10 @@ final class FakeEngine implements Link
     public array $commands = [];
 
     public bool $closed = false;
+
+    /** Connected from this host */
+    public bool $loopback = true;
+
     private string $out = '';
 
     /**
@@ -80,6 +84,12 @@ final class FakeEngine implements Link
         [$data, $this->out] = [$this->out, ''];
 
         return $data;
+    }
+
+    #[\Override]
+    public function isLoopback(): bool
+    {
+        return $this->loopback;
     }
 
     #[\Override]
