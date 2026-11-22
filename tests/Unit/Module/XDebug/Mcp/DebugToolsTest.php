@@ -87,7 +87,41 @@ final class DebugToolsTest
 
         $list = $h->call(static fn() => $tool->call([]));
 
-        Assert::same($list['breakpoints'][0]['sessions'], [['session_id' => '1', 'state' => 'resolved', 'resolved_line' => 4, 'hit_count' => 1]]);
+        Assert::same($list['breakpoints'][0]['sessions'], [['session_id' => '1', 'session_state' => 'break', 'state' => 'resolved', 'resolved_line' => 4, 'hit_count' => 1]]);
+    }
+
+    public function testKeepsHitsOfLastSessionAfterItEnds(): void
+    {
+        [$h, $mcp] = self::paused();
+        $tool = new BreakpointsTool($h->debugger, $mcp);
+        $h->call(static fn() => $tool->call(['action' => 'set', 'file' => '/app/a.php', 'line' => 3]));
+        $h->pump(30);
+        $h->engine->responders['step_over'] = static fn(array $c): string => FakeEngine::breakAt('step_over', $c['tid'], 'file:///app/a.php', 4);
+        $h->call(static fn() => (new Control($h->debugger, $mcp))->call(['command' => 'step_over', 'wait' => 1]));
+        $h->pump(30);
+        $h->engine->close();
+        $h->pump(10);
+
+        $list = $tool->call([]);
+
+        Assert::same($list['breakpoints'][0]['sessions'][0]['session_state'], 'stopped');
+        Assert::same($list['breakpoints'][0]['sessions'][0]['hit_count'], 1);
+    }
+
+    public function testStepOutReturnsReturnValue(): void
+    {
+        [$h, $mcp] = self::paused();
+        $h->engine->responders['step_out'] = static fn(array $c): string => FakeEngine::response(
+            'step_out',
+            $c['tid'],
+            ' status="break" reason="ok"',
+            '<xdebug:message filename="file:///app/a.php" lineno="4"></xdebug:message>'
+            . '<xdebug:return_value><property type="int"><![CDATA[42]]></property></xdebug:return_value>',
+        );
+
+        $step = $h->call(static fn() => (new Control($h->debugger, $mcp))->call(['command' => 'step_out', 'wait' => 1]));
+
+        Assert::same($step['return_value'], ['name' => '', 'type' => 'int', 'value' => '42']);
     }
 
     public function testGatesEvalAndControl(): void

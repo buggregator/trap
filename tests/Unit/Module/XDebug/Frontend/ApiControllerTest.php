@@ -73,7 +73,7 @@ final class ApiControllerTest
         Assert::same($eval[1]['code'], 'eval_disabled');
         Assert::same($run['state'], 'running');
         Assert::same($again, [409, ['error' => $again[1]['error'], 'code' => 'not_paused', 'state' => 'running']]);
-        Assert::contains($h->engine->commands, 'step_over -i 9');
+        Assert::contains($h->engine->commands, 'step_over -i 10');
     }
 
     public function testManagesBreakpointsAndSettings(): void

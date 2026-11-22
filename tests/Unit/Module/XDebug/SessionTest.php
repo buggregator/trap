@@ -37,7 +37,7 @@ final class SessionTest
         Assert::same($session->state(), 'break');
         Assert::same($session->location(), [self::FILE, 3]);
         $names = \array_map(static fn(string $c): string => \explode(' ', $c)[0], $h->engine->commands);
-        Assert::same(\array_slice($names, 0, 6), ['feature_set', 'feature_set', 'feature_set', 'feature_set', 'feature_set', 'step_into']);
+        Assert::same(\array_slice($names, 0, 7), ['feature_set', 'feature_set', 'feature_set', 'feature_set', 'feature_set', 'feature_set', 'step_into']);
         Assert::same($session->info()['kind'], 'http');
         Assert::same($session->info()['target'], 'GET /users?id=1');
         Assert::same($session->info()['idekey'], 'PHPSTORM');
@@ -52,7 +52,7 @@ final class SessionTest
         $h->connect();
         $h->pump(30);
 
-        Assert::contains($h->engine->commands, 'run -i 6');
+        Assert::contains($h->engine->commands, 'run -i 7');
     }
 
     public function testCachesReadsOfOnePause(): void
@@ -194,8 +194,8 @@ final class SessionTest
         $h->connect();
         $h->pump(40);
 
-        Assert::contains($h->engine->commands, 'breakpoint_set -i 6 -t line -f file:///app/a.php -n 7');
-        Assert::contains($h->engine->commands, 'breakpoint_set -i 7 -t exception -x RuntimeException');
+        Assert::contains($h->engine->commands, 'breakpoint_set -i 7 -t line -f file:///app/a.php -n 7');
+        Assert::contains($h->engine->commands, 'breakpoint_set -i 8 -t exception -x RuntimeException');
         $states = $h->session()->breakpointStates($h->debugger->breakpoints->all());
         Assert::same($states[0]['state'], 'resolved');
         Assert::same($states[0]['resolved_line'], 8);

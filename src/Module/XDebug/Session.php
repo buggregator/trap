@@ -55,6 +55,7 @@ final class Session
         'max_data -v 65536',
         'resolved_breakpoints -v 1',
         'notify_ok -v 1',
+        'breakpoint_include_return_value -v 1',
     ];
 
     /**
@@ -131,6 +132,9 @@ final class Session
 
     /** @var array{class: string, message: string, code?: string}|null The exception of the current pause */
     private ?array $exception = null;
+
+    /** @var array<array-key, mixed>|null What the function stepped out of returned */
+    private ?array $returnValue = null;
 
     /** @var array<string, true> Files the engine reported running: the entry file, pauses, stacks */
     private array $ran = [];
@@ -252,6 +256,7 @@ final class Session
                 if ($location !== null) {
                     [$this->file, $this->line] = $location;
                     $this->exception = $reply->breakException();
+                    $this->returnValue = $reply->breakReturnValue();
                     $this->ran($this->file);
                 }
                 $previous === 'break' or $this->paused();
@@ -524,6 +529,16 @@ final class Session
     public function exception(): ?array
     {
         return $this->isPaused() ? $this->exception : null;
+    }
+
+    /**
+     * What the function returned, when the session paused right after a step out of it.
+     *
+     * @return array<array-key, mixed>|null
+     */
+    public function returnValue(): ?array
+    {
+        return $this->isPaused() ? $this->returnValue : null;
     }
 
     /**
@@ -842,6 +857,8 @@ final class Session
         $this->pausedAt = new \DateTimeImmutable();
         $this->targetDone or $this->task($this->resolveTarget(...));
         $this->bpDirty && $this->driver === self::DRIVER_HERE and $this->task($this->syncBreakpoints(...));
+        // A breakpoint is hit only at a pause: read at each one, the counts outlive the session
+        $this->bps === [] or $this->task($this->readHits(...));
         $this->armIdle();
     }
 
@@ -849,7 +866,7 @@ final class Session
     {
         ++$this->conts;
         $this->idleDeadline = $this->idleSent = null;
-        $this->exception = null;
+        $this->exception = $this->returnValue = null;
         if ($this->status !== 'running') {
             $this->status = 'running';
             $this->debugger->emit('session.status', $this->statusEvent());

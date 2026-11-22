@@ -32,8 +32,9 @@ final class BreakpointsTool extends DebugTool
     public function description(): string
     {
         return 'Saved breakpoints, sent to every session Trap drives. `action: list` (default), each with `sessions`: '
-            . 'its `state` in each live session, the `resolved_line` Xdebug stops at (it moves a breakpoint off a line '
-            . 'with no code) and the `hit_count`; `action: set` with '
+            . 'its `state` in each live session and in the last closed one, the `resolved_line` Xdebug stops at (it '
+            . 'moves a breakpoint off a line with no code) and the `hit_count`. A `condition` that fails, as on an '
+            . 'undefined constant, counts as false: check it with `xdebug_eval` at a pause. `action: set` with '
             . '`file` (absolute path as PHP sees it) and `line`, optional `condition` (PHP, needs eval allowed), or '
             . 'with `exception` (a class name, parents match, `*` for any); `action: remove` with `id`. '
             . 'An IDE keeps breakpoints of its own for the sessions it drives.';
@@ -96,7 +97,8 @@ final class BreakpointsTool extends DebugTool
     }
 
     /**
-     * Adds to each breakpoint its state in the live sessions driven here: the line Xdebug stops at and the hits.
+     * Adds to each breakpoint its state in the sessions driven here: the line Xdebug stops at and the hits.
+     * The live sessions, and the last closed one: its counts tell what the finished run hit.
      *
      * @param list<Breakpoint> $saved
      *
@@ -104,16 +106,19 @@ final class BreakpointsTool extends DebugTool
      */
     private function inSessions(array $saved): array
     {
+        $here = \array_filter(
+            $this->debugger->sessions(),
+            static fn(Session $s): bool => $s->driver === Session::DRIVER_HERE,
+        );
+        $closed = \array_filter($here, static fn(Session $s): bool => $s->isClosed());
+        $last = $closed === [] ? null : \end($closed);
+        $shown = \array_filter($here, static fn(Session $s): bool => !$s->isClosed() || $s === $last);
+
         $list = $saved;
-        foreach ($this->debugger->sessions() as $session) {
-            if ($session->isClosed() || $session->driver !== Session::DRIVER_HERE) {
-                continue;
-            }
+        foreach ($shown as $session) {
             foreach ($session->breakpointStates($saved) as $i => $state) {
-                $list[$i]['sessions'][] = ['session_id' => $session->id] + \array_intersect_key(
-                    $state,
-                    ['state' => 1, 'resolved_line' => 1, 'hit_count' => 1],
-                );
+                $list[$i]['sessions'][] = ['session_id' => $session->id, 'session_state' => $session->state()]
+                    + \array_intersect_key($state, ['state' => 1, 'resolved_line' => 1, 'hit_count' => 1]);
             }
         }
 

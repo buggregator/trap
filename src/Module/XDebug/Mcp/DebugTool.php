@@ -78,7 +78,9 @@ abstract class DebugTool implements Tool
         } catch (DebuggerError) {
         }
 
-        return $pause + self::exception($session);
+        $returned = $session->returnValue();
+
+        return $pause + self::exception($session) + ($returned === null ? [] : ['return_value' => $returned]);
     }
 
     protected static function int(array $arguments, string $name, int $default): int

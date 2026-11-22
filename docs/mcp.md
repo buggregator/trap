@@ -440,7 +440,7 @@ name the MCP client gave in `initialize`.
 - `exception` is there when the session is paused at an exception breakpoint: its `class` and `message`, and the
   `code` when Xdebug sends one.
 - `xdebug_continue` returns `state` and `paused`, and of the pause `file`, `line`, the function as `where`, the code
-  of the line as `source_line`, and `exception`.
+  of the line as `source_line`, `exception`, and after `step_out` the `return_value` of the function left.
 - `xdebug_stack` returns the first `limit` frames, 20 by default; `limit: 0` returns all.
 - `xdebug_eval` evaluates in the current frame (level 0): Xdebug's eval takes no stack depth, so the variables of
   other frames are read with `xdebug_variables` and `frame`. Xdebug runs the code as `return <code>;`, so a
@@ -448,8 +448,9 @@ name the MCP client gave in `initialize`.
   one: a warning or notice of the eval code, as an undefined variable, fails the call, and neither the output of
   the script, its error handler nor its `error_get_last()` sees it. Deprecations of the eval code are dropped; an
   error raised in a file of the script, as by a function the expression calls, goes on to the script's handler.
-- `xdebug_breakpoints` lists each saved breakpoint with `sessions`: for each live session Trap drives, the `state`
-  there, the `resolved_line` Xdebug stops at and the `hit_count`.
+- `xdebug_breakpoints` lists each saved breakpoint with `sessions`: for each live session Trap drives and the last
+  closed one, `session_state`, the `state` of the breakpoint there, the `resolved_line` Xdebug stops at and the
+  `hit_count`. A `condition` that fails, as on an undefined constant, counts as false: the breakpoint never fires.
 - `xdebug_continue` and changing breakpoints work on the sessions Trap drives (`driver: here`); an IDE steps its own.
   `TRAP_XDEBUG_ALLOW_CONTROL=0` turns them off for agents.
 - A usual run: `xdebug_breakpoints` with `{"action": "set", "file": "/app/src/Checkout.php", "line": 42}`, start

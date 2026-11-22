@@ -17,6 +17,7 @@ namespace Buggregator\Trap\Module\XDebug\Dbgp;
 final class Response
 {
     private const XDEBUG_NS = 'https://xdebug.org/dbgp/xdebug';
+    private const DBGP_NS = 'urn:debugger_protocol_v1';
 
     private function __construct(
         public readonly \SimpleXMLElement $xml,
@@ -98,6 +99,26 @@ final class Response
         $code = (string) ($attributes?->code ?? '');
 
         return ['class' => $class, 'message' => (string) $message] + ($code === '' ? [] : ['code' => $code]);
+    }
+
+    /**
+     * The value the function returned, on the reply of a step out of it, with `breakpoint_include_return_value` on.
+     *
+     * @return Variable|null
+     */
+    public function breakReturnValue(): ?array
+    {
+        $value = $this->xml->children(self::XDEBUG_NS)?->return_value;
+        if ($value === null || $value->count() === 0) {
+            return null;
+        }
+        $property = $value->children(self::DBGP_NS)?->property;
+        // Parsed again: reached through a namespace, its attributes would be looked up in that namespace
+        $property = $property === null || $property->count() === 0
+            ? false
+            : \simplexml_load_string((string) $property->asXML(), options: \LIBXML_NONET);
+
+        return $property === false ? null : self::variable($property);
     }
 
     /**
