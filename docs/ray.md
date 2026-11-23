@@ -29,9 +29,9 @@ Trap answers the requests of a Ray client:
   Without the UI the client continues at once, and the console says so.
 - Once Continue or Stop releases a pause, every open tab shows `Continued` or `Stopped` and turns the buttons
   off, and so does a reloaded page: the `create_lock` payload of the event gets `content.state`, `continued` or
-  `stopped`, and the UI gets the updated event. A pause released before its event arrives gets the state too.
-  The [MCP](mcp.md) summary of the event shows the state, and `list_events` and `wait_for_events` list the event
-  again when the pause is released.
+  `stopped`, and the UI gets the updated event. The [MCP](mcp.md) summary of the event shows the state, and
+  `list_events` and `wait_for_events` list the event again when the pause is released. A pause released before
+  its event arrives gets the state too: its event is listed once, with the state.
 - A paused client is forgotten after 60 seconds without a poll, a released one 10 seconds after the release; at
   most 1 000 pauses are kept. A click on a forgotten pause gets `404`, and the UI says the script no longer waits.
 - A request body may be up to 10 MB; a bigger one gets `413`.

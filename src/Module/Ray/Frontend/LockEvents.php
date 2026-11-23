@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Ray\Frontend;
 
+use Buggregator\Trap\Module\Ray\Frame as RayFrame;
 use Buggregator\Trap\Module\Ray\Lock\LockState;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventStore;
@@ -40,11 +41,13 @@ final class LockEvents
             $changed = false;
             $payloads = $payload->payloads;
             foreach ($payloads as $i => $item) {
-                /** @var mixed $content */
-                $content = $item['content'] ?? null;
-                if (self::lockName($item) === $name && \is_array($content) && ($content['state'] ?? null) !== $state->value) {
-                    $content['state'] = $state->value;
-                    $payloads[$i]['content'] = $content;
+                if (RayFrame::lockName($item) !== $name) {
+                    continue;
+                }
+
+                $content = (array) $item['content'];
+                if (($content['state'] ?? null) !== $state->value) {
+                    $payloads[$i]['content'] = [...$content, 'state' => $state->value];
                     $changed = true;
                 }
             }
@@ -83,7 +86,7 @@ final class LockEvents
 
             foreach ($payload->payloads as $item) {
                 /** @var mixed $state */
-                $state = self::lockName($item) === $name ? $item['content']['state'] ?? null : null;
+                $state = RayFrame::lockName($item) === $name ? $item['content']['state'] ?? null : null;
                 $state = \is_string($state) ? LockState::tryFrom($state) : null;
                 if ($state !== null && $state !== LockState::Active) {
                     return $state;
@@ -92,15 +95,5 @@ final class LockEvents
         }
 
         return null;
-    }
-
-    private static function lockName(array $payload): ?string
-    {
-        /** @var mixed $content */
-        $content = $payload['content'] ?? null;
-        /** @var mixed $name */
-        $name = \is_array($content) ? $content['name'] ?? null : null;
-
-        return ($payload['type'] ?? null) === 'create_lock' && \is_string($name) ? $name : null;
     }
 }

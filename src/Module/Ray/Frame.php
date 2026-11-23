@@ -73,6 +73,19 @@ final class Frame extends ProtoFrame implements LocalOnlyFrame
     }
 
     /**
+     * @return string|null The lock name of a `create_lock` payload; null for another payload.
+     */
+    public static function lockName(array $payload): ?string
+    {
+        /** @var mixed $content */
+        $content = $payload['content'] ?? null;
+        /** @var mixed $name */
+        $name = \is_array($content) ? $content['name'] ?? null : null;
+
+        return ($payload['type'] ?? null) === 'create_lock' && \is_string($name) ? $name : null;
+    }
+
+    /**
      * Names of the execution locks the request creates: `ray()->pause()` sends one and waits for it.
      *
      * @return list<string>
@@ -81,11 +94,8 @@ final class Frame extends ProtoFrame implements LocalOnlyFrame
     {
         $names = [];
         foreach ($this->payloads as $payload) {
-            /** @var mixed $content */
-            $content = $payload['content'] ?? null;
-            /** @var mixed $name */
-            $name = \is_array($content) ? $content['name'] ?? null : null;
-            $payload['type'] === 'create_lock' && \is_string($name) and $names[] = $name;
+            $name = self::lockName($payload);
+            $name === null or $names[] = $name;
         }
 
         return $names;

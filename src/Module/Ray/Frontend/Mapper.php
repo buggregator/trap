@@ -113,19 +113,13 @@ final class Mapper implements EventMapper
      */
     private function lockState(array $payload): array
     {
-        /** @var mixed $content */
-        $content = $payload['content'] ?? null;
-        /** @var mixed $name */
-        $name = \is_array($content) ? $content['name'] ?? null : null;
-        if ($payload['type'] !== 'create_lock' || !\is_string($name) || !\is_array($content)) {
+        $name = RayFrame::lockName($payload);
+        $state = $name === null ? null : $this->locks->find($name)?->state();
+        if ($state === null || $state === LockState::Active) {
             return $payload;
         }
 
-        $state = $this->locks->find($name)?->state();
-        if ($state !== null && $state !== LockState::Active) {
-            $content['state'] = $state->value;
-            $payload['content'] = $content;
-        }
+        $payload['content'] = [...(array) $payload['content'], 'state' => $state->value];
 
         return $payload;
     }

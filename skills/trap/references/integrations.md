@@ -55,7 +55,7 @@ uses: `-p` replaces the default ports, so list them all,
 `exception`. An updated Ray message, as `ray()->...` chains send, is one event listed again at its latest change.
 `ray()->pause()` waits for Continue or Stop in the web UI; without `--ui` it goes on at once. The summary of its
 event shows `create_lock: {"name":...}`, with `"state":"continued"` or `"state":"stopped"` once released: the event
-is listed again then.
+is listed again then. A pause released before its event arrives is listed once, already with the state.
 
 ## Mail
 
