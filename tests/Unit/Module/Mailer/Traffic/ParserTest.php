@@ -79,8 +79,49 @@ final class ParserTest
         ];
         yield 'calendar invitation: text/calendar alternative' => [
             'calendar-invite.eml',
-            [$plain, $html],
-            [['invite.ics', 'text/calendar', null, 93], ['invite.ics', 'application/ics', null, 93]],
+            [$plain, $html, ['text/calendar', 'SUMMARY:Trap demo']],
+            [['invite.ics', 'application/ics', null, 93]],
+        ];
+        yield 'Google Calendar: base64 text/calendar alternative and .ics attachment' => [
+            'google-invite.eml',
+            [
+                ['text/plain', 'You have been invited to Release sync.'],
+                ['text/html', '<b>Release sync</b>'],
+                ['text/calendar', 'SUMMARY:Release sync'],
+            ],
+            [['invite.ics', 'application/ics', null, 712]],
+        ];
+        yield 'calendar attached only' => [
+            'ics-attachment.eml',
+            [['text/html', '<p>Booking confirmed.</p>']],
+            [['booking.ics', 'text/calendar', null, 129]],
+        ];
+        yield 'Apple Watch version' => [
+            'watch.eml',
+            [
+                ['text/plain', 'Your order shipped.'],
+                ['text/watch-html', '<b>Shipped</b> ✓'],
+                ['text/html', '<h1>Your order shipped</h1>'],
+            ],
+            [],
+        ];
+        yield 'AMP version' => [
+            'amp.eml',
+            [
+                ['text/plain', 'Vote in our poll.'],
+                ['text/x-amp-html', '<amp-form>Vote</amp-form>'],
+                ['text/html', '<p>Vote in our poll.</p>'],
+            ],
+            [],
+        ];
+        yield 'delivery report' => [
+            'bounce.eml',
+            [
+                ['text/plain', 'could not be delivered'],
+                ['message/delivery-status', 'Status: 5.1.1'],
+                ['text/rfc822-headers', 'Subject: Welcome'],
+            ],
+            [],
         ];
         yield 'four levels of multipart' => [
             'deeply-nested.eml',
@@ -548,7 +589,7 @@ final class ParserTest
     }
 
     #[Test]
-    public function decodesQuotedPrintableTextAttachment(): void
+    public function decodesQuotedPrintableCalendarVersion(): void
     {
         $message = $this->parse(
             "Content-Type: multipart/alternative; boundary=o\r\n\r\n"
@@ -556,13 +597,77 @@ final class ParserTest
             . "DESCRIPTION:a=3Db and a long line that the client brea=\r\nks\r\n--o--\r\n.\r\n",
         );
 
-        Assert::count($message->getMessages(), 0);
-        Assert::count($message->getAttachments(), 1);
-        Assert::same($message->getAttachments()[0]->getClientFilename(), 'invite.ics');
-        Assert::same(
-            (string) $message->getAttachments()[0]->getStream(),
-            'DESCRIPTION:a=b and a long line that the client breaks',
+        Assert::count($message->getAttachments(), 0);
+        Assert::count($message->getMessages(), 1);
+        Assert::same($message->getMessages()[0]->getValue(), 'DESCRIPTION:a=b and a long line that the client breaks');
+    }
+
+    /**
+     * RFC 2183: an `inline` part is shown with the message, so an unnamed one is a version of its body.
+     */
+    #[DataSet(['text/calendar; method=REQUEST', 'SUMMARY:a=b'], 'calendar')]
+    #[DataSet(['text/x-amp-html; charset=utf-8', '<p>a=b</p>'], 'AMP')]
+    #[DataSet(['text/watch-html', '<b>a=b</b>'], 'Apple Watch')]
+    #[DataSet(['message/delivery-status', 'Status: 5.1.1 a=b'], 'report of a non-text type')]
+    #[Test]
+    public function inlinePartIsVersion(string $contentType, string $text): void
+    {
+        $message = $this->parse(
+            "Content-Type: multipart/mixed; boundary=o\r\n\r\n"
+            . "--o\r\nContent-Type: text/plain\r\n\r\nHello\r\n"
+            . "--o\r\nContent-Type: $contentType\r\nContent-Disposition: inline\r\n"
+            . "Content-Transfer-Encoding: quoted-printable\r\n\r\n" . \str_replace('a=b', 'a=3Db', $text)
+            . "\r\n--o--\r\n.\r\n",
         );
+
+        Assert::count($message->getAttachments(), 0);
+        Assert::same(\array_map(static fn(Field $part): string => $part->getValue(), $message->getMessages()), ['Hello', $text]);
+    }
+
+    /**
+     * A named part is a file whatever its disposition, as mail clients list it; the name may be in Content-Type only.
+     */
+    #[DataSet(["Content-Type: text/csv; name=report.csv\r\n", 'report.csv'], 'CSV named in Content-Type')]
+    #[DataSet(["Content-Type: text/x-vcard; name=\"Ann Lee.vcf\"\r\n", 'Ann Lee.vcf'], 'vCard')]
+    #[DataSet(["Content-Type: text/xml; name=feed.xml\r\n", 'feed.xml'], 'XML')]
+    #[DataSet(["Content-Type: text/calendar; method=REQUEST; name=meeting.ics\r\n", 'meeting.ics'], 'calendar named in Content-Type')]
+    #[DataSet(["Content-Type: text/calendar\r\nContent-Disposition: inline; filename=invite.ics\r\n", 'invite.ics'], 'inline calendar with a file name')]
+    #[DataSet(["Content-Type: text/x-amp-html\r\nContent-Disposition: attachment\r\n", null], 'attached without a name')]
+    #[DataSet(["Content-Type: message/delivery-status; name=status.txt\r\n", 'status.txt'], 'named report')]
+    #[Test]
+    public function namedOrAttachedPartIsFile(string $headers, ?string $fileName): void
+    {
+        $message = $this->parse(
+            "Content-Type: multipart/mixed; boundary=o\r\n\r\n"
+            . "--o\r\nContent-Type: text/plain\r\n\r\nHello\r\n"
+            . "--o\r\n{$headers}\r\ncontent\r\n--o--\r\n.\r\n",
+        );
+
+        Assert::count($message->getMessages(), 1);
+        Assert::count($message->getAttachments(), 1);
+        Assert::same($message->getAttachments()[0]->getClientFilename(), $fileName);
+        Assert::same((string) $message->getAttachments()[0]->getStream(), 'content');
+    }
+
+    /**
+     * A part of a non-text type is a version of the body when the type is a report, decoded and converted to UTF-8.
+     */
+    #[DataSet([false], 'single-part message')]
+    #[DataSet([true], 'part of a multipart message')]
+    #[Test]
+    public function reportIsVersionOfBody(bool $multipart): void
+    {
+        $part = "Content-Type: message/delivery-status; charset=iso-8859-1\r\nContent-Transfer-Encoding: base64\r\n\r\n"
+            . \base64_encode("Status: 5.1.1\r\nDiagnostic-Code: smtp; caf\xE9") . "\r\n";
+        $email = $multipart
+            ? "Content-Type: multipart/report; report-type=delivery-status; boundary=o\r\n\r\n--o\r\n{$part}--o--\r\n"
+            : $part;
+
+        $message = $this->parse(\str_split($email . ".\r\n", 10));
+
+        Assert::count($message->getAttachments(), 0);
+        Assert::count($message->getMessages(), 1);
+        Assert::same($message->getMessages()[0]->getValue(), "Status: 5.1.1\r\nDiagnostic-Code: smtp; café");
     }
 
     #[DataCross(
@@ -674,6 +779,27 @@ final class ParserTest
         Assert::count($message->getAttachments(), 0);
         Assert::count($message->getMessages(), 1);
         Assert::same($message->getMessages()[0]->getValue(), 'Hello');
+    }
+
+    /**
+     * The first plain or HTML text is the body even when named; a named one of the same type after it is a file.
+     */
+    #[DataSet(['text/plain', "Content-Type: text/plain; name=log.txt\r\n", ['Hello'], 'log.txt'], 'plain text after the body')]
+    #[DataSet(['text/plain; name=body.txt', "Content-Type: text/plain; name=log.txt\r\n", ['Hello'], 'log.txt'], 'both named')]
+    #[DataSet(['text/html', "Content-Type: text/html; name=page.html\r\n", ['Hello'], 'page.html'], 'HTML after the HTML')]
+    #[DataSet(['text/html', "Content-Type: text/plain; name=log.txt\r\n", ['Hello', 'second'], null], 'plain text after the HTML')]
+    #[DataSet(['text/plain', "Content-Type: text/plain\r\n", ['Hello', 'second'], null], 'unnamed text after the body')]
+    #[Test]
+    public function namedTextAfterBodyOfItsTypeIsFile(string $bodyType, string $headers, array $texts, ?string $file): void
+    {
+        $message = $this->parse(
+            "Content-Type: multipart/mixed; boundary=o\r\n\r\n"
+            . "--o\r\nContent-Type: {$bodyType}\r\n\r\nHello\r\n"
+            . "--o\r\n{$headers}\r\nsecond\r\n--o--\r\n.\r\n",
+        );
+
+        Assert::same(\array_map(static fn(Field $text): string => $text->getValue(), $message->getMessages()), $texts);
+        Assert::same(\array_map(static fn(File $f): ?string => $f->getClientFilename(), $message->getAttachments()), $file === null ? [] : [$file]);
     }
 
     #[Test]

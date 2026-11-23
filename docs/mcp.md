@@ -123,6 +123,9 @@ seconds. Trap catches events and answers other requests meanwhile, and a call st
 | `csp`       | `report_type`, `directive`, `blocked`, `disposition`, `page`, `source_file` (of each report of the request)                       |
 
 An `xdebug-trace` event has no fields: its summary starts with the URL or the name of the trace, so `search` finds it.
+The summary of an `smtp` event ends with the [other versions](smtp.md#other-versions-and-invites) of the email and
+its invite, as `Sprint review from ann@example.com to bob@example.com; versions: Apple Watch, Calendar; invite`,
+or `cancelled invite`, `invite reply`; `get_event` shows each version and the invite.
 The `list_events` description lists the fields too. Examples:
 
 - Errors in the last 5 minutes: `{"from": "5m", "where": {"level": "error"}}`: the log records and the Sentry

@@ -73,6 +73,17 @@ and the attachments, all decoded from quoted-printable and base64. The text and 
 declared charset by mbstring or iconv; a part in a charset neither knows keeps its raw bytes, and one with no charset is
 taken as UTF-8. No mail leaves the machine.
 
+The other versions of a body, such as Apple Watch (`text/watch-html`), AMP (`text/x-amp-html`), a calendar
+(`text/calendar`) or a delivery report, are the parts shown inline (an `inline` disposition or none) and unnamed;
+a part named in `Content-Disposition` or `Content-Type`, or attached, is a file. The first plain text and the first
+HTML part are the message text even when named in `Content-Type`; a named one after them is a file. The summary ends
+with the versions and the invite, as `...; versions: Apple Watch, AMP, Calendar; invite` (or `cancelled invite`, `invite reply`).
+`get_event` prints each version as a body named by its kind, and the invite (the first event of a calendar version,
+else of a calendar attachment) in an `Invite` section in place of its calendar text: summary, times in the zone of
+the event (`DTEND`, or `DTSTART` plus `DURATION`), place, organizer, guests with their `PARTSTAT`. An invite with
+`METHOD:CANCEL` or `STATUS:CANCELLED` is cancelled. In the web UI each version is a tab, the invite a card above the
+body.
+
 `subject` and the contact names come decoded from RFC 2047 words: `where` on `subject` and a `search` match the
 plain text, such as `Привет, мир`. `from`, `to`, `cc` and `bcc` hold the addresses, so match a name with `search`.
 `from` holds each address once: the envelope sender and the `From` header merged. An attachment's file name comes from

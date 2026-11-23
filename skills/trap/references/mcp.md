@@ -92,6 +92,8 @@ The argument schema of each tool is in its `inputSchema` (`mcp.php tools <name>`
 
 A `where` string matches the whole value in any case, with `*` for any characters; a list matches any of its
 values. A field no type has fails the call. An `xdebug-trace` has no fields: `search` finds it by its URL or name.
+A mail with an invite or another version of its body has no field for it: `{"type": "smtp", "search": "invite"}`
+finds it by its summary, see [integrations.md](integrations.md#mail).
 
 - Errors of the last 5 minutes, logs and Sentry: `{"from": "5m", "where": {"level": "error"}}`
 - POST requests to the orders API: `{"type": "http-dump", "where": {"method": "POST", "path": "/api/orders*"}}`

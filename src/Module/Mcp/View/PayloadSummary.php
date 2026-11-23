@@ -282,11 +282,35 @@ final class PayloadSummary implements EventView, EventFields
         $from = self::contacts($payload['from'] ?? null);
         $to = self::contacts($payload['to'] ?? null);
 
-        return \trim(\implode(' ', [
+        $summary = \implode(' ', \array_filter([
             $subject === '' ? '(no subject)' : $subject,
             $from === '' ? '' : "from $from",
             $to === '' ? '' : "to $to",
         ]));
+
+        // The other versions and the invite, as the list of the web UI marks them
+        $labels = [];
+        /** @var mixed $part */
+        foreach (\is_array($payload['parts'] ?? null) ? $payload['parts'] : [] as $part) {
+            \is_array($part) and $labels[] = self::plain($part['label'] ?? $part['type'] ?? null);
+        }
+        $labels = \array_values(\array_unique(\array_filter($labels)));
+        $labels === [] or $summary .= '; versions: ' . \implode(', ', $labels);
+        /** @var mixed $calendar */
+        $calendar = $payload['calendar'] ?? null;
+        \is_array($calendar) and $summary .= '; ' . self::invite($calendar);
+
+        return $summary;
+    }
+
+    private static function invite(array $calendar): string
+    {
+        $method = \strtoupper(self::plain($calendar['method'] ?? null));
+        return match (true) {
+            $method === 'CANCEL' || \strtoupper(self::plain($calendar['status'] ?? null)) === 'CANCELLED' => 'cancelled invite',
+            $method === 'REPLY' => 'invite reply',
+            default => 'invite',
+        };
     }
 
     private static function contacts(mixed $contacts): string
