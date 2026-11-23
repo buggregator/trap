@@ -209,13 +209,21 @@ final class Profile implements \JsonSerializable
         return [
             'date' => $this->date->getTimestamp(),
             'app_name' => $this->metadata['app_name'] ?? '',
-            'hostname' => (string) ($this->metadata['hostname'] ?? ''),
-            'filename' => (string) ($this->metadata['filename'] ?? ''),
+            'hostname' => self::text($this->metadata['hostname'] ?? null),
+            'filename' => self::text($this->metadata['filename'] ?? null),
             'profile_uuid' => $this->uuid,
             'tags' => $this->tags,
             'peaks' => $this->peaks,
             'total_edges' => $this->calls->count(),
         ];
+    }
+
+    /**
+     * A metadata value as text; empty for one a malformed payload sent as a structure.
+     */
+    private static function text(mixed $value): string
+    {
+        return \is_scalar($value) ? (string) $value : '';
     }
 
     private static function peaksOf(Graph $calls, ?TimeSlice $timeSlice): Peaks
