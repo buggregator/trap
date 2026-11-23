@@ -56,6 +56,13 @@ final class EventQueryTest
         Assert::count($histogram['data'], 1);
     }
 
+    public function testWidenedBucketIsCappedAtHundredYears(): void
+    {
+        $events = [new Event('b', 'monolog', [], 1e15), new Event('a', 'monolog', [], 0.0)];
+
+        Assert::same(EventQuery::fromQueryString('')->histogram($events, 60)['bucket'], 100 * 366 * 86400);
+    }
+
     public function testSearchFoldsTheCaseOfAnyLetter(): void
     {
         $events = [new Event('a', 'monolog', ['message' => 'Ошибка оплаты', 'channel' => 'app'], 1.0)];
