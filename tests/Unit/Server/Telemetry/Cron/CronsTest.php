@@ -161,7 +161,183 @@ final class CronsTest
 
         $statuses = \array_map(static fn(CheckIn $run): string => $run->status, $this->monitor()->history());
         Assert::same($statuses, ['unknown', 'ok']);
-        Assert::same($this->monitor()->nextExpectedAt, self::at('12:29'));
+        Assert::same($this->monitor()->nextExpectedAt, self::at('12:30'));
+    }
+
+    public function testOneUnknownRowForADowntimeWhateverTheChecksAfterIt(): void
+    {
+        $this->crons->record(self::checkIn('12:00:30', config: new MonitorConfig(Schedule::interval(1, 'minute'), margin: 5)));
+        $this->crons->check((float) self::at('12:00:40'));
+
+        for ($now = (float) self::at('13:00:00'), $end = $now + 299; $now <= $end; ++$now) {
+            $this->crons->check($now);
+        }
+
+        $statuses = \array_map(static fn(CheckIn $run): string => $run->status, $this->monitor()->history());
+        Assert::same($statuses, ['unknown', 'ok']);
+        Assert::same($this->monitor()->history()[0]->expectedAt, (float) self::at('12:01'));
+        Assert::same($this->monitor()->nextExpectedAt, self::at('13:00'));
+    }
+
+    public function testLongSleepOfManyMonitorsTakesOneStepEach(): void
+    {
+        for ($i = 0; $i < Crons::MAX_MONITORS; ++$i) {
+            $this->crons->record(self::checkIn('12:00:30', slug: "job$i", config: new MonitorConfig(Schedule::crontab('* * * * *'))));
+        }
+        $this->crons->check((float) self::at('12:00:40'));
+
+        $started = \microtime(true);
+        $this->crons->check((float) self::at('12:00:40') + 14 * 86400);
+        $took = \microtime(true) - $started;
+
+        Assert::numeric($took)->lessThan(1.0);
+        foreach ($this->crons->monitors() as $monitor) {
+            Assert::same(\array_map(static fn(CheckIn $run): string => $run->status, $monitor->history()), ['unknown', 'ok']);
+        }
+    }
+
+    public function testOlderRunEndingLateKeepsTheNextSlotOfTheNewerOne(): void
+    {
+        $config = self::every(5);
+        $this->crons->record(self::checkIn('12:08:00', CheckInMessage::IN_PROGRESS, 'a', config: $config));
+        $this->crons->record(self::checkIn('12:10:00', CheckInMessage::IN_PROGRESS, 'b'));
+        $this->crons->record(self::checkIn('12:10:30', CheckInMessage::OK, 'b'));
+
+        $this->crons->record(self::checkIn('12:10:40', CheckInMessage::IN_PROGRESS, 'a'));
+        $this->crons->record(self::checkIn('12:11:00', CheckInMessage::OK, 'a'));
+        $this->crons->check((float) self::at('12:14:30'));
+
+        Assert::same($this->monitor()->nextExpectedAt, self::at('12:15'));
+        Assert::same($this->monitor()->lastStatus(), 'ok');
+    }
+
+    public function testCheckInJustBeforeItsSlotIsTheRunOfThatSlot(): void
+    {
+        $config = new MonitorConfig(Schedule::crontab('0 * * * *'));
+
+        $this->crons->record(self::checkIn('11:59:59', config: $config, time: self::at('11:59:59')));
+        $this->crons->check((float) self::at('12:01:30'));
+
+        Assert::same($this->monitor()->nextExpectedAt, self::at('13:00'));
+        Assert::same($this->monitor()->lastStatus(), 'ok');
+    }
+
+    public function testDayIntervalKeepsItsWallTimeAfterASkippedOne(): void
+    {
+        $config = new MonitorConfig(Schedule::interval(1, 'day'), 'Europe/Berlin');
+        // 02:30 CET on the day before clocks go forward: the next 02:30 does not exist
+        $this->crons->record(new CheckInMessage('default', 'backup', '', 'ok', (float) self::time('2026-03-28T01:30:00Z'), config: $config));
+
+        $this->crons->check((float) self::time('2026-03-29T01:31:01Z'));
+
+        Assert::same($this->monitor()->history()[0]->expectedAt, (float) self::time('2026-03-29T01:30:00Z'));
+        Assert::same($this->monitor()->nextExpectedAt, self::time('2026-03-30T00:30:00Z'));
+    }
+
+    public function testManyMissedSlotsAtOnceAreCappedAndTheNextComesAfterNow(): void
+    {
+        $this->crons->record(self::checkIn('12:00:30', config: new MonitorConfig(Schedule::crontab('* * * * *'))));
+        $this->monitor()->nextExpectedAt = self::at('12:01') - 500 * 60;
+
+        $this->crons->check((float) self::at('12:00:40'));
+
+        Assert::count($this->monitor()->checkIns, Crons::MAX_CHECK_INS);
+        Assert::same($this->monitor()->lastStatus(), 'ok');
+        Assert::same($this->monitor()->nextExpectedAt, self::at('12:00'));
+    }
+
+    public function testScheduleWithoutAFurtherSlotIsExpectedNoMore(): void
+    {
+        $this->crons->record(self::checkIn('12:00', config: new MonitorConfig(Schedule::crontab('0 0 30 2 *'))));
+        $this->monitor()->nextExpectedAt = self::at('11:00');
+
+        $this->crons->check((float) self::at('12:00:30'));
+
+        Assert::null($this->monitor()->nextExpectedAt);
+        Assert::same(\array_map(static fn(CheckIn $run): string => $run->status, $this->monitor()->history()), ['ok', 'missed']);
+    }
+
+    public function testConfigUpsertMovesTheNextSlot(): void
+    {
+        $this->crons->record(self::checkIn('12:00:30', config: self::every(5)));
+
+        $this->crons->record(self::checkIn('12:01:00', config: new MonitorConfig(Schedule::crontab('0 * * * *'))));
+
+        Assert::same($this->monitor()->nextExpectedAt, self::at('13:00'));
+    }
+
+    public function testRunKeepsTheMaxRuntimeItStartedWith(): void
+    {
+        $this->crons->record(self::checkIn('12:00', CheckInMessage::IN_PROGRESS, 'run1', config: new MonitorConfig(maxRuntime: 10)));
+
+        $this->crons->record(self::checkIn('12:05', CheckInMessage::IN_PROGRESS, 'run1', config: new MonitorConfig(maxRuntime: 60)));
+        $this->crons->check((float) self::at('12:14:59'));
+        $before = $this->monitor()->lastStatus();
+        $this->crons->check((float) self::at('12:15:01'));
+
+        Assert::same([$before, $this->monitor()->lastStatus(), $this->monitor()->maxRuntime], ['in_progress', 'timeout', 60]);
+    }
+
+    public function testOutputOfTheOldestRunsGoesAboveTheBudget(): void
+    {
+        $output = \str_repeat('x', CheckInMessage::MAX_OUTPUT);
+        $runs = (int) \ceil(Crons::MAX_OUTPUT_BYTES / CheckInMessage::MAX_OUTPUT) + 5;
+        for ($i = 0; $i < $runs; ++$i) {
+            $this->crons->record(self::checkIn('12:00', slug: 'job' . \intdiv($i, 50), output: $output, time: self::at('12:00') + $i));
+        }
+
+        $bytes = 0;
+        foreach ($this->crons->monitors() as $monitor) {
+            foreach ($monitor->checkIns as $run) {
+                $bytes += \strlen($run->output);
+            }
+        }
+        Assert::int($bytes)->lessThanOrEqual(Crons::MAX_OUTPUT_BYTES);
+        Assert::same($this->crons->monitor('default', 'job0')?->history()[49]->output, '');
+        Assert::same(\strlen($this->crons->monitor('default', 'job16')?->history()[0]->output ?? ''), CheckInMessage::MAX_OUTPUT);
+    }
+
+    #[Covers(TelemetryStore::class)]
+    public function testClockSetBackKeepsTheChecksGoing(): void
+    {
+        $now = (float) self::at('12:00:00');
+        $store = new TelemetryStore(clock: static function () use (&$now): float {
+            return $now;
+        });
+        $store->process();
+        $now = (float) self::at('11:00:00');
+        $batch = new Batch('default');
+        $batch->checkIns[] = self::checkIn('11:00:00', CheckInMessage::IN_PROGRESS, 'run1', config: new MonitorConfig(maxRuntime: 1));
+        $store->add($batch);
+
+        for ($end = (float) self::at('11:01:05'); $now <= $end; $now += 0.25) {
+            $store->process();
+        }
+
+        Assert::same($store->crons->monitor('default', 'backup')?->lastStatus(), 'timeout');
+    }
+
+    #[Covers(TelemetryStore::class)]
+    public function testFailingListenerDoesNotStopTheMainLoop(): void
+    {
+        $now = (float) self::at('12:00:30');
+        $store = new TelemetryStore(clock: static function () use (&$now): float {
+            return $now;
+        });
+        $batch = new Batch('default');
+        $batch->checkIns[] = self::checkIn('12:00:30', CheckInMessage::IN_PROGRESS, 'run1', config: new MonitorConfig(maxRuntime: 1));
+        $store->add($batch);
+        $store->listen(new class implements TelemetryListener {
+            public function stored(string $project, array $kinds): void
+            {
+                throw new \RuntimeException('closed socket');
+            }
+        });
+
+        $now = (float) self::at('12:02:00');
+        $store->process();
+
+        Assert::same($store->crons->monitor('default', 'backup')?->lastStatus(), 'timeout');
     }
 
     public function testMonitorWithoutAScheduleIsNeverMissed(): void
@@ -325,7 +501,12 @@ final class CronsTest
 
     private static function at(string $time): int
     {
-        return (new \DateTimeImmutable("2026-11-23T{$time}Z"))->getTimestamp();
+        return self::time("2026-11-23T{$time}Z");
+    }
+
+    private static function time(string $iso): int
+    {
+        return (new \DateTimeImmutable($iso))->getTimestamp();
     }
 
     private function monitor(): Monitor

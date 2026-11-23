@@ -63,6 +63,9 @@ final class Crontab
             or throw new \InvalidArgumentException('it needs 5 fields');
 
         [$minute, $hour, $day, $month, $weekday] = $fields;
+        // `?`, "no specific value", is a whole day field
+        $day === '?' and $day = '*';
+        $weekday === '?' and $weekday = '*';
         $weekdays = self::field($weekday, 0, 7, self::DAYS);
         isset($weekdays[7]) and $weekdays[0] = true;
         unset($weekdays[7]);
@@ -73,8 +76,8 @@ final class Crontab
             self::field($day, 1, 31),
             self::field($month, 1, 12, self::MONTHS),
             $weekdays,
-            \str_starts_with($day, '*') || $day === '?',
-            \str_starts_with($weekday, '*') || $weekday === '?',
+            \str_starts_with($day, '*'),
+            \str_starts_with($weekday, '*'),
             \str_starts_with($hour, '*'),
         );
     }
@@ -99,9 +102,9 @@ final class Crontab
             } elseif (!$this->dayMatches($day, $weekday)) {
                 $time = self::forward($time, $local->setTime(0, 0)->modify('+1 day'));
             } elseif (!isset($this->hours[$hour])) {
-                $time += (60 - $minute) * 60;
+                $time = self::step($time, $time + (60 - $minute) * 60, $zone);
             } elseif (!isset($this->minutes[$minute])) {
-                $time += ($this->nextMinute($minute) - $minute) * 60;
+                $time = self::step($time, $time + ($this->nextMinute($minute) - $minute) * 60, $zone);
             } elseif (!$this->anyHour && self::repeated($time, $local, $zone)) {
                 $time += 60;
             } else {
@@ -121,12 +124,12 @@ final class Crontab
     {
         $values = [];
         foreach (\explode(',', \strtolower($field)) as $item) {
-            \preg_match('/^(\*|\?|[a-z0-9]+)(?:-([a-z0-9]+))?(?:\/(\d+))?$/D', $item, $match) === 1
+            \preg_match('/^(\*|[a-z0-9]+)(?:-([a-z0-9]+))?(?:\/(\d{1,3}))?$/D', $item, $match) === 1
                 or throw new \InvalidArgumentException("invalid field `$field`");
 
             $step = isset($match[3]) ? (int) $match[3] : 1;
             $step >= 1 or throw new \InvalidArgumentException("invalid step in `$field`");
-            if ($match[1] === '*' || $match[1] === '?') {
+            if ($match[1] === '*') {
                 ($match[2] ?? '') === '' or throw new \InvalidArgumentException("invalid field `$field`");
                 [$from, $to] = [$min, $max];
             } else {
@@ -164,6 +167,22 @@ final class Crontab
     private static function forward(int $time, \DateTimeImmutable $local): int
     {
         return \max($time + 60, $local->getTimestamp());
+    }
+
+    /**
+     * A step forward in real seconds that stops at a change of clocks in between: Pacific/Chatham jumps from
+     * 02:45 to 03:45, so an hour later than 02:00 is 04:00 and would skip the wall times 03:45 to 03:59.
+     */
+    private static function step(int $time, int $target, \DateTimeZone $zone): int
+    {
+        foreach ($zone->getTransitions($time + 1, $target - 1) ?: [] as $transition) {
+            $at = (int) $transition['ts'];
+            if ($at > $time && $at < $target) {
+                return \max($time + 60, \intdiv($at + 59, 60) * 60);
+            }
+        }
+
+        return $target;
     }
 
     /**

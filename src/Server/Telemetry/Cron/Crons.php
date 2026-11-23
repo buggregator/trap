@@ -14,7 +14,8 @@ namespace Buggregator\Trap\Server\Telemetry\Cron;
  * and the max runtime covers one that hangs.
  *
  * Memory is bounded: {@see self::MAX_MONITORS} monitors, the least recently active one goes for a new one,
- * and the newest {@see self::MAX_CHECK_INS} runs of each.
+ * the newest {@see self::MAX_CHECK_INS} runs of each, and {@see self::MAX_OUTPUT_BYTES} of ping output in all,
+ * above which the oldest runs lose theirs.
  *
  * @internal
  */
@@ -22,9 +23,13 @@ final class Crons
 {
     public const MAX_MONITORS = 200;
     public const MAX_CHECK_INS = 100;
+    public const MAX_OUTPUT_BYTES = 8 * 1024 * 1024;
 
     /** Seconds between two checks that mean Trap was not running in between */
     public const DOWNTIME_GAP = 30.0;
+
+    /** Seconds a check-in may come before its slot and still be the run of that slot: the clock of its host may run ahead */
+    public const EARLY = 60.0;
 
     private const MAX_DOWNTIMES = 20;
 
@@ -64,7 +69,7 @@ final class Crons
             $run = $this->open($monitor, $message);
         } elseif ($message->status === CheckInMessage::IN_PROGRESS) {
             // Sentry's heartbeat: a run still in progress gets its max runtime again
-            $run->status === CheckInMessage::IN_PROGRESS and $run->timeoutAt = $now + (float) ($monitor->maxRuntime * 60);
+            $run->status === CheckInMessage::IN_PROGRESS and $run->timeoutAt = $now + (float) ($run->maxRuntime * 60);
         } elseif ($run->finishedAt === null) {
             // A run Trap timed out keeps the status, and shows when it finished
             $run->status === CheckIn::TIMEOUT or $run->status = $message->status;
@@ -77,16 +82,15 @@ final class Crons
         }
 
         $monitor->lastCheckInAt = $now;
-        // The next slot after the start of the run; a slot the run sat on is not missed
-        $next = $monitor->next($run->startedAt);
-        $next !== null && $next <= $now and $next = $monitor->next($now);
-        $monitor->nextExpectedAt = $next;
+        $this->expect($monitor, $now);
+        $message->output === '' or $this->trimOutput();
 
         return $run->id;
     }
 
     /**
-     * Times out the hung runs and marks the slots without a check-in.
+     * Times out the hung runs and marks the slots without a check-in. A monitor whose schedule fails stops
+     * expecting slots; the other monitors are checked still.
      */
     public function check(float $now): void
     {
@@ -98,8 +102,13 @@ final class Crons
 
         $changed = [];
         foreach ($this->monitors as $monitor) {
-            $timedOut = $this->timeOut($monitor, $now);
-            $missed = $this->miss($monitor, $now);
+            try {
+                $timedOut = $this->timeOut($monitor, $now);
+                $missed = $this->miss($monitor, $now);
+            } catch (\Throwable) {
+                $monitor->nextExpectedAt = null;
+                $timedOut = $missed = true;
+            }
             $timedOut || $missed and $changed[$monitor->project] = true;
         }
 
@@ -185,6 +194,40 @@ final class Crons
         return \bin2hex(\random_bytes(16));
     }
 
+    /**
+     * Expects the first slot after the start of the newest run: an older run that ends late does not move it
+     * back. A crontab slot less than {@see self::EARLY} seconds, the margin and a quarter of the period after the
+     * start is the slot of the run. A slot that
+     * passed while the run went on is not expected: the next one after now is.
+     */
+    private function expect(Monitor $monitor, float $now): void
+    {
+        $start = null;
+        foreach ($monitor->checkIns as $run) {
+            $run->serverMade() or $start = \max($start ?? $run->startedAt, $run->startedAt);
+        }
+
+        try {
+            if ($monitor->schedule === null || $start === null) {
+                $monitor->nextExpectedAt = null;
+                return;
+            }
+
+            $monitor->anchor = $start;
+            $next = $monitor->slotAfter($start);
+            if ($next !== null && $monitor->schedule->type === Schedule::CRONTAB) {
+                $following = $monitor->slotAfter((float) $next);
+                // A quarter of the period at most: a run is late more often than its host's clock is ahead
+                $early = \min(self::EARLY, (float) ($monitor->margin * 60), $following === null ? \INF : ($following - $next) / 4);
+                (float) $next - $start < $early and $next = $following;
+            }
+            $next !== null && $next <= $now and $next = $monitor->slotAfter($now);
+            $monitor->nextExpectedAt = $next;
+        } catch (\Throwable) {
+            $monitor->nextExpectedAt = null;
+        }
+    }
+
     private function create(CheckInMessage $message): Monitor
     {
         if (\count($this->monitors) >= self::MAX_MONITORS) {
@@ -245,6 +288,7 @@ final class Crons
             traceId: $message->traceId,
             output: $message->output,
             timeoutAt: $running ? $now + (float) ($monitor->maxRuntime * 60) : null,
+            maxRuntime: $monitor->maxRuntime,
         ));
     }
 
@@ -258,6 +302,35 @@ final class Crons
         }
 
         return $run;
+    }
+
+    /**
+     * Keeps the output of the newest runs within {@see self::MAX_OUTPUT_BYTES}.
+     */
+    private function trimOutput(): void
+    {
+        $runs = [];
+        $bytes = 0;
+        foreach ($this->monitors as $monitor) {
+            foreach ($monitor->checkIns as $run) {
+                if ($run->output !== '') {
+                    $runs[] = $run;
+                    $bytes += \strlen($run->output);
+                }
+            }
+        }
+        if ($bytes <= self::MAX_OUTPUT_BYTES) {
+            return;
+        }
+
+        \usort($runs, static fn(CheckIn $a, CheckIn $b): int => [$a->startedAt, $a->seq] <=> [$b->startedAt, $b->seq]);
+        foreach ($runs as $run) {
+            $bytes -= \strlen($run->output);
+            $run->output = '';
+            if ($bytes <= self::MAX_OUTPUT_BYTES) {
+                return;
+            }
+        }
     }
 
     /**
@@ -275,12 +348,15 @@ final class Crons
 
         // The slots the hung run sat on are its fault, not missed runs
         $changed && $monitor->nextExpectedAt !== null && $monitor->nextExpectedAt <= $now
-            and $monitor->nextExpectedAt = $monitor->next($now);
+            and $monitor->nextExpectedAt = $monitor->slotAfter($now);
 
         return $changed;
     }
 
     /**
+     * Marks the slots whose margin has passed. A slot that fell in a downtime makes one `unknown` row for all
+     * the slots of that downtime, and the next slot expected is the first after it.
+     *
      * @return bool Whether a slot was marked.
      */
     private function miss(Monitor $monitor, float $now): bool
@@ -289,46 +365,52 @@ final class Crons
             return false;
         }
 
-        $margin = $monitor->margin * 60;
+        $margin = (float) ($monitor->margin * 60);
         $marked = 0;
-        $lastDowntime = null;
         $changed = false;
         while ($monitor->nextExpectedAt !== null && $now > $monitor->nextExpectedAt + $margin) {
             $slot = $monitor->nextExpectedAt;
             $changed = true;
-            if ($marked >= self::MAX_MISSED) {
-                $monitor->nextExpectedAt = $monitor->next($now - (float) $margin);
-                break;
+            $downtime = $this->downtimeOf((float) $slot, $slot + $margin);
+            if ($downtime !== null) {
+                $downtime[0] === $monitor->unknownSince or $this->mark($monitor, CheckIn::UNKNOWN, $slot);
+                $monitor->unknownSince = $downtime[0];
+                $next = $monitor->slotAfter(\max((float) $slot, $downtime[1] - 1.0));
+            } elseif ($marked >= self::MAX_MISSED) {
+                $next = $monitor->slotAfter($now - $margin);
+            } else {
+                $this->mark($monitor, CheckIn::MISSED, $slot);
+                ++$marked;
+                $next = $monitor->slotAfter((float) $slot);
             }
 
-            // One unknown row for all the slots of one downtime
-            $downtime = $this->downtimeOf($slot, $slot + $margin);
-            if ($downtime === null || $downtime !== $lastDowntime) {
-                $this->add($monitor, new CheckIn(
-                    id: self::id(),
-                    status: $downtime === null ? CheckIn::MISSED : CheckIn::UNKNOWN,
-                    startedAt: $slot,
-                    seq: ++$this->seq,
-                    source: $monitor->source,
-                    expectedAt: $slot,
-                ));
-                ++$marked;
-            }
-            $lastDowntime = $downtime;
-            $monitor->nextExpectedAt = $monitor->next($slot);
+            // A schedule that does not move on is expected no more, rather than looped on
+            $monitor->nextExpectedAt = $next !== null && $next > $slot ? $next : null;
         }
 
         return $changed;
     }
 
-    /**
-     * @return int|null The index of the downtime the span overlaps.
-     */
-    private function downtimeOf(float $from, float $to): ?int
+    private function mark(Monitor $monitor, string $status, int $slot): void
     {
-        foreach ($this->downtimes as $index => [$start, $end]) {
-            if ($from < $end && $to > $start) {
-                return $index;
+        $this->add($monitor, new CheckIn(
+            id: self::id(),
+            status: $status,
+            startedAt: (float) $slot,
+            seq: ++$this->seq,
+            source: $monitor->source,
+            expectedAt: (float) $slot,
+        ));
+    }
+
+    /**
+     * @return array{float, float}|null The downtime the span overlaps.
+     */
+    private function downtimeOf(float $from, float $to): ?array
+    {
+        foreach ($this->downtimes as $downtime) {
+            if ($from < $downtime[1] && $to > $downtime[0]) {
+                return $downtime;
             }
         }
 

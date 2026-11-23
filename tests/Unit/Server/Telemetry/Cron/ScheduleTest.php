@@ -65,9 +65,59 @@ final class ScheduleTest
         Assert::same($forward, [self::time('2026-03-29T01:00:00Z')]);
     }
 
-    public function testNoSlotOfADayThatNeverComes(): void
+    #[DataSet(['0 0 31 2 *'], 'February 31')]
+    #[DataSet(['0 0 30 2 *'], 'February 30')]
+    public function testNoSlotOfADayThatNeverComes(string $crontab): void
     {
-        Assert::same(self::slots(Schedule::crontab('0 0 31 2 *'), '2026-01-01T00:00:00Z', 1), []);
+        Assert::same(self::slots(Schedule::crontab($crontab), '2026-01-01T00:00:00Z', 1), []);
+    }
+
+    #[DataSet(['0 * * * *', 'Pacific/Chatham', '2026-09-26T13:00:00Z', ['2026-09-26T13:15:00Z', '2026-09-26T14:15:00Z']], 'Chatham: 03:00 skipped at 02:45')]
+    #[DataSet(['50 3 * * *', 'Pacific/Chatham', '2026-09-26T12:00:00Z', ['2026-09-26T14:05:00Z']], 'Chatham: 03:50 after the jump')]
+    #[DataSet(['*/15 * * * *', 'Pacific/Chatham', '2026-09-26T13:40:00Z', ['2026-09-26T13:45:00Z', '2026-09-26T14:00:00Z']], 'Chatham: 03:45 right after the jump')]
+    #[DataSet(['15 2 * * *', 'Australia/Lord_Howe', '2026-10-03T00:00:00Z', ['2026-10-04T15:15:00Z']], 'Lord Howe: half an hour forward')]
+    #[DataSet(['0 9 * * *', 'Asia/Kathmandu', '2026-11-23T00:00:00Z', ['2026-11-23T03:15:00Z']], 'Kathmandu: +05:45')]
+    #[DataSet(['30 0 * * *', 'America/Santiago', '2026-09-04T12:00:00Z', ['2026-09-05T04:30:00Z', '2026-09-07T03:30:00Z']], 'Santiago: midnight skipped')]
+    #[DataSet(['0 0 * * *', 'America/Havana', '2026-03-06T12:00:00Z', ['2026-03-07T05:00:00Z', '2026-03-09T04:00:00Z']], 'Havana: midnight skipped')]
+    #[DataSet(['0 0 31 * *', 'UTC', '2026-11-23T00:00:00Z', ['2026-12-31T00:00:00Z', '2027-01-31T00:00:00Z']], 'the 31st of the months that have it')]
+    public function testZonesOfOddOffsetsAndChanges(string $crontab, string $zone, string $after, array $slots): void
+    {
+        Assert::same(self::slots(Schedule::crontab($crontab), $after, \count($slots), $zone), \array_map(self::time(...), $slots));
+    }
+
+    #[DataSet(['5/15 * * * *', ['12:05', '12:20', '12:35']], 'value and step')]
+    #[DataSet(['0 0-23/8 * * *', ['16:00', '00:00']], 'range and step')]
+    public function testStepsFromAValue(string $crontab, array $times): void
+    {
+        $slots = self::slots(Schedule::crontab($crontab), '2026-11-23T12:00:00Z', \count($times));
+
+        Assert::same(\array_map(static fn(int $slot): string => \gmdate('H:i', $slot), $slots), $times);
+    }
+
+    public function testWeekdayRangeToSevenAndQuestionMark(): void
+    {
+        $friToSun = self::slots(Schedule::crontab('0 0 * * 5-7'), '2026-11-23T00:00:00Z', 3);
+        $question = self::slots(Schedule::crontab('0 0 ? * mon'), '2026-11-23T00:00:00Z', 1);
+
+        Assert::same(\array_map(static fn(int $slot): string => \gmdate('D', $slot), $friToSun), ['Fri', 'Sat', 'Sun']);
+        Assert::same($question, [self::time('2026-11-30T00:00:00Z')]);
+    }
+
+    public function testIntervalAfterKeepsCountingFromItsAnchor(): void
+    {
+        $daily = Schedule::interval(1, 'day');
+        $monthly = Schedule::interval(1, 'month');
+        $zone = new \DateTimeZone('Europe/Berlin');
+
+        Assert::same($daily->after(self::time('2026-03-28T01:30:00Z'), self::time('2026-03-29T01:30:00Z'), $zone), self::time('2026-03-30T00:30:00Z'));
+        Assert::same($monthly->after(self::time('2026-01-31T10:00:00Z'), self::time('2026-02-28T10:00:00Z'), new \DateTimeZone('UTC')), self::time('2026-03-31T10:00:00Z'));
+        Assert::same(Schedule::interval(10, 'minute')->after(self::time('2026-11-23T12:00:40Z'), self::time('2026-11-30T12:00:00Z'), $zone), self::time('2026-11-30T12:10:00Z'));
+    }
+
+    public function testIntervalUpToTenYears(): void
+    {
+        Assert::same(Schedule::interval(10, 'year')->describe(), 'every 10 years');
+        Assert::same(Schedule::interval(5256000, 'minute')->describe(), 'every 5256000 minutes');
     }
 
     #[DataSet(['* * * *'], 'four fields')]
@@ -78,6 +128,9 @@ final class ScheduleTest
     #[DataSet(['5-1 * * * *'], 'reversed range')]
     #[DataSet(['*/0 * * * *'], 'step 0')]
     #[DataSet(['0 0 * * mon-'], 'open range')]
+    #[DataSet(['0 0 * * fri-sun'], 'weekday range that wraps')]
+    #[DataSet(['a/5 * * * *'], 'letters with a step')]
+    #[DataSet(['?/5 * * * *'], 'question mark with a step out of its fields')]
     #[DataSet(['0 0 L * *'], 'L')]
     #[DataSet(['@every 5m'], '@every')]
     #[DataSet(['@reboot'], '@reboot')]
@@ -114,6 +167,11 @@ final class ScheduleTest
     #[DataSet([['type' => 'interval', 'value' => 1.5, 'unit' => 'minute']], 'fraction')]
     #[DataSet([['type' => 'interval', 'value' => 5, 'unit' => 'second']], 'seconds')]
     #[DataSet([['type' => 'interval', 'value' => 5]], 'no unit')]
+    #[DataSet([['type' => 'interval', 'value' => 11, 'unit' => 'year']], 'over 10 years')]
+    #[DataSet([['type' => 'interval', 'value' => '99999999999999999999', 'unit' => 'year']], 'a huge string')]
+    #[DataSet([['type' => 'interval', 'value' => 1e20, 'unit' => 'day']], 'a huge float')]
+    #[DataSet([['type' => 'interval', 'value' => 1e15, 'unit' => 'day']], 'too many days')]
+    #[DataSet([['type' => 'interval', 'value' => \PHP_INT_MAX, 'unit' => 'minute']], 'the largest int')]
     #[DataSet([['type' => 'crontab', 'value' => 5]], 'crontab of a number')]
     #[DataSet([['type' => 'daily']], 'unknown type')]
     #[DataSet(['0 3 * * *'], 'not an object')]

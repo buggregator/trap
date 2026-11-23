@@ -104,12 +104,17 @@ final class TelemetryStore implements Processable
     public function process(): void
     {
         $now = ($this->clock)();
-        if ($this->cronCheckedAt !== null && $now - $this->cronCheckedAt < self::CRON_CHECK_INTERVAL) {
+        // Both ways: a clock set back must not stop the checks
+        if ($this->cronCheckedAt !== null && \abs($now - $this->cronCheckedAt) < self::CRON_CHECK_INTERVAL) {
             return;
         }
 
         $this->cronCheckedAt = $now;
-        $this->crons->check($now);
+        try {
+            $this->crons->check($now);
+        } catch (\Throwable) {
+            // The main loop runs it: a failure must not stop Trap
+        }
     }
 
     public function listen(TelemetryListener $listener): void

@@ -22,6 +22,12 @@ final class Monitor
     /** @var int|null Unix seconds of the next slot without a check-in yet; null without a schedule */
     public ?int $nextExpectedAt = null;
 
+    /** @var float|null Unix seconds of the start of the newest run: the slots of an interval count from it */
+    public ?float $anchor = null;
+
+    /** @var float|null The start of the downtime the last `unknown` row stands for */
+    public ?float $unknownSince = null;
+
     public ?Schedule $schedule = null;
 
     /** @var non-empty-string */
@@ -82,11 +88,11 @@ final class Monitor
     }
 
     /**
-     * The first slot after `$time`; null without a schedule.
+     * The first slot after `$time`, an interval counted from {@see self::$anchor}; null without a schedule.
      */
-    public function next(float $time): ?int
+    public function slotAfter(float $time): ?int
     {
-        return $this->schedule?->next($time, $this->zone());
+        return $this->schedule?->after($this->anchor ?? $time, $time, $this->zone());
     }
 
     /**

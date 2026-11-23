@@ -16,6 +16,19 @@ final class Schedule
     public const INTERVAL = 'interval';
     public const UNITS = ['minute', 'hour', 'day', 'week', 'month', 'year'];
 
+    /** Seconds of an interval unit; a month and a year of the Gregorian calendar on average */
+    private const SECONDS = [
+        'minute' => 60, 'hour' => 3600, 'day' => 86400, 'week' => 604800, 'month' => 2629746, 'year' => 31556952,
+    ];
+
+    /** Seconds of the longest interval: 10 years */
+    private const MAX_INTERVAL = 315569520;
+
+    /** Seconds of the longest span of a unit, a day of a clock change included */
+    private const LONGEST = [
+        'minute' => 60, 'hour' => 3600, 'day' => 90000, 'week' => 608400, 'month' => 2682000, 'year' => 31626000,
+    ];
+
     /**
      * @param self::CRONTAB|self::INTERVAL $type
      * @param non-empty-string $value A crontab, or the count of units as digits.
@@ -54,7 +67,8 @@ final class Schedule
         $unit = \rtrim(\strtolower(\trim($unit)), 's');
         \in_array($unit, self::UNITS, true)
             or throw new \InvalidArgumentException("unknown interval unit `$unit`");
-        $count >= 1 or throw new \InvalidArgumentException('an interval is at least 1');
+        $count >= 1 && $count <= \intdiv(self::MAX_INTERVAL, self::SECONDS[$unit])
+            or throw new \InvalidArgumentException('an interval is 1 minute to 10 years');
 
         return new self(self::INTERVAL, (string) $count, $unit, null);
     }
@@ -78,10 +92,12 @@ final class Schedule
         }
 
         if ($type === self::INTERVAL) {
+            // Bounded before the cast: a bigger number would wrap or saturate
             $count = match (true) {
                 \is_int($value) => $value,
-                \is_string($value) && \preg_match('/^\s*\d+\s*$/D', $value) === 1 => (int) $value,
-                \is_float($value) && \floor($value) === $value => (int) $value,
+                \is_string($value) && \preg_match('/^\s*\d{1,12}\s*$/D', $value) === 1 => (int) $value,
+                \is_float($value) && \floor($value) === $value && \abs($value) < 1e12 => (int) $value,
+                \is_string($value), \is_float($value) => 0,
                 default => throw new \InvalidArgumentException('an interval schedule needs a whole number value'),
             };
             /** @var mixed $unit */
@@ -103,17 +119,53 @@ final class Schedule
      */
     public function next(float $after, \DateTimeZone $zone): ?int
     {
-        $minute = \intdiv((int) \floor($after), 60) * 60;
+        return $this->crontab === null
+            ? $this->nth($after, 1, $zone)
+            : $this->crontab->next(self::minute($after), $zone);
+    }
+
+    /**
+     * The first slot after `$time` of the slots that follow `$anchor`, the start of a run: an interval counts from
+     * the anchor, so a slot moved by a change of clocks does not move the ones after it. A crontab has no anchor.
+     *
+     * @return int|null Unix seconds; null when none comes.
+     */
+    public function after(float $anchor, float $time, \DateTimeZone $zone): ?int
+    {
         if ($this->crontab !== null) {
-            return $this->crontab->next($minute, $zone);
+            return $this->crontab->next(self::minute($time), $zone);
         }
 
-        $count = (int) $this->value;
+        // Below the slot sought, as no slot of the unit is longer; then a few steps up
+        $k = \max(1, \intdiv(self::minute($time) - self::minute($anchor), (int) $this->value * self::LONGEST[$this->unit]));
+        for ($steps = 0; $steps < 10000; ++$steps, ++$k) {
+            $slot = $this->nth($anchor, $k, $zone);
+            if ($slot > $time) {
+                return $slot;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The `$k`-th slot of an interval after the minute of `$anchor`.
+     */
+    private function nth(float $anchor, int $k, \DateTimeZone $zone): int
+    {
+        $minute = self::minute($anchor);
+        $count = (int) $this->value * $k;
+
         return match ($this->unit) {
             'minute' => $minute + $count * 60,
             'hour' => $minute + $count * 3600,
             default => self::calendar($minute, $count, $this->unit, $zone),
         };
+    }
+
+    private static function minute(float $time): int
+    {
+        return \intdiv((int) \floor($time), 60) * 60;
     }
 
     /**

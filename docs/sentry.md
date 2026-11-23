@@ -115,8 +115,9 @@ it, a field left out keeps its value and a field sent as `null` gets its default
 
 - A crontab has five fields with lists, ranges, steps, month and weekday names and `7` for Sunday, or is one of
   `@yearly`, `@annually`, `@monthly`, `@weekly`, `@daily`, `@midnight`, `@hourly`. When both the day of the month
-  and the day of the week are restricted, a day matching either one runs the job, as in cron. An interval counts
-  `minute`, `hour`, `day`, `week`, `month` or `year` units; a day or longer keeps the wall time of the zone.
+  and the day of the week are restricted, a day matching either one runs the job, as in cron. `?` stands for a
+  whole day field. An interval counts `minute`, `hour`, `day`, `week`, `month` or `year` units, up to 10 years;
+  its slots count from the start of the newest run, and a day or longer keeps the wall time of the zone.
 - A crontab runs on the wall time of the zone. A time skipped when clocks go forward has no run that day, and a time
   repeated when they go back has one run, unless the hour field starts with `*`: such a job runs in both hours.
 - The slug becomes a Sentry slug: lower case letters, digits, `_` and `-`, at most 50 characters
@@ -136,11 +137,16 @@ it, a field left out keeps its value and a field sent as `null` gets its default
   output, is kept, its last 10 KB.
 - The cron HTTP API takes `status`, `check_in_id`, `environment` and `duration` (seconds) in the query, or a JSON
   body with these fields and `monitor_config`, and answers `202` with `{"id": "<check-in ID>"}`.
-- Trap expects the next run at the first slot of the schedule after the start of the last run, or after now when
-  that slot has passed. About every second it marks what did not come:
+- Trap expects the next run at the first slot of the schedule after the start of the newest run, or after now when
+  that slot has passed; a run that started earlier and ends later does not move it back. A run that starts shortly
+  before a crontab slot, as when the clock of its host runs ahead, is the run of that slot: up to a minute before
+  it, and no more than the margin or a quarter of the time between two slots. About every second Trap marks what
+  did not come:
   - a slot with no check-in within the margin is `missed`, unless a run is in progress: a long run may cover a slot;
-  - a started run with no end within the max runtime is `timeout`; an end that comes later keeps that status;
-  - slots that fell while Trap did not run, as when the machine slept, make one `unknown` row.
+  - a started run with no end within its max runtime, the one the job had when the run started, is `timeout`; an
+    end that comes later keeps that status;
+  - the slots that fell while Trap did not run, as when the machine slept, make one `unknown` row, and the next
+    slot is the first after Trap woke up.
 
   A job without a schedule is never missed, but its runs still time out.
 

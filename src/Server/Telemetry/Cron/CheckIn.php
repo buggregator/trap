@@ -24,6 +24,7 @@ final class CheckIn
      * @param int<0, max> $seq The order of arrival in the store, for runs started at the same time.
      * @param float|null $timeoutAt When a run in progress times out.
      * @param float|null $expectedAt The slot of a row Trap made.
+     * @param int $maxRuntime Minutes, as the monitor had them when the run started.
      */
     public function __construct(
         public readonly string $id,
@@ -38,6 +39,7 @@ final class CheckIn
         public string $output = '',
         public ?float $timeoutAt = null,
         public readonly ?float $expectedAt = null,
+        public readonly int $maxRuntime = MonitorConfig::DEFAULT_MAX_RUNTIME,
     ) {}
 
     public function serverMade(): bool
