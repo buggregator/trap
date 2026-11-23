@@ -46,24 +46,6 @@ final class Calendar
     /** Nesting of components kept track of; deeper ones are skipped. */
     private const MAX_DEPTH = 32;
 
-    /**
-     * The zones tzdata 2024b turned into links, with their targets. PHP builds on the system tzdata miss them
-     * in the list of identifiers, and `DateTimeZone` reads `EST`, `MST` and `HST` as fixed abbreviations.
-     */
-    private const LEGACY_ZONES = [
-        'EST' => 'America/Panama',
-        'MST' => 'America/Phoenix',
-        'HST' => 'Pacific/Honolulu',
-        'EST5EDT' => 'America/New_York',
-        'CST6CDT' => 'America/Chicago',
-        'MST7MDT' => 'America/Denver',
-        'PST8PDT' => 'America/Los_Angeles',
-        'CET' => 'Europe/Brussels',
-        'MET' => 'Europe/Brussels',
-        'EET' => 'Europe/Athens',
-        'WET' => 'Europe/Lisbon',
-    ];
-
     private const FORMAT_DATE = 'date';
     private const FORMAT_LOCAL = 'local';
     private const FORMAT_UTC = 'utc';
@@ -382,55 +364,93 @@ final class Calendar
     }
 
     /**
-     * The IANA name of a TZID: as written, without the `/` that marks a globally unique ID, a Windows name
-     * as Outlook writes it, or the IANA name a vendor prefix ends with, as `/mozilla.org/20050126_1/Europe/Berlin`.
+     * The IANA zone of a TZID, the same on every platform. Tried in this order, each name through {@see known()}:
+     * 1. the TZID without the `/` that marks a globally unique ID;
+     * 2. the zone a vendor path ends with, as `/mozilla.org/20050126_1/Europe/Berlin`, longest first;
+     *    a single last segment, as `EST5EDT`, only after a vendor domain, so `Foo/Bar/GMT` is no zone;
+     * 3. the zone of a Windows name, as Outlook writes `W. Europe Standard Time`, when ext-intl is loaded.
      */
     private static function zone(string $tzid): ?string
     {
         $tzid = \ltrim($tzid, '/');
-        $tzid = self::LEGACY_ZONES[$tzid] ?? $tzid;
-        if ($tzid === '' || self::isZone($tzid)) {
-            return $tzid === '' ? null : $tzid;
+        if ($tzid === '') {
+            return null;
+        }
+
+        $zone = self::known($tzid);
+        if ($zone !== null) {
+            return $zone;
         }
 
         $segments = \explode('/', $tzid);
-        for ($i = 1, $count = \count($segments); $i < $count; ++$i) {
-            $suffix = \implode('/', \array_slice($segments, $i));
-            if (self::isZone($suffix)) {
-                return $suffix;
+        $vendor = \count($segments) > 1 && \str_contains($segments[0], '.');
+        for ($i = 1, $count = \count($segments); $i < $count - ($vendor ? 0 : 1); ++$i) {
+            $zone = self::known(\implode('/', \array_slice($segments, $i)));
+            if ($zone !== null) {
+                return $zone;
             }
         }
 
-        $windows = self::windowsZone($tzid);
-        return $windows !== null && self::isZone($windows) ? $windows : null;
+        $windows = self::intl(static fn(): string|false => \IntlTimeZone::getIDForWindowsID($tzid));
+        return $windows === null ? null : self::known($windows);
     }
 
     /**
-     * Whether a name is a zone of the time zone database, as written: `DateTimeZone` also takes abbreviations,
-     * offsets and any letter case, and reads `EST` as an abbreviation.
+     * The canonical zone of a name the time zone database knows, as written: `DateTimeZone` also takes
+     * abbreviations, offsets and any letter case, and reads `EST` as an abbreviation.
+     *
+     * A link of the `backward` file of tzdata, as `Asia/Calcutta` or `US/Eastern`, is in the build of PHP
+     * only when the system has `tzdata-legacy`, and ICU gives such names for Windows zones,
+     * so {@see ZoneLinks} maps it to its zone. A platform older than the zone keeps the link.
      */
-    private static function isZone(string $name): bool
+    private static function known(string $name): ?string
     {
         $zones = self::$zones ??= \array_fill_keys(\DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC), true);
-        return isset($zones[$name]);
+        $candidates = [
+            ZoneLinks::TARGETS[$name] ?? $name,
+            // Only an Area/Location name: ICU also takes abbreviations, as `PST` and `IST`, for zones
+            \str_contains($name, '/')
+                ? self::intl(static fn(): string|false => self::ianaId($name))
+                : null,
+            $name,
+        ];
+        foreach ($candidates as $candidate) {
+            if ($candidate !== null && $candidate !== '' && isset($zones[$candidate])) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
     /**
-     * The IANA zone of a Windows zone name, when ext-intl is loaded.
-     * An unknown name fails the call by the intl settings: an `IntlException`, a warning, or an error code only.
+     * The IANA name ICU gives, with PHP 8.4 and ICU 74 or later.
+     *
+     * @psalm-suppress MixedReturnStatement, MixedInferredReturnType, UndefinedMethod
      */
-    private static function windowsZone(string $name): ?string
+    private static function ianaId(string $name): string|false
+    {
+        return \method_exists(\IntlTimeZone::class, 'getIanaID') ? \IntlTimeZone::getIanaID($name) : false;
+    }
+
+    /**
+     * A name ext-intl gives, null without ext-intl or on a failure: by the intl settings an unknown name throws
+     * an `IntlException`, warns, or sets the error code only.
+     *
+     * @param \Closure(): (string|false) $lookup
+     */
+    private static function intl(\Closure $lookup): ?string
     {
         if (!\class_exists(\IntlTimeZone::class)) {
             return null;
         }
 
         try {
-            $zone = @\IntlTimeZone::getIDForWindowsID($name);
+            $name = @$lookup();
         } catch (\IntlException) {
             return null;
         }
 
-        return \is_string($zone) && !\intl_is_failure(\intl_get_error_code()) ? $zone : null;
+        return \is_string($name) && !\intl_is_failure(\intl_get_error_code()) ? $name : null;
     }
 }

@@ -79,12 +79,14 @@ invite is `calendar`; an email without them has neither field:
   is `true`. The whole email stays in `raw`.
 - `start` and `end` are RFC 3339 when Trap knows the zone, with the IANA name of the zone in `tz`: a UTC time,
   a `TZID` of the IANA database such as `Europe/Berlin`, also with a leading `/` or a vendor prefix such as
-  `/mozilla.org/20050126_1/Europe/Berlin`, a System V name such as `EST` or `PST8PDT` as the zone tzdata links it to
-  (`America/Panama`, `America/Los_Angeles`), or a Windows name of Outlook such as `W. Europe Standard Time` when
-  `ext-intl` is loaded. Another `TZID` gives local time such as `2026-12-03T14:00:00` with the `TZID` in `tz`.
+  `/mozilla.org/20050126_1/Europe/Berlin`, or a Windows name of Outlook such as `W. Europe Standard Time` when
+  `ext-intl` is loaded. An old name tzdata keeps for compatibility, such as `Asia/Calcutta`, `US/Eastern` or
+  `EST`, stands for the zone tzdata links it to (`Asia/Kolkata`, `America/New_York`, `America/Panama`), the same on
+  every platform, whether or not its tzdata has these names. Another `TZID` gives local time such as
+  `2026-12-03T14:00:00` with the `TZID` in `tz`.
   An all-day event gives dates and `all_day: true`, the end date being the day after the last day.
 - `end` is `DTEND`, or `DTSTART` plus `DURATION`; an all-day event with neither, or with a duration that is not
-  whole days, lasts one day.
+  a positive number of whole days, lasts one day.
 - `method` is the `METHOD` of the calendar; `status`, `sequence`, `rrule`, `url`, `description` come from the event.
   An invite with `METHOD:CANCEL` or `STATUS:CANCELLED` is cancelled.
 - A calendar attachment is converted to UTF-8 from the `charset` of its `Content-Type`, as the versions are.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Mailer;
 
 use Buggregator\Trap\Module\Mailer\Calendar;
+use Buggregator\Trap\Module\Mailer\ZoneLinks;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Data\DataSet;
@@ -71,6 +72,13 @@ final class CalendarTest
     #[DataSet(['DTSTART;TZID=EST:20261205T100000', '2026-12-05T10:00:00-05:00', 'America/Panama'], 'zone the IANA database keeps for compatibility')]
     #[DataSet(['DTSTART;TZID=PST8PDT:20260705T100000', '2026-07-05T10:00:00-07:00', 'America/Los_Angeles'], 'zone of System V with summer time')]
     #[DataSet(['DTSTART;TZID=PST:20261205T100000', '2026-12-05T10:00:00', 'PST'], 'abbreviation')]
+    #[DataSet(['DTSTART;TZID=Asia/Calcutta:20261205T100000', '2026-12-05T10:00:00+05:30', 'Asia/Kolkata'], 'renamed zone')]
+    #[DataSet(['DTSTART;TZID=US/Eastern:20261205T100000', '2026-12-05T10:00:00-05:00', 'America/New_York'], 'zone of Java')]
+    #[DataSet(['DTSTART;TZID=Japan:20261205T100000', '2026-12-05T10:00:00+09:00', 'Asia/Tokyo'], 'country name as a zone')]
+    #[DataSet(['DTSTART;TZID=/mozilla.org/20050126_1/EST5EDT:20260705T100000', '2026-07-05T10:00:00-04:00', 'America/New_York'], 'System V zone of a vendor prefix')]
+    #[DataSet(['DTSTART;TZID=/citadel.org/20190914_1/Asia/Calcutta:20261205T100000', '2026-12-05T10:00:00+05:30', 'Asia/Kolkata'], 'renamed zone of a vendor prefix')]
+    #[DataSet(['DTSTART;TZID=Foo/Bar/GMT:20261205T100000', '2026-12-05T10:00:00', 'Foo/Bar/GMT'], 'last segment without a vendor domain')]
+    #[DataSet(['DTSTART;TZID=Foo/Europe/Berlin:20261205T100000', '2026-12-05T10:00:00+01:00', 'Europe/Berlin'], 'zone of a path')]
     #[DataSet(['DTSTART;TZID="+01:00":20261205T100000', '2026-12-05T10:00:00', '+01:00'], 'offset as a zone')]
     #[DataSet(['DTSTART:20261205T100000', '2026-12-05T10:00:00', null], 'floating time')]
     #[DataSet(['DTSTART;TZID=Europe/Berlin:20261205T100000Z', '2026-12-05T10:00:00Z', 'UTC'], 'UTC wins over the zone')]
@@ -107,17 +115,38 @@ final class CalendarTest
     }
 
     /**
-     * Outlook names zones the Windows way; ext-intl maps them to IANA zones.
+     * Outlook names zones the Windows way; ext-intl maps them to zones, some by the names of `backward`
+     * (`Asia/Calcutta`) that a platform without `tzdata-legacy` doesn't know.
      */
-    public function testReadsWindowsZone(): void
+    #[DataSet(['W. Europe Standard Time', '2026-12-03T14:00:00+01:00', 'Europe/Berlin'], 'zone')]
+    #[DataSet(['India Standard Time', '2026-12-03T14:00:00+05:30', 'Asia/Kolkata'], 'Asia/Calcutta')]
+    #[DataSet(['FLE Standard Time', '2026-12-03T14:00:00+02:00', 'Europe/Kyiv'], 'Europe/Kiev')]
+    #[DataSet(['Nepal Standard Time', '2026-12-03T14:00:00+05:45', 'Asia/Kathmandu'], 'Asia/Katmandu')]
+    #[DataSet(['Myanmar Standard Time', '2026-12-03T14:00:00+06:30', 'Asia/Yangon'], 'Asia/Rangoon')]
+    #[DataSet(['Argentina Standard Time', '2026-12-03T14:00:00-03:00', 'America/Argentina/Buenos_Aires'], 'America/Buenos_Aires')]
+    #[DataSet(['US Eastern Standard Time', '2026-12-03T14:00:00-05:00', 'America/Indiana/Indianapolis'], 'America/Indianapolis')]
+    public function testReadsWindowsZone(string $windows, string $start, string $tz): void
     {
-        $invite = Calendar::read("BEGIN:VEVENT\nDTSTART;TZID=W. Europe Standard Time:20261203T140000\nEND:VEVENT");
+        $invite = Calendar::read("BEGIN:VEVENT\nDTSTART;TZID=$windows:20261203T140000\nEND:VEVENT");
 
-        [$start, $tz] = \class_exists(\IntlTimeZone::class)
-            ? ['2026-12-03T14:00:00+01:00', 'Europe/Berlin']
-            : ['2026-12-03T14:00:00', 'W. Europe Standard Time'];
+        \class_exists(\IntlTimeZone::class) or [$start, $tz] = ['2026-12-03T14:00:00', $windows];
         Assert::same($invite['start'] ?? null, $start);
         Assert::same($invite['tz'] ?? null, $tz);
+    }
+
+    /**
+     * The zone of a link is the same on every platform: its target is a zone of its own, not another link,
+     * and every build of PHP knows it.
+     */
+    public function testEveryLinkResolvesToCanonicalZone(): void
+    {
+        $canonical = \array_fill_keys(\DateTimeZone::listIdentifiers(), true);
+        foreach (ZoneLinks::TARGETS as $link => $zone) {
+            Assert::false(isset(ZoneLinks::TARGETS[$zone]), "The target of `$link` is a link.");
+            Assert::true(isset($canonical[$zone]), "The target `$zone` of `$link` is no canonical zone.");
+            $invite = Calendar::read("BEGIN:VEVENT\nDTSTART;TZID=$link:20261203T140000\nEND:VEVENT");
+            Assert::same($invite['tz'] ?? null, $zone, "`$link` resolves elsewhere.");
+        }
     }
 
     /**

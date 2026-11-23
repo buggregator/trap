@@ -80,7 +80,8 @@ HTML part are the message text even when named in `Content-Type`; a named one af
 with the versions and the invite, as `...; versions: Apple Watch, AMP, Calendar; invite` (or `cancelled invite`, `invite reply`).
 `get_event` prints each version as a body named by its kind, and the invite (the first event of a calendar version,
 else of a calendar attachment) in an `Invite` section in place of its calendar text: summary, times in the zone of
-the event (`DTEND`, or `DTSTART` plus `DURATION`), place, organizer, guests with their `PARTSTAT`. An invite with
+the event (`DTEND`, or `DTSTART` plus `DURATION`; an all-day event without them, or with a duration that is not
+a positive number of whole days, lasts one day), place, organizer, guests with their `PARTSTAT`. An invite with
 `METHOD:CANCEL` or `STATUS:CANCELLED` is cancelled. In the web UI each version is a tab, the invite a card above the
 body.
 
