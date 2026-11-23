@@ -138,33 +138,54 @@ final class CalendarTest
     }
 
     /**
-     * The zone of a link is the same on every platform: its target is a zone of its own, not another link,
-     * and every build of PHP knows it.
-     */
-    /**
      * A zone of a country stays itself even when tzdata links it to the zone of another country with the same
-     * clocks, as `Europe/Oslo` to `Europe/Berlin`: the map holds obsolete names only.
+     * clocks, as `Europe/Oslo` to `Europe/Berlin`: the map holds obsolete names only. Checked against the names
+     * of `zone.tab` the map is written from, not those of the platform, whose tzdata may be older.
      */
     public function testNoCurrentZoneIsMapped(): void
     {
-        $current = \array_fill_keys(\DateTimeZone::listIdentifiers(), true);
+        $current = self::currentZones();
         foreach (\array_keys(ZoneLinks::TARGETS) as $link) {
             Assert::false(isset($current[$link]), "`$link` is a current zone.");
         }
         foreach (['Europe/Oslo', 'Europe/Stockholm', 'Europe/Amsterdam', 'Atlantic/Reykjavik', 'Africa/Accra', 'Asia/Kuwait'] as $zone) {
+            Assert::true(isset($current[$zone]), "`$zone` is no current zone.");
             Assert::false(isset(ZoneLinks::TARGETS[$zone]), "`$zone` is mapped.");
         }
     }
 
-    public function testEveryLinkResolvesToCanonicalZone(): void
+    /**
+     * The zone of a link is the same on every platform: its target is a current zone, not another link.
+     */
+    public function testEveryLinkResolvesToCurrentZone(): void
     {
-        $canonical = \array_fill_keys(\DateTimeZone::listIdentifiers(), true);
+        $current = self::currentZones() + ['UTC' => true];
         foreach (ZoneLinks::TARGETS as $link => $zone) {
             Assert::false(isset(ZoneLinks::TARGETS[$zone]), "The target of `$link` is a link.");
-            Assert::true(isset($canonical[$zone]), "The target `$zone` of `$link` is no canonical zone.");
+            Assert::true(isset($current[$zone]), "The target `$zone` of `$link` is no current zone.");
             $invite = Calendar::read("BEGIN:VEVENT\nDTSTART;TZID=$link:20261203T140000\nEND:VEVENT");
             Assert::same($invite['tz'] ?? null, $zone, "`$link` resolves elsewhere.");
         }
+    }
+
+    /**
+     * An obsolete name stands for the zone of its own country, not the zone `backward` merged that into.
+     */
+    #[DataSet(['Iceland', 'Atlantic/Reykjavik'])]
+    #[DataSet(['Africa/Asmera', 'Africa/Asmara'])]
+    #[DataSet(['Pacific/Truk', 'Pacific/Chuuk'])]
+    #[DataSet(['Pacific/Ponape', 'Pacific/Pohnpei'])]
+    #[DataSet(['America/Virgin', 'America/St_Thomas'])]
+    #[DataSet(['America/Coral_Harbour', 'America/Atikokan'])]
+    #[DataSet(['Atlantic/Jan_Mayen', 'Europe/Oslo'])]
+    #[DataSet(['Africa/Timbuktu', 'Africa/Bamako'])]
+    #[DataSet(['Antarctica/South_Pole', 'Antarctica/McMurdo'])]
+    #[DataSet(['Pacific/Yap', 'Pacific/Chuuk'])]
+    public function testObsoleteNameKeepsItsCountry(string $tzid, string $zone): void
+    {
+        $invite = Calendar::read("BEGIN:VEVENT\nDTSTART;TZID=$tzid:20261203T140000\nEND:VEVENT");
+
+        Assert::same($invite['tz'] ?? null, $zone);
     }
 
     /**
@@ -355,6 +376,17 @@ final class CalendarTest
     public function testIsCalendar(string $type, ?string $fileName, bool $expected): void
     {
         Assert::same(Calendar::isCalendar($type, $fileName), $expected);
+    }
+
+    /**
+     * @return array<string, true>
+     */
+    private static function currentZones(): array
+    {
+        $lines = \file(\dirname(__DIR__, 3) . '/Stub/tzdata/zone-tab.txt', \FILE_IGNORE_NEW_LINES | \FILE_SKIP_EMPTY_LINES);
+        $lines = \array_filter($lines ?: [], static fn(string $line): bool => !\str_starts_with($line, '#'));
+
+        return \array_fill_keys($lines, true);
     }
 
     private static function ics(string $text): string

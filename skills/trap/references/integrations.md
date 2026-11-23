@@ -84,8 +84,8 @@ the event (`DTEND`, or `DTSTART` plus `DURATION`; an all-day event without them,
 a positive number of whole days, lasts one day), place, organizer, guests with their `PARTSTAT`. An invite with
 `METHOD:CANCEL` or `STATUS:CANCELLED` is cancelled. In the web UI each version is a tab, the invite a card above the
 body. A `TZID` resolves to the same IANA zone on every platform, an obsolete tzdata name (`Asia/Calcutta`) and,
-with ext-intl, a Windows name (`W. Europe Standard Time`) included; an unknown one gives local time with the `TZID`
-as written.
+with ext-intl, a Windows name (`W. Europe Standard Time`) included; a current zone such as `Europe/Oslo` stays
+itself, and an unknown one gives local time with the `TZID` as written.
 
 `subject` and the contact names come decoded from RFC 2047 words: `where` on `subject` and a `search` match the
 plain text, such as `Привет, мир`. `from`, `to`, `cc` and `bcc` hold the addresses, so match a name with `search`.

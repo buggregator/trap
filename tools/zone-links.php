@@ -1,11 +1,12 @@
 <?php
 
 /**
- * Writes src/Module/Mailer/ZoneLinks.php from the `backward` file of tzdata: the obsolete names only.
+ * Writes src/Module/Mailer/ZoneLinks.php from the `backward` file of tzdata: the obsolete names only,
+ * and tests/Stub/tzdata/zone-tab.txt, the current names the tests check the map against.
  *
  * Usage: php tools/zone-links.php <tzdata directory>
  * The directory is an unpacked https://data.iana.org/time-zones/tzdata-latest.tar.gz
- * with `backward`, `zone.tab` and `version`.
+ * with `backward`, `backzone`, `zone.tab` and `version`.
  */
 
 declare(strict_types=1);
@@ -30,12 +31,44 @@ foreach ($read('zone.tab') as $line) {
     $fields = \explode("\t", $line);
     $line === '' || $line[0] === '#' || !isset($fields[2]) or $current[$fields[2]] = true;
 }
+isset($current['Europe/Oslo'], $current['Asia/Kolkata']) or throw new \RuntimeException('zone.tab misses current zones.');
+
+/**
+ * The fields of a data line without its comment, and the comment.
+ *
+ * @return array{list<string>, string}
+ */
+$parse = static function (string $line): array {
+    [$data, $comment] = \explode('#', $line, 2) + [1 => ''];
+    $data = \trim($data);
+    return [$data === '' ? [] : \preg_split('/\s+/', $data), \trim($comment)];
+};
+
+// A link `backward` sends to the zone of another country with the same clocks, as `Iceland` to `Africa/Abidjan`:
+// the zone of its own country is the `#= ` hint of `backward` or the link of `backzone`, when that zone is current
+$ownZones = [];
+foreach ($read('backzone') as $line) {
+    \preg_match('/^(?:#PACKRATLIST\s+zone\.tab\s+)?Link\s+(\S+)\s+(\S+)\s*(?:#.*)?$/', $line, $m) === 1
+        && isset($current[$m[1]])
+        and $ownZones[$m[2]] = $m[1];
+}
 
 $links = [];
 foreach ($read('backward') as $line) {
-    $fields = \preg_split('/\s+/', \trim((string) \preg_replace('/#.*/', '', $line)));
-    if ($fields[0] === 'Link' && \count($fields) === 3) {
-        isset($current[$fields[2]]) or $links[$fields[2]] = $fields[1];
+    [$fields, $comment] = $parse($line);
+    if ($fields === []) {
+        continue;
+    }
+
+    if ($fields[0] === 'Link') {
+        \count($fields) === 3 or throw new \RuntimeException("A malformed link in `backward`: $line");
+        [, $target, $name] = $fields;
+        if (isset($current[$name])) {
+            continue;
+        }
+
+        $hint = \preg_match('/^=\s*(\S+)/', $comment, $m) === 1 && isset($current[$m[1]]) ? $m[1] : null;
+        $links[$name] = $hint ?? $ownZones[$name] ?? $target;
     } elseif ($fields[0] === 'Zone') {
         $links[$fields[1]] = SYSTEM_V_ZONES[$fields[1]]
             ?? throw new \RuntimeException("`backward` has a zone `{$fields[1]}` with no place in SYSTEM_V_ZONES.");
@@ -78,4 +111,12 @@ foreach ($links as $link => $target) {
 
     PHP);
 
-echo \count($links), " links of tzdata $version\n";
+$names = \array_keys($current);
+\sort($names, \SORT_STRING);
+@\mkdir(__DIR__ . '/../tests/Stub/tzdata');
+\file_put_contents(
+    __DIR__ . '/../tests/Stub/tzdata/zone-tab.txt',
+    "# The zone names of zone.tab of tzdata $version, written by tools/zone-links.php\n" . \implode("\n", $names) . "\n",
+);
+
+echo \count($links), " links and ", \count($names), " current zones of tzdata $version\n";
