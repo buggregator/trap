@@ -24,17 +24,23 @@ use Buggregator\Trap\Support\Uuid;
  */
 final class ItemReader
 {
-    /** Item types that never make a feed event. */
-    public const TELEMETRY_ITEMS = ['transaction', 'span', 'spans', 'log', 'trace_metric'];
+    /** Item types that never make a feed event: user feedback too, as in buggregator/server. */
+    public const TELEMETRY_ITEMS = ['transaction', 'span', 'spans', 'log', 'trace_metric', 'feedback', 'user_report'];
 
     /**
      * Reads an item of a telemetry type into the batch; other items are ignored.
      *
      * @param non-empty-string|null $eventId The envelope `event_id`, for SDKs that send it there only.
+     * @param float|null $time Unix seconds when Trap received the item; now when null.
      * @return bool Whether the item had a telemetry type; false for a transaction without a trace ID too.
      */
-    public static function read(Batch $batch, string $type, mixed $payload, ?string $eventId = null): bool
-    {
+    public static function read(
+        Batch $batch,
+        string $type,
+        mixed $payload,
+        ?string $eventId = null,
+        ?float $time = null,
+    ): bool {
         if (!\is_array($payload)) {
             return \in_array($type, self::TELEMETRY_ITEMS, true);
         }
@@ -43,6 +49,13 @@ final class ItemReader
             'span', 'spans' => self::spans($batch, self::records($payload)),
             'log' => self::logs($batch, self::records($payload)),
             'trace_metric' => self::metrics($batch, self::records($payload)),
+            'feedback', 'user_report' => $batch->feedback[] = FeedbackReader::read(
+                $batch->project,
+                $type,
+                $payload,
+                $eventId,
+                $time ?? \microtime(true),
+            ),
             default => null,
         };
 

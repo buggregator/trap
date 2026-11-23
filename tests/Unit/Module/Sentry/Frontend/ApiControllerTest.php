@@ -15,6 +15,7 @@ use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Telemetry\Batch;
+use Buggregator\Trap\Server\Telemetry\Feedback;
 use Buggregator\Trap\Server\Telemetry\Log;
 use Buggregator\Trap\Server\Telemetry\Metric;
 use Buggregator\Trap\Server\Telemetry\Peer;
@@ -57,9 +58,9 @@ final class ApiControllerTest
     {
         $this->fill();
 
-        Assert::same($this->api->counts(), ['exceptions' => 3, 'traces' => 2, 'logs' => 3, 'metrics' => 2]);
-        Assert::same($this->api->counts(project: 'shop'), ['exceptions' => 2, 'traces' => 1, 'logs' => 2, 'metrics' => 1]);
-        Assert::same($this->api->counts(window: '1h'), ['exceptions' => 2, 'traces' => 1, 'logs' => 2, 'metrics' => 1]);
+        Assert::same($this->api->counts(), ['exceptions' => 3, 'traces' => 2, 'logs' => 3, 'metrics' => 2, 'feedback' => 0]);
+        Assert::same($this->api->counts(project: 'shop'), ['exceptions' => 2, 'traces' => 1, 'logs' => 2, 'metrics' => 1, 'feedback' => 0]);
+        Assert::same($this->api->counts(window: '1h'), ['exceptions' => 2, 'traces' => 1, 'logs' => 2, 'metrics' => 1, 'feedback' => 0]);
         Assert::same($this->api->counts(window: 'all'), $this->api->counts());
     }
 
@@ -197,7 +198,7 @@ final class ApiControllerTest
 
         $this->clear()->clear(project: 'shop');
 
-        Assert::same($this->api->counts(), ['exceptions' => 1, 'traces' => 1, 'logs' => 1, 'metrics' => 1]);
+        Assert::same($this->api->counts(), ['exceptions' => 1, 'traces' => 1, 'logs' => 1, 'metrics' => 1, 'feedback' => 0]);
         Assert::notBlank($this->events->get('other'));
     }
 
@@ -207,7 +208,7 @@ final class ApiControllerTest
 
         $this->clear()->clear();
 
-        Assert::same($this->api->counts(), ['exceptions' => 0, 'traces' => 0, 'logs' => 0, 'metrics' => 0]);
+        Assert::same($this->api->counts(), ['exceptions' => 0, 'traces' => 0, 'logs' => 0, 'metrics' => 0, 'feedback' => 0]);
         Assert::notBlank($this->events->get('other'));
     }
 
@@ -364,6 +365,68 @@ final class ApiControllerTest
         Assert::same(Json::pageNumber(\PHP_INT_MAX), 1_000_000);
         Assert::false((new Scope(from: 1.0))->contains('default', null));
         Assert::true((new Scope())->contains('default', null));
+    }
+
+    public function testListsFeedbackNewestFirstByProjectPeriodAndError(): void
+    {
+        $this->fillFeedback();
+
+        $all = $this->api->feedback();
+        Assert::same($all['meta'], ['total' => 3, 'page' => 1, 'limit' => 100]);
+        Assert::same(\array_column($all['data'], 'message'), ['Later', 'Billing', 'Broken']);
+        Assert::same(\array_keys($all['data'][2]), [
+            'id', 'project', 'event_id', 'feedback_id', 'name', 'email', 'message', 'url', 'source', 'received_at', 'payload',
+        ]);
+        Assert::same($all['data'][2]['received_at'], Json::time($this->now - 7200));
+
+        Assert::same(\array_column($this->api->feedback(project: 'shop')['data'], 'message'), ['Later', 'Broken']);
+        Assert::same(\array_column($this->api->feedback(window: '1h')['data'], 'message'), ['Later', 'Billing']);
+        Assert::same(
+            \array_column($this->api->feedback(eventId: '5A9D3B2C-1E4F-4A6B-8C7D-0E1F2A3B4C5D')['data'], 'message'),
+            ['Broken'],
+        );
+        Assert::same($this->api->feedback(limit: 1, page: 2)['data'][0]['message'], 'Billing');
+        Assert::same($this->api->counts(project: 'shop')['feedback'], 2);
+        Assert::same($this->api->counts(window: '1h')['feedback'], 2);
+    }
+
+    public function testClearDeletesFeedbackOfProjectButOnPinnedErrors(): void
+    {
+        $this->fillFeedback();
+        $this->events->add(new Event('e9', 'sentry', ['event_id' => '5a9d3b2c1e4f4a6b8c7d0e1f2a3b4c5d'], $this->now, 'shop'));
+        $this->events->pin('e9');
+
+        $this->clear()->clear(project: 'shop', keep_pinned: '1');
+        Assert::same(\array_column($this->api->feedback()['data'], 'message'), ['Billing', 'Broken']);
+
+        $this->clear()->clear(project: 'shop');
+        Assert::same(\array_column($this->api->feedback()['data'], 'message'), ['Billing']);
+
+        $this->clear()->clear();
+        Assert::same($this->api->feedback()['data'], []);
+    }
+
+    private function fillFeedback(): void
+    {
+        $add = function (string $project, string $eventId, string $message, float $time): void {
+            $batch = new Batch($project);
+            $batch->feedback[] = new Feedback(
+                "f-$message",
+                $project,
+                $eventId,
+                '',
+                'Ann',
+                'ann@example.com',
+                $message,
+                'http://shop.test/',
+                Feedback::SOURCE_FEEDBACK,
+                $time,
+            );
+            $this->telemetry->add($batch);
+        };
+        $add('shop', '5a9d3b2c1e4f4a6b8c7d0e1f2a3b4c5d', 'Broken', $this->now - 7200);
+        $add('billing', '', 'Billing', $this->now - 120);
+        $add('shop', '', 'Later', $this->now - 60);
     }
 
     private function clear(): ClearController

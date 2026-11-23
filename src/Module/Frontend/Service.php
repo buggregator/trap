@@ -88,7 +88,7 @@ final class Service
     public function eventShow(string $uuid): UiEvent|Error
     {
         $this->debug('Show event %s', $uuid);
-        $event = $this->eventsStorage->get($uuid);
+        $event = $this->eventsStorage->get($uuid) ?? $this->sentryEvent($uuid);
         return $event === null ? Error::notFound('Event not found') : UiEvent::of($event, $this->eventsStorage);
     }
 
@@ -247,6 +247,24 @@ final class Service
         $this->debug('List settings');
 
         return new Settings($this->eventTypes, $this->ports());
+    }
+
+    /**
+     * A Sentry error by its Sentry `event_id`, in either form: the Feedback tab links an error by it,
+     * as buggregator/server names its events.
+     */
+    private function sentryEvent(string $eventId): ?Event
+    {
+        $eventId = \strtolower(\str_replace('-', '', $eventId));
+        foreach ($this->eventsStorage as $event) {
+            /** @var mixed $id */
+            $id = $event->type === 'sentry' && \is_array($event->payload) ? $event->payload['event_id'] ?? null : null;
+            if (\is_string($id) && \strtolower(\str_replace('-', '', $id)) === $eventId) {
+                return $event;
+            }
+        }
+
+        return null;
     }
 
     private function query(

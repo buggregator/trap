@@ -124,6 +124,17 @@ final class ServiceTest
         Assert::same($service->eventUnpin('missing')->httpCode(), 404);
     }
 
+    public function testSentryErrorIsFoundByItsSentryEventId(): void
+    {
+        $storage = new EventStore();
+        $storage->add(new Event('0198c2d4-7a54-7b81-9b8e-3cf7c6c3a6b1', 'sentry', ['event_id' => '5a9d3b2c1e4f4a6b8c7d0e1f2a3b4c5d'], 1.0));
+        $service = self::create($storage);
+
+        $event = self::json($service->eventShow('5A9D3B2C-1E4F-4A6B-8C7D-0E1F2A3B4C5D'));
+
+        Assert::same($event['uuid'], '0198c2d4-7a54-7b81-9b8e-3cf7c6c3a6b1');
+    }
+
     public function testMissingEventIsNotFound(): void
     {
         [$service] = self::service();

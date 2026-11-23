@@ -136,16 +136,50 @@ final class EnvelopeMapperTest
         Assert::count($store->trace(self::TRACE)?->transactions ?? [], 1);
     }
 
-    public function testFeedbackMakesTheFeedEvent(): void
+    public function testFeedbackGoesToTheStoreWithoutAFeedEvent(): void
     {
-        $frame = new SentryEnvelope([], [
+        $store = new TelemetryStore();
+        $frame = new SentryEnvelope(['event_id' => 'fb1'], [
             new EnvelopeItem(['type' => 'session'], ['sid' => 'x']),
-            new EnvelopeItem(['type' => 'feedback'], ['contexts' => ['feedback' => ['message' => 'Nice']]]),
+            new EnvelopeItem(['type' => 'feedback'], [
+                'contexts' => ['feedback' => [
+                    'message' => 'Nice',
+                    'name' => 'Ann',
+                    'url' => 'https://shop.test/cart',
+                    'associated_event_id' => 'e1e1',
+                ]],
+                'user' => ['email' => 'ann@example.com'],
+            ]),
+        ], project: 'shop', time: new \DateTimeImmutable('@1767323045.5'));
+
+        Assert::null((new EnvelopeMapper($store))->map($frame));
+
+        [$feedback] = $store->feedback();
+        Assert::same(
+            [$feedback->project, $feedback->eventId, $feedback->feedbackId, $feedback->name, $feedback->email],
+            ['shop', 'e1e1', 'fb1', 'Ann', 'ann@example.com'],
+        );
+        Assert::same([$feedback->message, $feedback->url, $feedback->source], ['Nice', 'https://shop.test/cart', 'feedback']);
+        Assert::same($feedback->time, 1767323045.5);
+    }
+
+    public function testUserReportIsFeedbackOnItsError(): void
+    {
+        $store = new TelemetryStore();
+        $frame = new SentryEnvelope([], [
+            new EnvelopeItem(['type' => 'event'], ['event_id' => 'e2e2', 'message' => 'Boom']),
+            new EnvelopeItem(['type' => 'user_report'], ['event_id' => 'e2e2', 'name' => 'Bob', 'email' => 'b@x.test', 'comments' => 'Again']),
         ]);
 
-        $event = (new EnvelopeMapper(new TelemetryStore()))->map($frame);
+        $event = (new EnvelopeMapper($store))->map($frame);
 
-        Assert::same($event?->payload, ['contexts' => ['feedback' => ['message' => 'Nice']]]);
+        Assert::same($event?->payload['message'] ?? null, 'Boom');
+        [$feedback] = $store->feedback();
+        Assert::same(
+            [$feedback->eventId, $feedback->feedbackId, $feedback->name, $feedback->email, $feedback->message, $feedback->source],
+            ['e2e2', '', 'Bob', 'b@x.test', 'Again', 'user_report'],
+        );
+        Assert::true($feedback->isAbout('E2-E2'));
     }
 
     public function testTelemetryOnlyEnvelopeMakesNoEvent(): void

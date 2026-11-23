@@ -261,7 +261,8 @@ final class Test extends Command
 
     /**
      * Legacy SDK requests, then the envelopes the PHP SDK 4.x sends for one failed request: the error,
-     * the transaction of its trace, logs and trace metrics; and an error with logs of another project.
+     * the transaction of its trace, logs and trace metrics, user feedback on the error and on its own;
+     * and an error with logs of another project.
      */
     private function sentry(): void
     {

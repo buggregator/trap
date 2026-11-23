@@ -8,7 +8,10 @@ use Buggregator\Trap\Module\Console\Renderer;
 use Buggregator\Trap\Module\Console\Support\Common;
 use Buggregator\Trap\Module\Sentry\Frame\EnvelopeItem;
 use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope as SentryEnvelopeFrame;
+use Buggregator\Trap\Module\Sentry\Telemetry\FeedbackReader;
 use Buggregator\Trap\Server\Proto\Frame;
+use Buggregator\Trap\Server\Telemetry\Feedback;
+use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -74,6 +77,20 @@ final class SentryEnvelope implements Renderer
         return \is_array($list) ? \array_values(\array_filter($list, \is_array(...))) : [];
     }
 
+    private static function renderFeedback(OutputInterface $output, Feedback $feedback): void
+    {
+        $from = \trim($feedback->name . ($feedback->email === '' ? '' : " <{$feedback->email}>"));
+        $lines = ['', '<fg=cyan>User feedback</> from ' . OutputFormatter::escape($from === '' ? 'anonymous' : $from)];
+        $feedback->url === '' or $lines[] = 'On ' . OutputFormatter::escape($feedback->url);
+        $lines[] = $feedback->eventId === ''
+            ? 'Sent without an error'
+            : 'About the error ' . OutputFormatter::escape($feedback->eventId);
+        $lines[] = '';
+        $lines[] = OutputFormatter::escape($feedback->message);
+
+        $output->writeln($lines);
+    }
+
     /**
      * Renders an item whose payload is not an event, e.g. an attachment stream.
      */
@@ -90,6 +107,13 @@ final class SentryEnvelope implements Renderer
 
     private function renderItem(OutputInterface $output, EnvelopeItem $data): void
     {
+        /** @var mixed $type */
+        $type = $data->headers['type'] ?? null;
+        if (\is_array($data->payload) && ($type === 'feedback' || $type === 'user_report')) {
+            self::renderFeedback($output, FeedbackReader::read('default', $type, $data->payload, null, 0.0));
+            return;
+        }
+
         $exceptions = \is_array($data->payload) ? self::exceptions($data->payload['exception'] ?? null) : [];
         if ($exceptions !== []) {
             Exceptions::render($output, $exceptions);

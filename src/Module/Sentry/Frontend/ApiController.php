@@ -18,6 +18,7 @@ use Buggregator\Trap\Server\Handler\Router\Attribute\QueryParam;
 use Buggregator\Trap\Server\Handler\Router\Attribute\RegexpRoute;
 use Buggregator\Trap\Server\Handler\Router\Attribute\StaticRoute;
 use Buggregator\Trap\Server\Handler\Router\Method;
+use Buggregator\Trap\Server\Telemetry\Feedback;
 use Buggregator\Trap\Server\Telemetry\Log;
 use Buggregator\Trap\Server\Telemetry\Metric;
 use Buggregator\Trap\Server\Telemetry\TelemetryStore;
@@ -25,7 +26,8 @@ use Buggregator\Trap\Server\Telemetry\TelemetryStore;
 /**
  * The `/api/sentry/*` endpoints of the Sentry pages of the UI, as buggregator/server answers them.
  *
- * Exceptions are the `sentry` events of the feed; traces, logs and metrics come from the {@see TelemetryStore}.
+ * Exceptions are the `sentry` events of the feed; traces, logs, metrics and user feedback come from the
+ * {@see TelemetryStore}.
  * Lists take `project` and the period: `window` (`1h`, `7d`, `all`) or `from` and `to`.
  *
  * @internal
@@ -64,7 +66,49 @@ final class ApiController
             'traces' => \count($traces),
             'logs' => \count($this->scopedLogs($scope)),
             'metrics' => \count($this->scopedMetrics($scope)),
+            'feedback' => \count($this->scopedFeedback($scope)),
         ];
+    }
+
+    /**
+     * User feedback, the newest first.
+     *
+     * @param string|null $eventId Only the feedback on the error of this Sentry event ID, with or without dashes.
+     */
+    #[StaticRoute(Method::Get, 'api/sentry/feedback')]
+    #[AssertSuccess(Method::Get, 'api/sentry/feedback?event_id=5a9d&limit=50'),
+        AssertFail(Method::Post, 'api/sentry/feedback'),]
+    public function feedback(
+        #[QueryParam] ?string $project = null,
+        #[QueryParam] ?string $window = null,
+        #[QueryParam] ?string $from = null,
+        #[QueryParam] ?string $to = null,
+        #[QueryParam('event_id')] ?string $eventId = null,
+        #[QueryParam] int $page = 1,
+        #[QueryParam] int $limit = 100,
+    ): array {
+        $eventId = Feedback::normalizeEventId((string) $eventId);
+        $items = \array_values(\array_reverse(\array_filter(
+            $this->scopedFeedback(Scope::fromQuery($project, $window, $from, $to)),
+            static fn(Feedback $feedback): bool => $eventId === '' || $feedback->isAbout($eventId),
+        )));
+
+        $result = Json::page($items, Json::pageNumber($page), Json::limit($limit, 100));
+        $result['data'] = \array_map(static fn(Feedback $feedback): array => [
+            'id' => $feedback->id,
+            'project' => $feedback->project,
+            'event_id' => $feedback->eventId,
+            'feedback_id' => $feedback->feedbackId,
+            'name' => $feedback->name,
+            'email' => $feedback->email,
+            'message' => $feedback->message,
+            'url' => $feedback->url,
+            'source' => $feedback->source,
+            'received_at' => Json::time($feedback->time),
+            'payload' => $feedback->payload === [] ? null : $feedback->payload,
+        ], $result['data']);
+
+        return $result;
     }
 
     /**
@@ -467,6 +511,17 @@ final class ApiController
         return \array_values(\array_filter(
             $this->telemetry->logs(),
             static fn(Log $log): bool => $scope->contains($log->project, $log->time),
+        ));
+    }
+
+    /**
+     * @return list<Feedback> From the oldest.
+     */
+    private function scopedFeedback(Scope $scope): array
+    {
+        return \array_values(\array_filter(
+            $this->telemetry->feedback(),
+            static fn(Feedback $feedback): bool => $scope->contains($feedback->project, $feedback->time),
         ));
     }
 

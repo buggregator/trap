@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Module\Sentry;
 use Buggregator\Trap\Module\Console\ProvidesRenderers;
 use Buggregator\Trap\Module\Frontend\ProvidesUi;
 use Buggregator\Trap\Module\Mcp\ProvidesEventViews;
+use Buggregator\Trap\Module\Mcp\ProvidesMcpTools;
 use Buggregator\Trap\Module\Sentry\Console\SentryEnvelope as EnvelopeRenderer;
 use Buggregator\Trap\Module\Sentry\Console\SentryStore as StoreRenderer;
 use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope;
@@ -16,6 +17,7 @@ use Buggregator\Trap\Module\Sentry\Frontend\ClearController;
 use Buggregator\Trap\Module\Sentry\Frontend\EnvelopeMapper;
 use Buggregator\Trap\Module\Sentry\Frontend\StoreMapper;
 use Buggregator\Trap\Module\Sentry\Http\SentryTrap;
+use Buggregator\Trap\Module\Sentry\Mcp\ListFeedback;
 use Buggregator\Trap\Module\Sentry\Mcp\SentryView;
 use Buggregator\Trap\Server\Event\ProvidesEvents;
 use Buggregator\Trap\Server\Handler\Http\ProvidesHttpMiddlewares;
@@ -30,6 +32,7 @@ final class Module implements
     ProvidesRenderers,
     ProvidesEvents,
     ProvidesEventViews,
+    ProvidesMcpTools,
     ProvidesUi
 {
     #[\Override]
@@ -69,6 +72,12 @@ final class Module implements
     public function eventViews(): array
     {
         return [SentryView::class];
+    }
+
+    #[\Override]
+    public function mcpTools(): array
+    {
+        return [ListFeedback::class];
     }
 
     #[\Override]
