@@ -113,4 +113,5 @@ OpenTelemetry logs and metrics have no MCP tool.
 Sentry user feedback (`feedback` and `user_report` items) is not an event either: `wait_for_events` never sees it,
 an envelope of only feedback included, so read it with `list_feedback`. `event_id` takes the Sentry event ID of an
 error, with or without dashes; `error_uuid` in the result is that error's `id` for `get_event`. The last 1 000
-entries are kept, pinned errors or not, and clearing the Sentry pages of the web UI drops them too.
+entries are kept, pinned errors or not. Clearing the Sentry pages of the web UI drops them too, but the feedback on
+a pinned error when the clear keeps the pinned events.
