@@ -445,7 +445,7 @@ final class RendererTest
 
         // A walk around the cycle grows the path until the memory runs out: fail fast, not with the suite's limit
         $limit = (string) \ini_get('memory_limit');
-        \ini_set('memory_limit', (string) (\memory_get_usage() + 64 * 1024 * 1024));
+        \ini_set('memory_limit', (string) (\memory_get_usage(true) + 64 * 1024 * 1024));
         try {
             $output = self::render(new Frame(Payload::new(Type::XDebug, static fn(): Profile => $profile)));
         } finally {
