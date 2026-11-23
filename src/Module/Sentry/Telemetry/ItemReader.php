@@ -243,6 +243,7 @@ final class ItemReader
 
     /**
      * @param 'feedback'|'user_report' $type
+     * @param non-empty-string|null $eventId
      */
     private static function feedback(Batch $batch, string $type, array $payload, ?string $eventId, float $time): void
     {
