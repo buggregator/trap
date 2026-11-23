@@ -1,7 +1,7 @@
 # Web UI
 
 The `--ui` option of [`run`](cli.md#run) starts the web interface of the Buggregator Server inside Trap:
-the build of [buggregator/frontend](https://github.com/buggregator/frontend) 1.39.0. The CLI marks it experimental.
+the build of [buggregator/frontend](https://github.com/buggregator/frontend) 1.42.0. The CLI marks it experimental.
 
 ```bash
 vendor/bin/trap --ui
@@ -25,7 +25,7 @@ the environment variable wins.
 On a shared port the UI takes only its own requests, and the others stay [HTTP dumps](http-dump.md):
 
 - `/`, the files of the UI build and `/api/...` routes the UI has;
-- a page of the UI opened in a browser: a `GET` that accepts `text/html` of `/settings`, `/favorites`,
+- a page of the UI opened in a browser: a `GET` that accepts `text/html` of `/settings`, `/favorites`, `/logs`,
   `/sentry/...`, `/{type}` or `/{type}/{id}` with an event type of the UI, as `/smtp/{uuid}`;
 - any `/api/...` call made from a page of the UI (`Sec-Fetch-Site: same-origin`), answered 404 when Trap has no
   such endpoint.
@@ -59,6 +59,27 @@ sessions and steps through the ones Trap drives, and its setup guide shows the d
 
 The UI has pages for features of the Buggregator Server that Trap has not: metrics, the mock server, updates.
 They show no data, and the menu of the mock server stays while HTTP dumps are on: hide it in Settings › Menu.
+Other features of the server stay hidden, as Trap answers 404 to their endpoints: the Broadcast and CSP reports
+pages, the Crons, Queues and Feedback tabs of the Sentry section (a Sentry feedback is an event of the feed), the
+«Send to inbox» button of an email (Settings › Email relay says the server can't send email), the other versions
+of an email and its invite card, sign-in and the audit log. A Ray pause shows its state in the tab whose button
+released it; another tab keeps its buttons.
+
+## Logs and feed filters
+
+The Logs page lists the Monolog records with a full-text search over the message, the channel and the keys and
+values of context and extra, the level and channel filters and a chart of records per minute.
+
+The filter bar above a feed narrows it by the values Trap takes from the events; other events have none:
+
+- Monolog: the channel, the level and the host in `extra.hostname`, which a `HostnameProcessor` adds;
+- Sentry: the host (`server_name`), environment, release, level, the logger as the channel, the user (its email,
+  username, ID or IP address) and the tags;
+- HTTP dumps: the host of the `Host` header.
+
+The request view of a trace on the Sentry pages adds the events of the request: Monolog records with its trace ID
+in `extra.trace_id` or `context.trace_id`, and HTTP dumps and emails with a `sentry-trace`, `traceparent` or
+`X-Trace-Id` header of it.
 
 ## Sentry pages
 

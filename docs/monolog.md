@@ -39,3 +39,8 @@ In Laravel, add a channel to `config/logging.php` and select it, e.g. with `LOG_
 
 [`trap()::logger()`](functions.md#traplogger) is a PSR-3 logger that sends records in the same format,
 with no Monolog in the project.
+
+## In the web UI
+
+The Logs page of the [web UI](web-ui.md#logs-and-feed-filters) searches and filters the records by level and channel.
+A record with a `trace_id` in `extra` or `context` shows up in the request view of that trace.

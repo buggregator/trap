@@ -39,6 +39,14 @@ final class StaticFilesTest
         Assert::same($response->getHeaderLine('Content-Type'), 'font/woff2');
     }
 
+    public function testServesImageAsWebp(): void
+    {
+        $response = self::handle(new ServerRequest('GET', '/assets/' . self::asset('*.webp')));
+
+        Assert::same($response->getStatusCode(), 200);
+        Assert::same($response->getHeaderLine('Content-Type'), 'image/webp');
+    }
+
     public function testEarlyHintsPreloadStylesInCorsModeOfTheirTags(): void
     {
         $fiber = new \Fiber(static fn(): ResponseInterface => self::handle(new ServerRequest('GET', '/')));
@@ -60,6 +68,8 @@ final class StaticFilesTest
     #[DataSet(['/profiler/compare'])]
     #[DataSet(['/settings'])]
     #[DataSet(['/favorites'])]
+    #[DataSet(['/logs'])]
+    #[DataSet(['/sentry/crons'])]
     public function testUiPageOpenedInBrowserGetsIndex(string $path): void
     {
         $response = $this->runInFiber(

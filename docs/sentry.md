@@ -30,8 +30,8 @@ With [`--mcp`](mcp.md#sentry-events), AI agents read the events with their excep
 | `transaction`                         | a trace: the Traces page of the web UI, the MCP trace tools                 |
 | `transaction` without a trace ID      | a `sentry` event, as `event` is: no trace can hold it                       |
 | `span`, `spans` (Span v2)             | spans of a trace; a segment span is the transaction of its service          |
-| `log`                                 | log records on the Logs page of the web UI                                  |
-| `trace_metric`                        | metric values on the Metrics page of the web UI                             |
+| `log`                                 | log records on the Sentry › Logs page of the web UI                         |
+| `trace_metric`                        | metric values on the Sentry › Metrics page of the web UI                    |
 | sessions, client reports, attachments | nothing                                                                     |
 
 The event feed holds the errors. A transaction is a trace, not an event, also when an older SDK sends it to

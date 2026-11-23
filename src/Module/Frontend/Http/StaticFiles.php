@@ -31,7 +31,7 @@ final class StaticFiles implements Middleware
     /**
      * Pages of the UI router besides the event ones.
      */
-    private const UI_PAGES = 'settings|login|favorites|metrics|xdebug|mock-server|404|profiler/compare|sentry(?:/.*)?';
+    private const UI_PAGES = 'settings|login|favorites|metrics|logs|xdebug|mock-server|404|profiler/compare|sentry(?:/.*)?';
 
     private array $earlyResponse = [];
 

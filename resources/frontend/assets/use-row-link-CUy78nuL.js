@@ -1,0 +1,1 @@
+import{u}from"./index-D-jK1Nhg.js";const n=()=>{const t=u();return(r,o)=>{if(!r.target.closest("a")&&!window.getSelection()?.toString()&&!(r.button!==0&&r.button!==1)){if(r.button===1||r.ctrlKey||r.metaKey||r.shiftKey){window.open(t.resolve(o).href,"_blank","noopener");return}r.altKey||t.push(o)}}};export{n as u};

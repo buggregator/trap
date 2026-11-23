@@ -1,0 +1,1 @@
+const n=(e,t=2)=>String(e).padStart(t,"0"),o=e=>{if(!e)return"";const t=new Date(e*1e3);return`${n(t.getHours())}:${n(t.getMinutes())}:${n(t.getSeconds())}.${n(t.getMilliseconds(),3)}`};export{o as f};
