@@ -68,13 +68,17 @@ released it; another tab keeps its buttons.
 ## Logs and feed filters
 
 The Logs page lists the Monolog records with a full-text search over the message, the channel and the keys and
-values of context and extra, the level and channel filters and a chart of records per minute.
+values of context and extra, case-insensitive, the level and channel filters and a chart of the records over time:
+by minute, in wider bars over a long period.
 
 The filter bar above a feed narrows it by the values Trap takes from the events; other events have none:
 
 - Monolog: the channel, the level and the host in `extra.hostname`, which a `HostnameProcessor` adds;
 - Sentry: the host (`server_name`), environment, release, level, the logger as the channel, the user (its email,
   username, ID or IP address) and the tags;
+- Ray: the host of each payload's `origin`;
+- profiles: the host (`hostname`) and the tags;
+- dumps: the host of the request the dump was made in; a CLI dump has none;
 - HTTP dumps: the host of the `Host` header.
 
 The request view of a trace on the Sentry pages adds the events of the request: Monolog records with its trace ID

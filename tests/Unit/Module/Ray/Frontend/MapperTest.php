@@ -93,6 +93,20 @@ final class MapperTest
         Assert::same($event?->type, 'ray');
     }
 
+    public function testHostsOfAllPayloadOriginsAreFacets(): void
+    {
+        $storage = new EventStore();
+        $mapper = new Mapper($storage);
+        $first = $mapper->map(self::frame([['type' => 'log', 'origin' => ['hostname' => 'web-1']]], 10.0));
+        \assert($first !== null);
+        $storage->add($first);
+
+        $second = $mapper->map(self::frame([['type' => 'color', 'origin' => ['hostname' => 'web-2']]], 11.0));
+
+        Assert::same($first->facets, ['host' => ['web-1']]);
+        Assert::same($second?->facets, ['host' => ['web-1', 'web-2']]);
+    }
+
     private static function frame(array $payloads, float $time): Frame
     {
         return new Frame(self::UUID, $payloads, [], new \DateTimeImmutable('@' . $time));

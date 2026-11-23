@@ -19,6 +19,7 @@ use Buggregator\Trap\Module\Profiler\Struct\Peaks;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventMapper;
+use Buggregator\Trap\Server\Event\Facets;
 use Buggregator\Trap\Server\Proto\Frame;
 
 /**
@@ -63,11 +64,17 @@ final class Mapper implements EventMapper
     {
         \assert($frame instanceof ProfilerFrame);
 
+        $profile = $frame->payload->getProfile();
+
         return new Event(
-            uuid: $frame->payload->getProfile()->uuid,
+            uuid: $profile->uuid,
             type: 'profiler',
             payload: $frame->payload,
             timestamp: (float) $frame->time->format('U.u'),
+            facets: (new Facets())
+                ->add(Facets::HOST, $profile->metadata['hostname'] ?? null)
+                ->addTags($profile->tags)
+                ->toArray(),
         );
     }
 

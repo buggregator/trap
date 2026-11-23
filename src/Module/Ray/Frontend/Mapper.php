@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Ray\Frame as RayFrame;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventMapper;
 use Buggregator\Trap\Server\Event\EventStore;
+use Buggregator\Trap\Server\Event\Facets;
 use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Support\Uuid;
 
@@ -51,15 +52,20 @@ final class Mapper implements EventMapper
         $storedPayload = $stored?->payload;
         $previous = $storedPayload instanceof Payload ? $storedPayload->payloads : [];
 
+        $payloads = [...$previous, ...\array_map(self::cleanDump(...), $frame->payloads)];
+        $facets = new Facets();
+        foreach ($payloads as $payload) {
+            /** @var mixed $origin */
+            $origin = $payload['origin'] ?? null;
+            $facets->add(Facets::HOST, \is_array($origin) ? $origin['hostname'] ?? null : null);
+        }
+
         return new Event(
             uuid: $uuid,
             type: self::EVENT_TYPE,
-            payload: new Payload(
-                $uuid,
-                [...$previous, ...\array_map(self::cleanDump(...), $frame->payloads)],
-                $frame->meta,
-            ),
+            payload: new Payload($uuid, $payloads, $frame->meta),
             timestamp: $stored?->timestamp ?? (float) $frame->time->format('U.u'),
+            facets: $facets->toArray(),
         );
     }
 
