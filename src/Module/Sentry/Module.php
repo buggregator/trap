@@ -14,9 +14,12 @@ use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope;
 use Buggregator\Trap\Module\Sentry\Frame\SentryStore;
 use Buggregator\Trap\Module\Sentry\Frontend\ApiController;
 use Buggregator\Trap\Module\Sentry\Frontend\ClearController;
+use Buggregator\Trap\Module\Sentry\Frontend\CronController;
 use Buggregator\Trap\Module\Sentry\Frontend\EnvelopeMapper;
 use Buggregator\Trap\Module\Sentry\Frontend\StoreMapper;
+use Buggregator\Trap\Module\Sentry\Http\CronTrap;
 use Buggregator\Trap\Module\Sentry\Http\SentryTrap;
+use Buggregator\Trap\Module\Sentry\Mcp\ListCrons;
 use Buggregator\Trap\Module\Sentry\Mcp\ListFeedback;
 use Buggregator\Trap\Module\Sentry\Mcp\SentryView;
 use Buggregator\Trap\Server\Event\ProvidesEvents;
@@ -38,7 +41,7 @@ final class Module implements
     #[\Override]
     public function httpMiddlewares(): array
     {
-        return [SentryTrap::class];
+        return [SentryTrap::class, CronTrap::class];
     }
 
     #[\Override]
@@ -77,13 +80,13 @@ final class Module implements
     #[\Override]
     public function mcpTools(): array
     {
-        return [ListFeedback::class];
+        return [ListFeedback::class, ListCrons::class];
     }
 
     #[\Override]
     public function uiApiControllers(): array
     {
-        return [ClearController::class, ApiController::class];
+        return [ClearController::class, ApiController::class, CronController::class];
     }
 
     #[\Override]

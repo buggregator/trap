@@ -22,6 +22,19 @@ web UI shows it on its error and the Feedback tab, and `list_feedback` reads it,
 [mcp.md](mcp.md#user-feedback). A body over 2 MB gets `413`, and an event Trap can't parse is dropped
 with a warning in its console. The `X-Buggregator-Project` header sets the `project` of the event.
 
+Cron check-ins (Sentry Crons: `captureCheckIn()`, `withMonitor()`, Laravel's `->sentryMonitor()`) go to the same
+DSN and make no event: read the jobs with `list_crons`, see [mcp.md](mcp.md#cron-jobs). A script without an SDK
+pings any HTTP port of Trap, `GET` or `POST`; the body, the job's output, is kept, its last 10 KB:
+
+```bash
+curl -fsS "http://127.0.0.1:8000/ping/backup/start?schedule=0%203%20*%20*%20*&margin=5&max_runtime=30"
+./backup.sh 2>&1 | curl -fsS --data-binary @- "http://127.0.0.1:8000/ping/backup"   # or /ping/backup/fail
+```
+
+`schedule` (a URL-encoded crontab), `tz`, `margin` and `max_runtime` (minutes) set the job's monitor, `project` its
+project. A monitor config Trap can't read, as `@every 5m` or an unknown zone, gets a ping `400`; from an SDK it is
+ignored with a warning in the console and the run still counts.
+
 ## Monolog
 
 ```php

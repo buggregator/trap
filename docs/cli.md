@@ -66,6 +66,8 @@ page of the [web UI](web-ui.md), Sentry pages included:
 - two [HTTP dumps](http-dump.md): a `GET` with a query and cookies, and a form that uploads a file;
 - [Sentry](sentry.md) events of older SDKs, and the envelopes of a failed request: the error, the transaction of its
   trace with database, cache and HTTP spans, logs and trace metrics;
+- [cron check-ins](sentry.md#crons): a Sentry SDK job that started and finished, a failed one of an interval
+  schedule, and a ping URL job that started and failed with its output;
 - an [OpenTelemetry](opentelemetry.md) trace across two services, with logs and metrics of each type;
 - a Sentry error with logs of a second project, `billing`;
 - [CSP reports](csp.md) of each format: a `report-uri` violation, and a Reporting API batch of a violation and a

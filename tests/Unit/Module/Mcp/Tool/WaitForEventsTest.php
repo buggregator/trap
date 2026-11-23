@@ -464,7 +464,8 @@ final class WaitForEventsTest
             ->contains(\sprintf('(%d by default, %d at most)', WaitForEvents::DEFAULT_TIMEOUT, WaitForEvents::MAX_TIMEOUT))
             ->contains('`list_events`')
             ->contains('`list_traces`')
-            ->contains('`list_feedback`');
+            ->contains('`list_feedback`')
+            ->contains('`list_crons`');
     }
 
     public function testSchemaTakesTheListArgumentsWithCountAndTimeout(): void

@@ -61,8 +61,8 @@ sessions and steps through the ones Trap drives, and its setup guide shows the d
 
 The UI has pages for features of the Buggregator Server that Trap has not: metrics, the mock server, updates.
 They show no data, and the menu of the mock server stays while HTTP dumps are on: hide it in Settings › Menu.
-Other features of the server stay hidden, as Trap answers 404 to their endpoints: the Broadcast page, the Crons
-and Queues tabs of the Sentry section, the
+Other features of the server stay hidden, as Trap answers 404 to their endpoints: the Broadcast page, the Queues
+tab of the Sentry section, the
 «Send to inbox» button of an email (Settings › Email relay says the server can't send email), the other versions
 of an email and its invite card, sign-in and the audit log.
 
@@ -101,12 +101,19 @@ The Sentry section has a page for each kind of data:
 - Logs and Metrics: Sentry `log` and `trace_metric` items, OTLP logs and metrics.
 - Feedback: the [user feedback](sentry.md#user-feedback) of the project, each with a link to its error; the page of
   an error shows the feedback on it. The tab shows once the period has feedback.
+- Crons: the [cron jobs](sentry.md#crons) of the project, whatever the period, with the last run, the next expected
+  one and the recent runs, failed, timed out and missed ones first; the page of a job shows its runs with their
+  durations, output and traces, and the ping URLs of a job that pings. The tab is always there; with no job it shows
+  how to send the first check-in. A job page opened on a [port of the UI's own](#port) shows ping URLs of that
+  port, which takes no check-ins.
 
-Traces, logs, metrics and feedback make no events in the feed: a Sentry transaction is a trace, and the feed holds
-the errors. Trap keeps them in memory while the UI or the [MCP server](mcp.md) runs, and the UI asks for them by
-project and period. The MCP tools [`list_traces` and `get_trace`](mcp.md#traces) read the same traces, and
-[`list_feedback`](mcp.md#user-feedback) the same feedback. "Clear all" in the Sentry section deletes them with the
-Sentry events; with the pinned events kept, the feedback on a pinned error stays too.
+Traces, logs, metrics, feedback and cron runs make no events in the feed: a Sentry transaction is a trace, and the
+feed holds the errors. Trap keeps them in memory while the UI or the [MCP server](mcp.md) runs, and the UI asks for
+them by project and period. The MCP tools [`list_traces` and `get_trace`](mcp.md#traces) read the same traces,
+[`list_feedback`](mcp.md#user-feedback) the same feedback and [`list_crons`](mcp.md#cron-jobs) the same jobs.
+"Clear all" in the Sentry section deletes them with the Sentry events; with the pinned events kept, the feedback on
+a pinned error stays too. The cron jobs stay, without their runs. The project list has the projects of cron jobs too,
+as a ping URL may name a project no event has.
 
 Memory is bounded by these limits; values below 1 fall back to the defaults:
 
@@ -117,5 +124,5 @@ Memory is bounded by these limits; values below 1 fall back to the defaults:
 | `TRAP_TELEMETRY_MAX_METRICS` | `/trap/telemetry/@maxMetrics`| `5000`  | the oldest metric values are dropped                           |
 
 `maxSpans` counts transactions and spans together; a single trace above it keeps its most recent 90%.
-Feedback has a fixed limit of 1 000 entries.
+Feedback has a fixed limit of 1 000 entries, cron jobs one of 200 jobs with 100 runs each.
 These limits are apart from the [OpenTelemetry limits](opentelemetry.md#memory-limits) of the console.

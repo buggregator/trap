@@ -9,6 +9,7 @@ use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope;
 use Buggregator\Trap\Module\Sentry\Frame\SentryStore;
 use Buggregator\Trap\Module\Sentry\Frontend\EnvelopeMapper;
 use Buggregator\Trap\Module\Sentry\Frontend\StoreMapper;
+use Buggregator\Trap\Module\Sentry\Telemetry\CheckInReader;
 use Buggregator\Trap\Server\Telemetry\TelemetryStore;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -291,5 +292,57 @@ final class EnvelopeMapperTest
             'user' => ['10.0.0.1'],
             'tag:feature' => ['checkout'],
         ]);
+    }
+
+    #[Covers(CheckInReader::class)]
+    public function testCheckInMakesNoEventAndUpsertsItsMonitor(): void
+    {
+        $store = new TelemetryStore();
+        $time = new \DateTimeImmutable('2026-11-23T12:00:10Z');
+        $config = [
+            'schedule' => ['type' => 'interval', 'value' => 10, 'unit' => 'minute'],
+            'checkin_margin' => 5,
+            'max_runtime' => 30,
+            'timezone' => 'Europe/Berlin',
+            'failure_issue_threshold' => 2,
+        ];
+        $item = static fn(string $status, array $more = []): EnvelopeItem => new EnvelopeItem(['type' => 'check_in'], [
+            'check_in_id' => '0D2C1E5A-9F00-4000-8000-00000000ABCD',
+            'monitor_slug' => 'Reports Send',
+            'status' => $status,
+            'environment' => 'production',
+            'contexts' => ['trace' => ['trace_id' => self::TRACE]],
+        ] + $more);
+
+        $started = (new EnvelopeMapper($store))->map(new SentryEnvelope([], [$item('in_progress', ['monitor_config' => $config])], $time, 'shop'));
+        (new EnvelopeMapper($store))->map(new SentryEnvelope([], [$item('ok', ['duration' => 2.5])], $time->modify('+3 seconds'), 'shop'));
+
+        Assert::null($started);
+        $monitor = $store->crons->monitor('shop', 'reports-send');
+        Assert::notBlank($monitor);
+        Assert::same([$monitor->source, $monitor->schedule?->describe(), $monitor->timezone, $monitor->margin], ['sentry', 'every 10 minutes', 'Europe/Berlin', 5]);
+        $run = $monitor->history()[0];
+        Assert::same([$run->id, $run->status, $run->durationMs, $run->environment, $run->traceId], [
+            '0d2c1e5a9f004000800000000000abcd', 'ok', 2500, 'production', self::TRACE,
+        ]);
+        Assert::count($monitor->checkIns, 1);
+    }
+
+    #[Covers(CheckInReader::class)]
+    public function testCheckInWithAnInvalidConfigIsKeptAndOneWithoutAStatusDropped(): void
+    {
+        $store = new TelemetryStore();
+
+        (new EnvelopeMapper($store))->map(new SentryEnvelope([], [
+            new EnvelopeItem(['type' => 'check_in'], ['monitor_slug' => 'a', 'status' => 'ok', 'monitor_config' => [
+                'schedule' => ['type' => 'crontab', 'value' => '0 3 * * *'],
+                'timezone' => 'Mars/Olympus',
+            ]]),
+            new EnvelopeItem(['type' => 'check_in'], ['monitor_slug' => 'b']),
+            new EnvelopeItem(['type' => 'check_in'], ['status' => 'ok']),
+        ]));
+
+        Assert::same(\array_map(static fn($m): string => $m->slug, $store->crons->monitors()), ['a']);
+        Assert::null($store->crons->monitor('default', 'a')?->schedule);
     }
 }

@@ -19,6 +19,7 @@ use Buggregator\Trap\Module\Profiler\Http\SPXTrap;
 use Buggregator\Trap\Module\Profiler\Http\XDebugTrap;
 use Buggregator\Trap\Module\Profiler\Http\XHProfTrap;
 use Buggregator\Trap\Module\Ray\Http\RayTrap;
+use Buggregator\Trap\Module\Sentry\Http\CronTrap;
 use Buggregator\Trap\Module\Sentry\Http\SentryTrap;
 use Buggregator\Trap\Module\Tracing\Http\OtlpTrap;
 use Buggregator\Trap\Module\VarDumper\Traffic\Dispatcher as VarDumperDispatcher;
@@ -116,6 +117,7 @@ final class ModulesTest
                 TokenGuard::class,
                 RayTrap::class,
                 SentryTrap::class,
+                CronTrap::class,
                 XHProfTrap::class,
                 XDebugTrap::class,
                 SpeedscopeTrap::class,

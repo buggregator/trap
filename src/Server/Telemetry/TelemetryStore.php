@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Server\Telemetry;
 
 use Buggregator\Trap\Server\Config\Telemetry as Config;
+use Buggregator\Trap\Server\Processable;
+use Buggregator\Trap\Server\Telemetry\Cron\Crons;
 
 /**
- * Traces, logs and metrics of Sentry SDKs and OTLP exporters, and Sentry user feedback: the data of the Sentry
- * pages of the web UI and of the trace and feedback tools of the MCP server. Unlike events, they make no feed cards.
+ * Traces, logs and metrics of Sentry SDKs and OTLP exporters, Sentry user feedback and cron monitors: the data of
+ * the Sentry pages of the web UI and of the trace, feedback and cron tools of the MCP server. Unlike events, they
+ * make no feed cards.
  *
  * A container singleton, filled by the event mappers of the Sentry and Tracing modules, so only while
  * an event consumer runs: the web UI or the MCP server, its only readers.
@@ -18,13 +21,21 @@ use Buggregator\Trap\Server\Config\Telemetry as Config;
  *
  * Memory is bounded by {@see Config}. Above `maxSpans` the least recently updated traces are dropped, and
  * a single trace above it keeps its most recent 90%. Above `maxLogs` or `maxMetrics` the oldest 10% go,
- * and so above {@see self::MAX_FEEDBACK} for feedback.
+ * and so above {@see self::MAX_FEEDBACK} for feedback. {@see Crons} bounds the cron monitors.
+ *
+ * The main loop runs {@see process()} while an event consumer runs: about once a second it marks the cron runs
+ * that did not come or hung.
  *
  * @internal
  */
-final class TelemetryStore
+final class TelemetryStore implements Processable
 {
     public const MAX_FEEDBACK = 1000;
+
+    /** Seconds between two checks of the cron monitors */
+    public const CRON_CHECK_INTERVAL = 1.0;
+
+    public readonly Crons $crons;
 
     /**
      * A random ID of the store, and so of the Trap process: sequence numbers of another process mean nothing here.
@@ -69,6 +80,8 @@ final class TelemetryStore
     /** @var \Closure(): float */
     private readonly \Closure $clock;
 
+    private ?float $cronCheckedAt = null;
+
     /**
      * @param \Closure(): float|null $clock Current Unix time in seconds.
      */
@@ -80,6 +93,23 @@ final class TelemetryStore
         $this->maxMetrics = \max(1, $config->maxMetrics >= 1 ? $config->maxMetrics : $defaults->maxMetrics);
         $this->clock = $clock ?? static fn(): float => \microtime(true);
         $this->id = \bin2hex(\random_bytes(4));
+        $this->crons = new Crons(function (string $project): void {
+            foreach ($this->listeners as $listener) {
+                $listener->stored($project, ['cron']);
+            }
+        });
+    }
+
+    #[\Override]
+    public function process(): void
+    {
+        $now = ($this->clock)();
+        if ($this->cronCheckedAt !== null && $now - $this->cronCheckedAt < self::CRON_CHECK_INTERVAL) {
+            return;
+        }
+
+        $this->cronCheckedAt = $now;
+        $this->crons->check($now);
     }
 
     public function listen(TelemetryListener $listener): void
@@ -119,6 +149,10 @@ final class TelemetryStore
 
         if ($batch->feedback !== []) {
             $this->feedback = self::trim([...$this->feedback, ...$batch->feedback], self::MAX_FEEDBACK);
+        }
+
+        foreach ($batch->checkIns as $checkIn) {
+            $this->crons->record($checkIn);
         }
 
         $kinds = $batch->kinds();
@@ -183,6 +217,7 @@ final class TelemetryStore
      */
     public function clear(?string $project = null, array $keepFeedbackOn = []): void
     {
+        $this->crons->clear($project);
         $this->feedback = \array_values(\array_filter(
             $this->feedback,
             static function (Feedback $feedback) use ($project, $keepFeedbackOn): bool {

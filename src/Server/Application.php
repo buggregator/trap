@@ -69,6 +69,7 @@ final class Application implements Processable, Cancellable, Destroyable
 
         // Here, not at the first frame: a conflict of the modules' event mappers fails the startup
         $this->collector = $consumesEvents ? $this->container->get(EventCollector::class) : null;
+        $consumesEvents and $this->processors[] = $this->container->get(Telemetry\TelemetryStore::class);
 
         $maxInflated = $this->maxInflatedBodySize($this->container->get(App::class)->httpMaxInflatedSize);
         $modules = $this->container->get(Modules::class);

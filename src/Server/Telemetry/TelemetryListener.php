@@ -13,7 +13,7 @@ interface TelemetryListener
 {
     /**
      * @param non-empty-string $project
-     * @param non-empty-list<'trace'|'log'|'metric'|'feedback'> $kinds
+     * @param non-empty-list<'trace'|'log'|'metric'|'feedback'|'cron'> $kinds
      */
     public function stored(string $project, array $kinds): void;
 }

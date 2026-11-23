@@ -32,6 +32,15 @@ final class SentryEnvelope implements Renderer
     {
         \assert($frame instanceof SentryEnvelopeFrame);
 
+        if (self::onlyCheckIns($frame)) {
+            Common::renderHeader1($output, 'SENTRY', 'CRON');
+            Common::renderMetadata($output, ['Time' => $frame->time] + ($frame->project === null ? [] : ['Project' => $frame->project]));
+            foreach ($frame->items as $item) {
+                \is_array($item->payload) and CheckInLine::render($output, $item->payload, $item->headers);
+            }
+            return;
+        }
+
         Common::renderHeader1($output, 'SENTRY', 'ENVELOPE');
         Header::renderMessageHeader($output, $frame->headers + ['timestamp' => $frame->time->format('U.u')]);
 
@@ -54,6 +63,20 @@ final class SentryEnvelope implements Renderer
                 trap($e);
             }
         }
+    }
+
+    /**
+     * Cron check-ins come in envelopes of their own: one SDK call, or a ping URL.
+     */
+    private static function onlyCheckIns(SentryEnvelopeFrame $frame): bool
+    {
+        foreach ($frame->items as $item) {
+            if (($item->headers['type'] ?? null) !== 'check_in') {
+                return false;
+            }
+        }
+
+        return $frame->items !== [];
     }
 
     /**
@@ -117,6 +140,11 @@ final class SentryEnvelope implements Renderer
             }
 
             self::renderFeedback($output, $feedback);
+            return;
+        }
+
+        if (\is_array($data->payload) && $type === 'check_in') {
+            CheckInLine::render($output, $data->payload, $data->headers);
             return;
         }
 
