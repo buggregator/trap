@@ -7,6 +7,8 @@ namespace Buggregator\Trap\Tests\Unit\Module\Frontend;
 use Buggregator\Trap\Module\Frontend\ConnectionPool;
 use Buggregator\Trap\Module\Frontend\EventPusher;
 use Buggregator\Trap\Module\Frontend\Publisher;
+use Buggregator\Trap\Module\Ray\Frontend\Payload as RayPayload;
+use Buggregator\Trap\Module\Ray\Lock\Locks;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Traffic\Websocket\Frame;
@@ -83,6 +85,30 @@ final class ConnectionPoolTest
     }
 
     /**
+     * A Continue in one tab: the tab gets the state in the reply, and every tab gets the event with it.
+     */
+    public function testReleasedRayPauseIsPushedWithItsState(): void
+    {
+        $this->connected(['{"id":2,"rpc":{"method":"post:api/ray/locks/aaa","data":{"project":"default"}}}'], static function (ObjectContainer $c): void {
+            $store = $c->get(EventStore::class);
+            $store->listen(new EventPusher($c->get(Publisher::class), $store));
+            $store->add(new Event('0145a0e0', 'ray', new RayPayload('0145a0e0', [
+                ['type' => 'create_lock', 'content' => ['name' => 'aaa']],
+            ], []), 2.0));
+            $c->get(Locks::class)->create('aaa');
+        });
+
+        $messages = \array_slice($this->messages(), 1);
+        $reply = \array_values(\array_filter($messages, static fn(array $m): bool => isset($m['rpc'])));
+        $pubs = \array_values(\array_filter($messages, static fn(array $m): bool => isset($m['push']['pub'])));
+        Assert::same($reply[0]['rpc']['data'], ['code' => 200, 'data' => ['code' => 200, 'status' => true, 'state' => 'continued']]);
+        Assert::count($pubs, 1);
+        Assert::same($pubs[0]['push']['channel'], 'events.project.default');
+        Assert::same($pubs[0]['push']['pub']['data']['event'], 'event.received');
+        Assert::same($pubs[0]['push']['pub']['data']['data']['payload']['payloads'][0]['content'], ['name' => 'aaa', 'state' => 'continued']);
+    }
+
+    /**
      * An RPC call of no HTTP verb is answered as bad, and the connection goes on.
      */
     public function testConnectionKeepsWorkingAfterInvalidRpcMethod(): void
@@ -101,14 +127,17 @@ final class ConnectionPoolTest
 
     /**
      * @param list<string> $messages Sent by the client after the connect.
+     * @param \Closure(ObjectContainer): void|null $setup Runs before the client connects.
      *
      * @return array{ConnectionPool, Publisher, EventStore} A pool with a client connected.
      */
-    private function connected(array $messages = []): array
+    private function connected(array $messages = [], ?\Closure $setup = null): array
     {
+        $this->sent = [];
         $container = new ObjectContainer();
         $store = $container->get(EventStore::class);
         $store->add(new Event('s1', 'smtp', [], 1.0, project: 'shop'));
+        $setup === null or $setup($container);
         $pool = $container->get(ConnectionPool::class);
 
         $pool->addStream(StreamClientMock::createFromGenerator($this->client($messages)));

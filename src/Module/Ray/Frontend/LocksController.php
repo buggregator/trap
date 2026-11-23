@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Ray\Frontend;
 
-use Buggregator\Trap\Module\Frontend\Message\Success;
+use Buggregator\Trap\Module\Frontend\Message\Error;
 use Buggregator\Trap\Module\Ray\Lock\Locks;
 use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteFail as AssertFail;
 use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteSuccess as AssertSuccess;
@@ -23,9 +23,13 @@ final class LocksController
     public function __construct(
         private readonly Logger $logger,
         private readonly Locks $locks,
+        private readonly LockEvents $events,
     ) {}
 
     /**
+     * The UI shows the `state` of the reply on the card; a 404 tells it the pause is gone and the client
+     * no longer waits. A lock released before, from another tab, answers with the state it got then.
+     *
      * @param mixed $stop_execution The UI sends a JSON boolean.
      */
     #[RegexpRoute(Method::Post, '#^api/ray/locks/(?<name>[\w.-]++)$#')]
@@ -34,11 +38,19 @@ final class LocksController
     ]),
         AssertFail(Method::Get, 'api/ray/locks/9e1ba2d1ba25b4e0d3c4d2a3b1f4c7e8'),
         AssertFail(Method::Post, 'api/ray/locks/'),]
-    public function resolve(string $name, mixed $stop_execution = false): Success
+    public function resolve(string $name, mixed $stop_execution = false): LockReply|Error
     {
         $stop = \filter_var($stop_execution, \FILTER_VALIDATE_BOOL);
         $this->logger->debug('[UI Service] %s Ray execution of lock %s', $stop ? 'Stop' : 'Continue', $name);
 
-        return new Success(status: $this->locks->resolve($name, $stop));
+        $this->locks->resolve($name, $stop);
+        $state = $this->locks->find($name)?->state() ?? $this->events->stateOf($name);
+        if ($state === null) {
+            return Error::withBody(404, ['error' => 'Lock not found.', 'status' => false]);
+        }
+
+        $this->events->release($name, $state);
+
+        return new LockReply($state);
     }
 }
