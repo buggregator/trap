@@ -7,8 +7,8 @@ namespace Buggregator\Trap\Server\Telemetry;
 use Buggregator\Trap\Server\Config\Telemetry as Config;
 
 /**
- * Traces, logs and metrics of Sentry SDKs and OTLP exporters: the data of the Sentry pages of the web UI
- * and of the trace tools of the MCP server. Unlike events, they make no feed cards.
+ * Traces, logs and metrics of Sentry SDKs and OTLP exporters, and Sentry user feedback: the data of the Sentry
+ * pages of the web UI and of the trace and feedback tools of the MCP server. Unlike events, they make no feed cards.
  *
  * A container singleton, filled by the event mappers of the Sentry and Tracing modules, so only while
  * an event consumer runs: the web UI or the MCP server, its only readers.
@@ -17,12 +17,15 @@ use Buggregator\Trap\Server\Config\Telemetry as Config;
  * and {@see traces()} lists the traces in the order of these numbers.
  *
  * Memory is bounded by {@see Config}. Above `maxSpans` the least recently updated traces are dropped, and
- * a single trace above it keeps its most recent 90%. Above `maxLogs` or `maxMetrics` the oldest 10% go.
+ * a single trace above it keeps its most recent 90%. Above `maxLogs` or `maxMetrics` the oldest 10% go,
+ * and so above {@see self::MAX_FEEDBACK} for feedback.
  *
  * @internal
  */
 final class TelemetryStore
 {
+    public const MAX_FEEDBACK = 1000;
+
     /**
      * A random ID of the store, and so of the Trap process: sequence numbers of another process mean nothing here.
      * @var non-empty-string
@@ -47,6 +50,9 @@ final class TelemetryStore
 
     /** @var list<Metric> From the oldest */
     private array $metrics = [];
+
+    /** @var list<Feedback> From the oldest */
+    private array $feedback = [];
 
     /** @var list<TelemetryListener> */
     private array $listeners = [];
@@ -111,6 +117,10 @@ final class TelemetryStore
             $this->metrics = self::trim([...$this->metrics, ...$batch->metrics], $this->maxMetrics);
         }
 
+        if ($batch->feedback !== []) {
+            $this->feedback = self::trim([...$this->feedback, ...$batch->feedback], self::MAX_FEEDBACK);
+        }
+
         $kinds = $batch->kinds();
         if ($kinds !== []) {
             foreach ($this->listeners as $listener) {
@@ -160,10 +170,34 @@ final class TelemetryStore
     }
 
     /**
-     * @param string|null $project Only the data of this project; everything when null.
+     * @return list<Feedback> From the oldest.
      */
-    public function clear(?string $project = null): void
+    public function feedback(): array
     {
+        return $this->feedback;
+    }
+
+    /**
+     * @param string|null $project Only the data of this project; everything when null.
+     * @param list<string> $keepFeedbackOn Sentry event IDs of errors whose feedback stays, as of pinned errors.
+     */
+    public function clear(?string $project = null, array $keepFeedbackOn = []): void
+    {
+        $this->feedback = \array_values(\array_filter(
+            $this->feedback,
+            static function (Feedback $feedback) use ($project, $keepFeedbackOn): bool {
+                if ($project !== null && $feedback->project !== $project) {
+                    return true;
+                }
+                foreach ($keepFeedbackOn as $eventId) {
+                    if ($feedback->isAbout($eventId)) {
+                        return true;
+                    }
+                }
+                return false;
+            },
+        ));
+
         if ($project === null) {
             $this->traces = $this->logs = $this->metrics = [];
             $this->size = 0;

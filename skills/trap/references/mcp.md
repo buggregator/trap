@@ -46,6 +46,7 @@ The argument schema of each tool is in its `inputSchema` (`mcp.php tools <name>`
 | `clear_events`    | Deletes the events matching a filter, or all; pinned ones stay unless `include_pinned: true`    |
 | `list_traces`     | Sentry and OpenTelemetry traces; filters by project, source, service, name, duration, errors    |
 | `get_trace`       | One trace as a tree of its spans and transactions                                               |
+| `list_feedback`   | Sentry user feedback, newest first; by `project` or `event_id` of the error it is about         |
 | `profile_*`       | Analyze a `profiler` event, see [profiling.md](profiling.md#read-the-profile)                   |
 | `xdebug_*`        | Step debugging with Xdebug, see [xdebug.md](xdebug.md)                                          |
 | `xdebug_trace_*`  | Walk the call tree of an `xdebug-trace` event, see [profiling.md](profiling.md#trace-the-calls) |
@@ -106,3 +107,11 @@ error, in its `trace` context, opens the trace of the failed request. Slow trace
 `{"from": "1h", "min_duration_ms": 500}`. The least recently updated traces are dropped once the kept spans and
 transactions pass 10 000 (`TRAP_TELEMETRY_MAX_SPANS`), and clearing the Sentry pages of the web UI drops them too.
 OpenTelemetry logs and metrics have no MCP tool.
+
+## User feedback
+
+Sentry user feedback (`feedback` and `user_report` items) is not an event either: `wait_for_events` never sees it,
+an envelope of only feedback included, so read it with `list_feedback`. `event_id` takes the Sentry event ID of an
+error, with or without dashes; `error_uuid` in the result is that error's `id` for `get_event`. The last 1 000
+entries are kept, pinned errors or not. Clearing the Sentry pages of the web UI drops them too, but the feedback on
+a pinned error when the clear keeps the pinned events.

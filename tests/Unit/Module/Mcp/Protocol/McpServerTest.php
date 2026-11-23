@@ -167,6 +167,7 @@ final class McpServerTest
     #[DataSet(['profile_call_graph', ['id' => 'abc', 'functon' => 'main()']], 'profile_call_graph')]
     #[DataSet(['list_traces', ['error_only' => true]], 'list_traces')]
     #[DataSet(['get_trace', ['id' => 'abc', 'spans' => 10]], 'get_trace')]
+    #[DataSet(['list_feedback', ['event' => 'abc']], 'list_feedback')]
     #[DataSet(['xdebug_trace_summary', ['id' => 'abc']], 'xdebug_trace_summary')]
     #[DataSet(['xdebug_trace_calls', ['uuid' => 'abc', 'q' => 'fib']], 'xdebug_trace_calls')]
     #[DataSet(['xdebug_trace_call', ['uuid' => 'abc', 'ofset' => 1]], 'xdebug_trace_call')]

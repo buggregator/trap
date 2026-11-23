@@ -28,7 +28,7 @@ final class ClearController
     ) {}
 
     /**
-     * Deletes the Sentry events of the project, and its traces, logs and metrics.
+     * Deletes the Sentry events of the project, and its traces, logs, metrics and user feedback.
      *
      * @param string|null $project Project key; any when null.
      * @param mixed $keep_pinned Whether the pinned events stay; the UI sends `1` in the query.
@@ -42,7 +42,16 @@ final class ClearController
         $project === '' and $project = null;
         $this->logger->debug('[UI Service] Delete Sentry events of project %s', $project ?? 'any');
 
-        $this->telemetry->clear($project);
+        // Feedback on a pinned error stays with it
+        $pinnedErrors = [];
+        foreach ($keepPinned ? $this->events : [] as $event) {
+            /** @var mixed $eventId */
+            $eventId = \is_array($event->payload) ? $event->payload['event_id'] ?? null : null;
+            $event->type === 'sentry' && \is_string($eventId) && $this->events->isPinned($event->uuid)
+                and $pinnedErrors[] = $eventId;
+        }
+
+        $this->telemetry->clear($project, $pinnedErrors);
         foreach (\iterator_to_array($this->events) as $event) {
             $event->type === 'sentry'
             && ($project === null || $event->projectKey() === $project)

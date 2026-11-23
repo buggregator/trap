@@ -26,7 +26,8 @@ With [`--mcp`](mcp.md#sentry-events), AI agents read the events with their excep
 
 | Envelope item                         | Becomes                                                                     |
 |---------------------------------------|-----------------------------------------------------------------------------|
-| `event`, `feedback`                   | a `sentry` event: the console, the event feed of the web UI, the MCP server |
+| `event`                               | a `sentry` event: the console, the event feed of the web UI, the MCP server |
+| `feedback`, `user_report`             | [user feedback](#user-feedback): the Sentry pages, `list_feedback`          |
 | `transaction`                         | a trace: the Traces page of the web UI, the MCP trace tools                 |
 | `transaction` without a trace ID      | a `sentry` event, as `event` is: no trace can hold it                       |
 | `span`, `spans` (Span v2)             | spans of a trace; a segment span is the transaction of its service          |
@@ -40,11 +41,27 @@ the failed ones and the trace ID, and AI agents read it with [`list_traces` and 
 sent without a transaction get the same line, named after their root span. An envelope of an error and the
 transaction of its request gives the error event and the trace. A `/store` payload with an exception is an error,
 whatever its type. A transaction without a trace ID fits no trace and stays a `sentry` event; the console prints
-one line for it too. An envelope of only transactions, logs, metrics, spans or SDK bookkeeping makes no event. Trap
-keeps the traces, logs and metrics while the [web UI](web-ui.md#sentry-pages) or the [MCP server](mcp.md) runs.
+one line for it too. An envelope of only transactions, logs, metrics, spans, feedback or SDK bookkeeping makes no
+event. Trap keeps the traces, logs, metrics and feedback while the [web UI](web-ui.md#sentry-pages) or the
+[MCP server](mcp.md) runs.
 
 The `X-Buggregator-Project` header puts the event and the data of the request into that project of the web UI;
 without it they land in `default`.
+
+## User feedback
+
+What users write in the Sentry feedback widget (a `feedback` item of the User Feedback API) and legacy `user_report`
+items make no event, as in the Buggregator Server. The console prints who wrote one, the page, the error and the
+message; the
+[web UI](web-ui.md#sentry-pages) shows them on the Feedback tab of the Sentry section and on the page of the error
+they are about, and AI agents read them with [`list_feedback`](mcp.md#user-feedback).
+
+- A `feedback` item gives the name, email, message and page URL of `contexts.feedback`, the name and email of
+  `user` when the form has none, and the error of `contexts.feedback.associated_event_id`. A `user_report` gives
+  `name`, `email`, `comments` and the error of `event_id`.
+- Feedback belongs to the project of its envelope. Clearing the Sentry section deletes it, but the feedback on a
+  pinned error when the clear keeps the pinned events. Trap keeps the last 1 000; above that the oldest 10% go,
+  the feedback on a pinned error too.
 
 ## Notes
 

@@ -124,6 +124,45 @@ final class ServiceTest
         Assert::same($service->eventUnpin('missing')->httpCode(), 404);
     }
 
+    public function testSentryErrorIsFoundByItsSentryEventId(): void
+    {
+        $storage = new EventStore();
+        $storage->add(new Event('0198c2d4-7a54-7b81-9b8e-3cf7c6c3a6b1', 'sentry', ['event_id' => '5a9d3b2c1e4f4a6b8c7d0e1f2a3b4c5d'], 1.0));
+        $service = self::create($storage);
+
+        $event = self::json($service->eventShow('5A9D3B2C-1E4F-4A6B-8C7D-0E1F2A3B4C5D'));
+
+        Assert::same($event['uuid'], '0198c2d4-7a54-7b81-9b8e-3cf7c6c3a6b1');
+    }
+
+    public function testSentryErrorIsPinnedAndDeletedByItsSentryEventId(): void
+    {
+        $storage = new EventStore();
+        $uuid = '0198c2d4-7a54-7b81-9b8e-3cf7c6c3a6b1';
+        $storage->add(new Event($uuid, 'sentry', ['event_id' => '5a9d3b2c1e4f4a6b8c7d0e1f2a3b4c5d'], 1.0));
+        $storage->add(new Event('0198c2d4-0000-7b81-9b8e-3cf7c6c3a6b1', 'sentry', ['event_id' => 'ffff0000ffff0000ffff0000ffff0000'], 2.0));
+        $service = self::create($storage);
+
+        Assert::same($service->eventPin('5a9d3b2c-1e4f-4a6b-8c7d-0e1f2a3b4c5d')->httpCode(), 200);
+        Assert::true($storage->isPinned($uuid));
+        Assert::same($service->eventUnpin('5a9d3b2c1e4f4a6b8c7d0e1f2a3b4c5d')->httpCode(), 200);
+        Assert::false($storage->isPinned($uuid));
+
+        $service->eventDelete('5A9D3B2C1E4F4A6B8C7D0E1F2A3B4C5D');
+        Assert::null($storage->get($uuid));
+
+        $service->eventsDelete(uuids: ['ffff0000ffff0000ffff0000ffff0000']);
+        Assert::count($storage, 0);
+    }
+
+    public function testEmptySentryEventIdFindsNoEvent(): void
+    {
+        $storage = new EventStore();
+        $storage->add(new Event('0198c2d4-7a54-7b81-9b8e-3cf7c6c3a6b1', 'sentry', ['event_id' => ''], 1.0));
+
+        Assert::same(self::create($storage)->eventShow('--')->httpCode(), 404);
+    }
+
     public function testMissingEventIsNotFound(): void
     {
         [$service] = self::service();

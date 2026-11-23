@@ -463,7 +463,8 @@ final class WaitForEventsTest
         Assert::string($tool->description())
             ->contains(\sprintf('(%d by default, %d at most)', WaitForEvents::DEFAULT_TIMEOUT, WaitForEvents::MAX_TIMEOUT))
             ->contains('`list_events`')
-            ->contains('`list_traces`');
+            ->contains('`list_traces`')
+            ->contains('`list_feedback`');
     }
 
     public function testSchemaTakesTheListArgumentsWithCountAndTimeout(): void

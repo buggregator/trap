@@ -159,6 +159,25 @@ final class SentryEnvelopeTest
         Assert::string($output)->contains('Item 2')->contains('attachment')->contains('report.txt')->contains('text/plain')->contains('11')->notContains('Render error');
     }
 
+    public function testRendersUserFeedback(): void
+    {
+        $output = $this->render(new SentryEnvelopeFrame([], [
+            new EnvelopeItem(['type' => 'feedback'], ['contexts' => ['feedback' => [
+                'message' => 'Checkout <broke>',
+                'name' => 'Ann',
+                'contact_email' => 'ann@example.com',
+                'url' => 'https://shop.test/cart',
+                'associated_event_id' => 'e1e1',
+            ]]]),
+            new EnvelopeItem(['type' => 'user_report'], ['comments' => 'Hi']),
+        ]));
+
+        Assert::string($output)
+            ->contains("User feedback from Ann <ann@example.com>\nOn https://shop.test/cart\nAbout the error e1e1\n\nCheckout <broke>\n")
+            ->contains("User feedback from anonymous\nSent without an error\n\nHi\n")
+            ->notContains('There is no renderer for this item type.');
+    }
+
     private function render(SentryEnvelopeFrame $frame): string
     {
         $output = new BufferedOutput();

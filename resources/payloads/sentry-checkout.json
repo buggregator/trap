@@ -126,5 +126,54 @@
                 {"timestamp": "{{ts -2.360}}", "trace_id": "{{hex32 trace}}", "span_id": "9a1f3c5e7b2d4086", "name": "php.memory.peak", "type": "gauge", "value": 18874368, "unit": "byte", "attributes": {"sentry.release": {"type": "string", "value": "shop@1.4.0"}, "sentry.environment": {"type": "string", "value": "local"}}}
             ]
         }
+    ],
+    [
+        {
+            "event_id": "{{hex32 feedback}}",
+            "sent_at": "{{iso -1.200}}",
+            "dsn": "http://sentry@127.0.0.1:9912/1",
+            "sdk": {"name": "sentry.javascript.browser", "version": "9.10.0"}
+        },
+        {"type": "feedback", "content_type": "application/json"},
+        {
+            "event_id": "{{hex32 feedback}}",
+            "timestamp": "{{ts -1.210}}",
+            "type": "feedback",
+            "platform": "javascript",
+            "level": "info",
+            "environment": "local",
+            "release": "shop@1.4.0",
+            "contexts": {
+                "feedback": {
+                    "message": "The payment failed twice, and the cart is still charged.",
+                    "contact_email": "alice@example.com",
+                    "name": "Alice",
+                    "url": "http://shop.local/checkout",
+                    "source": "widget",
+                    "associated_event_id": "{{hex32 error}}"
+                },
+                "trace": {"trace_id": "{{hex32 trace}}", "span_id": "9a1f3c5e7b2d4086"}
+            }
+        }
+    ],
+    [
+        {
+            "event_id": "{{hex32 suggestion}}",
+            "sent_at": "{{iso -0.800}}",
+            "dsn": "http://sentry@127.0.0.1:9912/1",
+            "sdk": {"name": "sentry.javascript.browser", "version": "9.10.0"}
+        },
+        {"type": "feedback", "content_type": "application/json"},
+        {
+            "event_id": "{{hex32 suggestion}}",
+            "timestamp": "{{ts -0.810}}",
+            "type": "feedback",
+            "platform": "javascript",
+            "level": "info",
+            "contexts": {
+                "feedback": {"message": "A dark theme for the shop, please.", "url": "http://shop.local/", "source": "widget"}
+            },
+            "user": {"username": "bob", "email": "bob@example.com"}
+        }
     ]
 ]

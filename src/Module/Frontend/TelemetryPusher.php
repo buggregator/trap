@@ -8,7 +8,7 @@ use Buggregator\Trap\Server\Telemetry\TelemetryListener;
 
 /**
  * Tells the UI clients of the project what the telemetry store got, with the `sentry.stored` push
- * `{"project": ..., "kinds": ["trace", "log", "metric"]}`: telemetry makes no feed events,
+ * `{"project": ..., "kinds": ["trace", "log", "metric", "feedback"]}`: telemetry makes no feed events,
  * so the Sentry pages would not know to fetch their lists again.
  *
  * @internal

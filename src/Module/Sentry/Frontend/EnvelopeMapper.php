@@ -15,9 +15,10 @@ use Buggregator\Trap\Support\Uuid;
 
 /**
  * Makes the feed event of an envelope from its event item, and puts its transactions, spans, logs and
- * trace metrics into the {@see TelemetryStore}: as in buggregator/server, they make no feed event.
+ * trace metrics, and its user feedback, into the {@see TelemetryStore}: as in buggregator/server, they make no
+ * feed event.
  *
- * The feed event is the first `event` item, else the first `feedback` one, else the first transaction without
+ * The feed event is the first `event` item, else the first transaction without
  * a trace ID, which no trace can hold, else the first item that is neither telemetry nor SDK bookkeeping
  * (sessions, client reports, attachments, ...). An envelope of only such items makes no event.
  *
@@ -27,7 +28,7 @@ final class EnvelopeMapper implements EventMapper
 {
     private const BOOKKEEPING_ITEMS = [
         'session', 'sessions', 'client_report', 'check_in', 'metric_buckets', 'statsd',
-        'profile', 'profile_chunk', 'user_report', 'attachment', 'replay_event', 'replay_recording',
+        'profile', 'profile_chunk', 'attachment', 'replay_event', 'replay_recording',
     ];
 
     public function __construct(
@@ -46,15 +47,15 @@ final class EnvelopeMapper implements EventMapper
         $project === '' and $project = Event::DEFAULT_PROJECT;
 
         $batch = new Batch($project);
+        $time = (float) $frame->time->format('U.u');
         $event = null;
-        $feedback = null;
         $untraced = null;
         $fallback = null;
         foreach ($frame->items as $item) {
             /** @var mixed $type */
             $type = $item->headers['type'] ?? null;
             $type = \is_string($type) ? $type : '';
-            $telemetry = ItemReader::read($batch, $type, $item->payload, $eventId);
+            $telemetry = ItemReader::read($batch, $type, $item->payload, $eventId, $time);
 
             if ($telemetry || !\is_array($item->payload)) {
                 continue;
@@ -62,8 +63,6 @@ final class EnvelopeMapper implements EventMapper
 
             if ($type === 'event') {
                 $event ??= $item->payload;
-            } elseif ($type === 'feedback') {
-                $feedback ??= $item->payload;
             } elseif ($type === 'transaction') {
                 $untraced ??= $item->payload;
             } elseif (!\in_array($type, self::BOOKKEEPING_ITEMS, true)) {
@@ -73,7 +72,7 @@ final class EnvelopeMapper implements EventMapper
 
         $this->telemetry->add($batch);
 
-        $payload = $event ?? $feedback ?? $untraced ?? $fallback;
+        $payload = $event ?? $untraced ?? $fallback;
         if ($payload === null) {
             return null;
         }

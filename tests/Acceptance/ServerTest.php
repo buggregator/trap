@@ -820,7 +820,7 @@ final class ServerTest
 
     /**
      * One run of `trap test` gives every page of the web UI data: each event type of the feed, the Sentry
-     * traces, logs and metrics, and a second project.
+     * traces, logs, metrics and user feedback, and a second project.
      */
     public function testTestCommandFillsEveryPageOfTheUi(): void
     {
@@ -846,6 +846,13 @@ final class ServerTest
             Assert::same($status, 200);
             Assert::notBlank(self::json($body)['data'], "No Sentry $page");
         }
+        [, , $feedback] = TrapProcess::http($this->uiPort, 'GET', '/api/sentry/feedback?project=default');
+        $feedback = self::json($feedback)['data'];
+        Assert::same(\array_column($feedback, 'name'), ['bob', 'Alice']);
+        Assert::same($feedback[0]['event_id'], '', 'The suggestion is about no error');
+        Assert::string($feedback[1]['event_id'])->matchesRegex('/^[0-9a-f]{32}$/');
+        [$status] = TrapProcess::http($this->uiPort, 'GET', "/api/event/{$feedback[1]['event_id']}");
+        Assert::same($status, 200, 'The feedback links to an error Trap has');
         [, , $map] = TrapProcess::http($this->uiPort, 'GET', '/api/sentry/service-map?project=default');
         Assert::string($map)->contains('"gateway"')->contains('"orders"');
     }

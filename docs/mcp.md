@@ -17,8 +17,8 @@ Other clients take the same URL with the `http` (Streamable HTTP) transport type
 
 ## Tools
 
-The tools read the events Trap has caught, the Sentry and OpenTelemetry [traces](#traces) it has received, and the
-call trees of [Xdebug traces](#xdebug-traces). The events are the ones the [web UI](web-ui.md) shows, kept with
+The tools read the events Trap has caught, the Sentry and OpenTelemetry [traces](#traces) it has received, Sentry
+[user feedback](#user-feedback), and the call trees of [Xdebug traces](#xdebug-traces). The events are the ones the [web UI](web-ui.md) shows, kept with
 `--mcp` alone too. An event deleted in the UI is gone for the agent. An event
 the agent deletes is gone from the UI on its next load; a page already open keeps showing it.
 
@@ -328,6 +328,19 @@ dropped. Clearing the Sentry pages of the web UI drops their traces for the tool
   last update. A Sentry span shows its op and description as its name, a kind read from its op (`http.server` is
   `SERVER`, `http.client` `CLIENT`, `queue.publish` `PRODUCER`, `queue.process` `CONSUMER`, others `INTERNAL`), its `data` as attributes and a failure status as `ERROR`.
 - `get_trace` cuts a text longer than `max_length` characters, 50 000 by default, and says so.
+
+### User feedback
+
+[Sentry user feedback](sentry.md#user-feedback) is not an event either: `list_events` doesn't list it, and
+`wait_for_events` doesn't return for an envelope of only feedback. Read it with `list_feedback`.
+
+| Tool            | Arguments                      | Result                                                                                                                               |
+| --------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `list_feedback` | `project`, `event_id`, `limit` | `feedback`: `project`, `event_id`, `error_uuid`, `name`, `email`, `message`, `url`, `source`, `received` each, newest first; `total` |
+
+- `event_id` is the Sentry event ID of an error, with or without dashes: only the feedback on it. `error_uuid` is the
+  ID of that error for `get_event`, null when Trap no longer has it or the feedback is about no error.
+- `limit` is 20 by default, 100 at most; `total` counts all the matching entries.
 
 ### Profiles
 

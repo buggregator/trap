@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Tests\Unit\Server\Telemetry;
 
 use Buggregator\Trap\Server\Config\Telemetry as Config;
 use Buggregator\Trap\Server\Telemetry\Batch;
+use Buggregator\Trap\Server\Telemetry\Feedback;
 use Buggregator\Trap\Server\Telemetry\Log;
 use Buggregator\Trap\Server\Telemetry\Metric;
 use Buggregator\Trap\Server\Telemetry\Source;
@@ -78,6 +79,34 @@ final class TelemetryStoreTest
         Assert::same(\array_map(static fn(Metric $metric): string => $metric->name, $store->metrics()), ['m2']);
     }
 
+    public function testDropsOldestFeedbackAboveItsLimit(): void
+    {
+        $store = new TelemetryStore();
+        $batch = new Batch('default');
+        foreach (\range(1, TelemetryStore::MAX_FEEDBACK + 1) as $i) {
+            $batch->feedback[] = self::feedback("f$i");
+        }
+
+        $store->add($batch);
+
+        Assert::count($store->feedback(), TelemetryStore::MAX_FEEDBACK - \intdiv(TelemetryStore::MAX_FEEDBACK, 10));
+        Assert::same(\array_slice($store->feedback(), -1)[0]->id, 'f' . (TelemetryStore::MAX_FEEDBACK + 1));
+    }
+
+    public function testClearKeepsFeedbackOfOtherProjectsAndOnKeptErrors(): void
+    {
+        $store = new TelemetryStore();
+        $batch = new Batch('a');
+        $batch->feedback = [self::feedback('f1', 'a', 'E1-E1'), self::feedback('f2', 'a', 'e2'), self::feedback('f3', 'b')];
+        $store->add($batch);
+
+        $store->clear('a', keepFeedbackOn: ['e1e1']);
+
+        Assert::same(\array_map(static fn(Feedback $f): string => $f->id, $store->feedback()), ['f1', 'f3']);
+        $store->clear();
+        Assert::same($store->feedback(), []);
+    }
+
     public function testInvalidLimitsFallBackToDefaults(): void
     {
         $store = new TelemetryStore(self::config(maxSpans: 0, maxLogs: -1, maxMetrics: 0));
@@ -130,8 +159,11 @@ final class TelemetryStoreTest
         $store->add(self::batch('shop', spans: [self::span('t1', 's')], metrics: [self::metric('m')]));
         $store->add(self::batch('shop'));
         $store->add(self::batch('default', logs: [self::log(1)]));
+        $batch = new Batch('shop');
+        $batch->feedback[] = self::feedback('f1', 'shop');
+        $store->add($batch);
 
-        Assert::same($listener->calls, [['shop', ['trace', 'metric']], ['default', ['log']]]);
+        Assert::same($listener->calls, [['shop', ['trace', 'metric']], ['default', ['log']], ['shop', ['feedback']]]);
     }
 
     public function testEveryChangeOfATraceTakesTheNextSequenceNumber(): void
@@ -214,5 +246,14 @@ final class TelemetryStoreTest
     private static function metric(string $name, string $project = 'default'): Metric
     {
         return new Metric("id-$name", $project, $name, 'counter', 1.0, 1.0, Source::Sentry);
+    }
+
+    /**
+     * @param non-empty-string $id
+     * @param non-empty-string $project
+     */
+    private static function feedback(string $id, string $project = 'default', string $eventId = ''): Feedback
+    {
+        return new Feedback($id, $project, $eventId, '', '', '', 'Hi', '', Feedback::SOURCE_FEEDBACK, 1.0);
     }
 }

@@ -23,6 +23,9 @@ final class Batch
     /** @var list<Metric> */
     public array $metrics = [];
 
+    /** @var list<Feedback> */
+    public array $feedback = [];
+
     /**
      * @param non-empty-string $project
      */
@@ -31,7 +34,7 @@ final class Batch
     ) {}
 
     /**
-     * @return list<'trace'|'log'|'metric'> What the batch holds, as the UI names it.
+     * @return list<'trace'|'log'|'metric'|'feedback'> What the batch holds, as the UI names it.
      */
     public function kinds(): array
     {
@@ -39,6 +42,7 @@ final class Batch
         $this->transactions === [] && $this->spans === [] or $kinds[] = 'trace';
         $this->logs === [] or $kinds[] = 'log';
         $this->metrics === [] or $kinds[] = 'metric';
+        $this->feedback === [] or $kinds[] = 'feedback';
 
         return $kinds;
     }
