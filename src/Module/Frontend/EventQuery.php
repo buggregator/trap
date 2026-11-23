@@ -106,6 +106,11 @@ final class EventQuery
         }
 
         $seconds = (float) $m[1] * (float) ['m' => 60, 'h' => 3600, 'd' => 86400][$m[2]];
+        if ($seconds <= 0.0) {
+            // `0d` is no window, as in buggregator/server: else nothing would be in it
+            return null;
+        }
+
         return \microtime(true) - \min($seconds, (float) self::MAX_SPAN);
     }
 

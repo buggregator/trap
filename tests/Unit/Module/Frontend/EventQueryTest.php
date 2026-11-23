@@ -39,6 +39,8 @@ final class EventQueryTest
     {
         Assert::true(\abs(EventQuery::fromQueryString('window=3h')->since - (\microtime(true) - 10800)) < 5);
         Assert::null(EventQuery::fromQueryString('window=all')->since);
+        Assert::null(EventQuery::fromQueryString('window=0d')->since);
+        Assert::null(EventQuery::since('0m'));
 
         $since = EventQuery::fromQueryString('window=99999999999999999999d')->since;
         Assert::true(\abs($since - (\microtime(true) - 100 * 366 * 86400)) < 5);
