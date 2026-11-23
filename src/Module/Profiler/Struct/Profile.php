@@ -208,7 +208,7 @@ final class Profile implements \JsonSerializable
     {
         return [
             'date' => $this->date->getTimestamp(),
-            'app_name' => $this->metadata['app_name'] ?? '',
+            'app_name' => self::text($this->metadata['app_name'] ?? null),
             'hostname' => self::text($this->metadata['hostname'] ?? null),
             'filename' => self::text($this->metadata['filename'] ?? null),
             'profile_uuid' => $this->uuid,

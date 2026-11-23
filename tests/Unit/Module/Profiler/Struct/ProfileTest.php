@@ -120,11 +120,11 @@ final class ProfileTest
 
     public function testJsonSerializeLeavesOutMetadataSentAsStructures(): void
     {
-        $profile = new Profile(metadata: ['hostname' => ['web-1'], 'filename' => ['x' => 1]]);
+        $profile = new Profile(metadata: ['hostname' => ['web-1'], 'filename' => ['x' => 1], 'app_name' => ['shop']]);
 
         $json = $profile->jsonSerialize();
 
-        Assert::same([$json['hostname'], $json['filename']], ['', '']);
+        Assert::same([$json['hostname'], $json['filename'], $json['app_name']], ['', '', '']);
     }
 
     public function testFromArrayRestoresSerializedProfile(): void
