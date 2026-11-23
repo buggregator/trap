@@ -46,6 +46,7 @@ The argument schema of each tool is in its `inputSchema` (`mcp.php tools <name>`
 | `clear_events`    | Deletes the events matching a filter, or all; pinned ones stay unless `include_pinned: true`    |
 | `list_traces`     | Sentry and OpenTelemetry traces; filters by project, source, service, name, duration, errors    |
 | `get_trace`       | One trace as a tree of its spans and transactions                                               |
+| `list_queue_jobs` | Queue jobs from `queue.process` attempts: retries, failures, errors, time in the queue          |
 | `list_feedback`   | Sentry user feedback, newest first; by `project` or `event_id` of the error it is about         |
 | `profile_*`       | Analyze a `profiler` event, see [profiling.md](profiling.md#read-the-profile)                   |
 | `xdebug_*`        | Step debugging with Xdebug, see [xdebug.md](xdebug.md)                                          |
@@ -110,6 +111,21 @@ error, in its `trace` context, opens the trace of the failed request. Slow trace
 `{"from": "1h", "min_duration_ms": 500}`. The least recently updated traces are dropped once the kept spans and
 transactions pass 10 000 (`TRAP_TELEMETRY_MAX_SPANS`), and clearing the Sentry pages of the web UI drops them too.
 OpenTelemetry logs and metrics have no MCP tool.
+
+## Queue jobs
+
+`list_queue_jobs` answers why a job failed or was retried: it groups the attempts (transactions and spans with op
+`queue.process`: sentry-laravel, sentry-python Celery, OpenTelemetry spans that process a message) by
+`messaging.message.id` into jobs of one project and consumer (`messaging.consumer.group.name`, else the OTLP
+service), the latest finished first. A job fails when its last attempt fails with any status but `ok`, `cancelled`
+and `unknown`; whether the worker retries it is not sent. `attempts` counts the runs, also those Trap missed when an
+attempt reports earlier retries; `failed_attempts` the stored ones that failed. `latency_ms` is the time in the queue
+before the last attempt, always milliseconds (sentry-laravel's seconds are converted). Each job holds
+`dispatched_by`, the transaction that queued it, and its latest 10 attempts with their `trace_id` for `get_trace` and
+errors with `uuid` for `get_event`; an error shows on one attempt only. Filters: `project`, `id` (a job's `id`:
+`project/consumer/message-id`, without `consumer/` when it has none), `queue`, `job` (the class), `status` (`ok`,
+`failed`, `retried`), `from`, `to` (the end of the last attempt). The jobs live in the stored traces: the same
+limits and clearing.
 
 ## User feedback
 

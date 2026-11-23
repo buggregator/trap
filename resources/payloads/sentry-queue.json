@@ -1,0 +1,261 @@
+[
+    [
+        {
+            "event_id": "{{hex32 dispatch}}",
+            "sent_at": "{{iso -11.790}}",
+            "dsn": "http://sentry@127.0.0.1:9912/1",
+            "sdk": {"name": "sentry.php.laravel", "version": "4.15.0"},
+            "trace": {"trace_id": "{{hex32 trace}}", "public_key": "sentry", "sample_rate": "1", "sampled": "true", "transaction": "POST /invoices/send", "environment": "local", "release": "shop@1.4.0"}
+        },
+        {"type": "transaction", "content_type": "application/json"},
+        {
+            "event_id": "{{hex32 dispatch}}",
+            "type": "transaction",
+            "transaction": "POST /invoices/send",
+            "transaction_info": {"source": "route"},
+            "start_timestamp": "{{ts -12.000}}",
+            "timestamp": "{{ts -11.800}}",
+            "platform": "php",
+            "sdk": {"name": "sentry.php.laravel", "version": "4.15.0"},
+            "server_name": "shop-api",
+            "release": "shop@1.4.0",
+            "environment": "local",
+            "contexts": {
+                "trace": {
+                    "trace_id": "{{hex32 trace}}",
+                    "span_id": "8c1d3e5f7a9b0c2d",
+                    "op": "http.server",
+                    "status": "ok",
+                    "origin": "auto.http.server",
+                    "data": {"http.request.method": "POST", "http.response.status_code": 202, "url": "http://shop.local/invoices/send"}
+                }
+            },
+            "request": {"url": "http://shop.local/invoices/send", "method": "POST"},
+            "spans": [
+                {"trace_id": "{{hex32 trace}}", "span_id": "1a2b3c4d5e6f7081", "parent_span_id": "8c1d3e5f7a9b0c2d", "op": "queue.publish", "description": "App\\Jobs\\SendInvoice", "status": "ok", "origin": "auto.queue", "start_timestamp": "{{ts -11.900}}", "timestamp": "{{ts -11.890}}", "data": {"messaging.system": "laravel", "messaging.message.id": "{{uuid invoice}}", "messaging.destination.name": "emails", "messaging.destination.connection": "redis"}},
+                {"trace_id": "{{hex32 trace}}", "span_id": "2b3c4d5e6f708192", "parent_span_id": "8c1d3e5f7a9b0c2d", "op": "queue.publish", "description": "App\\Jobs\\GenerateReport", "status": "ok", "origin": "auto.queue", "start_timestamp": "{{ts -11.880}}", "timestamp": "{{ts -11.872}}", "data": {"messaging.system": "laravel", "messaging.message.id": "{{uuid report}}", "messaging.destination.name": "reports", "messaging.destination.connection": "redis"}}
+            ]
+        }
+    ],
+    [
+        {
+            "event_id": "{{hex32 error}}",
+            "sent_at": "{{iso -11.080}}",
+            "dsn": "http://sentry@127.0.0.1:9912/1",
+            "sdk": {"name": "sentry.php.laravel", "version": "4.15.0"},
+            "trace": {"trace_id": "{{hex32 trace}}", "public_key": "sentry", "sample_rate": "1", "sampled": "true", "transaction": "App\\Jobs\\SendInvoice", "environment": "local", "release": "shop@1.4.0"}
+        },
+        {"type": "event", "content_type": "application/json"},
+        {
+            "event_id": "{{hex32 error}}",
+            "timestamp": "{{ts -11.095}}",
+            "platform": "php",
+            "sdk": {"name": "sentry.php.laravel", "version": "4.15.0"},
+            "level": "error",
+            "server_name": "shop-worker",
+            "release": "shop@1.4.0",
+            "environment": "local",
+            "transaction": "App\\Jobs\\SendInvoice",
+            "contexts": {
+                "runtime": {"name": "php", "sapi": "cli", "version": "8.4.1"},
+                "trace": {"trace_id": "{{hex32 trace}}", "span_id": "e1f2a3b4c5d6e7f8", "parent_span_id": "1a2b3c4d5e6f7081"}
+            },
+            "exception": {
+                "values": [
+                    {
+                        "type": "Symfony\\Component\\Mailer\\Exception\\TransportException",
+                        "value": "Connection to \"smtp.shop.local:587\" timed out.",
+                        "stacktrace": {
+                            "frames": [
+                                {"filename": "/artisan", "lineno": 13, "in_app": true, "abs_path": "/app/artisan", "function": "{main}", "context_line": "$status = $kernel->handle($input = new ArgvInput, new ConsoleOutput);"},
+                                {"filename": "/app/Jobs/SendInvoice.php", "lineno": 31, "in_app": true, "abs_path": "/app/app/Jobs/SendInvoice.php", "function": "App\\Jobs\\SendInvoice::handle", "raw_function": "App\\Jobs\\SendInvoice::handle", "pre_context": ["    public function handle(Mailer $mailer): void", "    {"], "context_line": "        $mailer->send(new InvoiceMail($this->invoice));", "post_context": ["    }"]}
+                            ]
+                        },
+                        "mechanism": {"type": "generic", "handled": false}
+                    }
+                ]
+            }
+        }
+    ],
+    [
+        {
+            "event_id": "{{hex32 attempt1}}",
+            "sent_at": "{{iso -11.090}}",
+            "dsn": "http://sentry@127.0.0.1:9912/1",
+            "sdk": {"name": "sentry.php.laravel", "version": "4.15.0"},
+            "trace": {"trace_id": "{{hex32 trace}}", "public_key": "sentry", "sample_rate": "1", "sampled": "true", "transaction": "App\\Jobs\\SendInvoice", "environment": "local", "release": "shop@1.4.0"}
+        },
+        {"type": "transaction", "content_type": "application/json"},
+        {
+            "event_id": "{{hex32 attempt1}}",
+            "type": "transaction",
+            "transaction": "App\\Jobs\\SendInvoice",
+            "transaction_info": {"source": "task"},
+            "start_timestamp": "{{ts -11.500}}",
+            "timestamp": "{{ts -11.100}}",
+            "platform": "php",
+            "sdk": {"name": "sentry.php.laravel", "version": "4.15.0"},
+            "server_name": "shop-worker",
+            "release": "shop@1.4.0",
+            "environment": "local",
+            "contexts": {
+                "trace": {
+                    "trace_id": "{{hex32 trace}}",
+                    "span_id": "3c4d5e6f70819203",
+                    "parent_span_id": "1a2b3c4d5e6f7081",
+                    "op": "queue.process",
+                    "status": "internal_error",
+                    "origin": "auto.queue",
+                    "data": {"messaging.system": "laravel", "messaging.destination.name": "emails", "messaging.destination.connection": "redis", "messaging.message.id": "{{uuid invoice}}", "messaging.message.envelope.size": 1873, "messaging.message.body.size": 412, "messaging.message.retry.count": 0, "messaging.message.receive.latency": 0.39}
+                }
+            },
+            "spans": [
+                {"trace_id": "{{hex32 trace}}", "span_id": "6f708192a3b4c5d6", "parent_span_id": "3c4d5e6f70819203", "op": "db.sql.query", "description": "SELECT * FROM invoices WHERE id = ?", "status": "ok", "origin": "auto.db", "start_timestamp": "{{ts -11.480}}", "timestamp": "{{ts -11.472}}", "data": {"db.system": "mysql", "db.name": "shop", "server.address": "mysql", "server.port": 3306}}
+            ]
+        }
+    ],
+    [
+        {
+            "event_id": "{{hex32 attempt2}}",
+            "sent_at": "{{iso -1.190}}",
+            "dsn": "http://sentry@127.0.0.1:9912/1",
+            "sdk": {"name": "sentry.php.laravel", "version": "4.15.0"},
+            "trace": {"trace_id": "{{hex32 trace}}", "public_key": "sentry", "sample_rate": "1", "sampled": "true", "transaction": "App\\Jobs\\SendInvoice", "environment": "local", "release": "shop@1.4.0"}
+        },
+        {"type": "transaction", "content_type": "application/json"},
+        {
+            "event_id": "{{hex32 attempt2}}",
+            "type": "transaction",
+            "transaction": "App\\Jobs\\SendInvoice",
+            "transaction_info": {"source": "task"},
+            "start_timestamp": "{{ts -1.600}}",
+            "timestamp": "{{ts -1.200}}",
+            "platform": "php",
+            "sdk": {"name": "sentry.php.laravel", "version": "4.15.0"},
+            "server_name": "shop-worker",
+            "release": "shop@1.4.0",
+            "environment": "local",
+            "contexts": {
+                "trace": {
+                    "trace_id": "{{hex32 trace}}",
+                    "span_id": "4d5e6f708192a3b4",
+                    "parent_span_id": "1a2b3c4d5e6f7081",
+                    "op": "queue.process",
+                    "status": "ok",
+                    "origin": "auto.queue",
+                    "data": {"messaging.system": "laravel", "messaging.destination.name": "emails", "messaging.destination.connection": "redis", "messaging.message.id": "{{uuid invoice}}", "messaging.message.envelope.size": 1873, "messaging.message.body.size": 412, "messaging.message.retry.count": 1, "messaging.message.receive.latency": 10.29}
+                }
+            },
+            "spans": [
+                {"trace_id": "{{hex32 trace}}", "span_id": "708192a3b4c5d6e7", "parent_span_id": "4d5e6f708192a3b4", "op": "db.sql.query", "description": "SELECT * FROM invoices WHERE id = ?", "status": "ok", "origin": "auto.db", "start_timestamp": "{{ts -1.580}}", "timestamp": "{{ts -1.572}}", "data": {"db.system": "mysql", "db.name": "shop", "server.address": "mysql", "server.port": 3306}}
+            ]
+        }
+    ],
+    [
+        {
+            "event_id": "{{hex32 report}}",
+            "sent_at": "{{iso -8.890}}",
+            "dsn": "http://sentry@127.0.0.1:9912/1",
+            "sdk": {"name": "sentry.php.laravel", "version": "4.15.0"},
+            "trace": {"trace_id": "{{hex32 trace}}", "public_key": "sentry", "sample_rate": "1", "sampled": "true", "transaction": "App\\Jobs\\GenerateReport", "environment": "local", "release": "shop@1.4.0"}
+        },
+        {"type": "transaction", "content_type": "application/json"},
+        {
+            "event_id": "{{hex32 report}}",
+            "type": "transaction",
+            "transaction": "App\\Jobs\\GenerateReport",
+            "transaction_info": {"source": "task"},
+            "start_timestamp": "{{ts -10.500}}",
+            "timestamp": "{{ts -8.900}}",
+            "platform": "php",
+            "sdk": {"name": "sentry.php.laravel", "version": "4.15.0"},
+            "server_name": "shop-worker",
+            "release": "shop@1.4.0",
+            "environment": "local",
+            "contexts": {
+                "trace": {
+                    "trace_id": "{{hex32 trace}}",
+                    "span_id": "5e6f708192a3b4c5",
+                    "parent_span_id": "2b3c4d5e6f708192",
+                    "op": "queue.process",
+                    "status": "ok",
+                    "origin": "auto.queue",
+                    "data": {"messaging.system": "laravel", "messaging.destination.name": "reports", "messaging.destination.connection": "redis", "messaging.message.id": "{{uuid report}}", "messaging.message.envelope.size": 954, "messaging.message.body.size": 96, "messaging.message.retry.count": 0, "messaging.message.receive.latency": 1.372}
+                }
+            }
+        }
+    ],
+    [
+        {
+            "event_id": "{{hex32 stock}}",
+            "sent_at": "{{iso -2.990}}",
+            "dsn": "http://sentry@127.0.0.1:9912/1",
+            "sdk": {"name": "sentry.php.laravel", "version": "4.15.0"},
+            "trace": {"trace_id": "{{hex32 stocktrace}}", "public_key": "sentry", "sample_rate": "1", "sampled": "true", "transaction": "App\\Jobs\\SyncStock", "environment": "local", "release": "shop@1.4.0"}
+        },
+        {"type": "transaction", "content_type": "application/json"},
+        {
+            "event_id": "{{hex32 stock}}",
+            "type": "transaction",
+            "transaction": "App\\Jobs\\SyncStock",
+            "transaction_info": {"source": "task"},
+            "start_timestamp": "{{ts -6.000}}",
+            "timestamp": "{{ts -3.000}}",
+            "platform": "php",
+            "sdk": {"name": "sentry.php.laravel", "version": "4.15.0"},
+            "server_name": "shop-worker",
+            "release": "shop@1.4.0",
+            "environment": "local",
+            "contexts": {
+                "trace": {
+                    "trace_id": "{{hex32 stocktrace}}",
+                    "span_id": "9d0e1f2a3b4c5d6e",
+                    "op": "queue.process",
+                    "status": "internal_error",
+                    "origin": "auto.queue",
+                    "data": {"messaging.system": "laravel", "messaging.destination.name": "default", "messaging.destination.connection": "database", "messaging.message.id": "{{uuid stock}}", "messaging.message.envelope.size": 640, "messaging.message.body.size": 54, "messaging.message.retry.count": 2, "messaging.message.receive.latency": 125.4}
+                }
+            }
+        }
+    ],
+    [
+        {
+            "event_id": "{{hex32 stockerror}}",
+            "sent_at": "{{iso -2.980}}",
+            "dsn": "http://sentry@127.0.0.1:9912/1",
+            "sdk": {"name": "sentry.php.laravel", "version": "4.15.0"},
+            "trace": {"trace_id": "{{hex32 stocktrace}}", "public_key": "sentry", "sample_rate": "1", "sampled": "true", "transaction": "App\\Jobs\\SyncStock", "environment": "local", "release": "shop@1.4.0"}
+        },
+        {"type": "event", "content_type": "application/json"},
+        {
+            "event_id": "{{hex32 stockerror}}",
+            "timestamp": "{{ts -2.996}}",
+            "platform": "php",
+            "sdk": {"name": "sentry.php.laravel", "version": "4.15.0"},
+            "level": "error",
+            "server_name": "shop-worker",
+            "release": "shop@1.4.0",
+            "environment": "local",
+            "transaction": "App\\Jobs\\SyncStock",
+            "contexts": {
+                "runtime": {"name": "php", "sapi": "cli", "version": "8.4.1"},
+                "trace": {"trace_id": "{{hex32 stocktrace}}", "span_id": "a7b8c9d0e1f2a3b4"}
+            },
+            "exception": {
+                "values": [
+                    {
+                        "type": "Illuminate\\Http\\Client\\ConnectionException",
+                        "value": "cURL error 28: Operation timed out after 3000 milliseconds (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) for https://warehouse.example.com/api/stock",
+                        "stacktrace": {
+                            "frames": [
+                                {"filename": "/artisan", "lineno": 13, "in_app": true, "abs_path": "/app/artisan", "function": "{main}", "context_line": "$status = $kernel->handle($input = new ArgvInput, new ConsoleOutput);"},
+                                {"filename": "/app/Jobs/SyncStock.php", "lineno": 24, "in_app": true, "abs_path": "/app/app/Jobs/SyncStock.php", "function": "App\\Jobs\\SyncStock::handle", "raw_function": "App\\Jobs\\SyncStock::handle", "pre_context": ["    public function handle(): void", "    {"], "context_line": "        $stock = Http::timeout(3)->get('https://warehouse.example.com/api/stock')->json();", "post_context": ["        Product::syncStock($stock);"]}
+                            ]
+                        },
+                        "mechanism": {"type": "generic", "handled": false}
+                    }
+                ]
+            }
+        }
+    ]
+]

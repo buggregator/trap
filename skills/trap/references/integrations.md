@@ -19,7 +19,9 @@ its error reporting. The `sentry` events are the errors: a transaction is a trac
 `sentry` event). Sentry logs and trace metrics make no event
 and show only on the Sentry pages of the web UI. User feedback (`feedback`, `user_report`) makes no event either: the
 web UI shows it on its error and the Feedback tab, and `list_feedback` reads it, see
-[mcp.md](mcp.md#user-feedback). A body over 2 MB gets `413`, and an event Trap can't parse is dropped
+[mcp.md](mcp.md#user-feedback). Queue job transactions (`queue.process`; sentry-laravel sends them with
+tracing on, `SENTRY_TRACES_SAMPLE_RATE=1`) are traces and the jobs of the Queues tab; `list_queue_jobs` reads them, see
+[mcp.md](mcp.md#queue-jobs). A body over 2 MB gets `413`, and an event Trap can't parse is dropped
 with a warning in its console. The `X-Buggregator-Project` header sets the `project` of the event.
 
 ## Monolog

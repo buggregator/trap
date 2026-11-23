@@ -858,6 +858,20 @@ final class ServerTest
             Assert::same($status, 200);
             Assert::notBlank(self::json($body)['data'], "No Sentry $page");
         }
+        [, , $jobs] = TrapProcess::http($this->uiPort, 'GET', '/api/sentry/queues/jobs?project=default&window=1h');
+        $jobs = self::json($jobs)['data'];
+        Assert::same(\array_column($jobs, 'job'), ['App\Jobs\SendInvoice', 'App\Jobs\SyncStock', 'App\Jobs\GenerateReport']);
+        Assert::same(\array_column($jobs, 'failed'), [false, true, false]);
+        Assert::same([$jobs[0]['attempts'], $jobs[0]['failed_attempts']], [2, 1]);
+        [$status, , $job] = TrapProcess::http($this->uiPort, 'GET', '/api/sentry/queues/jobs/' . \rawurlencode($jobs[0]['id']));
+        Assert::same($status, 200);
+        $job = self::json($job);
+        Assert::same($job['dispatched_by']['transaction_name'], 'POST /invoices/send');
+        Assert::same(\array_column($job['attempt_list'], 'latency_ms'), [390, 10290], 'sentry-laravel sends seconds');
+        Assert::same(
+            \array_column($job['attempt_list'][0]['errors'], 'exception_type'),
+            ['Symfony\Component\Mailer\Exception\TransportException'],
+        );
         [, , $feedback] = TrapProcess::http($this->uiPort, 'GET', '/api/sentry/feedback?project=default');
         $feedback = self::json($feedback)['data'];
         Assert::same(\array_column($feedback, 'name'), ['bob', 'Alice']);

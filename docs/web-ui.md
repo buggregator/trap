@@ -63,9 +63,8 @@ sessions and steps through the ones Trap drives, and its setup guide shows the d
 The UI has pages for features of the Buggregator Server that Trap has not: metrics, the mock server, updates.
 They show no data, and the menu of the mock server stays while HTTP dumps are on: hide it in Settings › Menu.
 Other features of the server stay hidden, as Trap answers 404 to their endpoints: the Broadcast page, the Crons
-and Queues tabs of the Sentry section, the
-«Send to inbox» button of an email (Settings › Email relay says the server can't send email), sign-in and the
-audit log.
+tab of the Sentry section, the «Send to inbox» button of an email (Settings › Email relay says the server can't
+send email), sign-in and the audit log.
 
 ## Logs and feed filters
 
@@ -102,12 +101,18 @@ The Sentry section has a page for each kind of data:
 - Logs and Metrics: Sentry `log` and `trace_metric` items, OTLP logs and metrics.
 - Feedback: the [user feedback](sentry.md#user-feedback) of the project, each with a link to its error; the page of
   an error shows the feedback on it. The tab shows once the period has feedback.
+- Queues: the [queue jobs](sentry.md#queue-jobs) whose last attempt ended in the period, the latest first, with
+  their status, queue, attempts and failures, and the jobs, failures, retried jobs and average duration of the
+  period above. The page of a job shows its attempts on a time scale with the pauses between them, the time each
+  waited in the queue, their errors and traces, and the request that queued the job. The tab shows once the
+  period has a job.
 
 Traces, logs, metrics and feedback make no events in the feed: a Sentry transaction is a trace, and the feed holds
 the errors. Trap keeps them in memory while the UI or the [MCP server](mcp.md) runs, and the UI asks for them by
-project and period. The MCP tools [`list_traces` and `get_trace`](mcp.md#traces) read the same traces, and
-[`list_feedback`](mcp.md#user-feedback) the same feedback. "Clear all" in the Sentry section deletes them with the
-Sentry events; with the pinned events kept, the feedback on a pinned error stays too.
+project and period. The MCP tools [`list_traces` and `get_trace`](mcp.md#traces) read the same traces,
+[`list_queue_jobs`](mcp.md#queue-jobs) the same jobs, and [`list_feedback`](mcp.md#user-feedback) the same
+feedback. "Clear all" in the Sentry section deletes them with the Sentry events; with the pinned events kept, the
+feedback on a pinned error stays too.
 
 Memory is bounded by these limits; values below 1 fall back to the defaults:
 

@@ -418,7 +418,10 @@ final class Test extends Command
     /**
      * Legacy SDK requests, then the envelopes the PHP SDK 4.x sends for one failed request: the error,
      * the transaction of its trace, logs and trace metrics, user feedback on the error and on its own;
-     * and an error with logs of another project.
+     * an error with logs of another project; and the queue jobs sentry-laravel traces for one request:
+     * one fails with its error and succeeds on the retry, another succeeds at once; and the third attempt of
+     * a job that fails on a timed-out HTTP call. Their errors carry the context sentry-laravel reports a job's
+     * exception with: a span ID of no span, the parent of the attempt.
      */
     private function sentry(): void
     {
@@ -438,6 +441,13 @@ final class Test extends Command
             /** @var mixed $envelope */
             foreach (self::template('sentry-billing.json') as $envelope) {
                 $this->sentryEnvelope(2, $envelope, ['X-Buggregator-Project' => 'billing']);
+            }
+        });
+
+        $this->attempt('Sentry queue jobs', function (): void {
+            /** @var mixed $envelope */
+            foreach (self::template('sentry-queue.json') as $envelope) {
+                $this->sentryEnvelope(1, $envelope);
             }
         });
     }

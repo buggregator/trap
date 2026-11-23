@@ -18,7 +18,8 @@ Other clients take the same URL with the `http` (Streamable HTTP) transport type
 ## Tools
 
 The tools read the events Trap has caught, [CSP reports](#csp-reports) among them, the Sentry and OpenTelemetry
-[traces](#traces) it has received, Sentry [user feedback](#user-feedback), and the call trees of
+[traces](#traces) it has received, the [queue jobs](#queue-jobs) in them, Sentry [user feedback](#user-feedback),
+and the call trees of
 [Xdebug traces](#xdebug-traces). The events are the ones the [web UI](web-ui.md) shows, kept with
 `--mcp` alone too. An event deleted in the UI is gone for the agent. An event
 the agent deletes is gone from the UI on its next load; a page already open keeps showing it.
@@ -346,6 +347,27 @@ dropped. Clearing the Sentry pages of the web UI drops their traces for the tool
 - `event_id` is the Sentry event ID of an error, with or without dashes: only the feedback on it. `error_uuid` is the
   ID of that error for `get_event`, null when Trap no longer has it or the feedback is about no error.
 - `limit` is 20 by default, 100 at most; `total` counts all the matching entries.
+
+### Queue jobs
+
+`list_queue_jobs` groups the `queue.process` attempts of the stored traces into the [queue jobs](sentry.md#queue-jobs)
+of the Queues tab of the web UI: `list_traces` lists each attempt as a trace of its own, or one trace for them all
+when the worker continues the trace of the request that queued the job.
+
+| Tool              | Arguments                                                        | Result                                                                                                                                                                                                                              |
+| ----------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_queue_jobs` | `project`, `id`, `queue`, `job`, `status`, `from`, `to`, `limit` | `jobs`: `id`, `message_id`, `job`, `queue`, `connection`, `system`, `project`, `status`, `failed`, `attempts`, `failed_attempts`, `duration_ms`, `latency_ms`, `started`, `finished`, `dispatched_by`, `attempt_list` each; `total` |
+
+- Jobs come the latest finished first; `limit` is 20 by default, 100 at most; `total` counts all the matching jobs.
+- `id` is the [job ID](sentry.md#queue-jobs) of a previous call: its project, consumer and message ID joined by `/`,
+  as `default/6c54ce88-826c-45bc-94cd-52297cf7c63e`. `status` is `ok` or `failed` by the last
+  attempt, or `retried` for a job run more than once. `from` and `to` take the times of [the event filter](#filters)
+  and match the end of the last attempt.
+- `latency_ms` is the time the message waited in the queue before the last attempt, in milliseconds whatever unit
+  the SDK sent; `dispatched_by` is the `trace_id` and `name` of the transaction that queued the job, or null.
+- `attempt_list` holds the latest 10 stored attempts, oldest first: `attempt` (its number), `status`, `failed`,
+  `duration_ms`, `latency_ms`, `started`, `trace_id` for `get_trace`, and `errors`: the `uuid` for `get_event`,
+  `type` and `value` of each [error of the attempt](sentry.md#queue-jobs).
 
 ### CSP reports
 
