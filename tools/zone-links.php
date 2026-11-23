@@ -46,11 +46,28 @@ $parse = static function (string $line): array {
 
 // A link `backward` sends to the zone of another country with the same clocks, as `Iceland` to `Africa/Abidjan`:
 // the zone of its own country is the `#= ` hint of `backward` or the link of `backzone`, when that zone is current
-$ownZones = [];
+$backzone = [];
 foreach ($read('backzone') as $line) {
+    if (\preg_match('/^(?:#PACKRATLIST\s+\S+\s+)?Link\b/', $line) !== 1) {
+        continue;
+    }
+
     \preg_match('/^(?:#PACKRATLIST\s+zone\.tab\s+)?Link\s+(\S+)\s+(\S+)\s*(?:#.*)?$/', $line, $m) === 1
-        && isset($current[$m[1]])
-        and $ownZones[$m[2]] = $m[1];
+        or throw new \RuntimeException("A link of an unexpected shape in `backzone`: $line");
+    $backzone[$m[2]] = $m[1];
+}
+
+$ownZones = [];
+foreach ($backzone as $name => $target) {
+    if (isset($current[$target])) {
+        $ownZones[$name] = $target;
+        continue;
+    }
+
+    // A chain to a current zone is not followed: a new tzdata that needs one stops the script
+    isset($backzone[$target]) && isset($current[$backzone[$target]]) and throw new \RuntimeException(
+        "`backzone` links `$name` to `$target`, a link to the current zone `{$backzone[$target]}`.",
+    );
 }
 
 $links = [];
