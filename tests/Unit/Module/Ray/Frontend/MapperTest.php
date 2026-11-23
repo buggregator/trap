@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Ray\Frontend;
 
+use Buggregator\Trap\Module\Frontend\RPC;
 use Buggregator\Trap\Module\Ray\Frame;
 use Buggregator\Trap\Module\Ray\Frontend\Mapper;
+use Buggregator\Trap\Module\Ray\Frontend\Payload;
+use Buggregator\Trap\Module\Ray\Lock\Locks;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Event\FrameMapper;
@@ -25,7 +28,7 @@ final class MapperTest
     {
         $frame = Frame::fromString(FrameTest::REQUEST, new \DateTimeImmutable('@1767323045.5'));
 
-        $event = (new Mapper(new EventStore()))->map($frame);
+        $event = (new Mapper(new EventStore(), new Locks()))->map($frame);
 
         $json = \json_decode(\json_encode($event, \JSON_THROW_ON_ERROR), true);
         Assert::same($json['uuid'], self::UUID);
@@ -38,7 +41,7 @@ final class MapperTest
     public function testChainedCallsAddPayloadsToTheEvent(): void
     {
         $storage = new EventStore();
-        $mapper = new Mapper($storage);
+        $mapper = new Mapper($storage, new Locks());
         $first = $mapper->map(self::frame([['type' => 'log', 'content' => ['values' => ['x']]]], 10.0));
         \assert($first !== null);
         $storage->add($first);
@@ -56,7 +59,7 @@ final class MapperTest
         $storage->add(new Event('aa-1', 'ray', [], 1.0));
         $storage->add(new Event('aa-2', 'monolog', [], 1.0));
 
-        $event = (new Mapper($storage))->map(self::frame([['type' => 'clear_all', 'content' => []]], 2.0));
+        $event = (new Mapper($storage, new Locks()))->map(self::frame([['type' => 'clear_all', 'content' => []]], 2.0));
 
         Assert::null($event);
         Assert::null($storage->get('aa-1'));
@@ -69,7 +72,7 @@ final class MapperTest
             . '<pre class=sf-dump id=sf-dump-42 data-indent-pad="  "><span class=sf-dump-note>array:1</span></pre>'
             . '<script>Sfdump("sf-dump-42")</script>';
 
-        $event = (new Mapper(new EventStore()))->map(self::frame([
+        $event = (new Mapper(new EventStore(), new Locks()))->map(self::frame([
             ['type' => 'log', 'content' => ['values' => [$dump, 'plain'], 'meta' => []]],
         ], 1.0));
 
@@ -81,7 +84,7 @@ final class MapperTest
 
     public function testReplacesUuidTheUiCannotRoute(): void
     {
-        $event = (new Mapper(new EventStore()))->map(new Frame('not/a uuid', [['type' => 'log']]));
+        $event = (new Mapper(new EventStore(), new Locks()))->map(new Frame('not/a uuid', [['type' => 'log']]));
 
         Assert::same(\preg_match('/^[a-f0-9-]+$/', (string) $event?->uuid), 1);
     }
@@ -96,7 +99,7 @@ final class MapperTest
     public function testHostsOfAllPayloadOriginsAreFacets(): void
     {
         $storage = new EventStore();
-        $mapper = new Mapper($storage);
+        $mapper = new Mapper($storage, new Locks());
         $first = $mapper->map(self::frame([['type' => 'log', 'origin' => ['hostname' => 'web-1']]], 10.0));
         \assert($first !== null);
         $storage->add($first);
@@ -105,6 +108,54 @@ final class MapperTest
 
         Assert::same($first->facets, ['host' => ['web-1']]);
         Assert::same($second?->facets, ['host' => ['web-1', 'web-2']]);
+    }
+
+    /**
+     * A Continue that lands before the event is stored: the event comes with the state.
+     */
+    public function testPauseReleasedBeforeItsEventIsStoredHasTheState(): void
+    {
+        $container = new ObjectContainer();
+        $container->get(Locks::class)->create('aaa');
+        $container->get(RPC::class)->handleMessage(['method' => 'post:api/ray/locks/aaa', 'data' => []]);
+
+        $event = $container->get(FrameMapper::class)->map(self::frame([
+            ['type' => 'create_lock', 'content' => ['name' => 'aaa']],
+            ['type' => 'create_lock', 'content' => ['name' => 'bbb']],
+        ], 1.0));
+
+        \assert($event?->payload instanceof Payload);
+        Assert::same(\array_column($event->payload->payloads, 'content'), [
+            ['name' => 'aaa', 'state' => 'continued'],
+            ['name' => 'bbb'],
+        ]);
+    }
+
+    /**
+     * A client pausing in the same second as a released pause joins its lock and goes on at once.
+     */
+    public function testPauseJoiningReleasedLockHasTheState(): void
+    {
+        $locks = new Locks();
+        $locks->create('aaa');
+        $locks->resolve('aaa', stop: true);
+        $locks->create('aaa');
+
+        $event = (new Mapper(new EventStore(), $locks))->map(self::frame([['type' => 'create_lock', 'content' => ['name' => 'aaa']]], 1.0));
+
+        \assert($event?->payload instanceof Payload);
+        Assert::same($event->payload->payloads[0]['content'], ['name' => 'aaa', 'state' => 'stopped']);
+    }
+
+    public function testPendingPauseHasNoState(): void
+    {
+        $locks = new Locks();
+        $locks->create('aaa');
+
+        $event = (new Mapper(new EventStore(), $locks))->map(self::frame([['type' => 'create_lock', 'content' => ['name' => 'aaa']]], 1.0));
+
+        \assert($event?->payload instanceof Payload);
+        Assert::same($event->payload->payloads[0]['content'], ['name' => 'aaa']);
     }
 
     private static function frame(array $payloads, float $time): Frame

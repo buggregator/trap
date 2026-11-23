@@ -263,6 +263,20 @@ final class UiControllersTest
     }
 
     /**
+     * The UI tells that the script no longer waits.
+     */
+    public function testUnknownRayLockOverHttpIsNotFound(): void
+    {
+        $response = (new ObjectContainer())->get(Pipeline::class)->handle(
+            new ServerRequest('POST', '/api/ray/locks/ccc', ['Content-Type' => 'application/json'], '{}'),
+            static fn(): Response => new Response(500),
+        );
+
+        Assert::same($response->getStatusCode(), 404);
+        Assert::same(\json_decode((string) $response->getBody(), true), ['error' => 'Lock not found.', 'status' => false]);
+    }
+
+    /**
      * The UI takes an RPC call for done only on a 2xx `code`; a call with no reply fails it by a timeout.
      */
     public function testRpcRepliesWithCodeOfTheCall(): void
