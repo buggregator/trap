@@ -68,7 +68,8 @@ final class WaitForEvents implements WaitingTool
             . 'events the code sends before that are missed, so to be safe take a `cursor` from `list_events` '
             . '(or from an earlier wait) before triggering the code, and pass it as `since`. Pass the returned '
             . '`cursor` to the next wait or `list_events` to miss nothing. Traces, Sentry transactions among '
-            . 'them, are not events and never arrive here: read them with `list_traces`.',
+            . 'them, are not events and never arrive here: read them with `list_traces`. Neither does Sentry user '
+            . 'feedback, an envelope of only feedback included: read it with `list_feedback`.',
             self::DEFAULT_TIMEOUT,
             self::MAX_TIMEOUT,
         );

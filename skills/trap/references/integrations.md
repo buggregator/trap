@@ -18,7 +18,8 @@ its error reporting. The `sentry` events are the errors: a transaction is a trac
 `get_trace` (in an envelope with an error, the error is still the event; a transaction without a trace ID stays a
 `sentry` event). Sentry logs and trace metrics make no event
 and show only on the Sentry pages of the web UI. User feedback (`feedback`, `user_report`) makes no event either: the
-web UI shows it on its error and the Feedback tab, and `list_feedback` reads it, see [mcp.md](mcp.md#traces). A body over 2 MB gets `413`, and an event Trap can't parse is dropped
+web UI shows it on its error and the Feedback tab, and `list_feedback` reads it, see
+[mcp.md](mcp.md#user-feedback). A body over 2 MB gets `413`, and an event Trap can't parse is dropped
 with a warning in its console. The `X-Buggregator-Project` header sets the `project` of the event.
 
 ## Monolog

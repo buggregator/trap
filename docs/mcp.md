@@ -331,7 +331,8 @@ dropped. Clearing the Sentry pages of the web UI drops their traces for the tool
 
 ### User feedback
 
-[Sentry user feedback](sentry.md#user-feedback) is not an event either: `list_events` doesn't list it.
+[Sentry user feedback](sentry.md#user-feedback) is not an event either: `list_events` doesn't list it, and
+`wait_for_events` doesn't return for an envelope of only feedback. Read it with `list_feedback`.
 
 | Tool            | Arguments                      | Result                                                                                                                               |
 | --------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |

@@ -106,8 +106,11 @@ the span tree with durations and attributes; a Sentry span is named `op: descrip
 error, in its `trace` context, opens the trace of the failed request. Slow traces of the last hour:
 `{"from": "1h", "min_duration_ms": 500}`. The least recently updated traces are dropped once the kept spans and
 transactions pass 10 000 (`TRAP_TELEMETRY_MAX_SPANS`), and clearing the Sentry pages of the web UI drops them too.
-
-Sentry user feedback (`feedback` and `user_report` items) is not an event either: read it with `list_feedback`.
-`event_id` takes the Sentry event ID of an error, with or without dashes; `error_uuid` in the result is that error's
-`id` for `get_event`. The last 1 000 entries are kept.
 OpenTelemetry logs and metrics have no MCP tool.
+
+## User feedback
+
+Sentry user feedback (`feedback` and `user_report` items) is not an event either: `wait_for_events` never sees it,
+an envelope of only feedback included, so read it with `list_feedback`. `event_id` takes the Sentry event ID of an
+error, with or without dashes; `error_uuid` in the result is that error's `id` for `get_event`. The last 1 000
+entries are kept, pinned errors or not, and clearing the Sentry pages of the web UI drops them too.

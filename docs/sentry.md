@@ -41,8 +41,9 @@ the failed ones and the trace ID, and AI agents read it with [`list_traces` and 
 sent without a transaction get the same line, named after their root span. An envelope of an error and the
 transaction of its request gives the error event and the trace. A `/store` payload with an exception is an error,
 whatever its type. A transaction without a trace ID fits no trace and stays a `sentry` event; the console prints
-one line for it too. An envelope of only transactions, logs, metrics, spans, feedback or SDK bookkeeping makes no event. Trap
-keeps the traces, logs and metrics while the [web UI](web-ui.md#sentry-pages) or the [MCP server](mcp.md) runs.
+one line for it too. An envelope of only transactions, logs, metrics, spans, feedback or SDK bookkeeping makes no
+event. Trap keeps the traces, logs, metrics and feedback while the [web UI](web-ui.md#sentry-pages) or the
+[MCP server](mcp.md) runs.
 
 The `X-Buggregator-Project` header puts the event and the data of the request into that project of the web UI;
 without it they land in `default`.
@@ -59,7 +60,8 @@ they are about, and AI agents read them with [`list_feedback`](mcp.md#user-feedb
   `user` when the form has none, and the error of `contexts.feedback.associated_event_id`. A `user_report` gives
   `name`, `email`, `comments` and the error of `event_id`.
 - Feedback belongs to the project of its envelope. Clearing the Sentry section deletes it, but the feedback on a
-  pinned error when the clear keeps the pinned events. Trap keeps the last 1 000; above that the oldest 10% go.
+  pinned error when the clear keeps the pinned events. Trap keeps the last 1 000; above that the oldest 10% go,
+  the feedback on a pinned error too.
 
 ## Notes
 
