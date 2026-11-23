@@ -77,7 +77,8 @@ final class Service
     public function eventDelete(string $uuid): Success
     {
         $this->debug('Delete event %s', $uuid);
-        $this->eventsStorage->delete($uuid);
+        $event = $this->event($uuid);
+        $event === null or $this->eventsStorage->delete($event->uuid);
         return new Success();
     }
 
@@ -88,7 +89,7 @@ final class Service
     public function eventShow(string $uuid): UiEvent|Error
     {
         $this->debug('Show event %s', $uuid);
-        $event = $this->eventsStorage->get($uuid) ?? $this->sentryEvent($uuid);
+        $event = $this->event($uuid);
         return $event === null ? Error::notFound('Event not found') : UiEvent::of($event, $this->eventsStorage);
     }
 
@@ -101,7 +102,10 @@ final class Service
     public function eventPin(string $uuid): Success|Error
     {
         $this->debug('Pin event %s', $uuid);
-        return $this->eventsStorage->pin($uuid) ? new Success() : Error::notFound('Event not found');
+        $event = $this->event($uuid);
+        return $event !== null && $this->eventsStorage->pin($event->uuid)
+            ? new Success()
+            : Error::notFound('Event not found');
     }
 
     #[RegexpRoute(Method::Delete, '#^api/event/(?<uuid>[a-f0-9-]++)/pin$#i')]
@@ -109,7 +113,10 @@ final class Service
     public function eventUnpin(string $uuid): Success|Error
     {
         $this->debug('Unpin event %s', $uuid);
-        return $this->eventsStorage->pin($uuid, false) ? new Success() : Error::notFound('Event not found');
+        $event = $this->event($uuid);
+        return $event !== null && $this->eventsStorage->pin($event->uuid, false)
+            ? new Success()
+            : Error::notFound('Event not found');
     }
 
     /**
@@ -135,7 +142,8 @@ final class Service
             try {
                 foreach ($uuids as $uuid) {
                     \is_string($uuid) or throw new \InvalidArgumentException('UUID must be a string');
-                    $this->eventsStorage->delete($uuid);
+                    $event = $this->event($uuid);
+                    $event === null or $this->eventsStorage->delete($event->uuid);
                 }
             } catch (\Throwable $e) {
                 $this->logger->exception($e);
@@ -250,12 +258,21 @@ final class Service
     }
 
     /**
-     * A Sentry error by its Sentry `event_id`, in either form: the Feedback tab links an error by it,
-     * as buggregator/server names its events.
+     * An event by its UUID, else a Sentry error by its Sentry `event_id`: the Feedback tab links an error
+     * by it, as buggregator/server names its events, and the page of the error deletes and pins it by it.
      */
+    private function event(string $id): ?Event
+    {
+        return $this->eventsStorage->get($id) ?? $this->sentryEvent($id);
+    }
+
     private function sentryEvent(string $eventId): ?Event
     {
         $eventId = \strtolower(\str_replace('-', '', $eventId));
+        if ($eventId === '') {
+            return null;
+        }
+
         foreach ($this->eventsStorage as $event) {
             /** @var mixed $id */
             $id = $event->type === 'sentry' && \is_array($event->payload) ? $event->payload['event_id'] ?? null : null;
