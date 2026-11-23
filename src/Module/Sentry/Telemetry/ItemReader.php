@@ -49,13 +49,7 @@ final class ItemReader
             'span', 'spans' => self::spans($batch, self::records($payload)),
             'log' => self::logs($batch, self::records($payload)),
             'trace_metric' => self::metrics($batch, self::records($payload)),
-            'feedback', 'user_report' => $batch->feedback[] = FeedbackReader::read(
-                $batch->project,
-                $type,
-                $payload,
-                $eventId,
-                $time ?? \microtime(true),
-            ),
+            'feedback', 'user_report' => self::feedback($batch, $type, $payload, $eventId, $time ?? \microtime(true)),
             default => null,
         };
 
@@ -245,6 +239,15 @@ final class ItemReader
                 attributes: $attributes,
             );
         }
+    }
+
+    /**
+     * @param 'feedback'|'user_report' $type
+     */
+    private static function feedback(Batch $batch, string $type, array $payload, ?string $eventId, float $time): void
+    {
+        $feedback = FeedbackReader::read($batch->project, $type, $payload, $eventId, $time);
+        $feedback === null or $batch->feedback[] = $feedback;
     }
 
     /**

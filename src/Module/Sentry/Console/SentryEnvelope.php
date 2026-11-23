@@ -110,7 +110,13 @@ final class SentryEnvelope implements Renderer
         /** @var mixed $type */
         $type = $data->headers['type'] ?? null;
         if (\is_array($data->payload) && ($type === 'feedback' || $type === 'user_report')) {
-            self::renderFeedback($output, FeedbackReader::read('default', $type, $data->payload, null, 0.0));
+            $feedback = FeedbackReader::read('default', $type, $data->payload, null, 0.0);
+            if ($feedback === null) {
+                $output->writeln(['', '<fg=red>Malformed user feedback: a field has a wrong type.</>']);
+                return;
+            }
+
+            self::renderFeedback($output, $feedback);
             return;
         }
 

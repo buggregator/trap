@@ -132,8 +132,8 @@ final class ListFeedback implements Tool
     #[\Override]
     public function call(array $arguments): array
     {
-        $project = \trim(Arguments::strings($arguments, 'project')[0] ?? '');
-        $eventId = Arguments::strings($arguments, 'event_id')[0] ?? '';
+        $project = \trim(self::string($arguments, 'project'));
+        $eventId = self::string($arguments, 'event_id');
         $limit = Arguments::integer($arguments, 'limit', 1, self::MAX_LIMIT) ?? self::DEFAULT_LIMIT;
 
         $matches = \array_values(\array_filter(
@@ -156,6 +156,18 @@ final class ListFeedback implements Tool
             ], \array_slice($matches, 0, $limit)),
             'total' => \count($matches),
         ];
+    }
+
+    /**
+     * @throws \InvalidArgumentException
+     */
+    private static function string(array $arguments, string $name): string
+    {
+        /** @var mixed $value */
+        $value = $arguments[$name] ?? '';
+        \is_string($value) or throw new \InvalidArgumentException("`$name` must be a string.");
+
+        return $value;
     }
 
     private function errorUuid(Feedback $feedback): ?string

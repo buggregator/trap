@@ -12,6 +12,7 @@ use Buggregator\Trap\Server\Telemetry\Feedback;
 use Buggregator\Trap\Server\Telemetry\TelemetryStore;
 use Testo\Assert;
 use Testo\Codecov\Covers;
+use Testo\Expect;
 use Testo\Test;
 
 #[Covers(ListFeedback::class)]
@@ -39,6 +40,15 @@ final class ListFeedbackTest
         Assert::same(\array_column($tool->call(['event_id' => 'E1E1E1E1-E1E1'])['feedback'], 'message'), ['First']);
         $limited = $tool->call(['limit' => 1]);
         Assert::same([\count($limited['feedback']), $limited['total']], [1, 3]);
+    }
+
+    public function testRejectsAListForAString(): void
+    {
+        [$tool] = self::tool();
+
+        Expect::exception(\InvalidArgumentException::class)->withMessageContaining('`project` must be a string');
+
+        $tool->call(['project' => ['shop', 'billing']]);
     }
 
     /**

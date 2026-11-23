@@ -163,6 +163,23 @@ final class EnvelopeMapperTest
         Assert::same($feedback->time, 1767323045.5);
     }
 
+    public function testMalformedFeedbackIsDropped(): void
+    {
+        $store = new TelemetryStore();
+        $frame = new SentryEnvelope([], [
+            new EnvelopeItem(['type' => 'feedback'], 'not an object'),
+            new EnvelopeItem(['type' => 'feedback'], ['contexts' => ['feedback' => 'text']]),
+            new EnvelopeItem(['type' => 'feedback'], ['contexts' => ['feedback' => ['message' => ['x']]]]),
+            new EnvelopeItem(['type' => 'feedback'], ['contexts' => 'x']),
+            new EnvelopeItem(['type' => 'feedback'], ['user' => ['email' => 42]]),
+            new EnvelopeItem(['type' => 'user_report'], ['comments' => 7]),
+            new EnvelopeItem(['type' => 'feedback'], ['contexts' => ['feedback' => ['message' => 'Fine', 'url' => null]]]),
+        ]);
+
+        Assert::null((new EnvelopeMapper($store))->map($frame));
+        Assert::same(\array_map(static fn($f): string => $f->message, $store->feedback()), ['Fine']);
+    }
+
     public function testUserReportIsFeedbackOnItsError(): void
     {
         $store = new TelemetryStore();

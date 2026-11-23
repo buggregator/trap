@@ -23,6 +23,8 @@ final class FeedbackReader
      * @param 'feedback'|'user_report' $type
      * @param non-empty-string|null $envelopeEventId The envelope `event_id`: of the feedback event when its payload
      *        has none.
+     * @return Feedback|null Null for a malformed item, one with a field of another type, which Trap drops
+     *         as buggregator/server does.
      */
     public static function read(
         string $project,
@@ -30,8 +32,12 @@ final class FeedbackReader
         array $payload,
         ?string $envelopeEventId,
         float $time,
-    ): Feedback {
+    ): ?Feedback {
         if ($type === Feedback::SOURCE_USER_REPORT) {
+            if (!self::strings($payload, 'event_id', 'name', 'email', 'comments')) {
+                return null;
+            }
+
             return new Feedback(
                 id: Uuid::generate(),
                 project: $project,
@@ -50,6 +56,13 @@ final class FeedbackReader
         $contexts = self::object($payload['contexts'] ?? null);
         $form = self::object($contexts['feedback'] ?? null);
         $user = self::object($payload['user'] ?? null);
+        if ($contexts === null || $form === null || $user === null
+            || !self::strings($payload, 'event_id')
+            || !self::strings($form, 'message', 'contact_email', 'name', 'url', 'associated_event_id')
+            || !self::strings($user, 'email', 'username', 'name')
+        ) {
+            return null;
+        }
 
         return new Feedback(
             id: Uuid::generate(),
@@ -79,9 +92,30 @@ final class FeedbackReader
         return '';
     }
 
-    private static function object(mixed $value): array
+    /**
+     * @return array|null Null for a value that is neither an object nor missing (null).
+     */
+    private static function object(mixed $value): ?array
     {
-        return \is_array($value) ? $value : [];
+        return match (true) {
+            $value === null => [],
+            \is_array($value) => $value,
+            default => null,
+        };
+    }
+
+    /**
+     * Whether the fields are strings, or missing (null).
+     */
+    private static function strings(array $object, string ...$keys): bool
+    {
+        foreach ($keys as $key) {
+            if (($object[$key] ?? null) !== null && !\is_string($object[$key])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static function string(mixed $value): string
