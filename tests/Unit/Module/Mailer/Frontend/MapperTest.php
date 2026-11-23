@@ -75,6 +75,18 @@ final class MapperTest
         Assert::null($event->payload['auth']);
     }
 
+    public function testTraceHeaderIsTheTraceFacet(): void
+    {
+        $message = SmtpMessage::create(protocol: [], headers: [
+            'Sentry-Trace' => ['4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-1'],
+        ]);
+
+        $event = (new Mapper())->map(new SmtpFrame($message));
+
+        Assert::same($event->facets, ['trace' => ['4bf92f3577b34da6a3ce929d0e0e4736']]);
+        Assert::same((new Mapper())->map(new SmtpFrame(SmtpMessage::create(protocol: [], headers: [])))->facets, []);
+    }
+
     public function testCredentialsOfSessionGoToAuth(): void
     {
         $message = SmtpMessage::create(

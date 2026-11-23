@@ -12,6 +12,7 @@
 *.jpg binary
 *.pb binary
 *.png binary
+*.webp binary
 *.woff2 binary
 
 # Snapshots compared byte by byte, whatever `core.autocrlf` says.

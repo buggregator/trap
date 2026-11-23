@@ -39,6 +39,27 @@ final class StaticFilesTest
         Assert::same($response->getHeaderLine('Content-Type'), 'font/woff2');
     }
 
+    public function testServesImageAsWebp(): void
+    {
+        $response = self::handle(new ServerRequest('GET', '/assets/' . self::asset('*.webp')));
+
+        Assert::same($response->getStatusCode(), 200);
+        Assert::same($response->getHeaderLine('Content-Type'), 'image/webp');
+    }
+
+    public function testEarlyHintsPreloadStylesInCorsModeOfTheirTags(): void
+    {
+        $fiber = new \Fiber(static fn(): ResponseInterface => self::handle(new ServerRequest('GET', '/')));
+        $hints = $fiber->start();
+
+        Assert::instanceOf($hints, ResponseInterface::class);
+        Assert::same($hints->getStatusCode(), 103);
+        Assert::string($hints->getHeaderLine('Link'))->contains('; rel=preload; as=style; crossorigin');
+
+        $fiber->resume();
+        Assert::same($fiber->getReturn()->getStatusCode(), 200);
+    }
+
     #[DataSet(['/'])]
     #[DataSet(['/smtp'])]
     #[DataSet(['/smtp/0198c2d4-7a54-7b81-9b8e-3cf7c6c3a6b1'])]
@@ -47,6 +68,8 @@ final class StaticFilesTest
     #[DataSet(['/profiler/compare'])]
     #[DataSet(['/settings'])]
     #[DataSet(['/favorites'])]
+    #[DataSet(['/logs'])]
+    #[DataSet(['/sentry/crons'])]
     public function testUiPageOpenedInBrowserGetsIndex(string $path): void
     {
         $response = $this->runInFiber(

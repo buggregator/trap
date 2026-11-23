@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend;
 
 use Buggregator\Trap\Module\Frontend\Config\Frontend;
+use Buggregator\Trap\Module\Frontend\Http\Router;
 use Buggregator\Trap\Module\Frontend\Message\Error;
 use Buggregator\Trap\Module\Frontend\Service;
+use Buggregator\Trap\Module\Frontend\UiControllers;
 use Buggregator\Trap\Module\XDebug\Debugger;
 use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Config\TcpPorts;
@@ -14,6 +16,7 @@ use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Logger;
 use Internal\Container\ObjectContainer;
+use Nyholm\Psr7\ServerRequest;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
@@ -62,6 +65,40 @@ final class ServiceTest
         Assert::same(self::uuids($service->eventsList('default', '1h')), ['newest', 'new']);
         Assert::same(self::uuids($service->eventsList('default', 'all')), ['newest', 'new', 'old']);
         Assert::same(self::uuids($service->eventsList('default', limit: '1')), ['newest']);
+    }
+
+    public function testPreviewOfHttpRequestTakesTheFiltersOfItsQuery(): void
+    {
+        $storage = new EventStore();
+        $storage->add(new Event('l1', 'monolog', [], 1.0, facets: ['level' => ['info']]));
+        $storage->add(new Event('l2', 'monolog', [], 2.0, facets: ['level' => ['error']]));
+        $storage->add(new Event('d1', 'smtp', [], 3.0));
+        $service = self::create($storage);
+        $request = static fn(string $query): ServerRequest => new ServerRequest('GET', "/api/events/preview?{$query}");
+
+        Assert::same(self::uuids($service->eventsList(__request: $request('type=monolog'))), ['l2', 'l1']);
+        Assert::same(self::uuids($service->eventsList(__request: $request('level=info&level=error'))), ['l2', 'l1']);
+        Assert::same(self::uuids($service->eventsList(__request: $request('not.level=error'))), ['d1', 'l1']);
+        Assert::same(self::json($service->eventsList(__request: $request('type=monolog&limit=1')))['data'][0]['facets'], [
+            'level' => ['error'],
+        ]);
+        Assert::same(self::json($service->eventsFacets($request('type=monolog'))), [
+            'data' => ['level' => [['value' => 'error', 'count' => 1], ['value' => 'info', 'count' => 1]]],
+            'keys' => ['level'],
+        ]);
+        Assert::same(self::json($service->eventsHistogram(60, $request('type=monolog')))['data'][0]['count'], 2);
+        Assert::same($service->eventsHistogram(0)->httpCode(), 400);
+
+        $container = new ObjectContainer();
+        $container->set($service);
+        $container->set($container->make(Modules::class, ['list' => []]));
+        $router = new Router(new Logger(), $container->get(UiControllers::class));
+        $response = $router->handle(
+            new ServerRequest('GET', '/api/events/histogram?type=monolog&bucket=31622401'),
+            static fn(): never => throw new \LogicException('Not routed'),
+        );
+        Assert::same($response->getStatusCode(), 400);
+        Assert::string((string) $response->getBody())->contains('bucket');
     }
 
     public function testEventsHaveTheirPinState(): void
@@ -220,7 +257,7 @@ final class ServiceTest
         return \array_column(self::json($collection)['data'], 'uuid');
     }
 
-    private static function json(\JsonSerializable $message): array
+    private static function json(\JsonSerializable|array $message): array
     {
         return \json_decode(\json_encode($message, \JSON_THROW_ON_ERROR), true, flags: \JSON_THROW_ON_ERROR);
     }

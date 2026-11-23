@@ -108,6 +108,22 @@ files. Point a webhook, an HTTP client or a form at `http://127.0.0.1:8000/<any 
 Trap answers `404`. Events: `http-dump`, fields `method`, `path`, `host`. With `--ui` on that port, `GET /` and the
 UI's own `/api/...` routes are the UI's, see [server.md](server.md#ports): send to another path.
 
+## Web UI: logs, filters, the request of a trace
+
+With `--ui` the user reads Monolog records on the Logs page: a case-insensitive search over the message, channel,
+context and extra, and level and channel filters. A filter bar narrows every feed by the values Trap takes from the
+events; the MCP tools filter by event fields instead:
+
+- `monolog`: channel, level, host from `extra.hostname` (Monolog's `HostnameProcessor`);
+- `sentry`: host (`server_name`), environment, release, level, the logger as the channel, the user (email, username,
+  ID or IP address), tags;
+- `ray`: host of each payload's `origin`; `profiler`: host (`hostname`) and tags;
+- `var-dump`: host of the request the dump was made in, none from the CLI; `http-dump`: host of the `Host` header.
+
+An event joins the request view of a Sentry or OpenTelemetry trace by the trace ID: `trace_id` in `extra` or `context`
+of a Monolog record, or a `sentry-trace`, `traceparent` or `X-Trace-Id` header on an HTTP dump or a mail. To show the
+logs, mails and webhooks of one request beside its spans, put the trace ID there.
+
 ## Verify side effects
 
 To check what a scenario sends out, rather than to debug it: point the channels at Trap, take a cursor, run the

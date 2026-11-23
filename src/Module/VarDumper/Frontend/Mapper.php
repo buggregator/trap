@@ -7,6 +7,7 @@ namespace Buggregator\Trap\Module\VarDumper\Frontend;
 use Buggregator\Trap\Module\VarDumper\Frame as VarDumperFrame;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventMapper;
+use Buggregator\Trap\Server\Event\Facets;
 use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Support\Uuid;
 use Symfony\Component\VarDumper\Cloner\Data;
@@ -51,7 +52,23 @@ final class Mapper implements EventMapper
             ],
             timestamp: (float) $frame->time->format('U.u'),
             project: $project,
+            facets: (new Facets())->add(Facets::HOST, self::requestHost($parsed[1]))->toArray(),
         );
+    }
+
+    /**
+     * A dump carries no machine name: the host of the request it was made in is the closest one.
+     * A CLI dump has none.
+     */
+    private static function requestHost(array $context): ?string
+    {
+        /** @var mixed $request */
+        $request = $context['request'] ?? null;
+        /** @var mixed $uri */
+        $uri = \is_array($request) ? $request['uri'] ?? null : null;
+        $host = \is_string($uri) ? \parse_url($uri, \PHP_URL_HOST) : null;
+
+        return \is_string($host) ? \trim($host, '[]') : null;
     }
 
     /**

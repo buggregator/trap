@@ -23,6 +23,8 @@ final class Event implements \JsonSerializable
      * @param non-empty-string $type
      * @param TPayload $payload
      * @param \ArrayAccess<non-empty-string, Asset>&\Traversable<non-empty-string, Asset>|null $assets
+     * @param array<non-empty-string, list<non-empty-string>> $facets Values the UI filters events by,
+     *        see {@see Facets}.
      */
     public function __construct(
         public readonly string $uuid,
@@ -31,6 +33,7 @@ final class Event implements \JsonSerializable
         public readonly float $timestamp,
         public readonly ?string $project = null,
         public readonly ?\ArrayAccess $assets = null,
+        public readonly array $facets = [],
     ) {}
 
     /**

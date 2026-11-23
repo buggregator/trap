@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Profiler\Frontend;
 
+use Buggregator\Trap\Module\Profiler\Frame as ProfilerFrame;
 use Buggregator\Trap\Module\Profiler\Frame\Payload;
 use Buggregator\Trap\Module\Profiler\Frame\Type;
 use Buggregator\Trap\Module\Profiler\Frontend\Mapper;
@@ -11,6 +12,7 @@ use Buggregator\Trap\Module\Profiler\Frontend\Palette;
 use Buggregator\Trap\Module\Profiler\Pprof\ProfileBuilder as PprofProfileBuilder;
 use Buggregator\Trap\Module\Profiler\Speedscope\ProfileBuilder as SpeedscopeProfileBuilder;
 use Buggregator\Trap\Module\Profiler\SPX\ProfileBuilder as SpxProfileBuilder;
+use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Module\Profiler\XDebug\ProfileBuilder as XDebugProfileBuilder;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
 use Buggregator\Trap\Server\Event\Event;
@@ -546,6 +548,15 @@ final class MapperTest
         $graph = self::json((new Mapper())->callGraph($event));
 
         Assert::contains(self::edges($graph), 'a => f: 100%');
+    }
+
+    public function testFacetsAreHostnameAndTags(): void
+    {
+        $profile = new Profile(metadata: ['hostname' => 'web-1'], tags: ['env' => 'staging']);
+
+        $event = (new Mapper())->map(new ProfilerFrame(Payload::new(Type::XHProf, static fn() => $profile)));
+
+        Assert::same($event->facets, ['host' => ['web-1'], 'tag:env' => ['staging']]);
     }
 
     private static function event(array $calls = self::XHPROF_STUB): Event

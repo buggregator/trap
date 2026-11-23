@@ -41,6 +41,29 @@ final class EnvelopeMapperTest
         Assert::count($store->metrics(), 1);
     }
 
+    public function testEventHasFacetsOfItsFields(): void
+    {
+        $frame = new SentryEnvelope([], [new EnvelopeItem(['type' => 'event'], [
+            'server_name' => 'web-1',
+            'environment' => 'staging',
+            'level' => 'ERROR',
+            'logger' => 'php',
+            'release' => 'shop@1.0',
+            'user' => ['id' => 7, 'email' => 'a@example.com'],
+            'tags' => ['feature' => 'checkout'],
+        ])]);
+
+        Assert::same((new EnvelopeMapper(new TelemetryStore()))->map($frame)?->facets, [
+            'host' => ['web-1'],
+            'env' => ['staging'],
+            'level' => ['error'],
+            'channel' => ['php'],
+            'release' => ['shop@1.0'],
+            'user' => ['a@example.com'],
+            'tag:feature' => ['checkout'],
+        ]);
+    }
+
     public function testTransactionBecomesATraceWithoutAFeedEvent(): void
     {
         $store = new TelemetryStore();
@@ -199,5 +222,23 @@ final class EnvelopeMapperTest
 
         Assert::same($event?->projectKey(), 'shop');
         Assert::same($store->traces(), []);
+    }
+
+    public function testStoreEndpointErrorHasFacetsOfItsFields(): void
+    {
+        $event = (new StoreMapper(new TelemetryStore()))->map(new SentryStore([
+            'message' => 'Boom',
+            'level' => 'warning',
+            'server_name' => 'web-1',
+            'user' => ['ip_address' => '10.0.0.1'],
+            'tags' => [['feature', 'checkout']],
+        ]));
+
+        Assert::same($event?->facets, [
+            'host' => ['web-1'],
+            'level' => ['warning'],
+            'user' => ['10.0.0.1'],
+            'tag:feature' => ['checkout'],
+        ]);
     }
 }

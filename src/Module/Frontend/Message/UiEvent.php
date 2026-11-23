@@ -27,6 +27,8 @@ final class UiEvent implements \JsonSerializable
     #[\Override]
     public function jsonSerialize(): array
     {
-        return $this->event->jsonSerialize() + ['is_pinned' => $this->pinned];
+        return $this->event->jsonSerialize()
+            + ['is_pinned' => $this->pinned]
+            + ($this->event->facets === [] ? [] : ['facets' => $this->event->facets]);
     }
 }
