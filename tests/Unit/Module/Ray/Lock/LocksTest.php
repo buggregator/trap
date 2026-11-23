@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Ray\Lock;
 
 use Buggregator\Trap\Module\Ray\Lock\Lock;
 use Buggregator\Trap\Module\Ray\Lock\Locks;
+use Buggregator\Trap\Module\Ray\Lock\LockState;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
@@ -55,6 +56,36 @@ final class LocksTest
         Assert::true($locks->resolve('abc', true, 101.0));
 
         Assert::true($locks->poll('abc', 102.0)?->stop);
+    }
+
+    public function testStateTransitions(): void
+    {
+        $locks = new Locks();
+        $locks->create('go', 100.0);
+        $locks->create('halt', 100.0);
+
+        Assert::same($locks->find('go', 100.5)?->state(), LockState::Active);
+        $locks->resolve('go', false, 101.0);
+        $locks->resolve('halt', true, 101.0);
+        // A release is final: a later click of another tab changes nothing
+        $locks->resolve('go', true, 101.5);
+
+        Assert::same($locks->find('go', 102.0)?->state(), LockState::Continued);
+        Assert::same($locks->find('halt', 102.0)?->state(), LockState::Stopped);
+        Assert::null($locks->find('go', 101.0 + Locks::RESOLVED_TTL + 1));
+    }
+
+    /**
+     * Only a poll tells that the client still waits.
+     */
+    public function testFindDoesNotRefreshPendingLock(): void
+    {
+        $locks = new Locks();
+        $locks->create('abc', 100.0);
+
+        $locks->find('abc', 100.0 + Locks::IDLE_TTL);
+
+        Assert::null($locks->find('abc', 100.0 + Locks::IDLE_TTL + 1));
     }
 
     public function testResolvesOnlyOnce(): void

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Ray\Frontend;
 
 use Buggregator\Trap\Module\Ray\Frame as RayFrame;
+use Buggregator\Trap\Module\Ray\Lock\Locks;
+use Buggregator\Trap\Module\Ray\Lock\LockState;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventMapper;
 use Buggregator\Trap\Server\Event\EventStore;
@@ -26,6 +28,7 @@ final class Mapper implements EventMapper
 
     public function __construct(
         private readonly EventStore $events,
+        private readonly Locks $locks,
     ) {}
 
     /**
@@ -52,7 +55,7 @@ final class Mapper implements EventMapper
         $storedPayload = $stored?->payload;
         $previous = $storedPayload instanceof Payload ? $storedPayload->payloads : [];
 
-        $payloads = [...$previous, ...\array_map(self::cleanDump(...), $frame->payloads)];
+        $payloads = [...$previous, ...\array_map($this->lockState(...), \array_map(self::cleanDump(...), $frame->payloads))];
         $facets = new Facets();
         foreach ($payloads as $payload) {
             /** @var mixed $origin */
@@ -102,6 +105,23 @@ final class Mapper implements EventMapper
         return \str_contains($html, 'sf-dump') && \preg_match('~<pre\b[^>]*\bsf-dump\b.*?</pre>~s', $html, $m) === 1
             ? $m[0]
             : $html;
+    }
+
+    /**
+     * A pause may be released before its event is stored: a click that lands first, or a client joining
+     * a released lock of the same name. {@see LockEvents} finds no event then, so the state goes in here.
+     */
+    private function lockState(array $payload): array
+    {
+        $name = RayFrame::lockName($payload);
+        $state = $name === null ? null : $this->locks->find($name)?->state();
+        if ($state === null || $state === LockState::Active) {
+            return $payload;
+        }
+
+        $payload['content'] = [...(array) $payload['content'], 'state' => $state->value];
+
+        return $payload;
     }
 
     private function clear(): void

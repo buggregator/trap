@@ -20,6 +20,7 @@ use Buggregator\Trap\Module\Profiler\Frontend\ApiController as ProfilerApiContro
 use Buggregator\Trap\Module\Profiler\Frontend\Mapper as ProfilerMapper;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
 use Buggregator\Trap\Module\Ray\Frontend\LocksController as RayLocksController;
+use Buggregator\Trap\Module\Ray\Frontend\Payload as RayPayload;
 use Buggregator\Trap\Module\Ray\Lock\Locks;
 use Buggregator\Trap\Module\Sentry\Frontend\ApiController as SentryApiController;
 use Buggregator\Trap\Module\Sentry\Frontend\ClearController as SentryClearController;
@@ -220,29 +221,59 @@ final class UiControllersTest
             'method' => 'post:api/ray/locks/bbb',
             'data' => ['token' => null, 'project' => 'default', 'stop_execution' => true],
         ]);
+        $again = $rpc->handleMessage(['method' => 'post:api/ray/locks/aaa', 'data' => ['stop_execution' => true]]);
         $unknown = $rpc->handleMessage(['method' => 'post:api/ray/locks/ccc', 'data' => []]);
 
-        Assert::same(self::json($continue), ['data' => ['code' => 200, 'data' => ['code' => 200, 'status' => true]]]);
-        Assert::same(self::json($stop), ['data' => ['code' => 200, 'data' => ['code' => 200, 'status' => true]]]);
-        Assert::same(self::json($unknown), ['data' => ['code' => 200, 'data' => ['code' => 200, 'status' => false]]]);
+        Assert::same(self::json($continue), ['data' => ['code' => 200, 'data' => ['code' => 200, 'status' => true, 'state' => 'continued']]]);
+        Assert::same(self::json($stop), ['data' => ['code' => 200, 'data' => ['code' => 200, 'status' => true, 'state' => 'stopped']]]);
+        // Another tab's click gets the state of the first one
+        Assert::same(self::json($again)['data']['data']['state'], 'continued');
+        Assert::same(self::json($unknown), ['data' => ['code' => 404, 'data' => ['error' => 'Lock not found.', 'status' => false]]]);
         Assert::false($locks->poll('aaa')?->stop);
         Assert::true($locks->poll('bbb')?->stop);
     }
 
+    /**
+     * The event of the pause keeps its state for a reload, after the lock is gone.
+     */
     public function testRayLocksOverHttp(): void
     {
         $container = new ObjectContainer();
         $locks = $container->get(Locks::class);
         $locks->create('aaa');
-
-        $response = $container->get(Pipeline::class)->handle(
+        $container->get(EventStore::class)->add(new Event('0145a0e0', 'ray', new RayPayload('0145a0e0', [
+            ['type' => 'create_lock', 'content' => ['name' => 'aaa'], 'origin' => []],
+        ], []), 1.0));
+        $pipeline = $container->get(Pipeline::class);
+        $post = static fn(): ResponseInterface => $pipeline->handle(
             new ServerRequest('POST', '/api/ray/locks/aaa', ['Content-Type' => 'application/json'], '{"stop_execution":true,"project":"default"}'),
             static fn(): Response => new Response(404),
         );
 
+        $response = $post();
         Assert::same($response->getStatusCode(), 200);
-        Assert::same(\json_decode((string) $response->getBody(), true), ['code' => 200, 'status' => true]);
+        Assert::same(\json_decode((string) $response->getBody(), true), ['code' => 200, 'status' => true, 'state' => 'stopped']);
         Assert::true($locks->poll('aaa')?->stop);
+
+        $locks->poll('aaa', \microtime(true) + Locks::RESOLVED_TTL + 1);
+        Assert::false($locks->has('aaa'));
+        $event = $pipeline->handle(new ServerRequest('GET', '/api/event/0145a0e0'), static fn(): Response => new Response(404));
+        Assert::same(\json_decode((string) $event->getBody(), true)['payload']['payloads'][0]['content'], ['name' => 'aaa', 'state' => 'stopped']);
+        Assert::same(\json_decode((string) $post()->getBody(), true)['state'], 'stopped');
+    }
+
+    /**
+     * The UI tells that the script no longer waits.
+     */
+    public function testUnknownRayLockOverHttpIsNotFound(): void
+    {
+        $response = (new ObjectContainer())->get(Pipeline::class)->handle(
+            new ServerRequest('POST', '/api/ray/locks/ccc', ['Content-Type' => 'application/json'], '{}'),
+            static fn(): Response => new Response(500),
+        );
+
+        Assert::same($response->getStatusCode(), 404);
+        Assert::same(\json_decode((string) $response->getBody(), true), ['error' => 'Lock not found.', 'status' => false]);
     }
 
     /**

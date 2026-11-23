@@ -28,4 +28,13 @@ final class Lock
     {
         return $this->stop === null;
     }
+
+    public function state(): LockState
+    {
+        return match ($this->stop) {
+            null => LockState::Active,
+            false => LockState::Continued,
+            true => LockState::Stopped,
+        };
+    }
 }

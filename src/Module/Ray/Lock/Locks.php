@@ -21,7 +21,8 @@ final class Locks
     public const IDLE_TTL = 60.0;
 
     /**
-     * A resolved lock stays for this long, so a repeated poll gets the same answer.
+     * A resolved lock stays for this long, so a repeated poll gets the same answer. The UI reads the released
+     * state from the event of the pause afterwards.
      */
     public const RESOLVED_TTL = 10.0;
 
@@ -101,6 +102,18 @@ final class Locks
         $lock->resolvedAt = $now;
 
         return true;
+    }
+
+    /**
+     * The lock as it stands: unlike {@see poll()}, this does not refresh it.
+     *
+     * @return Lock|null Null for an unknown or expired lock.
+     */
+    public function find(string $name, ?float $now = null): ?Lock
+    {
+        $this->purge($now ?? \microtime(true));
+
+        return $this->locks[$name] ?? null;
     }
 
     public function has(string $name): bool

@@ -53,7 +53,8 @@ tab shows a pin made in this one when it loads the event list again, e.g. on a r
 The events live in the memory of Trap and are gone when it stops. The [MCP server](mcp.md) works with the same
 events: an event deleted in the UI is gone for it too.
 
-The UI also controls `ray()->pause()`: see [Ray](ray.md#notes). With `--xdebug` its Xdebug page lists the debug
+The UI also controls `ray()->pause()`, and every tab shows whether a pause was continued or stopped: see
+[Ray](ray.md#notes). With `--xdebug` its Xdebug page lists the debug
 sessions and steps through the ones Trap drives, and its setup guide shows the debugger port: see
 [Xdebug debugger](xdebug.md).
 
@@ -62,8 +63,7 @@ They show no data, and the menu of the mock server stays while HTTP dumps are on
 Other features of the server stay hidden, as Trap answers 404 to their endpoints: the Broadcast and CSP reports
 pages, the Crons and Queues tabs of the Sentry section, the
 «Send to inbox» button of an email (Settings › Email relay says the server can't send email), the other versions
-of an email and its invite card, sign-in and the audit log. A Ray pause shows its state in the tab whose button
-released it; another tab keeps its buttons.
+of an email and its invite card, sign-in and the audit log.
 
 ## Logs and feed filters
 

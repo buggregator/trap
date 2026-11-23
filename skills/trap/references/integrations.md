@@ -53,6 +53,9 @@ Events: `monolog`, fields `level` and `channel`. A project without Monolog: `tra
 uses: `-p` replaces the default ports, so list them all,
 `vendor/bin/trap --mcp -p1025 -p4318 -p8000 -p9912 -p9913 -p23517`. Events: `ray`, fields `payload_type`, `label`, `color`,
 `exception`. An updated Ray message, as `ray()->...` chains send, is one event listed again at its latest change.
+`ray()->pause()` waits for Continue or Stop in the web UI; without `--ui` it goes on at once. The summary of its
+event shows `create_lock: {"name":...}`, with `"state":"continued"` or `"state":"stopped"` once released: the event
+is listed again then. A pause released before its event arrives is listed once, already with the state.
 
 ## Mail
 
