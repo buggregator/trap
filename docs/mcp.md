@@ -17,8 +17,9 @@ Other clients take the same URL with the `http` (Streamable HTTP) transport type
 
 ## Tools
 
-The tools read the events Trap has caught, the Sentry and OpenTelemetry [traces](#traces) it has received, Sentry
-[user feedback](#user-feedback), and the call trees of [Xdebug traces](#xdebug-traces). The events are the ones the [web UI](web-ui.md) shows, kept with
+The tools read the events Trap has caught, [CSP reports](#csp-reports) among them, the Sentry and OpenTelemetry
+[traces](#traces) it has received, Sentry [user feedback](#user-feedback), and the call trees of
+[Xdebug traces](#xdebug-traces). The events are the ones the [web UI](web-ui.md) shows, kept with
 `--mcp` alone too. An event deleted in the UI is gone for the agent. An event
 the agent deletes is gone from the UI on its next load; a page already open keeps showing it.
 
@@ -63,7 +64,7 @@ the agent deletes is gone from the UI on its next load; a page already open keep
 
 | Argument  | Matches                                                                                                                          |
 | --------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `type`    | One event type or a list: `var-dump`, `smtp`, `monolog`, `ray`, `sentry`, `profiler`, `http-dump`, `xdebug-trace`                |
+| `type`    | One event type or a list: `var-dump`, `smtp`, `monolog`, `ray`, `sentry`, `profiler`, `http-dump`, `xdebug-trace`, `csp`         |
 | `project` | One project or a list; events sent without a project belong to `default`                                                         |
 | `from`    | Events caught at this time or later: ISO 8601 (UTC without an offset) or a duration back from now: `30s`, `5m`, `2h`, `1d`, `1w` |
 | `to`      | Events caught at this time or earlier, in the same forms                                                                         |
@@ -119,6 +120,7 @@ seconds. Trap catches events and answers other requests meanwhile, and a call st
 | `http-dump` | `method`, `path`, `host`                                                                                                          |
 | `ray`       | `payload_type`, `exception`, `label`, `color`                                                                                     |
 | `profiler`  | `name` (the application or the file), `format`                                                                                    |
+| `csp`       | `report_type`, `directive`, `blocked`, `disposition`, `page`, `source_file` (of each report of the request)                       |
 
 An `xdebug-trace` event has no fields: its summary starts with the URL or the name of the trace, so `search` finds it.
 The `list_events` description lists the fields too. Examples:
@@ -341,6 +343,20 @@ dropped. Clearing the Sentry pages of the web UI drops their traces for the tool
 - `event_id` is the Sentry event ID of an error, with or without dashes: only the feedback on it. `error_uuid` is the
   ID of that error for `get_event`, null when Trap no longer has it or the feedback is about no error.
 - `limit` is 20 by default, 100 at most; `total` counts all the matching entries.
+
+### CSP reports
+
+The browser [security reports](csp.md) are `csp` events, one per request of the browser, which may carry several
+reports. The summary is the first report and its page, as `script-src-elem blocked https://cdn.example.com/x.js on
+https://localhost:8080/checkout (+1 more)`. `get_event` gives a block per report: the title, then the report type,
+the page, the directive, what was blocked, the disposition (`enforce`, blocked; `report`, Report-Only, not blocked),
+the source file with its line and column, the code sample, the message and ID of a report of another type, the
+failure, phase, status, elapsed time and server IP of a `network-error` report, the reason of a `crash`, the
+policy and the user agent. A field of the report the browser left empty is left out.
+
+- The CSP violations of the last 5 minutes: `{"type": "csp", "from": "5m", "where": {"report_type": "csp-violation"},
+  "include": "text"}`.
+- What a page has blocked: `{"type": "csp", "where": {"page": "*/checkout*", "disposition": "enforce"}}`.
 
 ### Profiles
 

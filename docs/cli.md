@@ -68,6 +68,8 @@ page of the [web UI](web-ui.md), Sentry pages included:
   trace with database, cache and HTTP spans, logs and trace metrics;
 - an [OpenTelemetry](opentelemetry.md) trace across two services, with logs and metrics of each type;
 - a Sentry error with logs of a second project, `billing`;
+- [CSP reports](csp.md) of each format: a `report-uri` violation, and a Reporting API batch of a violation and a
+  deprecation;
 - an image as binary data.
 
 The times of the logs, traces and metrics are those of the run, so the period filters of the UI show them.

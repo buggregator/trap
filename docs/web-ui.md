@@ -31,7 +31,8 @@ On a shared port the UI takes only its own requests, and the others stay [HTTP d
   such endpoint.
 
 Open the UI from Trap itself: it sends no CORS headers, so a frontend served from another origin, such as a dev
-server of buggregator/frontend, can't call its API. An `OPTIONS` request is an HTTP dump like any other.
+server of buggregator/frontend, can't call its API. An `OPTIONS` request is an HTTP dump like any other, but one to
+`/csp` or `/csp/...`: it gets the CORS preflight answer [CSP reports](csp.md) need.
 
 The UI asks for no password or token, the [MCP token](mcp.md#security) included: anyone who reaches its port sees
 the caught events. Trap warns at startup when the port listens on a host other than a loopback one.
@@ -43,8 +44,8 @@ vendor/bin/trap --ui=8080 -s
 
 ## What it shows
 
-Dumps, Monolog logs, Sentry events, emails, Ray payloads, HTTP dumps, profiles and
-[Xdebug traces](xdebug-traces.md) with their call tree.
+Dumps, Monolog logs, Sentry events, emails, Ray payloads, HTTP dumps, profiles,
+[Xdebug traces](xdebug-traces.md) with their call tree, and [CSP reports](csp.md) on the CSP reports page.
 
 The UI keeps the last 200 events; `/trap/events/@maxEvents` in [`trap.xml`](configuration.md#trapxml) changes it.
 A pinned event is pushed out last: only when all the kept events are pinned. A clear keeps the pinned events when
@@ -60,8 +61,8 @@ sessions and steps through the ones Trap drives, and its setup guide shows the d
 
 The UI has pages for features of the Buggregator Server that Trap has not: metrics, the mock server, updates.
 They show no data, and the menu of the mock server stays while HTTP dumps are on: hide it in Settings › Menu.
-Other features of the server stay hidden, as Trap answers 404 to their endpoints: the Broadcast and CSP reports
-pages, the Crons and Queues tabs of the Sentry section, the
+Other features of the server stay hidden, as Trap answers 404 to their endpoints: the Broadcast page, the Crons
+and Queues tabs of the Sentry section, the
 «Send to inbox» button of an email (Settings › Email relay says the server can't send email), the other versions
 of an email and its invite card, sign-in and the audit log.
 

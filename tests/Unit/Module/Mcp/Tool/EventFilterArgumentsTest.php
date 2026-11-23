@@ -125,7 +125,7 @@ final class EventFilterArgumentsTest
 
         Assert::same(\array_keys($schema), ['type', 'project', 'from', 'to', 'search', 'regex', 'where']);
         Assert::string($filters->fieldsHelp())
-            ->startsWith('sentry: level, exception, environment, release, transaction, server_name, status; profiler: name, format; var-dump: label, value_type, language, file; monolog: level, channel; ')
+            ->startsWith('sentry: level, exception, environment, release, transaction, server_name, status; profiler: name, format; csp: report_type, directive, blocked, disposition, page, source_file; var-dump: label, value_type, language, file; monolog: level, channel; ')
             ->contains('smtp: subject, from, to, cc, bcc')
             ->contains('http-dump: method, path, host');
         Assert::string($schema['where']['description'])->contains($filters->fieldsHelp());
