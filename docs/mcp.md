@@ -351,6 +351,7 @@ reports. The summary is the first report and its page, as `script-src-elem block
 https://localhost:8080/checkout (+1 more)`. `get_event` gives a block per report: the title, then the report type,
 the page, the directive, what was blocked, the disposition (`enforce`, blocked; `report`, Report-Only, not blocked),
 the source file with its line and column, the code sample, the message and ID of a report of another type, the
+failure, phase, status, elapsed time and server IP of a `network-error` report, the reason of a `crash`, the
 policy and the user agent. A field of the report the browser left empty is left out.
 
 - The CSP violations of the last 5 minutes: `{"type": "csp", "from": "5m", "where": {"report_type": "csp-violation"},

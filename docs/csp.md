@@ -21,16 +21,21 @@ Trap takes a report from a `POST`:
 - with the `application/csp-report` content type, of the `report-uri` directive, to any path;
 - with the `application/reports+json` content type, of the `report-to` directive, to any path;
 - to `/csp` or `/csp/{project}` with any content type: a JSON list is read as `reports+json`, an object as
-  `csp-report`.
+  `csp-report`;
+- marked `csp` with the `X-Buggregator-Event` header or the user of Basic authorization, to any path with any
+  content type.
 
 So an existing report URL of your application works too when its host and port point at Trap. A request marked for
 another kind of event, with the `X-Buggregator-Event` header or the user of Basic authorization, is left to it.
 
 The project of the reports is the `{project}` of the path, else the password of the `csp` user of Basic
 authorization (`http://csp:my-app@127.0.0.1:8000/`), else the `X-Buggregator-Project` header, else `default`.
+A browser sends no credentials from the userinfo of a report URL and adds no headers of yours, so for browsers the
+project works only as `/csp/{project}`. Basic authorization and the header are for a proxy or another client that
+forwards the reports.
 
 Trap answers a report with `204` and an empty body, a body that is not a report with `400`, and a body larger than
-1 MiB with `413`. An `OPTIONS` request to `/csp` or `/csp/{project}` gets a CORS preflight answer for any origin:
+1 MiB with `413`. Any `OPTIONS` request to `/csp` or `/csp/...` gets a CORS preflight answer for any origin:
 Chrome sends Reporting API reports to another origin only after one.
 
 ## Set up the policy
@@ -64,6 +69,17 @@ if (getenv('APP_ENV') === 'dev') {
 - A browser that knows `report-to` ignores `report-uri` in the same policy; keep both for the other browsers.
 - The browser batches the reports and sends them with a delay of up to a minute. Keep the page open meanwhile.
 - Send the reports of another origin to `/csp` or `/csp/{project}`: only these paths answer the preflight.
+
+`network-error` reports come from Network Error Logging, which a `NEL` header turns on. It names a group of the
+older `Report-To` header: Chrome takes the endpoints of Network Error Logging from it, not from `Reporting-Endpoints`.
+
+```php
+header('Report-To: {"group": "trap", "max_age": 3600, "endpoints": [{"url": "https://127.0.0.1:8000/csp/my-app"}]}');
+header('NEL: {"report_to": "trap", "max_age": 3600, "failure_fraction": 1.0}');
+```
+
+The console and the MCP text show the failure of a `network-error` report (its `type`, such as `tcp.refused`), the
+phase, the HTTP status, the elapsed time and the server IP, and the reason of a `crash` report.
 
 ### Laravel
 

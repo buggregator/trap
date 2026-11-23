@@ -31,8 +31,8 @@ On a shared port the UI takes only its own requests, and the others stay [HTTP d
   such endpoint.
 
 Open the UI from Trap itself: it sends no CORS headers, so a frontend served from another origin, such as a dev
-server of buggregator/frontend, can't call its API. An `OPTIONS` request is an HTTP dump like any other, but the
-preflight of a [CSP report](csp.md) to `/csp`.
+server of buggregator/frontend, can't call its API. An `OPTIONS` request is an HTTP dump like any other, but one to
+`/csp` or `/csp/...`: it gets the CORS preflight answer [CSP reports](csp.md) need.
 
 The UI asks for no password or token, the [MCP token](mcp.md#security) included: anyone who reaches its port sees
 the caught events. Trap warns at startup when the port listens on a host other than a loopback one.

@@ -38,8 +38,10 @@ final class Renderer implements RendererInterface
         }
 
         $type = $report['type'] === '' ? 'report' : $report['type'];
+        $facts = self::bodyFacts($report);
+        $detail = $report['message'] ?? $facts['Error'] ?? $facts['Reason'] ?? '';
 
-        return isset($report['message']) ? "$type: {$report['message']}" : $type;
+        return $detail === '' ? $type : "$type: $detail";
     }
 
     #[\Override]
@@ -53,12 +55,50 @@ final class Renderer implements RendererInterface
     {
         \assert($frame instanceof CspFrame);
 
-        Common::renderHeader1($output, 'CSP', $frame->format, ...($frame->project === null ? [] : ['cyan' => $frame->project]));
+        Common::renderHeader1(
+            $output,
+            'CSP',
+            $frame->format,
+            ...($frame->project === null ? [] : ['cyan' => OutputFormatter::escape($frame->project)]),
+        );
         Common::renderMetadata($output, ['Time' => $frame->time]);
 
         foreach ($frame->reports as $report) {
             self::renderReport($output, $report);
         }
+    }
+
+    /**
+     * What the body of a report of a type without fields of its own tells: the failure of a `network-error`
+     * report of Network Error Logging, the reason of a `crash`.
+     *
+     * @param CspReport $report
+     *
+     * @return array<non-empty-string, non-empty-string> Label => value.
+     */
+    private static function bodyFacts(array $report): array
+    {
+        $body = (array) $report['body'];
+        $text = static function (string $key) use ($body): string {
+            /** @var mixed $value */
+            $value = $body[$key] ?? null;
+
+            return \is_string($value) || \is_int($value) || \is_float($value) ? (string) $value : '';
+        };
+
+        $facts = match ($report['type']) {
+            'network-error' => [
+                'Error' => $text('type'),
+                'Phase' => $text('phase'),
+                'Status' => $text('status_code') === '0' ? '' : $text('status_code'),
+                'Elapsed' => $text('elapsed_time') === '' ? '' : $text('elapsed_time') . ' ms',
+                'Server IP' => $text('server_ip'),
+            ],
+            'crash' => ['Reason' => $text('reason')],
+            default => [],
+        };
+
+        return \array_filter($facts, static fn(string $value): bool => $value !== '');
     }
 
     /**
@@ -83,6 +123,7 @@ final class Renderer implements RendererInterface
             'Sample' => $report['sample'] ?? '',
             'Message' => $report['message'] ?? '',
             'ID' => $report['id'] ?? '',
+            ...self::bodyFacts($report),
             'Policy' => $report['policy'] ?? '',
             'User agent' => $report['user_agent'] ?? '',
         ];

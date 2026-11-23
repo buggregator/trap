@@ -16,8 +16,8 @@ use Psr\Http\Message\ServerRequestInterface;
  * Receives browser security reports, as buggregator/server does: a POST to any path with the
  * `application/csp-report` or `application/reports+json` content type, or a POST to `/csp` or `/csp/{project}`.
  *
- * A request marked for another module, with `X-Buggregator-Event` or the user of Basic authorization, is left
- * to it. The project is the `{project}` of the path, else the password of the Basic user `csp`, else
+ * A request marked with `X-Buggregator-Event` or the user of Basic authorization is taken when marked `csp`,
+ * whatever its path and content type, and left to the other module otherwise. The project is the `{project}` of the path, else the password of the Basic user `csp`, else
  * the `X-Buggregator-Project` header.
  *
  * A report is answered with 204: browsers read nothing from the answer. An `OPTIONS` preflight to `/csp`
@@ -45,7 +45,11 @@ final class CspTrap implements Middleware
         }
 
         $format = Report::formatOf($request->getHeaderLine('Content-Type'));
-        if ($request->getMethod() !== 'POST' || self::markedForOther($request) || $format === null && !$ownPath) {
+        $marked = self::markedType($request);
+        if ($request->getMethod() !== 'POST'
+            || $marked !== '' && $marked !== Frame::TYPE
+            || $marked === '' && $format === null && !$ownPath
+        ) {
             return $next($request);
         }
 
@@ -86,12 +90,16 @@ final class CspTrap implements Middleware
         ]);
     }
 
-    private static function markedForOther(ServerRequestInterface $request): bool
+    /**
+     * The event type the client marked the request with: `X-Buggregator-Event`, else the user of Basic authorization.
+     *
+     * @return string Empty for an unmarked request.
+     */
+    private static function markedType(ServerRequestInterface $request): string
     {
         $event = \strtolower(\trim($request->getHeaderLine('X-Buggregator-Event')));
-        $user = self::basicAuth($request)[0];
 
-        return $event !== '' && $event !== Frame::TYPE || $user !== '' && $user !== Frame::TYPE;
+        return $event === '' ? self::basicAuth($request)[0] : $event;
     }
 
     /**

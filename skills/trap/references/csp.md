@@ -33,9 +33,11 @@ header. The full reference: <https://github.com/buggregator/trap/blob/master/doc
 ## Gotchas
 
 - Any `POST` with `application/csp-report` or `application/reports+json` is caught on any path, so an existing
-  report URL works when its host and port point at Trap. The project is the `<project>` of `/csp/<project>`, else
-  the password of the Basic user `csp`, else `X-Buggregator-Project`, else `default`. A request with
-  `X-Buggregator-Event` or a Basic user of another type goes to that module.
+  report URL works when its host and port point at Trap. So is one marked `X-Buggregator-Event: csp` or with the
+  Basic user `csp`, whatever its path and type; one marked for another type goes to that module.
+- Name the project in the path, `/csp/<project>`: a browser sends no userinfo credentials and adds no headers to a
+  report. The password of the Basic user `csp`, then `X-Buggregator-Project`, name it for a proxy or another client
+  that forwards reports; without any, the project is `default`.
 - `report-to` with `Reporting-Endpoints` (`reports+json`) is slower and stricter: Chrome sends it only from an HTTPS
   page to an `https://` endpoint the browser trusts (Trap takes TLS on the same port, see
   [server.md](server.md#tls)), batches with a delay of up to a minute, and needs the endpoint on `/csp` or
@@ -44,4 +46,7 @@ header. The full reference: <https://github.com/buggregator/trap/blob/master/doc
   Trap in Docker or on another host use `https://`.
 - Filter with `where`: `report_type` (`csp-violation`, `deprecation`, `intervention`…), `directive`, `blocked`,
   `disposition` (`enforce` blocked it, `report` only reported), `page`, `source_file`.
-- Trap answers a report `204`; a body that is no report gets `400`, one over 1 MiB `413`.
+- `network-error` reports need a `NEL` header naming a group of a `Report-To` header; their text gives the failure
+  (`tcp.refused`…), phase, status, elapsed time and server IP. A `crash` gives its reason.
+- Trap answers a report `204`; a body that is no report gets `400`, one over 1 MiB `413`. Any `OPTIONS` to `/csp`
+  or `/csp/...` gets a CORS preflight answer.

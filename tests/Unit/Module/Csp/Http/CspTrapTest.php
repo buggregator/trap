@@ -55,12 +55,18 @@ final class CspTrapTest
         Assert::same($frames, []);
     }
 
-    #[DataSet([['X-Buggregator-Event' => 'CSP']], 'header')]
-    #[DataSet([['Authorization' => 'Basic Y3NwOg==']], 'Basic user')]
-    public function testTakesRequestMarkedForCsp(array $headers): void
+    #[DataSet([['X-Buggregator-Event' => 'CSP'], 'application/csp-report'], 'header')]
+    #[DataSet([['Authorization' => 'Basic Y3NwOg=='], 'application/csp-report'], 'Basic user')]
+    #[DataSet([['X-Buggregator-Event' => 'csp'], 'application/json'], 'header, another type')]
+    #[DataSet([['Authorization' => 'Basic Y3NwOnNob3A='], ''], 'Basic user, no type')]
+    #[DataSet([['X-Buggregator-Event' => 'csp', 'Authorization' => 'Basic dXNlcjpzM2NyM3Q='], 'text/plain'], 'header over a Basic user')]
+    public function testTakesRequestMarkedForCspOnAnyPath(array $headers, string $contentType): void
     {
-        [, $frames] = self::handle(new ServerRequest('POST', '/', ['Content-Type' => 'application/csp-report'] + $headers, ReportTest::CSP_REPORT));
+        $request = new ServerRequest('POST', '/other', ['Content-Type' => $contentType] + $headers, ReportTest::CSP_REPORT);
 
+        [$response, $frames] = self::handle($request);
+
+        Assert::same($response->getStatusCode(), 204);
         Assert::count($frames, 1);
     }
 
