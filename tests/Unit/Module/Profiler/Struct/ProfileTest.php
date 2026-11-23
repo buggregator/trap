@@ -118,6 +118,15 @@ final class ProfileTest
         Assert::same($data['total_edges'], 2);
     }
 
+    public function testJsonSerializeLeavesOutMetadataSentAsStructures(): void
+    {
+        $profile = new Profile(metadata: ['hostname' => ['web-1'], 'filename' => ['x' => 1], 'app_name' => ['shop']]);
+
+        $json = $profile->jsonSerialize();
+
+        Assert::same([$json['hostname'], $json['filename'], $json['app_name']], ['', '', '']);
+    }
+
     public function testFromArrayRestoresSerializedProfile(): void
     {
         $profile = Profile::fromArray([
