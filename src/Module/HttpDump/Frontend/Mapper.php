@@ -9,6 +9,7 @@ use Buggregator\Trap\Server\Event\Asset;
 use Buggregator\Trap\Server\Event\AttachedFile;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventMapper;
+use Buggregator\Trap\Server\Event\Facets;
 use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Support\Uuid;
 use Psr\Http\Message\UploadedFileInterface;
@@ -70,6 +71,10 @@ final class Mapper implements EventMapper
             ],
             timestamp: (float) $frame->time->format('U.u'),
             assets: $assets,
+            facets: (new Facets())
+                ->add(Facets::HOST, \preg_replace('/:\d*$/', '', $request->getHeaderLine('Host')))
+                ->add(Facets::TRACE, Facets::traceFromHeaders($request->getHeaderLine(...)))
+                ->toArray(),
         );
     }
 }

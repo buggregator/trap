@@ -14,6 +14,7 @@ use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Logger;
 use Internal\Container\ObjectContainer;
+use Nyholm\Psr7\ServerRequest;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
@@ -62,6 +63,29 @@ final class ServiceTest
         Assert::same(self::uuids($service->eventsList('default', '1h')), ['newest', 'new']);
         Assert::same(self::uuids($service->eventsList('default', 'all')), ['newest', 'new', 'old']);
         Assert::same(self::uuids($service->eventsList('default', limit: '1')), ['newest']);
+    }
+
+    public function testPreviewOfHttpRequestTakesTheFiltersOfItsQuery(): void
+    {
+        $storage = new EventStore();
+        $storage->add(new Event('l1', 'monolog', [], 1.0, facets: ['level' => ['info']]));
+        $storage->add(new Event('l2', 'monolog', [], 2.0, facets: ['level' => ['error']]));
+        $storage->add(new Event('d1', 'smtp', [], 3.0));
+        $service = self::create($storage);
+        $request = static fn(string $query): ServerRequest => new ServerRequest('GET', "/api/events/preview?{$query}");
+
+        Assert::same(self::uuids($service->eventsList(__request: $request('type=monolog'))), ['l2', 'l1']);
+        Assert::same(self::uuids($service->eventsList(__request: $request('level=info&level=error'))), ['l2', 'l1']);
+        Assert::same(self::uuids($service->eventsList(__request: $request('not.level=error'))), ['d1', 'l1']);
+        Assert::same(self::json($service->eventsList(__request: $request('type=monolog&limit=1')))['data'][0]['facets'], [
+            'level' => ['error'],
+        ]);
+        Assert::same(self::json($service->eventsFacets($request('type=monolog'))), [
+            'data' => ['level' => [['value' => 'error', 'count' => 1], ['value' => 'info', 'count' => 1]]],
+            'keys' => ['level'],
+        ]);
+        Assert::same(self::json($service->eventsHistogram(60, $request('type=monolog')))['data'][0]['count'], 2);
+        Assert::same($service->eventsHistogram(0)->httpCode(), 400);
     }
 
     public function testEventsHaveTheirPinState(): void
@@ -220,7 +244,7 @@ final class ServiceTest
         return \array_column(self::json($collection)['data'], 'uuid');
     }
 
-    private static function json(\JsonSerializable $message): array
+    private static function json(\JsonSerializable|array $message): array
     {
         return \json_decode(\json_encode($message, \JSON_THROW_ON_ERROR), true, flags: \JSON_THROW_ON_ERROR);
     }

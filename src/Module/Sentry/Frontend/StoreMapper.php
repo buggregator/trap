@@ -45,6 +45,7 @@ final class StoreMapper implements EventMapper
             payload: $frame->message,
             timestamp: (float) $frame->time->format('U.u'),
             project: $frame->project,
+            facets: EventFacets::of($frame->message),
         );
     }
 }

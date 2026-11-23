@@ -87,6 +87,7 @@ final class EnvelopeMapper implements EventMapper
             payload: $payload,
             timestamp: (float) $frame->time->format('U.u'),
             project: $frame->project,
+            facets: EventFacets::of($payload),
         );
     }
 }

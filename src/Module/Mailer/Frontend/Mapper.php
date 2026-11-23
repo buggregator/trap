@@ -12,6 +12,7 @@ use Buggregator\Trap\Server\Event\AttachedFile;
 use Buggregator\Trap\Server\Event\EmbeddedFile;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventMapper;
+use Buggregator\Trap\Server\Event\Facets;
 use Buggregator\Trap\Server\Proto\Frame;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
 use Buggregator\Trap\Support\Uuid;
@@ -48,6 +49,7 @@ final class Mapper implements EventMapper
             ],
             timestamp: (float) $frame->time->format('U.u'),
             assets: $assets,
+            facets: (new Facets())->add(Facets::TRACE, Facets::traceFromHeaders($message->getHeaderLine(...)))->toArray(),
         );
     }
 

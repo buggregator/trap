@@ -43,6 +43,17 @@ final class MapperTest
         Assert::count($event->assets, 0);
     }
 
+    public function testFacetsAreHostWithoutPortAndTraceOfHeaders(): void
+    {
+        $request = new ServerRequest('GET', 'http://shop.test:8080/', [
+            'traceparent' => '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01',
+        ]);
+
+        $event = (new Mapper())->map(new HttpFrame($request));
+
+        Assert::same($event->facets, ['host' => ['shop.test'], 'trace' => ['4bf92f3577b34da6a3ce929d0e0e4736']]);
+    }
+
     public function testParsedBodyReplacesRawBody(): void
     {
         $request = (new ServerRequest('POST', '/form', [], 'a=1&b=2'))

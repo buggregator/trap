@@ -14,6 +14,7 @@ use Buggregator\Trap\Module\Frontend\Message\UiEvent;
 use Buggregator\Trap\Module\Frontend\Message\Version;
 use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Config\TcpPorts;
+use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Event\ProvidesEvents;
 use Buggregator\Trap\Server\Handler\Router\Attribute\AssertRouteFail as AssertFail;
@@ -23,25 +24,13 @@ use Buggregator\Trap\Server\Handler\Router\Attribute\StaticRoute;
 use Buggregator\Trap\Server\Handler\Router\Method;
 use Buggregator\Trap\Server\Logger;
 use Internal\Container\Container;
+use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * @internal
  */
 final class Service
 {
-    /**
-     * Periods of the event list in the UI, in seconds.
-     */
-    private const WINDOWS = [
-        '1h' => 3600,
-        '3h' => 10800,
-        '6h' => 21600,
-        '12h' => 43200,
-        '24h' => 86400,
-        '7d' => 604800,
-        '30d' => 2592000,
-    ];
-
     /** @var list<non-empty-string> UI event types the modules produce */
     private readonly array $eventTypes;
 
@@ -178,6 +167,8 @@ final class Service
     }
 
     /**
+     * The HTTP request gives the whole {@see EventQuery}; the WebSocket RPC, which has none, the arguments.
+     *
      * @param string|null $project Project key; all the events when null.
      * @param string|null $window Period of the events till now, as `1h` or `7d`; all the events when null or `all`.
      * @param int|string $limit The number of the newest events; all when 0. A query gives a string.
@@ -188,29 +179,50 @@ final class Service
         AssertSuccess(Method::Get, '/api/events/preview?project=default'),
         AssertFail(Method::Get, 'api/event'),
         AssertFail(Method::Post, 'api/events'),]
-    public function eventsList(?string $project = null, ?string $window = null, int|string $limit = 0): EventCollection
+    public function eventsList(
+        ?string $project = null,
+        ?string $window = null,
+        int|string $limit = 0,
+        ?ServerRequestInterface $__request = null,
+    ): EventCollection {
+        $query = $this->query($__request, $project, $window, $limit);
+        $this->debug('List events of project %s', $query->project ?? 'any');
+
+        return new EventCollection(events: \array_map(
+            fn(Event $event): UiEvent => UiEvent::of($event, $this->eventsStorage),
+            $query->select($this->eventsStorage),
+        ));
+    }
+
+    /**
+     * Values of the filter keys with their event counts, for the feed filters and the Logs page.
+     */
+    #[StaticRoute(Method::Get, 'api/events/facets')]
+    #[AssertSuccess(Method::Get, '/api/events/facets?type=monolog'),
+        AssertFail(Method::Post, 'api/events/facets'),]
+    public function eventsFacets(?ServerRequestInterface $__request = null): array
     {
-        $this->debug('List events of project %s', $project ?? 'any');
-        $period = self::WINDOWS[$window ?? ''] ?? null;
-        $since = $period === null ? null : \microtime(true) - (float) $period;
-        $limit = \max(0, (int) $limit);
+        $counts = $this->query($__request)->facetCounts($this->eventsStorage);
 
-        $events = [];
-        foreach ($this->eventsStorage as $event) {
-            if ($since !== null && $event->timestamp < $since) {
-                // From the newest to the oldest one
-                break;
-            }
+        return ['data' => (object) $counts, 'keys' => \array_keys($counts)];
+    }
 
-            ($project === null || $project === '' || $event->projectKey() === $project)
-                and $events[] = UiEvent::of($event, $this->eventsStorage);
-
-            if ($limit > 0 && \count($events) >= $limit) {
-                break;
-            }
+    /**
+     * Events per time bucket by level, for the chart of the Logs page.
+     *
+     * @param int|string $bucket Bucket width in seconds.
+     */
+    #[StaticRoute(Method::Get, 'api/events/histogram')]
+    #[AssertSuccess(Method::Get, '/api/events/histogram?type=monolog&bucket=60'),
+        AssertFail(Method::Post, 'api/events/histogram'),]
+    public function eventsHistogram(int|string $bucket = 60, ?ServerRequestInterface $__request = null): array|Error
+    {
+        $bucket = (int) $bucket;
+        if ($bucket < 1 || $bucket > EventQuery::MAX_BUCKET) {
+            return new Error(\sprintf('bucket: seconds, a positive integer up to %d (366 days)', EventQuery::MAX_BUCKET), 400);
         }
 
-        return new EventCollection(events: $events);
+        return $this->query($__request)->histogram($this->eventsStorage, $bucket);
     }
 
     #[StaticRoute(Method::Get, 'api/projects')]
@@ -235,6 +247,21 @@ final class Service
         $this->debug('List settings');
 
         return new Settings($this->eventTypes, $this->ports());
+    }
+
+    private function query(
+        ?ServerRequestInterface $request,
+        ?string $project = null,
+        ?string $window = null,
+        int|string $limit = 0,
+    ): EventQuery {
+        return $request === null
+            ? new EventQuery(
+                project: $project === '' ? null : $project,
+                since: EventQuery::since($window),
+                limit: \max(0, (int) $limit),
+            )
+            : EventQuery::fromQueryString($request->getUri()->getQuery());
     }
 
     /**
