@@ -223,4 +223,22 @@ final class EnvelopeMapperTest
         Assert::same($event?->projectKey(), 'shop');
         Assert::same($store->traces(), []);
     }
+
+    public function testStoreEndpointErrorHasFacetsOfItsFields(): void
+    {
+        $event = (new StoreMapper(new TelemetryStore()))->map(new SentryStore([
+            'message' => 'Boom',
+            'level' => 'warning',
+            'server_name' => 'web-1',
+            'user' => ['ip_address' => '10.0.0.1'],
+            'tags' => [['feature', 'checkout']],
+        ]));
+
+        Assert::same($event?->facets, [
+            'host' => ['web-1'],
+            'level' => ['warning'],
+            'user' => ['10.0.0.1'],
+            'tag:feature' => ['checkout'],
+        ]);
+    }
 }

@@ -35,6 +35,32 @@ final class EventQueryTest
         Assert::same($query->offset, 2);
     }
 
+    public function testWindowOfQuerySetsSinceUpToHundredYears(): void
+    {
+        Assert::true(\abs(EventQuery::fromQueryString('window=3h')->since - (\microtime(true) - 10800)) < 5);
+        Assert::null(EventQuery::fromQueryString('window=all')->since);
+
+        $since = EventQuery::fromQueryString('window=99999999999999999999d')->since;
+        Assert::true(\abs($since - (\microtime(true) - 100 * 366 * 86400)) < 5);
+    }
+
+    public function testHistogramOfHugeWindowKeepsAnIntegerBucket(): void
+    {
+        $histogram = EventQuery::fromQueryString('window=99999999999999999999d')
+            ->histogram([new Event('a', 'monolog', [], \microtime(true))], 60);
+
+        Assert::true(\is_int($histogram['bucket']));
+        Assert::true($histogram['bucket'] <= 100 * 366 * 86400);
+        Assert::count($histogram['data'], 1);
+    }
+
+    public function testSearchFoldsTheCaseOfAnyLetter(): void
+    {
+        $events = [new Event('a', 'monolog', ['message' => 'Ошибка оплаты', 'channel' => 'app'], 1.0)];
+
+        Assert::same(self::uuids(EventQuery::fromQueryString('q=' . \urlencode('ОШИБКА'))->select($events)), ['a']);
+    }
+
     public function testWindowCountsFromNow(): void
     {
         Assert::null(EventQuery::since(null));
@@ -66,6 +92,14 @@ final class EventQueryTest
             ['value' => 'info', 'count' => 1],
         ]);
         Assert::same($counts['channel'], [['value' => 'app', 'count' => 1]]);
+    }
+
+    public function testFacetCountsUnderExclusionLeaveOutOnlyTheExcludedKey(): void
+    {
+        $counts = EventQuery::fromQueryString('type=monolog&not.channel=doctrine')->facetCounts(self::events());
+
+        Assert::same($counts['channel'], [['value' => 'app', 'count' => 2], ['value' => 'doctrine', 'count' => 1]]);
+        Assert::same($counts['level'], [['value' => 'error', 'count' => 1], ['value' => 'info', 'count' => 1]]);
     }
 
     public function testFacetCountsKeepNumericValuesAsStrings(): void

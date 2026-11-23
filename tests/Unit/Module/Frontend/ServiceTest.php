@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend;
 
 use Buggregator\Trap\Module\Frontend\Config\Frontend;
+use Buggregator\Trap\Module\Frontend\Http\Router;
 use Buggregator\Trap\Module\Frontend\Message\Error;
 use Buggregator\Trap\Module\Frontend\Service;
+use Buggregator\Trap\Module\Frontend\UiControllers;
 use Buggregator\Trap\Module\XDebug\Debugger;
 use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Config\TcpPorts;
@@ -86,6 +88,17 @@ final class ServiceTest
         ]);
         Assert::same(self::json($service->eventsHistogram(60, $request('type=monolog')))['data'][0]['count'], 2);
         Assert::same($service->eventsHistogram(0)->httpCode(), 400);
+
+        $container = new ObjectContainer();
+        $container->set($service);
+        $container->set($container->make(Modules::class, ['list' => []]));
+        $router = new Router(new Logger(), $container->get(UiControllers::class));
+        $response = $router->handle(
+            new ServerRequest('GET', '/api/events/histogram?type=monolog&bucket=31622401'),
+            static fn(): never => throw new \LogicException('Not routed'),
+        );
+        Assert::same($response->getStatusCode(), 400);
+        Assert::string((string) $response->getBody())->contains('bucket');
     }
 
     public function testEventsHaveTheirPinState(): void

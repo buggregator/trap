@@ -24,6 +24,9 @@ final class EventQuery
 
     public const MAX_BUCKET = 366 * 24 * 3600;
 
+    /** The longest window and widened bucket, 100 years: longer ones would overflow the bucket arithmetic. */
+    private const MAX_SPAN = 100 * 366 * 24 * 3600;
+
     /**
      * @param float|null $since Events since this Unix time; all when null.
      * @param list<array{key: non-empty-string, values: list<string>, not: bool}> $filters
@@ -102,7 +105,8 @@ final class EventQuery
             return null;
         }
 
-        return \microtime(true) - (float) ((int) $m[1] * ['m' => 60, 'h' => 3600, 'd' => 86400][$m[2]]);
+        $seconds = (float) $m[1] * (float) ['m' => 60, 'h' => 3600, 'd' => 86400][$m[2]];
+        return \microtime(true) - \min($seconds, (float) self::MAX_SPAN);
     }
 
     /**
@@ -233,7 +237,7 @@ final class EventQuery
             $times = \array_map(static fn(Event $event): float => $event->timestamp, $selected);
             $span = \max($times) - ($this->since ?? \min($times));
             $width = (float) ($bucket * self::MAX_BUCKETS);
-            $span > $width and $bucket = (int) \ceil($span / $width) * $bucket;
+            $span > $width and $bucket = (int) \min(\ceil($span / $width) * (float) $bucket, (float) self::MAX_SPAN);
         }
 
         /** @var array<int, array{t: int, count: int, levels: array<string, int>}> $buckets */
@@ -282,13 +286,22 @@ final class EventQuery
     private static function words(string $search): array
     {
         /** @var list<non-empty-string>|false $words */
-        $words = \preg_split('/\s+/u', \strtolower(\trim($search)), -1, \PREG_SPLIT_NO_EMPTY);
+        $words = \preg_split('/\s+/u', self::lower(\trim($search)), -1, \PREG_SPLIT_NO_EMPTY);
         return \array_values(\array_unique($words === false ? [] : $words));
     }
 
     /**
-     * What the search finds a Monolog record by: its message, channel, and the keys and values of its context
-     * and extra. Other events have no such fields.
+     * The UI folds the case of any letter: `Ошибка` finds `ошибка` live, and must after a reload too.
+     */
+    private static function lower(string $text): string
+    {
+        return \function_exists('mb_strtolower') ? \mb_strtolower($text, 'UTF-8') : \strtolower($text);
+    }
+
+    /**
+     * What the search finds an event by: the `message` and `channel` of its payload and the keys and values of
+     * its `context` and `extra`, as a Monolog record has them. A Sentry event has a `message` and `extra` too;
+     * an event without these fields matches no search.
      */
     private static function searchText(Event $event): string
     {
@@ -303,7 +316,7 @@ final class EventQuery
         }
         self::flatten([$payload['context'] ?? null, $payload['extra'] ?? null], $parts);
 
-        return \strtolower(\implode("\n", $parts));
+        return self::lower(\implode("\n", $parts));
     }
 
     /**
