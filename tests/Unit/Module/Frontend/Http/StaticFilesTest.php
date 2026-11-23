@@ -39,6 +39,19 @@ final class StaticFilesTest
         Assert::same($response->getHeaderLine('Content-Type'), 'font/woff2');
     }
 
+    public function testEarlyHintsPreloadStylesInCorsModeOfTheirTags(): void
+    {
+        $fiber = new \Fiber(static fn(): ResponseInterface => self::handle(new ServerRequest('GET', '/')));
+        $hints = $fiber->start();
+
+        Assert::instanceOf($hints, ResponseInterface::class);
+        Assert::same($hints->getStatusCode(), 103);
+        Assert::string($hints->getHeaderLine('Link'))->contains('; rel=preload; as=style; crossorigin');
+
+        $fiber->resume();
+        Assert::same($fiber->getReturn()->getStatusCode(), 200);
+    }
+
     #[DataSet(['/'])]
     #[DataSet(['/smtp'])]
     #[DataSet(['/smtp/0198c2d4-7a54-7b81-9b8e-3cf7c6c3a6b1'])]

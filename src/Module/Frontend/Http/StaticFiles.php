@@ -107,21 +107,24 @@ final class StaticFiles implements Middleware
             if ($path === '/index.html') {
                 if (empty($this->earlyResponse)) {
                     $cacheContent[$file] ??= self::readFile($file);
-                    // Find all CSS files
+                    // A preload is used only with the CORS mode of the tag: `crossorigin` of a Vite build
                     \preg_match_all(
-                        '#\\bhref="([^"]+?\\.css)"#i',
+                        '#<link\\b[^>]*?\\bhref="([^"]+?\\.css)"[^>]*>#i',
                         $cacheContent[$file],
                         $matches,
+                        \PREG_SET_ORDER,
                     );
-                    $this->earlyResponse = \array_unique($matches[1]);
+                    $this->earlyResponse = \array_values(\array_unique(\array_map(
+                        static fn(array $tag): string => \sprintf(
+                            '<%s>; rel=preload; as=style%s',
+                            $tag[1],
+                            \preg_match('#\\scrossorigin\\b#i', $tag[0]) === 1 ? '; crossorigin' : '',
+                        ),
+                        $matches,
+                    )));
                 }
 
-                $headers = [
-                    'Link' => \array_map(
-                        static fn(string $css): string => \sprintf('<%s>; rel=preload; as=style', $css),
-                        $this->earlyResponse,
-                    ),
-                ];
+                $headers = ['Link' => $this->earlyResponse];
                 empty($this->earlyResponse) or \Fiber::suspend(new Response(103, $headers));
             }
 
