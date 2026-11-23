@@ -73,6 +73,8 @@ final class CalendarTest
     #[DataSet(['DTSTART;TZID=PST8PDT:20260705T100000', '2026-07-05T10:00:00-07:00', 'America/Los_Angeles'], 'zone of System V with summer time')]
     #[DataSet(['DTSTART;TZID=PST:20261205T100000', '2026-12-05T10:00:00', 'PST'], 'abbreviation')]
     #[DataSet(['DTSTART;TZID=Asia/Calcutta:20261205T100000', '2026-12-05T10:00:00+05:30', 'Asia/Kolkata'], 'renamed zone')]
+    #[DataSet(['DTSTART;TZID=Europe/Oslo:20261205T100000', '2026-12-05T10:00:00+01:00', 'Europe/Oslo'], 'zone tzdata merged into another country')]
+    #[DataSet(['DTSTART;TZID=Atlantic/Reykjavik:20261205T100000', '2026-12-05T10:00:00Z', 'Atlantic/Reykjavik'], 'merged zone at UTC offset')]
     #[DataSet(['DTSTART;TZID=US/Eastern:20261205T100000', '2026-12-05T10:00:00-05:00', 'America/New_York'], 'zone of Java')]
     #[DataSet(['DTSTART;TZID=Japan:20261205T100000', '2026-12-05T10:00:00+09:00', 'Asia/Tokyo'], 'country name as a zone')]
     #[DataSet(['DTSTART;TZID=/mozilla.org/20050126_1/EST5EDT:20260705T100000', '2026-07-05T10:00:00-04:00', 'America/New_York'], 'System V zone of a vendor prefix')]
@@ -125,6 +127,7 @@ final class CalendarTest
     #[DataSet(['Myanmar Standard Time', '2026-12-03T14:00:00+06:30', 'Asia/Yangon'], 'Asia/Rangoon')]
     #[DataSet(['Argentina Standard Time', '2026-12-03T14:00:00-03:00', 'America/Argentina/Buenos_Aires'], 'America/Buenos_Aires')]
     #[DataSet(['US Eastern Standard Time', '2026-12-03T14:00:00-05:00', 'America/Indiana/Indianapolis'], 'America/Indianapolis')]
+    #[DataSet(['Greenwich Standard Time', '2026-12-03T14:00:00Z', 'Atlantic/Reykjavik'], 'zone tzdata merged')]
     public function testReadsWindowsZone(string $windows, string $start, string $tz): void
     {
         $invite = Calendar::read("BEGIN:VEVENT\nDTSTART;TZID=$windows:20261203T140000\nEND:VEVENT");
@@ -138,6 +141,21 @@ final class CalendarTest
      * The zone of a link is the same on every platform: its target is a zone of its own, not another link,
      * and every build of PHP knows it.
      */
+    /**
+     * A zone of a country stays itself even when tzdata links it to the zone of another country with the same
+     * clocks, as `Europe/Oslo` to `Europe/Berlin`: the map holds obsolete names only.
+     */
+    public function testNoCurrentZoneIsMapped(): void
+    {
+        $current = \array_fill_keys(\DateTimeZone::listIdentifiers(), true);
+        foreach (\array_keys(ZoneLinks::TARGETS) as $link) {
+            Assert::false(isset($current[$link]), "`$link` is a current zone.");
+        }
+        foreach (['Europe/Oslo', 'Europe/Stockholm', 'Europe/Amsterdam', 'Atlantic/Reykjavik', 'Africa/Accra', 'Asia/Kuwait'] as $zone) {
+            Assert::false(isset(ZoneLinks::TARGETS[$zone]), "`$zone` is mapped.");
+        }
+    }
+
     public function testEveryLinkResolvesToCanonicalZone(): void
     {
         $canonical = \array_fill_keys(\DateTimeZone::listIdentifiers(), true);

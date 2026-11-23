@@ -1,10 +1,11 @@
 <?php
 
 /**
- * Writes src/Module/Mailer/ZoneLinks.php from the `backward` file of tzdata.
+ * Writes src/Module/Mailer/ZoneLinks.php from the `backward` file of tzdata: the obsolete names only.
  *
  * Usage: php tools/zone-links.php <tzdata directory>
- * The directory is an unpacked https://data.iana.org/time-zones/tzdata-latest.tar.gz with `backward` and `version`.
+ * The directory is an unpacked https://data.iana.org/time-zones/tzdata-latest.tar.gz
+ * with `backward`, `zone.tab` and `version`.
  */
 
 declare(strict_types=1);
@@ -17,17 +18,27 @@ const SYSTEM_V_ZONES = [
     'PST8PDT' => 'America/Los_Angeles',
 ];
 
-$dir = $argv[1] ?? '' ?: throw new InvalidArgumentException('Pass the directory of the unpacked tzdata.');
-$version = \trim((string) \file_get_contents("$dir/version"));
-$lines = \file("$dir/backward", \FILE_IGNORE_NEW_LINES) ?: throw new RuntimeException("No $dir/backward.");
+$read = static fn(string $file): array => \file("{$argv[1]}/$file", \FILE_IGNORE_NEW_LINES)
+    ?: throw new \RuntimeException("No $file in {$argv[1]}.");
+($argv[1] ?? '') !== '' or throw new \InvalidArgumentException('Pass the directory of the unpacked tzdata.');
+$version = \trim($read('version')[0] ?? '') ?: throw new \RuntimeException('The version file is empty.');
+
+// `backward` also links zones merged since 2022 that are still the zones of their countries, as `Europe/Oslo`
+// to `Europe/Berlin`: `zone.tab` lists every such current name, `zone1970.tab` does not
+$current = [];
+foreach ($read('zone.tab') as $line) {
+    $fields = \explode("\t", $line);
+    $line === '' || $line[0] === '#' || !isset($fields[2]) or $current[$fields[2]] = true;
+}
 
 $links = [];
-foreach ($lines as $line) {
+foreach ($read('backward') as $line) {
     $fields = \preg_split('/\s+/', \trim((string) \preg_replace('/#.*/', '', $line)));
     if ($fields[0] === 'Link' && \count($fields) === 3) {
-        $links[$fields[2]] = $fields[1];
-    } elseif ($fields[0] === 'Zone' && isset(SYSTEM_V_ZONES[$fields[1] ?? ''])) {
-        $links[$fields[1]] = SYSTEM_V_ZONES[$fields[1]];
+        isset($current[$fields[2]]) or $links[$fields[2]] = $fields[1];
+    } elseif ($fields[0] === 'Zone') {
+        $links[$fields[1]] = SYSTEM_V_ZONES[$fields[1]]
+            ?? throw new \RuntimeException("`backward` has a zone `{$fields[1]}` with no place in SYSTEM_V_ZONES.");
     }
 }
 
@@ -51,8 +62,9 @@ foreach ($links as $link => $target) {
     namespace Buggregator\\Trap\\Module\\Mailer;
 
     /**
-     * The zone names of the `backward` file of tzdata {$version}, with the zones they stand for.
-     * Builds on the system tzdata, as Debian without `tzdata-legacy`, know none of these names.
+     * The obsolete zone names of the `backward` file of tzdata {$version}, with the zones they stand for;
+     * the current names of `zone.tab` stay out. Builds on the system tzdata, as Debian without `tzdata-legacy`,
+     * know none of these names.
      * Written by `php tools/zone-links.php <tzdata directory>`: change that script, not this file.
      *
      * @internal
