@@ -820,7 +820,7 @@ final class ServerTest
 
     /**
      * One run of `trap test` gives every page of the web UI data: each event type of the feed, the Sentry
-     * traces, logs, metrics and user feedback, and a second project.
+     * traces, logs, metrics and user feedback, the CSP reports of both formats, and a second project.
      */
     public function testTestCommandFillsEveryPageOfTheUi(): void
     {
@@ -833,11 +833,14 @@ final class ServerTest
         $types = TrapProcess::waitFor(function (): ?array {
             [, , $body] = TrapProcess::http($this->uiPort, 'GET', '/api/events');
             $types = \array_unique(\array_column(self::json($body)['data'], 'type'));
-            return \count($types) >= 8 ? $types : null;
+            return \count($types) >= 9 ? $types : null;
         }, 'events of every type in the web UI');
         Assert::array($types)->sameElementsAs([
-            'profiler', 'xdebug-trace', 'var-dump', 'smtp', 'monolog', 'ray', 'http-dump', 'sentry',
+            'profiler', 'xdebug-trace', 'var-dump', 'smtp', 'monolog', 'ray', 'http-dump', 'sentry', 'csp',
         ]);
+        [, , $csp] = TrapProcess::http($this->uiPort, 'GET', '/api/events?type=csp');
+        Assert::array(\array_column(\array_column(self::json($csp)['data'], 'payload'), 'format'))
+            ->sameElementsAs(['csp-report', 'reports+json']);
 
         [, , $projects] = TrapProcess::http($this->uiPort, 'GET', '/api/projects');
         Assert::same(\array_column(self::json($projects)['data'], 'key'), ['default', 'billing']);

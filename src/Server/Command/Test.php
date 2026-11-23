@@ -72,6 +72,7 @@ final class Test extends Command
         $this->httpDump();
         $this->sentry();
         $this->openTelemetry();
+        $this->csp();
         \usleep(100_000);
         $this->sendContent('logo.png');
 
@@ -314,6 +315,27 @@ final class Test extends Command
                 foreach (self::template("otlp-$signal.json", $ids) as $request) {
                     $this->http('POST', "/v1/$signal", ['Content-Type' => 'application/json'], self::json($request));
                 }
+            }
+        });
+    }
+
+    /**
+     * Security reports of a browser, a request of each format: a CSP violation of `report-uri`, and
+     * a Reporting API batch of `report-to` with a CSP violation and a deprecation.
+     */
+    private function csp(): void
+    {
+        $this->attempt('CSP reports', function (): void {
+            /** @var mixed $request */
+            foreach (self::template('csp.json') as $request) {
+                /** @var mixed $type */
+                $type = \is_object($request) ? $request->content_type ?? null : null;
+                \is_string($type) or throw new \RuntimeException('A CSP request must have a content type and a body.');
+                \assert(\is_object($request));
+                $this->http('POST', '/csp', [
+                    'Content-Type' => $type,
+                    'User-Agent' => 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                ], self::json($request->body ?? null));
             }
         });
     }

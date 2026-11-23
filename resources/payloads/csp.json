@@ -1,0 +1,58 @@
+[
+    {
+        "content_type": "application/csp-report",
+        "body": {
+            "csp-report": {
+                "document-uri": "http://localhost:8080/checkout",
+                "referrer": "http://localhost:8080/cart",
+                "violated-directive": "script-src-elem",
+                "effective-directive": "script-src-elem",
+                "original-policy": "default-src 'self'; script-src 'self' 'nonce-r4nd0m'; report-uri http://127.0.0.1:8000/csp",
+                "disposition": "report",
+                "blocked-uri": "https://cdn.payments.example/widget.js",
+                "line-number": 42,
+                "column-number": 9,
+                "source-file": "http://localhost:8080/checkout",
+                "status-code": 200,
+                "script-sample": ""
+            }
+        }
+    },
+    {
+        "content_type": "application/reports+json",
+        "body": [
+            {
+                "age": 1530,
+                "body": {
+                    "blockedURL": "inline",
+                    "columnNumber": 17,
+                    "disposition": "enforce",
+                    "documentURL": "http://localhost:8080/profile",
+                    "effectiveDirective": "script-src-elem",
+                    "lineNumber": 88,
+                    "originalPolicy": "script-src 'self'; report-to trap",
+                    "referrer": "",
+                    "sample": "document.getElementById('avatar').onclick",
+                    "sourceFile": "http://localhost:8080/profile",
+                    "statusCode": 200
+                },
+                "type": "csp-violation",
+                "url": "http://localhost:8080/profile",
+                "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            },
+            {
+                "age": 920,
+                "body": {
+                    "columnNumber": 5,
+                    "id": "UnloadHandler",
+                    "lineNumber": 12,
+                    "message": "Unload event listeners are deprecated and will be removed.",
+                    "sourceFile": "http://localhost:8080/assets/app.js"
+                },
+                "type": "deprecation",
+                "url": "http://localhost:8080/profile",
+                "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            }
+        ]
+    }
+]

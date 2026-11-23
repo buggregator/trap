@@ -70,6 +70,19 @@ final class EventQueryTest
         Assert::same(self::uuids(EventQuery::fromQueryString('q=' . \urlencode('ОШИБКА'))->select($events)), ['a']);
     }
 
+    public function testSearchFindsSecurityReportsByTheirFields(): void
+    {
+        $events = [new Event('c', 'csp', ['format' => 'reports+json', 'reports' => [
+            ['type' => 'csp-violation', 'url' => 'https://shop.test/', 'directive' => 'script-src-elem', 'blocked' => 'https://cdn.test/x.js', 'body' => []],
+            ['type' => 'deprecation', 'url' => 'https://shop.test/', 'message' => 'Unload is deprecated', 'body' => []],
+        ]], 1.0)];
+
+        foreach (['cdn.test', 'SCRIPT-SRC', 'unload', 'deprecation'] as $q) {
+            Assert::same(self::uuids(EventQuery::fromQueryString('q=' . \urlencode($q))->select($events)), ['c'], $q);
+        }
+        Assert::same(self::uuids(EventQuery::fromQueryString('q=nothing')->select($events)), []);
+    }
+
     public function testWindowCountsFromNow(): void
     {
         Assert::null(EventQuery::since(null));

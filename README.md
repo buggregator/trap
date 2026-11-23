@@ -201,6 +201,7 @@ The ports below are the defaults of the clients.
 | Ray                         | host `127.0.0.1`, port `8000` in `ray.php`                           | [Ray](docs/ray.md)                                                                |
 | HTTP dumps                  | any HTTP request, e.g. `http://127.0.0.1:8000/webhook`               | [HTTP dumps](docs/http-dump.md)                                                   |
 | OpenTelemetry (OTLP)        | `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318`                  | [OpenTelemetry](docs/opentelemetry.md)                                            |
+| CSP and Reporting API       | `report-uri http://127.0.0.1:8000/csp/my-app` in the policy          | [CSP reports](docs/csp.md)                                                        |
 | Profiles                    | `trap()::profile()`, `POST /api/profiler/*`, a watched directory     | [Profiling](docs/profiling.md), [receiving](docs/profiles.md), [SPX](docs/spx.md) |
 | Xdebug step debugging       | `--xdebug`, `xdebug.client_port=9003`, the IDE moved to `9004`       | [Xdebug debugger](docs/xdebug.md)                                                 |
 | Xdebug function traces      | `POST` with `X-Buggregator-Event: xdebug-trace`, a watched directory | [Xdebug traces](docs/xdebug-traces.md)                                            |
@@ -232,7 +233,8 @@ All the options and variables: [CLI](docs/cli.md) and [Configuration](docs/confi
 - [Functions](docs/functions.md)
 - [Profiling code](docs/profiling.md) and [receiving profiles](docs/profiles.md), [SPX](docs/spx.md)
 - Integrations: [var-dumper](docs/var-dumper.md), [Monolog](docs/monolog.md), [Sentry](docs/sentry.md),
-  [SMTP](docs/smtp.md), [Ray](docs/ray.md), [HTTP dumps](docs/http-dump.md), [OpenTelemetry](docs/opentelemetry.md)
+  [SMTP](docs/smtp.md), [Ray](docs/ray.md), [HTTP dumps](docs/http-dump.md), [OpenTelemetry](docs/opentelemetry.md),
+  [CSP reports](docs/csp.md)
 - [Senders](docs/senders.md)
 - [Web UI](docs/web-ui.md)
 - [MCP server](docs/mcp.md)

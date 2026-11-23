@@ -217,6 +217,7 @@ final class ListEventsTest
             'sentry',
             'profiler',
             'xdebug-trace',
+            'csp',
             'http-dump',
         ]);
         Assert::same($schema['properties']['limit']['maximum'], ListEvents::MAX_LIMIT);

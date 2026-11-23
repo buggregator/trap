@@ -306,7 +306,8 @@ final class EventQuery
     /**
      * What the search finds an event by: the `message` and `channel` of its payload and the keys and values of
      * its `context` and `extra`, as a Monolog record has them. A Sentry event has a `message` and `extra` too;
-     * an event without these fields matches no search.
+     * an event without these fields matches no search. Security reports are found by their type, page,
+     * directive, blocked resource, file and message.
      */
     private static function searchText(Event $event): string
     {
@@ -316,6 +317,19 @@ final class EventQuery
         }
 
         $parts = [];
+        if ($event->type === 'csp') {
+            /** @var mixed $report */
+            foreach (\is_array($payload['reports'] ?? null) ? $payload['reports'] : [] as $report) {
+                foreach (['type', 'url', 'directive', 'blocked', 'source_file', 'message'] as $key) {
+                    /** @var mixed $value */
+                    $value = \is_array($report) ? $report[$key] ?? null : null;
+                    \is_string($value) and $parts[] = $value;
+                }
+            }
+
+            return self::lower(\implode("\n", $parts));
+        }
+
         foreach (['message', 'channel'] as $key) {
             \is_scalar($payload[$key] ?? null) and $parts[] = (string) $payload[$key];
         }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Boundwize\StructArmed\Architecture;
 
 $root = \dirname(__DIR__, 2);
-$sources = ['HttpDump', 'Mailer', 'Monolog', 'Profiler', 'Ray', 'Sentry', 'Tracing', 'VarDumper', 'XDebug', 'XDebugTrace'];
+$sources = ['Csp', 'HttpDump', 'Mailer', 'Monolog', 'Profiler', 'Ray', 'Sentry', 'Tracing', 'VarDumper', 'XDebug', 'XDebugTrace'];
 $channels = ['Console', 'Files', 'Frontend', 'Mcp', 'Remote'];
 
 $architecture = Architecture::define()
@@ -39,6 +39,7 @@ return $architecture
     // The single place that names the module manifests: the module list.
     ->skipClassViolation('Buggregator\Trap\Server\Application\Module\Modules', [
         'Buggregator\Trap\Module\Console\Module',
+        'Buggregator\Trap\Module\Csp\Module',
         'Buggregator\Trap\Module\Files\Module',
         'Buggregator\Trap\Module\Frontend\Module',
         'Buggregator\Trap\Module\HttpDump\Module',
