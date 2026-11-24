@@ -85,7 +85,7 @@ final class TelemetryStore implements Processable
 
     /**
      * @param \Closure(): float|null $clock Current Unix time in seconds.
-     * @param Logger|null $logger Told what failed in the checks of the cron monitors.
+     * @param Logger|null $logger Told what failed: a check of the cron monitors, a listener.
      */
     public function __construct(
         Config $config = new Config(),
@@ -99,14 +99,7 @@ final class TelemetryStore implements Processable
         $this->clock = $clock ?? static fn(): float => \microtime(true);
         $this->id = \bin2hex(\random_bytes(4));
         $this->crons = new Crons(function (string $project): void {
-            // Each listener is told, whatever another one throws
-            foreach ($this->listeners as $listener) {
-                try {
-                    $listener->stored($project, ['cron']);
-                } catch (\Throwable $e) {
-                    $this->logger?->exception($e, 'Sentry Crons: a listener failed', important: true);
-                }
-            }
+            $this->tell($project, ['cron']);
         }, $logger);
     }
 
@@ -173,9 +166,7 @@ final class TelemetryStore implements Processable
 
         $kinds = $batch->kinds();
         if ($kinds !== []) {
-            foreach ($this->listeners as $listener) {
-                $listener->stored($batch->project, $kinds);
-            }
+            $this->tell($batch->project, $kinds);
         }
     }
 
@@ -280,6 +271,23 @@ final class TelemetryStore implements Processable
     private static function trim(array $items, int $max): array
     {
         return \count($items) > $max ? \array_slice($items, -($max - \intdiv($max, 10))) : $items;
+    }
+
+    /**
+     * Tells each listener, whatever another one throws.
+     *
+     * @param non-empty-string $project
+     * @param non-empty-list<'trace'|'log'|'metric'|'feedback'|'cron'> $kinds
+     */
+    private function tell(string $project, array $kinds): void
+    {
+        foreach ($this->listeners as $listener) {
+            try {
+                $listener->stored($project, $kinds);
+            } catch (\Throwable $e) {
+                $this->logger?->exception($e, 'Telemetry: a listener failed', important: true);
+            }
+        }
     }
 
     /**

@@ -206,7 +206,8 @@ final class Crons
     /**
      * Expects the first slot after the start of the newest run: an older run that ends late does not move it
      * back. A run that starts less than {@see self::EARLY} seconds and the margin before a crontab slot is the run
-     * of that slot, unless the slot before is less than four times as far back. A slot that passed while the run
+     * of that slot, unless the slot before is less than four times as far back or still waits for its run. A
+     * slot that passed while the run
      * went on is not expected: the next one after now is.
      */
     private function expect(Monitor $monitor, float $now): void
@@ -224,7 +225,9 @@ final class Crons
 
             $monitor->anchor = $start;
             $next = $monitor->slotAfter($start);
-            if ($next !== null && $monitor->schedule->type === Schedule::CRONTAB) {
+            // A run counts for one slot: with an earlier slot still pending, it is the run of that one
+            $pending = $monitor->nextExpectedAt !== null && $next !== null && $monitor->nextExpectedAt < $next;
+            if ($next !== null && !$pending && $monitor->schedule->type === Schedule::CRONTAB) {
                 $early = (float) $next - $start;
                 // A quarter of the time since the slot before at most: a run is late more often than its host's
                 // clock is ahead, so a run late for that slot stays its run. The first slot from the minute of

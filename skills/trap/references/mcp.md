@@ -125,9 +125,10 @@ Cron check-ins are not events either: `wait_for_events` never sees them, so read
 timed out or was missed, `check_ins`: the newest runs of each, 5 by default, 0 to 100). A job reports
 `in_progress`, `ok` and `error`; Trap writes `missed` (no check-in within `checkin_margin` minutes of a slot),
 `timeout` (started, no end within `max_runtime` minutes) and `unknown` (the slot fell while Trap was not running).
-A downtime makes one `unknown` row, and the next slot is the first after Trap woke up. A run that starts up to a
-minute before a crontab slot, and less than the margin or a quarter of the time since the slot before, is the run of
-that slot: the clock of its host runs ahead. A heartbeat (another `in_progress` of a started run) gives the run its
+A downtime makes one `unknown` row, and the next slot is the first after Trap woke up. A run that starts less than a
+minute before a crontab slot, and less than the margin or a quarter of the time since the previous slot, is the run
+of that slot: the clock of its host runs ahead. A run late for the previous slot, or while it still waits for its
+run, stays the run of the previous slot. A heartbeat (another `in_progress` of a started run) gives the run its
 own max runtime again; a new `max_runtime` applies to the runs that start later. `schedule` reads
 `crontab 0 3 * * *` or `every 10 minutes`; a job without one is never missed. A run's `output` is the last 1 024
 bytes of a ping body; the web UI shows up to 10 KB. Trap keeps 200 jobs with their newest 100 runs and 8 MB of

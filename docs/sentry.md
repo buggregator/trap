@@ -144,9 +144,10 @@ it, a field left out keeps its value and a field sent as `null` gets its default
 - Trap keeps the first 64 characters of an environment, and a trace ID of 32 hex digits only.
 - Trap expects the next run at the first slot of the schedule after the start of the newest run, or after now when
   that slot has passed; a run that started earlier and ends later does not move it back. A run that starts shortly
-  before a crontab slot, as when the clock of its host runs ahead, is the run of that slot: up to a minute before
-  it, and no more than the margin or a quarter of the time since the slot before it, so a run late for that slot
-  stays the run of that slot. About every second Trap marks what did not come:
+  before a crontab slot, as when the clock of its host runs ahead, is the run of that slot: less than a minute
+  before it, and less than the margin or a quarter of the time since the previous slot. A run that comes late for
+  the previous slot, or while that slot still waits for its run, stays the run of the previous slot. About every
+  second Trap marks what did not come:
   - a slot with no check-in within the margin is `missed`, unless a run is in progress: a long run may cover a slot;
   - a started run with no end within its max runtime, the one the job had when the run started, is `timeout`; an
     end that comes later keeps that status;

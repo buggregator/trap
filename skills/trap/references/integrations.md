@@ -33,11 +33,11 @@ curl -fsS "http://127.0.0.1:8000/ping/backup/start?schedule=0%203%20*%20*%20*&ma
 ```
 
 `schedule` (a URL-encoded crontab), `tz`, `margin` and `max_runtime` (minutes) set the job's monitor, `project` its
-project. An interval schedule is at most 10 years. A monitor config Trap can't read, as `@every 5m`, an unknown zone
-or a config that is no object, gets `400` from a ping and from the cron HTTP API
-(`/api/{project_id}/cron/{slug}/{public_key}/`, a JSON body up to 1 MB); from an SDK it is ignored with a warning in
-the console and the run still counts. Trap keeps the first 64 characters of an environment and a trace ID of 32 hex
-digits only.
+project. An interval schedule is at most 10 years. A monitor config Trap can't read, as `@every 5m` or an unknown
+zone, gets `400` from a ping and from the cron HTTP API (`/api/{project_id}/cron/{slug}/{public_key}/`, a JSON body
+up to 1 MB), and so does a `monitor_config` of that API that is no object; from an SDK such a config is ignored with
+a warning in the console and the run still counts. Trap keeps the first 64 characters of an environment and a trace
+ID of 32 hex digits only.
 
 ## Monolog
 

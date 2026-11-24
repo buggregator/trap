@@ -256,6 +256,20 @@ final class CronsTest
         Assert::same($this->monitor()->lastStatus(), CheckIn::MISSED);
     }
 
+    public function testEarlyRunWithTheSlotBeforeStillPendingIsTheRunOfThatSlot(): void
+    {
+        $config = new MonitorConfig(Schedule::crontab('* * * * *'));
+        // The run of 11:59, then none for 12:00 until 12:00:50: late for 12:00, not early for 12:01
+        $this->crons->record(self::checkIn('11:58:50', config: $config));
+        $this->crons->record(self::checkIn('12:00:50'));
+        $next = $this->monitor()->nextExpectedAt;
+        $this->crons->check((float) self::at('12:02:01'));
+
+        Assert::same($next, self::at('12:01'));
+        Assert::same($this->monitor()->history()[0]->expectedAt, (float) self::at('12:01'));
+        Assert::same($this->monitor()->lastStatus(), CheckIn::MISSED);
+    }
+
     public function testScheduleThatFailsIsLoggedAndTheOtherMonitorsAreChecked(): void
     {
         $log = new BufferedOutput();
@@ -456,7 +470,7 @@ final class CronsTest
         $store->process();
 
         Assert::same($told->getArrayCopy(), [['default', ['cron']]]);
-        Assert::string($log->fetch())->contains('Sentry Crons: a listener failed')->contains('closed socket');
+        Assert::string($log->fetch())->contains('Telemetry: a listener failed')->contains('closed socket');
     }
 
     public function testMonitorWithoutAScheduleIsNeverMissed(): void
