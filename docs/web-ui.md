@@ -9,7 +9,7 @@ vendor/bin/trap --ui
 
 Then open <http://127.0.0.1:8000> in the browser.
 
-![trap-ui](https://github.com/buggregator/trap/assets/4152481/1ccc2c85-2f81-4b62-8ae7-49ee76380674)
+![Web UI](img/web-ui.png)
 
 ## Port
 

@@ -9,7 +9,7 @@
 
 <div align="center">
 
-[![Documentation](https://img.shields.io/badge/Documentation-blue?style=for-the-badge&logo=gitbook&logoColor=white)](https://docs.buggregator.dev/trap/what-is-trap.html)
+[![Documentation](https://img.shields.io/badge/Documentation-blue?style=for-the-badge&logo=gitbook&logoColor=white)](https://github.com/buggregator/trap/blob/master/docs/README.md)
 [![Sponsor](https://img.shields.io/static/v1?style=for-the-badge&label=&message=Sponsor&logo=boosty&logoColor=white&color=%23F15F2C)](https://boosty.to/roxblnfk)
 
 [![Psalm Level](https://shepherd.dev/github/buggregator/trap/level.svg)](https://shepherd.dev/github/buggregator/trap)
@@ -121,6 +121,10 @@ Everything Trap catches is rendered right in the terminal:
 | SMTP Mail Trap                                                                                   | HTTP Dump                                                                                             |
 | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
 | ![smtp](https://github.com/buggregator/trap/assets/4152481/b11c4a7f-072a-4e66-b11d-9bbd3177bfe2) | ![http-dump](https://github.com/buggregator/trap/assets/4152481/48201ce6-7756-4402-8954-76a27489b632) |
+
+And in the browser with `--ui`, the web interface of the Buggregator Server. → [Web UI](docs/web-ui.md)
+
+![Web UI](docs/img/web-ui.png)
 
 Let an AI agent read it too: with `--mcp`, Trap serves what it caught over MCP, so an agent that adds `trap()` calls
 runs the code, waits for the dumps, logs, Sentry events, traces and profiles it sent, and filters them by time, type
