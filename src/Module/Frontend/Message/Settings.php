@@ -23,7 +23,7 @@ final class Settings implements \JsonSerializable
         private readonly array $ports = [],
     ) {
         // The UI prints the version after a `v` and only recognizes one that starts with a digit
-        $this->number = Info::version() . ' (Trap)';
+        $this->number = Info::version() . '-trap';
     }
 
     #[\Override]

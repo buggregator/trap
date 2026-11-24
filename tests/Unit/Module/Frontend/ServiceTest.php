@@ -219,7 +219,7 @@ final class ServiceTest
     {
         [$service] = self::service();
 
-        Assert::same(self::json($service->settings())['version'], Info::version() . ' (Trap)');
+        Assert::same(self::json($service->settings())['version'], Info::version() . '-trap');
     }
 
     public function testSettingsListEventTypesOfTrap(): void
