@@ -62,6 +62,17 @@ final class Session
             return new self($settings, null);
         }
 
+        // Two profilers running at once count each other's overhead in their times;
+        // the probe's profile goes to its agent, Trap when `blackfire.agent_socket` points at it.
+        if (\class_exists(\BlackfireProbe::class, false) && \BlackfireProbe::isEnabled()) {
+            Warnings::once(
+                'blackfire',
+                'The Blackfire probe is profiling the request: this profile is skipped, two profilers would distort each other.',
+                ['reason' => 'blackfire'],
+            );
+            return new self($settings, null);
+        }
+
         $driver = $settings->driver;
         if (!$driver instanceof Driver || !$driver->isAvailable()) {
             $requested = $settings->requested;
@@ -104,8 +115,8 @@ final class Session
      * Later calls return the same profile without delivering it again.
      *
      * @return Profile|null Null when nothing was profiled, and then nothing is delivered: the condition was false,
-     *         the sample missed, no profiler is available, another profile was running, or the profile is empty
-     *         (a run shorter than the sampling period).
+     *         the sample missed, no profiler is available, another profile was running, the Blackfire probe was
+     *         profiling the request, or the profile is empty (a run shorter than the sampling period).
      */
     public function stop(): ?Profile
     {

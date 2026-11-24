@@ -66,6 +66,10 @@ samples and delivery errors are logged once per process to the `trap.profiler` c
 only invalid options throw.
 `->if($condition)` turns profiling off, e.g. outside a dev environment.
 
+A profile is skipped, and the skip is logged too, while the [Blackfire probe](blackfire.md) profiles the request:
+two profilers would count each other's overhead. The profile of the probe goes to its agent, which is Trap
+when `blackfire.agent_socket` points at it.
+
 ## Environment variables
 
 - `TRAP_PROFILER_HOST` and `TRAP_PROFILER_PORT` - where `toTrap()` sends (default: `127.0.0.1:9912`)

@@ -209,7 +209,7 @@ final class Profiling
      *
      * If the callable throws, the profile is delivered and the exception is rethrown.
      * Errors of the profiler and of the destinations are logged, never thrown.
-     * While another profile runs, the callable just runs.
+     * While another profile runs, or the Blackfire probe profiles the request, the callable just runs.
      *
      * @template T
      *
@@ -236,7 +236,8 @@ final class Profiling
      * Starts profiling until {@see Session::stop()}.
      *
      * Call `stop()` in a `finally` block: a session kept alive, e.g. by an exception trace, keeps the profiler busy,
-     * and the profiles started meanwhile are skipped. While another profile runs, the session does nothing.
+     * and the profiles started meanwhile are skipped. While another profile runs, or the Blackfire probe profiles
+     * the request, the session does nothing.
      */
     public function start(): Session
     {

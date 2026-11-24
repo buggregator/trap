@@ -18,6 +18,7 @@ use Buggregator\Trap\Module\Profiler\Http\SpeedscopeTrap;
 use Buggregator\Trap\Module\Profiler\Http\SPXTrap;
 use Buggregator\Trap\Module\Profiler\Http\XDebugTrap;
 use Buggregator\Trap\Module\Profiler\Http\XHProfTrap;
+use Buggregator\Trap\Module\Profiler\Traffic\BlackfireDispatcher;
 use Buggregator\Trap\Module\Ray\Http\RayTrap;
 use Buggregator\Trap\Module\Sentry\Http\CronTrap;
 use Buggregator\Trap\Module\Sentry\Http\SentryTrap;
@@ -110,7 +111,7 @@ final class ModulesTest
             $configs = [...$configs, ...$module->fileObserverConfigs()];
         }
 
-        Assert::same($dispatchers, [VarDumperDispatcher::class, MailerDispatcher::class, MonologDispatcher::class, XDebugDispatcher::class]);
+        Assert::same($dispatchers, [VarDumperDispatcher::class, MailerDispatcher::class, MonologDispatcher::class, BlackfireDispatcher::class, XDebugDispatcher::class]);
         Assert::same(
             $middlewares,
             [

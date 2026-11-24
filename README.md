@@ -207,6 +207,7 @@ The ports below are the defaults of the clients.
 | OpenTelemetry (OTLP)        | `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318`                  | [OpenTelemetry](docs/opentelemetry.md)                                            |
 | CSP and Reporting API       | `report-uri http://127.0.0.1:8000/csp/my-app` in the policy          | [CSP reports](docs/csp.md)                                                        |
 | Profiles                    | `trap()::profile()`, `POST /api/profiler/*`, a watched directory     | [Profiling](docs/profiling.md), [receiving](docs/profiles.md), [SPX](docs/spx.md) |
+| Blackfire probe             | `blackfire.agent_socket=tcp://127.0.0.1:9912`, `BLACKFIRE_QUERY`     | [Blackfire probe](docs/blackfire.md)                                              |
 | Xdebug step debugging       | `--xdebug`, `xdebug.client_port=9003`, the IDE moved to `9004`       | [Xdebug debugger](docs/xdebug.md)                                                 |
 | Xdebug function traces      | `POST` with `X-Buggregator-Event: xdebug-trace`, a watched directory | [Xdebug traces](docs/xdebug-traces.md)                                            |
 | Binary data                 | any raw bytes                                                        |                                                                                   |
@@ -235,7 +236,8 @@ All the options and variables: [CLI](docs/cli.md) and [Configuration](docs/confi
 - [CLI](docs/cli.md)
 - [Configuration](docs/configuration.md)
 - [Functions](docs/functions.md)
-- [Profiling code](docs/profiling.md) and [receiving profiles](docs/profiles.md), [SPX](docs/spx.md)
+- [Profiling code](docs/profiling.md) and [receiving profiles](docs/profiles.md), [SPX](docs/spx.md),
+  [Blackfire probe](docs/blackfire.md)
 - Integrations: [var-dumper](docs/var-dumper.md), [Monolog](docs/monolog.md), [Sentry](docs/sentry.md),
   [SMTP](docs/smtp.md), [Ray](docs/ray.md), [HTTP dumps](docs/http-dump.md), [OpenTelemetry](docs/opentelemetry.md),
   [CSP reports](docs/csp.md)

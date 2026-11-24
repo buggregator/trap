@@ -429,13 +429,13 @@ an agent dig into it without reading the whole call graph.
 The metrics are the ones the console shows; a profiler that doesn't measure one leaves it out, and a tool asked
 for it fails with the metrics the profile has:
 
-| Metric | Measures                           | Formats                                                                            |
-| ------ | ---------------------------------- | ---------------------------------------------------------------------------------- |
-| `wt`   | Wall time, µs                      | XHProf, Xdebug, SPX, pprof and Speedscope of a CPU or time profile                 |
-| `cpu`  | CPU time, µs                       | XHProf and SPX when enabled, pprof of a CPU profile, Speedscope with the CPU clock |
-| `mu`   | Memory, bytes                      | XHProf and SPX when enabled, Xdebug, pprof and Speedscope of a memory profile      |
-| `pmu`  | Peak memory, bytes                 | XHProf when enabled                                                                |
-| `ct`   | Calls, or samples of a sampled one | All; `count_type` of `profile_summary` tells what it counts                        |
+| Metric | Measures                           | Formats                                                                                                 |
+| ------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `wt`   | Wall time, µs                      | XHProf, Xdebug, SPX, the Blackfire probe, pprof and Speedscope of a CPU or time profile                 |
+| `cpu`  | CPU time, µs                       | XHProf and SPX when enabled, the Blackfire probe, pprof of a CPU profile, Speedscope with the CPU clock |
+| `mu`   | Memory, bytes                      | XHProf and SPX when enabled, Xdebug, the Blackfire probe, pprof and Speedscope of a memory profile      |
+| `pmu`  | Peak memory, bytes                 | XHProf when enabled, the Blackfire probe                                                                |
+| `ct`   | Calls, or samples of a sampled one | All; `count_type` of `profile_summary` tells what it counts                                             |
 
 - Without `metric` the tools take the first the profile has of `wt`, `cpu`, `mu`, `ct`, as the console ranks by.
 - A function's values are summed over all its calls. `inclusive` takes the callees in, `exclusive` is the function

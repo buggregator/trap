@@ -162,6 +162,7 @@ $profilers = [
     'xhprof' => 'XHProf: every call, trap()::profile(new XHProf())',
     'tideways_xhprof' => 'XHProf (tideways): every call, trap()::profile(new XHProf())',
     'spx' => 'SPX: needs spx.* INI at the process start',
+    'blackfire' => 'Blackfire probe: blackfire.agent_socket to a Trap port and a query (profiling.md)',
 ];
 $found = false;
 foreach ($profilers as $extension => $line) {

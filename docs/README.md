@@ -24,6 +24,7 @@
 - [CSP reports](csp.md) - Content Security Policy violations and Reporting API reports of browsers.
 - [Receiving profiles](profiles.md) - XHProf, Xdebug, Speedscope, pprof and SPX over HTTP or from a directory.
 - [SPX](spx.md) - SPX full reports: directory, HTTP and profiling from code.
+- [Blackfire probe](blackfire.md) - profiles of the Blackfire PHP probe, taken in place of its agent.
 - [Xdebug traces](xdebug-traces.md) - Xdebug function traces over HTTP or from a directory: the call tree.
 
 ## Output

@@ -15,6 +15,7 @@ its `phpinfo()` or profile the same code from a CLI entry point, such as a test.
 | XHProf (`ext-xhprof`, `tideways_xhprof`) | Every call: count, wall time; CPU and memory on request    | Call counts (an N+1), memory per call  |
 | SPX (`ext-spx`)                          | Every call, wall and CPU time, memory                      | Only when set up already: INI at start |
 | Xdebug (`xdebug.mode=profile`)           | Every call of the whole process, slowly                    | No other profiler; a whole CLI run     |
+| Blackfire probe (`ext-blackfire`)        | Every call: count, wall and CPU time, memory               | Only when installed already            |
 
 With none of them, tell the user which to install; Excimer is `pecl install excimer`.
 
@@ -42,7 +43,8 @@ $session->stop();
 - Profiling never throws into the profiled code. A profile that doesn't arrive logs why to the `trap.profiler`
   channel: `{"type": "monolog", "where": {"channel": "trap.profiler"}}`. A run shorter than the Excimer `period`
   (1 ms by default) has no samples: lower the period or profile more work.
-- One profile at a time: a nested `trap()::profile()` is skipped.
+- One profile at a time: a nested `trap()::profile()` is skipped, and so is one while the Blackfire probe profiles
+  the request; the log tells which.
 - Run with `XDEBUG_MODE=off`: Xdebug loaded in another mode slows the code and distorts the profile.
 
 ## Profile from outside
@@ -58,6 +60,22 @@ $session->stop();
   - Code that runs Fibers needs nothing special, see [Code with Fibers](#code-with-fibers).
   - The query of the endpoint names no Xdebug profile: find its event by `type: profiler` and the cursor.
 - XHProf files: `TRAP_XHPROF_PATH=<dir>` for the files another tool writes, such as XHGui.
+- Blackfire probe: Trap takes its profiles in place of the Blackfire agent, with no account. Point
+  `blackfire.agent_socket` at any Trap port and pass a query; Trap doesn't check its signature, so this one works as
+  it is. `profile_title` becomes the `name` tag, the `format` is `Blackfire`.
+
+  ```bash
+  BLACKFIRE_QUERY='expires=4102444800&signature=trap&profile_title=import' \
+    php -d blackfire.agent_socket=tcp://127.0.0.1:9912 bin/console app:import
+  curl -H 'X-Blackfire-Query: expires=4102444800&signature=trap' http://localhost/checkout
+  ```
+
+  A web request needs `blackfire.agent_socket` in the INI of its PHP-FPM or web server.
+  - A web request without a query makes the probe ask for monitoring (`file-format: BlackfireApm`): Trap closes the
+    connection unanswered, the probe logs `Locking APM for 300 seconds` and stops asking for 5 minutes;
+    `blackfire.apm_enabled=0` turns it off. Not an error.
+  - A profile over 64 MB, data that is not a profile, or a profile coming while four others wait to be built is
+    dropped with a warning in Trap's console; the probe doesn't send it again.
 - Any language, as pprof, Speedscope JSON or XHProf JSON: POST it to Trap.
 
 ```bash
@@ -84,13 +102,13 @@ curl -s 'http://localhost:6060/debug/pprof/profile?seconds=10' \
 4. `profile_call_graph` with `{"id": ..., "threshold": 5}` when the shape of the tree matters: the calls of at least
    5 percent.
 
-| Metric | Measures                     |
-|--------|------------------------------|
-| `wt`   | Wall time, µs                |
-| `cpu`  | CPU time, µs                 |
-| `mu`   | Memory, bytes                |
-| `pmu`  | Peak memory, bytes (XHProf)  |
-| `ct`   | Calls, or samples of Excimer |
+| Metric | Measures                                     |
+|--------|----------------------------------------------|
+| `wt`   | Wall time, µs                                |
+| `cpu`  | CPU time, µs                                 |
+| `mu`   | Memory, bytes                                |
+| `pmu`  | Peak memory, bytes (XHProf, Blackfire probe) |
+| `ct`   | Calls, or samples of Excimer                 |
 
 - Without `metric` the tools take `wt`, else the first the profile has; a missing one fails with those it has.
 - Wall time far above CPU time is waiting: I/O, the database, a sleep; look at the callees that wait. Xdebug
