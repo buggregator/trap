@@ -19,6 +19,7 @@ use Buggregator\Trap\Server\Handler\Router\Attribute\RegexpRoute;
 use Buggregator\Trap\Server\Handler\Router\Attribute\StaticRoute;
 use Buggregator\Trap\Server\Handler\Router\Method;
 use Buggregator\Trap\Server\Telemetry\Feedback;
+use Buggregator\Trap\Server\Telemetry\Insight\TraceInsights;
 use Buggregator\Trap\Server\Telemetry\Log;
 use Buggregator\Trap\Server\Telemetry\Metric;
 use Buggregator\Trap\Server\Telemetry\TelemetryStore;
@@ -39,6 +40,7 @@ final class ApiController
     public function __construct(
         private readonly EventStore $events,
         private readonly TelemetryStore $telemetry,
+        private readonly TraceInsights $insights,
     ) {}
 
     #[StaticRoute(Method::Get, 'api/sentry/counts')]
@@ -286,7 +288,8 @@ final class ApiController
             return Error::notFound('trace not found');
         }
 
-        $result = (new TraceView($trace, $project))->detail($root);
+        $findings = $this->insights->of($trace, $project === null ? [] : [$project]);
+        $result = (new TraceView($trace, $project))->detail($root, $findings);
 
         $related = [];
         foreach ($this->scopedErrors(new Scope($project)) as $error) {

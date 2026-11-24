@@ -40,7 +40,7 @@ the agent reads back through Trap's MCP tools.
 
 | Reference                                         | Read when                                                                                                                                                  |
 | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [mcp.md](references/mcp.md)                       | Reading events, traces of Sentry and OpenTelemetry, cron jobs: the tools, filters, the script for agents without MCP                                       |
+| [mcp.md](references/mcp.md)                       | Reading events, traces of Sentry and OpenTelemetry, N+1 queries, cron jobs: the tools, filters, the script for agents without MCP                          |
 | [dumps-and-logs.md](references/dumps-and-logs.md) | Seeing values or the code path at runtime: `trap()`, `tr()`, `td()`, `dump()`, `trap()::logger()`                                                          |
 | [profiling.md](references/profiling.md)           | Finding why code is slow or takes memory: `trap()::profile()`, the profilers, reading a profile; Xdebug function traces                                    |
 | [xdebug.md](references/xdebug.md)                 | Stopping at a line or an exception and stepping through PHP code: `--xdebug`, breakpoints, variables, `xdebug_*` tools                                     |

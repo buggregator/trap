@@ -16,6 +16,7 @@ use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Telemetry\Batch;
 use Buggregator\Trap\Server\Telemetry\Feedback;
+use Buggregator\Trap\Server\Telemetry\Insight\TraceInsights;
 use Buggregator\Trap\Server\Telemetry\Log;
 use Buggregator\Trap\Server\Telemetry\Metric;
 use Buggregator\Trap\Server\Telemetry\Peer;
@@ -50,7 +51,7 @@ final class ApiControllerTest
     {
         $this->events = new EventStore();
         $this->telemetry = new TelemetryStore();
-        $this->api = new ApiController($this->events, $this->telemetry);
+        $this->api = new ApiController($this->events, $this->telemetry, new TraceInsights());
         $this->now = \microtime(true);
     }
 
@@ -152,6 +153,39 @@ final class ApiControllerTest
         Assert::null($result['spans'][0]['attributes']);
         Assert::same(\array_column($result['related_errors'], 'id'), ['e2', 'e1']);
         Assert::same($result['related_log_count'], 2);
+    }
+
+    public function testTraceTellsRepeatedQueries(): void
+    {
+        $now = $this->now;
+        $shop = new Batch('shop');
+        $shop->transactions = [
+            new Transaction('root', 'shop', self::T1, 'r1', null, 'GET /orders', 'http.server', 'ok', $now - 1, $now, Source::Sentry, 'shop-api'),
+        ];
+        for ($i = 1; $i <= 5; ++$i) {
+            $data = $i === 4 ? ['code.filepath' => 'app/Orders.php', 'code.lineno' => 7] : [];
+            $shop->spans[] = new Span('shop', self::T1, "q$i", 'r1', 'root', 'db.sql.query', "select * from items where order_id = $i", 'ok', $now - 0.5, $now - 0.499, Source::Sentry, 'shop-api', new Peer('db'), $data);
+        }
+        $billing = new Batch('billing');
+        $billing->transactions = [
+            new Transaction('pay', 'billing', self::T1, 'p1', 'r1', 'POST /pay', 'http.server', 'ok', $now - 1, $now, Source::Sentry, 'billing'),
+        ];
+        $this->telemetry->add($shop);
+        $this->telemetry->add($billing);
+
+        $all = $this->api->trace(self::T1);
+        $other = $this->api->trace(self::T1, 'billing');
+
+        Assert::count($all['n_plus_one'], 1);
+        Assert::same(\array_diff_key($all['n_plus_one'][0], ['total_ms' => true]), [
+            'transaction_id' => 'root',
+            'query' => 'SELECT * FROM items WHERE order_id = ?',
+            'count' => 5,
+            'origin' => 'app/Orders.php:7',
+            'span_ids' => ['q1', 'q2', 'q3', 'q4', 'q5'],
+        ]);
+        Assert::numeric($all['n_plus_one'][0]['total_ms'])->between(4.99, 5.01);
+        Assert::same($other['n_plus_one'], []);
     }
 
     public function testUnknownTraceIsNotFound(): void
