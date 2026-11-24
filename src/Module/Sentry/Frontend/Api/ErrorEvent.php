@@ -31,6 +31,9 @@ final class ErrorEvent
         public readonly ?string $traceId,
         public readonly string $eventId,
         public readonly string $transaction,
+        public readonly ?string $spanId = null,
+        public readonly ?string $parentSpanId = null,
+        public readonly ?float $capturedAt = null,
     ) {}
 
     /**
@@ -66,6 +69,8 @@ final class ErrorEvent
         /** @var mixed $trace */
         $trace = $payload['contexts']['trace'] ?? null;
         $traceId = \is_array($trace) ? self::string($trace['trace_id'] ?? null) : '';
+        $spanId = \is_array($trace) ? self::string($trace['span_id'] ?? null) : '';
+        $parentSpanId = \is_array($trace) ? self::string($trace['parent_span_id'] ?? null) : '';
         $level = self::string($payload['level'] ?? null);
 
         return new self(
@@ -80,7 +85,18 @@ final class ErrorEvent
             traceId: $traceId === '' ? null : $traceId,
             eventId: self::string($payload['event_id'] ?? null),
             transaction: self::string($payload['transaction'] ?? null),
+            spanId: $spanId === '' ? null : $spanId,
+            parentSpanId: $parentSpanId === '' ? null : $parentSpanId,
+            capturedAt: ItemReader::time($payload['timestamp'] ?? null),
         );
+    }
+
+    /**
+     * The `timestamp` of the payload, by the clock of the SDK that times its spans; else when Trap received it.
+     */
+    public function capturedTime(): float
+    {
+        return $this->capturedAt ?? $this->time;
     }
 
     /**

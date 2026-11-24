@@ -106,6 +106,29 @@ final class PayloadSummaryTest
         Assert::same((new PayloadSummary())->summary($event), 'Welcome from shop@example.com to alice@example.com, Bob');
     }
 
+    #[DataSet([['method' => 'REQUEST', 'summary' => 'Sync'], '; invite'], 'invite')]
+    #[DataSet([['method' => 'CANCEL', 'summary' => 'Sync'], '; cancelled invite'], 'cancelled by the method')]
+    #[DataSet([['summary' => 'Sync', 'status' => 'CANCELLED'], '; cancelled invite'], 'cancelled by the status')]
+    #[DataSet([['method' => 'REPLY', 'summary' => 'Sync'], '; invite reply'], 'reply')]
+    public function testMailWithVersionsAndInvite(array $calendar, string $invite): void
+    {
+        $event = self::event('smtp', [
+            'subject' => 'Sync',
+            'to' => [new Contact(null, 'alice@example.com')],
+            'parts' => [
+                ['type' => 'text/watch-html', 'label' => 'Apple Watch', 'content' => '<b>Sync</b>', 'size' => 11],
+                ['type' => 'text/calendar', 'label' => 'Calendar', 'content' => 'BEGIN:VCALENDAR', 'size' => 15],
+                ['type' => 'application/ics', 'label' => 'Calendar', 'content' => 'BEGIN:VCALENDAR', 'size' => 15],
+            ],
+            'calendar' => $calendar,
+        ]);
+
+        Assert::same(
+            (new PayloadSummary())->summary($event),
+            "Sync to alice@example.com; versions: Apple Watch, Calendar$invite",
+        );
+    }
+
     public function testMailWithoutSubject(): void
     {
         Assert::same((new PayloadSummary())->summary(self::event('smtp', ['subject' => ''])), '(no subject)');

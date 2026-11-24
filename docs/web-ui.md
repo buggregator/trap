@@ -44,7 +44,8 @@ vendor/bin/trap --ui=8080 -s
 
 ## What it shows
 
-Dumps, Monolog logs, Sentry events, emails, Ray payloads, HTTP dumps, profiles,
+Dumps, Monolog logs, Sentry events, emails with their
+[other versions and invites](smtp.md#other-versions-and-invites), Ray payloads, HTTP dumps, profiles,
 [Xdebug traces](xdebug-traces.md) with their call tree, and [CSP reports](csp.md) on the CSP reports page.
 
 The UI keeps the last 200 events; `/trap/events/@maxEvents` in [`trap.xml`](configuration.md#trapxml) changes it.
@@ -61,10 +62,8 @@ sessions and steps through the ones Trap drives, and its setup guide shows the d
 
 The UI has pages for features of the Buggregator Server that Trap has not: metrics, the mock server, updates.
 They show no data, and the menu of the mock server stays while HTTP dumps are on: hide it in Settings › Menu.
-Other features of the server stay hidden, as Trap answers 404 to their endpoints: the Broadcast page, the Queues
-tab of the Sentry section, the
-«Send to inbox» button of an email (Settings › Email relay says the server can't send email), the other versions
-of an email and its invite card, sign-in and the audit log.
+Other features of the server stay hidden, as Trap answers 404 to their endpoints: the Broadcast page, the «Send to
+inbox» button of an email (Settings › Email relay says the server can't send email), sign-in and the audit log.
 
 ## Logs and feed filters
 
@@ -101,6 +100,11 @@ The Sentry section has a page for each kind of data:
 - Logs and Metrics: Sentry `log` and `trace_metric` items, OTLP logs and metrics.
 - Feedback: the [user feedback](sentry.md#user-feedback) of the project, each with a link to its error; the page of
   an error shows the feedback on it. The tab shows once the period has feedback.
+- Queues: the [queue jobs](sentry.md#queue-jobs) whose last attempt ended in the period, the latest first, with
+  their status, queue, attempts and failures, and the jobs, failures, retried jobs and average duration of the
+  period above. The page of a job shows its attempts on a time scale with the pauses between them, the time each
+  waited in the queue, their errors and traces, and the request that queued the job. The tab shows once the
+  period has a job.
 - Crons: the [cron jobs](sentry.md#crons) of the project, whatever the period, with the last run, the next expected
   one and the recent runs, failed, timed out and missed ones first; the page of a job shows its runs with their
   durations, output and traces, and the ping URLs of a job that pings. The tab is always there; with no job it shows
@@ -110,10 +114,10 @@ The Sentry section has a page for each kind of data:
 Traces, logs, metrics, feedback and cron runs make no events in the feed: a Sentry transaction is a trace, and the
 feed holds the errors. Trap keeps them in memory while the UI or the [MCP server](mcp.md) runs, and the UI asks for
 them by project and period. The MCP tools [`list_traces` and `get_trace`](mcp.md#traces) read the same traces,
-[`list_feedback`](mcp.md#user-feedback) the same feedback and [`list_crons`](mcp.md#cron-jobs) the same jobs.
-"Clear all" in the Sentry section deletes them with the Sentry events; with the pinned events kept, the feedback on
-a pinned error stays too. The cron jobs stay, without their runs. The project list has the projects of cron jobs too,
-as a ping URL may name a project no event has.
+[`list_queue_jobs`](mcp.md#queue-jobs) the same jobs, [`list_feedback`](mcp.md#user-feedback) the same feedback
+and [`list_crons`](mcp.md#cron-jobs) the same cron jobs. "Clear all" in the Sentry section deletes them with the
+Sentry events; with the pinned events kept, the feedback on a pinned error stays too. The cron jobs stay, without
+their runs. The project list has the projects of cron jobs too, as a ping URL may name a project no event has.
 
 Memory is bounded by these limits; values below 1 fall back to the defaults:
 

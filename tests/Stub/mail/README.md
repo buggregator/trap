@@ -24,3 +24,7 @@ Every one carries the same 1×1 PNG (70 bytes) and PDF (77 bytes), so the tests 
 - `calendar-invite.eml` — a Google Calendar invitation: `text/calendar` next to the text and HTML.
 - `deeply-nested.eml` — four levels of multipart; the embedded image has a `Content-ID` only.
 - `forwarded-as-attachment.eml` — a whole email attached as `message/rfc822`.
+- `watch.eml`, `amp.eml`, `google-invite.eml`, `outlook-cancel.eml`, `ics-attachment.eml`, `bounce.eml` — the fixtures
+  of the other body versions in Buggregator Server 2.14 (`modules/smtp/testdata`): an Apple Watch version, an AMP
+  version, a Google Calendar invite with an `.ics` attachment, a single-part Outlook cancellation with a Windows zone,
+  an `.ics` attachment only and a delivery report. They carry no PNG or PDF.

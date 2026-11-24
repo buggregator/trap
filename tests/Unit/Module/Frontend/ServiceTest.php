@@ -14,6 +14,7 @@ use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Config\TcpPorts;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventStore;
+use Buggregator\Trap\Server\Info;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Telemetry\Batch;
 use Buggregator\Trap\Server\Telemetry\Cron\CheckInMessage;
@@ -226,6 +227,13 @@ final class ServiceTest
 
         $service->eventsDelete(project: 'default');
         Assert::same(\array_keys(\iterator_to_array($storage)), ['s1']);
+    }
+
+    public function testSettingsNameTrapAfterItsVersion(): void
+    {
+        [$service] = self::service();
+
+        Assert::same(self::json($service->settings())['version'], Info::version() . '-trap');
     }
 
     public function testSettingsListEventTypesOfTrap(): void

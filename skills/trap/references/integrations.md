@@ -19,7 +19,9 @@ its error reporting. The `sentry` events are the errors: a transaction is a trac
 `sentry` event). Sentry logs and trace metrics make no event
 and show only on the Sentry pages of the web UI. User feedback (`feedback`, `user_report`) makes no event either: the
 web UI shows it on its error and the Feedback tab, and `list_feedback` reads it, see
-[mcp.md](mcp.md#user-feedback). A body over 2 MB gets `413`, and an event Trap can't parse is dropped
+[mcp.md](mcp.md#user-feedback). Queue job transactions (`queue.process`; sentry-laravel sends them with
+tracing on, `SENTRY_TRACES_SAMPLE_RATE=1`) are traces and the jobs of the Queues tab; `list_queue_jobs` reads them, see
+[mcp.md](mcp.md#queue-jobs). A body over 2 MB gets `413`, and an event Trap can't parse is dropped
 with a warning in its console. The `X-Buggregator-Project` header sets the `project` of the event.
 
 Cron check-ins (Sentry Crons: `captureCheckIn()`, `withMonitor()`, Laravel's `->sentryMonitor()`) go to the same
@@ -89,6 +91,21 @@ mailer authenticated, plus `AUTHZID` when a `PLAIN` client acts for another user
 and the attachments, all decoded from quoted-printable and base64. The text and HTML are UTF-8, converted from the
 declared charset by mbstring or iconv; a part in a charset neither knows keeps its raw bytes, and one with no charset is
 taken as UTF-8. No mail leaves the machine.
+
+The other versions of a body, such as Apple Watch (`text/watch-html`), AMP (`text/x-amp-html`), a calendar
+(`text/calendar`) or a delivery report, are the parts shown inline (an `inline` disposition or none) and unnamed;
+a part named in `Content-Disposition` or `Content-Type`, or attached, is a file. The first plain text and the first
+HTML part are the message text even when named in `Content-Type`; a named one after them is a file. The summary ends
+with the versions and the invite, as `...; versions: Apple Watch, AMP, Calendar; invite` (or `cancelled invite`, `invite reply`).
+`get_event` prints each version as a body named by its kind, and the invite (the first event of a calendar version,
+else of a calendar attachment) in an `Invite` section in place of its calendar text: summary, times in the zone of
+the event (`DTEND`, or `DTSTART` plus `DURATION`; an all-day event without them, or with a duration that is not
+a positive number of whole days, lasts one day), place, organizer, guests with their `PARTSTAT`. An invite with
+`METHOD:CANCEL` or `STATUS:CANCELLED` is cancelled. In the web UI each version is a tab, the invite a card above the
+body. A `TZID` resolves to the same IANA zone on every platform: an obsolete tzdata name to the current zone of
+its own country (`Iceland` to `Atlantic/Reykjavik`), with ext-intl a Windows name (`W. Europe Standard Time`) to
+its zone; a current zone such as `Europe/Oslo` stays itself, and an unknown one gives local time with the `TZID` as
+written.
 
 `subject` and the contact names come decoded from RFC 2047 words: `where` on `subject` and a `search` match the
 plain text, such as `Привет, мир`. `from`, `to`, `cc` and `bcc` hold the addresses, so match a name with `search`.

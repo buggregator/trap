@@ -60,7 +60,8 @@ page of the [web UI](web-ui.md), Sentry pages included:
 - profiles: XHProf, Xdebug, SPX and Speedscope (Excimer);
 - an [Xdebug function trace](xdebug-traces.md);
 - `trap()` dumps and a protobuf message;
-- two emails over SMTP, a plain and a multipart one;
+- three emails over SMTP: a multipart one with Apple Watch and AMP versions, an invite and an attached file,
+  a cancelled invite, and a plain one;
 - [Monolog](monolog.md) records of several levels and channels;
 - [Ray](ray.md) payloads: a log with a color and a label, a table, a caller, HTML and an exception;
 - two [HTTP dumps](http-dump.md): a `GET` with a query and cookies, and a form that uploads a file;

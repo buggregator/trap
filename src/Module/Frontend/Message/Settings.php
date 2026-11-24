@@ -22,7 +22,8 @@ final class Settings implements \JsonSerializable
         private readonly array $events,
         private readonly array $ports = [],
     ) {
-        $this->number = Info::version();
+        // The UI prints the version after a `v` and only recognizes one that starts with a digit
+        $this->number = Info::version() . '-trap';
     }
 
     #[\Override]

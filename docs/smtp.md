@@ -29,11 +29,71 @@ Trap decodes the text and HTML parts and the attached files from `quoted-printab
 and HTML parts to UTF-8 from the charset they declare when `ext-mbstring` or `ext-iconv` knows that charset; a part
 in a charset neither knows keeps its bytes, and a part with no charset is taken as UTF-8.
 
-`vendor/bin/trap test` sends two test emails, a plain and a multipart one.
+`vendor/bin/trap test` sends three test emails: a multipart one with every version of the body below, an invite and
+an attached file; a cancelled all-day invite; a plain one.
 
-Encoded subjects, names and file names, such as `=?utf-8?Q?...?=`, are shown decoded. An attached file without
-a `filename` in `Content-Disposition` takes the `name` of its `Content-Type`, as Outlook and older mailers name files.
+Encoded subjects, names and file names, such as `=?utf-8?Q?...?=`, are shown decoded. A file without a `filename`
+in `Content-Disposition` takes the `name` of its `Content-Type`, as Outlook and older mailers name files; such a name
+makes a part a file. Some mailers name the message text too, so the first plain text and the first HTML part are the
+message text even when named; a named one after them, such as `text/plain; name=log.txt`, is a file.
 The sender is listed once when the envelope sender and the `From` header have the same address.
+
+## Other versions and invites
+
+An email may carry more versions of its body than the text and the HTML: the Apple Watch version
+(`text/watch-html`), the AMP version (`text/x-amp-html`), a calendar invite (`text/calendar`, `application/ics`),
+a delivery report (`message/delivery-status`, `message/disposition-notification`, `text/rfc822-headers`), any other
+`text/*` type. Such a part is a version when it is shown with the message, that is with an `inline`
+`Content-Disposition` or none, and has no file name. A part with a file name, in `Content-Disposition` or in
+`Content-Type`, or with an `attachment` disposition is a file, as mail clients list it.
+
+- The web UI shows each version in a tab of its own next to HTML and Text, an HTML one (Apple Watch, AMP) in the same
+  safe frame as the HTML, where scripts don't run. The email list marks the emails with an Apple Watch version, an AMP
+  version, an invite or a cancelled one.
+- An invite shows as a card above the body: what, when in your time zone, where, the organizer and the guests with
+  their answers; a cancelled one is struck out. The invite is the first event of the first calendar version, or of the
+  first calendar attachment (`text/calendar`, `application/ics` or a `.ics` name) when there is no such version.
+- The console prints each version as a body named by its kind, `Body 2 Apple Watch`, and the invite in an `Invite`
+  section in place of the calendar text it is read from, with the times in the zone of the event. `get_event` of the
+  [MCP server](mcp.md) shows the same text.
+
+In the event of the web UI API the versions are the `parts` of the payload, in the order of the email, and the
+invite is `calendar`; an email without them has neither field:
+
+```json
+{
+  "parts": [
+    {"type": "text/watch-html", "label": "Apple Watch", "content": "<b>Shipped</b>", "size": 14}
+  ],
+  "calendar": {
+    "method": "REQUEST", "summary": "Sprint review",
+    "start": "2026-12-05T10:00:00+01:00", "end": "2026-12-05T10:30:00+01:00", "tz": "Europe/Berlin",
+    "location": "Room 4", "status": "CONFIRMED", "uid": "sprint-review@example.com", "sequence": "0",
+    "organizer": {"name": "Ann", "email": "ann@example.com"},
+    "attendees": [{"name": "Bob", "email": "bob@example.com", "status": "ACCEPTED", "role": "REQ-PARTICIPANT"}]
+  }
+}
+```
+
+- A part keeps 1 MB of its content, cut on a character boundary: `size` is the size before the cut and `truncated`
+  is `true`. The whole email stays in `raw`.
+- `start` and `end` are RFC 3339 when Trap knows the zone, with the IANA name of the zone in `tz`: a UTC time,
+  a `TZID` of the IANA database such as `Europe/Berlin`, also with a leading `/` or a vendor prefix such as
+  `/mozilla.org/20050126_1/Europe/Berlin`, or a Windows name of Outlook such as `W. Europe Standard Time` when
+  `ext-intl` is loaded. An obsolete name tzdata keeps for compatibility stands for the current zone of its own
+  country: `Asia/Calcutta` for `Asia/Kolkata`, `US/Eastern` for `America/New_York`, `Iceland` for
+  `Atlantic/Reykjavik`; a name of no country, such as `EST`, for the zone tzdata links it to, `America/Panama`.
+  This holds on every platform, whether or not its tzdata has these names. A current zone of a country stays itself, such as
+  `Europe/Oslo`, though tzdata links it to `Europe/Berlin`. Another `TZID` gives local time such as
+  `2026-12-03T14:00:00` with the `TZID` in `tz`.
+  An all-day event gives dates and `all_day: true`, the end date being the day after the last day.
+- `end` is `DTEND`, or `DTSTART` plus `DURATION`; an all-day event with neither, or with a duration that is not
+  a positive number of whole days, lasts one day.
+- `method` is the `METHOD` of the calendar; `status`, `sequence`, `rrule`, `url`, `description` come from the event.
+  An invite with `METHOD:CANCEL` or `STATUS:CANCELLED` is cancelled.
+- A calendar attachment is converted to UTF-8 from the `charset` of its `Content-Type`, as the versions are.
+- Trap reads the first 1 MB of a calendar, the first 200 guests and 4000 characters of the description. A field the
+  event lacks is left out, and so is a guest with neither a name nor an address.
 
 ## Authentication
 
