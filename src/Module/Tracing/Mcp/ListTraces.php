@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Mcp\Tool;
 use Buggregator\Trap\Module\Mcp\Tool\Arguments;
 use Buggregator\Trap\Module\Mcp\Tool\Cursor;
 use Buggregator\Trap\Module\Mcp\Tool\Time;
+use Buggregator\Trap\Server\Telemetry\Insight\TraceInsights;
 use Buggregator\Trap\Server\Telemetry\TelemetryStore;
 
 /**
@@ -23,6 +24,7 @@ final class ListTraces implements Tool
 
     public function __construct(
         private readonly TelemetryStore $store,
+        private readonly TraceInsights $insights,
     ) {}
 
     #[\Override]
@@ -41,8 +43,9 @@ final class ListTraces implements Tool
     public function description(): string
     {
         return 'Lists the traces Trap has received: Sentry transactions and spans, and OpenTelemetry spans over '
-            . 'OTLP. Each trace comes with its ID, name, services, sources, number of spans, duration and whether '
-            . 'a span failed. Spans of a trace may arrive in several requests, so a trace is updated as they come, '
+            . 'OTLP. Each trace comes with its ID, name, services, sources, number of spans, duration, whether '
+            . 'a span failed and the number of `findings`, problems such as repeated queries (N+1) that '
+            . '`get_trace` details. Spans of a trace may arrive in several requests, so a trace is updated as they come, '
             . 'and an updated trace is listed again. Returns the traces updated after the `since` cursor, least '
             . 'recently updated first, and a new opaque `cursor`: to see only the traces of the code you run next, '
             . 'call it once, keep the cursor, run the code, then call it with `since` set to that cursor. When '
@@ -112,11 +115,17 @@ final class ListTraces implements Tool
                                 'description' => 'From the earliest span start to the latest span end.',
                             ],
                             'error' => ['type' => 'boolean', 'description' => 'Whether a span or a transaction failed.'],
+                            'findings' => [
+                                'type' => 'integer',
+                                'minimum' => 0,
+                                'description' => 'How many problems `get_trace` lists for the trace, such as repeated '
+                                    . 'queries (N+1).',
+                            ],
                             'updated' => ['type' => 'string', 'description' => 'When the last span arrived, ISO 8601.'],
                         ],
                         'required' => [
                             'id', 'name', 'service', 'services', 'sources', 'projects', 'spans', 'duration_ms', 'error',
-                            'updated',
+                            'findings', 'updated',
                         ],
                         'additionalProperties' => false,
                     ],
@@ -147,6 +156,7 @@ final class ListTraces implements Tool
      *         spans: int,
      *         duration_ms: float,
      *         error: bool,
+     *         findings: int<0, max>,
      *         updated: string,
      *     }>,
      *     cursor: non-empty-string,
@@ -182,13 +192,15 @@ final class ListTraces implements Tool
             }
 
             $last = $trace->seq;
-            $traces[] = self::describe($summary);
+            $traces[] = $this->describe($summary, $filter->projects);
         }
 
         return ['traces' => $traces, 'cursor' => Cursor::encode($this->store->id, $cursor), 'has_more' => $hasMore];
     }
 
     /**
+     *
+     * @param list<non-empty-string> $projects
      * @return array{
      *     id: non-empty-string,
      *     name: string|null,
@@ -199,10 +211,11 @@ final class ListTraces implements Tool
      *     spans: int,
      *     duration_ms: float,
      *     error: bool,
+     *     findings: int<0, max>,
      *     updated: string,
      * }
      */
-    private static function describe(TraceSummary $trace): array
+    private function describe(TraceSummary $trace, array $projects): array
     {
         return [
             'id' => $trace->trace->id,
@@ -214,6 +227,7 @@ final class ListTraces implements Tool
             'spans' => $trace->count(),
             'duration_ms' => $trace->durationMs(),
             'error' => $trace->error,
+            'findings' => \count($this->insights->of($trace->trace, $projects)),
             'updated' => Time::format($trace->trace->updatedAt),
         ];
     }

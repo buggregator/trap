@@ -70,6 +70,46 @@ final class GetTraceTest
             ->contains("      http.response.status_code: 502\n");
     }
 
+    public function testListsFindingsAboveTheTree(): void
+    {
+        $trap = new Trap();
+        $spans = [];
+        for ($i = 1; $i <= 6; ++$i) {
+            $spans[] = [
+                'span_id' => \str_repeat((string) $i, 16),
+                'parent_span_id' => 'aaaaaaaaaaaaaaaa',
+                'op' => 'db.sql.query',
+                'description' => "SELECT * FROM products WHERE id = $i",
+                'start_timestamp' => 1_700_000_000.0 + $i / 100,
+                'timestamp' => 1_700_000_000.0 + $i / 100 + 0.002,
+                'data' => $i === 2 ? ['code.filepath' => 'app/Cart.php', 'code.lineno' => 31] : [],
+            ];
+        }
+        $trap->get(EnvelopeMapper::class)->map(new SentryEnvelope([], [new EnvelopeItem(['type' => 'transaction'], [
+            'event_id' => 'e1',
+            'transaction' => 'GET /cart',
+            'contexts' => ['trace' => ['trace_id' => self::SENTRY_TRACE, 'span_id' => 'aaaaaaaaaaaaaaaa', 'op' => 'http.server']],
+            'start_timestamp' => 1_700_000_000.0,
+            'timestamp' => 1_700_000_000.25,
+            'spans' => $spans,
+        ])], project: 'shop'));
+
+        $text = $trap->get(GetTrace::class)->call(['id' => self::SENTRY_TRACE]);
+
+        Assert::string($text)->matchesRegex(
+            '/^trace [^\n]+\nfindings, the heaviest first:\n'
+            . '- n_plus_one: 6 spans, 12\.00 ms in total, in transaction "GET \/cart", from app\/Cart\.php:31, first id:1111111111111111\n'
+            . '  SELECT \* FROM products WHERE id = \?\n# Trace /',
+        );
+    }
+
+    public function testNoFindingsNoSection(): void
+    {
+        $text = self::trap()->get(GetTrace::class)->call(['id' => self::TRACE]);
+
+        Assert::string($text)->notContains('findings');
+    }
+
     public function testLongTextIsTruncated(): void
     {
         $text = self::trap()->get(GetTrace::class)->call(['id' => self::TRACE, 'max_length' => 100]);

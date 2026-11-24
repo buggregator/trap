@@ -92,7 +92,8 @@ The Sentry section has a page for each kind of data:
 - Exceptions: the [Sentry](sentry.md) error events, one by one or grouped by type and message.
 - Traces: the transactions and spans of [Sentry SDKs](sentry.md#what-an-envelope-gives) and
   [OpenTelemetry](opentelemetry.md#how-the-ui-shows-otlp-data) exporters, one trace even when it crosses both,
-  with the waterfall, the call sequence between services, the related errors and logs.
+  with the waterfall, the call sequence between services, the related errors and logs. The request view of a
+  trace marks [repeated queries](#repeated-queries-n1) with an N+1 hint and groups their spans.
 - Service map: the services and what they call (other services, databases, caches, queues) over the period,
   with requests, errors and durations per service and per call, and the traces through each call. A call is a span
   with a peer: a database or cache address, an HTTP host, a queue; it leads to the service that served it when
@@ -131,3 +132,25 @@ Memory is bounded by these limits; values below 1 fall back to the defaults:
 Feedback has a fixed limit of 1 000 entries, cron jobs one of 200 jobs with 100 runs each and 8 MB of ping output
 in all, the oldest runs losing theirs first.
 These limits are apart from the [OpenTelemetry limits](opentelemetry.md#memory-limits) of the console.
+
+### Repeated queries (N+1)
+
+A trace reports a query that one transaction runs 5 times or more, up to its values: the N+1 pattern of a loop
+that loads a relation row by row. The trace page and the MCP tool [`get_trace`](mcp.md#traces) show the same
+findings:
+
+- Only database spans count: a Sentry span of op `db` or `db.*`, an OpenTelemetry span with `db.system` or
+  `db.system.name`. The query is the `db.query.text` attribute, else `db.statement`, else the span description,
+  where Sentry SDKs put it (an OpenTelemetry span name is a short summary such as `SELECT shop.products`).
+- A span belongs to the transaction it came in, else to the one up its parents: OpenTelemetry and Sentry span
+  streams send no transaction ID. Spans whose transaction has not arrived count together under their topmost span.
+- Two queries are the same when they differ only in values: string literals, numbers, `TRUE`, `FALSE` and the
+  placeholders `?`, `$1`, `:name` become `?`; an `IN (…)` list or the rows of `VALUES (…), (…)` of any length
+  become one `(?)`; comments go; keywords are upper-cased and spacing is made uniform. Names stay as written, with
+  their digits (`table2`), and so do `"quoted"` names and `::type` casts. A `?` or a quote inside a string literal
+  stays in the literal.
+- Each finding has the query with its values as `?`, the span count, their summed duration, and the place in the
+  code, `code.filepath:code.lineno` (or `code.file.path:code.line.number`) of the first span that has it.
+  sentry-laravel sends it only for queries slower than `SENTRY_TRACE_SQL_ORIGIN_THRESHOLD_MS`, 100 ms by default.
+- Trap finds them when a trace is read and keeps them until the trace changes, so a trace that grows as its spans
+  arrive is checked again.

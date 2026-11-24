@@ -21,6 +21,7 @@ use Buggregator\Trap\Module\Tracing\Mcp\ListTraces;
 use Buggregator\Trap\Module\Tracing\Mcp\TraceFilter;
 use Buggregator\Trap\Module\Tracing\Mcp\TraceSummary;
 use Buggregator\Trap\Server\Telemetry\Batch;
+use Buggregator\Trap\Server\Telemetry\Peer;
 use Buggregator\Trap\Server\Telemetry\Source;
 use Buggregator\Trap\Server\Telemetry\Span as TelemetrySpan;
 use Buggregator\Trap\Server\Telemetry\TelemetryStore;
@@ -63,6 +64,7 @@ final class ListTracesTest
             'spans' => 2,
             'duration_ms' => 4.0,
             'error' => true,
+            'findings' => 0,
         ]);
         Assert::string($result['traces'][1]['updated'])->matchesRegex('/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}\+00:00$/');
         Assert::false($result['traces'][0]['error']);
@@ -269,6 +271,7 @@ final class ListTracesTest
             'spans' => 3,
             'duration_ms' => 250.0,
             'error' => true,
+            'findings' => 0,
         ]);
     }
 
@@ -314,6 +317,24 @@ final class ListTracesTest
         $trace = $trap->get(ListTraces::class)->call([])['traces'][0];
 
         Assert::same([$trace['name'], $trace['service'], $trace['services']], ['GET /', 'db-api', ['db-api']]);
+    }
+
+    public function testCountsFindingsOfTheListedProjects(): void
+    {
+        $trap = new Trap();
+        $batch = new Batch('shop');
+        $batch->transactions[] = new Transaction('t1', 'shop', self::traceId('a'), 's0', null, 'GET /', 'http.server', 'ok', 1.0, 2.0, Source::Sentry, '');
+        for ($i = 1; $i <= 5; ++$i) {
+            $batch->spans[] = new TelemetrySpan('shop', self::traceId('a'), "s$i", 's0', 't1', 'db', "SELECT * FROM t WHERE id = $i", 'ok', 1.0, 1.1, Source::Sentry, 'api', new Peer('db'));
+        }
+        $trap->get(TelemetryStore::class)->add($batch);
+        $other = new Batch('billing');
+        $other->transactions[] = new Transaction('t2', 'billing', self::traceId('a'), 'b0', 's0', 'POST /pay', 'http.server', 'ok', 1.0, 2.0, Source::Sentry, '');
+        $trap->get(TelemetryStore::class)->add($other);
+        $list = $trap->get(ListTraces::class);
+
+        Assert::same($list->call([])['traces'][0]['findings'], 1);
+        Assert::same($list->call(['project' => 'billing'])['traces'][0]['findings'], 0);
     }
 
     public function testProjectScopesTheSummary(): void

@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Server\Telemetry;
 
+use Buggregator\Trap\Server\Telemetry\Insight\Finding;
+use Buggregator\Trap\Server\Telemetry\Insight\TraceInsights;
+
 /**
  * The stored transactions and spans of one trace, of any project: a distributed trace may cross several.
  *
- * Changed only by the {@see TelemetryStore}.
+ * Changed only by the {@see TelemetryStore}, but for the {@see self::$insights} cache.
  *
  * @internal
  */
@@ -24,6 +27,14 @@ final class Trace
 
     /** Unix seconds of its last change */
     public float $updatedAt = 0.0;
+
+    /**
+     * The cache of {@see TraceInsights}: the pipeline, the sequence number and the size the findings were found at,
+     * and the findings. It goes with the trace.
+     *
+     * @var array{TraceInsights, int<0, max>, int<0, max>, list<Finding>}|null
+     */
+    public ?array $insights = null;
 
     /**
      * @param non-empty-string $id

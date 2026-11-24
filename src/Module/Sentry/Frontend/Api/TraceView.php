@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Sentry\Frontend\Api;
 
+use Buggregator\Trap\Server\Telemetry\Insight\Finding;
+use Buggregator\Trap\Server\Telemetry\Insight\RepeatedQuery;
+use Buggregator\Trap\Server\Telemetry\Insight\TraceInsights;
 use Buggregator\Trap\Server\Telemetry\Source;
 use Buggregator\Trap\Server\Telemetry\Span;
 use Buggregator\Trap\Server\Telemetry\Trace;
@@ -77,9 +80,11 @@ final class TraceView
 
     /**
      * The trace page: the root transaction as the header, every span and the entry span of every other
-     * service as one tree under it.
+     * service as one tree under it, and the repeated queries of {@see RepeatedQuery} as `n_plus_one`.
+     *
+     * @param list<Finding> $findings Of {@see TraceInsights}, for the same projects.
      */
-    public function detail(Transaction $root): array
+    public function detail(Transaction $root, array $findings = []): array
     {
         $base = $root->start;
         $spans = [];
@@ -131,6 +136,14 @@ final class TraceView
                 'service_name' => $root->service,
             ],
             'spans' => $spans,
+            'n_plus_one' => \array_values(\array_map(static fn(Finding $finding): array => [
+                'transaction_id' => $finding->transactionId,
+                'query' => $finding->summary,
+                'count' => $finding->count,
+                'total_ms' => $finding->totalMs,
+                'origin' => $finding->origin,
+                'span_ids' => $finding->spanIds,
+            ], \array_filter($findings, static fn(Finding $finding): bool => $finding->rule === RepeatedQuery::NAME))),
         ];
     }
 

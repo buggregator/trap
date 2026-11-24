@@ -303,10 +303,10 @@ UI show, and the tools read it, with `--mcp` alone too. Its limit,
 [`TRAP_TELEMETRY_MAX_SPANS`](web-ui.md#sentry-pages), applies: above it the least recently updated traces are
 dropped. Clearing the Sentry pages of the web UI drops their traces for the tools too.
 
-| Tool          | Arguments                                                                                                                            | Result                                                                                                                                      |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `list_traces` | `since` (cursor), `limit`, `project`, `source`, `errors_only`, `from`, `to`, `service`, `name`, `min_duration_ms`, `search`, `regex` | `traces`: `id`, `name`, `service`, `services`, `sources`, `projects`, `spans`, `duration_ms`, `error`, `updated` each; `cursor`; `has_more` |
-| `get_trace`   | `id`, `max_length`                                                                                                                   | The trace as plain text: a header line, then the tree of all its spans as the console prints OpenTelemetry traces                           |
+| Tool          | Arguments                                                                                                                            | Result                                                                                                                                                  |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_traces` | `since` (cursor), `limit`, `project`, `source`, `errors_only`, `from`, `to`, `service`, `name`, `min_duration_ms`, `search`, `regex` | `traces`: `id`, `name`, `service`, `services`, `sources`, `projects`, `spans`, `duration_ms`, `error`, `findings`, `updated` each; `cursor`; `has_more` |
+| `get_trace`   | `id`, `max_length`                                                                                                                   | The trace as plain text: a header line, the findings, then the tree of all its spans as the console prints OpenTelemetry traces                         |
 
 - `list_traces` returns the traces updated after `since`, least recently updated first, at most `limit` of them
   (20 by default, 100 at most). A trace is updated by every span or transaction that arrives for it, and an updated
@@ -317,6 +317,8 @@ dropped. Clearing the Sentry pages of the web UI drops their traces for the tool
   list those of every part of the trace: a distributed trace may cross several.
 - `spans` counts the spans and the transactions. `error` is true when one of them failed: an OpenTelemetry span of
   the error status, a Sentry one of `internal_error`, `unknown_error` or `error`.
+- `findings` counts the problems `get_trace` lists for the trace, of the listed projects: so far
+  [repeated queries (N+1)](web-ui.md#repeated-queries-n1).
 - `project` is one project or a list, as in [the event filter](#filters): only the part of each trace sent to those
   projects is listed and summed up. `source` is `sentry` or `otel`: only the traces with a part from it.
 - `errors_only` lists only the traces with a failed span or transaction.
@@ -333,6 +335,17 @@ dropped. Clearing the Sentry pages of the web UI drops their traces for the tool
   line holds the number of spans, the services, sources and projects, whether a span failed, and the time of the
   last update. A Sentry span shows its op and description as its name, a kind read from its op (`http.server` is
   `SERVER`, `http.client` `CLIENT`, `queue.publish` `PRODUCER`, `queue.process` `CONSUMER`, others `INTERNAL`), its `data` as attributes and a failure status as `ERROR`.
+- `get_trace` lists the findings between the header line and the tree, the heaviest (the longest summed duration)
+  first, and leaves the section out when there are none. A finding is a line with its rule, the span count, the
+  summed duration, the transaction, the place in the code when the spans tell it and the ID of the first span,
+  then the query with its values as `?`. The rule `n_plus_one` is a [repeated query](web-ui.md#repeated-queries-n1):
+
+  ```text
+  findings, the heaviest first:
+  - n_plus_one: 6 spans, 12.00 ms in total, in transaction "POST /checkout", from /app/src/Checkout/PriceCalculator.php:31, first id:3a9d5f1b7c2e4801
+    SELECT * FROM products WHERE id = ?
+  ```
+
 - `get_trace` cuts a text longer than `max_length` characters, 50 000 by default, and says so.
 
 ### User feedback

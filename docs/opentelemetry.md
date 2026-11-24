@@ -39,7 +39,8 @@ The Phar, the standalone binary and the Docker image do not include them, so the
 - Traces join Sentry traces: a trace may mix both. The entry span of each service (a span without a parent,
   with a remote parent, or a server or consumer span whose parent is in another service) is its transaction;
   the service name is the `service.name` resource attribute. The UI shows span kinds, statuses, events, links,
-  the resource and the scope as `otel.*` attributes.
+  the resource and the scope as `otel.*` attributes. The query of a database span, for the
+  [repeated query check](web-ui.md#repeated-queries-n1), is its `db.query.text` or `db.statement` attribute.
 - Log levels come from the severity number, else from the severity text.
 - Each metric data point is one value: a monotonic sum is a `counter`, a gauge or a non-monotonic sum is a `gauge`,
   and a histogram, exponential histogram or summary is a `distribution` whose value is the mean (`sum / count`),

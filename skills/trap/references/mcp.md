@@ -45,7 +45,7 @@ The argument schema of each tool is in its `inputSchema` (`mcp.php tools <name>`
 | `delete_event`    | Deletes events by `id` or `ids`                                                                       |
 | `clear_events`    | Deletes the events matching a filter, or all; pinned ones stay unless `include_pinned: true`          |
 | `list_traces`     | Sentry and OpenTelemetry traces; filters by project, source, service, name, duration, errors          |
-| `get_trace`       | One trace as a tree of its spans and transactions                                                     |
+| `get_trace`       | One trace as a tree of its spans and transactions, under its findings such as N+1 queries             |
 | `list_queue_jobs` | Queue jobs from `queue.process` attempts: retries, failures, errors, time in the queue                |
 | `list_feedback`   | Sentry user feedback, newest first; by `project` or `event_id` of the error it is about               |
 | `list_crons`      | Cron jobs of Sentry Crons check-ins and ping URLs with their newest runs, see [Cron jobs](#cron-jobs) |
@@ -112,6 +112,13 @@ error, in its `trace` context, opens the trace of the failed request. Slow trace
 `{"from": "1h", "min_duration_ms": 500}`. The least recently updated traces are dropped once the kept spans and
 transactions pass 10 000 (`TRAP_TELEMETRY_MAX_SPANS`), and clearing the Sentry pages of the web UI drops them too.
 OpenTelemetry logs and metrics have no MCP tool.
+
+`findings` in `list_traces` counts the problems `get_trace` lists above the tree, heaviest first. `n_plus_one` is
+one database query, values shown as `?`, run 5 times or more in one transaction: the line gives the span count,
+the summed ms, the transaction, `from file:line` when the spans carry `code.filepath` (sentry-laravel sends it for
+slow queries only) and the first span `id:` to find in the tree. Fix it in that code: load the rows in one query
+(eager loading, `WHERE id IN (…)`), then rerun and check that the finding is gone. The query is `db.query.text`,
+`db.statement` or the span description; spans without a transaction count under the one up their parents.
 
 ## Queue jobs
 

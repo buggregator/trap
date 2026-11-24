@@ -541,6 +541,7 @@ final class ServerTest
             'spans' => 4,
             'duration_ms' => 27.691,
             'error' => true,
+            'findings' => 0,
         ]);
         Assert::string($tree)->startsWith('trace 382bfca057473920912cab0a4ed95abe, 4 spans, service e2e-app')
             ->contains("GET /orders SERVER 27.69 ms OK id:286e73f2056fe20e\n")
