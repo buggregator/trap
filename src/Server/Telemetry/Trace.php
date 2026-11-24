@@ -29,12 +29,12 @@ final class Trace
     public float $updatedAt = 0.0;
 
     /**
-     * The cache of {@see TraceInsights}: the pipeline, the sequence number and the size the findings were found at,
-     * and the findings. It goes with the trace.
+     * The cache of {@see TraceInsights}, by the project set asked for: the pipeline, the sequence number and the size
+     * the findings were found at, and the findings. It goes with the trace.
      *
-     * @var array{TraceInsights, int<0, max>, int<0, max>, list<Finding>}|null
+     * @var array<string, array{TraceInsights, int<0, max>, int<0, max>, list<Finding>}>
      */
-    public ?array $insights = null;
+    public array $insights = [];
 
     /**
      * @param non-empty-string $id

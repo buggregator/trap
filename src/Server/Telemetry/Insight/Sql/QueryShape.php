@@ -9,39 +9,128 @@ namespace Buggregator\Trap\Server\Telemetry\Insight\Sql;
  *
  * One pass over the tokens, not regular expressions over the text, so a `?`, a number or a quote inside a string
  * literal or a comment stays in it:
- * - string literals (`'…'` with `''` and `\'` escapes, `E'…'`, `N'…'`, `X'…'`, `B'…'`, `$$…$$`, `$tag$…$tag$`),
- *   numbers (a leading sign too where an operand is due), `TRUE`, `FALSE` and the placeholders `?`, `?1`, `$1`,
- *   `:name` and `:1` become `?`; a `::type` cast stays;
- * - an `IN (…)` list and the rows of `VALUES (…), (…)` made of values, `NULL` and `DEFAULT` become one `(?)`;
+ * - string literals (`'…'`, `E'…'`, `N'…'`, `X'…'`, `B'…'`, `$$…$$`, `$tag$…$tag$`), numbers (a leading sign too
+ *   where an operand is due), `TRUE`, `FALSE` and the placeholders `?`, `?1`, `$1`, `:name` and `:1` become `?`;
+ *   a `::type` cast stays;
+ * - an `IN (…)` list, the rows of `VALUES (…), (…)` and an `ARRAY[…]` made of values, `NULL` and `DEFAULT` become
+ *   one `(?)` or `[?]`;
  * - comments go, `"…"` and `` `…` `` identifiers stay as written, and so do the digits of a name, as in `table2`;
  * - SQL keywords are upper-cased, names keep their case;
  * - tokens are joined by one space, without one inside brackets, before a comma, around `.` and `::`,
  *   and between a name and its `(`.
  *
+ * A backslash escapes the next character of a literal in MySQL and MariaDB, and in an `E'…'` literal anywhere;
+ * elsewhere only a doubled quote escapes one. For an unknown database a backslash escapes, unless the literal then
+ * never ends: `'C:\'` ends at its last quote.
+ *
+ * Only the first {@see self::MAX_BYTES} of a query are read, the work of the loop it blocks being bounded so:
+ * a longer query gets the shape of that part and ` …`, and a list cut off at the end still collapses.
+ *
  * @internal
  */
 final class QueryShape
 {
+    public const MAX_BYTES = 32 * 1024;
     private const KEYWORDS = [
-        'ALL', 'AND', 'ANY', 'AS', 'ASC', 'BETWEEN', 'BY', 'CASE', 'CONFLICT', 'CROSS', 'DEFAULT', 'DELETE', 'DESC',
-        'DISTINCT', 'DO', 'DUPLICATE', 'ELSE', 'END', 'ESCAPE', 'EXCEPT', 'EXISTS', 'FETCH', 'FOR', 'FROM', 'FULL',
-        'GROUP', 'HAVING', 'ILIKE', 'IN', 'INNER', 'INSERT', 'INTERSECT', 'INTO', 'IS', 'JOIN', 'LEFT', 'LIKE',
-        'LIMIT', 'NATURAL', 'NOT', 'NULL', 'NULLS', 'OFFSET', 'ON', 'OR', 'ORDER', 'OUTER', 'OVER', 'PARTITION',
-        'RECURSIVE', 'RETURNING', 'RIGHT', 'SELECT', 'SET', 'SOME', 'THEN', 'UNION', 'UPDATE', 'USING', 'VALUES',
-        'WHEN', 'WHERE', 'WITH',
+        'ALL', 'AND', 'ANY', 'ARRAY', 'AS', 'ASC', 'BETWEEN', 'BY', 'CASE', 'CONFLICT', 'CROSS', 'DEFAULT', 'DELETE',
+        'DESC', 'DISTINCT', 'DO', 'DUPLICATE', 'ELSE', 'END', 'ESCAPE', 'EXCEPT', 'EXISTS', 'FETCH', 'FOR', 'FROM',
+        'FULL', 'GROUP', 'HAVING', 'ILIKE', 'IN', 'INNER', 'INSERT', 'INTERSECT', 'INTO', 'IS', 'JOIN', 'LEFT',
+        'LIKE', 'LIMIT', 'NATURAL', 'NOT', 'NULL', 'NULLS', 'OFFSET', 'ON', 'OR', 'ORDER', 'OUTER', 'OVER',
+        'PARTITION', 'RECURSIVE', 'RETURNING', 'RIGHT', 'SELECT', 'SET', 'SOME', 'THEN', 'UNION', 'UPDATE', 'USING',
+        'VALUES', 'WHEN', 'WHERE', 'WITH',
     ];
 
     /** Longest first: the first match wins */
     private const OPERATORS = ['->>', '#>>', '<=>', '::', ':=', '->', '#>', '<>', '<=', '>=', '!=', '||', '&&', '@>', '<@'];
 
+    /** The `db.system` names of databases whose literals take backslash escapes */
+    private const BACKSLASH_SYSTEMS = ['mysql', 'mariadb'];
+
+    /** Lists nested deeper are left as they are */
+    private const MAX_DEPTH = 32;
+
     private const VALUE = ['value', '?'];
 
+    private readonly string $sql;
+    private readonly int $length;
+    private readonly bool $truncated;
+
     /**
+     * @param bool|null $backslash Whether a backslash escapes in a literal; null when the database is unknown.
+     */
+    private function __construct(
+        string $sql,
+        private readonly ?bool $backslash,
+    ) {
+        $this->truncated = \strlen($sql) > self::MAX_BYTES;
+        $this->sql = $this->truncated ? \substr($sql, 0, self::MAX_BYTES) : $sql;
+        $this->length = \strlen($this->sql);
+    }
+
+    /**
+     * @param string|null $system The `db.system` or `db.system.name` of the span, such as `mysql`; null when unknown.
      * @return string Empty for a text without tokens.
      */
-    public static function of(string $sql): string
+    public static function of(string $sql, ?string $system = null): string
     {
-        $tokens = self::collapseLists(self::tokenize($sql));
+        $system = $system === null || $system === '' ? null : \strtolower($system);
+        $shape = new self($sql, $system === null ? null : \in_array($system, self::BACKSLASH_SYSTEMS, true));
+
+        return $shape->shape();
+    }
+
+    /**
+     * @param array{string, string}|null $previous
+     */
+    private static function expectsOperand(?array $previous): bool
+    {
+        if ($previous === null) {
+            return true;
+        }
+
+        return match ($previous[0]) {
+            'op' => true,
+            'keyword' => $previous[1] !== 'NULL',
+            'punct' => \in_array($previous[1], ['(', ',', '['], true),
+            default => false,
+        };
+    }
+
+    /**
+     * @param array{string, string} $previous
+     * @param array{string, string} $token
+     */
+    private static function spaced(array $previous, array $token): bool
+    {
+        if ($token[0] === 'punct' && \in_array($token[1], [',', ')', '.', ';', ']'], true)) {
+            return false;
+        }
+
+        if ($previous === ['punct', '('] || $previous === ['punct', '.'] || $previous === ['punct', '[']) {
+            return false;
+        }
+
+        if ($token === ['op', '::'] || $previous === ['op', '::']) {
+            return false;
+        }
+
+        if ($token === ['punct', '['] && $previous === ['keyword', 'ARRAY']) {
+            return false;
+        }
+
+        if ($token === ['punct', '('] || $token === ['punct', '[']) {
+            // A call or an index sticks to its name; a list after a keyword or an operator does not
+            return !\in_array($previous[0], ['word', 'value'], true)
+                && $previous !== ['punct', ')']
+                && $previous !== ['punct', ']'];
+        }
+
+        return true;
+    }
+
+    private function shape(): string
+    {
+        $tokens = $this->collapseLists($this->tokenize());
         while ($tokens !== [] && \end($tokens) === ['punct', ';']) {
             \array_pop($tokens);
         }
@@ -54,16 +143,17 @@ final class QueryShape
             $previous = $token;
         }
 
-        return $shape;
+        return $this->truncated && $shape !== '' ? "$shape …" : $shape;
     }
 
     /**
      * @return list<array{'value'|'word'|'keyword'|'punct'|'op', string}>
      */
-    private static function tokenize(string $sql): array
+    private function tokenize(): array
     {
+        $sql = $this->sql;
+        $length = $this->length;
         $tokens = [];
-        $length = \strlen($sql);
         $i = 0;
         while ($i < $length) {
             $char = $sql[$i];
@@ -78,10 +168,10 @@ final class QueryShape
                 $end = \strpos($sql, '*/', $i + 2);
                 $i = $end === false ? $length : $end + 2;
             } elseif ($char === "'") {
-                $i = self::stringEnd($sql, $i);
+                $i = $this->stringEnd($i, $this->backslash);
                 $tokens[] = self::VALUE;
             } elseif ($char === '"' || $char === '`') {
-                $end = self::identifierEnd($sql, $i);
+                $end = $this->identifierEnd($i);
                 $tokens[] = ['word', \substr($sql, $i, $end - $i)];
                 $i = $end;
             } elseif ($char === '$' && \preg_match('/\G\$(?:\d+|([A-Za-z_]\w*)?\$)/', $sql, $match, 0, $i) === 1) {
@@ -101,14 +191,14 @@ final class QueryShape
             } elseif ($char === ':' && \preg_match('/\G:(?:[A-Za-z_]\w*|\d+)/', $sql, $match, 0, $i) === 1) {
                 $tokens[] = self::VALUE;
                 $i += \strlen($match[0]);
-            } elseif (($number = self::numberLength($sql, $i, $tokens)) > 0) {
+            } elseif (($number = $this->numberLength($i, $tokens)) > 0) {
                 $tokens[] = self::VALUE;
                 $i += $number;
             } elseif (\preg_match('/\G[\w\x80-\xff][\w$\x80-\xff]*/', $sql, $match, 0, $i) === 1) {
                 $i += \strlen($match[0]);
                 $upper = \strtoupper($match[0]);
                 if (\in_array($upper, ['E', 'N', 'X', 'B'], true) && ($sql[$i] ?? '') === "'") {
-                    $i = self::stringEnd($sql, $i);
+                    $i = $this->stringEnd($i, $upper === 'E' ? true : $this->backslash);
                     $tokens[] = self::VALUE;
                 } elseif ($upper === 'TRUE' || $upper === 'FALSE') {
                     $tokens[] = self::VALUE;
@@ -139,13 +229,26 @@ final class QueryShape
 
     /**
      * @param int $start At the opening quote.
+     * @param bool|null $backslash Null: escaping, unless the literal then runs to the end of the text.
      * @return int After the closing quote; the end of the text for an unclosed literal.
      */
-    private static function stringEnd(string $sql, int $start): int
+    private function stringEnd(int $start, ?bool $backslash): int
     {
-        $length = \strlen($sql);
-        for ($i = $start + 1; $i < $length; ++$i) {
-            if ($sql[$i] === '\\') {
+        $end = $backslash === null
+            ? $this->literalEnd($start, true) ?? $this->literalEnd($start, false)
+            : $this->literalEnd($start, $backslash);
+
+        return $end ?? $this->length;
+    }
+
+    /**
+     * @return int|null After the closing quote; null for an unclosed literal.
+     */
+    private function literalEnd(int $start, bool $backslash): ?int
+    {
+        $sql = $this->sql;
+        for ($i = $start + 1; $i < $this->length; ++$i) {
+            if ($backslash && $sql[$i] === '\\') {
                 ++$i;
             } elseif ($sql[$i] === "'") {
                 if (($sql[$i + 1] ?? '') !== "'") {
@@ -155,17 +258,17 @@ final class QueryShape
             }
         }
 
-        return $length;
+        return null;
     }
 
     /**
      * @param int $start At the opening `"` or `` ` ``, which a doubled one escapes.
      */
-    private static function identifierEnd(string $sql, int $start): int
+    private function identifierEnd(int $start): int
     {
+        $sql = $this->sql;
         $quote = $sql[$start];
-        $length = \strlen($sql);
-        for ($i = $start + 1; $i < $length; ++$i) {
+        for ($i = $start + 1; $i < $this->length; ++$i) {
             if ($sql[$i] === $quote) {
                 if (($sql[$i + 1] ?? '') !== $quote) {
                     return $i + 1;
@@ -174,17 +277,22 @@ final class QueryShape
             }
         }
 
-        return $length;
+        return $this->length;
     }
 
     /**
      * @param list<array{string, string}> $tokens The tokens before: a sign is part of a number only where
-     *        an operand is due, so `a - 1` keeps its minus and `a = -1` does not.
-     * @return int<0, max> 0 when no number starts here, or one runs into a name, as `2fa`.
+     *        an operand is due, so `a - 1` keeps its minus and `a = - 1` does not.
+     * @return int 0 when no number starts here, or one runs into a name, as `2fa`.
      */
-    private static function numberLength(string $sql, int $start, array $tokens): int
+    private function numberLength(int $start, array $tokens): int
     {
-        $sign = ($sql[$start] === '-' || $sql[$start] === '+') && self::expectsOperand(\end($tokens) ?: null) ? 1 : 0;
+        $sql = $this->sql;
+        $sign = 0;
+        if (($sql[$start] === '-' || $sql[$start] === '+') && self::expectsOperand(\end($tokens) ?: null)) {
+            $sign = 1 + \strspn($sql, " \t\r\n", $start + 1);
+        }
+
         $pattern = '/\G(?:0[xX][\da-fA-F]+|(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)(?![\w$\x80-\xff])/';
         if (\preg_match($pattern, $sql, $match, 0, $start + $sign) !== 1) {
             return 0;
@@ -194,40 +302,27 @@ final class QueryShape
     }
 
     /**
-     * @param array{string, string}|null $previous
-     */
-    private static function expectsOperand(?array $previous): bool
-    {
-        if ($previous === null) {
-            return true;
-        }
-
-        return match ($previous[0]) {
-            'op' => true,
-            'keyword' => $previous[1] !== 'NULL',
-            'punct' => \in_array($previous[1], ['(', ',', '['], true),
-            default => false,
-        };
-    }
-
-    /**
      * @param list<array{'value'|'word'|'keyword'|'punct'|'op', string}> $tokens
      * @return list<array{'value'|'word'|'keyword'|'punct'|'op', string}>
      */
-    private static function collapseLists(array $tokens): array
+    private function collapseLists(array $tokens): array
     {
         $result = [];
         $count = \count($tokens);
         for ($i = 0; $i < $count; ++$i) {
             $token = $tokens[$i];
             $result[] = $token;
-            if ($token !== ['keyword', 'IN'] && $token !== ['keyword', 'VALUES']) {
+            if ($token === ['keyword', 'IN'] || $token === ['keyword', 'VALUES']) {
+                [$open, $close] = ['(', ')'];
+            } elseif ($token === ['keyword', 'ARRAY']) {
+                [$open, $close] = ['[', ']'];
+            } else {
                 continue;
             }
 
-            $end = self::tupleEnd($tokens, $i + 1);
-            while ($end !== null && $token[1] === 'VALUES' && ($tokens[$end] ?? null) === ['punct', ',']) {
-                $row = self::tupleEnd($tokens, $end + 1);
+            $end = $this->listEnd($tokens, $i + 1, $open, $close);
+            while ($end !== null && $end < $count && $token[1] === 'VALUES' && $tokens[$end] === ['punct', ',']) {
+                $row = $this->listEnd($tokens, $end + 1, $open, $close);
                 if ($row === null) {
                     break;
                 }
@@ -235,7 +330,7 @@ final class QueryShape
             }
 
             if ($end !== null) {
-                \array_push($result, ['punct', '('], self::VALUE, ['punct', ')']);
+                \array_push($result, ['punct', $open], self::VALUE, ['punct', $close]);
                 $i = $end - 1;
             }
         }
@@ -245,12 +340,19 @@ final class QueryShape
 
     /**
      * @param list<array{string, string}> $tokens
-     * @return int|null After the `)` of a bracketed list of values, `NULL`, `DEFAULT` and such lists, starting
-     *         at `$start`; null when there is none.
+     * @param '('|'[' $open
+     * @param ')'|']' $close
+     * @return int|null After the closing bracket of a list of values, `NULL`, `DEFAULT` and such lists, starting
+     *         at `$start`, or the end of the tokens of a cut query; null when there is none.
      */
-    private static function tupleEnd(array $tokens, int $start): ?int
+    private function listEnd(array $tokens, int $start, string $open, string $close, int $depth = 0): ?int
     {
-        if (($tokens[$start] ?? null) !== ['punct', '(']) {
+        $count = \count($tokens);
+        if ($this->truncated && $start >= $count) {
+            return $count;
+        }
+
+        if ($depth >= self::MAX_DEPTH || ($tokens[$start] ?? null) !== ['punct', $open]) {
             return null;
         }
 
@@ -259,51 +361,23 @@ final class QueryShape
             $token = $tokens[$i] ?? null;
             if ($token === self::VALUE || $token === ['keyword', 'NULL'] || $token === ['keyword', 'DEFAULT']) {
                 ++$i;
-            } elseif ($token === ['punct', '(']) {
-                $i = self::tupleEnd($tokens, $i);
+            } elseif ($token === ['punct', $open]) {
+                $i = $this->listEnd($tokens, $i, $open, $close, $depth + 1);
                 if ($i === null) {
                     return null;
                 }
             } else {
-                return null;
+                return $token === null && $this->truncated ? $count : null;
             }
 
             $token = $tokens[$i] ?? null;
-            if ($token === ['punct', ')']) {
+            if ($token === ['punct', $close]) {
                 return $i + 1;
             }
             if ($token !== ['punct', ',']) {
-                return null;
+                return $token === null && $this->truncated ? $count : null;
             }
             ++$i;
         }
-    }
-
-    /**
-     * @param array{string, string} $previous
-     * @param array{string, string} $token
-     */
-    private static function spaced(array $previous, array $token): bool
-    {
-        if ($token[0] === 'punct' && \in_array($token[1], [',', ')', '.', ';', ']'], true)) {
-            return false;
-        }
-
-        if ($previous === ['punct', '('] || $previous === ['punct', '.'] || $previous === ['punct', '[']) {
-            return false;
-        }
-
-        if ($token === ['op', '::'] || $previous === ['op', '::']) {
-            return false;
-        }
-
-        if ($token === ['punct', '('] || $token === ['punct', '[']) {
-            // A call or an index sticks to its name; a list after a keyword or an operator does not
-            return !\in_array($previous[0], ['word', 'value'], true)
-                && $previous !== ['punct', ')']
-                && $previous !== ['punct', ']'];
-        }
-
-        return true;
     }
 }

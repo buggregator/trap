@@ -51,12 +51,51 @@ final class QueryShapeTest
         yield 'variables stay' => ['SELECT @@version, @row := 1', 'SELECT @@version, @row := ?'];
         yield 'only a comment' => ['/* nothing */ -- here', ''];
         yield 'blank' => ["  \n ", ''];
+        yield 'ARRAY of values' => ['SELECT * FROM t WHERE id = ANY(ARRAY[1, 2, 3]) AND tags && array[\'a\']', 'SELECT * FROM t WHERE id = ANY (ARRAY[?]) AND tags && ARRAY[?]'];
+        yield 'nested ARRAY' => ['SELECT ARRAY[[1, 2], [3, NULL]]', 'SELECT ARRAY[?]'];
+        yield 'ARRAY with a name stays' => ['SELECT ARRAY[a, 1]', 'SELECT ARRAY[a, ?]'];
+        yield 'index stays' => ['SELECT tags[1] FROM t', 'SELECT tags[?] FROM t'];
+        yield 'sign apart from its number' => ["SELECT * FROM t WHERE x = -  1 AND y = +\t2", 'SELECT * FROM t WHERE x = ? AND y = ?'];
+        yield 'nesting within the bound collapses' => ['SELECT * FROM t WHERE (a, (b, c)) IN ((1, (2, 3)))', 'SELECT * FROM t WHERE (a, (b, c)) IN (?)'];
+        yield 'nesting past the bound stays' => ['SELECT 1 IN ' . \str_repeat('(', 40) . '1' . \str_repeat(')', 40), 'SELECT ? IN ' . \str_repeat('(', 40) . '?' . \str_repeat(')', 40)];
+    }
+
+    public static function dialects(): iterable
+    {
+        $path = "SELECT * FROM t WHERE p = 'C:\\' AND id = 5";
+        $quote = "SELECT * FROM t WHERE n = 'it\\'s' AND id = 5";
+        yield 'standard string ends at its quote' => [$path, 'postgresql', 'SELECT * FROM t WHERE p = ? AND id = ?'];
+        yield 'MySQL backslash escapes the quote' => [$path, 'mysql', 'SELECT * FROM t WHERE p = ?'];
+        yield 'MariaDB in any case' => [$quote, 'MariaDB', 'SELECT * FROM t WHERE n = ? AND id = ?'];
+        yield 'standard string keeps the backslash' => [$quote, 'sqlite', 'SELECT * FROM t WHERE n = ? s ?'];
+        yield 'E-string escapes in any database' => ["SELECT * FROM t WHERE n = E'it\\'s' AND id = 5", 'postgresql', 'SELECT * FROM t WHERE n = ? AND id = ?'];
+        yield 'unknown: an escape' => [$quote, null, 'SELECT * FROM t WHERE n = ? AND id = ?'];
+        yield 'unknown: no escape when the literal would never end' => [$path, null, 'SELECT * FROM t WHERE p = ? AND id = ?'];
     }
 
     #[DataProvider('shapes')]
     public function testShapesQuery(string $sql, string $shape): void
     {
         Assert::same(QueryShape::of($sql), $shape);
+    }
+
+    #[DataProvider('dialects')]
+    public function testReadsLiteralsByDialect(string $sql, ?string $system, string $shape): void
+    {
+        Assert::same(QueryShape::of($sql, $system), $shape);
+    }
+
+    public function testReadsOnlyTheStartOfLongQuery(): void
+    {
+        $rows = static fn(int $n): string => 'INSERT INTO t (a, b) VALUES ' . \implode(', ', \array_fill(0, 20_000, "($n, 'x$n')"));
+
+        $a = QueryShape::of($rows(1));
+        $b = QueryShape::of($rows(12345));
+
+        Assert::same($a, 'INSERT INTO t(a, b) VALUES (?) …');
+        Assert::same($b, $a);
+        Assert::same(QueryShape::of('SELECT ' . \str_repeat('a, ', 20_000) . 'b'), QueryShape::of('SELECT ' . \str_repeat('a, ', 30_000) . 'c'));
+        Assert::string(QueryShape::of(\str_repeat('(', 1_000_000)))->endsWith(' …');
     }
 
     public function testQueriesThatDifferInValuesShareShape(): void

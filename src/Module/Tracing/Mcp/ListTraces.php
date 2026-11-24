@@ -45,8 +45,8 @@ final class ListTraces implements Tool
         return 'Lists the traces Trap has received: Sentry transactions and spans, and OpenTelemetry spans over '
             . 'OTLP. Each trace comes with its ID, name, services, sources, number of spans, duration, whether '
             . 'a span failed and the number of `findings`, problems such as repeated queries (N+1) that '
-            . '`get_trace` details. Spans of a trace may arrive in several requests, so a trace is updated as they come, '
-            . 'and an updated trace is listed again. Returns the traces updated after the `since` cursor, least '
+            . '`get_trace` details. Spans of a trace may arrive in several requests, so a trace is updated as they '
+            . 'come, and an updated trace is listed again. Returns the traces updated after the `since` cursor, least '
             . 'recently updated first, and a new opaque `cursor`: to see only the traces of the code you run next, '
             . 'call it once, keep the cursor, run the code, then call it with `since` set to that cursor. When '
             . '`has_more` is true, call again with the returned cursor to get the rest. Narrow the list by `project`, '
@@ -199,7 +199,6 @@ final class ListTraces implements Tool
     }
 
     /**
-     *
      * @param list<non-empty-string> $projects
      * @return array{
      *     id: non-empty-string,

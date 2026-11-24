@@ -101,7 +101,50 @@ final class RepeatedQueryTest
         Assert::same($findings[0]->summary, 'SELECT name FROM users WHERE id = ?');
     }
 
-    public function testSpansWithoutTransactionGroupUnderTheirTopSpan(): void
+    public function testSiblingsOfParentNotArrivedCountTogether(): void
+    {
+        $trace = Traces::trace();
+        for ($i = 0; $i < 6; ++$i) {
+            Traces::add($trace, Traces::db("q$i", 'server-span', null, "SELECT * FROM items WHERE id = $i", source: Source::Otel));
+        }
+        Traces::add($trace, Traces::db('other', 'another-parent', null, 'SELECT * FROM items WHERE id = 9'));
+
+        $findings = (new RepeatedQuery())->check($trace);
+
+        Assert::count($findings, 1);
+        Assert::same($findings[0]->spanIds, ['q0', 'q1', 'q2', 'q3', 'q4', 'q5']);
+        Assert::null($findings[0]->transactionId);
+    }
+
+    #[DataSet(['db.redis', []], 'Sentry Redis span')]
+    #[DataSet(['db', ['db.system' => 'redis']], 'OTel Redis span')]
+    #[DataSet(['db', ['db.system.name' => 'MongoDB']], 'MongoDB')]
+    #[DataSet(['db.query', ['db.system' => 'memcached']], 'Memcached')]
+    public function testSkipsStoresThatTakeNoSql(string $op, array $attributes): void
+    {
+        $trace = Traces::trace([Traces::transaction('txn', 'r')]);
+        for ($i = 0; $i < 5; ++$i) {
+            Traces::add($trace, Traces::span("c$i", 'r', 'txn', $op, "GET user:$i", attributes: $attributes, peer: new Peer('db')));
+        }
+
+        Assert::same((new RepeatedQuery())->check($trace), []);
+    }
+
+    #[DataSet(['postgresql', 'SELECT * FROM files WHERE path = ? AND id = ?'], 'standard strings')]
+    #[DataSet(['mysql', 'SELECT * FROM files WHERE path = ?'], 'backslash escapes')]
+    public function testReadsLiteralsInTheDialectOfTheDatabase(string $system, string $shape): void
+    {
+        $trace = Traces::trace([Traces::transaction('txn', 'r')]);
+        for ($i = 0; $i < 5; ++$i) {
+            Traces::add($trace, Traces::db("q$i", 'r', 'txn', "SELECT * FROM files WHERE path = 'C:\\' AND id = $i", attributes: ['db.system' => $system]));
+        }
+
+        $findings = (new RepeatedQuery())->check($trace);
+
+        Assert::same($findings[0]->summary, $shape);
+    }
+
+    public function testSpansGroupUnderMissingParentUpTheirParents(): void
     {
         $trace = Traces::trace();
         Traces::add($trace, Traces::span('job', 'missing', null, 'queue.process', 'SendMail'));

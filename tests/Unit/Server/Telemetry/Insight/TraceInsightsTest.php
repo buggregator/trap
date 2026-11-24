@@ -47,7 +47,7 @@ final class TraceInsightsTest
         $insights = new TraceInsights([self::rule([], $calls)]);
 
         $insights->of($trace);
-        $insights->of($trace, ['shop']);
+        $insights->of($trace);
 
         Assert::same($calls, 1);
 
@@ -74,19 +74,35 @@ final class TraceInsightsTest
         Assert::same($findings, []);
     }
 
-    public function testFiltersFindingsByProjectOfTheirSpans(): void
+    public function testProjectsSeeOnlyTheirSpans(): void
     {
-        $store = new TelemetryStore();
-        $shop = self::batch('shop', 'a');
-        $billing = self::batch('billing', 'b');
-        $store->add($shop);
-        $store->add($billing);
-        $insights = new TraceInsights([self::rule([self::finding('shop', 5, 1.0, 'a'), self::finding('billing', 5, 1.0, 'b')])]);
-        $trace = $store->trace(Traces::ID);
+        $trace = Traces::trace([Traces::transaction('txn', 'r')]);
+        for ($i = 0; $i < 7; ++$i) {
+            Traces::add($trace, Traces::db("q$i", 'r', 'txn', 'SELECT * FROM t WHERE id = ?', 2 ** -10, project: $i < 5 ? 'shop' : 'billing'));
+        }
+        $insights = new TraceInsights();
 
-        Assert::count($insights->of($trace), 2);
-        Assert::same(\array_map(static fn(Finding $f): string => $f->summary, $insights->of($trace, ['billing'])), ['billing']);
+        $all = $insights->of($trace);
+        $shop = $insights->of($trace, ['shop']);
+
+        Assert::same([$all[0]->count, $all[0]->totalMs], [7, 6.836]);
+        Assert::same([$shop[0]->count, $shop[0]->totalMs, $shop[0]->spanIds], [5, 4.883, ['q0', 'q1', 'q2', 'q3', 'q4']]);
+        Assert::same($insights->of($trace, ['billing']), []);
         Assert::same($insights->of($trace, ['none']), []);
+    }
+
+    public function testKeepsFindingsOfEachProjectSet(): void
+    {
+        $trace = new Trace(Traces::ID);
+        $calls = 0;
+        $insights = new TraceInsights([self::rule([], $calls)]);
+
+        $insights->of($trace);
+        $insights->of($trace, ['b', 'a']);
+        $insights->of($trace, ['a', 'b', 'a']);
+        $insights->of($trace);
+
+        Assert::same($calls, 2);
     }
 
     /**

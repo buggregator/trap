@@ -12,10 +12,17 @@ use Buggregator\Trap\Server\Telemetry\Trace;
  * The N+1 pattern: one transaction runs the same query, up to its values, {@see self::MIN_COUNT} times or more,
  * as a loop that loads a relation row by row does.
  *
- * Reads the database spans, by {@see \Buggregator\Trap\Server\Telemetry\Peer}. The query is the OTel
- * `db.query.text` or the older `db.statement` attribute, else the span description: Sentry SDKs put the query
- * there, OTel only a low-cardinality name such as `SELECT shop.products`. A span without a transaction of its own,
- * as an OTLP or a Sentry v2 span, belongs to the transaction up its parents.
+ * Reads the SQL spans: the database spans by {@see \Buggregator\Trap\Server\Telemetry\Peer}, but for Redis
+ * (`db.redis`) and the other stores of {@see self::NOT_SQL}, whose commands a loop of cache reads repeats too. The
+ * query is the OTel `db.query.text` or the older `db.statement` attribute, else the span description: Sentry SDKs
+ * put the query there, OTel only a low-cardinality name such as `SELECT shop.products`. Its dialect is the
+ * `db.system.name` or `db.system` attribute.
+ *
+ * A span without a transaction of its own, as an OTLP or a Sentry v2 span, belongs to the transaction up its
+ * parents. Spans whose transaction has not arrived count under the span they hang from: the parent missing from
+ * the trace, as the server span that an OTel batch exports after its children, else the topmost one.
+ *
+ * One instance serves all the traces: the shapes stay with their spans, so a growing trace shapes only its new ones.
  *
  * @internal
  */
@@ -26,6 +33,22 @@ final class RepeatedQuery implements TraceRule
 
     /** Parent links followed to find the transaction of a span */
     private const MAX_DEPTH = 256;
+
+    /** The `db.system` names of the databases that take no SQL */
+    private const NOT_SQL = [
+        'redis', 'memcached', 'mongodb', 'elasticsearch', 'opensearch', 'cassandra', 'couchbase', 'couchdb',
+        'dynamodb', 'aws.dynamodb', 'cosmosdb', 'azure.cosmosdb', 'neo4j', 'hbase', 'geode', 'coherence',
+    ];
+
+    /** @var \WeakMap<Span, string> */
+    private \WeakMap $shapes;
+
+    public function __construct()
+    {
+        /** @var \WeakMap<Span, string> $shapes */
+        $shapes = new \WeakMap();
+        $this->shapes = $shapes;
+    }
 
     #[\Override]
     public function check(Trace $trace): array
@@ -48,7 +71,7 @@ final class RepeatedQuery implements TraceRule
                 continue;
             }
 
-            $shape = QueryShape::of(self::query($span));
+            $shape = $this->shapes[$span] ??= self::shape($span);
             if ($shape === '') {
                 continue;
             }
@@ -83,21 +106,37 @@ final class RepeatedQuery implements TraceRule
         return $findings;
     }
 
-    private static function query(Span $span): string
+    /**
+     * @return string Empty for a span that holds no SQL query.
+     */
+    private static function shape(Span $span): string
     {
-        foreach (['db.query.text', 'db.statement'] as $key) {
-            /** @var mixed $query */
-            $query = $span->attributes[$key] ?? null;
-            if (\is_string($query) && \trim($query) !== '') {
-                return $query;
-            }
+        $system = self::attribute($span, 'db.system.name', 'db.system');
+        if ($span->op === 'db.redis' || ($system !== null && \in_array(\strtolower($system), self::NOT_SQL, true))) {
+            return '';
         }
 
-        return $span->description;
+        return QueryShape::of(self::attribute($span, 'db.query.text', 'db.statement') ?? $span->description, $system);
     }
 
     /**
-     * The group of a span: its transaction, else the topmost span up its parents that has arrived.
+     * @return string|null The first of the attributes that is a string of more than blanks.
+     */
+    private static function attribute(Span $span, string ...$keys): ?string
+    {
+        foreach ($keys as $key) {
+            /** @var mixed $value */
+            $value = $span->attributes[$key] ?? null;
+            if (\is_string($value) && \trim($value) !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The group of a span: its transaction, else the missing parent it hangs from, else its topmost span.
      *
      * @param array<array-key, non-empty-string> $transactionOfSpan Transaction IDs by their span IDs.
      * @return array{non-empty-string, non-empty-string|null} The group key and the transaction ID.
@@ -121,7 +160,7 @@ final class RepeatedQuery implements TraceRule
 
             $parent = $trace->spans[$parentId] ?? null;
             if ($parent === null) {
-                break;
+                return ["p:$parentId", null];
             }
             $top = $parent;
         }

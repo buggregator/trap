@@ -135,22 +135,33 @@ These limits are apart from the [OpenTelemetry limits](opentelemetry.md#memory-l
 
 ### Repeated queries (N+1)
 
-A trace reports a query that one transaction runs 5 times or more, up to its values: the N+1 pattern of a loop
+A trace reports an SQL query that one transaction runs 5 times or more, up to its values: the N+1 pattern of a loop
 that loads a relation row by row. The trace page and the MCP tool [`get_trace`](mcp.md#traces) show the same
 findings:
 
-- Only database spans count: a Sentry span of op `db` or `db.*`, an OpenTelemetry span with `db.system` or
-  `db.system.name`. The query is the `db.query.text` attribute, else `db.statement`, else the span description,
-  where Sentry SDKs put it (an OpenTelemetry span name is a short summary such as `SELECT shop.products`).
+- Only SQL spans count: a Sentry span of op `db` or `db.*`, an OpenTelemetry span with `db.system` or
+  `db.system.name`, but not a Sentry `db.redis` span nor a span whose `db.system` is a store that takes no SQL:
+  Redis, Memcached, MongoDB, Elasticsearch, OpenSearch, Cassandra, Couchbase, CouchDB, DynamoDB, Cosmos DB, Neo4j,
+  HBase, Geode, Coherence. The query is the `db.query.text` attribute, else `db.statement`, else the span
+  description, where Sentry SDKs put it (an OpenTelemetry span name is a short summary such as
+  `SELECT shop.products`).
 - A span belongs to the transaction it came in, else to the one up its parents: OpenTelemetry and Sentry span
-  streams send no transaction ID. Spans whose transaction has not arrived count together under their topmost span.
+  streams send no transaction ID. Spans whose transaction has not arrived count together under the parent missing
+  from the trace, as the server span an OpenTelemetry batch exports after its children, else under their topmost
+  span.
 - Two queries are the same when they differ only in values: string literals, numbers, `TRUE`, `FALSE` and the
-  placeholders `?`, `$1`, `:name` become `?`; an `IN (…)` list or the rows of `VALUES (…), (…)` of any length
-  become one `(?)`; comments go; keywords are upper-cased and spacing is made uniform. Names stay as written, with
-  their digits (`table2`), and so do `"quoted"` names and `::type` casts. A `?` or a quote inside a string literal
-  stays in the literal.
+  placeholders `?`, `$1`, `:name` become `?`; an `IN (…)` list, the rows of `VALUES (…), (…)` or an `ARRAY[…]` of
+  any length become one `(?)` or `[?]`; comments go; keywords are upper-cased and spacing is made uniform. Names
+  stay as written, with their digits (`table2`), and so do `"quoted"` names and `::type` casts. A `?` or a quote
+  inside a string literal stays in the literal.
+- A backslash escapes a quote in a literal of MySQL and MariaDB, by `db.system` or `db.system.name`, and in an
+  `E'…'` literal; in other databases only a doubled quote does. When the span names no database, a backslash
+  escapes unless the literal would then never end, so `'C:\'` ends at its quote.
+- Trap reads the first 32 KB of a query: a longer one is shaped by that part and ends with `…`, and a bulk
+  `VALUES` list cut there still collapses.
 - Each finding has the query with its values as `?`, the span count, their summed duration, and the place in the
   code, `code.filepath:code.lineno` (or `code.file.path:code.line.number`) of the first span that has it.
   sentry-laravel sends it only for queries slower than `SENTRY_TRACE_SQL_ORIGIN_THRESHOLD_MS`, 100 ms by default.
+- With a project chosen, only the spans of that project count, as if the others had not come.
 - Trap finds them when a trace is read and keeps them until the trace changes, so a trace that grows as its spans
   arrive is checked again.
