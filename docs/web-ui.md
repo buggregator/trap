@@ -44,7 +44,8 @@ vendor/bin/trap --ui=8080 -s
 
 ## What it shows
 
-Dumps, Monolog logs, Sentry events, emails, Ray payloads, HTTP dumps, profiles,
+Dumps, Monolog logs, Sentry events, emails with their
+[other versions and invites](smtp.md#other-versions-and-invites), Ray payloads, HTTP dumps, profiles,
 [Xdebug traces](xdebug-traces.md) with their call tree, and [CSP reports](csp.md) on the CSP reports page.
 
 The UI keeps the last 200 events; `/trap/events/@maxEvents` in [`trap.xml`](configuration.md#trapxml) changes it.
@@ -63,8 +64,8 @@ The UI has pages for features of the Buggregator Server that Trap has not: metri
 They show no data, and the menu of the mock server stays while HTTP dumps are on: hide it in Settings › Menu.
 Other features of the server stay hidden, as Trap answers 404 to their endpoints: the Broadcast page, the Crons
 and Queues tabs of the Sentry section, the
-«Send to inbox» button of an email (Settings › Email relay says the server can't send email), the other versions
-of an email and its invite card, sign-in and the audit log.
+«Send to inbox» button of an email (Settings › Email relay says the server can't send email), sign-in and the
+audit log.
 
 ## Logs and feed filters
 

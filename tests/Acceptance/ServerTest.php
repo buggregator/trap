@@ -841,6 +841,15 @@ final class ServerTest
         [, , $csp] = TrapProcess::http($this->uiPort, 'GET', '/api/events?type=csp');
         Assert::array(\array_column(\array_column(self::json($csp)['data'], 'payload'), 'format'))
             ->sameElementsAs(['csp-report', 'reports+json']);
+        // The marks of the email list: Watch, AMP, Invite and Cancelled
+        [, , $mails] = TrapProcess::http($this->uiPort, 'GET', '/api/events?type=smtp');
+        $mails = \array_column(\array_column(self::json($mails)['data'], 'payload'), null, 'subject');
+        Assert::same(\array_column($mails['Multipart Email Example']['parts'], 'type'), [
+            'text/watch-html', 'text/x-amp-html', 'text/calendar',
+        ]);
+        Assert::same($mails['Multipart Email Example']['calendar']['method'], 'REQUEST');
+        Assert::same($mails['Cancelled: Team offsite']['calendar']['status'], 'CANCELLED');
+        Assert::false(isset($mails['Very important theme!']['parts']));
 
         [, , $projects] = TrapProcess::http($this->uiPort, 'GET', '/api/projects');
         Assert::same(\array_column(self::json($projects)['data'], 'key'), ['default', 'billing']);

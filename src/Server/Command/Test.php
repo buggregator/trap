@@ -63,9 +63,11 @@ final class Test extends Command
         $this->xdebugTrace();
         $this->dump();
         \usleep(100_000);
-        $this->mail($output, true);
+        $this->mail($output, self::multipartMail());
         \usleep(100_000);
-        $this->mail($output, false);
+        $this->mail($output, self::cancelledMail());
+        \usleep(100_000);
+        $this->mail($output, self::plainMail());
         \usleep(100_000);
         $this->monolog();
         $this->ray();
@@ -165,6 +167,159 @@ final class Test extends Command
         }
 
         return "$data--$boundary--\r\n";
+    }
+
+    /**
+     * Every version of a body the web UI shows: plain text, HTML, Apple Watch, AMP and a calendar invite,
+     * and an attached file.
+     */
+    private static function multipartMail(): string
+    {
+        $tomorrow = (new \DateTimeImmutable('tomorrow', new \DateTimeZone('Europe/Berlin')))->format('Ymd');
+        $invite = self::calendar('REQUEST', <<<ICS
+            UID:sprint-review@trap.buggregator.dev
+            SEQUENCE:0
+            DTSTART;TZID=Europe/Berlin:{$tomorrow}T100000
+            DTEND;TZID=Europe/Berlin:{$tomorrow}T103000
+            SUMMARY:Sprint review
+            LOCATION:Room 4\\, floor 2
+            DESCRIPTION:The demo of the sprint.\\nAgenda: the release\\, the docs and the
+              questions.
+            STATUS:CONFIRMED
+            ORGANIZER;CN=Sender:mailto:sender@example.com
+            ATTENDEE;CN=Recipient;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED:mailto:recipient@example.com
+            ATTENDEE;CN="Doe, Jane";ROLE=OPT-PARTICIPANT;PARTSTAT=TENTATIVE:mailto:user1@company.tld
+            ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:user2@company.tld
+            BEGIN:VALARM
+            ACTION:DISPLAY
+            DESCRIPTION:Reminder
+            TRIGGER:-PT10M
+            END:VALARM
+            ICS);
+        $icon = \rtrim(\chunk_split(\base64_encode((string) \file_get_contents(Info::TRAP_ROOT . '/resources/public/favicon.ico')), 76, "\n"));
+
+        return self::crlf(<<<MAIL
+            From: sender@example.com
+            To: recipient@example.com
+            Subject: Multipart Email Example
+            Content-Type: multipart/mixed; boundary="boundary-string"
+
+            --boundary-string
+            Content-Type: multipart/alternative; boundary="alternative-string"
+
+            --alternative-string
+            Content-Type: text/plain; charset="utf-8"
+            Content-Transfer-Encoding: quoted-printable
+
+            Plain text email goes here!
+            This is the fallback if email client does not support HTML
+
+            --alternative-string
+            Content-Type: text/watch-html; charset="utf-8"
+            Content-Transfer-Encoding: quoted-printable
+
+            <b>Apple Watch formatted content</b>
+
+            --alternative-string
+            Content-Type: text/x-amp-html; charset="utf-8"
+
+            <!doctype html><html amp4email><head><meta charset="utf-8">
+            <script async src="https://cdn.ampproject.org/v0.js"></script></head>
+            <body><h1>This is the AMP version</h1><p>Its scripts don't run in the web UI.</p></body></html>
+
+            --alternative-string
+            Content-Type: text/html; charset="utf-8"
+            Content-Transfer-Encoding: quoted-printable
+
+            <h1>This is the HTML Section!</h1>
+            <p>This is what displays in most modern email clients</p>
+
+            --alternative-string
+            Content-Type: text/calendar; charset="utf-8"; method=REQUEST
+
+            {$invite}
+            --alternative-string--
+            --boundary-string
+            Content-Type: image/x-icon
+            Content-Transfer-Encoding: base64
+            Content-Disposition: attachment;filename=logo.ico
+
+            {$icon}
+            --boundary-string--
+            MAIL);
+    }
+
+    /**
+     * An all-day event called off: the web UI marks it cancelled.
+     */
+    private static function cancelledMail(): string
+    {
+        $day = new \DateTimeImmutable('+7 days', new \DateTimeZone('UTC'));
+        $invite = self::calendar('CANCEL', <<<ICS
+            UID:team-offsite@trap.buggregator.dev
+            SEQUENCE:1
+            DTSTART;VALUE=DATE:{$day->format('Ymd')}
+            DTEND;VALUE=DATE:{$day->modify('+1 day')->format('Ymd')}
+            SUMMARY:Team offsite
+            STATUS:CANCELLED
+            ORGANIZER;CN=Sender:mailto:sender@example.com
+            ATTENDEE;CN=Recipient;PARTSTAT=DECLINED:mailto:recipient@example.com
+            ICS);
+
+        return self::crlf(<<<MAIL
+            From: Sender <sender@example.com>
+            To: Recipient <recipient@example.com>
+            Subject: Cancelled: Team offsite
+            Content-Type: multipart/alternative; boundary="cancel-string"
+
+            --cancel-string
+            Content-Type: text/plain; charset="utf-8"
+
+            The team offsite is cancelled.
+
+            --cancel-string
+            Content-Type: text/calendar; charset="utf-8"; method=CANCEL
+
+            {$invite}
+            --cancel-string--
+            MAIL);
+    }
+
+    private static function plainMail(): string
+    {
+        return self::crlf(<<<MAIL
+            From: Some User <someusername@somecompany.ru>
+            To: User1 <user1@company.tld>
+            Subject: Very important theme!
+            Content-Type: text/plain
+
+            Hi!
+            MAIL);
+    }
+
+    /**
+     * @param string $event The properties of the VEVENT.
+     */
+    private static function calendar(string $method, string $event): string
+    {
+        $stamp = \gmdate('Ymd\THis\Z');
+
+        return <<<ICS
+            BEGIN:VCALENDAR
+            PRODID:-//Buggregator//Trap test//EN
+            VERSION:2.0
+            METHOD:{$method}
+            BEGIN:VEVENT
+            DTSTAMP:{$stamp}
+            {$event}
+            END:VEVENT
+            END:VCALENDAR
+            ICS;
+    }
+
+    private static function crlf(string $text): string
+    {
+        return \str_replace(["\r\n", "\n"], ["\n", "\r\n"], $text);
     }
 
     private function profiles(): void
@@ -381,7 +536,12 @@ final class Test extends Command
         }
     }
 
-    private function mail(OutputInterface $output, bool $multipart = false): void
+    /**
+     * Sends a message over SMTP line by line, so the console shows the dialog.
+     *
+     * @param string $message Lines separated by CRLF, without the end-of-data line.
+     */
+    private function mail(OutputInterface $output, string $message): void
     {
         try {
             $socket = \socket_create(AF_INET, SOCK_STREAM, SOL_TCP) ?: throw new \RuntimeException('Cannot create socket.');
@@ -396,77 +556,24 @@ final class Test extends Command
             $this->sendMailPackage($output, $socket, "RCPT TO: <user2@company.tld>\r\n", '250 ');
             $this->sendMailPackage($output, $socket, "DATA\r\n", '354 ');
 
-            // Send Data
-            if ($multipart) {
-                $this->sendMailPackage($output, $socket, "From: sender@example.com\r\n", '');
-                $this->sendMailPackage($output, $socket, "To: recipient@example.com\r\n", '');
-                $this->sendMailPackage($output, $socket, "Subject: Multipart Email Example\r\n", '');
-                $this->sendMailPackage(
-                    $output,
-                    $socket,
-                    "Content-Type: multipart/alternative; boundary=\"boundary-string\"\r\n",
-                    '',
-                );
-                $this->sendMailPackage($output, $socket, "\r\n", '');
-                $this->sendMailPackage($output, $socket, "--boundary-string\r\n", '');
-                $this->sendMailPackage($output, $socket, "Content-Type: text/plain; charset=\"utf-8\"\r\n", '');
-                $this->sendMailPackage($output, $socket, "Content-Transfer-Encoding: quoted-printable\r\n", '');
-                $this->sendMailPackage($output, $socket, "Content-Disposition: inline\r\n", '');
-                $this->sendMailPackage($output, $socket, "\r\n", '');
-                $this->sendMailPackage($output, $socket, "Plain text email goes here!\r\n", '');
-                $this->sendMailPackage(
-                    $output,
-                    $socket,
-                    "This is the fallback if email client does not support HTML\r\n",
-                    '',
-                );
-                $this->sendMailPackage($output, $socket, "\r\n", '');
-                $this->sendMailPackage($output, $socket, "--boundary-string\r\n", '');
-                $this->sendMailPackage($output, $socket, "Content-Type: text/html; charset=\"utf-8\"\r\n", '');
-                $this->sendMailPackage($output, $socket, "Content-Transfer-Encoding: quoted-printable\r\n", '');
-                $this->sendMailPackage($output, $socket, "Content-Disposition: inline\r\n", '');
-                $this->sendMailPackage($output, $socket, "\r\n", '');
-                $this->sendMailPackage($output, $socket, "<h1>This is the HTML Section!</h1>\r\n", '');
-                $this->sendMailPackage(
-                    $output,
-                    $socket,
-                    "<p>This is what displays in most modern email clients</p>\r\n",
-                    '',
-                );
-                $this->sendMailPackage($output, $socket, "\r\n", '');
-                $this->sendMailPackage($output, $socket, "--boundary-string--\r\n", '');
-                // Attachment
-                $this->sendMailPackage($output, $socket, "Content-Type: image/x-icon\r\n", '');
-                $this->sendMailPackage($output, $socket, "Content-Transfer-Encoding: base64\r\n", '');
-                $this->sendMailPackage($output, $socket, "Content-Disposition: attachment;filename=logo.ico\r\n", '');
-                $this->sendMailPackage($output, $socket, "\r\n", '');
-                $this->sendMailPackage(
-                    $output,
-                    $socket,
-                    \base64_encode((string) \file_get_contents(Info::TRAP_ROOT . '/resources/public/favicon.ico')) . "\r\n",
-                    '',
-                );
-                $this->sendMailPackage($output, $socket, "\r\n", '');
-                $this->sendMailPackage($output, $socket, "--boundary-string--\r\n", '');
-
-                $this->sendMailPackage($output, $socket, "Content-Type: text/watch-html; charset=\"utf-8\"\r\n", '');
-                $this->sendMailPackage($output, $socket, "Content-Transfer-Encoding: quoted-printable\r\n", '');
-                $this->sendMailPackage($output, $socket, "Content-Disposition: inline\r\n", '');
-                $this->sendMailPackage($output, $socket, "\r\n", '');
-                $this->sendMailPackage($output, $socket, "<b>Apple Watch formatted content</b>\r\n", '');
+            $lines = \explode("\r\n", $message);
+            $last = \array_pop($lines);
+            if (\str_starts_with($last, '--')) {
                 // One packet: older trap servers end multipart data at the closing boundary with an empty line
                 // after it, not at the dot, and see them only when the whole sequence comes in a single read
-                $this->sendMailPackage($output, $socket, "\r\n--boundary-string--\r\n\r\n.\r\n", '250 ');
+                $end = \array_pop($lines);
+                foreach ($lines as $line) {
+                    $this->sendMailPackage($output, $socket, "$line\r\n", '');
+                }
+                $this->sendMailPackage($output, $socket, (string) $end, '');
+                $this->sendMailPackage($output, $socket, "\r\n$last\r\n\r\n.\r\n", '250 ');
             } else {
-                $this->sendMailPackage($output, $socket, "From: Some User <someusername@somecompany.ru>\r\n", '');
-                $this->sendMailPackage($output, $socket, "To: User1 <user1@company.tld>\r\n", '');
-                $this->sendMailPackage($output, $socket, "Subject: Very important theme!\r\n", '');
-                $this->sendMailPackage($output, $socket, "Content-Type: text/plain\r\n", '');
-                $this->sendMailPackage($output, $socket, "\r\n", '');
-                $this->sendMailPackage($output, $socket, "Hi!\r\n", '');
+                foreach ([...$lines, $last] as $line) {
+                    $this->sendMailPackage($output, $socket, "$line\r\n", '');
+                }
                 $this->sendMailPackage($output, $socket, ".\r\n", '250 ');
             }
-            // End of data
+
             $this->sendMailPackage($output, $socket, "QUIT\r\n", '221 ');
         } catch (\Throwable $e) {
             $this->failed = true;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mailer;
 
+use Buggregator\Trap\Module\Mailer\Traffic\ContentType;
 use Buggregator\Trap\Server\Traffic\Message\Headers;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
@@ -15,6 +16,7 @@ use Psr\Http\Message\StreamInterface;
  *
  * @psalm-import-type FieldDataArray from Field
  * @psalm-import-type FileDataArray from File
+ * @psalm-import-type Invite from Calendar
  *
  * @psalm-type TArrayData = array{
  *      protocol: array<non-empty-string, list<string>>,
@@ -195,6 +197,79 @@ final class Message implements \JsonSerializable
         foreach ($this->messages as $message) {
             if (\stripos($message->getHeaderLine('Content-Type'), $type->contentType()) !== false) {
                 return $message;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The versions of the body besides the plain text and the HTML, in message order.
+     *
+     * @return list<Field>
+     */
+    public function getAlternatives(): array
+    {
+        return \array_values(\array_filter(
+            $this->messages,
+            static fn(Field $part): bool => !\in_array(
+                Alternative::mediaType($part->getHeaderLine('Content-Type')),
+                ['text/plain', 'text/html'],
+                true,
+            ),
+        ));
+    }
+
+    /**
+     * The invite of the first calendar version that has an event, else of the first such `.ics` attachment.
+     *
+     * @return Invite|null
+     */
+    public function getCalendar(): ?array
+    {
+        return $this->getInvite()[0] ?? null;
+    }
+
+    /**
+     * {@see getCalendar()} with the version or the attachment it is read from.
+     *
+     * @return array{Invite, Field|File}|null
+     */
+    public function getInvite(): ?array
+    {
+        foreach ($this->getAlternatives() as $part) {
+            $invite = Calendar::isCalendar(Alternative::mediaType($part->getHeaderLine('Content-Type')))
+                ? Calendar::read($part->getValue())
+                : null;
+            if ($invite !== null) {
+                return [$invite, $part];
+            }
+        }
+
+        foreach ($this->attachments as $file) {
+            $contentType = $file->getHeaderLine('Content-Type');
+            $contentType === '' and $contentType = (string) $file->getClientMediaType();
+            if (!$file->hasStream()
+                || !Calendar::isCalendar(Alternative::mediaType($contentType), $file->getClientFilename())
+            ) {
+                continue;
+            }
+
+            $stream = $file->getStream();
+            $stream->rewind();
+            $ics = '';
+            while (!$stream->eof() && \strlen($ics) < Calendar::MAX_INPUT) {
+                $chunk = $stream->read(Calendar::MAX_INPUT - \strlen($ics));
+                if ($chunk === '') {
+                    break;
+                }
+                $ics .= $chunk;
+            }
+            $stream->rewind();
+
+            $invite = Calendar::read(ContentType::toUtf8($ics, $contentType));
+            if ($invite !== null) {
+                return [$invite, $file];
             }
         }
 

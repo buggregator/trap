@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mailer\Traffic;
 
+use Buggregator\Trap\Module\Mailer\Alternative;
 use Buggregator\Trap\Module\Mailer\EncodedWord;
 use Buggregator\Trap\Module\Mailer\Message;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\Field;
@@ -23,25 +24,6 @@ final class Parser
 {
     /** Each nesting level of multipart parts copies the part body into a new temporary stream */
     private const MAX_MULTIPART_DEPTH = 16;
-
-    /** Charsets of a text already in UTF-8 */
-    private const NO_CONVERSION = ['', 'utf-8', 'utf8', 'us-ascii', 'ascii'];
-
-    /** Names mbstring takes for encodings that are not charsets: base64 decoding, HTML unescaping and alike */
-    private const NOT_CHARSETS = [
-        'base64' => true,
-        'uuencode' => true,
-        'html-entities' => true,
-        'html' => true,
-        'quoted-printable' => true,
-        'qprint' => true,
-        '7bit' => true,
-        '8bit' => true,
-        'binary' => true,
-        'pass' => true,
-        'wchar' => true,
-        'auto' => true,
-    ];
 
     /**
      * @return array<non-empty-string, list<non-empty-string>>
@@ -144,41 +126,14 @@ final class Parser
     }
 
     /**
-     * A message body decoded from its transfer encoding and converted to UTF-8 from its charset:
-     * the console and the web UI show text as is, and the event JSON takes UTF-8 only.
-     * The bytes stay as they are in an unknown charset.
+     * A message body decoded from its transfer encoding and converted to UTF-8 from its charset.
      */
     private static function decodeText(Field $part): string
     {
-        $value = self::decodeTransfer($part->getValue(), $part->getHeaderLine('Content-Transfer-Encoding'));
-        $charset = \strtolower(self::findCharset($part->getHeaderLine('Content-Type')) ?? '');
-        // mbstring takes a comma-separated list for detecting the charset
-        if (\in_array($charset, self::NO_CONVERSION, true)
-            || isset(self::NOT_CHARSETS[$charset])
-            || \str_contains($charset, ',')
-        ) {
-            return $value;
-        }
-
-        // Names mail clients write for charsets mbstring knows by another name
-        $charset = match ($charset) {
-            'ks_c_5601-1987' => 'UHC',
-            'iso-8859-8-i' => 'ISO-8859-8',
-            default => $charset,
-        };
-
-        return Charset::toUtf8($value, $charset) ?? $value;
-    }
-
-    /**
-     * Finds the `charset` parameter of a Content-Type.
-     *
-     * @return string|null The charset unquoted, or null if there is none.
-     */
-    private static function findCharset(string $contentType): ?string
-    {
-        $charset = self::findRawParameter($contentType, 'charset');
-        return $charset === null ? null : \trim($charset, "\"'");
+        return ContentType::toUtf8(
+            self::decodeTransfer($part->getValue(), $part->getHeaderLine('Content-Transfer-Encoding')),
+            $part->getHeaderLine('Content-Type'),
+        );
     }
 
     /**
@@ -191,7 +146,7 @@ final class Parser
      */
     private static function findParameter(string $header, string $parameter): ?string
     {
-        $value = self::findRawParameter($header, $parameter);
+        $value = ContentType::parameter($header, $parameter);
         if ($value !== null && \str_starts_with($value, '"')) {
             $value = \preg_match('/^"((?:[^"\\\\]|\\\\.)*+)"$/s', $value, $matches) === 1
                 ? (string) \preg_replace('/\\\\([\\\\"])/', '$1', $matches[1])
@@ -202,34 +157,57 @@ final class Parser
     }
 
     /**
-     * Value of the first header parameter of that name, as written.
-     * Parameters match left to right, each taking its quoted value whole, so a `;` or `=` inside one starts none.
+     * The text and the HTML of the message, or another version of its body.
+     * A part without a Content-Type is `text/plain`. Some mailers name the message text in its Content-Type,
+     * so the first plain or HTML text is the body even when named; a named one after it is a file, as `log.txt`.
+     *
+     * @param list<Field> $texts The texts of the message found before the part.
      */
-    private static function findRawParameter(string $header, string $parameter): ?string
+    private static function isBodyText(Field $part, array $texts = []): bool
     {
-        \preg_match_all(
-            '/;\\s*+([^\\s=;"]++)\\s*+=\\s*+("(?:[^"\\\\]|\\\\.)*+"|"[^"]*+"?|[^;"]*+)/',
-            $header,
-            $params,
-            \PREG_SET_ORDER,
-        );
+        $type = Alternative::mediaType($part->getHeaderLine('Content-Type'));
+        if ($type !== 'text/plain' && $type !== 'text/html') {
+            return self::isAlternative($part);
+        }
 
-        foreach ($params as $param) {
-            if (\strcasecmp($param[1], $parameter) === 0) {
-                return \rtrim($param[2]);
+        if (self::findFileName($part) === null) {
+            return true;
+        }
+
+        foreach ($texts as $text) {
+            if (Alternative::mediaType($text->getHeaderLine('Content-Type')) === $type) {
+                return false;
             }
         }
 
-        return null;
+        return true;
     }
 
     /**
-     * A part without a Content-Type is `text/plain`; other text types, like `text/calendar`, are attachments.
+     * A version of the body: a part of a type {@see Alternative::isAlternativeType()} takes, shown with the message
+     * (RFC 2183: an `inline` disposition or none) and not named. A named part is a file, as mail clients list it.
      */
-    private static function isBodyText(Field $part): bool
+    private static function isAlternative(Part $part): bool
     {
-        $type = $part->getHeaderLine('Content-Type');
-        return $type === '' || \preg_match('/^\\s*text\\/(?:plain|html|watch-html)\\b/i', $type) === 1;
+        return Alternative::isAlternativeType(Alternative::mediaType($part->getHeaderLine('Content-Type')))
+            && \preg_match('/^\\s*attachment\\b/i', $part->getHeaderLine('Content-Disposition')) !== 1
+            && self::findFileName($part) === null;
+    }
+
+    /**
+     * A version of the body that came as a file, its content already decoded from the transfer encoding.
+     */
+    private static function fileToText(File $part): Field
+    {
+        $stream = $part->getStream();
+        $stream->rewind();
+
+        /** @psalm-suppress InvalidArgument */
+        return new Field(
+            $part->getHeaders(),
+            $part->getName(),
+            ContentType::toUtf8($stream->getContents(), $part->getHeaderLine('Content-Type')),
+        );
     }
 
     /**
@@ -347,6 +325,11 @@ final class Parser
         /** @psalm-suppress ArgumentTypeCoercion */
         $body = Part::create($headers);
 
+        if ($body instanceof File && self::isAlternative($body)) {
+            /** @psalm-suppress InvalidArgument */
+            $body = new Field($body->getHeaders(), $body->getName());
+        }
+
         if ($body instanceof File) {
             $body = self::withFileName($body);
             $file = StreamHelper::createFileStream();
@@ -394,7 +377,7 @@ final class Parser
     ): void {
         foreach (Http::parseMultipartBody($stream, $boundary) as $part) {
             if ($part instanceof Field) {
-                self::isBodyText($part)
+                self::isBodyText($part, $texts)
                     ? $texts[] = $part->withValue(self::decodeText($part))
                     : $attachments[] = $this->textToFile($part);
                 continue;
@@ -407,6 +390,11 @@ final class Parser
             $nested = $depth < self::MAX_MULTIPART_DEPTH && $part->hasStream()
                 ? $this->findBoundary($part->getHeaderLine('Content-Type'))
                 : null;
+            if ($nested === null && $part->hasStream() && self::isAlternative($part)) {
+                $texts[] = self::fileToText($part);
+                continue;
+            }
+
             if ($nested === null) {
                 $attachments[] = self::withFileName($part);
                 continue;
@@ -419,17 +407,11 @@ final class Parser
     }
 
     /**
-     * A text part that is not a message body, like a `text/calendar` invitation.
+     * A text part named only in its Content-Type, like `text/csv; name=report.csv`.
      */
     private function textToFile(Field $part): File
     {
-        $fileName = self::findFileName($part)
-            ?? match (\strtolower(\trim(\explode(';', $part->getHeaderLine('Content-Type'), 2)[0]))) {
-                'text/calendar' => 'invite.ics',
-                'text/csv' => 'attachment.csv',
-                default => 'attachment.txt',
-            };
-
+        $fileName = self::findFileName($part);
         $value = self::decodeTransfer($part->getValue(), $part->getHeaderLine('Content-Transfer-Encoding'));
 
         $stream = StreamHelper::createFileStream();

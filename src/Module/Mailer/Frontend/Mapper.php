@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Module\Mailer\Frontend;
 
+use Buggregator\Trap\Module\Mailer\Alternative;
 use Buggregator\Trap\Module\Mailer\Frame as SmtpFrame;
 use Buggregator\Trap\Module\Mailer\Message as SmtpMessage;
 use Buggregator\Trap\Module\Mailer\MessageFormat;
@@ -14,6 +15,7 @@ use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventMapper;
 use Buggregator\Trap\Server\Event\Facets;
 use Buggregator\Trap\Server\Proto\Frame;
+use Buggregator\Trap\Server\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
 use Buggregator\Trap\Support\Uuid;
 
@@ -32,21 +34,33 @@ final class Mapper implements EventMapper
         $uuid = Uuid::generate();
         $assets = self::fetchAssets($message);
 
+        $payload = [
+            'from' => $message->getSender(),
+            'reply_to' => $message->getReplyTo(),
+            'subject' => $message->getSubject(),
+            'to' => $message->getTo(),
+            'cc' => $message->getCc(),
+            'bcc' => $message->getBcc(),
+            'text' => $message->getMessage(MessageFormat::Plain)?->getValue() ?? '',
+            'html' => self::html($uuid, $message, $assets),
+            'raw' => (string) $message->getBody(),
+            'auth' => self::auth($message),
+        ];
+        $parts = \array_map(
+            static fn(Field $part): array => Alternative::toArray(
+                Alternative::mediaType($part->getHeaderLine('Content-Type')),
+                $part->getValue(),
+            ),
+            $message->getAlternatives(),
+        );
+        $parts === [] or $payload['parts'] = $parts;
+        $calendar = $message->getCalendar();
+        $calendar === null or $payload['calendar'] = $calendar;
+
         return new Event(
             uuid: $uuid,
             type: 'smtp',
-            payload: [
-                'from' => $message->getSender(),
-                'reply_to' => $message->getReplyTo(),
-                'subject' => $message->getSubject(),
-                'to' => $message->getTo(),
-                'cc' => $message->getCc(),
-                'bcc' => $message->getBcc(),
-                'text' => $message->getMessage(MessageFormat::Plain)?->getValue() ?? '',
-                'html' => self::html($uuid, $message, $assets),
-                'raw' => (string) $message->getBody(),
-                'auth' => self::auth($message),
-            ],
+            payload: $payload,
             timestamp: (float) $frame->time->format('U.u'),
             assets: $assets,
             facets: (new Facets())->add(Facets::TRACE, Facets::traceFromHeaders($message->getHeaderLine(...)))->toArray(),

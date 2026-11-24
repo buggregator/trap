@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Module\Mailer\Frontend;
 
+use Buggregator\Trap\Module\Mailer\Alternative;
 use Buggregator\Trap\Module\Mailer\Contact;
 use Buggregator\Trap\Module\Mailer\Frame as SmtpFrame;
 use Buggregator\Trap\Module\Mailer\Frontend\Mapper;
@@ -11,6 +12,7 @@ use Buggregator\Trap\Module\Mailer\Message as SmtpMessage;
 use Buggregator\Trap\Module\Mailer\Traffic\Parser;
 use Buggregator\Trap\Server\Event\AttachedFile;
 use Buggregator\Trap\Server\Event\EmbeddedFile;
+use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\Field;
 use Buggregator\Trap\Server\Traffic\Message\Multipart\File;
 use Buggregator\Trap\Test\Mock\StreamClientMock;
@@ -172,5 +174,127 @@ final class MapperTest
             Assert::instanceOf($assets[0], AttachedFile::class);
             Assert::same($assets[0]->file, $inline);
         }
+    }
+
+    public function testOrdinaryEmailHasNoPartsAndCalendar(): void
+    {
+        $payload = $this->mapFixture('symfony-alternative.eml')->payload;
+
+        Assert::false(\array_key_exists('parts', $payload));
+        Assert::false(\array_key_exists('calendar', $payload));
+    }
+
+    public function testOtherVersionsBecomePartsInMessageOrder(): void
+    {
+        $payload = $this->mapFixture('bounce.eml')->payload;
+
+        Assert::same($payload['text'], "I'm sorry to have to inform you that your message could not be delivered.");
+        Assert::same(\array_map(static fn(array $part): array => [$part['type'], $part['label']], $payload['parts']), [
+            ['message/delivery-status', 'Delivery status'],
+            ['text/rfc822-headers', 'Original headers'],
+        ]);
+        Assert::same($payload['parts'][1], [
+            'type' => 'text/rfc822-headers',
+            'label' => 'Original headers',
+            'content' => "From: app@example.com\r\nTo: nobody@example.org\r\nSubject: Welcome",
+            'size' => 63,
+        ]);
+        Assert::false(\array_key_exists('calendar', $payload));
+    }
+
+    public function testCalendarVersionIsPartAndInvite(): void
+    {
+        $event = $this->mapFixture('google-invite.eml');
+
+        Assert::same(\array_column($event->payload['parts'], 'label'), ['Calendar']);
+        Assert::string($event->payload['parts'][0]['content'])->startsWith('BEGIN:VCALENDAR');
+        Assert::same($event->payload['calendar']['method'], 'REQUEST');
+        Assert::same($event->payload['calendar']['summary'], 'Release sync');
+        Assert::same($event->payload['calendar']['start'], '2026-12-01T09:00:00Z');
+        Assert::same(\array_column($event->payload['calendar']['attendees'], 'status'), ['NEEDS-ACTION', 'ACCEPTED']);
+        // The `.ics` attachment stays a file to download
+        Assert::count($event->assets, 1);
+    }
+
+    public function testAttachedCalendarIsInviteWithoutPart(): void
+    {
+        $payload = $this->mapFixture('ics-attachment.eml')->payload;
+
+        Assert::false(\array_key_exists('parts', $payload));
+        Assert::same($payload['calendar'], [
+            'summary' => 'Haircut',
+            'start' => '2026-12-05',
+            'end' => '2026-12-06',
+            'all_day' => true,
+        ]);
+    }
+
+    public function testCancelledInviteOfOutlook(): void
+    {
+        $payload = $this->mapFixture('outlook-cancel.eml')->payload;
+
+        Assert::same($payload['text'], '');
+        Assert::same(\array_column($payload['parts'], 'type'), ['text/calendar']);
+        Assert::same($payload['calendar']['method'], 'CANCEL');
+        Assert::same($payload['calendar']['status'], 'CANCELLED');
+        Assert::same($payload['calendar']['end'], \class_exists(\IntlTimeZone::class)
+            ? '2026-12-03T15:00:00+01:00'
+            : '2026-12-03T15:00:00');
+    }
+
+    /**
+     * An `.ics` attachment typed with parameters and written in another charset.
+     */
+    public function testInviteOfAttachmentInItsCharset(): void
+    {
+        $file = new File(
+            ['Content-Type' => [' Text/Calendar ; charset=windows-1251; method=REQUEST']],
+            null,
+            'meeting.dat',
+        );
+        $file->setStream(Stream::create("BEGIN:VEVENT\r\nSUMMARY:\xC2\xF1\xF2\xF0\xE5\xF7\xE0\r\nEND:VEVENT"));
+        $message = SmtpMessage::create(protocol: [], headers: [])->withAttachments([$file]);
+
+        $payload = (new Mapper())->map(new SmtpFrame($message))->payload;
+
+        Assert::same($payload['calendar'], ['summary' => 'Встреча']);
+        Assert::false(\array_key_exists('parts', $payload));
+    }
+
+    public function testCalendarWithoutEventIsNoInvite(): void
+    {
+        $message = SmtpMessage::create(protocol: [], headers: [])->withMessages([
+            new Field(['Content-Type' => ['text/calendar']], value: "BEGIN:VCALENDAR\r\nEND:VCALENDAR"),
+            new Field(['Content-Type' => ['text/calendar']], value: "BEGIN:VEVENT\r\nSUMMARY:Second\r\nEND:VEVENT"),
+        ]);
+
+        $payload = (new Mapper())->map(new SmtpFrame($message))->payload;
+
+        Assert::count($payload['parts'], 2);
+        Assert::same($payload['calendar'], ['summary' => 'Second']);
+    }
+
+    public function testLargeVersionIsCut(): void
+    {
+        $content = \str_repeat('<p>AMP</p>', Alternative::MAX_CONTENT);
+        $message = SmtpMessage::create(protocol: [], headers: [])->withMessages([
+            new Field(['Content-Type' => ['text/x-amp-html; charset=utf-8']], value: $content),
+        ]);
+
+        $part = (new Mapper())->map(new SmtpFrame($message))->payload['parts'][0];
+
+        Assert::same($part['label'], 'AMP');
+        Assert::same($part['size'], \strlen($content));
+        Assert::same(\strlen($part['content']), Alternative::MAX_CONTENT);
+        Assert::true($part['truncated']);
+    }
+
+    private function mapFixture(string $fixture): Event
+    {
+        $email = \file_get_contents(\dirname(__DIR__, 4) . "/Stub/mail/$fixture");
+        $stream = StreamClientMock::createFromGenerator((static fn() => yield $email . ".\r\n")());
+        $message = $this->runInFiber(static fn() => (new Parser())->parseStream([], $stream));
+
+        return (new Mapper())->map(new SmtpFrame($message));
     }
 }
