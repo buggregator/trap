@@ -43,7 +43,7 @@ the agent reads back through Trap's MCP tools.
 | [mcp.md](references/mcp.md)                       | Reading events, traces of Sentry and OpenTelemetry, N+1 queries, cron jobs: the tools, filters, the script for agents without MCP                          |
 | [dumps-and-logs.md](references/dumps-and-logs.md) | Seeing values or the code path at runtime: `trap()`, `tr()`, `td()`, `dump()`, `trap()::logger()`                                                          |
 | [profiling.md](references/profiling.md)           | Finding why code is slow or takes memory: `trap()::profile()`, the profilers, reading a profile; Xdebug function traces                                    |
-| [xdebug.md](references/xdebug.md)                 | Stopping at a line or an exception and stepping through PHP code: `--xdebug`, breakpoints, variables, `xdebug_*` tools                                     |
+| [xdebug.md](references/xdebug.md)                 | Stopping at a line or an exception and stepping through PHP code with Xdebug or PHP Debugger: `--xdebug`, breakpoints, variables, `xdebug_*` tools         |
 | [workers.md](references/workers.md)               | Debugging RoadRunner, Swoole, FrankenPHP, Octane or queue workers: reloads, volume, memory leaks                                                           |
 | [integrations.md](references/integrations.md)     | Pointing Sentry (Crons and ping URLs too), Monolog, Ray, a mailer, OTel or VarDumper at Trap, a `4xx` they get; a scenario's output; tying logs to a trace |
 | [csp.md](references/csp.md)                       | Fixing a Content Security Policy: a Report-Only policy that reports to Trap, reading the violations, browser reports                                       |

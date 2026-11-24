@@ -170,10 +170,22 @@ foreach ($profilers as $extension => $line) {
         $found = true;
     }
 }
-if (\extension_loaded('xdebug')) {
+// PHP Debugger first: with php_debugger.report_xdebug_module it passes for xdebug too. Its xdebug.* settings hold
+// the values in effect, the php_debugger.* ones keep their defaults when only xdebug.* is set.
+$debugger = null;
+if (\extension_loaded('php_debugger')) {
+    echo '  PHP Debugger ', \phpversion('php_debugger'), ': mode=', \ini_get('xdebug.mode'),
+        ', start_with_request=', \ini_get('xdebug.start_with_request'), "\n";
+    echo "    steps through code with trap --xdebug (xdebug.md); no profiles, no traces\n";
+    $debugger = 'php_debugger';
+} elseif (\extension_loaded('xdebug')) {
     $mode = (string) \ini_get('xdebug.mode');
     echo "  Xdebug: mode=$mode", \str_contains($mode, 'profile') ? '' : '; profiles whole runs with xdebug.mode=profile', "\n";
     echo "    steps through code with trap --xdebug (xdebug.md); traces every call with xdebug.mode=trace (profiling.md)\n";
+    $debugger = 'xdebug';
+    $found = true;
+}
+if ($debugger !== null) {
     $port = (int) (\getenv('TRAP_XDEBUG_PORT') ?: \ini_get('xdebug.client_port') ?: 9003);
     $held = static function (int $port): bool {
         $socket = @\stream_socket_client("tcp://127.0.0.1:$port", $errno, $error, 0.3);
@@ -187,10 +199,9 @@ if (\extension_loaded('xdebug')) {
         echo "    port $port for the debugger: held", ($owner = $listener($port)) === null ? '' : " by $owner",
             " (an IDE, or a Trap with --xdebug, which shows this probe as an empty event): ",
             $free < 9100
-                ? "give Trap a free one, as --xdebug=$free with xdebug.client_port=$free\n"
+                ? "give Trap a free one, as --xdebug=$free with $debugger.client_port=$free\n"
                 : "none of 9013, 9023 … 9093 is free; pick another one\n";
     }
-    $found = true;
 }
 echo $found ? '' : "  none; Excimer installs with `pecl install excimer`\n";
 

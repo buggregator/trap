@@ -12,10 +12,14 @@ two calls. Full reference: <https://github.com/buggregator/trap/blob/master/docs
    [the recipe of server.md](server.md#a-trap-of-your-own-in-powershell). Once `--xdebug` is on, Xdebug may also
    connect to any port Trap listens on, such as `9912`. Without `--xdebug` the `xdebug_*` tools fail, and a script
    that connects runs on without a debugger.
-2. The PHP that runs the code needs `ext-xdebug` and
+2. The PHP that runs the code needs Xdebug or PHP Debugger (detect reports which) and
    `-d xdebug.mode=debug -d xdebug.client_port=9003 -d xdebug.start_with_request=yes` (CLI), or
    `xdebug.start_with_request=trigger` with `XDEBUG_TRIGGER=1` in the request (web). Code runs several times slower
    with the debugger attached: a test suite of 1 s takes 5 to 8.
+   PHP Debugger takes these `xdebug.*` settings and triggers. It has no profiles or traces, and it debugs every
+   script by default, so your own `php` runs (`mcp.php`, `detect.php`, Trap itself) open sessions too: run them
+   with `-d xdebug.start_with_request=no`. To install it in place of Xdebug, ask the user first, then follow
+   [the docs](https://github.com/buggregator/trap/blob/master/docs/xdebug.md#php-debugger).
 3. `xdebug_sessions` → `allow_control`, `allow_eval`, `mode`, `pause_on_first_line`. In `mode: auto` (the
    default) an IDE answering on `TRAP_XDEBUG_IDE` (`127.0.0.1:9004`) gets the session (`driver: ide`): reads work,
    stepping and breakpoints are the IDE's. `mode: proxy` gives every session to the IDE;

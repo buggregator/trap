@@ -30,6 +30,38 @@ Trap recognizes DBGp on any of its ports, so `xdebug.client_port` may also point
 such as `9912`, once `--xdebug` is given. Without `--xdebug`, a script that connects runs on without a debugger,
 and the console says why.
 
+## PHP Debugger
+
+[PHP Debugger](https://github.com/php-debugger/php-debugger) is a step debugger built on the code of Xdebug, with
+a lower overhead and no profiler, traces or coverage. It speaks the same DBGp, so Trap takes its sessions as Xdebug's:
+the Xdebug page and the MCP tools work alike, and the engine shows as `PHP Debugger`. The
+[profiles](profiling.md) and [traces](xdebug-traces.md) of Xdebug still need Xdebug itself.
+
+Install it in place of Xdebug; the two hook into the same engine, so remove the `zend_extension` line of Xdebug first:
+
+- Docker: the `phpdebugger/php` image replaces the official `php` one with the same tags, PHP 8.2 to 8.6, as
+  `FROM phpdebugger/php:8.4-fpm`; the debugger is built into PHP there. To keep the official image, build it in with
+  PIE: [the recipe](https://php-debugger.dev/getting-started/docker).
+- Linux or macOS: `pie install php-debugger/php-debugger`. [PIE](https://github.com/php/pie) builds it from the
+  source, so it needs a compiler, `make`, `autoconf`, `libtool` and `unzip`, and enables it with
+  `zend_extension=php_debugger`.
+- Windows: PIE finds no binary for it. Take the DLL of your PHP from the
+  [releases](https://github.com/php-debugger/php-debugger/releases), as `php_php-debugger-php8.4-nts-windows-x64.dll`
+  (`php -v` tells `NTS`, or `ZTS` for a `ts` file), and load it with `zend_extension=` and its path, or use the
+  [installer](https://php-debugger.dev/getting-started/installation): `php-debugger install --extension-only`.
+
+Its settings take the `php_debugger.` prefix and the `xdebug.` one alike, and so do its triggers, as
+`XDEBUG_TRIGGER` or `PHP_DEBUGGER_TRIGGER`. Unlike Xdebug it debugs every request by default
+(`start_with_request=yes`), so with `--xdebug` each script opens a session in Trap; to debug only some of them:
+
+```ini
+php_debugger.client_host=127.0.0.1
+php_debugger.client_port=9003
+php_debugger.start_with_request=trigger
+```
+
+In Docker `client_host` is `host.docker.internal` (on Linux with `--add-host=host.docker.internal:host-gateway`).
+
 ## Modes
 
 The mode decides how a new session is driven; change it on the Xdebug page, it applies to the next sessions.
