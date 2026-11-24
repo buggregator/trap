@@ -154,11 +154,15 @@ findings:
   any length become one `(?)` or `[?]`; comments go; keywords are upper-cased and spacing is made uniform. Names
   stay as written, with their digits (`table2`), and so do `"quoted"` names and `::type` casts. A `?` or a quote
   inside a string literal stays in the literal.
-- A backslash escapes a quote in a literal of MySQL, MariaDB, ClickHouse, Hive and Spanner, by `db.system` or
-  `db.system.name` (`mysql`, `mariadb`, `clickhouse`, `hive`, `spanner`, `gcp.spanner`), and in an `E'…'` literal;
-  in other databases only a doubled quote does. When the span names no database, a backslash escapes unless a
-  literal of the query would then never end: then no backslash escapes in that query, so `'C:\' AND b = 'y'` holds
-  two literals. A literal cut off by the 32 KB limit below does not count as never ending.
+- The database is the `db.system` or `db.system.name` of the span, in any case. A backslash escapes a quote in a
+  literal of `mysql`, `mariadb`, `clickhouse`, `hive`, `spanner`, `gcp.spanner`, `bigquery` and `snowflake`, and
+  in an `E'…'` literal. Only a doubled quote does in `postgresql`, `sqlite`, `mssql`, `microsoft.sql_server`,
+  `oracle`, `oracle.db`, `db2`, `ibm.db2`, `h2`, `h2database`, `derby`, `hsqldb`, `cockroachdb`, `trino`,
+  `firebird`, `firebirdsql` and `teradata`. For any other database, and when the span names none, a backslash
+  escapes unless a literal of the query would then never end: then no backslash escapes in that query, so
+  `'C:\' AND b = 'y'` holds two literals. A literal cut off by the 32 KB limit below does not count as never
+  ending, so in a longer query of such a database a literal that really ends in a backslash takes the rest of the
+  part that is read.
 - Trap reads the first 32 KB of a query: a longer one is shaped by that part and ends with `…`, and a bulk
   `VALUES` list cut there still collapses. Queries that differ only after their first 32 KB count as one.
 - Each finding has the query with its values as `?`, the span count, their summed duration, and the place in the

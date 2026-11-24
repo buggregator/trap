@@ -73,15 +73,19 @@ final class QueryShapeTest
         yield 'unknown: an escape' => [$quote, null, 'SELECT * FROM t WHERE n = ? AND id = ?'];
         yield 'unknown: no escape when the literal would never end' => [$path, null, 'SELECT * FROM t WHERE p = ? AND id = ?'];
         yield 'unknown: no escape in the whole query when one literal would never end' => ["SELECT * FROM t WHERE p = 'C:\\' AND n = 'y'", null, 'SELECT * FROM t WHERE p = ? AND n = ?'];
+        yield 'BigQuery as its client names it escapes' => [$quote, 'BigQuery', 'SELECT * FROM t WHERE n = ? AND id = ?'];
+        yield 'SQL Server by the new name takes standard strings' => [$path, 'microsoft.sql_server', 'SELECT * FROM t WHERE p = ? AND id = ?'];
+        yield 'another database: an escape' => [$quote, 'acme-sql', 'SELECT * FROM t WHERE n = ? AND id = ?'];
+        yield 'another database: no escape when the literal would never end' => [$path, 'acme-sql', 'SELECT * FROM t WHERE p = ? AND id = ?'];
         yield 'ClickHouse escapes' => [$path, 'clickhouse', 'SELECT * FROM t WHERE p = ?'];
         yield 'Spanner by the new name escapes' => [$quote, 'gcp.spanner', 'SELECT * FROM t WHERE n = ? AND id = ?'];
     }
 
-    public static function slowInputs(): iterable
+    public static function repeatedInputs(): iterable
     {
-        yield 'unclosed literals' => ['SELECT ' . \str_repeat("'\\", 16_000)];
-        yield 'minus signs, read twice' => ['SELECT ' . \str_repeat('a-', 16_000) . "'"];
-        yield 'plus signs, read twice' => ['SELECT ' . \str_repeat('1+', 16_000) . "'"];
+        yield 'unclosed literals' => ["'\\", ''];
+        yield 'minus signs, read twice' => ['a-', "'"];
+        yield 'plus signs, read twice' => ['1+', "'"];
     }
 
     public static function cutQueries(): iterable
@@ -104,16 +108,16 @@ final class QueryShapeTest
     }
 
     /**
-     * Linear inputs take milliseconds; the bound only catches quadratic work, seconds even without coverage.
+     * Four times the input takes about four times as long, quadratic work about sixteen: the ratio holds whatever
+     * the speed of the machine or a coverage driver. Both sizes stay below the cut of {@see QueryShape::MAX_BYTES}.
      */
-    #[DataProvider('slowInputs')]
-    public function testLongInputTakesLinearTime(string $sql): void
+    #[DataProvider('repeatedInputs')]
+    public function testTimeGrowsLinearlyWithInput(string $unit, string $tail): void
     {
-        $start = \hrtime(true);
+        $small = self::bestSeconds('SELECT ' . \str_repeat($unit, 4_000) . $tail);
+        $large = self::bestSeconds('SELECT ' . \str_repeat($unit, 16_000) . $tail);
 
-        QueryShape::of($sql);
-
-        Assert::numeric((\hrtime(true) - $start) / 1e9)->lessThan(5.0);
+        Assert::numeric($large / $small)->lessThan(8.0);
     }
 
     #[DataProvider('cutQueries')]
@@ -141,5 +145,20 @@ final class QueryShapeTest
         $b = QueryShape::of("SELECT *\n  FROM products\n WHERE id=200 AND sku IN ('b', 'c', 'd')");
 
         Assert::same($a, $b);
+    }
+
+    /**
+     * The best of five runs, so a pause of the machine does not count.
+     */
+    private static function bestSeconds(string $sql): float
+    {
+        $best = \INF;
+        for ($run = 0; $run < 5; ++$run) {
+            $start = \hrtime(true);
+            QueryShape::of($sql);
+            $best = \min($best, (\hrtime(true) - $start) / 1e9);
+        }
+
+        return $best;
     }
 }

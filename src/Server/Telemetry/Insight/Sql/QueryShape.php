@@ -20,10 +20,11 @@ namespace Buggregator\Trap\Server\Telemetry\Insight\Sql;
  *   and between a name and its `(`.
  *
  * A backslash escapes the next character of a literal in the databases of {@see self::BACKSLASH_SYSTEMS}, and in
- * an `E'…'` literal anywhere; elsewhere only a doubled quote escapes one. For an unknown database a backslash
- * escapes, unless a literal of the query then never ends (one cut off with a long query does not count): then none
- * does in that query, and `'C:\' AND b = 'y'` has two literals. The query is read once or twice, never once per
- * literal.
+ * an `E'…'` literal anywhere; in those of {@see self::STANDARD_SYSTEMS} only a doubled quote escapes one. For any
+ * other database, named or not, a backslash escapes, unless a literal of the query then never ends (one cut off
+ * with a long query does not count): then none does in that query, and `'C:\' AND b = 'y'` has two literals. So
+ * in a query over the cut, a literal of such a database that really ends in a backslash takes the rest of the read
+ * part. The query is read once or twice, never once per literal.
  *
  * Only the first {@see self::MAX_BYTES} of a query are read, the work of the loop it blocks being bounded so:
  * a longer query gets the shape of that part and ` …`, and a list cut off at the end still collapses. Two queries
@@ -54,9 +55,18 @@ final class QueryShape
         '<>' => true, '<=' => true, '>=' => true, '!=' => true, '||' => true, '&&' => true, '@>' => true, '<@' => true,
     ];
 
-    /** The `db.system` and `db.system.name` values of databases whose literals take backslash escapes */
+    /**
+     * The `db.system` and `db.system.name` values of databases whose literals take backslash escapes, in lower case;
+     * `bigquery` as the BigQuery client names it.
+     */
     private const BACKSLASH_SYSTEMS = [
-        'mysql', 'mariadb', 'clickhouse', 'hive', 'spanner', 'gcp.spanner',
+        'mysql', 'mariadb', 'clickhouse', 'hive', 'spanner', 'gcp.spanner', 'bigquery', 'snowflake',
+    ];
+
+    /** The `db.system` and `db.system.name` values of databases of standard SQL strings, in lower case */
+    private const STANDARD_SYSTEMS = [
+        'postgresql', 'sqlite', 'mssql', 'microsoft.sql_server', 'oracle', 'oracle.db', 'db2', 'ibm.db2', 'h2',
+        'h2database', 'derby', 'hsqldb', 'cockroachdb', 'trino', 'firebird', 'firebirdsql', 'teradata',
     ];
 
     /** Lists nested deeper are left as they are */
@@ -94,7 +104,12 @@ final class QueryShape
     public static function of(string $sql, ?string $system = null): string
     {
         $system = $system === null || $system === '' ? null : \strtolower($system);
-        $shape = new self($sql, $system === null ? null : \in_array($system, self::BACKSLASH_SYSTEMS, true));
+        $shape = new self($sql, match (true) {
+            $system === null => null,
+            \in_array($system, self::BACKSLASH_SYSTEMS, true) => true,
+            \in_array($system, self::STANDARD_SYSTEMS, true) => false,
+            default => null,
+        });
 
         return $shape->shape();
     }

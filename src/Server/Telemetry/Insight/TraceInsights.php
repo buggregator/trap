@@ -53,8 +53,8 @@ final class TraceInsights
     {
         $projects = \array_values(\array_unique($projects));
         \sort($projects, \SORT_STRING);
-        // JSON keeps the key a string, which a key of digits such as project `1` would not be, and apart
-        $scope = \json_encode($projects, \JSON_THROW_ON_ERROR | \JSON_INVALID_UTF8_SUBSTITUTE);
+        // Serialized: a string key whatever the names, where project `1` alone would make an int key
+        $scope = \serialize($projects);
         $state = [$this, $trace->seq, $trace->size()];
         $cached = $trace->insights[$scope] ?? null;
         if ($cached !== null && \array_slice($cached, 0, 3) === $state) {
