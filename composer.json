@@ -27,12 +27,13 @@
         "excimer",
         "spx",
         "pprof",
-        "speedscope",
         "opentelemetry",
         "otlp",
         "tracing",
         "protobuf",
-        "roadrunner"
+        "roadrunner",
+        "mcp",
+        "skills"
     ],
     "authors": [
         {
