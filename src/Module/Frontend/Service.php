@@ -23,6 +23,7 @@ use Buggregator\Trap\Server\Handler\Router\Attribute\RegexpRoute;
 use Buggregator\Trap\Server\Handler\Router\Attribute\StaticRoute;
 use Buggregator\Trap\Server\Handler\Router\Method;
 use Buggregator\Trap\Server\Logger;
+use Buggregator\Trap\Server\Telemetry\TelemetryStore;
 use Internal\Container\Container;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -44,6 +45,7 @@ final class Service
         private readonly FrontendConfig $config,
         private readonly TcpPorts $tcpPorts,
         private readonly Container $container,
+        private readonly TelemetryStore $telemetry = new TelemetryStore(),
     ) {
         /** @var array<non-empty-string, class-string> $owners Who declared each event type */
         $owners = [];
@@ -241,6 +243,11 @@ final class Service
         $keys = [];
         foreach ($this->eventsStorage as $event) {
             $keys[$event->projectKey()] = true;
+        }
+
+        // A ping URL names a project that may have no event
+        foreach ($this->telemetry->crons->monitors() as $monitor) {
+            $keys[$monitor->project] = true;
         }
 
         return new Projects(\array_keys($keys));

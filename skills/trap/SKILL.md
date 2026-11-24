@@ -1,6 +1,6 @@
 ---
 name: trap
-description: Debug or profile a running PHP application through Buggregator Trap and its MCP tools. Use when reading what the application sent at runtime (dumps, logs, exceptions, mails, requests, traces, profiles, CSP violations), pointing it at Trap, stepping through PHP code with Xdebug, calling Trap MCP tools such as `list_events`, or when code calls trap(), tr() or td().
+description: Debug or profile a running PHP application through Buggregator Trap and its MCP tools. Use when reading what the application sent at runtime (dumps, logs, exceptions, mails, requests, traces, profiles, CSP violations, cron runs), pointing it at Trap, stepping through PHP code with Xdebug, calling Trap MCP tools such as `list_events`, or when code calls trap(), tr() or td().
 ---
 
 # Trap
@@ -38,16 +38,16 @@ the agent reads back through Trap's MCP tools.
 
 ## References
 
-| Reference                                         | Read when                                                                                                                         |
-| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| [mcp.md](references/mcp.md)                       | Reading events and traces of Sentry and OpenTelemetry: the tools, filters, the script for agents without MCP                      |
-| [dumps-and-logs.md](references/dumps-and-logs.md) | Seeing values or the code path at runtime: `trap()`, `tr()`, `td()`, `dump()`, `trap()::logger()`                                 |
-| [profiling.md](references/profiling.md)           | Finding why code is slow or takes memory: `trap()::profile()`, the profilers, reading a profile; Xdebug function traces           |
-| [xdebug.md](references/xdebug.md)                 | Stopping at a line or an exception and stepping through PHP code: `--xdebug`, breakpoints, variables, `xdebug_*` tools            |
-| [workers.md](references/workers.md)               | Debugging RoadRunner, Swoole, FrankenPHP, Octane or queue workers: reloads, volume, memory leaks                                  |
-| [integrations.md](references/integrations.md)     | Pointing Sentry, Monolog, Ray, a mailer, OTel or VarDumper at Trap, a `4xx` they get; a scenario's output; tying logs to a trace  |
-| [csp.md](references/csp.md)                       | Fixing a Content Security Policy: a Report-Only policy that reports to Trap, reading the violations, browser reports              |
-| [server.md](references/server.md)                 | Installing, starting Trap, its ports, the web UI, TLS, an application in Docker or on another host, the token, limits, `trap.xml` |
+| Reference                                         | Read when                                                                                                                                                  |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [mcp.md](references/mcp.md)                       | Reading events, traces of Sentry and OpenTelemetry, cron jobs: the tools, filters, the script for agents without MCP                                       |
+| [dumps-and-logs.md](references/dumps-and-logs.md) | Seeing values or the code path at runtime: `trap()`, `tr()`, `td()`, `dump()`, `trap()::logger()`                                                          |
+| [profiling.md](references/profiling.md)           | Finding why code is slow or takes memory: `trap()::profile()`, the profilers, reading a profile; Xdebug function traces                                    |
+| [xdebug.md](references/xdebug.md)                 | Stopping at a line or an exception and stepping through PHP code: `--xdebug`, breakpoints, variables, `xdebug_*` tools                                     |
+| [workers.md](references/workers.md)               | Debugging RoadRunner, Swoole, FrankenPHP, Octane or queue workers: reloads, volume, memory leaks                                                           |
+| [integrations.md](references/integrations.md)     | Pointing Sentry (Crons and ping URLs too), Monolog, Ray, a mailer, OTel or VarDumper at Trap, a `4xx` they get; a scenario's output; tying logs to a trace |
+| [csp.md](references/csp.md)                       | Fixing a Content Security Policy: a Report-Only policy that reports to Trap, reading the violations, browser reports                                       |
+| [server.md](references/server.md)                 | Installing, starting Trap, its ports, the web UI, TLS, an application in Docker or on another host, the token, limits, `trap.xml`                          |
 
 Edge cases beyond these are in the full documentation: <https://github.com/buggregator/trap/tree/master/docs>.
 

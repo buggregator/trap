@@ -20,13 +20,13 @@ There is no need to open a port per protocol.
 By default Trap listens on the ports of the Buggregator Server: `9912`, `9913`, `1025` and `8000`,
 plus `4318`, the default OTLP/HTTP port. These are the ports the clients use by default:
 
-| Port   | Default port of                                  |
-| ------ | ------------------------------------------------ |
-| `9912` | Symfony VarDumper server, `trap()`               |
-| `9913` | Monolog socket handler, `trap()::logger()`       |
-| `1025` | SMTP in Buggregator and similar mail catchers    |
-| `8000` | HTTP: Sentry, Ray, profilers, HTTP dumps, web UI |
-| `4318` | OTLP/HTTP                                        |
+| Port   | Default port of                                              |
+| ------ | ------------------------------------------------------------ |
+| `9912` | Symfony VarDumper server, `trap()`                           |
+| `9913` | Monolog socket handler, `trap()::logger()`                   |
+| `1025` | SMTP in Buggregator and similar mail catchers                |
+| `8000` | HTTP: Sentry, cron pings, Ray, profilers, HTTP dumps, web UI |
+| `4318` | OTLP/HTTP                                                    |
 
 To listen on other ports, use `-p` or `TRAP_TCP_PORTS`:
 

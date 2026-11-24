@@ -51,7 +51,7 @@ final class McpServerTest
 
         Assert::same($result['capabilities'], ['tools' => ['listChanged' => false]]);
         Assert::same($result['serverInfo'], ['name' => 'Buggregator Trap', 'version' => Info::version()]);
-        Assert::string($result['instructions'])->contains('Trap');
+        Assert::string($result['instructions'])->contains('Trap')->contains('`list_feedback`')->contains('`list_crons`');
     }
 
     public function testPingIsEmptyObject(): void
@@ -169,6 +169,7 @@ final class McpServerTest
     #[DataSet(['get_trace', ['id' => 'abc', 'spans' => 10]], 'get_trace')]
     #[DataSet(['list_feedback', ['event' => 'abc']], 'list_feedback')]
     #[DataSet(['list_queue_jobs', ['queues' => 'emails']], 'list_queue_jobs')]
+    #[DataSet(['list_crons', ['slugs' => 'abc']], 'list_crons')]
     #[DataSet(['xdebug_trace_summary', ['id' => 'abc']], 'xdebug_trace_summary')]
     #[DataSet(['xdebug_trace_calls', ['uuid' => 'abc', 'q' => 'fib']], 'xdebug_trace_calls')]
     #[DataSet(['xdebug_trace_call', ['uuid' => 'abc', 'ofset' => 1]], 'xdebug_trace_call')]

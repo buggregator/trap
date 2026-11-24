@@ -24,6 +24,23 @@ tracing on, `SENTRY_TRACES_SAMPLE_RATE=1`) are traces and the jobs of the Queues
 [mcp.md](mcp.md#queue-jobs). A body over 2 MB gets `413`, and an event Trap can't parse is dropped
 with a warning in its console. The `X-Buggregator-Project` header sets the `project` of the event.
 
+Cron check-ins (Sentry Crons: `captureCheckIn()`, `withMonitor()`, Laravel's `->sentryMonitor()`) go to the same
+DSN and make no event: read the jobs with `list_crons`, see [mcp.md](mcp.md#cron-jobs). A script without an SDK
+pings any HTTP port of Trap, `GET` or `POST`; a body, the job's output, keeps its last 10 KB whatever its size, a
+chunked one (curl from a pipe) up to `TRAP_HTTP_MAX_INFLATED_SIZE`, 64M, above which it gets `413`:
+
+```bash
+curl -fsS "http://127.0.0.1:8000/ping/backup/start?schedule=0%203%20*%20*%20*&margin=5&max_runtime=30"
+./backup.sh 2>&1 | curl -fsS --data-binary @- "http://127.0.0.1:8000/ping/backup"   # or /ping/backup/fail
+```
+
+`schedule` (a URL-encoded crontab), `tz`, `margin` and `max_runtime` (minutes) set the job's monitor, `project` its
+project. An interval schedule is at most 10 years. A monitor config Trap can't read, as `@every 5m` or an unknown
+zone, gets `400` from a ping and from the cron HTTP API (`/api/{project_id}/cron/{slug}/{public_key}/`, a JSON body
+up to 1 MB), and so does a `monitor_config` of that API that is no object; from an SDK such a config is ignored with
+a warning in the console and the run still counts. Trap keeps the first 64 characters of an environment and a trace
+ID of 32 hex digits only.
+
 ## Monolog
 
 ```php
@@ -128,7 +145,8 @@ can't send: Trap answers no CORS preflight.
 Any HTTP request no other channel takes is caught whole: method, URI, headers, cookies, query, body and uploaded
 files. Point a webhook, an HTTP client or a form at `http://127.0.0.1:8000/<any path>` to see what it really sends.
 Trap answers `404`. Events: `http-dump`, fields `method`, `path`, `host`. With `--ui` on that port, `GET /` and the
-UI's own `/api/...` routes are the UI's, see [server.md](server.md#ports): send to another path.
+UI's own `/api/...` routes are the UI's, see [server.md](server.md#ports): send to another path. `/ping/...` is a
+[cron ping](#sentry), not a dump, unless the request has `X-Buggregator-Event: http-dump`.
 
 ## Web UI: logs, filters, the request of a trace
 

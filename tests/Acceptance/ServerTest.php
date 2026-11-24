@@ -820,7 +820,7 @@ final class ServerTest
 
     /**
      * One run of `trap test` gives every page of the web UI data: each event type of the feed, the Sentry
-     * traces, logs, metrics and user feedback, the CSP reports of both formats, and a second project.
+     * traces, logs, metrics, user feedback and cron jobs, the CSP reports of both formats, and a second project.
      */
     public function testTestCommandFillsEveryPageOfTheUi(): void
     {
@@ -879,6 +879,12 @@ final class ServerTest
         Assert::string($feedback[1]['event_id'])->matchesRegex('/^[0-9a-f]{32}$/');
         [$status] = TrapProcess::http($this->uiPort, 'GET', "/api/event/{$feedback[1]['event_id']}");
         Assert::same($status, 200, 'The feedback links to an error Trap has');
+        [, , $crons] = TrapProcess::http($this->uiPort, 'GET', '/api/crons?project=default');
+        $crons = self::json($crons)['data'];
+        Assert::same(\array_column($crons, 'slug'), ['backup', 'queue-cleanup', 'reports-send']);
+        Assert::same(\array_column($crons, 'last_status'), ['error', 'error', 'ok']);
+        [, , $runs] = TrapProcess::http($this->uiPort, 'GET', '/api/crons/backup/checkins?project=default');
+        Assert::string(self::json($runs)['data'][0]['body'])->contains('backup: disk full');
         [, , $map] = TrapProcess::http($this->uiPort, 'GET', '/api/sentry/service-map?project=default');
         Assert::string($map)->contains('"gateway"')->contains('"orders"');
     }

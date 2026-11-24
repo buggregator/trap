@@ -24,6 +24,7 @@ use Buggregator\Trap\Module\Ray\Frontend\Payload as RayPayload;
 use Buggregator\Trap\Module\Ray\Lock\Locks;
 use Buggregator\Trap\Module\Sentry\Frontend\ApiController as SentryApiController;
 use Buggregator\Trap\Module\Sentry\Frontend\ClearController as SentryClearController;
+use Buggregator\Trap\Module\Sentry\Frontend\CronController as SentryCronController;
 use Buggregator\Trap\Module\Sentry\Frontend\QueueController as SentryQueueController;
 use Buggregator\Trap\Module\XDebug\Debugger;
 use Buggregator\Trap\Module\XDebug\Frontend\ApiController as XDebugApiController;
@@ -73,6 +74,7 @@ final class UiControllersTest
                 SentryClearController::class,
                 SentryApiController::class,
                 SentryQueueController::class,
+                SentryCronController::class,
                 ProfilerApiController::class,
                 XDebugTraceApiController::class,
                 XDebugApiController::class,

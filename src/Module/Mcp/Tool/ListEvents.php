@@ -73,7 +73,8 @@ final class ListEvents implements Tool
             . 'and fields (`where`). The fields by type: ' . $this->filters->fieldsHelp() . '. `order: newest` '
             . 'gives the latest events first. Read an event in full with `get_event`, or get the texts of all the '
             . 'listed ones with `include: text`. Traces, Sentry transactions among them, are not events: read '
-            . 'them with `list_traces`; neither is Sentry user feedback: read it with `list_feedback`. '
+            . 'them with `list_traces`; neither is Sentry user feedback: read it with `list_feedback`, nor are cron '
+            . 'check-ins: read them with `list_crons`. '
             . self::budgetHelp($this->scan->budget);
     }
 

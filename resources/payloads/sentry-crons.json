@@ -1,0 +1,54 @@
+[
+    [
+        {"event_id": "{{hex32 start}}", "sent_at": "{{iso -2.600}}", "dsn": "http://sentry@127.0.0.1:9912/1", "sdk": {"name": "sentry.php", "version": "4.18.1"}},
+        {"type": "check_in", "content_type": "application/json"},
+        {
+            "check_in_id": "{{hex32 reports}}",
+            "monitor_slug": "reports-send",
+            "status": "in_progress",
+            "duration": null,
+            "release": "shop@1.4.0",
+            "environment": "local",
+            "monitor_config": {
+                "schedule": {"type": "crontab", "value": "0 3 * * *"},
+                "checkin_margin": 5,
+                "max_runtime": 30,
+                "timezone": "Europe/Berlin"
+            }
+        }
+    ],
+    [
+        {"event_id": "{{hex32 finish}}", "sent_at": "{{iso -0.200}}", "dsn": "http://sentry@127.0.0.1:9912/1", "sdk": {"name": "sentry.php", "version": "4.18.1"}},
+        {"type": "check_in", "content_type": "application/json"},
+        {
+            "check_in_id": "{{hex32 reports}}",
+            "monitor_slug": "reports-send",
+            "status": "ok",
+            "duration": 2.4,
+            "release": "shop@1.4.0",
+            "environment": "local",
+            "monitor_config": {
+                "schedule": {"type": "crontab", "value": "0 3 * * *"},
+                "checkin_margin": 5,
+                "max_runtime": 30,
+                "timezone": "Europe/Berlin"
+            }
+        }
+    ],
+    [
+        {"event_id": "{{hex32 cleanup}}", "sent_at": "{{iso -0.100}}", "dsn": "http://sentry@127.0.0.1:9912/1", "sdk": {"name": "sentry.php", "version": "4.18.1"}},
+        {"type": "check_in", "content_type": "application/json"},
+        {
+            "check_in_id": "{{hex32 cleanupRun}}",
+            "monitor_slug": "queue-cleanup",
+            "status": "error",
+            "duration": 0.8,
+            "environment": "local",
+            "monitor_config": {
+                "schedule": {"type": "interval", "value": 10, "unit": "minute"},
+                "checkin_margin": 2,
+                "max_runtime": 5
+            }
+        }
+    ]
+]

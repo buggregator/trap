@@ -26,6 +26,9 @@ final class Batch
     /** @var list<Feedback> */
     public array $feedback = [];
 
+    /** @var list<Cron\CheckInMessage> */
+    public array $checkIns = [];
+
     /**
      * @param non-empty-string $project
      */
@@ -34,7 +37,7 @@ final class Batch
     ) {}
 
     /**
-     * @return list<'trace'|'log'|'metric'|'feedback'> What the batch holds, as the UI names it.
+     * @return list<'trace'|'log'|'metric'|'feedback'|'cron'> What the batch holds, as the UI names it.
      */
     public function kinds(): array
     {
@@ -43,6 +46,7 @@ final class Batch
         $this->logs === [] or $kinds[] = 'log';
         $this->metrics === [] or $kinds[] = 'metric';
         $this->feedback === [] or $kinds[] = 'feedback';
+        $this->checkIns === [] or $kinds[] = 'cron';
 
         return $kinds;
     }

@@ -16,6 +16,9 @@ use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventStore;
 use Buggregator\Trap\Server\Info;
 use Buggregator\Trap\Server\Logger;
+use Buggregator\Trap\Server\Telemetry\Batch;
+use Buggregator\Trap\Server\Telemetry\Cron\CheckInMessage;
+use Buggregator\Trap\Server\Telemetry\TelemetryStore;
 use Internal\Container\ObjectContainer;
 use Nyholm\Psr7\ServerRequest;
 use Testo\Assert;
@@ -44,6 +47,17 @@ final class ServiceTest
             ['name' => 'Default', 'key' => 'default', 'is_default' => true],
             ['name' => 'shop', 'key' => 'shop', 'is_default' => false],
         ]);
+    }
+
+    public function testProjectsListProjectsOfCronMonitorsToo(): void
+    {
+        $telemetry = new TelemetryStore();
+        $batch = new Batch('jobs');
+        $batch->checkIns[] = new CheckInMessage('jobs', 'backup', '', 'ok', 1.0);
+        $telemetry->add($batch);
+        $service = new Service(new Logger(), new EventStore(), self::modules(), new Frontend(), new TcpPorts(), new ObjectContainer(), $telemetry);
+
+        Assert::same(\array_column(self::json($service->projects())['data'], 'key'), ['default', 'jobs']);
     }
 
     public function testPreviewFiltersEventsByProject(): void

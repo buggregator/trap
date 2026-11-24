@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Server\Telemetry;
 
 use Buggregator\Trap\Server\Config\Telemetry as Config;
+use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Telemetry\Batch;
 use Buggregator\Trap\Server\Telemetry\Feedback;
 use Buggregator\Trap\Server\Telemetry\Log;
@@ -14,6 +15,7 @@ use Buggregator\Trap\Server\Telemetry\Span;
 use Buggregator\Trap\Server\Telemetry\TelemetryListener;
 use Buggregator\Trap\Server\Telemetry\TelemetryStore;
 use Buggregator\Trap\Server\Telemetry\Transaction;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Testo\Assert;
 use Testo\Codecov\Covers;
 use Testo\Test;
@@ -164,6 +166,32 @@ final class TelemetryStoreTest
         $store->add($batch);
 
         Assert::same($listener->calls, [['shop', ['trace', 'metric']], ['default', ['log']], ['shop', ['feedback']]]);
+    }
+
+    public function testFailingListenerIsLoggedAndTheNextOneIsTold(): void
+    {
+        $log = new BufferedOutput();
+        $store = new TelemetryStore(logger: new Logger($log));
+        $store->listen(new class implements TelemetryListener {
+            public function stored(string $project, array $kinds): void
+            {
+                throw new \RuntimeException('closed socket');
+            }
+        });
+        $listener = new class implements TelemetryListener {
+            public array $calls = [];
+
+            public function stored(string $project, array $kinds): void
+            {
+                $this->calls[] = [$project, $kinds];
+            }
+        };
+        $store->listen($listener);
+
+        $store->add(self::batch('shop', logs: [self::log(1)]));
+
+        Assert::same($listener->calls, [['shop', ['log']]]);
+        Assert::string($log->fetch())->contains('Telemetry: a listener failed')->contains('closed socket');
     }
 
     public function testEveryChangeOfATraceTakesTheNextSequenceNumber(): void

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Sentry\Console;
 
 use Buggregator\Trap\Module\Monolog\Frame as Monolog;
+use Buggregator\Trap\Module\Sentry\Console\CheckInLine;
 use Buggregator\Trap\Module\Sentry\Console\SentryEnvelope;
 use Buggregator\Trap\Module\Sentry\Console\TraceLine;
 use Buggregator\Trap\Module\Sentry\Frame\EnvelopeItem;
@@ -18,6 +19,7 @@ use Testo\Test;
 
 #[Covers(SentryEnvelope::class)]
 #[Covers(TraceLine::class)]
+#[Covers(CheckInLine::class)]
 #[Test]
 final class SentryEnvelopeTest
 {
@@ -176,6 +178,70 @@ final class SentryEnvelopeTest
             ->contains("User feedback from Ann <ann@example.com>\nOn https://shop.test/cart\nAbout the error e1e1\n\nCheckout <broke>\n")
             ->contains("User feedback from anonymous\nSent without an error\n\nHi\n")
             ->notContains('There is no renderer for this item type.');
+    }
+
+    public function testRendersCronCheckIn(): void
+    {
+        $output = $this->render(new SentryEnvelopeFrame([], [new EnvelopeItem(['type' => 'check_in'], [
+            'check_in_id' => 'c0ffee',
+            'monitor_slug' => 'reports-send',
+            'status' => 'ok',
+            'duration' => 4.25,
+            'environment' => 'production',
+            'monitor_config' => [
+                'schedule' => ['type' => 'crontab', 'value' => '0 3 * * *'],
+                'checkin_margin' => 5,
+                'max_runtime' => 30,
+                'timezone' => 'Europe/Berlin',
+            ],
+        ])], project: 'shop'));
+
+        Assert::string($output)
+            ->contains('CRON')
+            ->matchesRegex('/Project\W+shop/')
+            ->contains('Cron check-in reports-send: ok, 4.25 s, env production, check-in c0ffee')
+            ->contains('Monitor: crontab 0 3 * * *, Europe/Berlin, margin 5 min, max runtime 30 min')
+            ->notContains('There is no renderer for this item type.');
+    }
+
+    public function testRendersPingWithTheEndOfItsOutput(): void
+    {
+        $output = $this->render(new SentryEnvelopeFrame([], [new EnvelopeItem(['type' => 'check_in', 'source' => 'ping'], [
+            'monitor_slug' => 'backup',
+            'status' => 'error',
+            'output' => "1\n2\n3\n4\n5\n6\ndisk <full>\n",
+        ])]));
+
+        Assert::string($output)
+            ->contains('Cron ping backup: error')
+            ->contains("Output:\n3\n4\n5\n6\ndisk <full>\n")
+            ->notContains("\n2\n");
+    }
+
+    public function testSaysWhyACheckInIsDroppedOrItsConfigIgnored(): void
+    {
+        $output = $this->render(new SentryEnvelopeFrame([], [
+            new EnvelopeItem(['type' => 'check_in'], ['monitor_slug' => 'a', 'status' => 'missed']),
+            new EnvelopeItem(['type' => 'check_in'], [
+                'monitor_slug' => 'b',
+                'status' => 'ok',
+                'monitor_config' => ['schedule' => ['type' => 'crontab', 'value' => '@every 5m']],
+            ]),
+        ]));
+
+        Assert::string($output)
+            ->contains('The check-in of `a` has no status of in_progress, ok or error.')
+            ->contains('Cron check-in b: ok')
+            ->contains('The monitor config of `b` is ignored: `@every` is no crontab');
+    }
+
+    #[DataSet(['ok'], 'a string')]
+    #[DataSet([[1, 2]], 'a list')]
+    public function testSaysWhyACheckInOfNoObjectIsDropped(mixed $payload): void
+    {
+        $output = $this->render(new SentryEnvelopeFrame([], [new EnvelopeItem(['type' => 'check_in'], $payload)]));
+
+        Assert::string($output)->contains('The check-in is dropped: it is no JSON object.')->notContains('monitor slug');
     }
 
     private function render(SentryEnvelopeFrame $frame): string

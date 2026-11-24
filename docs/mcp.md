@@ -19,7 +19,7 @@ Other clients take the same URL with the `http` (Streamable HTTP) transport type
 
 The tools read the events Trap has caught, [CSP reports](#csp-reports) among them, the Sentry and OpenTelemetry
 [traces](#traces) it has received, the [queue jobs](#queue-jobs) in them, Sentry [user feedback](#user-feedback),
-and the call trees of
+[cron jobs](#cron-jobs), and the call trees of
 [Xdebug traces](#xdebug-traces). The events are the ones the [web UI](web-ui.md) shows, kept with
 `--mcp` alone too. An event deleted in the UI is gone for the agent. An event
 the agent deletes is gone from the UI on its next load; a page already open keeps showing it.
@@ -368,6 +368,24 @@ when the worker continues the trace of the request that queued the job.
 - `attempt_list` holds the latest 10 stored attempts, oldest first: `attempt` (its number), `status`, `failed`,
   `duration_ms`, `latency_ms`, `started`, `trace_id` for `get_trace`, and `errors`: the `uuid` for `get_event`,
   `type` and `value` of each [error of the attempt](sentry.md#queue-jobs).
+
+### Cron jobs
+
+The runs of [cron jobs](sentry.md#crons), Sentry Crons check-ins and ping URLs, are no events either:
+`list_events` doesn't list them, and `wait_for_events` doesn't return for them. Read them with `list_crons`.
+
+| Tool         | Arguments                                   | Result                                                                                                                                                                                                         |
+| ------------ | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_crons` | `project`, `slug`, `attention`, `check_ins` | `monitors` by project and slug: `project`, `slug`, `source`, `schedule`, `timezone`, `checkin_margin`, `max_runtime`, `last_status`, `last_check_in`, `next_expected`, `total_check_ins`, `check_ins`; `total` |
+
+- `schedule` reads `crontab 0 3 * * *` or `every 10 minutes`, null for a job without one; margin and max runtime
+  are in minutes.
+- `check_ins` are the newest runs of a job, 5 by default, 0 to 100: `id`, `status`, `started`, `finished`,
+  `duration_ms`, `environment`, `trace_id`, `output` (the last 1 024 bytes of a ping body; the web UI shows up to
+  10 KB) and `expected`, the slot of a row Trap wrote. A job sends `in_progress`, `ok` and `error`; Trap writes
+  `timeout`, `missed` and `unknown`.
+- `slug` takes the slug as the job sent it or as Trap keeps it: `Reports Send` finds `reports-send`.
+- `attention: true` keeps the jobs whose last run failed, timed out or was missed.
 
 ### CSP reports
 

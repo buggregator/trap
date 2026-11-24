@@ -73,6 +73,7 @@ final class Test extends Command
         $this->ray();
         $this->httpDump();
         $this->sentry();
+        $this->crons();
         $this->openTelemetry();
         $this->csp();
         \usleep(100_000);
@@ -449,6 +450,24 @@ final class Test extends Command
             foreach (self::template('sentry-queue.json') as $envelope) {
                 $this->sentryEnvelope(1, $envelope);
             }
+        });
+    }
+
+    /**
+     * Cron check-ins: a nightly job of the Sentry SDK that started and finished, a failed one of an interval,
+     * and a backup by ping URL that started and failed with its output.
+     */
+    private function crons(): void
+    {
+        $this->attempt('Sentry Crons', function (): void {
+            /** @var mixed $envelope */
+            foreach (self::template('sentry-crons.json') as $envelope) {
+                $this->sentryEnvelope(1, $envelope);
+            }
+
+            $schedule = \rawurlencode('30 2 * * *');
+            $this->http('GET', "/ping/backup/start?schedule=$schedule&tz=UTC&margin=10&max_runtime=60", [], '');
+            $this->http('POST', '/ping/backup/fail', ['Content-Type' => 'text/plain'], "Dumping the database...\nbackup: disk full\n");
         });
     }
 

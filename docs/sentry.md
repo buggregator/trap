@@ -28,6 +28,7 @@ With [`--mcp`](mcp.md#sentry-events), AI agents read the events with their excep
 |---------------------------------------|-----------------------------------------------------------------------------|
 | `event`                               | a `sentry` event: the console, the event feed of the web UI, the MCP server |
 | `feedback`, `user_report`             | [user feedback](#user-feedback): the Sentry pages, `list_feedback`          |
+| `check_in`                            | a run of a [cron job](#crons): the Crons tab, `list_crons`                  |
 | `transaction`                         | a trace: the Traces page of the web UI, the MCP trace tools                 |
 | `transaction` with op `queue.process` | a trace and an attempt of a [queue job](#queue-jobs)                        |
 | `transaction` without a trace ID      | a `sentry` event, as `event` is: no trace can hold it                       |
@@ -42,9 +43,9 @@ the failed ones and the trace ID, and AI agents read it with [`list_traces` and 
 sent without a transaction get the same line, named after their root span. An envelope of an error and the
 transaction of its request gives the error event and the trace. A `/store` payload with an exception is an error,
 whatever its type. A transaction without a trace ID fits no trace and stays a `sentry` event; the console prints
-one line for it too. An envelope of only transactions, logs, metrics, spans, feedback or SDK bookkeeping makes no
-event. Trap keeps the traces, logs, metrics and feedback while the [web UI](web-ui.md#sentry-pages) or the
-[MCP server](mcp.md) runs.
+one line for it too. An envelope of only transactions, logs, metrics, spans, feedback, check-ins or SDK bookkeeping
+makes no event. Trap keeps the traces, logs, metrics, feedback and cron jobs while the
+[web UI](web-ui.md#sentry-pages) or the [MCP server](mcp.md) runs.
 
 The `X-Buggregator-Project` header puts the event and the data of the request into that project of the web UI;
 without it they land in `default`.
@@ -129,7 +130,111 @@ The list and the summary take the project, the period (the end of the last attem
 the status: `ok` or `failed` by the last attempt, or `retried`. The summary's average duration is the mean of the
 last attempts' durations, the Duration column of the list.
 
+## Crons
+
+Trap watches scheduled jobs as [Sentry Crons](https://docs.sentry.io/product/crons/) does. A job reports its runs
+with check-ins; Trap shows each job with its runs on the Crons tab of the [web UI](web-ui.md#sentry-pages), and
+AI agents read them with [`list_crons`](mcp.md#cron-jobs). The console prints a line per check-in: the job, the
+status, the duration, the monitor config it sent, and why Trap dropped the check-in or ignored its config.
+
+A job sends check-ins in one of three ways, to any HTTP port of Trap:
+
+| Way                  | Request                                                                                         |
+|----------------------|-------------------------------------------------------------------------------------------------|
+| Sentry SDK           | a `check_in` envelope item: `captureCheckIn()`, `withMonitor()`, `->sentryMonitor()` of Laravel |
+| Sentry cron HTTP API | `GET` or `POST` `/api/{project_id}/cron/{slug}/{public_key}/`                                   |
+| Ping URL, any script | `GET` or `POST` `/ping/{slug}` (finished), `/ping/{slug}/start`, `/ping/{slug}/fail`            |
+
+```php
+\Sentry\init(['dsn' => 'http://sentry@127.0.0.1:8000/1']);
+
+$id = \Sentry\captureCheckIn(
+    slug: 'reports-send',
+    status: \Sentry\CheckInStatus::inProgress(),
+    monitorConfig: new \Sentry\MonitorConfig(
+        \Sentry\MonitorSchedule::crontab('0 3 * * *'),
+        checkinMargin: 5,
+        maxRuntime: 30,
+        timezone: 'Europe/Berlin',
+    ),
+);
+// the job
+\Sentry\captureCheckIn(slug: 'reports-send', status: \Sentry\CheckInStatus::ok(), checkInId: $id);
+```
+
+```bash
+curl -fsS "http://127.0.0.1:8000/ping/backup/start?schedule=0%203%20*%20*%20*&margin=5&max_runtime=30"
+./backup.sh 2>&1 | curl -fsS --data-binary @- "http://127.0.0.1:8000/ping/backup"
+```
+
+### Monitors
+
+The first check-in of a slug creates its job, the monitor. A check-in may carry its config, and as Sentry upserts
+it, a field left out keeps its value and a field sent as `null` gets its default:
+
+| Field            | Ping query    | Default | Meaning                                                                                              |
+|------------------|---------------|---------|------------------------------------------------------------------------------------------------------|
+| `schedule`       | `schedule`    | none    | `{"type": "crontab", "value": "0 3 * * *"}` or `{"type": "interval", "value": 10, "unit": "minute"}` |
+| `checkin_margin` | `margin`      | `1`     | minutes a run may come late before its slot is missed, 1 to 40 320                                   |
+| `max_runtime`    | `max_runtime` | `30`    | minutes a started run may take before it times out, 1 to 40 320                                      |
+| `timezone`       | `tz`          | `UTC`   | an IANA zone, as `Europe/Berlin`, the crontab is written in                                          |
+
+- A crontab has five fields with lists, ranges, steps, month and weekday names and `7` for Sunday, or is one of
+  `@yearly`, `@annually`, `@monthly`, `@weekly`, `@daily`, `@midnight`, `@hourly`. When both the day of the month
+  and the day of the week are restricted, a day matching either one runs the job, as in cron. `?` stands for a
+  whole day field. An interval counts `minute`, `hour`, `day`, `week`, `month` or `year` units, up to 10 years;
+  its slots count from the start of the newest run, and a day or longer keeps the wall time of the zone.
+- A crontab runs on the wall time of the zone. A time skipped when clocks go forward has no run that day, and a time
+  repeated when they go back has one run, unless the hour field starts with `*`: such a job runs in both hours.
+- The slug becomes a Sentry slug: lower case letters, digits, `_` and `-`, at most 50 characters
+  (`Reports Send` is `reports-send`).
+- A check-in with a config Trap can't read, as an unknown zone or `@every 5m`, still counts and the config is
+  ignored; the console says why. A ping URL or a call of the cron HTTP API with such a config gets `400`.
+- The project is the `X-Buggregator-Project` header, and `?project=` of a ping URL before it.
+
+### Runs
+
+- `in_progress` starts a run; `ok` or `error` with the same `check_in_id` ends it, with the duration the SDK
+  measured or the time between the two. An `ok` or `error` of its own is a run of its own, started `duration`
+  seconds earlier. A run that has ended stays as it is. Another `in_progress` of a started run, a heartbeat, gives
+  it its own max runtime again, the one the job had when the run started; a `max_runtime` in the heartbeat's
+  `monitor_config` applies to the runs that start later.
+- A ping `/start` answers the ID of its run in the `X-Check-In-Id` header; `/ping/{slug}` and `/fail` with
+  `?check_in_id=` end that run, and without it the newest started ping run of the job. A ping body, the job's
+  output, keeps its last 10 KB, whatever its size; a chunked one, as `curl --data-binary @-` sends from a pipe, up
+  to `TRAP_HTTP_MAX_INFLATED_SIZE` (`64M`, see [Configuration](configuration.md#server-environment-variables)),
+  above which it gets `413`.
+- The cron HTTP API takes `status`, `check_in_id`, `environment` and `duration` (seconds) in the query, or a JSON
+  body up to 1 MB with these fields and `monitor_config`, and answers `202` with `{"id": "<check-in ID>"}`. A
+  `monitor_config` that is no object gets `400`; from an SDK it is ignored with a warning in the console.
+- Trap keeps the first 64 characters of an environment, and a trace ID of 32 hex digits only.
+- Trap expects the next run at the first slot of the schedule after the start of the newest run, or after now when
+  that slot has passed; a run that started earlier and ends later does not move it back. A run that starts shortly
+  before a crontab slot, as when the clock of its host runs ahead, is the run of that slot: less than a minute
+  before it, and less than the margin or a quarter of the time since the previous slot. A run that comes late for
+  the previous slot, or while that slot still waits for its run, stays the run of the previous slot. About every
+  second Trap marks what did not come:
+  - a slot with no check-in within the margin is `missed`, unless a run is in progress: a long run may cover a slot;
+  - a started run with no end within its max runtime, the one the job had when the run started, is `timeout`; an
+    end that comes later keeps that status;
+  - the slots that fell while Trap did not run, as when the machine slept, make one `unknown` row, and the next
+    slot is the first after Trap woke up.
+
+  A job without a schedule is never missed, but its runs still time out.
+
+### Limits
+
+- Check-ins make no event. Trap keeps 200 jobs and the newest 100 runs of each; a new job pushes out the one
+  that checked in least recently. The output of all the runs takes 8 MB at most: above it the oldest runs lose
+  theirs.
+- Clearing the Sentry section deletes the runs of the project. The jobs stay, with their config, and keep
+  expecting their slots. `DELETE /api/crons/{slug}?project=` on the port of the web UI deletes a job and its runs.
+- Trap knows one monitor per slug and project, whatever the environment of its check-ins. It raises no issue for
+  failed runs, so it ignores `failure_issue_threshold` and `recovery_threshold`.
+- `/ping/...` requests are taken as check-ins on any HTTP port of Trap, so they are no longer
+  [HTTP dumps](http-dump.md), unless `X-Buggregator-Event` names another module.
+
 ## Notes
 
-- A request body may be up to 2 MB; a bigger one gets `413`.
+- An envelope or event body may be up to 2 MB; a bigger one gets `413`.
 - An event Trap can't parse is dropped, and a warning in the console tells why.

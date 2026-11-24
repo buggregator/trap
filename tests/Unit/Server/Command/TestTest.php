@@ -41,7 +41,7 @@ final class TestTest
 
     public static function templates(): iterable
     {
-        foreach (['monolog', 'ray', 'sentry-checkout', 'sentry-billing', 'otlp-traces', 'otlp-logs', 'otlp-metrics', 'csp'] as $name) {
+        foreach (['monolog', 'ray', 'sentry-checkout', 'sentry-billing', 'sentry-crons', 'otlp-traces', 'otlp-logs', 'otlp-metrics', 'csp'] as $name) {
             yield $name => ["$name.json"];
         }
     }

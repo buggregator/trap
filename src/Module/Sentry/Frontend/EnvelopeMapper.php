@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Module\Sentry\Frontend;
 
 use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope as SentryFrame;
+use Buggregator\Trap\Module\Sentry\Telemetry\CheckInReader;
 use Buggregator\Trap\Module\Sentry\Telemetry\ItemReader;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventMapper;
@@ -15,8 +16,8 @@ use Buggregator\Trap\Support\Uuid;
 
 /**
  * Makes the feed event of an envelope from its event item, and puts its transactions, spans, logs and
- * trace metrics, and its user feedback, into the {@see TelemetryStore}: as in buggregator/server, they make no
- * feed event.
+ * trace metrics, its user feedback and its cron check-ins, into the {@see TelemetryStore}: as in buggregator/server,
+ * they make no feed event.
  *
  * The feed event is the first `event` item, else the first transaction without
  * a trace ID, which no trace can hold, else the first item that is neither telemetry nor SDK bookkeeping
@@ -27,7 +28,7 @@ use Buggregator\Trap\Support\Uuid;
 final class EnvelopeMapper implements EventMapper
 {
     private const BOOKKEEPING_ITEMS = [
-        'session', 'sessions', 'client_report', 'check_in', 'metric_buckets', 'statsd',
+        'session', 'sessions', 'client_report', 'metric_buckets', 'statsd',
         'profile', 'profile_chunk', 'attachment', 'replay_event', 'replay_recording',
     ];
 
@@ -55,6 +56,14 @@ final class EnvelopeMapper implements EventMapper
             /** @var mixed $type */
             $type = $item->headers['type'] ?? null;
             $type = \is_string($type) ? $type : '';
+            if ($type === 'check_in') {
+                $checkIn = \is_array($item->payload)
+                    ? CheckInReader::read($project, $item->payload, $time, $item->headers)[0]
+                    : null;
+                $checkIn === null or $batch->checkIns[] = $checkIn;
+                continue;
+            }
+
             $telemetry = ItemReader::read($batch, $type, $item->payload, $eventId, $time);
 
             if ($telemetry || !\is_array($item->payload)) {

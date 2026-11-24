@@ -37,20 +37,21 @@ text.
 
 The argument schema of each tool is in its `inputSchema` (`mcp.php tools <name>`).
 
-| Tool              | Does                                                                                            |
-| ----------------- | ----------------------------------------------------------------------------------------------- |
-| `list_events`     | The events changed after `since`, oldest first; with `order: newest` the latest ones            |
-| `wait_for_events` | Waits until `count` events (1 by default) match, up to `timeout` seconds (30, at most 50)       |
-| `get_event`       | One event as plain text: the full dump, log record, exception, mail, request, CSP report        |
-| `delete_event`    | Deletes events by `id` or `ids`                                                                 |
-| `clear_events`    | Deletes the events matching a filter, or all; pinned ones stay unless `include_pinned: true`    |
-| `list_traces`     | Sentry and OpenTelemetry traces; filters by project, source, service, name, duration, errors    |
-| `get_trace`       | One trace as a tree of its spans and transactions                                               |
-| `list_queue_jobs` | Queue jobs from `queue.process` attempts: retries, failures, errors, time in the queue          |
-| `list_feedback`   | Sentry user feedback, newest first; by `project` or `event_id` of the error it is about         |
-| `profile_*`       | Analyze a `profiler` event, see [profiling.md](profiling.md#read-the-profile)                   |
-| `xdebug_*`        | Step debugging with Xdebug, see [xdebug.md](xdebug.md)                                          |
-| `xdebug_trace_*`  | Walk the call tree of an `xdebug-trace` event, see [profiling.md](profiling.md#trace-the-calls) |
+| Tool              | Does                                                                                                  |
+| ----------------- | ----------------------------------------------------------------------------------------------------- |
+| `list_events`     | The events changed after `since`, oldest first; with `order: newest` the latest ones                  |
+| `wait_for_events` | Waits until `count` events (1 by default) match, up to `timeout` seconds (30, at most 50)             |
+| `get_event`       | One event as plain text: the full dump, log record, exception, mail, request, CSP report              |
+| `delete_event`    | Deletes events by `id` or `ids`                                                                       |
+| `clear_events`    | Deletes the events matching a filter, or all; pinned ones stay unless `include_pinned: true`          |
+| `list_traces`     | Sentry and OpenTelemetry traces; filters by project, source, service, name, duration, errors          |
+| `get_trace`       | One trace as a tree of its spans and transactions                                                     |
+| `list_queue_jobs` | Queue jobs from `queue.process` attempts: retries, failures, errors, time in the queue                |
+| `list_feedback`   | Sentry user feedback, newest first; by `project` or `event_id` of the error it is about               |
+| `list_crons`      | Cron jobs of Sentry Crons check-ins and ping URLs with their newest runs, see [Cron jobs](#cron-jobs) |
+| `profile_*`       | Analyze a `profiler` event, see [profiling.md](profiling.md#read-the-profile)                         |
+| `xdebug_*`        | Step debugging with Xdebug, see [xdebug.md](xdebug.md)                                                |
+| `xdebug_trace_*`  | Walk the call tree of an `xdebug-trace` event, see [profiling.md](profiling.md#trace-the-calls)       |
 
 ## Reading
 
@@ -134,3 +135,20 @@ an envelope of only feedback included, so read it with `list_feedback`. `event_i
 error, with or without dashes; `error_uuid` in the result is that error's `id` for `get_event`. The last 1 000
 entries are kept, pinned errors or not. Clearing the Sentry pages of the web UI drops them too, but the feedback on
 a pinned error when the clear keeps the pinned events.
+
+## Cron jobs
+
+Cron check-ins are not events either: `wait_for_events` never sees them, so read the jobs with `list_crons`
+(`project`, `slug` as the job sent it or as Trap keeps it, `attention: true` for the jobs whose last run failed,
+timed out or was missed, `check_ins`: the newest runs of each, 5 by default, 0 to 100). A job reports
+`in_progress`, `ok` and `error`; Trap writes `missed` (no check-in within `checkin_margin` minutes of a slot),
+`timeout` (started, no end within `max_runtime` minutes) and `unknown` (the slot fell while Trap was not running).
+A downtime makes one `unknown` row, and the next slot is the first after Trap woke up. A run that starts less than a
+minute before a crontab slot, and less than the margin or a quarter of the time since the previous slot, is the run
+of that slot: the clock of its host runs ahead. A run late for the previous slot, or while it still waits for its
+run, stays the run of the previous slot. A heartbeat (another `in_progress` of a started run) gives the run its
+own max runtime again; a new `max_runtime` applies to the runs that start later. `schedule` reads
+`crontab 0 3 * * *` or `every 10 minutes`; a job without one is never missed. A run's `output` is the last 1 024
+bytes of a ping body; the web UI shows up to 10 KB. Trap keeps 200 jobs with their newest 100 runs and 8 MB of
+output in all, the oldest runs losing theirs first; clearing the Sentry pages of the web UI drops the runs and keeps
+the jobs.
