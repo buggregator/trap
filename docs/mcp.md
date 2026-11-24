@@ -357,8 +357,10 @@ The runs of [cron jobs](sentry.md#crons), Sentry Crons check-ins and ping URLs, 
 - `schedule` reads `crontab 0 3 * * *` or `every 10 minutes`, null for a job without one; margin and max runtime
   are in minutes.
 - `check_ins` are the newest runs of a job, 5 by default, 0 to 100: `id`, `status`, `started`, `finished`,
-  `duration_ms`, `environment`, `trace_id`, `output` (the end of a ping body) and `expected`, the slot of a row Trap
-  wrote. A job sends `in_progress`, `ok` and `error`; Trap writes `timeout`, `missed` and `unknown`.
+  `duration_ms`, `environment`, `trace_id`, `output` (the last 1 024 bytes of a ping body; the web UI shows up to
+  10 KB) and `expected`, the slot of a row Trap wrote. A job sends `in_progress`, `ok` and `error`; Trap writes
+  `timeout`, `missed` and `unknown`.
+- `slug` takes the slug as the job sent it or as Trap keeps it: `Reports Send` finds `reports-send`.
 - `attention: true` keeps the jobs whose last run failed, timed out or was missed.
 
 ### CSP reports

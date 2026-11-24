@@ -24,7 +24,7 @@ with a warning in its console. The `X-Buggregator-Project` header sets the `proj
 
 Cron check-ins (Sentry Crons: `captureCheckIn()`, `withMonitor()`, Laravel's `->sentryMonitor()`) go to the same
 DSN and make no event: read the jobs with `list_crons`, see [mcp.md](mcp.md#cron-jobs). A script without an SDK
-pings any HTTP port of Trap, `GET` or `POST`; the body, the job's output, is kept, its last 10 KB:
+pings any HTTP port of Trap, `GET` or `POST`; a body of any size, the job's output, keeps its last 10 KB:
 
 ```bash
 curl -fsS "http://127.0.0.1:8000/ping/backup/start?schedule=0%203%20*%20*%20*&margin=5&max_runtime=30"
@@ -124,7 +124,8 @@ can't send: Trap answers no CORS preflight.
 Any HTTP request no other channel takes is caught whole: method, URI, headers, cookies, query, body and uploaded
 files. Point a webhook, an HTTP client or a form at `http://127.0.0.1:8000/<any path>` to see what it really sends.
 Trap answers `404`. Events: `http-dump`, fields `method`, `path`, `host`. With `--ui` on that port, `GET /` and the
-UI's own `/api/...` routes are the UI's, see [server.md](server.md#ports): send to another path.
+UI's own `/api/...` routes are the UI's, see [server.md](server.md#ports): send to another path. `/ping/...` is a
+[cron ping](#sentry), not a dump, unless the request has `X-Buggregator-Event: http-dump`.
 
 ## Web UI: logs, filters, the request of a trace
 

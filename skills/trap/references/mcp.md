@@ -121,9 +121,11 @@ a pinned error when the clear keeps the pinned events.
 ## Cron jobs
 
 Cron check-ins are not events either: `wait_for_events` never sees them, so read the jobs with `list_crons`
-(`project`, `slug`, `attention: true` for the jobs whose last run failed, timed out or was missed, `check_ins`: the
-newest runs of each, 5 by default, 0 to 100). A job reports `in_progress`, `ok` and `error`; Trap writes `missed`
-(no check-in within `checkin_margin` minutes of a slot), `timeout` (started, no end within `max_runtime` minutes) and
-`unknown` (the slot fell while Trap was not running). `schedule` reads `crontab 0 3 * * *` or `every 10 minutes`;
-a job without one is never missed. A run's `output` is the end of a ping body. Trap keeps 200 jobs with their newest
-100 runs; clearing the Sentry pages of the web UI drops the runs and keeps the jobs.
+(`project`, `slug` as the job sent it or as Trap keeps it, `attention: true` for the jobs whose last run failed,
+timed out or was missed, `check_ins`: the newest runs of each, 5 by default, 0 to 100). A job reports
+`in_progress`, `ok` and `error`; Trap writes `missed` (no check-in within `checkin_margin` minutes of a slot),
+`timeout` (started, no end within `max_runtime` minutes) and `unknown` (the slot fell while Trap was not running).
+`schedule` reads `crontab 0 3 * * *` or `every 10 minutes`; a job without one is never missed. A run's `output` is
+the last 1 024 bytes of a ping body; the web UI shows up to 10 KB. Trap keeps 200 jobs with their newest 100 runs
+and 8 MB of output in all, the oldest runs losing theirs first; clearing the Sentry pages of the web UI drops the
+runs and keeps the jobs.

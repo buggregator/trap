@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Tests\Unit\Module\Sentry\Http;
 
 use Buggregator\Trap\Module\Sentry\Frame\SentryEnvelope;
 use Buggregator\Trap\Module\Sentry\Http\CronTrap;
+use Buggregator\Trap\Server\Telemetry\Cron\CheckInMessage;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;
 use Psr\Http\Message\ResponseInterface;
@@ -70,6 +71,28 @@ final class CronTrapTest
         ]);
     }
 
+    public function testPingBodyOfAnySizeGivesItsTail(): void
+    {
+        $body = \str_repeat("line of a long backup log\n", 60000) . "backup: done\n";
+
+        [$response, $frames] = self::handle(new ServerRequest('POST', '/ping/backup', [], $body));
+
+        Assert::same($response->getStatusCode(), 200);
+        $output = $frames[0]->items[0]->payload['output'];
+        Assert::same(\strlen($output), CheckInMessage::MAX_OUTPUT);
+        Assert::string($output)->endsWith("backup: done\n");
+    }
+
+    public function testSentryCronBodyOverOneMegabyteIsRejected(): void
+    {
+        $body = \json_encode(['status' => 'ok', 'pad' => \str_repeat('x', CronTrap::MAX_BODY_SIZE)]);
+
+        [$response, $frames] = self::handle(new ServerRequest('POST', '/api/1/cron/reports/sentry/', [], $body));
+
+        Assert::same($response->getStatusCode(), 413);
+        Assert::same($frames, []);
+    }
+
     public function testPingProjectFallsBackToTheHeader(): void
     {
         [, $frames] = self::handle(new ServerRequest('GET', '/ping/backup', ['X-Buggregator-Project' => 'billing']));
@@ -116,6 +139,8 @@ final class CronTrapTest
     #[DataSet(['GET', '/api/1/cron/reports/sentry/', ''], 'no status')]
     #[DataSet(['POST', '/api/1/cron/reports/sentry/', '[1]'], 'a list')]
     #[DataSet(['POST', '/api/1/cron/reports/sentry/', '{"status": "ok", "monitor_config": {"checkin_margin": -1}}'], 'bad config')]
+    #[DataSet(['POST', '/api/1/cron/reports/sentry/', '{"status": "ok", "monitor_config": "0 3 * * *"}'], 'config of a string')]
+    #[DataSet(['POST', '/api/1/cron/reports/sentry/', '{"status": "ok", "monitor_config": [1]}'], 'config of a list')]
     #[DataSet(['GET', '/ping/%21%21', ''], 'no slug')]
     public function testRejectsInvalidCheckIn(string $method, string $path, string $body): void
     {

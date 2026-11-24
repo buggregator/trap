@@ -32,14 +32,14 @@ it can't import.
 
 Every port takes every protocol; the defaults are the ports the clients send to by default.
 
-| Port   | Default port of                                         |
-|--------|---------------------------------------------------------|
-| `9912` | `trap()`, VarDumper server, `trap()::profile()`         |
-| `9913` | `trap()::logger()`, Monolog socket handler              |
-| `1025` | SMTP                                                    |
-| `8000` | HTTP: Sentry, Ray, profiles, HTTP dumps, web UI and MCP |
-| `4318` | OTLP/HTTP                                               |
-| `9003` | Xdebug step debugging, only with `--xdebug`             |
+| Port   | Default port of                                                     |
+|--------|---------------------------------------------------------------------|
+| `9912` | `trap()`, VarDumper server, `trap()::profile()`                     |
+| `9913` | `trap()::logger()`, Monolog socket handler                          |
+| `1025` | SMTP                                                                |
+| `8000` | HTTP: Sentry, cron pings, Ray, profiles, HTTP dumps, web UI and MCP |
+| `4318` | OTLP/HTTP                                                           |
+| `9003` | Xdebug step debugging, only with `--xdebug`                         |
 
 - Other ports: `-p9912 -p8000` or `TRAP_TCP_PORTS=9912,8000`; the MCP port: `--mcp=8001` or `TRAP_MCP_PORT`.
   `mcp.php` reads `TRAP_MCP_PORT` too.

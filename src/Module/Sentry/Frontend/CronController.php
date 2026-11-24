@@ -15,6 +15,7 @@ use Buggregator\Trap\Server\Handler\Router\Attribute\RegexpRoute;
 use Buggregator\Trap\Server\Handler\Router\Attribute\StaticRoute;
 use Buggregator\Trap\Server\Handler\Router\Method;
 use Buggregator\Trap\Server\Telemetry\Cron\CheckIn;
+use Buggregator\Trap\Server\Telemetry\Cron\CheckInMessage;
 use Buggregator\Trap\Server\Telemetry\Cron\Monitor;
 use Buggregator\Trap\Server\Telemetry\TelemetryStore;
 
@@ -135,10 +136,11 @@ final class CronController
     private function find(string $slug, ?string $project): ?Monitor
     {
         $project = \trim((string) $project);
+        $slug = CheckInMessage::slug(\rawurldecode($slug));
 
-        return $this->telemetry->crons->monitor(
+        return $slug === null ? null : $this->telemetry->crons->monitor(
             $project === '' ? Event::DEFAULT_PROJECT : $project,
-            \rawurldecode($slug),
+            $slug,
         );
     }
 }

@@ -18,6 +18,8 @@ use Buggregator\Trap\Server\Telemetry\Cron\MonitorConfig;
  */
 final class CheckInReader
 {
+    public const MAX_ENVIRONMENT = 64;
+
     /**
      * @param non-empty-string $project
      * @param float $time Unix seconds when Trap received it.
@@ -44,12 +46,12 @@ final class CheckInReader
         $config = null;
         /** @var mixed $rawConfig */
         $rawConfig = $payload['monitor_config'] ?? null;
-        if (\is_array($rawConfig)) {
-            try {
-                $config = MonitorConfig::fromArray($rawConfig);
-            } catch (\InvalidArgumentException $e) {
-                $warning = \sprintf('the monitor config of `%s` is ignored: %s', $slug, $e->getMessage());
-            }
+        try {
+            $rawConfig === null || \is_array($rawConfig) && ($rawConfig === [] || !\array_is_list($rawConfig))
+                or throw new \InvalidArgumentException('it is no object');
+            \is_array($rawConfig) and $config = MonitorConfig::fromArray($rawConfig);
+        } catch (\InvalidArgumentException $e) {
+            $warning = \sprintf('the monitor config of `%s` is ignored: %s', $slug, $e->getMessage());
         }
 
         $ping = ($headers['source'] ?? null) === CheckInMessage::SOURCE_PING;
@@ -69,14 +71,34 @@ final class CheckInReader
                 status: $status,
                 time: $time,
                 duration: \is_int($duration) || \is_float($duration) ? (float) $duration : null,
-                environment: self::string($payload['environment'] ?? null),
-                traceId: self::string($trace['trace_id'] ?? null),
+                environment: self::environment($payload['environment'] ?? null),
+                traceId: self::traceId($trace['trace_id'] ?? null),
                 source: $ping ? CheckInMessage::SOURCE_PING : CheckInMessage::SOURCE_SENTRY,
                 output: $ping ? CheckInMessage::output(self::string($payload['output'] ?? null)) : '',
                 config: $config,
             ),
             $warning,
         ];
+    }
+
+    /**
+     * At most the 64 characters Sentry takes of an environment name.
+     */
+    private static function environment(mixed $value): string
+    {
+        $value = self::string($value);
+        return \preg_match('/^.{0,' . self::MAX_ENVIRONMENT . '}/su', $value, $match) === 1
+            ? $match[0]
+            : \substr($value, 0, self::MAX_ENVIRONMENT);
+    }
+
+    /**
+     * 32 hex digits in lower case; empty for anything else.
+     */
+    private static function traceId(mixed $value): string
+    {
+        $id = \strtolower(\str_replace('-', '', self::string($value)));
+        return \preg_match('/^[0-9a-f]{32}$/D', $id) === 1 ? $id : '';
     }
 
     private static function string(mixed $value): string

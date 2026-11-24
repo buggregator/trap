@@ -124,5 +124,6 @@ Memory is bounded by these limits; values below 1 fall back to the defaults:
 | `TRAP_TELEMETRY_MAX_METRICS` | `/trap/telemetry/@maxMetrics`| `5000`  | the oldest metric values are dropped                           |
 
 `maxSpans` counts transactions and spans together; a single trace above it keeps its most recent 90%.
-Feedback has a fixed limit of 1 000 entries, cron jobs one of 200 jobs with 100 runs each.
+Feedback has a fixed limit of 1 000 entries, cron jobs one of 200 jobs with 100 runs each and 8 MB of ping output
+in all, the oldest runs losing theirs first.
 These limits are apart from the [OpenTelemetry limits](opentelemetry.md#memory-limits) of the console.

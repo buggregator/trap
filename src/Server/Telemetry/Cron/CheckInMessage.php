@@ -73,11 +73,13 @@ final class CheckInMessage
     }
 
     /**
-     * The last {@see self::MAX_OUTPUT} bytes, valid UTF-8: a cut character and invalid bytes are dropped.
+     * The last `$max` bytes, valid UTF-8: a cut character and invalid bytes are dropped.
+     *
+     * @param int<1, max> $max
      */
-    public static function output(string $body): string
+    public static function output(string $body, int $max = self::MAX_OUTPUT): string
     {
-        \strlen($body) > self::MAX_OUTPUT and $body = \substr($body, -self::MAX_OUTPUT);
+        \strlen($body) > $max and $body = \substr($body, -$max);
         if (\preg_match('//u', $body) === 1) {
             return $body;
         }

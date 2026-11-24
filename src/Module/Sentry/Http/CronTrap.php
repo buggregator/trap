@@ -14,17 +14,19 @@ use Buggregator\Trap\Support\Json;
 use Nyholm\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\StreamInterface;
 
 /**
  * Takes cron check-ins sent without an envelope, `GET` or `POST`, as a `check_in` envelope frame:
  *
  * - the Sentry cron HTTP endpoint `/api/{project_id}/cron/{slug}/{public_key}/`, with `status`, `check_in_id`,
  *   `environment` and `duration` (seconds) in the query or a JSON body that may have a `monitor_config` too;
- *   answered 202 with `{"id": "<check-in ID>"}`;
- * - the ping URL `/ping/{slug}` (finished), `/ping/{slug}/start` and `/ping/{slug}/fail`, whose body, the job's
- *   output, is kept, its last 10 KiB. `schedule` (a crontab), `tz`, `margin` and `max_runtime` (minutes) in the
- *   query configure the monitor, `check_in_id` and `environment` the run. Answered `OK`, with the run's ID in
- *   `X-Check-In-Id` when Trap knows it: a finish without an ID ends the newest started ping run.
+ *   answered 202 with `{"id": "<check-in ID>"}`; a body over 1 MiB gets 413;
+ * - the ping URL `/ping/{slug}` (finished), `/ping/{slug}/start` and `/ping/{slug}/fail`, whose body of any size,
+ *   the job's output, gives its last 10 KiB. `schedule` (a crontab), `tz`, `margin` and `max_runtime` (minutes) in
+ *   the query configure the monitor, `check_in_id` and `environment` the run. Answered `OK`, with the run's ID in
+ *   `X-Check-In-Id` for a `/start` and for a ping with a `check_in_id`; a finish without one ends the newest started
+ *   ping run.
  *
  * The project is `?project=` of a ping, else the `X-Buggregator-Project` header. A request marked
  * by `X-Buggregator-Event` for another module is left to it.
@@ -56,7 +58,7 @@ final class CronTrap implements Middleware
         }
 
         $size = $request->getBody()->getSize();
-        if ($size === null || $size > self::MAX_BODY_SIZE) {
+        if (!$ping && ($size === null || $size > self::MAX_BODY_SIZE)) {
             return $this->reject(413, 'the body is larger than 1 MiB');
         }
 
@@ -81,6 +83,25 @@ final class CronTrap implements Middleware
     {
         \parse_str($request->getUri()->getQuery(), $query);
         return $query;
+    }
+
+    /**
+     * The end of a body of any size; the parser keeps a big one in a temporary file, so the rest is never read.
+     */
+    private static function tail(StreamInterface $body): string
+    {
+        $size = $body->getSize();
+        if ($size !== null && $body->isSeekable()) {
+            $body->seek(\max(0, $size - CheckInMessage::MAX_OUTPUT));
+            return $body->getContents();
+        }
+
+        $tail = '';
+        while (!$body->eof()) {
+            $tail = \substr($tail . $body->read(65536), -CheckInMessage::MAX_OUTPUT);
+        }
+
+        return $tail;
     }
 
     private static function string(array $query, string $key): string
@@ -119,7 +140,7 @@ final class CronTrap implements Middleware
         $this->send($request, $project === '' ? null : $project, ['source' => CheckInMessage::SOURCE_PING], [
             'monitor_slug' => $slug,
             'status' => $status,
-            'output' => CheckInMessage::output((string) $request->getBody()),
+            'output' => CheckInMessage::output(self::tail($request->getBody())),
         ] + ($id === '' ? [] : ['check_in_id' => $id])
             + (($env = \trim(self::string($query, 'environment'))) === '' ? [] : ['environment' => $env])
             + ($config === [] ? [] : ['monitor_config' => $config]));
@@ -160,6 +181,8 @@ final class CronTrap implements Middleware
             or throw new \InvalidArgumentException('status must be in_progress, ok or error');
         /** @var mixed $config */
         $config = $payload['monitor_config'] ?? null;
+        $config === null || \is_array($config) && ($config === [] || !\array_is_list($config))
+            or throw new \InvalidArgumentException('monitor_config must be an object');
         \is_array($config) and MonitorConfig::fromArray($config);
 
         /** @var mixed $given */

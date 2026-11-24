@@ -23,6 +23,9 @@ final class ListCrons implements Tool
     public const DEFAULT_CHECK_INS = 5;
     public const MAX_CHECK_INS = 100;
 
+    /** Bytes of the output of a run the tool returns: its end, as the web UI has the rest */
+    public const MAX_OUTPUT = 1024;
+
     /** Statuses of a last run that need a look */
     private const ATTENTION = [CheckInMessage::ERROR, CheckIn::TIMEOUT, CheckIn::MISSED];
 
@@ -51,7 +54,8 @@ final class ListCrons implements Tool
             . '`in_progress`, `ok`, `error` from the job; `timeout` (no finish within the max runtime), `missed` (no '
             . 'check-in within the margin of a slot) and `unknown` (the slot fell while Trap was not running) from '
             . 'Trap. Check-ins make no event, so `list_events` does not show them. `attention: true` keeps the jobs '
-            . 'whose last run failed, timed out or was missed.';
+            . 'whose last run failed, timed out or was missed. A run\'s `output`, the end of a ping body, is cut '
+            . \sprintf('to its last %d bytes.', self::MAX_OUTPUT);
     }
 
     #[\Override]
@@ -129,7 +133,9 @@ final class ListCrons implements Tool
                                         'duration_ms' => ['type' => ['integer', 'null']],
                                         'environment' => $string,
                                         'trace_id' => $string,
-                                        'output' => $string + ['description' => 'The end of the body of a ping.'],
+                                        'output' => $string + [
+                                            'description' => \sprintf('The last %d bytes of the body of a ping.', self::MAX_OUTPUT),
+                                        ],
                                         'expected' => $time + [
                                             'description' => 'The slot of a `missed` or `unknown` row of Trap; '
                                                 . 'null for a run.',
@@ -167,7 +173,9 @@ final class ListCrons implements Tool
     public function call(array $arguments): array
     {
         $project = \trim(self::string($arguments, 'project'));
-        $slug = \trim(self::string($arguments, 'slug'));
+        // As the job sent it, `Reports Send`, or as Trap keeps it, `reports-send`
+        $slug = self::string($arguments, 'slug');
+        $slug = \trim($slug) === '' ? '' : (CheckInMessage::slug($slug) ?? "\0");
         $attention = Arguments::boolean($arguments, 'attention');
         $limit = Arguments::integer($arguments, 'check_ins', 0, self::MAX_CHECK_INS) ?? self::DEFAULT_CHECK_INS;
 
@@ -207,7 +215,7 @@ final class ListCrons implements Tool
                 'duration_ms' => $run->durationMs,
                 'environment' => $run->environment,
                 'trace_id' => $run->traceId,
-                'output' => $run->output,
+                'output' => CheckInMessage::output($run->output, self::MAX_OUTPUT),
                 'expected' => self::time($run->expectedAt),
             ], \array_slice($history, 0, $limit)),
         ];

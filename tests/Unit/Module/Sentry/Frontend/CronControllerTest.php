@@ -95,6 +95,17 @@ final class CronControllerTest
         Assert::same([$second['data'][0]['finished_at'], $second['data'][0]['server_made']], ['2026-11-23T12:01:00.000000Z', false]);
     }
 
+    public function testFindsTheSlugAsTheJobSentIt(): void
+    {
+        $this->fill();
+
+        $runs = $this->api->checkIns('Back%20up', 'billing');
+        $found = $this->api->checkIns('BACKUP');
+
+        Assert::instanceOf($runs, Error::class);
+        Assert::same(\is_array($found) ? $found['meta']['total'] : null, 2);
+    }
+
     public function testUnknownMonitorIsNotFound(): void
     {
         $this->fill();

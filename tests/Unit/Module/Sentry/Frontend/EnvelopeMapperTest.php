@@ -345,4 +345,20 @@ final class EnvelopeMapperTest
         Assert::same(\array_map(static fn($m): string => $m->slug, $store->crons->monitors()), ['a']);
         Assert::null($store->crons->monitor('default', 'a')?->schedule);
     }
+
+    #[Covers(CheckInReader::class)]
+    public function testCheckInFieldsAreBounded(): void
+    {
+        [$checkIn, $warning] = CheckInReader::read('default', [
+            'monitor_slug' => 'a',
+            'status' => 'ok',
+            'environment' => \str_repeat('é', 300000),
+            'contexts' => ['trace' => ['trace_id' => \str_repeat('z', 300000)]],
+            'monitor_config' => '0 3 * * *',
+        ], 1.0);
+
+        Assert::same($checkIn?->environment, \str_repeat('é', CheckInReader::MAX_ENVIRONMENT));
+        Assert::same($checkIn?->traceId, '');
+        Assert::same($warning, 'the monitor config of `a` is ignored: it is no object');
+    }
 }

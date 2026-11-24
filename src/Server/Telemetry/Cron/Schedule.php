@@ -137,7 +137,8 @@ final class Schedule
         }
 
         // Below the slot sought, as no slot of the unit is longer; then a few steps up
-        $k = \max(1, \intdiv(self::minute($time) - self::minute($anchor), (int) $this->value * self::LONGEST[$this->unit]));
+        $longest = self::LONGEST[$this->unit] ?? 60;
+        $k = \max(1, \intdiv(self::minute($time) - self::minute($anchor), (int) $this->value * $longest));
         for ($steps = 0; $steps < 10000; ++$steps, ++$k) {
             $slot = $this->nth($anchor, $k, $zone);
             if ($slot > $time) {
@@ -146,26 +147,6 @@ final class Schedule
         }
 
         return null;
-    }
-
-    /**
-     * The `$k`-th slot of an interval after the minute of `$anchor`.
-     */
-    private function nth(float $anchor, int $k, \DateTimeZone $zone): int
-    {
-        $minute = self::minute($anchor);
-        $count = (int) $this->value * $k;
-
-        return match ($this->unit) {
-            'minute' => $minute + $count * 60,
-            'hour' => $minute + $count * 3600,
-            default => self::calendar($minute, $count, $this->unit, $zone),
-        };
-    }
-
-    private static function minute(float $time): int
-    {
-        return \intdiv((int) \floor($time), 60) * 60;
     }
 
     /**
@@ -186,6 +167,11 @@ final class Schedule
             : "every $this->value $this->unit" . ($this->value === '1' ? '' : 's');
     }
 
+    private static function minute(float $time): int
+    {
+        return \intdiv((int) \floor($time), 60) * 60;
+    }
+
     private static function calendar(int $time, int $count, string $unit, \DateTimeZone $zone): int
     {
         $local = (new \DateTimeImmutable("@$time"))->setTimezone($zone);
@@ -200,5 +186,20 @@ final class Schedule
         $last = (int) $local->setDate($year, $month, 1)->format('t');
 
         return $local->setDate($year, $month, \min($day, $last))->getTimestamp();
+    }
+
+    /**
+     * The `$k`-th slot of an interval after the minute of `$anchor`.
+     */
+    private function nth(float $anchor, int $k, \DateTimeZone $zone): int
+    {
+        $minute = self::minute($anchor);
+        $count = (int) $this->value * $k;
+
+        return match ($this->unit) {
+            'minute' => $minute + $count * 60,
+            'hour' => $minute + $count * 3600,
+            default => self::calendar($minute, $count, $this->unit, $zone),
+        };
     }
 }

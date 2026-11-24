@@ -36,7 +36,9 @@ final class SentryEnvelope implements Renderer
             Common::renderHeader1($output, 'SENTRY', 'CRON');
             Common::renderMetadata($output, ['Time' => $frame->time] + ($frame->project === null ? [] : ['Project' => $frame->project]));
             foreach ($frame->items as $item) {
-                \is_array($item->payload) and CheckInLine::render($output, $item->payload, $item->headers);
+                \is_array($item->payload)
+                    ? CheckInLine::render($output, $item->payload, $item->headers)
+                    : $output->writeln(['', '<fg=red>The check-in is dropped: it is no JSON object.</>']);
             }
             return;
         }

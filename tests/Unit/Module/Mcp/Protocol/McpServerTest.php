@@ -51,7 +51,7 @@ final class McpServerTest
 
         Assert::same($result['capabilities'], ['tools' => ['listChanged' => false]]);
         Assert::same($result['serverInfo'], ['name' => 'Buggregator Trap', 'version' => Info::version()]);
-        Assert::string($result['instructions'])->contains('Trap');
+        Assert::string($result['instructions'])->contains('Trap')->contains('`list_feedback`')->contains('`list_crons`');
     }
 
     public function testPingIsEmptyObject(): void

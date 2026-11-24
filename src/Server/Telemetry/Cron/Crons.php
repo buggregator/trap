@@ -368,10 +368,10 @@ final class Crons
         $margin = (float) ($monitor->margin * 60);
         $marked = 0;
         $changed = false;
-        while ($monitor->nextExpectedAt !== null && $now > $monitor->nextExpectedAt + $margin) {
+        while ($monitor->nextExpectedAt !== null && $now > (float) $monitor->nextExpectedAt + $margin) {
             $slot = $monitor->nextExpectedAt;
             $changed = true;
-            $downtime = $this->downtimeOf((float) $slot, $slot + $margin);
+            $downtime = $this->downtimeOf((float) $slot, (float) $slot + $margin);
             if ($downtime !== null) {
                 $downtime[0] === $monitor->unknownSince or $this->mark($monitor, CheckIn::UNKNOWN, $slot);
                 $monitor->unknownSince = $downtime[0];

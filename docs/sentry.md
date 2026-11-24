@@ -133,10 +133,12 @@ it, a field left out keeps its value and a field sent as `null` gets its default
   seconds earlier. A run that has ended stays as it is. Another `in_progress` of a started run gives it its max
   runtime again.
 - A ping `/start` answers the ID of its run in the `X-Check-In-Id` header; `/ping/{slug}` and `/fail` with
-  `?check_in_id=` end that run, and without it the newest started ping run of the job. A ping body, the job's
-  output, is kept, its last 10 KB.
+  `?check_in_id=` end that run, and without it the newest started ping run of the job. A ping body of any size,
+  the job's output, keeps its last 10 KB.
 - The cron HTTP API takes `status`, `check_in_id`, `environment` and `duration` (seconds) in the query, or a JSON
-  body with these fields and `monitor_config`, and answers `202` with `{"id": "<check-in ID>"}`.
+  body up to 1 MB with these fields and `monitor_config`, and answers `202` with `{"id": "<check-in ID>"}`. A
+  `monitor_config` that is no object gets `400`; from an SDK it is ignored with a warning in the console.
+- Trap keeps the first 64 characters of an environment, and a trace ID of 32 hex digits only.
 - Trap expects the next run at the first slot of the schedule after the start of the newest run, or after now when
   that slot has passed; a run that started earlier and ends later does not move it back. A run that starts shortly
   before a crontab slot, as when the clock of its host runs ahead, is the run of that slot: up to a minute before
@@ -153,7 +155,8 @@ it, a field left out keeps its value and a field sent as `null` gets its default
 ### Limits
 
 - Check-ins make no event. Trap keeps 200 jobs and the newest 100 runs of each; a new job pushes out the one
-  that checked in least recently.
+  that checked in least recently. The output of all the runs takes 8 MB at most: above it the oldest runs lose
+  theirs.
 - Clearing the Sentry section deletes the runs of the project. The jobs stay, with their config, and keep
   expecting their slots. `DELETE /api/crons/{slug}?project=` on the port of the web UI deletes a job and its runs.
 - Trap knows one monitor per slug and project, whatever the environment of its check-ins. It raises no issue for
@@ -163,5 +166,5 @@ it, a field left out keeps its value and a field sent as `null` gets its default
 
 ## Notes
 
-- A request body may be up to 2 MB; a bigger one gets `413`.
+- An envelope or event body may be up to 2 MB; a bigger one gets `413`.
 - An event Trap can't parse is dropped, and a warning in the console tells why.

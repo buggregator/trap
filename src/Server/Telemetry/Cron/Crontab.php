@@ -175,8 +175,9 @@ final class Crontab
      */
     private static function step(int $time, int $target, \DateTimeZone $zone): int
     {
-        foreach ($zone->getTransitions($time + 1, $target - 1) ?: [] as $transition) {
-            $at = (int) $transition['ts'];
+        $transitions = $zone->getTransitions($time + 1, $target - 1);
+        foreach ($transitions === false ? [] : $transitions as $transition) {
+            $at = $transition['ts'];
             if ($at > $time && $at < $target) {
                 return \max($time + 60, \intdiv($at + 59, 60) * 60);
             }

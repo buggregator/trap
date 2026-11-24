@@ -47,6 +47,23 @@ final class ListCronsTest
         Assert::same($tool->call(['check_ins' => 0])['monitors'][1]['check_ins'], []);
     }
 
+    public function testFindsTheSlugAsSentAndCutsTheOutput(): void
+    {
+        $store = self::store();
+        $batch = new Batch('default');
+        $batch->checkIns[] = new CheckInMessage('default', 'backup', '', 'ok', 1250.0, source: 'ping', output: \str_repeat('x', 5000) . 'end');
+        $store->add($batch);
+        $tool = new ListCrons($store);
+
+        $result = $tool->call(['slug' => 'Backup', 'check_ins' => 1]);
+
+        Assert::same(\array_column($result['monitors'], 'slug'), ['backup']);
+        $output = $result['monitors'][0]['check_ins'][0]['output'];
+        Assert::same(\strlen($output), ListCrons::MAX_OUTPUT);
+        Assert::string($output)->endsWith('end');
+        Assert::same($tool->call(['slug' => '!!'])['total'], 0);
+    }
+
     public function testRejectsAListForAString(): void
     {
         Expect::exception(\InvalidArgumentException::class)->withMessageContaining('`slug` must be a string');
