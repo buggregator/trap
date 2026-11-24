@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Server\Telemetry;
 
 use Buggregator\Trap\Server\Config\Telemetry as Config;
+use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Processable;
 use Buggregator\Trap\Server\Telemetry\Cron\Crons;
 
@@ -84,9 +85,13 @@ final class TelemetryStore implements Processable
 
     /**
      * @param \Closure(): float|null $clock Current Unix time in seconds.
+     * @param Logger|null $logger Told what failed in the checks of the cron monitors.
      */
-    public function __construct(Config $config = new Config(), ?\Closure $clock = null)
-    {
+    public function __construct(
+        Config $config = new Config(),
+        ?\Closure $clock = null,
+        private readonly ?Logger $logger = null,
+    ) {
         $defaults = new Config();
         $this->maxSpans = \max(1, $config->maxSpans >= 1 ? $config->maxSpans : $defaults->maxSpans);
         $this->maxLogs = \max(1, $config->maxLogs >= 1 ? $config->maxLogs : $defaults->maxLogs);
@@ -94,10 +99,15 @@ final class TelemetryStore implements Processable
         $this->clock = $clock ?? static fn(): float => \microtime(true);
         $this->id = \bin2hex(\random_bytes(4));
         $this->crons = new Crons(function (string $project): void {
+            // Each listener is told, whatever another one throws
             foreach ($this->listeners as $listener) {
-                $listener->stored($project, ['cron']);
+                try {
+                    $listener->stored($project, ['cron']);
+                } catch (\Throwable $e) {
+                    $this->logger?->exception($e, 'Sentry Crons: a listener failed', important: true);
+                }
             }
-        });
+        }, $logger);
     }
 
     #[\Override]
@@ -112,8 +122,9 @@ final class TelemetryStore implements Processable
         $this->cronCheckedAt = $now;
         try {
             $this->crons->check($now);
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
             // The main loop runs it: a failure must not stop Trap
+            $this->logger?->exception($e, 'Sentry Crons: the check failed', important: true);
         }
     }
 

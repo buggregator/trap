@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Tests\Unit\Server\Telemetry\Cron;
 
+use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Telemetry\Batch;
 use Buggregator\Trap\Server\Telemetry\Cron\CheckIn;
 use Buggregator\Trap\Server\Telemetry\Cron\CheckInMessage;
@@ -13,8 +14,10 @@ use Buggregator\Trap\Server\Telemetry\Cron\MonitorConfig;
 use Buggregator\Trap\Server\Telemetry\Cron\Schedule;
 use Buggregator\Trap\Server\Telemetry\TelemetryListener;
 use Buggregator\Trap\Server\Telemetry\TelemetryStore;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Testo\Assert;
 use Testo\Codecov\Covers;
+use Testo\Data\DataSet;
 use Testo\Lifecycle\BeforeTest;
 use Testo\Test;
 
@@ -222,6 +225,89 @@ final class CronsTest
         Assert::same($this->monitor()->lastStatus(), 'ok');
     }
 
+    #[DataSet([59.999, '13:00'], 'just under a minute early')]
+    #[DataSet([60.0, '12:00'], 'a minute early')]
+    public function testEarlyCheckInIsTheRunOfTheSlotUnderAMinute(float $early, string $next): void
+    {
+        $config = new MonitorConfig(Schedule::crontab('0 * * * *'));
+
+        $this->crons->record(new CheckInMessage('default', 'backup', '', 'ok', (float) self::at('12:00') - $early, config: $config));
+
+        Assert::same($this->monitor()->nextExpectedAt, self::at($next));
+    }
+
+    #[DataSet(['11:59:50', '12:01'], 'under a quarter of the minute')]
+    #[DataSet(['11:59:40', '12:00'], 'over a quarter of the minute')]
+    public function testEarlyCheckInIsTheRunOfTheSlotUnderAQuarterOfThePeriod(string $at, string $next): void
+    {
+        $this->crons->record(self::checkIn($at, config: new MonitorConfig(Schedule::crontab('* * * * *'))));
+
+        Assert::same($this->monitor()->nextExpectedAt, self::at($next));
+    }
+
+    public function testRunLateForASlotIsNotTheRunOfTheNextCloseOne(): void
+    {
+        // 40 seconds late for :00 is 20 seconds early for :01, but :01 comes only a minute after :00
+        $this->crons->record(self::checkIn('12:00:40', config: new MonitorConfig(Schedule::crontab('0,1 * * * *'))));
+        $next = $this->monitor()->nextExpectedAt;
+        $this->crons->check((float) self::at('12:02:01'));
+
+        Assert::same($next, self::at('12:01'));
+        Assert::same($this->monitor()->lastStatus(), CheckIn::MISSED);
+    }
+
+    public function testScheduleThatFailsIsLoggedAndTheOtherMonitorsAreChecked(): void
+    {
+        $log = new BufferedOutput();
+        $crons = new Crons(static function (): void {}, new Logger($log));
+        $config = new MonitorConfig(Schedule::crontab('* * * * *'));
+        $crons->record(self::checkIn('12:00:30', config: $config, slug: 'broken'));
+        $crons->record(self::checkIn('12:00:30', config: $config, slug: 'fine'));
+        $broken = $crons->monitor('default', 'broken');
+        \assert($broken !== null);
+        $broken->timezone = 'Nowhere/Never';
+
+        $crons->check((float) self::at('12:02:30'));
+
+        Assert::null($broken->nextExpectedAt);
+        Assert::same($crons->monitor('default', 'fine')?->lastStatus(), CheckIn::MISSED);
+        Assert::string($log->fetch())->contains('`broken` of the project `default` expects no slot more');
+    }
+
+    public function testScheduleThatFailsOnACheckInIsLogged(): void
+    {
+        $log = new BufferedOutput();
+        $crons = new Crons(static function (): void {}, new Logger($log));
+        $crons->record(self::checkIn('12:00:30', config: new MonitorConfig(Schedule::crontab('* * * * *'))));
+        $monitor = $crons->monitor('default', 'backup');
+        \assert($monitor !== null);
+        $monitor->timezone = 'Nowhere/Never';
+
+        $crons->record(self::checkIn('12:01:30'));
+
+        Assert::null($monitor->nextExpectedAt);
+        Assert::string($log->fetch())->contains('`backup` of the project `default` expects no slot more');
+    }
+
+    public function testEveryProjectIsToldWhateverTheChangeOfAnotherThrows(): void
+    {
+        $told = [];
+        $log = new BufferedOutput();
+        $crons = new Crons(static function (string $project) use (&$told): void {
+            $told[] = $project;
+            $project === 'a' and throw new \RuntimeException('closed socket');
+        }, new Logger($log));
+        $config = new MonitorConfig(maxRuntime: 1);
+        $crons->record(self::checkIn('12:00:30', CheckInMessage::IN_PROGRESS, 'run1', config: $config, project: 'a'));
+        $crons->record(self::checkIn('12:00:30', CheckInMessage::IN_PROGRESS, 'run2', config: $config, project: 'b'));
+
+        $crons->check((float) self::at('12:02:00'));
+
+        Assert::same($told, ['a', 'b']);
+        Assert::same($crons->monitor('b', 'backup')?->lastStatus(), CheckIn::TIMEOUT);
+        Assert::string($log->fetch())->contains('closed socket');
+    }
+
     public function testDayIntervalKeepsItsWallTimeAfterASkippedOne(): void
     {
         $config = new MonitorConfig(Schedule::interval(1, 'day'), 'Europe/Berlin');
@@ -338,6 +424,39 @@ final class CronsTest
         $store->process();
 
         Assert::same($store->crons->monitor('default', 'backup')?->lastStatus(), 'timeout');
+    }
+
+    public function testFailingListenerIsLoggedAndTheNextOneIsTold(): void
+    {
+        $now = (float) self::at('12:00:30');
+        $log = new BufferedOutput();
+        $store = new TelemetryStore(clock: static function () use (&$now): float {
+            return $now;
+        }, logger: new Logger($log));
+        $batch = new Batch('default');
+        $batch->checkIns[] = self::checkIn('12:00:30', CheckInMessage::IN_PROGRESS, 'run1', config: new MonitorConfig(maxRuntime: 1));
+        $store->add($batch);
+        $store->listen(new class implements TelemetryListener {
+            public function stored(string $project, array $kinds): void
+            {
+                throw new \RuntimeException('closed socket');
+            }
+        });
+        $told = new \ArrayObject();
+        $store->listen(new class($told) implements TelemetryListener {
+            public function __construct(private readonly \ArrayObject $told) {}
+
+            public function stored(string $project, array $kinds): void
+            {
+                $this->told->append([$project, $kinds]);
+            }
+        });
+
+        $now = (float) self::at('12:02:00');
+        $store->process();
+
+        Assert::same($told->getArrayCopy(), [['default', ['cron']]]);
+        Assert::string($log->fetch())->contains('Sentry Crons: a listener failed')->contains('closed socket');
     }
 
     public function testMonitorWithoutAScheduleIsNeverMissed(): void

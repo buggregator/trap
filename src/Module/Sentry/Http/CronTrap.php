@@ -23,7 +23,8 @@ use Psr\Http\Message\StreamInterface;
  *   `environment` and `duration` (seconds) in the query or a JSON body that may have a `monitor_config` too;
  *   answered 202 with `{"id": "<check-in ID>"}`; a body over 1 MiB gets 413;
  * - the ping URL `/ping/{slug}` (finished), `/ping/{slug}/start` and `/ping/{slug}/fail`, whose body of any size,
- *   the job's output, gives its last 10 KiB. `schedule` (a crontab), `tz`, `margin` and `max_runtime` (minutes) in
+ *   the job's output, gives its last 10 KiB; a chunked body is bounded by the parser, by
+ *   `TRAP_HTTP_MAX_INFLATED_SIZE`. `schedule` (a crontab), `tz`, `margin` and `max_runtime` (minutes) in
  *   the query configure the monitor, `check_in_id` and `environment` the run. Answered `OK`, with the run's ID in
  *   `X-Check-In-Id` for a `/start` and for a ping with a `check_in_id`; a finish without one ends the newest started
  *   ping run.

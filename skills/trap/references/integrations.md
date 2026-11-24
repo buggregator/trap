@@ -24,7 +24,8 @@ with a warning in its console. The `X-Buggregator-Project` header sets the `proj
 
 Cron check-ins (Sentry Crons: `captureCheckIn()`, `withMonitor()`, Laravel's `->sentryMonitor()`) go to the same
 DSN and make no event: read the jobs with `list_crons`, see [mcp.md](mcp.md#cron-jobs). A script without an SDK
-pings any HTTP port of Trap, `GET` or `POST`; a body of any size, the job's output, keeps its last 10 KB:
+pings any HTTP port of Trap, `GET` or `POST`; a body, the job's output, keeps its last 10 KB whatever its size, a
+chunked one (curl from a pipe) up to `TRAP_HTTP_MAX_INFLATED_SIZE`, 64M, above which it gets `413`:
 
 ```bash
 curl -fsS "http://127.0.0.1:8000/ping/backup/start?schedule=0%203%20*%20*%20*&margin=5&max_runtime=30"
@@ -32,8 +33,11 @@ curl -fsS "http://127.0.0.1:8000/ping/backup/start?schedule=0%203%20*%20*%20*&ma
 ```
 
 `schedule` (a URL-encoded crontab), `tz`, `margin` and `max_runtime` (minutes) set the job's monitor, `project` its
-project. A monitor config Trap can't read, as `@every 5m` or an unknown zone, gets a ping `400`; from an SDK it is
-ignored with a warning in the console and the run still counts.
+project. An interval schedule is at most 10 years. A monitor config Trap can't read, as `@every 5m`, an unknown zone
+or a config that is no object, gets `400` from a ping and from the cron HTTP API
+(`/api/{project_id}/cron/{slug}/{public_key}/`, a JSON body up to 1 MB); from an SDK it is ignored with a warning in
+the console and the run still counts. Trap keeps the first 64 characters of an environment and a trace ID of 32 hex
+digits only.
 
 ## Monolog
 

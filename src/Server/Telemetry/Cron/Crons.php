@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Buggregator\Trap\Server\Telemetry\Cron;
 
+use Buggregator\Trap\Server\Logger;
+
 /**
  * Cron monitors and their runs, by project: Sentry Crons check-ins and ping URLs.
  *
@@ -50,9 +52,11 @@ final class Crons
     /**
      * @param \Closure(non-empty-string): void $changed Told the project of a change {@see check()} or
      *        {@see delete()} made.
+     * @param Logger|null $logger Told what failed: a monitor whose schedule fails, a listener.
      */
     public function __construct(
         private readonly \Closure $changed,
+        private readonly ?Logger $logger = null,
     ) {}
 
     /**
@@ -90,7 +94,7 @@ final class Crons
 
     /**
      * Times out the hung runs and marks the slots without a check-in. A monitor whose schedule fails stops
-     * expecting slots; the other monitors are checked still.
+     * expecting slots; the other monitors are checked still, and every project with a change is told of it.
      */
     public function check(float $now): void
     {
@@ -105,15 +109,20 @@ final class Crons
             try {
                 $timedOut = $this->timeOut($monitor, $now);
                 $missed = $this->miss($monitor, $now);
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
                 $monitor->nextExpectedAt = null;
                 $timedOut = $missed = true;
+                $this->fail($e, $monitor);
             }
             $timedOut || $missed and $changed[$monitor->project] = true;
         }
 
         foreach (\array_keys($changed) as $project) {
-            ($this->changed)((string) $project);
+            try {
+                ($this->changed)((string) $project);
+            } catch (\Throwable $e) {
+                $this->logger?->exception($e, "Sentry Crons: the change of the project `$project` was not told", important: true);
+            }
         }
     }
 
@@ -196,9 +205,9 @@ final class Crons
 
     /**
      * Expects the first slot after the start of the newest run: an older run that ends late does not move it
-     * back. A crontab slot less than {@see self::EARLY} seconds, the margin and a quarter of the period after the
-     * start is the slot of the run. A slot that
-     * passed while the run went on is not expected: the next one after now is.
+     * back. A run that starts less than {@see self::EARLY} seconds and the margin before a crontab slot is the run
+     * of that slot, unless the slot before is less than four times as far back. A slot that passed while the run
+     * went on is not expected: the next one after now is.
      */
     private function expect(Monitor $monitor, float $now): void
     {
@@ -216,16 +225,30 @@ final class Crons
             $monitor->anchor = $start;
             $next = $monitor->slotAfter($start);
             if ($next !== null && $monitor->schedule->type === Schedule::CRONTAB) {
-                $following = $monitor->slotAfter((float) $next);
-                // A quarter of the period at most: a run is late more often than its host's clock is ahead
-                $early = \min(self::EARLY, (float) ($monitor->margin * 60), $following === null ? \INF : ($following - $next) / 4);
-                (float) $next - $start < $early and $next = $following;
+                $early = (float) $next - $start;
+                // A quarter of the time since the slot before at most: a run is late more often than its host's
+                // clock is ahead, so a run late for that slot stays its run. The first slot from the minute of
+                // `$next - 4 * $early` on is `$next` when no slot before it is that close.
+                $from = (int) \ceil(((float) $next - 4.0 * $early) / 60.0) * 60;
+                $early < \min(self::EARLY, (float) ($monitor->margin * 60))
+                    && $monitor->slotAfter((float) ($from - 60)) === $next
+                    and $next = $monitor->slotAfter((float) $next);
             }
             $next !== null && $next <= $now and $next = $monitor->slotAfter($now);
             $monitor->nextExpectedAt = $next;
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
             $monitor->nextExpectedAt = null;
+            $this->fail($e, $monitor);
         }
+    }
+
+    private function fail(\Throwable $e, Monitor $monitor): void
+    {
+        $this->logger?->exception(
+            $e,
+            "Sentry Crons: `$monitor->slug` of the project `$monitor->project` expects no slot more",
+            important: true,
+        );
     }
 
     private function create(CheckInMessage $message): Monitor

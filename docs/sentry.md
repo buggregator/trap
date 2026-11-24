@@ -130,11 +130,14 @@ it, a field left out keeps its value and a field sent as `null` gets its default
 
 - `in_progress` starts a run; `ok` or `error` with the same `check_in_id` ends it, with the duration the SDK
   measured or the time between the two. An `ok` or `error` of its own is a run of its own, started `duration`
-  seconds earlier. A run that has ended stays as it is. Another `in_progress` of a started run gives it its max
-  runtime again.
+  seconds earlier. A run that has ended stays as it is. Another `in_progress` of a started run, a heartbeat, gives
+  it its own max runtime again, the one the job had when the run started; a `max_runtime` in the heartbeat's
+  `monitor_config` applies to the runs that start later.
 - A ping `/start` answers the ID of its run in the `X-Check-In-Id` header; `/ping/{slug}` and `/fail` with
-  `?check_in_id=` end that run, and without it the newest started ping run of the job. A ping body of any size,
-  the job's output, keeps its last 10 KB.
+  `?check_in_id=` end that run, and without it the newest started ping run of the job. A ping body, the job's
+  output, keeps its last 10 KB, whatever its size; a chunked one, as `curl --data-binary @-` sends from a pipe, up
+  to `TRAP_HTTP_MAX_INFLATED_SIZE` (`64M`, see [Configuration](configuration.md#server-environment-variables)),
+  above which it gets `413`.
 - The cron HTTP API takes `status`, `check_in_id`, `environment` and `duration` (seconds) in the query, or a JSON
   body up to 1 MB with these fields and `monitor_config`, and answers `202` with `{"id": "<check-in ID>"}`. A
   `monitor_config` that is no object gets `400`; from an SDK it is ignored with a warning in the console.
@@ -142,8 +145,8 @@ it, a field left out keeps its value and a field sent as `null` gets its default
 - Trap expects the next run at the first slot of the schedule after the start of the newest run, or after now when
   that slot has passed; a run that started earlier and ends later does not move it back. A run that starts shortly
   before a crontab slot, as when the clock of its host runs ahead, is the run of that slot: up to a minute before
-  it, and no more than the margin or a quarter of the time between two slots. About every second Trap marks what
-  did not come:
+  it, and no more than the margin or a quarter of the time since the slot before it, so a run late for that slot
+  stays the run of that slot. About every second Trap marks what did not come:
   - a slot with no check-in within the margin is `missed`, unless a run is in progress: a long run may cover a slot;
   - a started run with no end within its max runtime, the one the job had when the run started, is `timeout`; an
     end that comes later keeps that status;

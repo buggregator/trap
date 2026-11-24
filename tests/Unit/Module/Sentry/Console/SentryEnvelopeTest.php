@@ -235,11 +235,13 @@ final class SentryEnvelopeTest
             ->contains('The monitor config of `b` is ignored: `@every` is no crontab');
     }
 
-    public function testSaysWhyACheckInOfNoObjectIsDropped(): void
+    #[DataSet(['ok'], 'a string')]
+    #[DataSet([[1, 2]], 'a list')]
+    public function testSaysWhyACheckInOfNoObjectIsDropped(mixed $payload): void
     {
-        $output = $this->render(new SentryEnvelopeFrame([], [new EnvelopeItem(['type' => 'check_in'], 'ok')]));
+        $output = $this->render(new SentryEnvelopeFrame([], [new EnvelopeItem(['type' => 'check_in'], $payload)]));
 
-        Assert::string($output)->contains('The check-in is dropped: it is no JSON object.');
+        Assert::string($output)->contains('The check-in is dropped: it is no JSON object.')->notContains('monitor slug');
     }
 
     private function render(SentryEnvelopeFrame $frame): string
