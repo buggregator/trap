@@ -52,9 +52,9 @@ final class TraceInsights
     public function of(Trace $trace, array $projects = []): array
     {
         $projects = \array_values(\array_unique($projects));
-        \sort($projects);
-        // A prefix keeps the key a string: PHP turns a key of digits, such as project `1`, into an int
-        $scope = 'p:' . \implode("\0", $projects);
+        \sort($projects, \SORT_STRING);
+        // JSON keeps the key a string, which a key of digits such as project `1` would not be, and apart
+        $scope = \json_encode($projects, \JSON_THROW_ON_ERROR | \JSON_INVALID_UTF8_SUBSTITUTE);
         $state = [$this, $trace->seq, $trace->size()];
         $cached = $trace->insights[$scope] ?? null;
         if ($cached !== null && \array_slice($cached, 0, 3) === $state) {

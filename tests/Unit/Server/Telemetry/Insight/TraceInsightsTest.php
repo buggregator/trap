@@ -106,6 +106,20 @@ final class TraceInsightsTest
         Assert::same($calls, 2);
     }
 
+    public function testProjectSetsDoNotCollide(): void
+    {
+        $trace = new Trace(Traces::ID);
+        Traces::add($trace, Traces::span('s1', null, null, 'internal', 'work', project: 'a'));
+        Traces::add($trace, Traces::span('s2', null, null, 'internal', 'work', project: 'b'));
+        $insights = new TraceInsights([self::projectsRule()]);
+
+        $both = $insights->of($trace, ['a', 'b']);
+        $joined = $insights->of($trace, ["a\0b"]);
+
+        Assert::same($both[0]->summary, 'a,b');
+        Assert::same($joined[0]->summary, 'none');
+    }
+
     public function testKeepsAtMostSixteenProjectSetsOfDigitNames(): void
     {
         $trace = new Trace(Traces::ID);

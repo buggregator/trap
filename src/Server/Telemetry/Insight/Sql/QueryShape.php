@@ -21,8 +21,9 @@ namespace Buggregator\Trap\Server\Telemetry\Insight\Sql;
  *
  * A backslash escapes the next character of a literal in the databases of {@see self::BACKSLASH_SYSTEMS}, and in
  * an `E'…'` literal anywhere; elsewhere only a doubled quote escapes one. For an unknown database a backslash
- * escapes, unless a literal of the query then never ends: then none does in that query, and
- * `'C:\' AND b = 'y'` has two literals. The query is read once or twice, never once per literal.
+ * escapes, unless a literal of the query then never ends (one cut off with a long query does not count): then none
+ * does in that query, and `'C:\' AND b = 'y'` has two literals. The query is read once or twice, never once per
+ * literal.
  *
  * Only the first {@see self::MAX_BYTES} of a query are read, the work of the loop it blocks being bounded so:
  * a longer query gets the shape of that part and ` …`, and a list cut off at the end still collapses. Two queries
@@ -34,20 +35,28 @@ final class QueryShape
 {
     public const MAX_BYTES = 32 * 1024;
     private const KEYWORDS = [
-        'ALL', 'AND', 'ANY', 'ARRAY', 'AS', 'ASC', 'BETWEEN', 'BY', 'CASE', 'CONFLICT', 'CROSS', 'DEFAULT', 'DELETE',
-        'DESC', 'DISTINCT', 'DO', 'DUPLICATE', 'ELSE', 'END', 'ESCAPE', 'EXCEPT', 'EXISTS', 'FETCH', 'FOR', 'FROM',
-        'FULL', 'GROUP', 'HAVING', 'ILIKE', 'IN', 'INNER', 'INSERT', 'INTERSECT', 'INTO', 'IS', 'JOIN', 'LEFT',
-        'LIKE', 'LIMIT', 'NATURAL', 'NOT', 'NULL', 'NULLS', 'OFFSET', 'ON', 'OR', 'ORDER', 'OUTER', 'OVER',
-        'PARTITION', 'RECURSIVE', 'RETURNING', 'RIGHT', 'SELECT', 'SET', 'SOME', 'THEN', 'UNION', 'UPDATE', 'USING',
-        'VALUES', 'WHEN', 'WHERE', 'WITH',
+        'ALL' => true, 'AND' => true, 'ANY' => true, 'ARRAY' => true, 'AS' => true, 'ASC' => true,
+        'BETWEEN' => true, 'BY' => true, 'CASE' => true, 'CONFLICT' => true, 'CROSS' => true, 'DEFAULT' => true,
+        'DELETE' => true, 'DESC' => true, 'DISTINCT' => true, 'DO' => true, 'DUPLICATE' => true, 'ELSE' => true,
+        'END' => true, 'ESCAPE' => true, 'EXCEPT' => true, 'EXISTS' => true, 'FETCH' => true, 'FOR' => true,
+        'FROM' => true, 'FULL' => true, 'GROUP' => true, 'HAVING' => true, 'ILIKE' => true, 'IN' => true,
+        'INNER' => true, 'INSERT' => true, 'INTERSECT' => true, 'INTO' => true, 'IS' => true, 'JOIN' => true,
+        'LEFT' => true, 'LIKE' => true, 'LIMIT' => true, 'NATURAL' => true, 'NOT' => true, 'NULL' => true,
+        'NULLS' => true, 'OFFSET' => true, 'ON' => true, 'OR' => true, 'ORDER' => true, 'OUTER' => true,
+        'OVER' => true, 'PARTITION' => true, 'RECURSIVE' => true, 'RETURNING' => true, 'RIGHT' => true,
+        'SELECT' => true, 'SET' => true, 'SOME' => true, 'THEN' => true, 'UNION' => true, 'UPDATE' => true,
+        'USING' => true, 'VALUES' => true, 'WHEN' => true, 'WHERE' => true, 'WITH' => true,
     ];
 
-    /** Longest first: the first match wins */
-    private const OPERATORS = ['->>', '#>>', '<=>', '::', ':=', '->', '#>', '<>', '<=', '>=', '!=', '||', '&&', '@>', '<@'];
+    /** Operators of more than one character; the longest one wins */
+    private const OPERATORS = [
+        '->>' => true, '#>>' => true, '<=>' => true, '::' => true, ':=' => true, '->' => true, '#>' => true,
+        '<>' => true, '<=' => true, '>=' => true, '!=' => true, '||' => true, '&&' => true, '@>' => true, '<@' => true,
+    ];
 
     /** The `db.system` and `db.system.name` values of databases whose literals take backslash escapes */
     private const BACKSLASH_SYSTEMS = [
-        'mysql', 'mariadb', 'clickhouse', 'hive', 'spanner', 'gcp.spanner', 'bigquery', 'spark', 'databricks',
+        'mysql', 'mariadb', 'clickhouse', 'hive', 'spanner', 'gcp.spanner',
     ];
 
     /** Lists nested deeper are left as they are */
@@ -208,7 +217,10 @@ final class QueryShape
             } elseif ($char === ':' && \preg_match('/\G:(?:[A-Za-z_]\w*|\d+)/', $sql, $match, 0, $i) === 1) {
                 $tokens[] = self::VALUE;
                 $i += \strlen($match[0]);
-            } elseif (($number = $this->numberLength($i, $tokens)) > 0) {
+            } elseif (
+                (\ctype_digit($char) || $char === '.' || $char === '-' || $char === '+')
+                && ($number = $this->numberLength($i, $tokens === [] ? null : $tokens[\array_key_last($tokens)])) > 0
+            ) {
                 $tokens[] = self::VALUE;
                 $i += $number;
             } elseif (\preg_match('/\G[\w\x80-\xff][\w$\x80-\xff]*/', $sql, $match, 0, $i) === 1) {
@@ -220,7 +232,7 @@ final class QueryShape
                 } elseif ($upper === 'TRUE' || $upper === 'FALSE') {
                     $tokens[] = self::VALUE;
                 } else {
-                    $tokens[] = \in_array($upper, self::KEYWORDS, true) ? ['keyword', $upper] : ['word', $match[0]];
+                    $tokens[] = isset(self::KEYWORDS[$upper]) ? ['keyword', $upper] : ['word', $match[0]];
                 }
             } elseif ($char === '@' && \preg_match('/\G@@?[A-Za-z_][\w$.]*/', $sql, $match, 0, $i) === 1) {
                 $tokens[] = ['word', $match[0]];
@@ -229,13 +241,9 @@ final class QueryShape
                 $tokens[] = ['punct', $char];
                 ++$i;
             } else {
-                $operator = $char;
-                foreach (self::OPERATORS as $candidate) {
-                    if (\substr_compare($sql, $candidate, $i, \strlen($candidate)) === 0) {
-                        $operator = $candidate;
-                        break;
-                    }
-                }
+                $operator = \substr($sql, $i, 3);
+                isset(self::OPERATORS[$operator]) or $operator = \substr($operator, 0, 2);
+                isset(self::OPERATORS[$operator]) or $operator = $char;
                 $tokens[] = ['op', $operator];
                 $i += \strlen($operator);
             }
@@ -251,7 +259,8 @@ final class QueryShape
     private function stringEnd(int $start, bool $backslash): int
     {
         $end = $this->literalEnd($start, $backslash);
-        $end === null and $this->unclosed = true;
+        // A literal cut off with the text may well end past the cut
+        $end === null && !$this->truncated and $this->unclosed = true;
 
         return $end ?? $this->length;
     }
@@ -296,15 +305,15 @@ final class QueryShape
     }
 
     /**
-     * @param list<array{string, string}> $tokens The tokens before: a sign is part of a number only where
+     * @param array{string, string}|null $previous The token before: a sign is part of a number only where
      *        an operand is due, so `a - 1` keeps its minus and `a = - 1` does not.
      * @return int 0 when no number starts here, or one runs into a name, as `2fa`.
      */
-    private function numberLength(int $start, array $tokens): int
+    private function numberLength(int $start, ?array $previous): int
     {
         $sql = $this->sql;
         $sign = 0;
-        if (($sql[$start] === '-' || $sql[$start] === '+') && self::expectsOperand(\end($tokens) ?: null)) {
+        if (($sql[$start] === '-' || $sql[$start] === '+') && self::expectsOperand($previous)) {
             $sign = 1 + \strspn($sql, " \t\r\n", $start + 1);
         }
 

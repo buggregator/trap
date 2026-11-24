@@ -77,6 +77,20 @@ final class QueryShapeTest
         yield 'Spanner by the new name escapes' => [$quote, 'gcp.spanner', 'SELECT * FROM t WHERE n = ? AND id = ?'];
     }
 
+    public static function slowInputs(): iterable
+    {
+        yield 'unclosed literals' => ['SELECT ' . \str_repeat("'\\", 16_000)];
+        yield 'minus signs, read twice' => ['SELECT ' . \str_repeat('a-', 16_000) . "'"];
+        yield 'plus signs, read twice' => ['SELECT ' . \str_repeat('1+', 16_000) . "'"];
+    }
+
+    public static function cutQueries(): iterable
+    {
+        $head = "INSERT INTO t (a, b) VALUES ('it\\'s', 'q'), ";
+        yield 'cut inside a literal' => [$head . \str_repeat("(1, 'x'), ", 100) . "(2, '" . \str_repeat('y', 40_000) . "')"];
+        yield 'cut between values' => [$head . \str_repeat('(1, 2), ', 5_000) . '(3, 4)'];
+    }
+
     #[DataProvider('shapes')]
     public function testShapesQuery(string $sql, string $shape): void
     {
@@ -89,14 +103,23 @@ final class QueryShapeTest
         Assert::same(QueryShape::of($sql, $system), $shape);
     }
 
-    public function testUnclosedLiteralsOfUnknownDatabaseTakeLinearTime(): void
+    /**
+     * Linear inputs take milliseconds; the bound only catches quadratic work, seconds even without coverage.
+     */
+    #[DataProvider('slowInputs')]
+    public function testLongInputTakesLinearTime(string $sql): void
     {
-        $sql = 'SELECT ' . \str_repeat("'\\", 16_000);
         $start = \hrtime(true);
 
         QueryShape::of($sql);
 
-        Assert::numeric((\hrtime(true) - $start) / 1e9)->lessThan(0.5);
+        Assert::numeric((\hrtime(true) - $start) / 1e9)->lessThan(5.0);
+    }
+
+    #[DataProvider('cutQueries')]
+    public function testEscapeOfCutQueryOfUnknownDatabase(string $sql): void
+    {
+        Assert::same(QueryShape::of($sql), 'INSERT INTO t(a, b) VALUES (?) …');
     }
 
     public function testReadsOnlyTheStartOfLongQuery(): void
