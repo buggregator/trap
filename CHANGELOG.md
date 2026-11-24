@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.22.0](https://github.com/buggregator/trap/compare/1.21.0...1.22.0) (2026-11-24)
+
+
+### Features
+
+* **command:** send an invite, an AMP version and a cancelled invite with `trap test` ([ceedadc](https://github.com/buggregator/trap/commit/ceedadc51468ac745c5c09ec7321664a8a38b276))
+* **csp:** receive browser CSP and Reporting API reports, show them in the web UI and over MCP ([9ff91cf](https://github.com/buggregator/trap/commit/9ff91cf404ef59bca47f8ce1a33a09158c3b80a0))
+* **mcp:** end the summary of a mail with its other versions and its invite ([ceedadc](https://github.com/buggregator/trap/commit/ceedadc51468ac745c5c09ec7321664a8a38b276))
+* **ray:** show the state of a released pause in every UI tab and after a reload ([074c86d](https://github.com/buggregator/trap/commit/074c86d6c10c02e317884c88c895d9599d5826d0))
+* **sentry:** show queue jobs on the Sentry Queues tab of the web UI and over MCP ([d91e573](https://github.com/buggregator/trap/commit/d91e573528afea184270bccdc6c5e8c5ecfe5019))
+* **sentry:** show Sentry user feedback on the Feedback tab and the page of its error ([676bb95](https://github.com/buggregator/trap/commit/676bb9597de97a73a80dbf22a60cf8992c870ba2))
+* **sentry:** watch cron jobs: Sentry Crons check-ins, ping URLs, missed and timed-out runs on the Crons tab and over MCP ([5cb5927](https://github.com/buggregator/trap/commit/5cb5927adc1818dd4f14010a41f21606b37c5c39))
+* **smtp:** show the Apple Watch, AMP and calendar versions of an email and its invite card in the web UI ([ceedadc](https://github.com/buggregator/trap/commit/ceedadc51468ac745c5c09ec7321664a8a38b276))
+* **tracing:** find N+1 queries in traces: the N+1 hint of the trace page and findings over MCP ([709d4d3](https://github.com/buggregator/trap/commit/709d4d38a62831f4048653881159df45add0c3c9))
+* **ui:** name Trap after its version in the settings of the web UI ([62de8f7](https://github.com/buggregator/trap/commit/62de8f7f98d300bd6ccd6fa18755a891f53e4b64))
+* **ui:** update the web UI to buggregator/frontend 1.42.0 ([d114ac5](https://github.com/buggregator/trap/commit/d114ac52c69106eda245670c43e27a23016dfa2e))
+
+
+### Bug Fixes
+
+* **profiler:** leave out a hostname, file name or app name a profile sends as a structure ([73bea3d](https://github.com/buggregator/trap/commit/73bea3dc223581fde815fbf63b8abc2a1055d37a))
+* **ui:** preload the styles of the early hints in the CORS mode of their tags ([d114ac5](https://github.com/buggregator/trap/commit/d114ac52c69106eda245670c43e27a23016dfa2e))
+* **ui:** show the version of Trap in the web UI as `v1.21.0-trap` ([73482aa](https://github.com/buggregator/trap/commit/73482aa2f8da64dcc88dc40b33a7b3904c130cfe))
+
 ## [1.21.0](https://github.com/buggregator/trap/compare/1.20.1...1.21.0) (2026-11-22)
 
 
