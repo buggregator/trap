@@ -21,7 +21,7 @@ use Buggregator\Trap\Server\Telemetry\Transaction;
 final class TraceInsights
 {
     /** Project sets whose findings a trace keeps at once */
-    private const MAX_SCOPES = 16;
+    public const MAX_SCOPES = 16;
 
     /** @var list<TraceRule> */
     private readonly array $rules;
@@ -53,7 +53,8 @@ final class TraceInsights
     {
         $projects = \array_values(\array_unique($projects));
         \sort($projects);
-        $scope = \implode("\0", $projects);
+        // A prefix keeps the key a string: PHP turns a key of digits, such as project `1`, into an int
+        $scope = 'p:' . \implode("\0", $projects);
         $state = [$this, $trace->seq, $trace->size()];
         $cached = $trace->insights[$scope] ?? null;
         if ($cached !== null && \array_slice($cached, 0, 3) === $state) {
@@ -67,7 +68,10 @@ final class TraceInsights
             $trace->insights,
             static fn(array $entry): bool => \array_slice($entry, 0, 3) === $state,
         );
-        \count($trace->insights) < self::MAX_SCOPES or \array_shift($trace->insights);
+        $oldest = \array_key_first($trace->insights);
+        if ($oldest !== null && \count($trace->insights) >= self::MAX_SCOPES) {
+            unset($trace->insights[$oldest]);
+        }
         $trace->insights[$scope] = [...$state, $findings];
 
         return $findings;

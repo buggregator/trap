@@ -8,6 +8,7 @@ use Buggregator\Trap\Server\Telemetry\Insight\Finding;
 use Buggregator\Trap\Server\Telemetry\Insight\RepeatedQuery;
 use Buggregator\Trap\Server\Telemetry\Peer;
 use Buggregator\Trap\Server\Telemetry\Source;
+use Buggregator\Trap\Server\Telemetry\Span;
 use Buggregator\Trap\Tests\Unit\Server\Telemetry\Insight\Stub\Traces;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -99,6 +100,27 @@ final class RepeatedQueryTest
         $findings = (new RepeatedQuery())->check($trace);
 
         Assert::same($findings[0]->summary, 'SELECT name FROM users WHERE id = ?');
+    }
+
+    public function testShapesEachSpanOnceWhileItLives(): void
+    {
+        $rule = new RepeatedQuery();
+        /** @var \WeakMap<Span, string> $shapes */
+        $shapes = (new \ReflectionProperty(RepeatedQuery::class, 'shapes'))->getValue($rule);
+        $trace = Traces::trace([Traces::transaction('txn', 'r')]);
+        for ($i = 0; $i < 5; ++$i) {
+            Traces::add($trace, Traces::db("q$i", 'r', 'txn', "SELECT * FROM t WHERE id = $i"));
+        }
+        $rule->check($trace);
+        foreach ($trace->spans as $span) {
+            $shapes[$span] = 'shaped before';
+        }
+
+        $findings = $rule->check($trace);
+        unset($trace->spans['q0'], $span);
+
+        Assert::same($findings[0]->summary, 'shaped before');
+        Assert::count($shapes, 4);
     }
 
     public function testSiblingsOfParentNotArrivedCountTogether(): void

@@ -9,6 +9,7 @@ use Buggregator\Trap\Server\Telemetry\Insight\Finding;
 use Buggregator\Trap\Server\Telemetry\Insight\RepeatedQuery;
 use Buggregator\Trap\Server\Telemetry\Insight\TraceInsights;
 use Buggregator\Trap\Server\Telemetry\Insight\TraceRule;
+use Buggregator\Trap\Server\Telemetry\Span;
 use Buggregator\Trap\Server\Telemetry\TelemetryStore;
 use Buggregator\Trap\Server\Telemetry\Trace;
 use Buggregator\Trap\Tests\Unit\Server\Telemetry\Insight\Stub\Traces;
@@ -103,6 +104,54 @@ final class TraceInsightsTest
         $insights->of($trace);
 
         Assert::same($calls, 2);
+    }
+
+    public function testKeepsAtMostSixteenProjectSetsOfDigitNames(): void
+    {
+        $trace = new Trace(Traces::ID);
+        for ($p = 1; $p <= 20; ++$p) {
+            Traces::add($trace, Traces::span("s$p", null, null, 'internal', 'work', project: (string) $p));
+        }
+        $insights = new TraceInsights([self::projectsRule()]);
+
+        for ($p = 1; $p <= 20; ++$p) {
+            $insights->of($trace, [(string) $p]);
+        }
+
+        Assert::count($trace->insights, TraceInsights::MAX_SCOPES);
+        Assert::same($insights->of($trace, ['2'])[0]->summary, '2');
+        Assert::same($insights->of($trace, ['20'])[0]->summary, '20');
+        Assert::same($insights->of($trace, ['4'])[0]->summary, '4');
+    }
+
+    public function testDropsFindingsOfAnOlderState(): void
+    {
+        $store = new TelemetryStore();
+        $store->add(self::batch('shop', 'a'));
+        $trace = $store->trace(Traces::ID);
+        $insights = new TraceInsights([self::rule([])]);
+        $insights->of($trace, ['shop']);
+        $insights->of($trace, ['billing']);
+
+        $store->add(self::batch('shop', 'b'));
+        $insights->of($trace);
+
+        Assert::count($trace->insights, 1);
+    }
+
+    /**
+     * A rule with one finding named after the projects of the spans it sees.
+     */
+    private static function projectsRule(): TraceRule
+    {
+        return new class implements TraceRule {
+            public function check(Trace $trace): array
+            {
+                $projects = \array_unique(\array_map(static fn(Span $span): string => $span->project, \array_values($trace->spans)));
+
+                return [new Finding('test', null, ['s'], \implode(',', $projects) ?: 'none', 1, 1.0)];
+            }
+        };
     }
 
     /**

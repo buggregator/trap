@@ -116,10 +116,11 @@ OpenTelemetry logs and metrics have no MCP tool.
 `findings` in `list_traces` counts the problems `get_trace` lists above the tree, heaviest first. `n_plus_one` is
 one SQL query (Redis and other NoSQL stores don't count), values shown as `?`, run 5 times or more in one
 transaction: the line gives the span count, the summed ms, the transaction, `from file:line` when the spans carry
-`code.filepath` (sentry-laravel sends it for slow queries only) and the first span `id:` to find in the tree. Fix it in that code: load the rows in one query
-(eager loading, `WHERE id IN (…)`), then rerun and check that the finding is gone. The query is `db.query.text`,
-`db.statement` or the span description; spans without a transaction count under the one up their parents, else
-under the parent span that has not arrived. With `project`, only the spans of those projects count.
+`code.filepath` (sentry-laravel sends it for slow queries only) and the first span `id:` to find in the tree. Fix
+it in that code: load the rows in one query (eager loading, `WHERE id IN (…)`), then rerun and check that the
+finding is gone. The query is `db.query.text`, `db.statement` or the span description; spans without a transaction
+count under the one up their parents, else under the parent span that has not arrived. With `project`, only the
+spans of those projects count.
 
 ## Queue jobs
 

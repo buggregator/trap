@@ -55,6 +55,7 @@ final class QueryShapeTest
         yield 'nested ARRAY' => ['SELECT ARRAY[[1, 2], [3, NULL]]', 'SELECT ARRAY[?]'];
         yield 'ARRAY with a name stays' => ['SELECT ARRAY[a, 1]', 'SELECT ARRAY[a, ?]'];
         yield 'index stays' => ['SELECT tags[1] FROM t', 'SELECT tags[?] FROM t'];
+        yield 'minus after END is binary' => ['SELECT CASE WHEN a THEN 1 END - 1, (2) - 3, x[1] - 4', 'SELECT CASE WHEN a THEN ? END - ?, (?) - ?, x[?] - ?'];
         yield 'sign apart from its number' => ["SELECT * FROM t WHERE x = -  1 AND y = +\t2", 'SELECT * FROM t WHERE x = ? AND y = ?'];
         yield 'nesting within the bound collapses' => ['SELECT * FROM t WHERE (a, (b, c)) IN ((1, (2, 3)))', 'SELECT * FROM t WHERE (a, (b, c)) IN (?)'];
         yield 'nesting past the bound stays' => ['SELECT 1 IN ' . \str_repeat('(', 40) . '1' . \str_repeat(')', 40), 'SELECT ? IN ' . \str_repeat('(', 40) . '?' . \str_repeat(')', 40)];
@@ -71,6 +72,9 @@ final class QueryShapeTest
         yield 'E-string escapes in any database' => ["SELECT * FROM t WHERE n = E'it\\'s' AND id = 5", 'postgresql', 'SELECT * FROM t WHERE n = ? AND id = ?'];
         yield 'unknown: an escape' => [$quote, null, 'SELECT * FROM t WHERE n = ? AND id = ?'];
         yield 'unknown: no escape when the literal would never end' => [$path, null, 'SELECT * FROM t WHERE p = ? AND id = ?'];
+        yield 'unknown: no escape in the whole query when one literal would never end' => ["SELECT * FROM t WHERE p = 'C:\\' AND n = 'y'", null, 'SELECT * FROM t WHERE p = ? AND n = ?'];
+        yield 'ClickHouse escapes' => [$path, 'clickhouse', 'SELECT * FROM t WHERE p = ?'];
+        yield 'Spanner by the new name escapes' => [$quote, 'gcp.spanner', 'SELECT * FROM t WHERE n = ? AND id = ?'];
     }
 
     #[DataProvider('shapes')]
@@ -83,6 +87,16 @@ final class QueryShapeTest
     public function testReadsLiteralsByDialect(string $sql, ?string $system, string $shape): void
     {
         Assert::same(QueryShape::of($sql, $system), $shape);
+    }
+
+    public function testUnclosedLiteralsOfUnknownDatabaseTakeLinearTime(): void
+    {
+        $sql = 'SELECT ' . \str_repeat("'\\", 16_000);
+        $start = \hrtime(true);
+
+        QueryShape::of($sql);
+
+        Assert::numeric((\hrtime(true) - $start) / 1e9)->lessThan(0.5);
     }
 
     public function testReadsOnlyTheStartOfLongQuery(): void

@@ -19,12 +19,14 @@ namespace Buggregator\Trap\Server\Telemetry\Insight\Sql;
  * - tokens are joined by one space, without one inside brackets, before a comma, around `.` and `::`,
  *   and between a name and its `(`.
  *
- * A backslash escapes the next character of a literal in MySQL and MariaDB, and in an `E'…'` literal anywhere;
- * elsewhere only a doubled quote escapes one. For an unknown database a backslash escapes, unless the literal then
- * never ends: `'C:\'` ends at its last quote.
+ * A backslash escapes the next character of a literal in the databases of {@see self::BACKSLASH_SYSTEMS}, and in
+ * an `E'…'` literal anywhere; elsewhere only a doubled quote escapes one. For an unknown database a backslash
+ * escapes, unless a literal of the query then never ends: then none does in that query, and
+ * `'C:\' AND b = 'y'` has two literals. The query is read once or twice, never once per literal.
  *
  * Only the first {@see self::MAX_BYTES} of a query are read, the work of the loop it blocks being bounded so:
- * a longer query gets the shape of that part and ` …`, and a list cut off at the end still collapses.
+ * a longer query gets the shape of that part and ` …`, and a list cut off at the end still collapses. Two queries
+ * that differ only past that part have one shape.
  *
  * @internal
  */
@@ -43,8 +45,10 @@ final class QueryShape
     /** Longest first: the first match wins */
     private const OPERATORS = ['->>', '#>>', '<=>', '::', ':=', '->', '#>', '<>', '<=', '>=', '!=', '||', '&&', '@>', '<@'];
 
-    /** The `db.system` names of databases whose literals take backslash escapes */
-    private const BACKSLASH_SYSTEMS = ['mysql', 'mariadb'];
+    /** The `db.system` and `db.system.name` values of databases whose literals take backslash escapes */
+    private const BACKSLASH_SYSTEMS = [
+        'mysql', 'mariadb', 'clickhouse', 'hive', 'spanner', 'gcp.spanner', 'bigquery', 'spark', 'databricks',
+    ];
 
     /** Lists nested deeper are left as they are */
     private const MAX_DEPTH = 32;
@@ -55,6 +59,12 @@ final class QueryShape
     private readonly int $length;
     private readonly bool $truncated;
 
+    /** Whether a backslash escapes in a literal of the current read */
+    private bool $escapes;
+
+    /** Whether the current read met a literal that never ends */
+    private bool $unclosed = false;
+
     /**
      * @param bool|null $backslash Whether a backslash escapes in a literal; null when the database is unknown.
      */
@@ -62,6 +72,7 @@ final class QueryShape
         string $sql,
         private readonly ?bool $backslash,
     ) {
+        $this->escapes = $backslash ?? true;
         $this->truncated = \strlen($sql) > self::MAX_BYTES;
         $this->sql = $this->truncated ? \substr($sql, 0, self::MAX_BYTES) : $sql;
         $this->length = \strlen($this->sql);
@@ -90,7 +101,7 @@ final class QueryShape
 
         return match ($previous[0]) {
             'op' => true,
-            'keyword' => $previous[1] !== 'NULL',
+            'keyword' => $previous[1] !== 'NULL' && $previous[1] !== 'END',
             'punct' => \in_array($previous[1], ['(', ',', '['], true),
             default => false,
         };
@@ -130,7 +141,13 @@ final class QueryShape
 
     private function shape(): string
     {
-        $tokens = $this->collapseLists($this->tokenize());
+        $tokens = $this->tokenize();
+        if ($this->unclosed && $this->backslash === null) {
+            $this->escapes = false;
+            $tokens = $this->tokenize();
+        }
+
+        $tokens = $this->collapseLists($tokens);
         while ($tokens !== [] && \end($tokens) === ['punct', ';']) {
             \array_pop($tokens);
         }
@@ -168,7 +185,7 @@ final class QueryShape
                 $end = \strpos($sql, '*/', $i + 2);
                 $i = $end === false ? $length : $end + 2;
             } elseif ($char === "'") {
-                $i = $this->stringEnd($i, $this->backslash);
+                $i = $this->stringEnd($i, $this->escapes);
                 $tokens[] = self::VALUE;
             } elseif ($char === '"' || $char === '`') {
                 $end = $this->identifierEnd($i);
@@ -198,7 +215,7 @@ final class QueryShape
                 $i += \strlen($match[0]);
                 $upper = \strtoupper($match[0]);
                 if (\in_array($upper, ['E', 'N', 'X', 'B'], true) && ($sql[$i] ?? '') === "'") {
-                    $i = $this->stringEnd($i, $upper === 'E' ? true : $this->backslash);
+                    $i = $this->stringEnd($i, $upper === 'E' || $this->escapes);
                     $tokens[] = self::VALUE;
                 } elseif ($upper === 'TRUE' || $upper === 'FALSE') {
                     $tokens[] = self::VALUE;
@@ -229,14 +246,12 @@ final class QueryShape
 
     /**
      * @param int $start At the opening quote.
-     * @param bool|null $backslash Null: escaping, unless the literal then runs to the end of the text.
      * @return int After the closing quote; the end of the text for an unclosed literal.
      */
-    private function stringEnd(int $start, ?bool $backslash): int
+    private function stringEnd(int $start, bool $backslash): int
     {
-        $end = $backslash === null
-            ? $this->literalEnd($start, true) ?? $this->literalEnd($start, false)
-            : $this->literalEnd($start, $backslash);
+        $end = $this->literalEnd($start, $backslash);
+        $end === null and $this->unclosed = true;
 
         return $end ?? $this->length;
     }
