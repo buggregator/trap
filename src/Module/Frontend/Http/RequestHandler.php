@@ -36,6 +36,11 @@ final class RequestHandler implements RequestHandlernterace
             return;
         }
 
+        if (NullOrigin::of($request)) {
+            HttpEmitter::emit($streamClient, NullOrigin::refuse());
+            return;
+        }
+
         // Calculate the accept key for the handshake
         $key = $request->getHeaderLine('Sec-WebSocket-Key');
         /** @psalm-suppress WeakHash RFC 6455 defines the accept key as SHA-1; a client rejects any other */

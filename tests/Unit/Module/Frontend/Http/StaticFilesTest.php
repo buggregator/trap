@@ -66,6 +66,8 @@ final class StaticFilesTest
     #[DataSet(['/http-dump/0198c2d4-7a54-7b81-9b8e-3cf7c6c3a6b1'])]
     #[DataSet(['/csp'])]
     #[DataSet(['/csp/0198c2d4-7a54-7b81-9b8e-3cf7c6c3a6b1'])]
+    #[DataSet(['/html'])]
+    #[DataSet(['/html/0198c2d4-7a54-7b81-9b8e-3cf7c6c3a6b1'])]
     #[DataSet(['/sentry/traces/4bf92f3577b34da6a3ce929d0e0e4736'])]
     #[DataSet(['/profiler/compare'])]
     #[DataSet(['/settings'])]

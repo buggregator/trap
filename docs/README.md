@@ -22,6 +22,8 @@
 - [HTTP dumps](http-dump.md) - any other HTTP request.
 - [OpenTelemetry](opentelemetry.md) - traces over OTLP/HTTP.
 - [CSP reports](csp.md) - Content Security Policy violations and Reporting API reports of browsers.
+- [HTML pages](html.md) - pages of your own markup: reports, links, kinds of events Trap has no module for.
+- [Binary data](binary.md) - the traffic no protocol takes: a hexdump, a viewer in the web UI, the guessed format.
 - [Receiving profiles](profiles.md) - XHProf, Xdebug, Speedscope, pprof and SPX over HTTP or from a directory.
 - [SPX](spx.md) - SPX full reports: directory, HTTP and profiling from code.
 - [Blackfire probe](blackfire.md) - profiles of the Blackfire PHP probe, taken in place of its agent.

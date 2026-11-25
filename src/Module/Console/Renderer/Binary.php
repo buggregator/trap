@@ -7,7 +7,9 @@ namespace Buggregator\Trap\Module\Console\Renderer;
 use Buggregator\Trap\Module\Console\Renderer;
 use Buggregator\Trap\Module\Console\Support\Common;
 use Buggregator\Trap\Server\Proto\Frame;
+use Buggregator\Trap\Support\BinaryFormat;
 use Buggregator\Trap\Support\Measure;
+use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -69,18 +71,21 @@ final class Binary implements Renderer
         Common::renderHeader1($output, 'BINARY');
 
         $size = $frame->getSize();
+        $stream = $frame->stream;
+        $stream->rewind();
+        $head = $size === 0 ? '' : $stream->read(\min(\max($this->printBytes, BinaryFormat::HEAD), $size));
+        $format = BinaryFormat::guess($head);
+
         Common::renderMetadata($output, [
             'Time' => $frame->time,
             'Size' => Measure::memory($size) . ($size > 1024 ? \sprintf(' (%d bytes)', $size) : ''),
+            ...($format === null ? [] : ['Format' => OutputFormatter::escape($format->name)]),
         ]);
 
         if ($size === 0) {
             return;
         }
 
-        // Render body
-        $stream = $frame->stream;
-        $stream->rewind();
         \Fiber::suspend();
 
         // Print header if needed
@@ -90,7 +95,7 @@ final class Binary implements Renderer
             // Just empty line
             $output->writeln('');
         }
-        $read = $stream->read(\min($this->printBytes, $size));
+        $read = \substr($head, 0, $this->printBytes);
 
         // Render table
         $output->writeln(' <info>Offset    0  1  2  3  4  5  6  7   8  9 10 11 12 13 14 15</info>');

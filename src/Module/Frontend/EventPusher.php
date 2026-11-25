@@ -63,7 +63,7 @@ final class EventPusher implements StoreListener
         $this->publisher->toProject(
             $record->event->projectKey(),
             'event.received',
-            UiEvent::of($record->event, $this->events),
+            UiEvent::of($record->event, $this->events, preview: true),
         );
     }
 }

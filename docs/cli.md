@@ -73,7 +73,8 @@ page of the [web UI](web-ui.md), Sentry pages included:
 - a Sentry error with logs of a second project, `billing`;
 - [CSP reports](csp.md) of each format: a `report-uri` violation, and a Reporting API batch of a violation and a
   deprecation;
-- an image as binary data.
+- an [HTML page](html.md), a nightly report titled by its `<title>`;
+- an image as [binary data](binary.md).
 
 The times of the logs, traces and metrics are those of the run, so the period filters of the UI show them.
 Use the command to check that Trap is up and renders everything. It reports each part Trap refuses and then exits

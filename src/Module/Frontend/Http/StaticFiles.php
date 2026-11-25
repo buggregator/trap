@@ -25,7 +25,7 @@ final class StaticFiles implements Middleware
     /**
      * Event types of the UI build: its `/{type}` and `/{type}/{id}` pages.
      */
-    private const UI_EVENT_TYPES = 'var-dump|smtp|sentry|profiler|monolog|inspector|http-dump|ray|sms|csp'
+    private const UI_EVENT_TYPES = 'var-dump|smtp|sentry|profiler|monolog|inspector|http-dump|ray|sms|csp|html'
         . '|sentry-trace|sentry-log|xdebug-trace';
 
     /**

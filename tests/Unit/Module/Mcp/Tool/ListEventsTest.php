@@ -217,6 +217,7 @@ final class ListEventsTest
             'sentry',
             'profiler',
             'xdebug-trace',
+            'html',
             'csp',
             'http-dump',
         ]);

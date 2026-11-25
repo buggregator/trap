@@ -100,6 +100,37 @@ final class ServerTest
         Assert::string($response)->contains('<html');
     }
 
+    /**
+     * The sandboxed frame of an `html` event runs the sender's scripts: they must not reach the events.
+     */
+    public function testUiWebSocketRefusesPageWithoutOrigin(): void
+    {
+        $this->startTrap('ws-null-origin');
+
+        $socket = \stream_socket_client("tcp://127.0.0.1:$this->uiPort", $errno, $error, 5)
+            ?: throw new \RuntimeException("Unable to connect: $error");
+        try {
+            \stream_set_timeout($socket, 5);
+            TrapProcess::write($socket, \implode("\r\n", [
+                'GET /connection/websocket HTTP/1.1',
+                "Host: 127.0.0.1:$this->uiPort",
+                'Origin: null',
+                'Upgrade: websocket',
+                'Connection: Upgrade',
+                'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==',
+                'Sec-WebSocket-Version: 13',
+                '',
+                '',
+            ]));
+
+            $head = (string) \fread($socket, 1024);
+        } finally {
+            \fclose($socket);
+        }
+
+        Assert::string($head)->startsWith("HTTP/1.1 403 Forbidden\r\n");
+    }
+
     public function testUiWebSocketUpgradesOverTls(): void
     {
         \extension_loaded('openssl') or throw new SkipTest('TLS needs ext-openssl.');
@@ -834,10 +865,10 @@ final class ServerTest
         $types = TrapProcess::waitFor(function (): ?array {
             [, , $body] = TrapProcess::http($this->uiPort, 'GET', '/api/events');
             $types = \array_unique(\array_column(self::json($body)['data'], 'type'));
-            return \count($types) >= 9 ? $types : null;
+            return \count($types) >= 10 ? $types : null;
         }, 'events of every type in the web UI');
         Assert::array($types)->sameElementsAs([
-            'profiler', 'xdebug-trace', 'var-dump', 'smtp', 'monolog', 'ray', 'http-dump', 'sentry', 'csp',
+            'profiler', 'xdebug-trace', 'var-dump', 'smtp', 'monolog', 'ray', 'http-dump', 'sentry', 'csp', 'html',
         ]);
         [, , $csp] = TrapProcess::http($this->uiPort, 'GET', '/api/events?type=csp');
         Assert::array(\array_column(\array_column(self::json($csp)['data'], 'payload'), 'format'))

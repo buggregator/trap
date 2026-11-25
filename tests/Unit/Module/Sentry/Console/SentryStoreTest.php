@@ -43,6 +43,16 @@ final class SentryStoreTest
         Assert::string($output)->contains('RuntimeException')->contains('Boom')->notContains('trace ID');
     }
 
+    /**
+     * sentry-go and the short form of the protocol send the exceptions as a bare list.
+     */
+    public function testRendersBareListOfExceptions(): void
+    {
+        $output = self::render(['exception' => [['type' => 'RuntimeException', 'value' => 'Boom']]]);
+
+        Assert::string($output)->contains('RuntimeException')->contains('Boom');
+    }
+
     private static function render(array $message): string
     {
         $output = new BufferedOutput();

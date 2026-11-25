@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Server\Proto;
 
 use Buggregator\Trap\Module\Csp\Frame as CspFrame;
+use Buggregator\Trap\Module\Html\Frame as HtmlFrame;
 use Buggregator\Trap\Module\HttpDump\Frame as HttpFrame;
 use Buggregator\Trap\Module\HttpDump\Module as HttpDumpModule;
 use Buggregator\Trap\Module\Mailer\Frame as MailerFrame;
@@ -56,6 +57,7 @@ final class FrameTypesTest
         yield [new OtlpTraces([]), 'otlp'];
         yield [new RayFrame('a1', []), 'ray'];
         yield [new CspFrame('csp-report', [['type' => 'csp-violation', 'url' => '', 'body' => []]]), 'csp'];
+        yield [new HtmlFrame('Report', '<h1>Report</h1>'), 'html'];
     }
 
     #[DataProvider('framesDataProvider')]
@@ -79,6 +81,7 @@ final class FrameTypesTest
         Assert::same($types->classOf('otlp'), TracingFrame::class);
         Assert::same($types->classOf('ray'), RayFrame::class);
         Assert::same($types->classOf('csp'), CspFrame::class);
+        Assert::same($types->classOf('html'), HtmlFrame::class);
     }
 
     public function testDoesNotDecodeBinaryFrames(): void

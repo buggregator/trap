@@ -34,7 +34,7 @@ final class SentryStore implements Renderer
         try {
             Header::renderMessageHeader($output, $frame->message + ['timestamp' => $frame->time->format('U.u')]);
             ItemReader::isTransaction($frame->message) && TraceLine::render($output, 'transaction', $frame->message)
-                or Exceptions::render($output, $frame->message['exception']['values'] ?? []);
+                or Exceptions::render($output, Exceptions::of($frame->message['exception'] ?? null));
         } catch (\Throwable $e) {
             $output->writeln(['<fg=red>Render error</>', $e->getMessage()]);
         }

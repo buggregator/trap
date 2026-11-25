@@ -1,0 +1,33 @@
+body{font:13px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+.v{padding:12px 14px}
+.v h1{margin:0 0 2px;font-size:15px;font-weight:600}
+.v .facts,.v .hint,.v .note{color:var(--muted)}
+.v .hint{margin-top:2px}
+.v a{color:var(--accent)}
+.v nav{display:flex;gap:2px;margin:10px 0 8px;border-bottom:1px solid var(--line)}
+.v nav button{border:0;border-bottom:2px solid transparent;background:none;color:var(--muted);padding:6px 10px;font:inherit;cursor:pointer}
+.v nav button[aria-selected=true]{color:var(--fg);border-bottom-color:var(--accent)}
+.v .bar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin-bottom:8px}
+.v .bar>span{display:inline-flex;gap:4px;align-items:center}
+.v input,.v select,.v .bar button{font:inherit;font-size:12px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:2px 6px}
+.v .bar button{cursor:pointer}
+.v .bar button:disabled{opacity:.4;cursor:default}
+.v input[type=text]{width:9em}
+.v input[type=number]{width:4em}
+.v .mono,.v pre{font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+.v pre{margin:0;white-space:pre}
+.v .dump span[data-i]{cursor:pointer}
+.v .dump .m{background:var(--mark)}
+.v .dump .s{background:var(--sel);outline:1px solid var(--accent)}
+.v .insp{display:block;margin:2px 0 4px 10ch;padding:4px 8px;border-left:2px solid var(--accent);color:var(--muted);white-space:pre-wrap}
+.v .text{white-space:pre-wrap;word-break:break-all}
+.v .text .ctl{color:var(--ctl)}
+.v .strings{border-collapse:collapse}
+.v .strings td{padding:0 12px 0 0;vertical-align:top;white-space:pre-wrap;word-break:break-all}
+.v .strings td:first-child{white-space:nowrap;word-break:normal}
+.v .strings tr{cursor:pointer}
+.v .strings tr:hover{background:var(--sel)}
+.v table.kv td{padding:1px 14px 1px 0}
+.v h2{font-size:13px;margin:14px 0 6px}
+.v canvas{display:block;max-width:100%;border:1px solid var(--line)}
+.v [hidden]{display:none!important}

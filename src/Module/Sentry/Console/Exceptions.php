@@ -14,6 +14,27 @@ use Symfony\Component\Console\Output\OutputInterface;
 final class Exceptions
 {
     /**
+     * Sentry SDKs send `{"values": [...]}`, but some send a bare list or a single exception object.
+     */
+    public static function of(mixed $exception): array
+    {
+        if (!\is_array($exception)) {
+            return [];
+        }
+
+        /** @var mixed $list */
+        $list = match (true) {
+            \array_key_exists('values', $exception) => $exception['values'],
+            \array_key_exists('type', $exception),
+            \array_key_exists('value', $exception),
+            \array_key_exists('stacktrace', $exception) => [$exception],
+            default => \array_is_list($exception) ? $exception : [],
+        };
+
+        return \is_array($list) ? \array_values(\array_filter($list, \is_array(...))) : [];
+    }
+
+    /**
      * Render Exceptions block
      */
     public static function render(OutputInterface $output, mixed $exceptions): void

@@ -51,6 +51,10 @@ final class Router implements Middleware
                 return $next($request);
             }
 
+            if (NullOrigin::of($request)) {
+                return NullOrigin::refuse();
+            }
+
             // Params: the query, and the JSON body of a request other than GET
             $params = $request->getQueryParams();
             if ($method !== Method::Get) {

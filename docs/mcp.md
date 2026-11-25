@@ -17,7 +17,9 @@ Other clients take the same URL with the `http` (Streamable HTTP) transport type
 
 ## Tools
 
-The tools read the events Trap has caught, [CSP reports](#csp-reports) among them, the Sentry and OpenTelemetry
+The tools read the events Trap has caught, [CSP reports](#csp-reports), [HTML pages](#html-pages) and
+[binary data](#binary-data) among them,
+the Sentry and OpenTelemetry
 [traces](#traces) it has received, the [queue jobs](#queue-jobs) in them, Sentry [user feedback](#user-feedback),
 [cron jobs](#cron-jobs), and the call trees of
 [Xdebug traces](#xdebug-traces). The events are the ones the [web UI](web-ui.md) shows, kept with
@@ -65,7 +67,7 @@ the agent deletes is gone from the UI on its next load; a page already open keep
 
 | Argument  | Matches                                                                                                                          |
 | --------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `type`    | One event type or a list: `var-dump`, `smtp`, `monolog`, `ray`, `sentry`, `profiler`, `http-dump`, `xdebug-trace`, `csp`         |
+| `type`    | One event type or a list: `var-dump`, `smtp`, `monolog`, `ray`, `sentry`, `profiler`, `http-dump`, `xdebug-trace`, `csp`, `html` |
 | `project` | One project or a list; events sent without a project belong to `default`                                                         |
 | `from`    | Events caught at this time or later: ISO 8601 (UTC without an offset) or a duration back from now: `30s`, `5m`, `2h`, `1d`, `1w` |
 | `to`      | Events caught at this time or earlier, in the same forms                                                                         |
@@ -122,6 +124,7 @@ seconds. Trap catches events and answers other requests meanwhile, and a call st
 | `ray`       | `payload_type`, `exception`, `label`, `color`                                                                                     |
 | `profiler`  | `name` (the application or the file), `format`                                                                                    |
 | `csp`       | `report_type`, `directive`, `blocked`, `disposition`, `page`, `source_file` (of each report of the request)                       |
+| `html`      | `title`, `kind` (`page`, or `binary` for [binary data](#binary-data)), `format` (of binary data, as `tls`, `gzip`, `text`)        |
 
 An `xdebug-trace` event has no fields: its summary starts with the URL or the name of the trace, so `search` finds it.
 The summary of an `smtp` event ends with the [other versions](smtp.md#other-versions-and-invites) of the email and
@@ -413,6 +416,28 @@ policy and the user agent. A field of the report the browser left empty is left 
 - The CSP violations of the last 5 minutes: `{"type": "csp", "from": "5m", "where": {"report_type": "csp-violation"},
   "include": "text"}`.
 - What a page has blocked: `{"type": "csp", "where": {"page": "*/checkout*", "disposition": "enforce"}}`.
+
+### HTML pages
+
+The [pages](html.md) a sender posts are `html` events. The summary is the title, else the start of the visible
+text, and the size, as `Nightly report (1.20 KiB)`. `get_event` gives the title, the size in bytes and the markup,
+cut to `max_length` as any text: `{"id": "<id>", "max_length": 200000}` reads a larger page whole. `search` looks
+through the markup, so it finds a page by its text and by its tags and attributes too.
+
+- The pages of a report: `{"type": "html", "where": {"title": "Nightly*"}, "include": "text"}`.
+
+### Binary data
+
+The [traffic no protocol takes](binary.md) is an `html` event too, as the web UI shows it: `kind` is `binary` for
+it and `page` for a page. The summary is the title with the guessed format and the size, as
+`Binary data: TLS ClientHello for api.example.com (517.00 B)`. `get_event` gives the size, the guessed format with
+a hint, the entropy and a hexdump of the first 1024 bytes, not the markup of the viewer. `format` is the ID of the
+guessed format, none when Trap has no guess.
+
+- What reached a port by mistake: `{"type": "html", "where": {"kind": "binary"}, "include": "text"}`.
+- TLS clients on a plain port: `{"type": "html", "where": {"format": "tls"}}`.
+
+With the web UI on, `GET /api/binary/{id}` of its port gives all the bytes.
 
 ### Profiles
 

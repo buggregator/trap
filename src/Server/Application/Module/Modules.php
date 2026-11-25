@@ -24,6 +24,7 @@ final class Modules
      *
      * Channels go first: a source module that takes a sender name is then the one reported.
      * The MCP module goes before the source modules: its token guard answers before any of them keeps a request.
+     * The HTML pages go before the CSP reports: a POST to `/html` is a page whatever its content type.
      * The CSP reports go after the other sources: they take a POST of their content type on any path.
      * The HTTP dump goes last: its middleware ends the HTTP pipeline.
      */
@@ -42,6 +43,7 @@ final class Modules
         \Buggregator\Trap\Module\XDebugTrace\Module::class,
         \Buggregator\Trap\Module\XDebug\Module::class,
         \Buggregator\Trap\Module\Tracing\Module::class,
+        \Buggregator\Trap\Module\Html\Module::class,
         \Buggregator\Trap\Module\Csp\Module::class,
         \Buggregator\Trap\Module\HttpDump\Module::class,
     ];

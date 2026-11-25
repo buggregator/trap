@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Frontend\Http\Pipeline;
 use Buggregator\Trap\Module\Frontend\RPC;
 use Buggregator\Trap\Module\Frontend\Service;
 use Buggregator\Trap\Module\Frontend\UiControllers;
+use Buggregator\Trap\Module\Html\Binary\AssetsController as BinaryAssetsController;
 use Buggregator\Trap\Module\HttpDump\Frontend\AssetsController as HttpDumpAssetsController;
 use Buggregator\Trap\Module\Mailer\Frame as SmtpFrame;
 use Buggregator\Trap\Module\Mailer\Frontend\ApiController as MailerApiController;
@@ -82,7 +83,7 @@ final class UiControllersTest
         );
         Assert::same(
             \array_map(static fn(object $c): string => $c::class, $controllers->assets()),
-            [MailerAssetsController::class, HttpDumpAssetsController::class],
+            [MailerAssetsController::class, BinaryAssetsController::class, HttpDumpAssetsController::class],
         );
     }
 

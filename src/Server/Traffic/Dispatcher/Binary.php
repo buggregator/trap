@@ -15,10 +15,16 @@ use Buggregator\Trap\Support\StreamHelper;
  */
 final class Binary implements Dispatcher
 {
+    /**
+     * Bytes of a connection kept in memory, the rest in a temporary file: an event keeps the stream until the
+     * events limit pushes it out, so many large connections would otherwise fill the memory limit.
+     */
+    public const MAX_MEMORY = 64 * 1024;
+
     #[\Override]
     public function dispatch(StreamClient $stream): iterable
     {
-        $fileStream = StreamHelper::createFileStream();
+        $fileStream = StreamHelper::createFileStream(maxMemory: self::MAX_MEMORY);
         foreach ($stream->getIterator() as $chunk) {
             $fileStream->write($chunk);
         }

@@ -82,27 +82,6 @@ final class SentryEnvelope implements Renderer
         return $frame->items !== [];
     }
 
-    /**
-     * Sentry SDKs send `{"values": [...]}`, but some send a bare list or a single exception object.
-     */
-    private static function exceptions(mixed $exception): array
-    {
-        if (!\is_array($exception)) {
-            return [];
-        }
-
-        /** @var mixed $list */
-        $list = match (true) {
-            \array_key_exists('values', $exception) => $exception['values'],
-            \array_key_exists('type', $exception),
-            \array_key_exists('value', $exception),
-            \array_key_exists('stacktrace', $exception) => [$exception],
-            default => \array_is_list($exception) ? $exception : [],
-        };
-
-        return \is_array($list) ? \array_values(\array_filter($list, \is_array(...))) : [];
-    }
-
     private static function renderFeedback(OutputInterface $output, Feedback $feedback): void
     {
         $from = \trim($feedback->name . ($feedback->email === '' ? '' : " <{$feedback->email}>"));
@@ -151,7 +130,7 @@ final class SentryEnvelope implements Renderer
             return;
         }
 
-        $exceptions = \is_array($data->payload) ? self::exceptions($data->payload['exception'] ?? null) : [];
+        $exceptions = \is_array($data->payload) ? Exceptions::of($data->payload['exception'] ?? null) : [];
         if ($exceptions !== []) {
             Exceptions::render($output, $exceptions);
             return;

@@ -41,7 +41,7 @@ The argument schema of each tool is in its `inputSchema` (`mcp.php tools <name>`
 | ----------------- | ----------------------------------------------------------------------------------------------------- |
 | `list_events`     | The events changed after `since`, oldest first; with `order: newest` the latest ones                  |
 | `wait_for_events` | Waits until `count` events (1 by default) match, up to `timeout` seconds (30, at most 50)             |
-| `get_event`       | One event as plain text: the full dump, log record, exception, mail, request, CSP report              |
+| `get_event`       | One event as plain text: the full dump, log record, exception, mail, request, CSP report, HTML page   |
 | `delete_event`    | Deletes events by `id` or `ids`                                                                       |
 | `clear_events`    | Deletes the events matching a filter, or all; pinned ones stay unless `include_pinned: true`          |
 | `list_traces`     | Sentry and OpenTelemetry traces; filters by project, source, service, name, duration, errors          |
@@ -72,14 +72,14 @@ The argument schema of each tool is in its `inputSchema` (`mcp.php tools <name>`
 
 `list_events`, `wait_for_events` and `clear_events` take the same filter; an event matches all the arguments given.
 
-| Argument  | Matches                                                                                                         |
-| --------- | --------------------------------------------------------------------------------------------------------------- |
-| `type`    | One or a list of `var-dump`, `monolog`, `sentry`, `smtp`, `http-dump`, `ray`, `profiler`, `xdebug-trace`, `csp` |
-| `project` | One or a list; events sent without a project belong to `default`                                                |
-| `from`    | Caught at this time or later: ISO 8601 in UTC, or back from now in lower case: `30s`, `5m`, `2h`, `1d`, `1w`    |
-| `to`      | Caught at this time or earlier, in the same forms                                                               |
-| `search`  | Text in the summary or the text of the event, in any case; `regex: true` makes it a PCRE pattern                |
-| `where`   | Fields of the event, below                                                                                      |
+| Argument  | Matches                                                                                                                 |
+| --------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `type`    | One or a list of `var-dump`, `monolog`, `sentry`, `smtp`, `http-dump`, `ray`, `profiler`, `xdebug-trace`, `csp`, `html` |
+| `project` | One or a list; events sent without a project belong to `default`                                                        |
+| `from`    | Caught at this time or later: ISO 8601 in UTC, or back from now in lower case: `30s`, `5m`, `2h`, `1d`, `1w`            |
+| `to`      | Caught at this time or earlier, in the same forms                                                                       |
+| `search`  | Text in the summary or the text of the event, in any case; `regex: true` makes it a PCRE pattern                        |
+| `where`   | Fields of the event, below                                                                                              |
 
 | Type        | Fields                                                                                                          |
 | ----------- | --------------------------------------------------------------------------------------------------------------- |
@@ -91,6 +91,7 @@ The argument schema of each tool is in its `inputSchema` (`mcp.php tools <name>`
 | `ray`       | `payload_type`, `exception`, `label`, `color`                                                                   |
 | `profiler`  | `name`, `format`                                                                                                |
 | `csp`       | `report_type`, `directive`, `blocked`, `disposition`, `page`, `source_file`, see [csp.md](csp.md)               |
+| `html`      | `title`, `kind` (`page` or `binary`), `format` (of binary data), see [html.md](html.md)                         |
 
 A `where` string matches the whole value in any case, with `*` for any characters; a list matches any of its
 values. A field no type has fails the call. An `xdebug-trace` has no fields: `search` finds it by its URL or name.

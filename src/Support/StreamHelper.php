@@ -201,10 +201,14 @@ final class StreamHelper
     /**
      * @param array<non-empty-string|int, mixed> $readFilters filter name => filter options
      * @param array<non-empty-string|int, mixed> $writeFilters filter name => filter options
+     * @param int<0, max> $maxMemory Bytes kept in memory; the rest goes to a temporary file.
      */
-    public static function createFileStream(array $readFilters = [], array $writeFilters = []): StreamInterface
-    {
-        $stream = \fopen('php://temp/maxmemory:' . self::MAX_FILE_MEMORY_SIZE, 'w+b')
+    public static function createFileStream(
+        array $readFilters = [],
+        array $writeFilters = [],
+        int $maxMemory = self::MAX_FILE_MEMORY_SIZE,
+    ): StreamInterface {
+        $stream = \fopen('php://temp/maxmemory:' . $maxMemory, 'w+b')
             ?: throw new \RuntimeException('Unable to create a temporary stream.');
 
         /** @var mixed $options */

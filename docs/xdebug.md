@@ -135,7 +135,7 @@ Anyone who reaches the port itself, such as from another machine, isn't stopped 
 loopback host. Browsers send no `Sec-Fetch-Site` to an origin that is neither secure nor loopback, as plain HTTP
 on a LAN or Docker IP, and old Safari never sends it: there the check above doesn't apply.
 
-Known limits: the UI's WebSocket checks no `Origin`, so a page of any other origin can receive the `xdebug`
+Known limits: the UI's WebSocket checks no `Origin` but `null`, so a page of any other origin can receive the `xdebug`
 channel events (sessions, files and lines, breakpoints, the agents' calls); Trap checks no `Host` header against
 DNS rebinding. Caught emails can't reach the debugger: the UI shows their HTML in a sandboxed frame, and
 `/api/smtp/{uuid}/html` and their inline files come with `Content-Security-Policy: sandbox`.
