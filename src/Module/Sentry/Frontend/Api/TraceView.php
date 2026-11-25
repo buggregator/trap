@@ -28,17 +28,19 @@ final class TraceView
     ) {}
 
     /**
-     * A row of the trace list, for the root transaction of the trace.
+     * A row of the trace list, for the root transaction of the trace. The duration covers the whole trace, work
+     * that ends after the root does included, so that the preview spans fit in it.
      */
     public function row(Transaction $root): array
     {
-        $spans = $this->trace->spans;
+        $spans = $this->trace->spans($this->project);
         $errors = 0;
         foreach ($spans as $span) {
             $span->isError() and ++$errors;
         }
 
         [$sources, $services] = $this->sourcesAndServices();
+        [$start, $end] = $this->extent();
 
         return [
             'trace_id' => $this->trace->id,
@@ -46,11 +48,11 @@ final class TraceView
             'transaction_name' => $root->name,
             'op' => $root->op,
             'status' => $root->status,
-            'duration_ms' => $root->durationMs(),
+            'duration_ms' => Span::durationBetween($start, $end),
             'span_count' => \count($spans),
             'error_count' => $errors,
             'received_at' => Json::time($root->start),
-            'preview_spans' => $this->preview($root->start, 3),
+            'preview_spans' => $this->preview($start, 3),
             'sources' => $sources,
             'services' => $services,
         ];
@@ -188,5 +190,19 @@ final class TraceView
             'service_name' => $span->service,
             'attributes' => Json::map($span->attributes),
         ];
+    }
+
+    /**
+     * @return array{float|null, float|null} The earliest start and the latest end of the transactions and spans.
+     */
+    private function extent(): array
+    {
+        $start = $end = null;
+        foreach ([...$this->trace->transactions($this->project), ...$this->trace->spans($this->project)] as $item) {
+            $item->start === null or $start = \min($start ?? \INF, $item->start);
+            $item->end === null or $end = \max($end ?? -\INF, $item->end);
+        }
+
+        return [$start, $end];
     }
 }

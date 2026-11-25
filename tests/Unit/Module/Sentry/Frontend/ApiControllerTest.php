@@ -123,6 +123,29 @@ final class ApiControllerTest
         Assert::same($result['data'][1]['trace_id'], self::T2);
     }
 
+    public function testListedTraceLastsUntilItsLatestSpanEnds(): void
+    {
+        $now = $this->now;
+        $api = new Batch('shop');
+        $api->transactions = [new Transaction('root', 'shop', self::T1, 'r', null, 'POST /checkout', 'http.server', 'ok', $now - 10, $now - 9.8, Source::Sentry, 'shop-api')];
+        $api->spans = [new Span('shop', self::T1, 'q', 'r', 'root', 'queue.publish', 'order', 'ok', $now - 9.9, $now - 9.89, Source::Sentry, 'shop-api')];
+        $this->telemetry->add($api);
+        $worker = new Batch('worker');
+        $worker->transactions = [new Transaction('job', 'worker', self::T1, 'w', 'q', 'order', 'queue.process', 'ok', $now - 9.6, $now - 9.47, Source::Sentry, 'shop-worker')];
+        $worker->spans = [
+            new Span('worker', self::T1, 'db', 'w', 'job', 'db.sql.query', 'INSERT', 'internal_error', $now - 9.48, $now - 9.472, Source::Sentry, 'shop-worker'),
+        ];
+        $this->telemetry->add($worker);
+
+        $row = $this->api->traces()['data'][0];
+        $shop = $this->api->traces(project: 'shop')['data'][0];
+
+        Assert::same([$row['duration_ms'], $row['span_count'], $row['error_count']], [530, 2, 1]);
+        $db = \array_column($row['preview_spans'], null, 'span_id')['db'];
+        Assert::same($db['start_offset_ms'] + $db['duration_ms'], 528);
+        Assert::same([$shop['duration_ms'], $shop['span_count'], $shop['error_count']], [200, 1, 0]);
+    }
+
     public function testFiltersTraces(): void
     {
         $this->fill();
