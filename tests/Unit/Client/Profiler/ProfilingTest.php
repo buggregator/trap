@@ -668,6 +668,34 @@ final class ProfilingTest extends Base
         Assert::same($driver->started, 1);
     }
 
+    public function profilingBlackfireProbeSkipsTheProfile(): void
+    {
+        self::fakeBlackfireProbe();
+        $driver = new FakeDriver();
+        \BlackfireProbe::$enabled = true;
+
+        try {
+            $result = TrapHandle::profile($driver)->to(static fn() => null)->run(static fn(): int => 5);
+        } finally {
+            \BlackfireProbe::$enabled = false;
+        }
+
+        Assert::same($result, 5);
+        Assert::same($driver->started, 0);
+        Assert::string($this->log->messages())->contains('The Blackfire probe is profiling the request');
+    }
+
+    public function idleBlackfireProbeLetsTheProfileRun(): void
+    {
+        self::fakeBlackfireProbe();
+        $driver = new FakeDriver();
+
+        $profile = TrapHandle::profile($driver)->to(static fn() => null)->start()->stop();
+
+        Assert::instanceOf($profile, Profile::class);
+        Assert::same($driver->started, 1);
+    }
+
     public function nestingIsCheckedBeforeTheConditions(): void
     {
         $session = TrapHandle::profile(new FakeDriver())->to(static fn() => null)->start();
@@ -938,6 +966,16 @@ final class ProfilingTest extends Base
         [$head, $body] = \explode("\r\n\r\n", $requests[0], 2);
 
         return [\explode("\r\n", $head), $body];
+    }
+
+    /**
+     * Declares the test double of the probe class; a PHP with ext-blackfire loaded can't run these tests.
+     */
+    private static function fakeBlackfireProbe(): void
+    {
+        require_once __DIR__ . '/Stub/BlackfireProbe.php';
+        \property_exists(\BlackfireProbe::class, 'enabled')
+            or throw new SkipTest('ext-blackfire is loaded: its class can not be faked');
     }
 
     private static function removeDir(string $dir): void

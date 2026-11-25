@@ -1,7 +1,7 @@
 # Receiving profiles
 
 Trap receives profiles of XHProf, Xdebug, Excimer (Speedscope), SPX and pprof, over HTTP or from a directory,
-and shows them in the console and the [web UI](web-ui.md), which also compares two profiles; AI agents analyze them with the [MCP tools](mcp.md#profiles).
+and of the [Blackfire probe](blackfire.md) in place of its agent, and shows them in the console and the [web UI](web-ui.md), which also compares two profiles; AI agents analyze them with the [MCP tools](mcp.md#profiles).
 To profile your own code, see [Profiling code](profiling.md). Xdebug function traces, every call with its
 arguments, are a separate kind: see [Xdebug traces](xdebug-traces.md).
 

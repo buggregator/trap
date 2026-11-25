@@ -24,10 +24,12 @@ use Buggregator\Trap\Module\Profiler\Mcp\ProfileCalls;
 use Buggregator\Trap\Module\Profiler\Mcp\ProfileSummary;
 use Buggregator\Trap\Module\Profiler\Mcp\ProfileTop;
 use Buggregator\Trap\Module\Profiler\Mcp\ProfileView;
+use Buggregator\Trap\Module\Profiler\Traffic\BlackfireDispatcher;
 use Buggregator\Trap\Server\Event\ProvidesEvents;
 use Buggregator\Trap\Server\Handler\Http\ProvidesHttpMiddlewares;
 use Buggregator\Trap\Server\Proto\ProvidesFrameTypes;
 use Buggregator\Trap\Server\Service\FilesObserver\ProvidesFileObservers;
+use Buggregator\Trap\Server\Traffic\ProvidesDispatchers;
 
 /**
  * @internal
@@ -40,12 +42,22 @@ final class Module implements
     ProvidesUi,
     ProvidesEvents,
     ProvidesEventViews,
-    ProvidesMcpTools
+    ProvidesMcpTools,
+    ProvidesDispatchers
 {
     #[\Override]
     public function httpMiddlewares(): array
     {
         return [XHProfTrap::class, XDebugTrap::class, SpeedscopeTrap::class, PprofTrap::class, SPXTrap::class];
+    }
+
+    /**
+     * The Blackfire probe sends profiles over its own protocol, on any port of Trap.
+     */
+    #[\Override]
+    public function dispatchers(): array
+    {
+        return [BlackfireDispatcher::class];
     }
 
     #[\Override]

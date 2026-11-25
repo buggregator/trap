@@ -50,3 +50,9 @@ function spx_profiler_start(): void {}
  * @return string|null The key of the full report, null when no report was made.
  */
 function spx_profiler_stop(): ?string {}
+
+class BlackfireProbe
+{
+    /** Whether the probe profiles the request: true while a Blackfire query is being served. */
+    public static function isEnabled(): bool {}
+}

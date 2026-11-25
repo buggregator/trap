@@ -14,7 +14,8 @@ The first source that has a value wins. Environment variables of the client (`tr
 ## Ports and traffic detection
 
 Trap recognizes the protocol of each connection by its first bytes, so every port accepts every kind of traffic:
-var-dumper, Monolog, SMTP and HTTP (Sentry, Ray, profilers, OpenTelemetry, HTTP dumps), plain or over [TLS](tls.md).
+var-dumper, Monolog, SMTP, the [Blackfire probe](blackfire.md) and HTTP (Sentry, Ray, profilers, OpenTelemetry,
+HTTP dumps), plain or over [TLS](tls.md).
 There is no need to open a port per protocol.
 
 By default Trap listens on the ports of the Buggregator Server: `9912`, `9913`, `1025` and `8000`,

@@ -15,4 +15,5 @@ enum Type: string
     case SPX = 'SPX';
     case Speedscope = 'Speedscope';
     case Pprof = 'Pprof';
+    case Blackfire = 'Blackfire';
 }

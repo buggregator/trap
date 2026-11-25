@@ -76,7 +76,8 @@ final class TrapHandle
      *
      * Without a profiler given, the first available one is taken: Excimer, then XHProf
      * (ext-xhprof, then ext-tideways_xhprof). If none is available or it fails to start, the code
-     * runs unprofiled. Profiles can not nest: one started while another is running is skipped.
+     * runs unprofiled. Profiles can not nest: one started while another is running is skipped, and so is one
+     * started while the Blackfire probe profiles the request.
      * A profile without samples (a run shorter than the sampling period) is not delivered.
      * Each of these cases logs a warning once per process to the `trap.profiler` channel of
      * {@see self::logger()}; errors of the profiler and of the destinations are logged there too, never thrown.
