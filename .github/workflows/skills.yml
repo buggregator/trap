@@ -1,0 +1,45 @@
+---
+
+name: Skills
+
+on:  # yamllint disable-line rule:truthy
+  push:
+    paths:
+      - 'skills/**'
+      - 'skills.json'
+      - 'composer.json'
+      - '.github/workflows/skills.yml'
+  pull_request:
+    paths:
+      - 'skills/**'
+      - 'skills.json'
+      - 'composer.json'
+      - '.github/workflows/skills.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    name: Validate skills
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Resolve root package version
+        run: echo "COMPOSER_ROOT_VERSION=$(jq -r '.["."]' resources/version.json)" >> "$GITHUB_ENV"
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.6
+          coverage: none
+
+      - name: Install Composer dependencies
+        uses: ramsey/composer-install@v3
+        with:
+          dependency-versions: highest
+
+      # Fails on errors only; warnings are reported without failing the run.
+      - name: Validate skills
+        run: composer skills:validate --ansi
