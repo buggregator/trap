@@ -21,7 +21,8 @@ The agent loads the skill when it debugs or profiles code at runtime, reads what
 
 The references of the skill cover dumps and logs, profiling and Xdebug function traces, step debugging with the
 [Xdebug debugger](xdebug.md), long-running workers, pointing Sentry, Monolog, Ray, a mailer or OpenTelemetry at Trap,
-fixing a Content Security Policy with the [CSP reports](csp.md) of a Report-Only policy, and the server setup.
+fixing a Content Security Policy with the [CSP reports](csp.md) of a Report-Only policy, showing you a page of
+the agent's own in the web UI as an [HTML page](html.md), and the server setup.
 
 ## Install with Composer
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Module\Frontend;
 
 use Buggregator\Trap\Module\Frontend\EventQuery;
+use Buggregator\Trap\Module\Html\Frontend\Payload as HtmlPayload;
 use Buggregator\Trap\Server\Event\Event;
 use Testo\Assert;
 use Testo\Codecov\Covers;
@@ -81,6 +82,38 @@ final class EventQueryTest
             Assert::same(self::uuids(EventQuery::fromQueryString('q=' . \urlencode($q))->select($events)), ['c'], $q);
         }
         Assert::same(self::uuids(EventQuery::fromQueryString('q=nothing')->select($events)), []);
+    }
+
+    /**
+     * The feed leaves the markup of a large page out: the search still finds the page by its text past the preview.
+     */
+    public function testSearchFindsLargeHtmlPageByTextPastItsPreview(): void
+    {
+        $markup = '<p>' . \str_repeat('filler ', 5_000) . 'needle</p>';
+        $events = [new Event('h', 'html', new HtmlPayload('', $markup), 1.0)];
+
+        Assert::same(self::uuids(EventQuery::fromQueryString('q=NEEDLE')->select($events)), ['h']);
+    }
+
+    public function testSearchUsesSearchTextOfPayload(): void
+    {
+        $events = [new Event('s', 'monolog', new SearchableStub(), 1.0)];
+
+        Assert::same(self::uuids(EventQuery::fromQueryString('q=kept')->select($events)), ['s']);
+        Assert::same(self::uuids(EventQuery::fromQueryString('q=card')->select($events)), []);
+    }
+
+    public function testSearchFindsHtmlPagesByTitleAndVisibleText(): void
+    {
+        $markup = '<style>.secret{}</style><h1>Nightly report</h1><p>All 214 checks passed</p><script>tracker()</script>';
+        $events = [new Event('h', 'html', new HtmlPayload('Build #42', $markup), 1.0)];
+
+        foreach (['build #42', 'NIGHTLY', '214 checks'] as $q) {
+            Assert::same(self::uuids(EventQuery::fromQueryString('q=' . \urlencode($q))->select($events)), ['h'], $q);
+        }
+        foreach (['tracker', 'secret', '<h1>'] as $q) {
+            Assert::same(self::uuids(EventQuery::fromQueryString('q=' . \urlencode($q))->select($events)), [], $q);
+        }
     }
 
     public function testWindowCountsFromNow(): void

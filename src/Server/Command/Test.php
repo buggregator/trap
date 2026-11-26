@@ -76,6 +76,7 @@ final class Test extends Command
         $this->crons();
         $this->openTelemetry();
         $this->csp();
+        $this->html();
         \usleep(100_000);
         $this->sendContent('logo.png');
 
@@ -500,6 +501,26 @@ final class Test extends Command
                     $this->http('POST', "/v1/$signal", ['Content-Type' => 'application/json'], self::json($request));
                 }
             }
+        });
+    }
+
+    /**
+     * A page of the sender's own markup; its `<title>` becomes the title of the event.
+     */
+    private function html(): void
+    {
+        $this->attempt('HTML page', function (): void {
+            $this->http('POST', '/html', ['Content-Type' => 'text/html; charset=utf-8'], <<<'HTML'
+                <!doctype html>
+                <html>
+                <head><title>Nightly report</title><style>td { padding: 0 1em }</style></head>
+                <body>
+                <h1>Nightly report</h1>
+                <table><tr><td>Tests</td><td>1204 passed</td></tr><tr><td>Coverage</td><td>87.3%</td></tr></table>
+                <p><a href="https://github.com/buggregator/trap" target="_blank">Buggregator Trap</a></p>
+                </body>
+                </html>
+                HTML);
         });
     }
 

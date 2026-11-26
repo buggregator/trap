@@ -10,6 +10,7 @@ use Nyholm\Psr7\Response;
 use Nyholm\Psr7\ServerRequest;
 use Testo\Assert;
 use Testo\Codecov\Covers;
+use Testo\Data\DataSet;
 use Testo\Test;
 
 #[Covers(Pipeline::class)]
@@ -81,6 +82,34 @@ final class PipelineTest
         Assert::false($events->hasHeader('Access-Control-Allow-Origin'));
         Assert::same($debugger->getStatusCode(), 200);
         Assert::false($debugger->hasHeader('Access-Control-Allow-Origin'));
+    }
+
+    /**
+     * The sandboxed frame of an `html` event runs the sender's scripts. A POST of the pin needs no preflight.
+     */
+    #[DataSet(['GET', '/api/events'])]
+    #[DataSet(['POST', '/api/event/0198c2d4-7a54-7b81-9b8e-3cf7c6c3a6b1/pin'])]
+    #[DataSet(['DELETE', '/api/events'])]
+    public function testUiApiRefusesPageWithoutOrigin(string $method, string $path): void
+    {
+        $request = new ServerRequest($method, $path, ['Origin' => 'null', 'Sec-Fetch-Site' => 'cross-site']);
+
+        $response = self::pipeline()->handle($request, static fn(): Response => new Response(418));
+
+        Assert::same($response->getStatusCode(), 403);
+        Assert::string((string) $response->getBody())->contains('"code":"origin_null"');
+    }
+
+    /**
+     * A page from `file://` still sends events, Sentry ones to `/api/{project}/envelope/` among them.
+     */
+    public function testIngestionTakesPageWithoutOrigin(): void
+    {
+        $request = new ServerRequest('POST', '/api/1/envelope/', ['Origin' => 'null', 'Sec-Fetch-Site' => 'cross-site']);
+
+        $response = self::pipeline()->handle($request, static fn(): Response => new Response(418));
+
+        Assert::same($response->getStatusCode(), 418);
     }
 
     private static function pipeline(): Pipeline

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Buggregator\Trap\Tests\Unit\Server\Application\Module;
 
 use Buggregator\Trap\Module\Csp\Http\CspTrap;
+use Buggregator\Trap\Module\Html\Http\HtmlTrap;
 use Buggregator\Trap\Module\HttpDump\Http\DebugPage;
 use Buggregator\Trap\Module\HttpDump\Http\Dump;
 use Buggregator\Trap\Module\Mailer\Traffic\Dispatcher as MailerDispatcher;
@@ -126,6 +127,7 @@ final class ModulesTest
                 SPXTrap::class,
                 TraceTrap::class,
                 OtlpTrap::class,
+                HtmlTrap::class,
                 CspTrap::class,
                 DebugPage::class,
                 Dump::class,

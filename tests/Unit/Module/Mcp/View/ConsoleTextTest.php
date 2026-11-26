@@ -59,6 +59,17 @@ final class ConsoleTextTest
         Assert::string($text)->startsWith('BINARY')->contains('74 72 61 70');
     }
 
+    public function testBinaryDataHasGuessedFormat(): void
+    {
+        $trap = new Trap([BinaryRendererModule::class]);
+        $event = new Event('5a4f8e1c-0000-4000-8000-000000000001', 'binary', [], 1.0);
+        $record = new Record($event, 1, [new Binary(Stream::create("\x1f\x8b\x08\x00trap"))]);
+
+        $text = $trap->get(ConsoleText::class)->text($record);
+
+        Assert::string($text)->contains('Format: gzip data')->contains('1f 8b 08 00 74 72 61 70');
+    }
+
     public function testEventWithoutFramesHasNoText(): void
     {
         $event = new Event('5a4f8e1c-0000-4000-8000-000000000001', 'var-dump', [], 1.0);

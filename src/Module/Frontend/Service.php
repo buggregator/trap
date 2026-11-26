@@ -178,6 +178,7 @@ final class Service
 
     /**
      * The HTTP request gives the whole {@see EventQuery}; the WebSocket RPC, which has none, the arguments.
+     * `/api/events/preview`, the feed's list, has the previews of the large payloads; `/api/events` the payloads.
      *
      * @param string|null $project Project key; all the events when null.
      * @param string|null $window Period of the events till now, as `1h` or `7d`; all the events when null or `all`.
@@ -197,9 +198,10 @@ final class Service
     ): EventCollection {
         $query = $this->query($__request, $project, $window, $limit);
         $this->debug('List events of project %s', $query->project ?? 'any');
+        $preview = $__request !== null && \str_ends_with($__request->getUri()->getPath(), '/preview');
 
         return new EventCollection(events: \array_map(
-            fn(Event $event): UiEvent => UiEvent::of($event, $this->eventsStorage),
+            fn(Event $event): UiEvent => UiEvent::of($event, $this->eventsStorage, $preview),
             $query->select($this->eventsStorage),
         ));
     }

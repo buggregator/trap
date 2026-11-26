@@ -46,6 +46,8 @@ Every port takes every protocol; the defaults are the ports the clients send to 
 - With the web UI on a TCP port, the UI answers `GET /`, its files, its own `/api/...` routes, a browser `GET` of a
   UI page (`/smtp`, `/logs`, `/sentry/...`, `/{type}/{uuid}`) and any `/api/...` call from a UI page; every other
   request, an `OPTIONS` too, stays an HTTP dump. The UI sends no CORS headers: open it from Trap itself.
+  A page with `Origin: null` (the sandboxed frame of an `html` event, `file://`) gets `403 origin_null` from the
+  UI's `/api/...` routes and WebSocket; its events, Sentry's `/api/{project}/envelope/` too, are taken as before.
   The UI on a port of its own (`--ui=8080`) takes no HTTP events, though its setup guide shows that port in the
   DSNs: send HTTP to a TCP port, `8000` by default. With `--xdebug` the setup guide shows the debugger port too.
 - A Trap of your own beside the user's: one port takes everything,

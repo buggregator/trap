@@ -6,6 +6,8 @@ namespace Buggregator\Trap\Module\Frontend;
 
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\Facets;
+use Buggregator\Trap\Server\Event\Previewable;
+use Buggregator\Trap\Server\Event\Searchable;
 
 /**
  * The events a list of the UI asks for, by the query parameters of buggregator/server:
@@ -307,11 +309,16 @@ final class EventQuery
      * What the search finds an event by: the `message` and `channel` of its payload and the keys and values of
      * its `context` and `extra`, as a Monolog record has them. A Sentry event has a `message` and `extra` too;
      * an event without these fields matches no search. Security reports are found by their type, page,
-     * directive, blocked resource, file and message.
+     * directive, blocked resource, file and message. A {@see Searchable} payload, as an HTML page, is found
+     * by its own search text; another one with a preview by the fields of what its card shows.
      */
     private static function searchText(Event $event): string
     {
-        $payload = $event->payload;
+        if ($event->payload instanceof Searchable) {
+            return $event->payload->searchText();
+        }
+
+        $payload = $event->payload instanceof Previewable ? $event->payload->preview() : $event->payload;
         if (!\is_array($payload)) {
             return '';
         }

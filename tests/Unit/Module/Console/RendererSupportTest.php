@@ -7,6 +7,8 @@ namespace Buggregator\Trap\Tests\Unit\Module\Console;
 use Buggregator\Trap\Module\Console\Renderer;
 use Buggregator\Trap\Module\Csp\Console\Renderer as CspRenderer;
 use Buggregator\Trap\Module\Csp\Frame as CspFrame;
+use Buggregator\Trap\Module\Html\Console\Renderer as HtmlRenderer;
+use Buggregator\Trap\Module\Html\Frame as HtmlFrame;
 use Buggregator\Trap\Module\HttpDump\Console\Renderer as HttpDumpRenderer;
 use Buggregator\Trap\Module\HttpDump\Frame as HttpFrame;
 use Buggregator\Trap\Module\Mailer\Console\Renderer as MailerRenderer;
@@ -52,6 +54,7 @@ final class RendererSupportTest
         yield 'smtp' => [new MailerRenderer(), ['smtp']];
         yield 'ray' => [new RayRenderer(), ['ray']];
         yield 'csp' => [new CspRenderer(), ['csp']];
+        yield 'html' => [new HtmlRenderer(), ['html']];
         yield 'http' => [new HttpDumpRenderer(), ['http']];
         yield 'profiler' => [new ProfilerRenderer(), ['profiler']];
         yield 'binary' => [new Renderer\Binary(), ['binary']];
@@ -92,6 +95,7 @@ final class RendererSupportTest
             'smtp' => new MailerFrame(MailerMessage::create(['FROM' => ['<a@b.c>']], ['Subject' => 'Hi'])),
             'ray' => new RayFrame('a1', []),
             'csp' => new CspFrame('csp-report', [['type' => 'csp-violation', 'url' => '', 'body' => []]]),
+            'html' => new HtmlFrame('Report', '<h1>Report</h1>'),
             'http' => new HttpFrame(new ServerRequest('GET', 'http://localhost/')),
             'profiler' => new ProfilerFrame(Payload::new(PayloadType::XHProf, static fn(): Profile => new Profile())),
             'binary' => new Frame\Binary(Stream::create('binary')),

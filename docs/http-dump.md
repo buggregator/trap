@@ -21,7 +21,7 @@ which posts to `/_debug/bar`. That request is dumped and answered with `200`.
 ## Notes
 
 - The requests of Sentry, [cron pings](sentry.md#crons) to `/ping/...`, Ray, the profilers, OpenTelemetry and
-  [CSP reports](csp.md) go to their modules and are not dumped.
+  [CSP reports](csp.md) and [HTML pages](html.md) go to their modules and are not dumped.
 - When the [web UI](web-ui.md) runs on the same port, it answers `/`, the paths of its files, e.g. `/favicon.ico`,
   its `/api/...` routes, e.g. `/api/events`, and a browser opening a page of the UI, e.g. `/smtp`: see
   [Port](web-ui.md#port).

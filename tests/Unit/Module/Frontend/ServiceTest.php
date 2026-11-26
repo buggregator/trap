@@ -14,6 +14,7 @@ use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Config\TcpPorts;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventStore;
+use Buggregator\Trap\Server\Event\Previewable;
 use Buggregator\Trap\Server\Info;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Telemetry\Batch;
@@ -242,7 +243,7 @@ final class ServiceTest
 
         Assert::same(
             self::json($service->settings())['events'],
-            ['var-dump', 'smtp', 'monolog', 'ray', 'sentry', 'profiler', 'xdebug-trace', 'csp', 'http-dump'],
+            ['var-dump', 'smtp', 'monolog', 'ray', 'sentry', 'profiler', 'xdebug-trace', 'html', 'csp', 'http-dump'],
         );
     }
 
@@ -284,6 +285,47 @@ final class ServiceTest
         $service = new Service(new Logger(), new EventStore(), self::modules(), new Frontend(), new TcpPorts(), $container);
 
         Assert::same(self::json($service->settings())['ports']['xdebug'] ?? null, 9003);
+    }
+
+    /**
+     * The feed lists `/api/events/preview`; the page of an event gets it by `/api/event/{uuid}`.
+     */
+    public function testFeedListHasPreviewOfLargePayload(): void
+    {
+        $storage = new EventStore();
+        $storage->add(new Event('b1', 'html', new PreviewStub(), 1.0));
+        $service = self::create($storage);
+
+        $list = static fn(string $path): mixed => self::json($service->eventsList(__request: new ServerRequest('GET', $path)))['data'][0]['payload'];
+
+        Assert::same($list('/api/events/preview'), ['html' => 'card']);
+        Assert::same($list('/api/events'), ['html' => 'page']);
+        Assert::same(self::json($service->eventsList())['data'][0]['payload'], ['html' => 'page']);
+        Assert::same(self::json($service->eventShow('b1'))['payload'], ['html' => 'page']);
+    }
+
+    public function testSearchFindsEventByItsPreview(): void
+    {
+        $storage = new EventStore();
+        $storage->add(new Event('b1', 'monolog', new class implements Previewable {
+            public function preview(): array
+            {
+                return ['message' => 'card'];
+            }
+
+            public function jsonSerialize(): array
+            {
+                return ['message' => 'page'];
+            }
+        }, 1.0));
+        $service = self::create($storage);
+
+        $found = static fn(string $search): array => self::uuids(
+            $service->eventsList(__request: new ServerRequest('GET', '/api/events/preview?q=' . $search)),
+        );
+
+        Assert::same($found('card'), ['b1']);
+        Assert::same($found('page'), []);
     }
 
     /**

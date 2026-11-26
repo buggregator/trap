@@ -1,7 +1,7 @@
 # Web UI
 
 The `--ui` option of [`run`](cli.md#run) starts the web interface of the Buggregator Server inside Trap:
-the build of [buggregator/frontend](https://github.com/buggregator/frontend) 1.42.0. The CLI marks it experimental.
+the build of [buggregator/frontend](https://github.com/buggregator/frontend) 1.43.0. The CLI marks it experimental.
 
 ```bash
 vendor/bin/trap --ui
@@ -34,6 +34,11 @@ Open the UI from Trap itself: it sends no CORS headers, so a frontend served fro
 server of buggregator/frontend, can't call its API. An `OPTIONS` request is an HTTP dump like any other, but one to
 `/csp` or `/csp/...`: it gets the CORS preflight answer [CSP reports](csp.md) need.
 
+A page without an origin (`Origin: null`), such as the sandboxed frame of an [HTML page](html.md) that runs the
+sender's scripts or a page opened from `file://`, gets `403` with `{"code":"origin_null"}` from the `/api/...` routes
+of the UI, the files of its events and its WebSocket. It still sends events: a request no UI route takes, Sentry's
+`/api/{project}/envelope/` included, goes on as before.
+
 The UI asks for no password or token, the [MCP token](mcp.md#security) included: anyone who reaches its port sees
 the caught events. Trap warns at startup when the port listens on a host other than a loopback one.
 
@@ -46,7 +51,10 @@ vendor/bin/trap --ui=8080 -s
 
 Dumps, Monolog logs, Sentry events, emails with their
 [other versions and invites](smtp.md#other-versions-and-invites), Ray payloads, HTTP dumps, profiles,
-[Xdebug traces](xdebug-traces.md) with their call tree, and [CSP reports](csp.md) on the CSP reports page.
+[Xdebug traces](xdebug-traces.md) with their call tree, [CSP reports](csp.md) on the CSP reports page, and
+[HTML pages](html.md) with their own CSS and scripts in a sandboxed frame. Ray `html()` payloads show as pages
+too, without their scripts. [Binary data](binary.md), the traffic no protocol takes, shows as an HTML page: a
+hexdump on the feed card and a viewer of the bytes on the page of the event.
 
 The UI keeps the last 200 events; `/trap/events/@maxEvents` in [`trap.xml`](configuration.md#trapxml) changes it.
 A pinned event is pushed out last: only when all the kept events are pinned. A clear keeps the pinned events when

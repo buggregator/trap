@@ -13,6 +13,9 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
+ * The files of the events: attachments, raw bytes. A script of a page without an origin is refused, as by the
+ * UI API; a link or an image of such a page still opens them: a browser sends no `Origin` with their GET.
+ *
  * @internal
  * @psalm-internal Buggregator\Trap
  */
@@ -34,6 +37,10 @@ final class EventAssets implements Middleware
 
         if ($handler === null) {
             return $next($request);
+        }
+
+        if (NullOrigin::of($request)) {
+            return NullOrigin::refuse();
         }
 
         /** @var ResponseInterface $response */
