@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.23.0](https://github.com/buggregator/trap/compare/1.22.0...1.23.0) (2026-11-26)
+
+
+### Features
+
+* **html:** receive HTML pages (`html@` address, `X-Buggregator-Event: html`, `/html/{project}`) and show them in the web UI, the console and over MCP ([1f9503e](https://github.com/buggregator/trap/commit/1f9503e9c7d9386f3dfb0fd669230e22d58164ee))
+* **profiler:** receive profiles of the Blackfire probe in place of its agent, no Blackfire account needed ([#390](https://github.com/buggregator/trap/issues/390)) ([a5e4b95](https://github.com/buggregator/trap/commit/a5e4b9559b5b5cfca5cf83232a4f552cd0dea578))
+* **profiler:** skip `trap()::profile()` while the Blackfire probe profiles the request ([a5e4b95](https://github.com/buggregator/trap/commit/a5e4b9559b5b5cfca5cf83232a4f552cd0dea578))
+* **skill:** detect PHP Debugger in the environment check of the trap skill ([2e67cd1](https://github.com/buggregator/trap/commit/2e67cd10db160ce6e206a260ecd850a97b334158))
+* **ui:** update the web UI to buggregator/frontend 1.43.0 ([#393](https://github.com/buggregator/trap/issues/393)) ([1f9503e](https://github.com/buggregator/trap/commit/1f9503e9c7d9386f3dfb0fd669230e22d58164ee))
+* **xdebug:** turn the debugger on with XDEBUG_PROXY_ENABLED, as in Buggregator Server ([#394](https://github.com/buggregator/trap/issues/394)) ([0de548c](https://github.com/buggregator/trap/commit/0de548c3c03d9503daaeec675389ccf6f1b26d17))
+
+
+### Bug Fixes
+
+* **sentry:** count the whole trace in the duration of the trace list ([#392](https://github.com/buggregator/trap/issues/392)) ([f2c871e](https://github.com/buggregator/trap/commit/f2c871e62ab3400db58ff93c021c0261a0be4e04))
+
+
+### Documentation
+
+* **readme:** show the web UI and point the Documentation badge to the docs in the repository ([#388](https://github.com/buggregator/trap/issues/388)) ([0303faf](https://github.com/buggregator/trap/commit/0303fafe11bfd948936135f6ad44258f859b5a74))
+* **xdebug:** step through code with PHP Debugger: what works with Trap and how to install it ([#387](https://github.com/buggregator/trap/issues/387)) ([2e67cd1](https://github.com/buggregator/trap/commit/2e67cd10db160ce6e206a260ecd850a97b334158))
+
 ## [1.22.0](https://github.com/buggregator/trap/compare/1.21.0...1.22.0) (2026-11-24)
 
 
