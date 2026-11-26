@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.0](https://github.com/buggregator/trap/compare/1.23.0...1.24.0) (2026-11-26)
+
+
+### Features
+
+* **profiler:** Support `phpspy` and `reli-prof`, and collapsed stacks ([#396](https://github.com/buggregator/trap/issues/396)) ([c18e0a3](https://github.com/buggregator/trap/commit/c18e0a3e4ac815d906a673a9c6696b0d26c5c0e0))
+
 ## [1.23.0](https://github.com/buggregator/trap/compare/1.22.0...1.23.0) (2026-11-26)
 
 
