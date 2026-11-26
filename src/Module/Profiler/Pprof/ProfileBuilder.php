@@ -8,6 +8,7 @@ use Buggregator\Trap\Module\Profiler\Compaction\NodeBudget;
 use Buggregator\Trap\Module\Profiler\Compaction\Nodes;
 use Buggregator\Trap\Module\Profiler\Compaction\Report;
 use Buggregator\Trap\Module\Profiler\Compaction\StackTree;
+use Buggregator\Trap\Module\Profiler\Gzip;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Support\TimeSlice;
 
@@ -48,8 +49,6 @@ final class ProfileBuilder
      * in bytes, see {@see Document::read()}.
      */
     private const MAX_DECODED_SIZE = 32 * 1024 * 1024;
-
-    private const GZIP_MAGIC = "\x1F\x8B";
 
     /**
      * Limit of the summed microseconds, bytes or counts: floats hold integers exactly up to 2^53,
@@ -94,7 +93,7 @@ final class ProfileBuilder
     {
         \strlen($content) > $this->maxSize
             and throw new \InvalidArgumentException("The profile is larger than {$this->maxSize} bytes.");
-        \str_starts_with($content, self::GZIP_MAGIC) and $content = $this->inflate($content);
+        Gzip::isCompressed($content) and $content = Gzip::inflate($content, $this->maxInflatedSize);
 
         return Document::read($content, self::MAX_DECODED_SIZE, $this->maxFrames);
     }
@@ -247,38 +246,5 @@ final class ProfileBuilder
         $at = \max((int) \strrpos($type, '_'), (int) \strrpos($type, '-'));
 
         return $at > 0 ? \substr($type, 0, $at) : null;
-    }
-
-    /**
-     * @throws \InvalidArgumentException When the content is not valid gzip, decompresses past the limit,
-     *         or there is no zlib to decompress it.
-     */
-    private function inflate(string $content): string
-    {
-        \function_exists('gzdecode') or throw new \InvalidArgumentException(
-            'The profile is gzip-compressed, but the server has no zlib extension: send it decompressed.',
-        );
-
-        $tooLarge = "The profile decompresses to more than {$this->maxInflatedSize} bytes.";
-        $error = '';
-        \set_error_handler(static function (int $code, string $message) use (&$error): bool {
-            $error = $message;
-            return true;
-        });
-        try {
-            $inflated = \gzdecode($content, $this->maxInflatedSize);
-        } finally {
-            \restore_error_handler();
-        }
-
-        if ($inflated === false) {
-            throw new \InvalidArgumentException(
-                \str_contains($error, 'insufficient memory') ? $tooLarge : 'Invalid gzip data.',
-            );
-        }
-        // The limit is checked by the chunks zlib inflates
-        \strlen($inflated) <= $this->maxInflatedSize or throw new \InvalidArgumentException($tooLarge);
-
-        return $inflated;
     }
 }

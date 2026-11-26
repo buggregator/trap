@@ -81,6 +81,8 @@ final class ProfileSummaryTest
     #[DataSet(['SPX', ['wt', 'cpu', 'mu', 'ct'], 'calls', 'wt'], 'SPX')]
     #[DataSet(['pprof', ['mu', 'ct'], 'alloc_objects', 'mu'], 'pprof')]
     #[DataSet(['Speedscope', ['wt', 'ct'], 'samples', 'wt'], 'Speedscope')]
+    #[DataSet(['phpspy', ['wt', 'ct'], 'samples', 'wt'], 'phpspy')]
+    #[DataSet(['collapsed', ['ct'], 'samples', 'ct'], 'collapsed')]
     public function testSummarizesEveryFormat(string $format, array $metrics, string $countType, string $metric): void
     {
         $trap = new Trap();

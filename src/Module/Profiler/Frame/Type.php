@@ -16,4 +16,6 @@ enum Type: string
     case Speedscope = 'Speedscope';
     case Pprof = 'Pprof';
     case Blackfire = 'Blackfire';
+    case Phpspy = 'Phpspy';
+    case Collapsed = 'Collapsed';
 }

@@ -57,7 +57,7 @@ Stop the server with `Ctrl+C`. A second `Ctrl+C` exits at once.
 Sends a sample of every kind of data Trap receives to a running Trap, so that one run fills the console and every
 page of the [web UI](web-ui.md), Sentry pages included:
 
-- profiles: XHProf, Xdebug, SPX and Speedscope (Excimer);
+- profiles: XHProf, Xdebug, SPX, Speedscope (Excimer), a phpspy trace and collapsed stacks;
 - an [Xdebug function trace](xdebug-traces.md);
 - `trap()` dumps and a protobuf message;
 - three emails over SMTP: a multipart one with Apple Watch and AMP versions, an invite and an attached file,

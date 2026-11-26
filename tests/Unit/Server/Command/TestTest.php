@@ -29,7 +29,7 @@ final class TestTest
     public static function payloadFiles(): iterable
     {
         $source = (string) \file_get_contents(Info::TRAP_ROOT . '/src/Server/Command/Test.php');
-        \preg_match_all('/[\'"]([\w$.-]+\.(?:http|json|png|gz))[\'"]/', $source, $matches);
+        \preg_match_all('/[\'"]([\w$.-]+\.(?:http|json|png|gz|txt|folded))[\'"]/', $source, $matches);
 
         foreach (\array_unique($matches[1]) as $file) {
             foreach (\str_contains($file, '$signal') ? ['traces', 'logs', 'metrics'] : [null] as $signal) {

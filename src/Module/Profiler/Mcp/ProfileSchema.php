@@ -20,7 +20,9 @@ final class ProfileSchema
         . 'in bytes, `ct` the calls, or the samples of a sampling profiler. XHProf has `wt`, `ct`, and `cpu`, `mu`, '
         . '`pmu` when enabled; Xdebug `wt`, `mu`, `ct`; SPX `wt`, `ct`, and `cpu`, `mu` when enabled; pprof `ct` '
         . 'with `wt` and `cpu` for a CPU profile or `mu` for a memory one; Speedscope (Excimer) `wt` (`cpu` too with '
-        . 'the CPU clock) or `mu`, and `ct`; the Blackfire probe `wt`, `cpu`, `mu`, `pmu`, `ct`. `profile_summary` lists the metrics of a profile.';
+        . 'the CPU clock) or `mu`, and `ct`; the Blackfire probe `wt`, `cpu`, `mu`, `pmu`, `ct`; phpspy and collapsed '
+        . 'stacks `ct`, and `wt` when sent with the sampling period (`cpu` too for collapsed stacks on the CPU clock). '
+        . '`profile_summary` lists the metrics of a profile.';
 
     /**
      * @return array<non-empty-string, mixed> The property of the input schema.

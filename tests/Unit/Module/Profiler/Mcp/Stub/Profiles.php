@@ -10,6 +10,7 @@ use Buggregator\Trap\Module\Profiler\Frame\Type;
 use Buggregator\Trap\Module\Profiler\Pprof\ProfileBuilder as PprofBuilder;
 use Buggregator\Trap\Module\Profiler\Speedscope\ProfileBuilder as SpeedscopeBuilder;
 use Buggregator\Trap\Module\Profiler\SPX\ProfileBuilder as SpxBuilder;
+use Buggregator\Trap\Module\Profiler\Stacks\ProfileBuilder as StacksBuilder;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Module\Profiler\XDebug\ProfileBuilder as XDebugBuilder;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder as XHProfBuilder;
@@ -131,6 +132,19 @@ final class Profiles
         );
     }
 
+    public static function phpspy(): Profile
+    {
+        return (new StacksBuilder())->phpspy(
+            (string) \file_get_contents(self::STUB . '/phpspy/default.txt'),
+            period: 1 / 199,
+        );
+    }
+
+    public static function collapsed(): Profile
+    {
+        return (new StacksBuilder())->collapsed((string) \file_get_contents(self::STUB . '/phpspy/default.folded'));
+    }
+
     /**
      * @return array<non-empty-string, array{Type, \Closure(): Profile}> By labels.
      */
@@ -142,6 +156,8 @@ final class Profiles
             'SPX' => [Type::SPX, self::spx(...)],
             'pprof' => [Type::Pprof, self::pprof(...)],
             'Speedscope' => [Type::Speedscope, self::speedscope(...)],
+            'phpspy' => [Type::Phpspy, self::phpspy(...)],
+            'collapsed' => [Type::Collapsed, self::collapsed(...)],
         ];
     }
 }
