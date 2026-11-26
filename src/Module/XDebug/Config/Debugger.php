@@ -11,7 +11,7 @@ use Buggregator\Trap\Server\Application\Config\Internal\Attribute\XPath;
 
 /**
  * The Xdebug debugger (DBGp): Xdebug connects to {@see $port}; a session goes on to the IDE at {@see $ideAddr},
- * or is driven from the UI and the MCP tools. On with the `--xdebug` option only.
+ * or is driven from the UI and the MCP tools. On with the `--xdebug` option or `XDEBUG_PROXY_ENABLED` only.
  *
  * @internal
  */

@@ -14,14 +14,17 @@ use Buggregator\Trap\Module\Mcp\Sender\McpSender;
 use Buggregator\Trap\Module\Remote\RemoteSender;
 use Buggregator\Trap\Server\Application\Module\Modules;
 use Buggregator\Trap\Server\Command\Run;
+use Buggregator\Trap\Server\Config\XDebugProxy;
 use Buggregator\Trap\Tests\Unit\Server\Command\Stub\TakingConsoleSender;
 use Internal\Container\ObjectContainer;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Tester\CommandTester;
 use Testo\Assert;
 use Testo\Codecov\Covers;
+use Testo\Data\DataSet;
 use Testo\Expect;
 use Testo\Test;
 
@@ -65,6 +68,20 @@ final class RunTest
             \chdir((string) $cwd);
             self::remove($dir);
         }
+    }
+
+    #[DataSet([[], false, ['console']], 'defaults')]
+    #[DataSet([['--ui' => null, '--mcp' => null, '--xdebug' => null], false, ['console', 'ui', 'mcp', 'xdebug']], 'options')]
+    #[DataSet([['--xdebug' => '9013'], false, ['console', 'xdebug']], 'debugger port')]
+    #[DataSet([[], true, ['console', 'xdebug']], 'debugger of the config')]
+    #[DataSet([['--sender' => ['file']], true, ['file', 'xdebug']], 'senders and the config')]
+    public function testSenders(array $options, bool $enabled, array $senders): void
+    {
+        $input = new ArrayInput($options, (new Run())->getDefinition());
+        $xdebug = new XDebugProxy();
+        $xdebug->enabled = $enabled;
+
+        Assert::same(Run::senders($input, $xdebug), $senders);
     }
 
     public function testRejectsUnknownSender(): void

@@ -11,6 +11,7 @@ use Buggregator\Trap\Server\Config\App;
 use Buggregator\Trap\Server\Config\SocketServer;
 use Buggregator\Trap\Server\Config\TcpPorts;
 use Buggregator\Trap\Server\Config\Tls;
+use Buggregator\Trap\Server\Config\XDebugProxy;
 use Buggregator\Trap\Server\Info;
 use Buggregator\Trap\Server\Logger;
 use Buggregator\Trap\Server\Sender;
@@ -59,6 +60,23 @@ final class Run extends Command implements SignalableCommandInterface
     private ?Application $app = null;
     private Logger $logger;
     private bool $cancelled = false;
+
+    /**
+     * The `--sender` names, and those the `--ui`, `--mcp` and `--xdebug` options turn on. The debugger is also
+     * on by {@see XDebugProxy}.
+     *
+     * @return non-empty-string[]
+     */
+    public static function senders(InputInterface $input, XDebugProxy $xdebug): array
+    {
+        /** @var non-empty-string[] $senders */
+        $senders = \array_filter((array) $input->getOption('sender'));
+        $input->getOption('ui') === false or $senders[] = 'ui';
+        $input->getOption('mcp') === false or $senders[] = 'mcp';
+        $input->getOption('xdebug') !== false || $xdebug->enabled and $senders[] = 'xdebug';
+
+        return $senders;
+    }
 
     #[\Override]
     public function configure(): void
@@ -170,18 +188,13 @@ final class Run extends Command implements SignalableCommandInterface
             $output->writeln(\sprintf('<fg=yellow;options=bold>%s</> <info>v%s</>', Info::NAME, Info::version()));
             $output->write(Info::LOGO_CLI_COLOR . "\n", true, OutputInterface::OUTPUT_RAW);
 
-            /** @var non-empty-string[] $senders */
-            $senders = \array_filter((array) $input->getOption('sender'));
-            $input->getOption('ui') === false or $senders[] = 'ui';
-            $input->getOption('mcp') === false or $senders[] = 'mcp';
-            $input->getOption('xdebug') === false or $senders[] = 'xdebug';
-
             $container = Bootstrap::init()->withConfig(
                 xml: \dirname(__DIR__, 3) . '/trap.xml',
                 inputOptions: $input->getOptions(),
                 inputArguments: $input->getArguments(),
                 environment: \getenv(),
             )->finish();
+            $senders = self::senders($input, $container->get(XDebugProxy::class));
             $limit = $container->get(App::class)->memoryLimit;
             MemoryLimit::raise($limit) and $this->logger->info('Memory limit raised to %s.', $limit);
             $container->set($input, InputInterface::class);
