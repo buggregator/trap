@@ -85,7 +85,8 @@ tr();                           // Trace #1  0.015ms  6.58M
 trap()->stackTrace();
 ```
 
-Profile a piece of code with Excimer, XHProf or SPX; Trap also takes Xdebug, Speedscope and pprof profiles.
+Profile a piece of code with Excimer, XHProf or SPX; Trap also takes Xdebug, Speedscope and pprof profiles,
+and the stack samples of phpspy and reli-prof.
 → [Profiling code](docs/profiling.md)
 
 ```php

@@ -12,6 +12,7 @@ use Buggregator\Trap\Module\Profiler\Frontend\Palette;
 use Buggregator\Trap\Module\Profiler\Pprof\ProfileBuilder as PprofProfileBuilder;
 use Buggregator\Trap\Module\Profiler\Speedscope\ProfileBuilder as SpeedscopeProfileBuilder;
 use Buggregator\Trap\Module\Profiler\SPX\ProfileBuilder as SpxProfileBuilder;
+use Buggregator\Trap\Module\Profiler\Stacks\ProfileBuilder as StacksProfileBuilder;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
 use Buggregator\Trap\Module\Profiler\XDebug\ProfileBuilder as XDebugProfileBuilder;
 use Buggregator\Trap\Module\Profiler\XHProf\ProfileBuilder;
@@ -315,6 +316,25 @@ final class MapperTest
         Assert::same(\array_column($top['schema'], 'key'), ['function', 'ct', 'mu', 'excl_mu']);
         Assert::same($top['schema'][1]['description'], 'Samples with the function on the stack');
         Assert::same(\array_column(\array_column($graph['nodes'], 'data'), 'name'), ['main() (2 samples)', 'foo (1 sample)']);
+    }
+
+    public function testStackSamplesShowSamples(): void
+    {
+        $builder = new StacksProfileBuilder();
+        $profiles = [
+            Type::Phpspy->value => $builder->phpspy("0 foo /app/a.php:1\n1 <main> /app/a.php:2\n\n0 <main> /app/a.php:3\n\n", period: 0.01),
+            Type::Collapsed->value => $builder->collapsed("<main>;foo 1\n<main> 1\n", period: 0.01),
+        ];
+
+        foreach ($profiles as $type => $profile) {
+            $payload = Payload::new(Type::from($type), static fn() => $profile);
+            $event = new Event($profile->uuid, 'profiler', $payload, 0.0);
+            $graph = self::json((new Mapper())->callGraph($event, threshold: 0));
+
+            Assert::same(Mapper::countType($payload), 'samples');
+            Assert::same(self::json((new Mapper())->topFunctions($event, 'wt'))['schema'][1]['description'], 'Samples with the function on the stack');
+            Assert::same(\array_column(\array_column($graph['nodes'], 'data'), 'name'), ['main() (2 samples)', 'foo (1 sample)']);
+        }
     }
 
     public function testPprofHeapProfileShowsObjects(): void

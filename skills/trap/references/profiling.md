@@ -16,6 +16,7 @@ its `phpinfo()` or profile the same code from a CLI entry point, such as a test.
 | SPX (`ext-spx`)                          | Every call, wall and CPU time, memory                      | Only when set up already: INI at start |
 | Xdebug (`xdebug.mode=profile`)           | Every call of the whole process, slowly                    | No other profiler; a whole CLI run     |
 | Blackfire probe (`ext-blackfire`)        | Every call: count, wall and CPU time, memory               | Only when installed already            |
+| phpspy, reli-prof (Linux, ptrace)        | Samples the stack of a running process from outside        | A process that can't be changed        |
 
 With none of them, tell the user which to install; Excimer is `pecl install excimer`.
 
@@ -76,6 +77,25 @@ $session->stop();
     `blackfire.apm_enabled=0` turns it off. Not an error.
   - A profile over 64 MB, data that is not a profile, or a profile coming while four others wait to be built is
     dropped with a warning in Trap's console; the probe doesn't send it again.
+- phpspy or reli-prof, sampling a running PHP process with no extension: POST the text trace to
+  `/api/profiler/phpspy`. `period` (seconds, `1 / rate`; `0.0101` for phpspy's default 99 Hz) adds the wall time;
+  without it the profile has `ct` only, the samples.
+
+  ```bash
+  phpspy -p <pid> -o trace.txt        # or: reli inspector:trace -p <pid> -o trace.txt
+  curl --data-binary @trace.txt 'http://127.0.0.1:8000/api/profiler/phpspy?period=0.0101&name=worker'
+  ```
+
+  - Any phpspy output works: the default, `-1`, the chunks of deep samples (`-b`), metadata from `-r`, `-m`, `-d`, `-e`.
+    A sample cut off at the end of the trace is dropped.
+  - The body is up to 8 MB (`413` past it); gzip it for more, up to 32 MB decompressed:
+    `gzip -c trace.txt | curl --data-binary @- ...`. `400` names the line Trap couldn't read, or the limit passed:
+    10 000 frames in a sample, 500 000 samples, 2 000 000 frames in all, 4 000 000 lines, 100 000 frames waiting
+    in unfinished chunks, 50 000 functions (fewer when Trap's memory runs low). Over a limit, profile a shorter run.
+  - The `format` is `Phpspy`. Collapsed stacks (`frame;frame count` lines) go to `/api/profiler/collapsed` the same
+    way, with the `format` `Collapsed`; there `clock=cpu` with `period` measures CPU time. SPX goes to
+    `/api/profiler/spx`: its collapsed stacks count microseconds, not samples. Send reli-prof's trace, not its
+    `converter:folded` output: that keeps the file and line in every frame.
 - Any language, as pprof, Speedscope JSON or XHProf JSON: POST it to Trap.
 
 ```bash
@@ -90,6 +110,8 @@ curl -s 'http://localhost:6060/debug/pprof/profile?seconds=10' \
 | `POST /api/profiler/store`      | XHProf, as Buggregator Server takes it |
 | `POST /api/profiler/xdebug`     | Xdebug cachegrind                      |
 | `POST /api/profiler/spx`        | SPX full report                        |
+| `POST /api/profiler/phpspy`     | phpspy and reli-prof, gzipped or not   |
+| `POST /api/profiler/collapsed`  | Collapsed stacks, gzipped or not       |
 
 ## Read the profile
 
@@ -108,7 +130,7 @@ curl -s 'http://localhost:6060/debug/pprof/profile?seconds=10' \
 | `cpu`  | CPU time, µs                                 |
 | `mu`   | Memory, bytes                                |
 | `pmu`  | Peak memory, bytes (XHProf, Blackfire probe) |
-| `ct`   | Calls, or samples of Excimer                 |
+| `ct`   | Calls, or samples of Excimer, phpspy, reli   |
 
 - Without `metric` the tools take `wt`, else the first the profile has; a missing one fails with those it has.
 - Wall time far above CPU time is waiting: I/O, the database, a sleep; look at the callees that wait. Xdebug

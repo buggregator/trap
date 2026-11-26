@@ -17,6 +17,7 @@ use Buggregator\Trap\Module\Profiler\Config\XHProf;
 use Buggregator\Trap\Module\Profiler\Http\PprofTrap;
 use Buggregator\Trap\Module\Profiler\Http\SpeedscopeTrap;
 use Buggregator\Trap\Module\Profiler\Http\SPXTrap;
+use Buggregator\Trap\Module\Profiler\Http\StacksTrap;
 use Buggregator\Trap\Module\Profiler\Http\XDebugTrap;
 use Buggregator\Trap\Module\Profiler\Http\XHProfTrap;
 use Buggregator\Trap\Module\Profiler\Traffic\BlackfireDispatcher;
@@ -125,6 +126,7 @@ final class ModulesTest
                 SpeedscopeTrap::class,
                 PprofTrap::class,
                 SPXTrap::class,
+                StacksTrap::class,
                 TraceTrap::class,
                 OtlpTrap::class,
                 HtmlTrap::class,

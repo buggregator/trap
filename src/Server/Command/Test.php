@@ -345,6 +345,21 @@ final class Test extends Command
             ['Content-Type' => 'application/json'],
             self::read('speedscope-excimer.json'),
         ));
+
+        // Recorded at phpspy's `-H 199`: a 5 ms period
+        $this->attempt('phpspy trace', fn() => $this->http(
+            'POST',
+            '/api/profiler/phpspy?app_name=trap-test&hostname=trap-test&name=phpspy&period=0.005025',
+            ['Content-Type' => 'text/plain'],
+            self::read('phpspy.txt'),
+        ));
+
+        $this->attempt('Collapsed stacks', fn() => $this->http(
+            'POST',
+            '/api/profiler/collapsed?app_name=trap-test&hostname=trap-test&name=collapsed&period=0.005025',
+            ['Content-Type' => 'text/plain'],
+            self::read('phpspy.folded'),
+        ));
     }
 
     private function xdebugTrace(): void

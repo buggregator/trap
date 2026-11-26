@@ -6,6 +6,7 @@ namespace Buggregator\Trap\Module\Profiler\Mcp;
 
 use Buggregator\Trap\Module\Mcp\Tool;
 use Buggregator\Trap\Module\Profiler\Compaction\Report;
+use Buggregator\Trap\Module\Profiler\Frame\Type;
 use Buggregator\Trap\Module\Profiler\Struct\Metric;
 
 /**
@@ -73,7 +74,7 @@ final class ProfileSummary implements Tool
             'properties' => [
                 'id' => ['type' => 'string'],
                 'name' => ['type' => 'string', 'description' => 'The application name, else the file name; may be empty.'],
-                'format' => ['type' => 'string', 'enum' => ['XHProf', 'XDebug', 'SPX', 'Speedscope', 'Pprof', 'Blackfire']],
+                'format' => ['type' => 'string', 'enum' => \array_column(Type::cases(), 'value')],
                 'date' => ['type' => 'string', 'description' => 'When the profile was taken, ISO 8601.'],
                 'hostname' => ['type' => 'string'],
                 'tags' => ['type' => 'object', 'additionalProperties' => ['type' => 'string']],

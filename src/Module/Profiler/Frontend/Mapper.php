@@ -52,6 +52,7 @@ final class Mapper implements EventMapper
         return match ($payload->type) {
             ProfilerPayloadType::Speedscope => ($metadata['profile_type'] ?? null) === 'sampled' ? self::SAMPLES : null,
             ProfilerPayloadType::SPX => isset($metadata['sampling_period']) ? self::SAMPLED_CALLS : null,
+            ProfilerPayloadType::Phpspy, ProfilerPayloadType::Collapsed => self::SAMPLES,
             default => null,
         };
     }
