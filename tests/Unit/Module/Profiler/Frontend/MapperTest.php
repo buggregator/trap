@@ -25,6 +25,7 @@ use Testo\Test;
 
 #[Covers(Mapper::class)]
 #[Covers(Palette::class)]
+#[Covers(Recursion::class)]
 #[Test]
 final class MapperTest
 {
@@ -392,6 +393,176 @@ final class MapperTest
         ]);
     }
 
+    public function testCallGraphKeepsNodePerRecursionLevelByDefault(): void
+    {
+        $graph = self::json((new Mapper())->callGraph(self::event(), threshold: 0, percentage: 100));
+
+        Assert::same($graph['recursion'], 'levels');
+        Assert::same(\array_count_values(\array_column(\array_column($graph['nodes'], 'data'), 'name'))['bar (2x)'] ?? 0, 1);
+        Assert::contains(self::edges($graph), 'bar => bar: 1.439%');
+    }
+
+    public function testCollapsedCallGraphMergesRecursionLevelsIntoOneNode(): void
+    {
+        $graph = self::json((new Mapper())->callGraph(self::event(), threshold: 0, percentage: 100, collapseRecursion: true));
+
+        Assert::same($graph['recursion'], 'collapsed');
+        $nodes = \array_column(\array_column($graph['nodes'], 'data'), null, 'name');
+        // Two calls of `bar` from `foo` and one recursive; the cost is of the outer two, which take the third in
+        Assert::same($nodes['bar (3x, 1 recursive)']['metrics'], ['cost' => 37, 'percents' => 26.619]);
+        Assert::same(self::edges($graph), [
+            'foo => bar: 26.619%',
+            'foo => strlen: 2.158%',
+            'bar => bar: 1.439%',
+            'main() => foo: 74.82%',
+            'main() => xhprof_disable: 0.719%',
+        ]);
+    }
+
+    public function testCollapsedCallGraphCountsMutualRecursionOnce(): void
+    {
+        // `a()` calls `b()`, which calls `a()` again, twice deep
+        $event = self::event([
+            'main()==>a' => ['ct' => 1, 'wt' => 100, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'a==>b' => ['ct' => 1, 'wt' => 90, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'b==>a@1' => ['ct' => 1, 'wt' => 80, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'a@1==>b@1' => ['ct' => 1, 'wt' => 70, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'b@1==>a@2' => ['ct' => 1, 'wt' => 60, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()' => ['ct' => 1, 'wt' => 100, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        ]);
+
+        $graph = self::json((new Mapper())->callGraph($event, threshold: 0, percentage: 100, collapseRecursion: true));
+
+        $names = \array_column(\array_column($graph['nodes'], 'data'), 'name');
+        Assert::array($names)->sameElementsAs(['main() (1x)', 'a (3x, 2 recursive)', 'b (2x, 1 recursive)']);
+        // The nested calls of each pair are inside its outer one: their time is in it already
+        Assert::array(self::edges($graph))->sameElementsAs(['main() => a: 100%', 'a => b: 90%', 'b => a: 80%']);
+    }
+
+    public function testCollapsedCallGraphOfSamplesCountsSampleOnce(): void
+    {
+        $profile = (new StacksProfileBuilder())->collapsed("main;f;f;f 2\nmain;f;g 1\nmain 1\n", period: 0.001);
+        $event = new Event($profile->uuid, 'profiler', Payload::new(Type::Collapsed, static fn() => $profile), 0.0);
+
+        $levels = self::json((new Mapper())->callGraph($event, threshold: 0, percentage: 100));
+        $collapsed = self::json((new Mapper())->callGraph($event, threshold: 0, percentage: 100, collapseRecursion: true));
+
+        Assert::count($levels['nodes'], 5);
+        Assert::array(\array_column(\array_column($collapsed['nodes'], 'data'), 'name'))
+            ->sameElementsAs(['main() (4 samples)', 'f (3 samples)', 'g (1 sample)']);
+        Assert::array(\preg_replace('/ \(\d+ samples?\)/', '', self::edges($collapsed)))
+            ->sameElementsAs(['main() => f: 75%', 'f => f: 50%', 'f => g: 25%']);
+    }
+
+    public function testCollapsedCallGraphFollowsRecordedTreeThroughOtherFunctions(): void
+    {
+        // In the second sample `a` calls itself again after `b` called it: that call is no part of an outer `a => a`
+        $profile = (new StacksProfileBuilder())->collapsed("main;a;a 1\nmain;a;b;a;a 1\n", period: 0.001);
+        $event = new Event($profile->uuid, 'profiler', Payload::new(Type::Collapsed, static fn() => $profile), 0.0);
+
+        $graph = self::json((new Mapper())->callGraph($event, threshold: 0, percentage: 100, collapseRecursion: true));
+
+        Assert::array(\preg_replace('/ \(\d+ samples?\)/', '', self::edges($graph)))
+            ->sameElementsAs(['main() => a: 100%', 'a => a: 100%', 'a => b: 50%', 'b => a: 50%']);
+    }
+
+    public function testCollapsedCallGraphLinksThroughHiddenFunctions(): void
+    {
+        // `h` and `k` (10% each) are hidden: `a` calls `b` (20%) through both
+        $profile = (new StacksProfileBuilder())->collapsed(
+            "main;a;h;b 10\nmain;a;k;b 10\nmain;a 70\nmain 10\n",
+            period: 0.001,
+        );
+        $event = new Event($profile->uuid, 'profiler', Payload::new(Type::Collapsed, static fn() => $profile), 0.0);
+
+        $graph = self::json((new Mapper())->callGraph($event, threshold: 15, percentage: 100, collapseRecursion: true));
+
+        Assert::array(\preg_replace('/ \(\d+ samples?\)/', '', self::edges($graph)))
+            ->sameElementsAs(['main() => a: 90%', 'a => b: 20%']);
+    }
+
+    public function testCollapsedCallGraphLinksCycleToRecursiveRoot(): void
+    {
+        // `f` calls itself, and is the root still; `x` and `y` call each other, and `a`, `b`, `c` call `x` under
+        // the threshold: one of these calls links the cycle to the root
+        $profile = (new StacksProfileBuilder())->collapsed(
+            "f;f 10\nf;a 20\nf;b 20\nf;c 20\nf;a;x;y;x 5\nf;b;x;y;x 5\nf;c;x;y;x 5\n",
+            period: 0.001,
+        );
+        $event = new Event($profile->uuid, 'profiler', Payload::new(Type::Collapsed, static fn() => $profile), 0.0);
+
+        $graph = self::json((new Mapper())->callGraph($event, threshold: 10, percentage: 100, collapseRecursion: true));
+
+        $edges = \preg_replace('/ \(\d+ samples?\)|: [\d.]+%/', '', self::edges($graph));
+        Assert::contains($edges, 'f => f');
+        Assert::count(\array_intersect($edges, ['a => x', 'b => x', 'c => x']), 1);
+    }
+
+    public function testCollapsedCallGraphOfSampledSpxCountsCallsOfAllLevels(): void
+    {
+        // `foo` calls itself once
+        $spx = Metadata::fromJson('{"enabled_metrics": ["wt"], "called_function_count": 2, "recorded_call_count": 3}');
+        $trace = "[events]\n0 1 0\n1 1 1000\n1 1 1500\n1 0 1800\n1 0 2000\n0 0 3000\n[functions]\nmain\nfoo\n";
+        $profile = (new SpxProfileBuilder())->createProfile($spx, [(string) \gzencode($trace)], samplingPeriod: 100);
+        $event = new Event($profile->uuid, 'profiler', Payload::new(Type::SPX, static fn() => $profile), 0.0);
+
+        $graph = self::json((new Mapper())->callGraph($event, threshold: 0, collapseRecursion: true));
+
+        Assert::array(\array_column(\array_column($graph['nodes'], 'data'), 'name'))
+            ->sameElementsAs(['main() (1 sampled call)', 'foo (2 sampled calls, 1 recursive)']);
+    }
+
+    public function testCollapsedCallGraphCountsNestedCallsOfRecordedTree(): void
+    {
+        // `a` calls itself, and that call calls itself again: two calls of `a => a`, one inside the other
+        $profile = (new SpeedscopeProfileBuilder())->createProfile([
+            '$schema' => SpeedscopeProfileBuilder::SCHEMA,
+            'shared' => ['frames' => [['name' => 'main'], ['name' => 'a']]],
+            'profiles' => [[
+                'type' => 'evented',
+                'unit' => 'milliseconds',
+                'startValue' => 0,
+                'endValue' => 10,
+                'events' => [
+                    ['type' => 'O', 'at' => 0, 'frame' => 0],
+                    ['type' => 'O', 'at' => 0, 'frame' => 1],
+                    ['type' => 'O', 'at' => 1, 'frame' => 1],
+                    ['type' => 'O', 'at' => 2, 'frame' => 1],
+                    ['type' => 'C', 'at' => 3, 'frame' => 1],
+                    ['type' => 'C', 'at' => 4, 'frame' => 1],
+                    ['type' => 'C', 'at' => 5, 'frame' => 1],
+                    ['type' => 'C', 'at' => 10, 'frame' => 0],
+                ],
+            ]],
+        ]);
+        $event = new Event($profile->uuid, 'profiler', Payload::new(Type::Speedscope, static fn() => $profile), 0.0);
+
+        $wt = self::json((new Mapper())->callGraph($event, threshold: 0, percentage: 100, collapseRecursion: true));
+        $ct = self::json((new Mapper())->callGraph($event, threshold: 0, percentage: 100, metric: 'ct', collapseRecursion: true));
+
+        Assert::array(\array_column(\array_column($wt['nodes'], 'data'), 'name'))
+            ->sameElementsAs(['main() (1x)', 'a (3x, 2 recursive)']);
+        // The time of the inner call is in the outer one; both calls count
+        Assert::array(self::edges($wt))->sameElementsAs(['main() => a: 50%', 'a => a: 30%']);
+        Assert::array(self::edges($ct))->sameElementsAs(['main() => a: 100%', 'a => a: 200%']);
+    }
+
+    public function testCollapsedCallGraphTakesCostOfOutermostLevelInAnyOrder(): void
+    {
+        // The deeper level of `a` comes first in the payload
+        $event = self::event([
+            'x==>a@1' => ['ct' => 1, 'wt' => 10, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'a==>x' => ['ct' => 1, 'wt' => 30, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()==>a' => ['ct' => 1, 'wt' => 50, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+            'main()' => ['ct' => 1, 'wt' => 100, 'cpu' => 0, 'mu' => 0, 'pmu' => 0],
+        ]);
+
+        $graph = self::json((new Mapper())->callGraph($event, threshold: 0, percentage: 100, collapseRecursion: true));
+
+        $nodes = \array_column(\array_column($graph['nodes'], 'data'), null, 'name');
+        Assert::same($nodes['a (2x, 1 recursive)']['metrics'], ['cost' => 50, 'percents' => 50]);
+    }
+
     public function testCallGraphHasOneNodePerFunction(): void
     {
         $graph = self::json((new Mapper())->callGraph(self::event(self::SHARED_STUB), threshold: 0, percentage: 0));
@@ -609,7 +780,7 @@ final class MapperTest
     private static function edges(array $graph): array
     {
         $names = \array_map(
-            static fn(string $name): string => \preg_replace('/ \(\d+x\)$/', '', $name),
+            static fn(string $name): string => \preg_replace('/ \(\d+x(?:, \d+ recursive)?\)$/', '', $name),
             \array_column(\array_column($graph['nodes'], 'data'), 'name', 'id'),
         );
 

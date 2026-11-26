@@ -17,6 +17,7 @@ use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Graph;
 use Buggregator\Trap\Module\Profiler\Struct\Peaks;
 use Buggregator\Trap\Module\Profiler\Struct\Profile;
+use Buggregator\Trap\Module\Profiler\Struct\Recursion;
 use Buggregator\Trap\Server\Event\Event;
 use Buggregator\Trap\Server\Event\EventMapper;
 use Buggregator\Trap\Server\Event\Facets;
@@ -135,41 +136,66 @@ final class Mapper implements EventMapper
      * @param float $threshold Functions and calls with a share of the metric not above it are hidden (%).
      *        A function keeps its heaviest incoming call and a call from the roots, so it stays linked to the graph.
      * @param float $percentage Functions with a share of the metric from it are colored (%).
+     * @param bool $collapseRecursion A node per function, its recursion levels merged into it: its cost is the one
+     *        of its outermost calls, and direct recursion is a call from the node to itself. Otherwise a node
+     *        per recursion level, see {@see Recursion}.
      */
     public function callGraph(
         Event $event,
         float $threshold = 1,
         float $percentage = 15,
         string $metric = 'wt',
+        bool $collapseRecursion = false,
     ): CallGraph {
         $profile = $event->payload->getProfile();
         $graph = $profile->calls;
         $countType = self::countType($event->payload);
+        // Every call counts once; a sample counts once however deep the recursion it is in
+        $callCounts = $countType === null || $countType === self::SAMPLED_CALLS;
         $nodes = [];
         $edges = [];
-        /** @var array<non-empty-string, array{non-empty-string, string}> $visible Node IDs and colors by function IDs */
-        $visible = [];
 
+        /** @var array<array-key, non-empty-list<non-empty-string>> $groups Function IDs by the nodes they make */
+        $groups = [];
+        /** @var array<non-empty-string, int<0, max>> $levels Recursion levels by function IDs */
+        $levels = [];
         foreach ($graph->functions() as $functionId) {
-            $cost = self::withPercents($graph->inclusiveCost($functionId), $profile->peaks);
+            $name = $graph->callers($functionId)[0]->callee;
+            $levels[$functionId] = Recursion::level($functionId, $name);
+            $groups[$collapseRecursion ? $name : $functionId][] = $functionId;
+        }
+
+        /** @var array<non-empty-string, non-empty-string> $visible Node IDs by function IDs */
+        $visible = [];
+        /** @var array<non-empty-string, string> $colors Colors by node IDs */
+        $colors = [];
+        foreach ($groups as $functionIds) {
+            [$cost, $recursive] = self::nodeCost($graph, $functionIds, $levels, $callCounts);
+            $cost = self::withPercents($cost, $profile->peaks);
             $percent = self::percentOf($cost, $metric);
             $important = $percent >= $percentage;
             if (!$important && $percent <= $threshold) {
                 continue;
             }
 
-            $id = 'n' . (\count($visible) + 1);
+            $id = 'n' . (\count($colors) + 1);
             $color = $important ? Palette::callGraphNode($percent) : '#FFFFFF';
-            $visible[$functionId] = [$id, $color];
-            $name = $graph->callers($functionId)[0]->callee;
+            $colors[$id] = $color;
+            foreach ($functionIds as $functionId) {
+                $visible[$functionId] = $id;
+            }
+            $name = $graph->callers($functionIds[0])[0]->callee;
 
             $nodes[] = new CallGraph\Node(
                 id: $id,
                 name: match (true) {
                     $cost->ct === 0 => $name,
+                    $countType === null && $recursive > 0 => \sprintf('%s (%dx, %d recursive)', $name, $cost->ct, $recursive),
                     $countType === null => \sprintf('%s (%dx)', $name, $cost->ct),
                     $countType === self::SAMPLES
                         => \sprintf('%s (%d %s)', $name, $cost->ct, $cost->ct === 1 ? 'sample' : 'samples'),
+                    $countType === self::SAMPLED_CALLS && $recursive > 0
+                        => \sprintf('%s (%d sampled calls, %d recursive)', $name, $cost->ct, $recursive),
                     $countType === self::SAMPLED_CALLS
                         => \sprintf('%s (%d sampled %s)', $name, $cost->ct, $cost->ct === 1 ? 'call' : 'calls'),
                     default => \sprintf('%s (%d %s)', $name, $cost->ct, $countType),
@@ -181,12 +207,14 @@ final class Mapper implements EventMapper
             );
         }
 
-        $calls = self::visibleCalls($profile, $visible);
+        $calls = $collapseRecursion && $profile->exactTree
+            ? self::treeCalls($profile, $visible, $callCounts)
+            : self::nodeCalls(self::visibleCalls($profile, $visible), $visible, $levels, $callCounts);
         $percents = \array_map(
             static fn(array $call): float => self::percentOf(self::withPercents($call[2], $profile->peaks), $metric),
             $calls,
         );
-        /** @var array<non-empty-string, int> $heaviest Index of the heaviest call by callee IDs */
+        /** @var array<non-empty-string, int> $heaviest Index of the heaviest call by callee nodes */
         $heaviest = [];
         foreach ($calls as $i => [, $calleeId]) {
             isset($heaviest[$calleeId]) && $percents[$i] <= $percents[$heaviest[$calleeId]]
@@ -204,14 +232,15 @@ final class Mapper implements EventMapper
             }
 
             $edges[] = new CallGraph\Edge(
-                color: $visible[$calleeId][1],
+                color: $colors[$calleeId],
                 label: (string) $percents[$i] . '%',
-                source: $visible[$callerId][0],
-                target: $visible[$calleeId][0],
+                source: $callerId,
+                target: $calleeId,
             );
         }
 
         return new CallGraph(
+            recursion: $collapseRecursion ? CallGraph::RECURSION_COLLAPSED : CallGraph::RECURSION_LEVELS,
             toolbar: new CallGraph\Toolbar(\array_values(\array_filter(
                 [
                     new CallGraph\Button('CPU', 'cpu', 'CPU time (ms)'),
@@ -285,7 +314,11 @@ final class Mapper implements EventMapper
      */
     private static function linkToRoots(array $calls, array $percents, array $kept): array
     {
-        $callees = \array_flip(\array_column($calls, 1));
+        // A recursive root calls itself, and is a root still
+        $callees = [];
+        foreach ($calls as [$callerId, $calleeId]) {
+            $callerId === $calleeId or $callees[$calleeId] = true;
+        }
         do {
             /** @var array<non-empty-string, list<non-empty-string>> $callers Callees of the kept calls by caller IDs */
             $callers = [];
@@ -318,6 +351,144 @@ final class Mapper implements EventMapper
         } while ($link !== null);
 
         return $kept;
+    }
+
+    /**
+     * Inclusive cost of the functions of a node: of its outermost calls, which take the deeper recursion levels in.
+     *
+     * @param non-empty-list<non-empty-string> $functionIds
+     * @param array<non-empty-string, int<0, max>> $levels Recursion levels by function IDs.
+     * @param bool $callCounts The count is of calls, which are apart at every level; otherwise of samples, which
+     *        the outermost level has all.
+     *
+     * @return array{Cost, int<0, max>} The cost, and the calls of the deeper levels when the count is of calls.
+     */
+    private static function nodeCost(Graph $graph, array $functionIds, array $levels, bool $callCounts): array
+    {
+        $outermost = $functionIds[0];
+        $ct = 0;
+        foreach ($functionIds as $functionId) {
+            $levels[$functionId] < $levels[$outermost] and $outermost = $functionId;
+            $ct = Cost::sum($ct, $graph->inclusiveCost($functionId)->ct);
+        }
+        $cost = $graph->inclusiveCost($outermost);
+        if (!$callCounts || \count($functionIds) === 1) {
+            return [$cost, 0];
+        }
+
+        return [new Cost($ct, $cost->wt, $cost->cpu, $cost->mu, $cost->pmu), \max(0, $ct - $cost->ct)];
+    }
+
+    /**
+     * Calls between the nodes, exact, from a recorded call tree: a call made inside an outer call of the same nodes
+     * adds its count when the count is of calls, and nothing else, as the cost of the outer call takes it in.
+     * A hidden function doesn't break the paths through it, as in {@see self::visibleCalls()}.
+     *
+     * @param array<non-empty-string, non-empty-string> $nodes Node IDs by the function IDs of the visible nodes.
+     *
+     * @return list<array{non-empty-string, non-empty-string, Cost}> Between node IDs.
+     */
+    private static function treeCalls(Profile $profile, array $nodes, bool $callCounts): array
+    {
+        /** @var array<non-empty-string, array{non-empty-string, non-empty-string, int<0, max>, int<0, max>, int<0, max>, int<0, max>, int<0, max>}> $sums */
+        $sums = [];
+        /** @var array<non-empty-string, int<1, max>> $open Calls of each pair on the path from the root */
+        $open = [];
+
+        // Iterative: the depth follows the recursion in the profiled code. A string entry closes a call of a pair.
+        /** @var list<array{Branch<Edge>, non-empty-string|null}|non-empty-string> $stack Node, nearest visible ancestor */
+        $stack = \array_map(
+            static fn(Branch $branch): array => [$branch, null],
+            \array_reverse(\array_values($profile->tree()->root)),
+        );
+        while ($stack !== []) {
+            $entry = \array_pop($stack);
+            if (\is_string($entry)) {
+                if ($open[$entry] === 1) {
+                    unset($open[$entry]);
+                } else {
+                    --$open[$entry];
+                }
+                continue;
+            }
+
+            [$branch, $ancestor] = $entry;
+            $node = $nodes[$branch->item->calleeId] ?? null;
+            $children = \array_reverse($branch->children);
+            if ($node !== null && $ancestor !== null) {
+                $pair = "$ancestor==>$node";
+                $cost = $branch->item->cost;
+                $outer = !isset($open[$pair]);
+                $sum = $sums[$pair] ?? [$ancestor, $node, 0, 0, 0, 0, 0];
+                ($outer || $callCounts) and $sum[2] = Cost::sum($sum[2], $cost->ct);
+                if ($outer) {
+                    $sum[3] = Cost::sum($sum[3], $cost->wt);
+                    $sum[4] = Cost::sum($sum[4], $cost->cpu);
+                    $sum[5] = Cost::sum($sum[5], $cost->mu);
+                    $sum[6] = Cost::sum($sum[6], $cost->pmu);
+                }
+                $sums[$pair] = $sum;
+                if ($children !== []) {
+                    $open[$pair] = ($open[$pair] ?? 0) + 1;
+                    $stack[] = $pair;
+                }
+            }
+            foreach ($children as $child) {
+                $stack[] = [$child, $node ?? $ancestor];
+            }
+        }
+
+        // A call may have freed more memory than it took: as in visibleCalls(), no negative cost
+        return \array_values(\array_map(
+            static fn(array $sum): array => [
+                $sum[0],
+                $sum[1],
+                new Cost(\max(0, $sum[2]), \max(0, $sum[3]), \max(0, $sum[4]), \max(0, $sum[5]), \max(0, $sum[6])),
+            ],
+            $sums,
+        ));
+    }
+
+    /**
+     * Calls between the nodes, summed over the recursion levels of their functions, by the levels alone when no
+     * recorded tree tells how the calls nest, see {@see Recursion::nested()}: a call taken as made inside another call
+     * of the same nodes adds its count when the count is of calls, and nothing else.
+     *
+     * @param list<array{non-empty-string, non-empty-string, Cost}> $calls Between function IDs.
+     * @param array<non-empty-string, non-empty-string> $nodes Node IDs by function IDs.
+     * @param array<non-empty-string, int<0, max>> $levels Recursion levels by function IDs.
+     *
+     * @return list<array{non-empty-string, non-empty-string, Cost}> Between node IDs.
+     */
+    private static function nodeCalls(array $calls, array $nodes, array $levels, bool $callCounts): array
+    {
+        /** @var array<non-empty-string, list<array{non-empty-string, non-empty-string, Cost}>> $pairs */
+        $pairs = [];
+        foreach ($calls as $call) {
+            $pairs[$nodes[$call[0]] . '==>' . $nodes[$call[1]]][] = $call;
+        }
+
+        $result = [];
+        foreach ($pairs as $pair) {
+            $nested = \count($pair) === 1 ? [] : Recursion::nested(\array_map(
+                static fn(array $call): array => [$levels[$call[0]], $levels[$call[1]]],
+                $pair,
+            ));
+            $ct = $wt = $cpu = $mu = $pmu = 0;
+            foreach ($pair as $i => [, , $cost]) {
+                $outer = !isset($nested[$i]);
+                ($outer || $callCounts) and $ct = Cost::sum($ct, $cost->ct);
+                if ($outer) {
+                    $wt = Cost::sum($wt, $cost->wt);
+                    $cpu = Cost::sum($cpu, $cost->cpu);
+                    $mu = Cost::sum($mu, $cost->mu);
+                    $pmu = Cost::sum($pmu, $cost->pmu);
+                }
+            }
+            $result[] = [$nodes[$pair[0][0]], $nodes[$pair[0][1]], new Cost($ct, $wt, $cpu, $mu, $pmu)];
+        }
+
+        return $result;
     }
 
     /**

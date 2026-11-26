@@ -43,15 +43,20 @@ final class ApiController
         return $this->mapper->topFunctions($event, $metric);
     }
 
+    /**
+     * @param string $recursion `collapsed` merges the recursion levels of a function into one node; anything else
+     *        keeps a node per level.
+     */
     #[RegexpRoute(Method::Get, '#^api/profiler/(?<uuid>[a-f0-9-]++)/call-graph$#i')]
     #[AssertSuccess(
         Method::Get,
-        'api/profiler/0190402f-7eb2-7287-82a8-897a0091f58e/call-graph?threshold=1.1&percentage=15.1&metric=wt',
+        'api/profiler/0190402f-7eb2-7287-82a8-897a0091f58e/call-graph?threshold=1.1&percentage=15.1&metric=wt&recursion=collapsed',
         [
             'uuid' => '0190402f-7eb2-7287-82a8-897a0091f58e',
             'threshold' => 1.1,
             'percentage' => 15.1,
             'metric' => 'wt',
+            'recursion' => 'collapsed',
         ],
     ),]
     public function profilerCallGraph(
@@ -59,13 +64,20 @@ final class ApiController
         #[QueryParam] float $threshold = 1,
         #[QueryParam] float $percentage = 15,
         #[QueryParam] string $metric = 'wt',
+        #[QueryParam] string $recursion = Message\CallGraph::RECURSION_LEVELS,
     ): Message\CallGraph|Error {
         $event = $this->profile($uuid);
         if ($event === null) {
             return Error::notFound('Profile not found');
         }
 
-        return $this->mapper->callGraph($event, $threshold, $percentage, $metric);
+        return $this->mapper->callGraph(
+            $event,
+            $threshold,
+            $percentage,
+            $metric,
+            collapseRecursion: $recursion === Message\CallGraph::RECURSION_COLLAPSED,
+        );
     }
 
     #[RegexpRoute(Method::Get, '#^api/profiler/(?<uuid>[a-f0-9-]++)/flame-chart$#i')]

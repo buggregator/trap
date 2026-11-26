@@ -9,7 +9,7 @@ use Buggregator\Trap\Module\Mcp\Tool\Arguments;
 use Buggregator\Trap\Module\Profiler\Struct\Cost;
 use Buggregator\Trap\Module\Profiler\Struct\Edge;
 use Buggregator\Trap\Module\Profiler\Struct\Metric;
-use Buggregator\Trap\Support\TimeSlice;
+use Buggregator\Trap\Module\Profiler\Struct\Recursion;
 
 /**
  * The callers and the callees of a function: its neighbourhood in the call graph of a profile.
@@ -265,7 +265,13 @@ final class ProfileCalls implements Tool
 
         $links = [];
         foreach ($edges as $other => $pair) {
-            $nested = $metric === Metric::Count ? [] : self::nested($pair, $slice);
+            $nested = $metric === Metric::Count ? [] : Recursion::nested(\array_map(
+                static fn(Edge $edge): array => [
+                    Recursion::level($edge->callerId, $edge->caller),
+                    Recursion::level($edge->calleeId, $edge->callee),
+                ],
+                $pair,
+            ), $slice);
             $link = ['calls' => 0, 'inclusive' => 0, 'exclusive' => 0.0];
             foreach ($pair as $i => $edge) {
                 $link['calls'] = Cost::saturate($link['calls'] + $edge->cost->ct);
@@ -289,51 +295,5 @@ final class ProfileCalls implements Tool
         }
 
         return $sorted;
-    }
-
-    /**
-     * The calls that are a part of an outer call of the same pair, made deeper in both functions' recursions:
-     * summed, a recursion would count many times over. A call deeper in one function only, as `g@1()` calling `f@1`
-     * and `g()` calling `f@1` too, is apart from the others.
-     *
-     * @param list<Edge> $pair All the calls between the caller and the callee.
-     *
-     * @return array<int<0, max>, true> By the indexes in the pair.
-     */
-    private static function nested(array $pair, TimeSlice $slice): array
-    {
-        $callerLevels = $calleeLevels = [];
-        foreach ($pair as $edge) {
-            $callerLevels[] = self::level($edge->callerId, $edge->caller);
-            $calleeLevels[] = self::level($edge->calleeId, $edge->callee);
-        }
-        $order = \array_keys($pair);
-        $sorted = $callerLevels;
-        \array_multisort($sorted, \SORT_ASC, \SORT_NUMERIC, $order);
-
-        // An edge is nested when an edge of a smaller caller level has a smaller callee level
-        $nested = [];
-        $min = $levelMin = \PHP_INT_MAX;
-        $level = null;
-        foreach ($order as $i) {
-            if ($callerLevels[$i] !== $level) {
-                $min = \min($min, $levelMin);
-                $levelMin = \PHP_INT_MAX;
-                $level = $callerLevels[$i];
-            }
-            $min < $calleeLevels[$i] and $nested[$i] = true;
-            $levelMin = \min($levelMin, $calleeLevels[$i]);
-            $slice->tick();
-        }
-
-        return $nested;
-    }
-
-    /**
-     * @return int<0, max> The recursion level of a function ID: `foo@2` is 2.
-     */
-    private static function level(?string $id, ?string $name): int
-    {
-        return $id === null || $id === $name ? 0 : \max(0, (int) \substr($id, \strlen((string) $name) + 1));
     }
 }
