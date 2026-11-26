@@ -346,19 +346,19 @@ final class Test extends Command
             self::read('speedscope-excimer.json'),
         ));
 
-        // Recorded at phpspy's `-H 199`: a 5 ms period
+        // Both recorded at phpspy's default 99 Hz: a 10.1 ms period
         $this->attempt('phpspy trace', fn() => $this->http(
             'POST',
-            '/api/profiler/phpspy?app_name=trap-test&hostname=trap-test&name=phpspy&period=0.005025',
+            '/api/profiler/phpspy?app_name=trap-test&hostname=trap-test&name=orders&period=0.010101&tags%5Bprofiler%5D=phpspy',
             ['Content-Type' => 'text/plain'],
             self::read('phpspy.txt'),
         ));
 
         $this->attempt('Collapsed stacks', fn() => $this->http(
             'POST',
-            '/api/profiler/collapsed?app_name=trap-test&hostname=trap-test&name=collapsed&period=0.005025',
+            '/api/profiler/collapsed?app_name=trap-test&hostname=trap-test&name=import&period=0.010101&tags%5Bprofiler%5D=phpspy',
             ['Content-Type' => 'text/plain'],
-            self::read('phpspy.folded'),
+            self::read('import.folded'),
         ));
     }
 

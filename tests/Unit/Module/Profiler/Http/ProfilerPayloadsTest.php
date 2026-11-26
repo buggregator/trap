@@ -114,17 +114,17 @@ final class ProfilerPayloadsTest
         $profile = $restored->payload->getProfile();
         Assert::same($profile->metadata['app_name'], 'trap-test');
         Assert::same($profile->tags, ['name' => 'phpspy']);
-        // 88 samples of 5025 µs
-        Assert::same($profile->peaks->jsonSerialize(), ['ct' => 88, 'wt' => 442_200, 'cpu' => 0, 'mu' => 0, 'pmu' => 0]);
+        // 138 samples of 10 101 µs
+        Assert::same($profile->peaks->jsonSerialize(), ['ct' => 138, 'wt' => 1_393_938, 'cpu' => 0, 'mu' => 0, 'pmu' => 0]);
     }
 
     public function testCollapsedPayloadSurvivesFrameRoundTrip(): void
     {
-        $restored = self::roundTrip('collapsed', 'phpspy.folded');
+        $restored = self::roundTrip('collapsed', 'import.folded');
 
         Assert::same($restored->payload->type, Frame\Type::Collapsed);
         Assert::same($restored->payload->getProfile()->tags, ['name' => 'collapsed']);
-        Assert::same($restored->payload->getProfile()->peaks->jsonSerialize(), ['ct' => 88, 'wt' => 442_200, 'cpu' => 0, 'mu' => 0, 'pmu' => 0]);
+        Assert::same($restored->payload->getProfile()->peaks->jsonSerialize(), ['ct' => 236, 'wt' => 2_383_836, 'cpu' => 0, 'mu' => 0, 'pmu' => 0]);
     }
 
     private static function dispatch(string $payload): Frame
@@ -138,7 +138,7 @@ final class ProfilerPayloadsTest
     private static function roundTrip(string $endpoint, string $payload): Frame
     {
         $body = (string) \file_get_contents(self::PAYLOADS . '/' . $payload);
-        $raw = "POST /api/profiler/$endpoint?app_name=trap-test&name=$endpoint&period=0.005025 HTTP/1.1\r\n"
+        $raw = "POST /api/profiler/$endpoint?app_name=trap-test&name=$endpoint&period=0.010101 HTTP/1.1\r\n"
             . "Host: 127.0.0.1:8000\r\nConnection: close\r\nContent-Type: text/plain\r\n"
             . 'Content-Length: ' . \strlen($body) . "\r\n\r\n" . $body;
 

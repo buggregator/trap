@@ -1,0 +1,16 @@
+<main>;Shop\Import\generateCsv 2
+<main>;Shop\Import\generateCsv;sprintf 4
+<main>;Shop\Import\Importer::import 4
+<main>;Shop\Import\Importer::import;Shop\Import\CsvReader::rows 13
+<main>;Shop\Import\Importer::import;Shop\Import\CsvReader::rows;array_combine 1
+<main>;Shop\Import\Importer::import;Shop\Import\CsvReader::rows;fgetcsv 102
+<main>;Shop\Import\Importer::import;Shop\Import\Importer::flush;PDOStatement::execute 30
+<main>;Shop\Import\Importer::import;Shop\Import\Normalizer::normalize 10
+<main>;Shop\Import\Importer::import;Shop\Import\Normalizer::normalize;DateTimeImmutable::__construct 11
+<main>;Shop\Import\Importer::import;Shop\Import\Normalizer::normalize;DateTimeImmutable::format 4
+<main>;Shop\Import\Importer::import;Shop\Import\Normalizer::normalize;hash 4
+<main>;Shop\Import\Importer::import;Shop\Import\Normalizer::normalize;mb_convert_case 3
+<main>;Shop\Import\Importer::import;Shop\Import\Normalizer::normalize;mb_strtolower 1
+<main>;Shop\Import\Importer::import;Shop\Import\Validator::validate 6
+<main>;Shop\Import\Importer::import;Shop\Import\Validator::validate;checkdate 1
+<main>;Shop\Import\Importer::import;Shop\Import\Validator::validate;filter_var 40
