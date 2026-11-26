@@ -6,7 +6,8 @@ two calls. Full reference: <https://github.com/buggregator/trap/blob/master/docs
 
 ## Set up
 
-1. Start Trap with `--xdebug` (and `--mcp`): `vendor/bin/trap --mcp --xdebug`. It listens for Xdebug on `9003`.
+1. Start Trap with `--xdebug` (and `--mcp`): `vendor/bin/trap --mcp --xdebug`; `XDEBUG_PROXY_ENABLED=true` turns it on
+   too. It listens for Xdebug on `9003`.
    `9003` taken (detect reports it), usually by the user's IDE → `--xdebug=9013` and `xdebug.client_port=9013`
    below; leave the IDE where it is. In PowerShell start it by
    [the recipe of server.md](server.md#a-trap-of-your-own-in-powershell). Once `--xdebug` is on, Xdebug may also

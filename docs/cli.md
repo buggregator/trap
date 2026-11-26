@@ -43,7 +43,7 @@ vendor/bin/trap --ui --xdebug
 ```
 
 `-s` without a value removes the default `console` sender. `--ui` adds the `ui` sender to the list, `--mcp` the `mcp` one,
-`--xdebug` the `xdebug` one.
+`--xdebug` the `xdebug` one; `XDEBUG_PROXY_ENABLED=true`, as in Buggregator Server, adds it too.
 
 Environment variables and [`trap.xml`](configuration.md#trapxml) configure the same settings and more;
 see [Configuration](configuration.md). An environment variable takes precedence over the option:

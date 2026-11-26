@@ -3,7 +3,8 @@
 With `--xdebug`, Trap takes Xdebug step-debugging sessions (DBGp). It relays a session to your IDE, or, with no IDE
 listening, drives it itself: the script stops at a breakpoint, and you read the stack and the variables and step on
 from the Xdebug page of the [web UI](web-ui.md), while AI agents do the same with the [MCP tools](mcp.md#xdebug-debugger).
-The CLI marks it experimental.
+The CLI marks it experimental. `XDEBUG_PROXY_ENABLED=true`, the variable of Buggregator Server, turns it on as
+`--xdebug` does.
 
 ```bash
 vendor/bin/trap --ui --xdebug
@@ -106,6 +107,7 @@ drive holds Trap up while it is read. In Docker, or for another file, step over 
 
 | Variable                          | `trap.xml`                        | Default          | Meaning                                                                |
 |-----------------------------------|-----------------------------------|------------------|------------------------------------------------------------------------|
+| `XDEBUG_PROXY_ENABLED`            |                                   | `false`          | `true`, `1`, `yes` or `on` turns the debugger on, as `--xdebug` does   |
 | `TRAP_XDEBUG_PORT`                | `/trap/xdebug/@port`              | `9003`           | Port Xdebug connects to; takes precedence over `--xdebug=<port>`       |
 | `TRAP_XDEBUG_HOST`                | `/trap/xdebug/@host`              | `TRAP_TCP_HOST`  | Host of that port, when it is not one of the TCP ports                 |
 | `TRAP_XDEBUG_IDE`                 | `/trap/xdebug/@ide`               | `127.0.0.1:9004` | Where the IDE listens, `host:port`                                     |

@@ -115,7 +115,7 @@ Environment variables win over CLI options, which win over `trap.xml` of the pac
 `TRAP_MCP_HOST`, `TRAP_MCP_TOKEN`, `TRAP_UI_PORT`, `TRAP_UI_HOST`, `TRAP_TLS_CERT`, `TRAP_TLS_KEY`,
 `TRAP_MEMORY_LIMIT` (512M, for large profiles), `TRAP_HTTP_MAX_INFLATED_SIZE` (64M, a gzipped or chunked body
 decoded past it gets `413`), `TRAP_XDEBUG_PATH`, `TRAP_XHPROF_PATH`, `TRAP_SPX_PATH` (the directories of profiles
-to pick up), `TRAP_XDEBUG_PORT`, `TRAP_XDEBUG_IDE`, `TRAP_XDEBUG_MODE`, `TRAP_XDEBUG_ALLOW_EVAL`,
+to pick up), `XDEBUG_PROXY_ENABLED` (`true` turns the debugger on as `--xdebug` does), `TRAP_XDEBUG_PORT`, `TRAP_XDEBUG_IDE`, `TRAP_XDEBUG_MODE`, `TRAP_XDEBUG_ALLOW_EVAL`,
 `TRAP_XDEBUG_ALLOW_CONTROL` (the debugger of `--xdebug`, see [xdebug.md](xdebug.md)), `TRAP_XDEBUG_TRACE_PATH`,
 `TRAP_XDEBUG_TRACE_MAX_UPLOAD`, `_MAX_SIZE`, `_KEEP` (Xdebug traces, see [profiling.md](profiling.md#trace-the-calls)),
 `TRAP_TRACES_MAX_SPANS`, `TRAP_TRACES_TTL` (the OpenTelemetry spans the console keeps to print a trace as a tree),
