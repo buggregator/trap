@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.25.0](https://github.com/buggregator/trap/compare/1.24.0...1.25.0) (2026-11-27)
+
+
+### Features
+
+* **profiler:** collapse the recursion of the call graph into a node per function on request ([8bfa838](https://github.com/buggregator/trap/commit/8bfa838fddc48342f9e64f2d5f0fc9aa0f6be94d))
+* **ui:** update the web UI to buggregator/frontend 1.44.0 ([509698a](https://github.com/buggregator/trap/commit/509698a9998dabc829e2a3a0ed1fd39e6eb8590f))
+
 ## [1.24.0](https://github.com/buggregator/trap/compare/1.23.0...1.24.0) (2026-11-26)
 
 
