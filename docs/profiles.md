@@ -66,6 +66,19 @@ Collapsed stacks of SPX count microseconds, not samples: send an SPX profile to 
 `converter:folded` keeps the file and line in every frame, so each line of a function would be a function of its
 own: send the reli-prof trace itself to `/api/profiler/phpspy`.
 
+## Recursion in the call graph
+
+The Call graph of the [web UI](web-ui.md) draws a node per recursion level, as XHProf names them: `foo`, `foo@1`,
+`foo@2`. The «Collapse recursion» switch, which the UI remembers, draws a node per function instead:
+
+- A function that calls itself has an edge to itself; a call back up a cycle through other functions is drawn
+  beside the nodes.
+- A node costs as much as the outermost calls of the function, so a recursion does not count many times over.
+  When the profile counts calls, not samples, the name adds the recursive ones: `foo (12x, 9 recursive)`.
+- An edge sums the calls between two functions the same way. Profiles with a call tree (Xdebug, Speedscope, SPX,
+  pprof, phpspy, collapsed stacks) give it exactly. XHProf and Blackfire profiles have only the calls between
+  recursion levels, so an edge leaves out a call that went deeper in the recursion through another function.
+
 ## Directory watching
 
 Trap also picks up profiler files from a directory:

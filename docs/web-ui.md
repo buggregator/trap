@@ -1,7 +1,7 @@
 # Web UI
 
 The `--ui` option of [`run`](cli.md#run) starts the web interface of the Buggregator Server inside Trap:
-the build of [buggregator/frontend](https://github.com/buggregator/frontend) 1.43.0. The CLI marks it experimental.
+the build of [buggregator/frontend](https://github.com/buggregator/frontend) 1.44.0. The CLI marks it experimental.
 
 ```bash
 vendor/bin/trap --ui
